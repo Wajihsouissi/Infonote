@@ -1,0 +1,32 @@
+.historyControls {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    /* Close gap like breadcrumbs */
+}
+
+.historyBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    /* Slightly smaller to match breadcrumb height */
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    /* Match crumb muted color */
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.historyBtn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--color-text-main);
+}
+
+.historyBtn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}

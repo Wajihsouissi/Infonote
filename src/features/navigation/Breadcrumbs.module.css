@@ -1,0 +1,66 @@
+.container {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 99px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    gap: 8px;
+    /* Add gap for spacing */
+}
+
+.controlsWrapper {
+    display: flex;
+    align-items: center;
+}
+
+.divider {
+    width: 1px;
+    height: 16px;
+    background: var(--glass-border);
+    margin: 0 4px;
+}
+
+.item {
+    display: flex;
+    align-items: center;
+}
+
+.separator {
+    color: var(--color-text-muted);
+    margin: 0 6px;
+}
+
+.crumb {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.crumb:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--color-text-main);
+}
+
+.crumb.active {
+    color: var(--color-primary-light);
+    cursor: default;
+    font-weight: 600;
+    background: rgba(139, 92, 246, 0.1);
+}

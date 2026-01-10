@@ -1,0 +1,36 @@
+/* Main Container */
+.container {
+    width: 100vw;
+    height: 100vh;
+    background: var(--color-bg-base);
+    position: relative;
+    display: flex;
+    overflow: hidden;
+}
+
+/* Canvas Area */
+.canvasArea {
+    flex: 1;
+    position: relative;
+    height: 100%;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.canvasWithSidebar {
+    /* When Sidebar is active, we might want to shift the canvas or just let it resize. 
+       Flexbox handles the resize automatically (flex: 1).
+       But we might want to ensure the "center" shifts visually if we want to keep the mental model stable.
+    */
+    margin-left: 600px;
+    /* Logic must match Sidebar width if Sidebar is absolute, OR if it's flex item */
+    /* Wait, NoteContentPanel is absolute position left:0. 
+       So we need to add margin-left here to push canvas.
+    */
+}
+
+/* DEPRECATED: Old Parent Header styles - Keeping just in case user wants revert or reference, 
+   but for "refactor" we usually delete. I'll leave them commented out or deleted.
+*/
+/* 
+.parentHeader { ... } 
+*/

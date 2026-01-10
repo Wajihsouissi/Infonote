@@ -1,0 +1,203 @@
+.board {
+    background: rgba(30, 30, 30, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 24px;
+    min-width: 800px;
+    min-height: 500px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    /* Ensure dragged items can be seen if they overflow initial bounds */
+    overflow: visible;
+    height: auto;
+    width: fit-content;
+}
+
+.selected {
+    border-color: #8b5cf6;
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.5), 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #fff 0%, #aaa 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.02em;
+}
+
+.columnCount {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 4px 10px;
+    border-radius: 20px;
+}
+
+.columnsContainer {
+    display: flex;
+    gap: 16px;
+    flex: 1;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    align-items: stretch;
+}
+
+/* Custom Scrollbar */
+.columnsContainer::-webkit-scrollbar {
+    height: 6px;
+}
+
+.columnsContainer::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.columnsContainer::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.column {
+    flex: 1;
+    min-width: 280px;
+    /* Ensure 224px cards fit easily */
+    background: rgba(20, 20, 20, 0.4);
+    border-radius: 16px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    transition: background 0.2s, border-color 0.2s;
+    /* Important for dropping */
+    position: relative;
+}
+
+.column:hover {
+    background: rgba(30, 30, 30, 0.5);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.columnActive {
+    background: rgba(139, 92, 246, 0.15) !important;
+    border-color: rgba(139, 92, 246, 0.6) !important;
+    box-shadow: inset 0 0 20px rgba(139, 92, 246, 0.1);
+}
+
+.columnHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 0 4px;
+}
+
+.columnTitle {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.statusBadge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    opacity: 0.8;
+}
+
+.addCardBtn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.6);
+    border-radius: 6px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    padding: 0;
+}
+
+.addCardBtn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    transform: scale(1.05);
+}
+
+.dropZone {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    /* Gaps between cards */
+    padding: 4px;
+    min-height: 100px;
+}
+
+.columnColorBar {
+    height: 4px;
+    width: 24px;
+    border-radius: 2px;
+    margin-right: 10px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.handle {
+    background: transparent;
+    width: 1px;
+    height: 1px;
+    border: none;
+}
+
+/* --- Drag & Drop --- */
+
+.cardWrapper {
+    position: relative;
+    /* Ensure wrapper takes full width for flex behavior */
+    width: 100%;
+    /* Let ReactFlow card define height, or we enforce auto */
+}
+
+/* The card being dragged (Ghost) */
+.dragGhost {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.9;
+    transform-origin: center center;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    /* Slight rotation for dynamics */
+    transform: rotate(3deg) scale(1.02);
+    /* We will set width/height via inline style to match original */
+}
+
+/* The placeholder in the list */
+.dropPlaceholder {
+    background: rgba(255, 255, 255, 0.035);
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    margin-bottom: 0;
+    transition: all 0.2s ease;
+}

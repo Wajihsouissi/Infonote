@@ -1,0 +1,56 @@
+.themeSwitcher {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+
+    width: 44px;
+    height: 44px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+    transition: all var(--transition-fast);
+
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.themeSwitcher:hover {
+    background: var(--glass-bg-hover);
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.2);
+}
+
+.themeSwitcher:active {
+    transform: translateY(0);
+}
+
+.iconWrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-main);
+    transition: all var(--transition-fast);
+}
+
+.themeSwitcher:hover .iconWrapper {
+    color: var(--color-primary);
+    transform: rotate(15deg);
+}
+
+.icon {
+    transition: transform var(--transition-smooth);
+}
+
+.themeSwitcher:hover .icon {
+    transform: scale(1.1);
+}

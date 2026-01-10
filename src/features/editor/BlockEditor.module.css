@@ -1,0 +1,576 @@
+.editor {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    min-width: 50px;
+    /* Ensure droppable width */
+    flex-grow: 1;
+    /* Allow editor to take available space */
+    min-height: 100%;
+    /* Ensure it treats full height */
+    padding-bottom: 32px;
+    /* Bottom padding for "click to type at bottom" feel */
+    cursor: text;
+    /* Indicate clickable */
+}
+
+/* Minimal mode (for chromeless blocks): No extra bottom padding */
+.minimal {
+    padding-bottom: 0 !important;
+    min-height: auto !important;
+    padding-top: 0 !important;
+    /* Also remove top padding if any inherited from parent */
+}
+
+/* Compact headers in minimal mode to prevent snapping to 2x height */
+.minimal .heading1,
+.minimal .heading2,
+.minimal .heading3 {
+    margin-top: 0;
+    margin-bottom: 0;
+    line-height: 1.1;
+}
+
+.minimal .text,
+.minimal .todo,
+.minimal .listBullet,
+.minimal .listNumber {
+    line-height: 1.2;
+    font-size: 0.9rem;
+}
+
+.sortableWrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    /* Center handle vertically */
+    gap: 6px;
+    /* Space between handle and content */
+}
+
+.dragHandle {
+    /* Position in flow */
+    position: relative;
+    left: auto;
+    /* top: 0; Removed manual offset */
+
+    flex-shrink: 0;
+    width: 18px;
+    height: 20px;
+
+    cursor: grab;
+    color: var(--color-text-muted);
+    opacity: 0;
+    /* Still hidden by default, visible on hover */
+    transition: opacity 0.2s ease, background 0.2s;
+    border-radius: 4px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Hide internal handles in minimal mode to prevent clutter with node handles */
+.minimal .dragHandle {
+    display: none !important;
+}
+
+.sortableWrapper:hover {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+}
+
+.sortableWrapper:hover .dragHandle {
+    opacity: 0.5;
+}
+
+.dragHandle:hover {
+    opacity: 1 !important;
+    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+/* (Moved to bottom) */
+
+.blockContent {
+    flex-grow: 1;
+    min-width: 0;
+    /* Prevent overflow */
+}
+
+.block {
+    outline: none;
+    border-radius: 4px;
+    padding: 0;
+    /* Removed padding */
+    min-height: 24px;
+    /* Reduced min-height */
+    color: var(--color-text-main);
+    transition: background 0.2s ease;
+    white-space: pre-wrap;
+    /* Preserve whitespace */
+    word-break: break-word;
+    overflow-wrap: break-word;
+    /* Ensure long words break */
+    min-width: 0;
+    /* Help with flexbox overflow */
+    max-width: 100%;
+    /* Ensure it doesn't exceed parent */
+}
+
+.block:focus {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.block:empty:before {
+    content: attr(data-placeholder);
+    color: var(--color-text-muted);
+    opacity: 0.5;
+    pointer-events: none;
+    /* Ensure placeholder is vertically centered in the new flex layout if needed */
+    display: block;
+}
+
+/* ... */
+
+.text {
+    font-size: 0.95rem;
+    line-height: 1.4;
+    /* Reduced line height */
+    min-height: 28px;
+    /* Significantly reduced from 40px */
+    /* Significantly reduced from 40px */
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+    /* Take up remaining space in flex containers like callout */
+}
+
+.heading1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-top: 12px;
+    margin-bottom: 6px;
+}
+
+.heading2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+.heading3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-top: 6px;
+    margin-bottom: 2px;
+}
+
+.todoWrapper,
+.quoteWrapper {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.todoCheckbox {
+    margin-top: 6px;
+    cursor: pointer;
+}
+
+.todo {
+    flex-grow: 1;
+}
+
+.quoteWrapper {
+    border-left: 3px solid var(--color-primary);
+    padding-left: 12px;
+    margin: 8px 0;
+    font-style: italic;
+    color: var(--color-text-muted);
+}
+
+.mediaWrapper {
+    width: 100%;
+    margin: 8px 0;
+    position: relative;
+    padding: 2px;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-radius: 10px;
+    /* 8px img + 2px padding -> ~10px outer */
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mediaWrapper:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.mediaImage {
+    max-width: 100%;
+    border-radius: 8px;
+    display: block;
+}
+
+.removeMediaBtn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s;
+}
+
+.mediaWrapper:hover .removeMediaBtn {
+    opacity: 1;
+}
+
+.removeMediaBtn:hover {
+    transform: scale(1.1);
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.mediaPlaceholder {
+    width: 100%;
+    padding: 20px;
+    border: 1px dashed var(--color-border);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.mediaInput {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--color-text-main);
+    font-family: inherit;
+    outline: none;
+    text-align: center;
+}
+
+/* Lists */
+.listWrapper {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.listBullet {
+    margin-top: 6px;
+    font-size: 1.2rem;
+    line-height: 1;
+    color: var(--color-text-main);
+    user-select: none;
+}
+
+.listNumber {
+    margin-top: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    min-width: 20px;
+    user-select: none;
+}
+
+.toggleWrapper {
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+}
+
+.toggleTriangle {
+    margin-top: 8px;
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 8px solid var(--color-text-muted);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+/* Callout */
+.calloutWrapper {
+    display: flex;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 4px solid var(--color-primary);
+    margin: 8px 0;
+}
+
+.calloutIconWrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    margin: -2px 0 0 -4px;
+    /* Adjust alignment to sit nicely */
+    flex-shrink: 0;
+    user-select: none;
+    color: var(--color-text-main);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.calloutIconWrapper.clickable {
+    cursor: pointer;
+}
+
+.calloutIconWrapper.clickable:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.05);
+}
+
+.calloutIconWrapper.clickable:active {
+    transform: scale(0.95);
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.calloutIconSvg {
+    /* Ensure icon size consistency if needed */
+}
+
+/* Divider */
+.divider {
+    height: 1px;
+    background: var(--glass-border);
+    margin: 16px 0;
+    width: 100%;
+}
+
+/* Slash Menu */
+.slashMenu {
+    position: fixed;
+    /* Must be fixed to float over everything */
+    background: rgba(30, 30, 30, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 6px;
+    width: 260px;
+    max-height: 500px;
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    animation: fadeIn 0.1s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.menuHeader {
+    padding: 8px 12px 4px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+    font-weight: 600;
+}
+
+.slashMenuItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--color-text-main);
+    transition: all 0.1s ease;
+}
+
+.slashMenuItem:hover,
+.slashMenuItem.selected {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.slashIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.slashMenuItem:hover .slashIcon,
+.slashMenuItem.selected .slashIcon {
+    background: white;
+    color: black;
+}
+
+.dangerItem {
+    color: #ff4d4f;
+}
+
+.dangerItem:hover {
+    background: rgba(255, 77, 79, 0.1);
+    color: #ff4d4f;
+}
+
+.dangerItem:hover .slashIcon {
+    background: #ff4d4f;
+    color: white;
+}
+
+.menuArrow {
+    color: var(--color-text-muted);
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+/* Floating Toolbar */
+.floatingToolbar {
+    position: fixed;
+    background: #1e1e1e;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    z-index: 10001;
+    animation: fadeIn 0.15s ease-out;
+}
+
+.toolbarBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: #e0e0e0;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.toolbarBtn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.toolbarBtn.active {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.toolbarDivider {
+    width: 1px;
+    height: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 4px;
+}
+
+/* Color Tab Switcher */
+.tabContainer {
+    display: flex;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 4px;
+    border-radius: 8px;
+    margin: 4px 12px 12px;
+    gap: 4px;
+}
+
+.tabButton {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    padding: 6px 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.tabButton:hover {
+    color: var(--color-text-main);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.tabButton.active {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.editor {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    min-width: 50px;
+    /* Ensure droppable width */
+    flex-grow: 1;
+    /* Allow editor to take available space */
+    min-height: 100%;
+    /* Ensure it treats full height */
+    padding-bottom: 32px;
+    /* Bottom padding for "click to type at bottom" feel */
+    cursor: text;
+    /* Indicate clickable */
+    position: relative;
+    /* Context for selection rect */
+}
+
+/* ... */
+
+/* Selection Box */
+.selectionRect {
+    position: absolute;
+    /* Relative to .editor */
+    border: 1px solid rgba(100, 160, 255, 0.8);
+    background: rgba(100, 160, 255, 0.2);
+    z-index: 9999;
+    pointer-events: none;
+    border-radius: 2px;
+}
+
+/* Multi-select State */
+.sortableWrapper.selected {
+    background: rgba(100, 160, 255, 0.15) !important;
+    border-radius: 6px;
+}
+
+
+/* Strict Overrides for Media Blocks placed at the end */
+.sortableWrapper[data-block-type="image"] .dragHandle,
+.sortableWrapper[data-block-type="video"] .dragHandle {
+    display: none !important;
+}
+
+.sortableWrapper[data-block-type="image"].selected .dragHandle {
+    display: none !important;
+}

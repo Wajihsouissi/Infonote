@@ -1,0 +1,162 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Typography */
+  --font-sans: 'Poppins', sans-serif;
+
+  /* Animation */
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* Dark Theme (Default) */
+:root,
+:root[data-theme="dark"] {
+  /* Premium Dark Theme Palette */
+  --color-bg-base: #0f1115;
+  --color-bg-surface: #1c1e26;
+  --color-bg-card: #252836;
+
+  --color-primary: #8b5cf6;
+  --color-primary-glow: rgba(139, 92, 246, 0.4);
+  --color-secondary: #06b6d4;
+
+  --color-text-main: #f3f4f6;
+  --color-text-muted: #9ca3af;
+  --color-border: #333645;
+
+  /* Glassmorphism */
+  --glass-bg: rgba(28, 30, 38, 0.7);
+  --glass-bg-hover: rgba(28, 30, 38, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --backdrop-blur: 16px;
+
+  /* React Flow */
+  --rf-controls-bg: #1e1e1e;
+  --rf-controls-border: #333;
+  --rf-controls-text: #e5e7eb;
+}
+
+/* Light Theme */
+:root[data-theme="light"] {
+  /* Premium Light Theme Palette */
+  --color-bg-base: #f8f9fa;
+  --color-bg-surface: #ffffff;
+  --color-bg-card: #f1f3f5;
+
+  --color-primary: #7c3aed;
+  --color-primary-glow: rgba(124, 58, 237, 0.3);
+  --color-secondary: #0891b2;
+
+  --color-text-main: #1f2937;
+  --color-text-muted: #6b7280;
+  --color-border: #e5e7eb;
+
+  /* Glassmorphism */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-bg-hover: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --backdrop-blur: 16px;
+
+  /* React Flow */
+  --rf-controls-bg: #ffffff;
+  --rf-controls-border: #e5e7eb;
+  --rf-controls-text: #1f2937;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--color-bg-base);
+  color: var(--color-text-main);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  /* Canvas app */
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* Utilities */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--backdrop-blur));
+  border: 1px solid var(--glass-border);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* React Flow Controls Customization */
+.react-flow__controls {
+  display: flex;
+  flex-direction: column;
+  background: var(--rf-controls-bg);
+  border: 1px solid var(--rf-controls-border);
+  border-radius: 8px;
+  padding: 2px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  gap: 1px;
+}
+
+.react-flow__controls-button {
+  background: transparent;
+  border: none !important;
+  border-radius: 4px !important;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-main);
+  transition: background 0.2s;
+  margin: 1px;
+}
+
+.react-flow__controls-button:hover {
+  background: var(--glass-bg-hover) !important;
+}
+
+.react-flow__controls-button svg {
+  fill: var(--rf-controls-text) !important;
+  width: 14px;
+  height: 14px;
+}
+
+/* Remove default borders and shadows */
+.react-flow__controls-button {
+  box-shadow: none !important;
+}

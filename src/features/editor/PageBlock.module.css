@@ -1,0 +1,30 @@
+.pageBlock {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--color-text-main);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+    width: fit-content;
+}
+
+.pageBlock:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--color-primary);
+}
+
+.pageIcon {
+    color: var(--color-primary);
+    opacity: 0.8;
+}
+
+.pageTitle {
+    font-size: 0.9rem;
+    font-weight: 500;
+}

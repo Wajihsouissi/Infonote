@@ -1,0 +1,178 @@
+.fusedNoteNode {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    background: #18181b;
+    /* Zinc 900 */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 12px 12px 12px 6px;
+    /* Reduced left padding */
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+
+
+    /* Subtle second layer hint */
+    backdrop-filter: blur(8px);
+}
+
+.dragHandleLeft {
+    flex-shrink: 0;
+    margin-top: 4px;
+    cursor: grab;
+    color: rgba(255, 255, 255, 0.2);
+    transition: color 0.2s;
+    width: 16px;
+    display: flex;
+    justify-content: center;
+}
+
+.dragHandleLeft:hover {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.fusedNoteNode.selected {
+    border-color: var(--color-primary, #60A5FA);
+}
+
+.fusedNoteNode:hover {
+    border-color: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+}
+
+.content {
+    width: 100%;
+    height: 100%;
+    cursor: text;
+    overflow-y: hidden;
+    /* Hide scroll unless hovered? No, functional. */
+}
+
+/* Modern scrollbar */
+.content::-webkit-scrollbar {
+    width: 4px;
+}
+
+.content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.convertBtn {
+    position: absolute;
+    top: -32px;
+    right: -32px;
+    width: 32px;
+    height: 32px;
+    border-radius: 100px;
+    /* Squircle-ish */
+
+    /* Glassy Style */
+    background: rgba(30, 30, 30, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    /* Subtle violet tint border */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+
+    color: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+
+    /* Transitions & Visibility */
+    opacity: 0;
+    transform: scale(0.9) translateY(4px);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    z-index: 50;
+}
+
+.fusedNoteNode:hover .convertBtn {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+}
+
+.convertBtn:hover {
+    background: rgba(139, 92, 246, 0.2);
+    /* Violet glass hover */
+    border-color: rgba(139, 92, 246, 0.6);
+    box-shadow:
+        0 8px 20px rgba(124, 58, 237, 0.3),
+        0 0 0 1px rgba(139, 92, 246, 0.4);
+    transform: scale(1.1) rotate(3deg) !important;
+    color: white;
+}
+
+.handle {
+    opacity: 0;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-text-muted);
+    transition: all 0.2s;
+}
+
+.fusedNoteNode:hover .handle,
+.fusedNoteNode.selected .handle {
+    opacity: 1;
+}
+
+/* Apple Vision Pro Style Resize Handle - Truly Curved Arc, Outside */
+.modernResizeHandle {
+    position: absolute;
+    bottom: -20px;
+    /* Increased distance from node */
+    right: -20px;
+    width: 44px;
+    /* Smaller size */
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: nwse-resize;
+    z-index: 30;
+    pointer-events: auto;
+    transform: rotate(180deg);
+    /* Rotate 180 degrees */
+}
+
+.modernResizeHandle svg {
+    width: 60%;
+    height: 60%;
+    display: block;
+    /* Base soft glow */
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.handlePath {
+    stroke-opacity: 0.9;
+    transition: all 0.3s ease;
+}
+
+.fusedNoteNode:hover .modernResizeHandle {
+    opacity: 1;
+}
+
+/* Hover State - Initial Glow */
+.modernResizeHandle:hover svg {
+    filter:
+        drop-shadow(0 0 15px rgba(167, 139, 250, 0.7)) drop-shadow(0 0 30px rgba(96, 165, 250, 0.5));
+    transform: scale(1.1) rotate(-5deg);
+}
+
+/* Active/Dragging State - Intense Neon Glow */
+.modernResizeHandle:active svg {
+    filter:
+        drop-shadow(0 0 25px rgba(167, 139, 250, 1)) drop-shadow(0 0 50px rgba(96, 165, 250, 0.8)) drop-shadow(0 0 80px rgba(96, 165, 250, 0.4));
+    transform: scale(1.2) rotate(-10deg);
+}

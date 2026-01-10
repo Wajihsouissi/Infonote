@@ -1,0 +1,1258 @@
+.card {
+    border-radius: 12px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    color: var(--color-text-main);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    display: flex;
+    flex-direction: column;
+    /* overflow: hidden; Removed to allow hover menu to float outside */
+}
+
+/* React Flow Controls Customization */
+.react-flow__controls {
+    display: flex;
+    flex-direction: column;
+    background: #1e1e1e;
+    /* Dark background from image */
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+}
+
+.react-flow__controls-button {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #333;
+    border-radius: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    transition: background 0.2s;
+}
+
+.react-flow__controls-button:last-child {
+    border-bottom: none;
+}
+
+.react-flow__controls-button:hover {
+    background: #333;
+}
+
+.react-flow__controls-button svg {
+    fill: white;
+    width: 16px;
+    height: 16px;
+}
+
+
+.selected {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px var(--color-primary-glow);
+}
+
+.potentialMerge {
+    box-shadow: 0 0 0 4px var(--color-secondary-glow), 0 0 20px rgba(139, 92, 246, 0.4);
+    border-color: var(--color-secondary);
+    transition: all 0.2s ease;
+}
+
+/* --- View Modes --- */
+
+/* 1. Icon View */
+.icon {
+    padding: 12px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 20px;
+}
+
+.iconText {
+    font-weight: 400;
+    /* Normal weight */
+    font-size: 0.8rem;
+    text-align: center;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 4px;
+}
+
+.iconView {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    flex: 1;
+    gap: 8px;
+}
+
+.iconTextInput {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-main);
+    text-align: center;
+    width: 100%;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.iconTextInput:focus {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--color-primary);
+}
+
+/* 2. Medium View */
+.medium {
+    padding: 4px 4px 4px 4px;
+    display: flex;
+    flex-direction: column;
+    justify-content: 4px;
+    height: 100%;
+}
+
+.mediumView {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    gap: 4px;
+    flex: 1;
+}
+
+/* Header: Icon + Title Row - MATCHING minimalHeader but Compact */
+.mediumHeader {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    /* Slightly tighter than minimal (12px) */
+    padding: 4px;
+    /* Match minimalHeader bg */
+    flex-shrink: 0;
+    min-height: auto;
+    font-size: 16px;
+    font-weight: 400;
+}
+
+.mediumIconButton {
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: var(--color-text-main);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.mediumIconButton:hover {
+    opacity: 1;
+}
+
+.mediumTitleInput {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: 14px;
+    /* Match minimalTitle usually 1rem or 1.1rem */
+    font-weight: 400;
+    color: var(--color-text-main);
+    width: 100%;
+    outline: none;
+    line-height: 1;
+    transition: all 0.2s;
+}
+
+.mediumTitleInput:focus {
+    opacity: 0.8;
+}
+
+.mediumDescInput {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 4px 4px;
+    font-size: 0.85rem;
+    /* Slightly bigger font */
+    font-weight: 300;
+    opacity: 0.9;
+    color: white;
+    width: 100%;
+    outline: none;
+    resize: none;
+    font-family: inherit;
+    margin-top: 0px;
+    line-height: 1.4;
+    transition: all 0.2s;
+    flex: 1;
+    /* Fill remaining space */
+    min-height: 0;
+    /* Allow flex shrink if needed */
+}
+
+.mediumDescInput:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.mediumDescInput:focus {
+    background: rgba(139, 92, 246, 0.05);
+    border-color: var(--color-primary);
+    opacity: 1;
+}
+
+/* Category Pill */
+.categoryInput {
+    font-size: 0.75rem;
+    font-weight: 400;
+    padding: 4px 8px;
+    border-radius: 12px;
+    width: 100%;
+    min-width: 120px;
+    /* margin-top: auto; Removed to allow description flex:1 to dominate */
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid transparent;
+    color: var(--color-text-main);
+    outline: none;
+    transition: all 0.2s;
+}
+
+.categoryInput:focus {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--color-primary);
+}
+
+.categoryChip {
+    background: rgba(139, 92, 246, 0.15);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-primary);
+    align-self: flex-start;
+    margin-top: auto;
+}
+
+/* 3. Expanded View */
+.expandedView {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* Restored Cover Image Styles */
+.coverImage {
+    width: 100%;
+    height: 80px;
+    border-radius: 12px 12px 0 0;
+    overflow: hidden;
+    flex-shrink: 0;
+    position: relative;
+    background: #0f0f11;
+}
+
+.coverImage img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s;
+}
+
+.coverImage:hover img {
+    transform: scale(1.05);
+}
+
+/* Metadata Chips on Cover */
+.coverMetadataOverlay {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    gap: 12px;
+    /* Spacing between chips and controls */
+    align-items: center;
+    z-index: 65;
+    /* Ensure on top - Higher than standard */
+    pointer-events: none;
+    /* Let clicks pass through to cover edit */
+}
+
+.metaChip {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.9);
+    letter-spacing: 0.05em;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    /* Re-enable clicks on chips if they become interactive */
+}
+
+/* Optional variants based on context (can be applied manually via style prop or classes) */
+.metaChip.blue {
+    color: #60a5fa;
+    background: rgba(30, 58, 138, 0.6);
+    border-color: rgba(96, 165, 250, 0.3);
+}
+
+.metaChip.purple {
+    color: #a78bfa;
+    background: rgba(76, 29, 149, 0.6);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.metaChip.green {
+    color: #34d399;
+    background: rgba(6, 78, 59, 0.6);
+    border-color: rgba(52, 211, 153, 0.3);
+}
+
+/* Restored Cover Placeholder */
+.coverPlaceholder {
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, rgba(30, 30, 35, 1) 0%, rgba(15, 15, 17, 1) 100%);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.coverEmptyState {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    opacity: 0.5;
+    transform: scale(0.9);
+}
+
+.coverPlaceholder:hover .coverEmptyState {
+    opacity: 1;
+    color: white;
+}
+
+.coverUrlInput {
+    background: rgba(0, 0, 0, 0.7);
+    border: 1px solid var(--color-primary);
+    border-radius: 6px;
+    padding: 4px 8px;
+    color: white;
+    font-size: 0.8rem;
+    outline: none;
+    width: 60%;
+    text-align: center;
+}
+
+.expandedMetadata {
+    background: transparent;
+    padding-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+}
+
+/* Redesigned Header Area */
+.expandedHeader {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 20px;
+    padding: 0 24px;
+    margin-top: -36px;
+    /* Overlap cover significantly */
+}
+
+/* Large Icon Container (Squircle) */
+.expandedIconButton {
+    width: 65px;
+    height: 65px;
+    background: #1e1e1e;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    z-index: 2;
+    padding: 0;
+    /* Reset */
+    color: var(--color-text-main);
+}
+
+.expandedIconButton:hover {
+    transform: translateY(-2px) scale(1.05);
+    border-color: var(--color-primary);
+    box-shadow: 0 12px 32px rgba(139, 92, 246, 0.2);
+}
+
+.expandedIconButton svg {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+/* Title Section */
+.titleSection {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding-bottom: 4px;
+    min-width: 0;
+    /* Flex overflow fix */
+}
+
+.expandedTitleInput {
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: var(--color-text-main);
+    font-size: 1.5rem;
+    font-weight: 600;
+    /* Less bold */
+    outline: none;
+    width: 100%;
+    transition: all 0.2s;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+}
+
+.expandedTitleInput:focus {
+    opacity: 0.8;
+}
+
+.expandedTitleInput::placeholder {
+    color: rgba(255, 255, 255, 0.2);
+}
+
+/* Metadata Grid / Description */
+.metaContainer {
+    padding: 0 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Description Box - Text only style */
+.expandedDescContainer {
+    width: 100%;
+}
+
+.expandedDescEdit {
+    width: 100%;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 2px 0;
+    /* Even tighter padding */
+    font-size: 0.8rem;
+    /* Smaller font as requested */
+    font-weight: 400;
+    color: var(--color-text-muted);
+    line-height: 1.4;
+    resize: none;
+    outline: none;
+    transition: all 0.2s;
+    min-height: 20px;
+    overflow: hidden;
+    /* No scrolling */
+}
+
+.expandedDescEdit:hover {
+    background: rgba(255, 255, 255, 0.03);
+    padding-left: 6px;
+    /* Shift text slightly on hover to show box */
+    padding-right: 6px;
+}
+
+.expandedDescEdit:focus {
+    background: rgba(255, 255, 255, 0.05);
+    padding-left: 8px;
+    padding-right: 8px;
+    color: var(--color-text-main);
+    overflow: hidden;
+    /* Ensure stays hidden even when focused */
+}
+
+.expandedDescEdit::placeholder {
+    color: rgba(255, 255, 255, 0.2);
+    font-style: italic;
+}
+
+/* Footer Section for Date and Stats */
+.expandedFooter {
+    padding: 8px 16px;
+    display: flex;
+    justify-content: space-between;
+    /* Changed from flex-end to allow left stats */
+    align-items: center;
+    border-top: 1px solid var(--glass-border);
+    background: rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
+}
+
+.footerStats {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.statItem {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    opacity: 0.8;
+}
+
+.statItem svg {
+    opacity: 0.7;
+}
+
+.footerDateBadge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    transition: all 0.2s;
+}
+
+.footerDateBadge:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--color-text-main);
+}
+
+.dateInput {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: inherit;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+    color-scheme: dark;
+    width: auto;
+    opacity: 0.8;
+}
+
+.dateInput::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.5;
+    cursor: pointer;
+}
+
+.dateInput::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
+.noteArea {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    position: relative;
+    /* Added for controls */
+
+    /* Visual Separation */
+    background: rgba(0, 0, 0, 0.2);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.noteArea::-webkit-scrollbar {
+    width: 4px;
+}
+
+.noteArea::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.noteArea::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.noteArea::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* 4. Chromeless View */
+.chromeless {
+    width: 100%;
+    height: 100%;
+    padding: 0 4px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 40px;
+}
+
+.chromeless .content {
+    font-size: 1rem;
+    color: var(--color-text-main);
+    mask-image: none;
+    overflow: visible;
+    pointer-events: auto;
+    flex-grow: 0;
+}
+
+/* --- Edit Buttons --- */
+.editBtn,
+.cancelBtn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.editBtn:hover {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+}
+
+.cancelBtn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
+
+/* --- Internal Layout --- */
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+
+.title {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--color-text-main);
+}
+
+.actions {
+    display: flex;
+    gap: 8px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.card:hover .actions,
+.expanded .actions {
+    opacity: 1;
+}
+
+.actionBtn {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.actionBtn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--color-text-main);
+}
+
+.content {
+    flex-grow: 0;
+    /* Prevent infinite loop with resize observer */
+    height: auto;
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    line-height: 1.6;
+}
+
+.footer {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--glass-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+}
+
+.metadataBadge {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.handle {
+    width: 10px !important;
+    height: 10px !important;
+    background: var(--color-primary) !important;
+    border: 2px solid var(--bg-dark) !important;
+    transition: all 0.2s;
+    opacity: 0;
+}
+
+.card:hover .handle,
+.selected .handle {
+    opacity: 1;
+}
+
+/* Hide handles on expanded view for cleaner look */
+.expanded .handle {
+    display: none !important;
+}
+
+/* Floating Hover Menu */
+.hoverMenu {
+    position: absolute;
+    top: -44px;
+    /* Float above the card */
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: #1e1e1e;
+    border: 1px solid #333;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    border-radius: 99px;
+    /* Capsule shape */
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 40px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    z-index: 2000;
+}
+
+/* Invisible bridge to prevent menu from closing when moving mouse between card and menu */
+.hoverMenu::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    height: 20px;
+    background: transparent;
+}
+
+.card:hover .hoverMenu {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+}
+
+.menuBtn {
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.menuBtn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    transform: scale(1.1);
+}
+
+/* Custom Resize Handle */
+.resizeHandle {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    background: rgba(30, 30, 30, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    opacity: 0;
+    transition: opacity 0.2s ease, background 0.2s;
+    cursor: nwse-resize;
+    z-index: 20;
+}
+
+/* Unified Top Controls Group (Flex Item) */
+.controlsGroup {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    pointer-events: auto;
+    /* Re-enable clicks */
+}
+
+.controlBtn {
+    width: 32px;
+    /* Slightly smaller for integrated feel */
+    height: 32px;
+    border-radius: 50%;
+
+    /* Glassy Style */
+    background: rgba(30, 30, 30, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+
+    color: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+
+    /* No initial opacity - always visible in header */
+    opacity: 0;
+    transform: scale(0.9);
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.expandedView:hover .controlBtn {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.controlBtn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: var(--color-primary);
+    transform: scale(1.05);
+    color: white;
+}
+
+.controlBtn.active {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: rgba(139, 92, 246, 0.6);
+    color: #a78bfa;
+}
+
+/* Minimal Header Mode */
+.minimalHeader {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    /* Space between title and controls */
+    gap: 12px;
+    padding: 12px 24px;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid var(--glass-border);
+    flex-shrink: 0;
+}
+
+.minimalTitle {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.card:hover .resizeHandle {
+    opacity: 1;
+}
+
+.resizeHandle:hover {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+}
+
+/* Content Scrolling Overrides */
+/* Ensure content takes available space but scrolls if needed */
+.content {
+    flex-grow: 1;
+    /* Was 0, changed to fill space */
+    height: 100%;
+    /* Fill the container */
+    max-height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    line-height: 1.6;
+    padding-bottom: 20px;
+    /* Space for resize handle */
+}
+
+.content::-webkit-scrollbar {
+    width: 4px;
+}
+
+.content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Apple Vision Pro Style Resize Handle - Truly Curved Arc, Outside */
+.modernResizeHandle {
+    position: absolute;
+    bottom: -20px;
+    /* Increased distance from card */
+    right: -20px;
+    width: 44px;
+    /* Smaller size */
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: nwse-resize;
+    z-index: 30;
+    pointer-events: auto;
+    transform: rotate(180deg);
+    /* Rotate 180 degrees */
+}
+
+.modernResizeHandle svg {
+    width: 60%;
+    height: 60%;
+    display: block;
+    /* Base soft glow */
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.handlePath {
+    stroke-opacity: 0.9;
+    transition: all 0.3s ease;
+}
+
+.card:hover .modernResizeHandle {
+    opacity: 1;
+}
+
+/* Hover State - Initial Glow */
+.modernResizeHandle:hover svg {
+    filter:
+        drop-shadow(0 0 15px rgba(167, 139, 250, 0.7)) drop-shadow(0 0 30px rgba(96, 165, 250, 0.5));
+    transform: scale(1.1) rotate(-5deg);
+}
+
+/* Active/Dragging State - Intense Neon Glow */
+.modernResizeHandle:active svg {
+    filter:
+        drop-shadow(0 0 25px rgba(167, 139, 250, 1)) drop-shadow(0 0 50px rgba(96, 165, 250, 0.8)) drop-shadow(0 0 80px rgba(96, 165, 250, 0.4));
+    transform: scale(1.2) rotate(-10deg);
+}
+
+
+/* Icon Buttons - Clickable icons */
+.iconButton,
+.expandedIconButton {
+    background: transparent;
+    border: 2px dashed transparent;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: white;
+    /* Force white icon color */
+}
+
+.iconButton svg,
+.expandedIconButton svg {
+    stroke: white;
+    color: white;
+}
+
+.iconButton {
+    font-size: 2rem;
+    padding: 8px;
+}
+
+
+
+.expandedIconButton {
+    font-size: 2.5rem;
+    padding: 10px;
+}
+
+.iconButton:hover,
+.expandedIconButton:hover {
+    border-color: var(--color-primary);
+    background: rgba(139, 92, 246, 0.1);
+    transform: scale(1.05);
+}
+
+/* Placeholder styles */
+.mediumDescInput::placeholder,
+.expandedDescEdit::placeholder,
+.coverUrlInput::placeholder,
+.categoryInput::placeholder {
+    color: var(--color-text-muted);
+    opacity: 0.5;
+}
+
+/* Metadata Styles */
+
+.metadataRow {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    align-items: center;
+}
+
+.tagsRow {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+.statusBadge,
+.priorityBadge,
+.dueDateBadge,
+.tagChip {
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Status Colors */
+.todo {
+    background: rgba(100, 116, 139, 0.2);
+    color: #cbd5e1;
+    border: 1px solid rgba(100, 116, 139, 0.3);
+}
+
+.in-progress {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.review {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.done {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* Priority Colors */
+.low {
+    color: #94a3b8;
+}
+
+.medium {
+    color: #60a5fa;
+}
+
+.high {
+    color: #f87171;
+}
+
+.urgent {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.dueDateBadge {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--color-text-muted);
+}
+
+.tagChip {
+    background: rgba(139, 92, 246, 0.1);
+    color: #a78bfa;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    font-size: 0.6rem;
+    border-radius: 99px;
+    padding: 1px 6px;
+    text-transform: none;
+}
+
+.tagMore {
+    font-size: 0.6rem;
+    color: var(--color-text-muted);
+    padding: 1px 4px;
+}
+
+/* Expanded Specific */
+.expandedMetadataBar {
+    display: flex;
+    gap: 8px;
+    padding: 0 20px 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* --- Column Layout Styles --- */
+
+.columnControls {
+    position: absolute;
+    top: 16px;
+    right: 24px;
+    display: flex;
+    gap: 4px;
+    z-index: 20;
+    padding: 3px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 99px;
+    /* Capsule */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    opacity: 0;
+    transform: translateY(-5px);
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.noteArea:hover .columnControls,
+.columnControls:hover {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.columnBtn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.columnBtn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.columnBtn.active {
+    background: var(--color-primary);
+    color: white;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Layout Grid */
+.columnLayout {
+    display: flex;
+    width: 100%;
+    height: auto;
+    /* Allow auto height */
+    gap: 24px;
+    /* Larger gap */
+    min-height: min-content;
+}
+
+.noteColumn {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    /* Use a visual divider */
+    position: relative;
+    border-right: 1px dashed rgba(255, 255, 255, 0.1);
+    padding-right: 24px;
+    /* Match gap */
+    min-height: 100px;
+    /* Ensure droppable area even if empty */
+}
+
+.noteColumn:last-child {
+    border-right: none;
+    padding-right: 0;
+}

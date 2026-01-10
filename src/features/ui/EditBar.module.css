@@ -1,0 +1,172 @@
+.backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 999;
+    background: transparent;
+}
+
+.editBar {
+    position: fixed;
+    z-index: 1000;
+
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 6px;
+
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+
+    animation: slideIn 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.buttonWrapper {
+    position: relative;
+}
+
+.editButton {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+
+    background: var(--color-bg-card);
+    border: 1px solid var(--glass-border);
+    color: var(--color-text-main);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.editButton:hover {
+    background: var(--glass-bg-hover);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    transform: translateY(-2px);
+}
+
+.editButton:active {
+    transform: translateY(0);
+}
+
+.deleteButton {
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.deleteButton:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+/* Color Picker Dropdown */
+.colorPicker {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 12px;
+
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+
+    animation: slideDown 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    z-index: 1001;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+.colorGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.colorSwatch {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: relative;
+}
+
+.colorSwatch:hover {
+    transform: scale(1.15);
+    border-color: var(--color-text-main);
+}
+
+.colorSwatchActive {
+    border-color: var(--color-text-main) !important;
+    box-shadow: 0 0 0 2px var(--color-bg-base), 0 0 0 4px var(--color-primary);
+}
+
+.colorSwatchActive::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.clearColorBtn {
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--glass-border);
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.clearColorBtn:hover {
+    background: var(--glass-bg-hover);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
