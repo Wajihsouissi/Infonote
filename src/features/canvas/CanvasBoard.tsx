@@ -41,7 +41,6 @@ export function CanvasBoard() {
     const { fitView, screenToFlowPosition, getIntersectingNodes, deleteElements, setNodes, getNode } = useReactFlow();
 
     // Filter nodes and edges for the current view
-    // MODIFIED: We now include direct children of visible nodes to allow for Canvas Nesting (like Kanban boards)
     const visibleNodes = useMemo(() => {
         // 1. Identify "Root" nodes for this view level
         const rootNodes = nodes.filter(n =>
@@ -49,16 +48,17 @@ export function CanvasBoard() {
             n.parentId === currentParentId
         );
 
-        const rootIds = new Set(rootNodes.map(n => n.id));
-        const kanbanRootIds = new Set(rootNodes.filter(n => n.type === 'kanban').map(n => n.id));
+        // 2. Identify "Child" nodes that should also be visible
+        // We ONLY show children if they belong to specific container types that rely on ReactFlow's nesting (e.g. explicit Groups).
+        // Standard 'note' cards in this app act as opaque pages/folders, so we do NOT show their children on the canvas
+        // unless we navigate INTO them.
 
-        // 2. Identify "Child" nodes that should also be visible (e.g. Kanban items)
-        // EXCLUDE children of Kanban nodes, as they handle their own rendering internally
-        const childNodes = nodes.filter(n =>
-            n.parentId && rootIds.has(n.parentId) && !kanbanRootIds.has(n.parentId)
-        );
+        // This fixes the "duplication" issue where children appeared on top of parent icons.
 
-        return [...rootNodes, ...childNodes];
+        // If we implement "Canvas Groups" later, we can whitelist them here.
+        // For now, we return only the nodes for the current navigation level.
+
+        return rootNodes;
     }, [nodes, currentParentId]);
 
     // Update edges

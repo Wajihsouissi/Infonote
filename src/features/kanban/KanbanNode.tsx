@@ -20,7 +20,7 @@ const getInsertionIndex = (y: number, elements: Element[]) => {
 };
 
 export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<KanbanNode>) => {
-    const { nodes, addNode, updateNodeData, setInteractionState, interactionState } = useStore();
+    const { nodes, addNode, updateNodeData, updateNode, setInteractionState, interactionState } = useStore();
     // ^ setNodes from store allows raw access if needed, but useReactFlow
     const { setNodes, screenToFlowPosition, getIntersectingNodes } = useReactFlow();
 
@@ -298,19 +298,15 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                     // We already have p1 from above
                     const newPos = p1;
 
-                    // 2. Update Node to be a Root Node
-                    setNodes(nds => nds.map(n => {
-                        if (n.id === nodeId) {
-                            return {
-                                ...n,
-                                parentId: undefined,
-                                extent: undefined,
-                                position: newPos,
-                                zIndex: 10 // Bring to standard level
-                            };
-                        }
-                        return n;
-                    }));
+                    // 2. Update Node to be a Root Node via Store (Persist!)
+                    updateNode(nodeId, {
+                        parentId: undefined,
+                        extent: undefined,
+                        position: newPos,
+                        zIndex: 10
+                    });
+
+                    // Remove local setNodes call as store update will trigger re-render
                 }
             } else {
                 // --- REORDER WITHIN KANBAN ---

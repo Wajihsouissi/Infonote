@@ -6,6 +6,7 @@ import {
 import { useStore } from '../../store/useStore';
 import styles from './BottomMenu.module.css';
 import { MENU_ITEMS } from '../editor/menuConstants';
+import { StorageControls } from './StorageControls';
 
 export function BottomMenu() {
     const { addNode } = useStore();
@@ -24,6 +25,10 @@ export function BottomMenu() {
 
     return (
         <div className={styles.bottomMenu}>
+            <StorageControls />
+
+            <div className={styles.separator} />
+
             <button className={styles.mainAddBtn} onClick={handleAddNote} title="Add New Note Card">
                 <Plus size={24} />
             </button>

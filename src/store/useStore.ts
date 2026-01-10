@@ -43,11 +43,22 @@ interface AppState {
     addNode: (type: 'note' | 'block', position: { x: number; y: number }, initialData?: any, style?: React.CSSProperties, parentId?: string) => void;
     navigateToNode: (nodeId: string | null) => void;
     updateNodeData: (id: string, data: any) => void;
+    updateNode: (id: string, updates: Partial<AppNode>) => void;
     setFullscreenId: (id: string | null) => void;
     setSidePanelId: (id: string | null) => void;
     setCenterPanelId: (id: string | null) => void;
     setKanbanModalOpen: (isOpen: boolean) => void;
     setInteractionState: (state: Partial<AppState['interactionState']>) => void;
+
+    // Storage Actions
+    storage: {
+        isConnected: boolean;
+        directoryName: string | null;
+        lastSaved: string | null;
+    };
+    setStorageStatus: (isConnected: boolean, directoryName: string | null) => void;
+    setLastSaved: (date: string | null) => void;
+    loadGraph: (nodes: AppNode[], edges: Edge[]) => void;
 }
 
 const initialNodes: AppNode[] = [
@@ -209,6 +220,37 @@ export const useStore = create<AppState>()(temporal((set, get) => ({
             ),
         });
     },
+
+    updateNode: (id, updates) => {
+        set((state) => ({
+            nodes: state.nodes.map((node) =>
+                node.id === id ? { ...node, ...updates } as AppNode : node
+            ),
+        }));
+    },
+
+    // Storage Support
+    storage: {
+        isConnected: false,
+        directoryName: null,
+        lastSaved: null
+    },
+    setStorageStatus: (isConnected, directoryName) => set((state) => ({
+        storage: { ...state.storage, isConnected, directoryName }
+    })),
+    setLastSaved: (date) => set((state) => ({
+        storage: { ...state.storage, lastSaved: date }
+    })),
+
+    loadGraph: (nodes, edges) => {
+        set({
+            nodes,
+            edges,
+            // Reset history when loading a new graph? Maybe.
+            // For now, simplify.
+        });
+    },
+
 }), {
     // Configure zundo
     limit: 50, // Limit history stack size
@@ -228,3 +270,4 @@ export const useStore = create<AppState>()(temporal((set, get) => ({
         return JSON.stringify(a) === JSON.stringify(b);
     }
 }));
+
