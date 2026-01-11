@@ -66,8 +66,7 @@
     transform: scale(0.8);
 }
 
-.blockNode:hover .handle,
-.blockNode.selected .handle {
+.blockNode:hover .handle {
     opacity: 0.6;
     transform: scale(1);
 }

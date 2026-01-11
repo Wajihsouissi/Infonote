@@ -18,7 +18,7 @@ interface SortableBlockWrapperProps {
     isMedia?: boolean;
 }
 
-export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, children, readOnly, block, nodeId, isSelected, onMoveBlock, onDragStart, onMenuOpen, style }: SortableBlockWrapperProps) {
+export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, children, readOnly, block, nodeId, isSelected, onMoveBlock, onDragStart, onMenuOpen, style, hideHandle }: SortableBlockWrapperProps & { hideHandle?: boolean }) {
     const ref = useRef<HTMLDivElement>(null);
     const [dropIndication, setDropIndication] = useState<'top' | 'bottom' | null>(null);
 
@@ -96,13 +96,14 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
             ? { borderBottom: '2px solid var(--color-primary)' }
             : {};
 
-    const isMedia = block?.type === 'image' || block?.type === 'video';
+    const isMedia = ['image', 'video', 'file'].includes(block?.type || '');
+    const canDragWrapper = !readOnly && (isMedia || hideHandle);
 
     return (
         <div
             ref={ref}
             data-block-type={block?.type}
-            className={`${styles.sortableWrapper} ${isSelected ? styles.selected : ''} nodrag`}
+            className={`${styles.sortableWrapper} ${isSelected ? styles.selected : ''} ${!canDragWrapper ? 'nodrag' : ''}`}
             style={{ ...borderStyle, ...style, transition: 'border 0.1s' }} // Merged styles
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -110,11 +111,11 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
             onDragEnd={handleDragEnd}
             id={`block-${id}`}
 
-            // Allow dragging from anywhere on media blocks
-            draggable={!readOnly && isMedia}
-            onDragStart={(!readOnly && isMedia) ? handleDragStart : undefined}
+            // Allow dragging from anywhere on media blocks or if handles are hidden
+            draggable={canDragWrapper}
+            onDragStart={canDragWrapper ? handleDragStart : undefined}
         >
-            {!readOnly && (
+            {!readOnly && !hideHandle && !isMedia && (
                 <div
                     className={styles.dragHandle}
                     contentEditable={false}

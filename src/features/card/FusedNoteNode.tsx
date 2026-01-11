@@ -1,6 +1,6 @@
 import { memo, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow } from '@xyflow/react';
-import { StickyNote, GripVertical } from 'lucide-react';
+import { StickyNote, GripHorizontal } from 'lucide-react';
 import { BlockEditor } from '../editor/BlockEditor';
 import { EditBar } from '../ui/EditBar';
 import { useStore } from '../../store/useStore';
@@ -176,8 +176,9 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 backgroundColor: data.color || undefined,
             }}
         >
-            <div className={`custom-drag-handle ${styles.dragHandleLeft}`}>
-                <GripVertical size={14} />
+            {/* Floating Handle - Centered Top */}
+            <div className={`custom-drag-handle ${styles.floatingHandle}`}>
+                <GripHorizontal size={16} />
             </div>
 
             {/* Conversion Button */}
@@ -197,6 +198,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                     minimal={false}
                     onUpdate={(blocks) => updateNodeData(id, { content: blocks })}
                     nodeId={id}
+                    hideBlockHandles={true}
                 />
             </div>
 

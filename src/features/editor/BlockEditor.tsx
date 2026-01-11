@@ -18,9 +18,10 @@ interface BlockEditorProps {
     minimal?: boolean;
     mode?: 'document' | 'atomic';
     nodeId?: string; // New prop
+    hideBlockHandles?: boolean;
 }
 
-export function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId }: BlockEditorProps) {
+export function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles }: BlockEditorProps) {
     const editorRef = useRef<HTMLDivElement>(null);
     const [blocks, setBlocks] = useState<Block[]>(() => {
         if (Array.isArray(initialContent)) return initialContent;
@@ -767,6 +768,7 @@ export function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, min
                     onDragStart={handleBlockDragStart}
                     onMenuOpen={handleBlockMenuOpen}
                     style={{ paddingLeft: `${(block.indent || 0) * 24}px` }} // Visual Indentation
+                    hideHandle={hideBlockHandles}
                 >
                     {renderBlock(block)}
                 </SortableBlockWrapper>

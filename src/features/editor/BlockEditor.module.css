@@ -44,7 +44,10 @@
     position: relative;
     display: flex;
     align-items: center;
-    /* Center handle vertically */
+    /* Vertically center content and handle */
+    justify-content: center;
+    /* Horizontally center content inside the wrapper? No, that would center the text block in the wrapper width. Let's try centering the WRAPPER content which is handle + block. */
+    /* Wait, justify-content: center will push the handle and block to the middle of the div. */
     gap: 6px;
     /* Space between handle and content */
 }
@@ -77,7 +80,8 @@
 }
 
 .sortableWrapper:hover {
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(255, 255, 255, 0.04);
+    /* Restored subtle hover background */
     border-radius: 4px;
 }
 
@@ -121,7 +125,8 @@
 }
 
 .block:focus {
-    background: rgba(255, 255, 255, 0.05);
+    background: transparent;
+    /* Removed background for cleaner look */
 }
 
 .block:empty:before {
@@ -151,14 +156,14 @@
 .heading1 {
     font-size: 1.5rem;
     font-weight: 700;
-    margin-top: 12px;
+    margin-top: 6px;
     margin-bottom: 6px;
 }
 
 .heading2 {
     font-size: 1.25rem;
     font-weight: 600;
-    margin-top: 8px;
+    margin-top: 4px;
     margin-bottom: 4px;
 }
 
@@ -197,15 +202,17 @@
     width: 100%;
     margin: 8px 0;
     position: relative;
-    padding: 2px;
-    background: rgba(255, 255, 255, 0.05) !important;
-    border-radius: 10px;
-    /* 8px img + 2px padding -> ~10px outer */
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0;
+    /* Removed padding */
+    background: transparent !important;
+    /* Removed background */
+    border-radius: 8px;
+    border: none;
+    /* Removed border */
 }
 
 .mediaWrapper:hover {
-    background: rgba(255, 255, 255, 0.1) !important;
+    background: transparent !important;
 }
 
 .mediaImage {
@@ -560,15 +567,21 @@
 
 /* Multi-select State */
 .sortableWrapper.selected {
-    background: rgba(100, 160, 255, 0.15) !important;
+    background: transparent !important;
+    box-shadow: 0 0 0 1px rgba(100, 160, 255, 0.5);
+    /* Outline instead of fill */
     border-radius: 6px;
 }
 
 
 /* Strict Overrides for Media Blocks placed at the end */
 .sortableWrapper[data-block-type="image"] .dragHandle,
-.sortableWrapper[data-block-type="video"] .dragHandle {
+.sortableWrapper[data-block-type="video"] .dragHandle,
+.sortableWrapper[data-block-type="file"] .dragHandle {
     display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
 }
 
 .sortableWrapper[data-block-type="image"].selected .dragHandle {
