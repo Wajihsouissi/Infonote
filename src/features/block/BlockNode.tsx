@@ -63,11 +63,11 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
         deleteElements({ nodes: [{ id }] });
     }, [id, deleteElements]);
 
-    const isSingleMedia = Array.isArray(data.content) && data.content.length === 1 && (data.content[0].type === 'image' || data.content[0].type === 'video');
+    const isSingleMedia = Array.isArray(data.content) && data.content.length === 1 && (data.content[0].type === 'image' || data.content[0].type === 'video' || data.content[0].type === 'file');
 
     return (
         <div
-            className={`${styles.blockNode} ${selected ? styles.selected : ''}`}
+            className={`${styles.blockNode} ${isSingleMedia ? styles.mediaBlockNode : ''} ${selected ? styles.selected : ''}`}
             onContextMenu={handleContextMenu}
             style={{
                 backgroundColor: data.color || undefined,

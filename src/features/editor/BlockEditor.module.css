@@ -584,6 +584,66 @@
     pointer-events: none !important;
 }
 
-.sortableWrapper[data-block-type="image"].selected .dragHandle {
-    display: none !important;
+
+.fileWrapper {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 8px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    transition: none;
+    user-select: none;
+    position: relative;
+    max-width: none;
+}
+
+.fileWrapper:hover {
+    background: transparent;
+    border-color: transparent;
+    transform: none;
+    box-shadow: none;
+    border-radius: 8px;
+}
+
+.fileLink {
+    text-decoration: none;
+    color: var(--color-text-main);
+    font-weight: 600;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+}
+
+.fileWrapper .removeMediaBtn {
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+}
+
+.fileIconWrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    background: rgba(96, 165, 250, 0.15);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.fileInfo {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    flex-grow: 1;
+    overflow: hidden;
+    min-width: 0;
 }

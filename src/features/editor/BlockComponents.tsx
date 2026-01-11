@@ -8,6 +8,8 @@ export { ContainerBlock, ColumnsBlock };
 import type { Block } from './types';
 import styles from './BlockEditor.module.css';
 import { IconPicker, getIconByName } from '../card/IconPicker';
+import { PDFViewer } from '../ui/PDFViewer';
+import ReactDOM from 'react-dom';
 
 interface BlockProps {
     block: Block;
@@ -290,6 +292,12 @@ export const VideoBlock = ({ block, readOnly, onChange }: BlockProps) => {
 
 export const FileBlock = ({ block, readOnly, onChange }: BlockProps) => {
     const fileName = block.metadata?.name || block.content.split('/').pop() || "File";
+    const [showPDF, setShowPDF] = React.useState(false);
+
+    // Check if it is a PDF (data URL or file ext)
+    const isPDF = block.content?.startsWith('data:application/pdf') ||
+        block.metadata?.type === 'application/pdf' ||
+        fileName.toLowerCase().endsWith('.pdf');
 
     if (!block.content) {
         return (
@@ -297,15 +305,52 @@ export const FileBlock = ({ block, readOnly, onChange }: BlockProps) => {
         )
     }
 
+    const handleClick = (e: React.MouseEvent) => {
+        if (isPDF) {
+            e.preventDefault();
+            setShowPDF(true);
+        }
+        // Else let default link behavior happen (download/open tab)
+    };
+
     return (
-        <div className={styles.fileWrapper} contentEditable={false}>
-            <FileText size={20} />
-            <a href={block.content} target="_blank" rel="noreferrer" className={styles.fileLink}>
-                {fileName}
-            </a>
-            {!readOnly && (
-                <button onClick={() => onChange('')} className={styles.removeMediaBtn}>×</button>
+        <>
+            <div
+                className={styles.fileWrapper}
+                contentEditable={false}
+                onClick={handleClick}
+            >
+                <div className={styles.fileIconWrapper}>
+                    <FileText size={32} color="#60A5FA" />
+                </div>
+                <div className={styles.fileInfo}>
+                    <span className={styles.fileLink}>{fileName}</span>
+                    {block.metadata?.size && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', display: 'block' }}>
+                            {(block.metadata.size / 1024).toFixed(1)} KB
+                        </span>
+                    )}
+                </div>
+
+                {!readOnly && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onChange('');
+                        }}
+                        className={styles.removeMediaBtn}
+                    >×</button>
+                )}
+            </div>
+
+            {showPDF && ReactDOM.createPortal(
+                <PDFViewer
+                    fileUrl={block.content}
+                    fileName={fileName}
+                    onClose={() => setShowPDF(false)}
+                />,
+                document.body
             )}
-        </div>
+        </>
     );
 }

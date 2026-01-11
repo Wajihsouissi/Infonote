@@ -10,7 +10,7 @@
     /* Less left padding for handle */
     /* balanced padding */
     width: 100%;
-    height: 100%;
+    height: 40px;
     box-sizing: border-box;
     transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
@@ -75,4 +75,34 @@
     background: var(--color-primary);
     opacity: 1 !important;
     transform: scale(1.2) !important;
+}
+
+
+.mediaBlockNode {
+    display: flex;
+    align-items: flex-start;
+    background: rgba(30, 30, 30, 0.6);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.mediaBlockNode:hover {
+    background: transparent;
+    border-color: transparent;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Ensure selection is still visible but tailored for media if needed */
+.mediaBlockNode.selected {
+    border: 1px solid var(--color-primary, #60A5FA);
+    background: rgba(30, 30, 30, 0.2);
+    /* lighter background or none */
 }
