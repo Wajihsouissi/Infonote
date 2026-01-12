@@ -9,10 +9,9 @@
     /* Allow editor to take available space */
     min-height: 100%;
     /* Ensure it treats full height */
-    padding-bottom: 32px;
     /* Bottom padding for "click to type at bottom" feel */
-    cursor: text;
-    /* Indicate clickable */
+    cursor: default;
+    /* Indicate clickable but not text everywhere */
 }
 
 /* Minimal mode (for chromeless blocks): No extra bottom padding */
@@ -50,6 +49,8 @@
     /* Wait, justify-content: center will push the handle and block to the middle of the div. */
     gap: 6px;
     /* Space between handle and content */
+    cursor: pointer;
+    /* Hand cursor on background/wrapper */
 }
 
 .dragHandle {
@@ -81,8 +82,17 @@
 
 .sortableWrapper:hover {
     background: rgba(255, 255, 255, 0.08);
-    /* Restored subtle hover background for dark contrast */
+    /* Dark contrast */
     border-radius: 4px;
+}
+
+/* Remove hover background when handles are hidden (e.g. FusedNoteNode), show line instead */
+.sortableWrapper.hideHandle:hover {
+    background: transparent;
+    box-shadow: inset 2px 0 0 0 var(--color-primary);
+    /* Left line indicator */
+    padding-left: 2px;
+    /* Slight offset compensation if needed, but inset shadow doesn't take space */
 }
 
 .sortableWrapper:hover .dragHandle {
@@ -102,6 +112,8 @@
     flex-grow: 1;
     min-width: 0;
     /* Prevent overflow */
+    cursor: text;
+    /* Ensure text cursor transmits to children if they don't override */
 }
 
 .block {
@@ -122,6 +134,8 @@
     /* Help with flexbox overflow */
     max-width: 100%;
     /* Ensure it doesn't exceed parent */
+    cursor: text;
+    /* Typesetting cursor on actual text block */
 }
 
 .block:focus {
@@ -542,7 +556,6 @@
     /* Allow editor to take available space */
     min-height: 100%;
     /* Ensure it treats full height */
-    padding-bottom: 32px;
     /* Bottom padding for "click to type at bottom" feel */
     cursor: text;
     /* Indicate clickable */
@@ -573,6 +586,17 @@
 
 
 /* Strict Overrides for Media Blocks placed at the end */
+.sortableWrapper[data-block-type="image"],
+.sortableWrapper[data-block-type="video"],
+.sortableWrapper[data-block-type="file"] {
+    display: block !important;
+    gap: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
 .sortableWrapper[data-block-type="image"] .dragHandle,
 .sortableWrapper[data-block-type="video"] .dragHandle,
 .sortableWrapper[data-block-type="file"] .dragHandle {
@@ -643,5 +667,65 @@
     gap: 4px;
     flex-grow: 1;
     overflow: hidden;
+
     min-width: 0;
+}
+
+/* Drag & Drop Visuals */
+.dragging {
+    opacity: 0.4;
+    filter: grayscale(0.5);
+    transform: scale(0.98);
+}
+
+.dropTargetTop {
+    position: relative;
+}
+
+.dropTargetTop::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--color-primary);
+    border-radius: 2px;
+    box-shadow: 0 0 4px var(--color-primary), 0 0 10px var(--color-primary-glow);
+    animation: pulse 1.5s infinite;
+    z-index: 100;
+    pointer-events: none;
+}
+
+.dropTargetBottom {
+    position: relative;
+}
+
+.dropTargetBottom::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--color-primary);
+    border-radius: 2px;
+    box-shadow: 0 0 4px var(--color-primary), 0 0 10px var(--color-primary-glow);
+    animation: pulse 1.5s infinite;
+    z-index: 100;
+    pointer-events: none;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.6;
+    }
 }

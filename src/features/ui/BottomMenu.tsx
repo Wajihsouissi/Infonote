@@ -74,7 +74,7 @@ export function BottomMenu() {
                         <Search size={20} />
                     </button>
 
-                    <div className={styles.separator} />
+
 
                     <button className={styles.mainAddBtn} onClick={handleAddNote} title="Add New Note Card">
                         <Plus size={24} />

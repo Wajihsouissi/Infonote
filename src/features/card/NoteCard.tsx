@@ -460,13 +460,6 @@ export const NoteCard = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             {viewMode === 'medium' && (
                 <div className={styles.mediumView}>
                     <div className={styles.mediumHeader}>
-                        <button
-                            className={styles.mediumIconButton}
-                            onClick={handleIconClick}
-                            title="Change icon"
-                        >
-                            <IconComponent size={20} />
-                        </button>
                         <input
                             className={styles.mediumTitleInput}
                             value={isEditingMetadata ? editedData.label : data.label}
@@ -492,19 +485,6 @@ export const NoteCard = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                         }}
                         onClick={(e) => e.stopPropagation()}
                         placeholder="Add description..."
-                    />
-                    <input
-                        className={styles.categoryInput}
-                        value={isEditingMetadata ? editedData.category : (data.category || 'Category')}
-                        onChange={(e) => setEditedData({ ...editedData, category: e.target.value })}
-                        onFocus={() => setIsEditingMetadata(true)}
-                        onBlur={() => {
-                            if (isEditingMetadata) {
-                                handleSaveMetadata();
-                            }
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        placeholder="Category"
                     />
                 </div>
             )}

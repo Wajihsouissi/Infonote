@@ -41,14 +41,16 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
             }
         }
 
-        // Optimize Drag Ghost: Use the row as image but ensure browser handles it well
-        if (ref.current) {
-            ref.current.style.opacity = '0.4';
-        }
+        // Optimize Drag Ghost: Delay styling so browser captures full opacity image first
+        setTimeout(() => {
+            if (ref.current) {
+                ref.current.classList.add(styles.dragging);
+            }
+        }, 0);
     };
 
     const handleDragEnd = () => {
-        if (ref.current) ref.current.style.opacity = '1';
+        if (ref.current) ref.current.classList.remove(styles.dragging);
         setDropIndication(null);
     };
 
@@ -63,11 +65,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         const midY = rect.top + rect.height / 2;
 
         const newIndication = e.clientY < midY ? 'top' : 'bottom';
-
-        // Optimization: Only update state if it changes
-        if (dropIndication !== newIndication) {
-            setDropIndication(newIndication);
-        }
+        if (dropIndication !== newIndication) setDropIndication(newIndication);
     };
 
     const handleDragLeave = () => {
@@ -90,21 +88,17 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         }
     };
 
-    const borderStyle = dropIndication === 'top'
-        ? { borderTop: '2px solid var(--color-primary)' }
-        : dropIndication === 'bottom'
-            ? { borderBottom: '2px solid var(--color-primary)' }
-            : {};
-
     const isMedia = ['image', 'video', 'file'].includes(block?.type || '');
     const canDragWrapper = !readOnly && (isMedia || hideHandle);
+
+    const dropClass = dropIndication === 'top' ? styles.dropTargetTop : (dropIndication === 'bottom' ? styles.dropTargetBottom : '');
 
     return (
         <div
             ref={ref}
             data-block-type={block?.type}
-            className={`${styles.sortableWrapper} ${isSelected ? styles.selected : ''} ${!canDragWrapper ? 'nodrag' : ''}`}
-            style={{ ...borderStyle, ...style, transition: 'border 0.1s' }} // Merged styles
+            className={`${styles.sortableWrapper} ${isSelected ? styles.selected : ''} ${hideHandle ? styles.hideHandle : ''} ${!canDragWrapper ? 'nodrag' : ''} ${dropClass}`}
+            style={style}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}

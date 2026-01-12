@@ -546,9 +546,27 @@
     /* Changed from flex-end to allow left stats */
     align-items: center;
     border-top: 1px solid var(--glass-border);
-    background: var(--color-bg-card);
-    /* was rgba(0,0,0,0.2) */
+    background: transparent;
+    /* Allow glass to show through */
     flex-shrink: 0;
+}
+
+/* ... */
+
+.noteArea {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    position: relative;
+    /* Added for controls */
+
+    /* Visual Separation */
+    background: transparent;
+    /* Allow glass to show through */
+    border-top: 1px solid var(--glass-border);
 }
 
 .footerStats {
@@ -621,8 +639,8 @@
     /* Added for controls */
 
     /* Visual Separation */
-    background: var(--color-bg-card);
-    /* was rgba(0,0,0,0.2) */
+    background: transparent;
+    /* Allow glass to show through */
     border-top: 1px solid var(--glass-border);
 }
 
