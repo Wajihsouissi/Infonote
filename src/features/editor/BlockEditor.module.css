@@ -80,8 +80,8 @@
 }
 
 .sortableWrapper:hover {
-    background: rgba(255, 255, 255, 0.04);
-    /* Restored subtle hover background */
+    background: rgba(255, 255, 255, 0.08);
+    /* Restored subtle hover background for dark contrast */
     border-radius: 4px;
 }
 
@@ -311,7 +311,7 @@
 .calloutWrapper {
     display: flex;
     gap: 12px;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--color-bg-card);
     padding: 12px;
     border-radius: 8px;
     border-left: 4px solid var(--color-primary);
@@ -346,9 +346,7 @@
     background: rgba(255, 255, 255, 0.15);
 }
 
-.calloutIconSvg {
-    /* Ensure icon size consistency if needed */
-}
+
 
 /* Divider */
 .divider {
@@ -362,15 +360,15 @@
 .slashMenu {
     position: fixed;
     /* Must be fixed to float over everything */
-    background: rgba(30, 30, 30, 0.95);
+    background: var(--glass-bg);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
     border-radius: 12px;
     padding: 6px;
     width: 260px;
     max-height: 500px;
     overflow-y: auto;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--glass-border);
     z-index: 10000;
     display: flex;
     flex-direction: column;
@@ -413,8 +411,8 @@
 
 .slashMenuItem:hover,
 .slashMenuItem.selected {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
+    background: var(--glass-bg-hover);
+    color: var(--color-text-main);
 }
 
 .slashIcon {
@@ -430,8 +428,8 @@
 
 .slashMenuItem:hover .slashIcon,
 .slashMenuItem.selected .slashIcon {
-    background: white;
-    color: black;
+    background: var(--color-text-main);
+    color: var(--color-bg-base);
 }
 
 .dangerItem {
@@ -457,9 +455,9 @@
 /* Floating Toolbar */
 .floatingToolbar {
     position: fixed;
-    background: #1e1e1e;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    background: var(--rf-controls-bg);
+    border: 1px solid var(--rf-controls-border);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     border-radius: 6px;
     padding: 4px;
     display: flex;
@@ -478,7 +476,7 @@
     border-radius: 4px;
     border: none;
     background: transparent;
-    color: #e0e0e0;
+    color: var(--color-text-muted);
     cursor: pointer;
     transition: background 0.1s;
 }
@@ -488,7 +486,7 @@
 }
 
 .toolbarBtn.active {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--color-primary);
     color: white;
 }
 
@@ -559,7 +557,7 @@
     position: absolute;
     /* Relative to .editor */
     border: 1px solid rgba(100, 160, 255, 0.8);
-    background: rgba(100, 160, 255, 0.2);
+    background: rgba(100, 160, 255, 0.8);
     z-index: 9999;
     pointer-events: none;
     border-radius: 2px;

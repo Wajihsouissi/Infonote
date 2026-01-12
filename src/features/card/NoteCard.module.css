@@ -1,4 +1,23 @@
 .card {
+    /* FORCE DARK THEME VARIABLES - Consistent look across modes */
+    --color-bg-base: #0f1115;
+    --color-bg-surface: #1c1e26;
+    --color-bg-card: #252836;
+    --color-text-main: #f3f4f6;
+    --color-text-muted: #9ca3af;
+    --color-border: #333645;
+    --glass-bg: rgba(28, 30, 38, 0.7);
+    --glass-bg-hover: rgba(28, 30, 38, 0.85);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --rf-controls-bg: #1e1e1e;
+    --rf-controls-border: #333;
+    --rf-controls-text: #e5e7eb;
+
+    /* Forced Accents for Dark Card Context */
+    --color-primary: #8b5cf6;
+    --color-primary-glow: rgba(139, 92, 246, 0.4);
+    --color-secondary: #06b6d4;
+
     border-radius: 12px;
     background: var(--glass-bg);
     backdrop-filter: blur(12px);
@@ -16,26 +35,25 @@
 .react-flow__controls {
     display: flex;
     flex-direction: column;
-    background: #1e1e1e;
-    /* Dark background from image */
-    border: 1px solid #333;
+    background: var(--rf-controls-bg);
+    border: 1px solid var(--rf-controls-border);
     border-radius: 8px;
     padding: 4px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     overflow: hidden;
 }
 
 .react-flow__controls-button {
     background: transparent;
     border: none;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid var(--rf-controls-border);
     border-radius: 0;
     width: 32px;
     height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    color: var(--rf-controls-text);
     transition: background 0.2s;
 }
 
@@ -44,11 +62,11 @@
 }
 
 .react-flow__controls-button:hover {
-    background: #333;
+    background: var(--glass-bg-hover);
 }
 
 .react-flow__controls-button svg {
-    fill: white;
+    fill: var(--rf-controls-text);
     width: 16px;
     height: 16px;
 }
@@ -69,7 +87,7 @@
 
 /* 1. Icon View */
 .icon {
-    padding: 12px;
+    padding: 8px;
     flex-direction: column;
     align-items: center;
     justify-content: center;
@@ -80,7 +98,7 @@
 .iconText {
     font-weight: 400;
     /* Normal weight */
-    font-size: 0.8rem;
+    font-size: 12px;
     text-align: center;
     width: 100%;
     overflow: hidden;
@@ -103,7 +121,7 @@
     background: transparent;
     border: 1px solid transparent;
     border-radius: 6px;
-    padding: 4px 8px;
+    padding: 4px;
     font-size: 0.75rem;
     font-weight: 600;
     color: var(--color-text-main);
@@ -120,7 +138,7 @@
 
 /* 2. Medium View */
 .medium {
-    padding: 4px 4px 4px 4px;
+    padding: 8px;
     display: flex;
     flex-direction: column;
     justify-content: 4px;
@@ -139,16 +157,16 @@
 /* Header: Icon + Title Row - MATCHING minimalHeader but Compact */
 .mediumHeader {
     display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
     /* Slightly tighter than minimal (12px) */
-    padding: 4px;
+    padding: 2px;
     /* Match minimalHeader bg */
     flex-shrink: 0;
     min-height: auto;
-    font-size: 16px;
-    font-weight: 400;
+    font-size: 14px;
+    font-weight: 600;
 }
 
 .mediumIconButton {
@@ -190,12 +208,12 @@
     background: transparent;
     border: 1px solid transparent;
     border-radius: 6px;
-    padding: 4px 4px;
-    font-size: 0.85rem;
+    padding: 2px;
+    font-size: 12px;
     /* Slightly bigger font */
     font-weight: 300;
     opacity: 0.9;
-    color: white;
+    color: var(--color-text-main);
     width: 100%;
     outline: none;
     resize: none;
@@ -228,7 +246,7 @@
     width: 100%;
     min-width: 120px;
     /* margin-top: auto; Removed to allow description flex:1 to dominate */
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--color-bg-card);
     border: 1px solid transparent;
     color: var(--color-text-main);
     outline: none;
@@ -404,14 +422,14 @@
 .expandedIconButton {
     width: 65px;
     height: 65px;
-    background: #1e1e1e;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border);
     border-radius: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
     z-index: 2;
@@ -461,7 +479,8 @@
 }
 
 .expandedTitleInput::placeholder {
-    color: rgba(255, 255, 255, 0.2);
+    color: var(--color-text-muted);
+    opacity: 0.4;
 }
 
 /* Metadata Grid / Description */
@@ -514,8 +533,9 @@
 }
 
 .expandedDescEdit::placeholder {
-    color: rgba(255, 255, 255, 0.2);
+    color: var(--color-text-muted);
     font-style: italic;
+    opacity: 0.5;
 }
 
 /* Footer Section for Date and Stats */
@@ -526,7 +546,8 @@
     /* Changed from flex-end to allow left stats */
     align-items: center;
     border-top: 1px solid var(--glass-border);
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--color-bg-card);
+    /* was rgba(0,0,0,0.2) */
     flex-shrink: 0;
 }
 
@@ -562,7 +583,7 @@
 }
 
 .footerDateBadge:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--glass-bg-hover);
     color: var(--color-text-main);
 }
 
@@ -575,7 +596,6 @@
     font-family: inherit;
     outline: none;
     cursor: pointer;
-    color-scheme: dark;
     width: auto;
     opacity: 0.8;
 }
@@ -601,8 +621,9 @@
     /* Added for controls */
 
     /* Visual Separation */
-    background: rgba(0, 0, 0, 0.2);
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    background: var(--color-bg-card);
+    /* was rgba(0,0,0,0.2) */
+    border-top: 1px solid var(--glass-border);
 }
 
 .noteArea::-webkit-scrollbar {
@@ -614,7 +635,7 @@
 }
 
 .noteArea::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--color-border);
     border-radius: 4px;
 }
 
