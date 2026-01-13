@@ -34,6 +34,7 @@ interface AppState {
         draggingKanbanNodeId: string | null;
         hoveredKanbanColumn: { kanbanId: string; columnId: string } | null;
     };
+    editingKanbanId: string | null;
 
     // Actions
     setActiveIconMenuId: (id: string | null) => void;
@@ -48,6 +49,7 @@ interface AppState {
     setSidePanelId: (id: string | null) => void;
     setCenterPanelId: (id: string | null) => void;
     setKanbanModalOpen: (isOpen: boolean) => void;
+    setEditingKanbanId: (id: string | null) => void;
     setInteractionState: (state: Partial<AppState['interactionState']>) => void;
 
     // Storage Actions
@@ -121,6 +123,7 @@ export const useStore = create<AppState>()(temporal((set, get) => ({
     centerPanelId: null,
     activeIconMenuId: null,
     isKanbanModalOpen: false,
+    editingKanbanId: null,
     interactionState: {
         draggingKanbanNodeId: null,
         hoveredKanbanColumn: null
@@ -130,7 +133,8 @@ export const useStore = create<AppState>()(temporal((set, get) => ({
     setFullscreenId: (id) => set({ fullscreenId: id, sidePanelId: null, centerPanelId: null }),
     setSidePanelId: (id) => set({ sidePanelId: id, fullscreenId: null, centerPanelId: null }),
     setCenterPanelId: (id) => set({ centerPanelId: id, fullscreenId: null, sidePanelId: null }),
-    setKanbanModalOpen: (isOpen) => set({ isKanbanModalOpen: isOpen }),
+    setKanbanModalOpen: (isOpen) => set({ isKanbanModalOpen: isOpen, editingKanbanId: isOpen ? get().editingKanbanId : null }),
+    setEditingKanbanId: (id) => set({ editingKanbanId: id }),
     setInteractionState: (newState) => set((state) => ({
         interactionState: { ...state.interactionState, ...newState }
     })),

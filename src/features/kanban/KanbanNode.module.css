@@ -17,6 +17,26 @@
     width: fit-content;
 }
 
+.dots {
+    background-color: #1a1a1a;
+    background-image: radial-gradient(#333 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+.grid {
+    background-color: #1a1a1a;
+    background-image: linear-gradient(#333 1px, transparent 1px), linear-gradient(90deg, #333 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+.gradient-blue {
+    background: linear-gradient(135deg, #1e1e2e 0%, #1e3a8a 100%);
+}
+
+.gradient-purple {
+    background: linear-gradient(135deg, #2e1065 0%, #4c1d95 100%);
+}
+
 .selected {
     border-color: #8b5cf6;
     box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.5), 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -79,16 +99,64 @@
 .column {
     flex: 1;
     min-width: 280px;
-    /* Ensure 224px cards fit easily */
     background: rgba(20, 20, 20, 0.4);
     border-radius: 16px;
     padding: 12px;
     display: flex;
     flex-direction: column;
     border: 1px solid rgba(255, 255, 255, 0.03);
-    transition: background 0.2s, border-color 0.2s;
-    /* Important for dropping */
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     position: relative;
+    overflow: hidden;
+}
+
+.columnCollapsed {
+    flex: 0 0 50px;
+    min-width: 50px;
+    padding: 12px 4px;
+    cursor: pointer;
+    background: rgba(20, 20, 20, 0.2);
+}
+
+.columnCollapsed:hover {
+    background: rgba(30, 30, 30, 0.4);
+}
+
+.columnCollapsed .columnHeader {
+    flex-direction: column;
+    height: 100%;
+    margin-bottom: 0;
+    justify-content: flex-start;
+    gap: 16px;
+    padding-top: 8px;
+    align-items: center;
+    /* Center horizontally in vertical mode */
+}
+
+.columnCollapsed .columnTitle {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    margin-top: auto;
+    margin-bottom: auto;
+    letter-spacing: 0.05em;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.columnCollapsed .columnColorBar {
+    width: 4px;
+    height: 24px;
+    margin-right: 0;
+    margin-bottom: 8px;
+}
+
+/* Hide other elements when collapsed */
+.columnCollapsed .statusBadge,
+.columnCollapsed .addCardBtn,
+.columnCollapsed .dropZone {
+    display: none !important;
 }
 
 .column:hover {
@@ -108,6 +176,25 @@
     align-items: center;
     margin-bottom: 12px;
     padding: 0 4px;
+    transition: all 0.3s ease;
+}
+
+.collapseBtn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.collapseBtn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .columnTitle {

@@ -140,6 +140,27 @@
     gap: 8px;
     margin-bottom: 8px;
     align-items: center;
+    background: #2a2a2a;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+}
+
+.columnRow:hover {
+    border-color: #444;
+}
+
+.dragHandle {
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    color: #666;
+}
+
+.dragHandle:hover {
+    color: #fff;
 }
 
 .columnRow:last-child {
@@ -220,6 +241,34 @@
     font-weight: 500;
     cursor: pointer;
     transition: background 0.2s;
+}
+
+/* Background Picker */
+.backgroundOptions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.bgOption {
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #ccc;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.bgOption:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.bgOptionActive {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: #8b5cf6;
+    color: #fff;
 }
 
 .submitBtn:hover {

@@ -1,8 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
-import { X, Plus, Trash2 } from 'lucide-react';
-import type { KanbanColumn } from '../../types';
+import { X, Plus, Trash2, GripVertical } from 'lucide-react';
+import type { KanbanColumn, KanbanNode, NoteData } from '../../types';
 import styles from './KanbanConfigModal.module.css';
+
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const DEFAULT_COLUMNS: KanbanColumn[] = [
     { id: 'todo', label: 'To Do', statusValue: 'todo', color: '#ef4444' },
@@ -10,11 +27,100 @@ const DEFAULT_COLUMNS: KanbanColumn[] = [
     { id: 'done', label: 'Done', statusValue: 'done', color: '#22c55e' }
 ];
 
+// Sortable Item Component
+const SortableColumnRow = ({ column, updateColumn, removeColumn, canDelete }: any) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: column.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} className={styles.columnRow}>
+            <div {...attributes} {...listeners} className={styles.dragHandle}>
+                <GripVertical size={16} color="#666" />
+            </div>
+            <div className={styles.colorIndicator} style={{ background: column.color }} />
+            <input
+                type="text"
+                value={column.label}
+                onChange={e => updateColumn(column.id, 'label', e.target.value)}
+                className={styles.colInput}
+                placeholder="Label"
+            />
+            <input
+                type="text"
+                value={column.statusValue}
+                onChange={e => updateColumn(column.id, 'statusValue', e.target.value)}
+                className={`${styles.colInput} ${styles.statusInput}`}
+                placeholder="Status Value"
+                title="The status value used for cards"
+            />
+            <button
+                type="button"
+                onClick={() => removeColumn(column.id)}
+                className={styles.deleteBtn}
+                disabled={!canDelete}
+            >
+                <Trash2 size={16} />
+            </button>
+        </div>
+    );
+};
+
 export function KanbanConfigModal() {
-    const { isKanbanModalOpen, setKanbanModalOpen, addNode } = useStore() as any; // Cast for now as we updated types
+    const { isKanbanModalOpen, setKanbanModalOpen, setEditingKanbanId, addNode, updateNodeData, editingKanbanId, nodes } = useStore();
 
     const [boardName, setBoardName] = useState('My Board');
+    const [background, setBackground] = useState<string>(''); // '' = default/glass
     const [columns, setColumns] = useState<KanbanColumn[]>(DEFAULT_COLUMNS);
+
+    // Load existing data if editing
+    useEffect(() => {
+        if (isKanbanModalOpen && editingKanbanId) {
+            const node = nodes.find(n => n.id === editingKanbanId) as KanbanNode;
+            if (node) {
+                setBoardName(node.data.label);
+                setBackground(node.data.background || '');
+                setColumns(node.data.columns || []);
+            }
+        } else if (isKanbanModalOpen && !editingKanbanId) {
+            // Reset for new creation
+            setBoardName('My Board');
+            setBackground('');
+            setColumns(DEFAULT_COLUMNS);
+        }
+    }, [isKanbanModalOpen, editingKanbanId, nodes]);
+
+
+    // DnD Sensors
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = (event: any) => {
+        const { active, over } = event;
+        if (active.id !== over.id) {
+            setColumns((items) => {
+                const oldIndex = items.findIndex((i) => i.id === active.id);
+                const newIndex = items.findIndex((i) => i.id === over.id);
+                return arrayMove(items, oldIndex, newIndex);
+            });
+        }
+    };
+
 
     if (!isKanbanModalOpen) return null;
 
@@ -23,7 +129,7 @@ export function KanbanConfigModal() {
         setColumns([...columns, {
             id,
             label: 'New Column',
-            statusValue: 'new-status',
+            statusValue: `status-${Math.floor(Math.random() * 1000)}`,
             color: '#888888'
         }]);
     };
@@ -38,33 +144,70 @@ export function KanbanConfigModal() {
         setColumns(cols => cols.filter(c => c.id !== id));
     };
 
+    const onClose = () => {
+        setKanbanModalOpen(false);
+        setEditingKanbanId(null);
+    }
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Calculate center position
-        // We'll just put it in the center of the viewport roughly, or offset from 0,0
-        // Ideally we use getViewport() but we can lazily place it at center of screen if we had access to center.
-        // For now, let's place it at a default location + random offset to avoid exact overlap
-        const x = 400 + Math.random() * 50;
-        const y = 200 + Math.random() * 50;
+        if (editingKanbanId) {
+            // --- EDIT MODE ---
 
-        addNode('kanban', { x, y }, {
-            label: boardName,
-            columns: columns
-        }, { width: 700, height: 500 });
+            // 1. Identify Deleted Statuses
+            const node = nodes.find(n => n.id === editingKanbanId) as KanbanNode;
+            const oldColumns = node.data.columns || [];
+            const newStatusValues = new Set(columns.map(c => c.statusValue));
+            const removedStatuses = oldColumns
+                .map(c => c.statusValue)
+                .filter(s => !newStatusValues.has(s));
 
-        setKanbanModalOpen(false);
-        // Reset state
-        setBoardName('My Board');
-        setColumns(DEFAULT_COLUMNS);
+            // 2. Update Board Data
+            updateNodeData(editingKanbanId, {
+                label: boardName,
+                columns,
+                background
+            });
+
+            // 3. Handle Orphaned Cards
+            // If statuses were removed, move those cards to first column
+            if (removedStatuses.length > 0) {
+                const fallbackStatus = columns[0]?.statusValue || 'todo';
+                // Find all child notes of this board
+                const childNotes = nodes.filter(n => n.parentId === editingKanbanId && n.type === 'note');
+
+                childNotes.forEach(note => {
+                    const noteData = note.data as unknown as NoteData;
+                    const noteStatus = noteData.status;
+                    if (noteStatus && removedStatuses.includes(noteStatus)) {
+                        updateNodeData(note.id, { status: fallbackStatus });
+                    }
+                });
+            }
+
+        } else {
+            // --- CREATE MODE ---
+            const x = 400 + Math.random() * 50;
+            const y = 200 + Math.random() * 50;
+
+            // @ts-ignore
+            addNode('kanban', { x, y }, {
+                label: boardName,
+                columns: columns,
+                background
+            }, { width: 700, height: 500 });
+        }
+
+        onClose();
     };
 
     return (
         <div className={styles.overlay}>
             <div className={styles.modal}>
                 <div className={styles.header}>
-                    <h2>Add Kanban Board</h2>
-                    <button onClick={() => setKanbanModalOpen(false)} className={styles.closeBtn}>
+                    <h2>{editingKanbanId ? 'Edit Board' : 'Add Kanban Board'}</h2>
+                    <button onClick={onClose} className={styles.closeBtn}>
                         <X size={20} />
                     </button>
                 </div>
@@ -81,52 +224,66 @@ export function KanbanConfigModal() {
                         />
                     </div>
 
+                    <div className={styles.fieldGroup}>
+                        <label>Background</label>
+                        <div className={styles.backgroundOptions}>
+                            {[
+                                { id: '', label: 'Glass' },
+                                { id: 'dots', label: 'Dots' },
+                                { id: 'grid', label: 'Grid' },
+                                { id: 'gradient-blue', label: 'Blue' },
+                                { id: 'gradient-purple', label: 'Purple' }
+                            ].map(bg => (
+                                <button
+                                    key={bg.id}
+                                    type="button"
+                                    className={`${styles.bgOption} ${background === bg.id ? styles.bgOptionActive : ''}`}
+                                    onClick={() => setBackground(bg.id)}
+                                >
+                                    {bg.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     <div className={styles.columnsSection}>
                         <div className={styles.sectionHeader}>
-                            <label>Columns</label>
+                            <label>Columns (Drag to Reorder)</label>
                             <button type="button" onClick={handleAddColumn} className={styles.addColBtn}>
                                 <Plus size={16} /> Add Column
                             </button>
                         </div>
 
                         <div className={styles.columnsList}>
-                            {columns.map((col) => (
-                                <div key={col.id} className={styles.columnRow}>
-                                    <div className={styles.colorIndicator} style={{ background: col.color }} />
-                                    <input
-                                        type="text"
-                                        value={col.label}
-                                        onChange={e => updateColumn(col.id, 'label', e.target.value)}
-                                        className={styles.colInput}
-                                        placeholder="Label"
-                                    />
-                                    <input
-                                        type="text"
-                                        value={col.statusValue}
-                                        onChange={e => updateColumn(col.id, 'statusValue', e.target.value)}
-                                        className={`${styles.colInput} ${styles.statusInput}`}
-                                        placeholder="Status Value"
-                                        title="The status value written to card metadata"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => removeColumn(col.id)}
-                                        className={styles.deleteBtn}
-                                        disabled={columns.length <= 1}
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-                                </div>
-                            ))}
+                            <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={handleDragEnd}
+                            >
+                                <SortableContext
+                                    items={columns.map(c => c.id)}
+                                    strategy={verticalListSortingStrategy}
+                                >
+                                    {columns.map((col) => (
+                                        <SortableColumnRow
+                                            key={col.id}
+                                            column={col}
+                                            updateColumn={updateColumn}
+                                            removeColumn={removeColumn}
+                                            canDelete={columns.length > 1}
+                                        />
+                                    ))}
+                                </SortableContext>
+                            </DndContext>
                         </div>
                     </div>
 
                     <div className={styles.actions}>
-                        <button type="button" onClick={() => setKanbanModalOpen(false)} className={styles.cancelBtn}>
+                        <button type="button" onClick={onClose} className={styles.cancelBtn}>
                             Cancel
                         </button>
                         <button type="submit" className={styles.submitBtn}>
-                            Create Board
+                            {editingKanbanId ? 'Save Changes' : 'Create Board'}
                         </button>
                     </div>
                 </form>

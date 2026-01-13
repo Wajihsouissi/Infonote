@@ -764,43 +764,7 @@ export function CanvasBoard() {
                     onNodeDrag={onNodeDrag}
                     onNodeDragStop={onNodeDragStop}
                 >
-                    {/* Visual Drop Zone for Kanban Drag Out */}
-                    {interactionState.draggingKanbanNodeId && (
-                        <div
-                            style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                zIndex: 5,
-                                pointerEvents: 'none',
-                                background: 'rgba(139, 92, 246, 0.05)',
-                                backdropFilter: 'blur(2px)',
-                                display: 'flex',
-                                alignItems: 'flex-start',
-                                justifyContent: 'center',
-                                paddingTop: '10%',
-                                transition: 'all 0.3s'
-                            }}
-                        >
-                            <div
-                                style={{
-                                    padding: '12px 24px',
-                                    background: '#1e1e1e',
-                                    color: '#fff',
-                                    borderRadius: '12px',
-                                    boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-                                    border: '1px solid rgba(139, 92, 246, 0.3)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px'
-                                }}
-                            >
-                                <span style={{ fontSize: '14px', fontWeight: 500 }}>Drop to convert to Note</span>
-                            </div>
-                        </div>
-                    )}
+                    {/* Visual Drop Zone for Kanban Drag Out - REMOVED */}
                     <CustomGrid />
                     <Controls
                         style={{

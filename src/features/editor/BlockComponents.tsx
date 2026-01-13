@@ -132,6 +132,7 @@ export const QuoteBlock = ({ block, readOnly, onChange, onKeyDown, onPaste, domR
 
 // ... imports
 import { MediaPlaceholder } from './MediaPlaceholder';
+import { ResizableMediaWrapper } from './ResizableMediaWrapper';
 
 // ... (other blocks)
 
@@ -142,13 +143,29 @@ export const ImageBlock = ({ block, readOnly, onChange }: BlockProps) => {
         )
     }
 
+    const handleResize = (newWidth: number) => {
+        onChange(block.content, { ...block.metadata, width: newWidth });
+    };
+
+    const handleAlign = (alignment: 'left' | 'center' | 'right') => {
+        onChange(block.content, { ...block.metadata, alignment });
+    };
+
     return (
-        <div className={styles.mediaWrapper}>
-            <img src={block.content} alt="User content" className={styles.mediaImage} />
-            {!readOnly && (
-                <button onClick={() => onChange('')} className={styles.removeMediaBtn}>×</button>
-            )}
-        </div>
+        <ResizableMediaWrapper
+            width={block.metadata?.width}
+            alignment={block.metadata?.alignment}
+            readOnly={readOnly}
+            onResize={handleResize}
+            onAlign={handleAlign}
+        >
+            <div className={styles.mediaWrapper}>
+                <img src={block.content} alt="User content" className={styles.mediaImage} />
+                {!readOnly && (
+                    <button onClick={() => onChange('')} className={styles.removeMediaBtn}>×</button>
+                )}
+            </div>
+        </ResizableMediaWrapper>
     );
 }
 
@@ -280,13 +297,29 @@ export const VideoBlock = ({ block, readOnly, onChange }: BlockProps) => {
         )
     }
 
+    const handleResize = (newWidth: number) => {
+        onChange(block.content, { ...block.metadata, width: newWidth });
+    };
+
+    const handleAlign = (alignment: 'left' | 'center' | 'right') => {
+        onChange(block.content, { ...block.metadata, alignment });
+    };
+
     return (
-        <div className={styles.mediaWrapper}>
-            <video src={block.content} controls className={styles.mediaImage} />
-            {!readOnly && (
-                <button onClick={() => onChange('')} className={styles.removeMediaBtn}>×</button>
-            )}
-        </div>
+        <ResizableMediaWrapper
+            width={block.metadata?.width}
+            alignment={block.metadata?.alignment}
+            readOnly={readOnly}
+            onResize={handleResize}
+            onAlign={handleAlign}
+        >
+            <div className={styles.mediaWrapper}>
+                <video src={block.content} controls className={styles.mediaImage} />
+                {!readOnly && (
+                    <button onClick={() => onChange('')} className={styles.removeMediaBtn}>×</button>
+                )}
+            </div>
+        </ResizableMediaWrapper>
     );
 }
 

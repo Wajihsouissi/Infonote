@@ -729,3 +729,118 @@
         opacity: 0.6;
     }
 }
+
+/* Resizable Media Wrappers */
+.resizeWrapper {
+    position: relative;
+    display: inline-block;
+    /* Allow wrapping around image tightly */
+    max-width: none;
+    /* Ensure it doesn't overflow parent */
+    vertical-align: top;
+}
+
+.resizeHandle {
+    position: absolute;
+    bottom: -10px;
+    right: -14px;
+    width: 28px;
+    height: 28px;
+    cursor: nwse-resize;
+    z-index: 20;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: auto;
+    transform: rotate(180deg);
+}
+
+/* Show handle on hover or dragging */
+.resizeWrapper:hover .resizeHandle,
+.resizeHandle.isResizing {
+    opacity: 1;
+}
+
+.handlePath {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 0;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+/* Alignment Container */
+.alignmentContainer {
+    display: flex;
+    width: 100%;
+    margin-bottom: 4px;
+    position: relative;
+    /* Ensure z-index context for menu */
+    z-index: 10;
+}
+
+.alignmentContainer[data-alignment="left"] {
+    justify-content: flex-start;
+}
+
+.alignmentContainer[data-alignment="center"] {
+    justify-content: center;
+}
+
+.alignmentContainer[data-alignment="right"] {
+    justify-content: flex-end;
+}
+
+/* Alignment Menu */
+.alignmentMenu {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+
+    /* Glass Style */
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+
+    border-radius: 8px;
+    padding: 4px;
+    display: flex;
+    gap: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+    z-index: 30;
+}
+
+/* Show menu on hover of the wrapper */
+.alignmentContainer:hover .alignmentMenu,
+.resizeWrapper:hover .alignmentMenu {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.alignmentBtn {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 4px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    width: 24px;
+    height: 24px;
+}
+
+.alignmentBtn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.alignmentBtn.active {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+}

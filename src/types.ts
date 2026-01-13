@@ -51,11 +51,13 @@ export type KanbanColumn = {
     label: string;
     statusValue: string; // The value to set in NoteData.status
     color?: string;
+    collapsed?: boolean;
 };
 
 export type KanbanNodeData = {
     label: string; // Board Name
     columns: KanbanColumn[];
+    background?: string;
 };
 
 export type KanbanNode = Node<KanbanNodeData, 'kanban'> & { parentId?: string | null };

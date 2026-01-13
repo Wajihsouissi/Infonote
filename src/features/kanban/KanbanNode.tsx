@@ -1,28 +1,46 @@
-import { memo, useMemo, useState, useRef, useEffect } from 'react';
+import { memo, useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { Settings } from 'lucide-react';
 import { Handle, Position, type NodeProps, useReactFlow } from '@xyflow/react';
-import { Plus } from 'lucide-react';
+import {
+    DndContext,
+    closestCorners,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragOverlay,
+    defaultDropAnimationSideEffects,
+    pointerWithin,
+    rectIntersection,
+    type DragStartEvent,
+    type DragOverEvent,
+    type DragEndEvent,
+    type CollisionDetection,
+    type Modifier
+} from '@dnd-kit/core';
+import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+
 import { useStore } from '../../store/useStore';
 import type { KanbanNode, NoteNode } from '../../types';
 import { NoteCard } from '../card/NoteCard';
+import { KanbanColumn } from './KanbanColumn';
 import styles from './KanbanNode.module.css';
 
-// Helper to find extraction index
-const getInsertionIndex = (y: number, elements: Element[]) => {
-    for (let i = 0; i < elements.length; i++) {
-        const rect = elements[i].getBoundingClientRect();
-        const middle = rect.top + rect.height / 2;
-        if (y < middle) {
-            return i;
-        }
-    }
-    return elements.length;
+const dropAnimation = {
+    sideEffects: defaultDropAnimationSideEffects({
+        styles: {
+            active: {
+                opacity: '0.5',
+            },
+        },
+    }),
 };
 
 export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<KanbanNode>) => {
-    const { nodes, addNode, updateNodeData, updateNode, setInteractionState, interactionState } = useStore();
-    // ^ setNodes from store allows raw access if needed, but useReactFlow
-    const { setNodes, screenToFlowPosition, getIntersectingNodes } = useReactFlow();
+    const { nodes, addNode, updateNodeData, updateNode, setInteractionState, setKanbanModalOpen, setEditingKanbanId } = useStore();
+    const { setNodes, screenToFlowPosition, getIntersectingNodes, getViewport } = useReactFlow();
+    const { zoom } = getViewport();
 
     const boardRef = useRef<HTMLDivElement>(null);
 
@@ -32,21 +50,12 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
 
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
-                // We want to sync the RF Node 'style.width/height' with the actual DOM size 
-                // to ensure the selection box matches the visual board.
-                // However, if we just set width/height, it might force that size.
-                // We want the BOARD to grow with content.
-                // CSS: min-width / min-height + fit-content.
-
-                // If we update the node.style.width/height based on scrollWidth, we ensure RF knows the size.
-
                 const target = entry.target as HTMLElement;
                 const newWidth = target.scrollWidth;
                 const newHeight = target.scrollHeight;
 
                 setNodes(nds => nds.map(n => {
                     if (n.id === id) {
-                        // Only update if significantly changed to avoid loops
                         const currentW = n.style?.width as number;
                         const currentH = n.style?.height as number;
 
@@ -74,9 +83,6 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
     // 1. Filter and Sort Children
     const childNodes = useMemo(() => {
         const children = nodes.filter(n => n.parentId === id && n.type === 'note') as NoteNode[];
-
-        // Sort by order/index
-        // If order is missing, we revert to index in array or some fallback
         return children.sort((a, b) => {
             const orderA = a.data.order ?? 0;
             const orderB = b.data.order ?? 0;
@@ -96,7 +102,6 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
             if (map[status]) {
                 map[status].push(node);
             } else {
-                // Fallback for unknown status
                 if (data.columns.length > 0) {
                     map[data.columns[0].statusValue].push(node);
                 }
@@ -105,27 +110,9 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
         return map;
     }, [childNodes, data.columns]);
 
-    // --- Drag & Drop State ---
-    const [dragState, setDragState] = useState<{
-        nodeId: string;
-        startCol: string;
-        startIndex: number;
-        currentCol: string | 'CANVAS'; // 'CANVAS' means dragged out
-        placeholderIndex: number;
-        ghostPos: { x: number; y: number };
-        width: number;
-        height: number;
-        offset: { x: number; y: number };
-    } | null>(null);
-
-    const columnRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
-    const handleAddCard = (e: React.MouseEvent, _columnId: string, statusValue: string) => {
+    const handleAddCard = useCallback((e: React.MouseEvent, _columnId: string, statusValue: string) => {
         e.stopPropagation();
-
-        // Count existing to determine order
         const existing = childNodes.filter(n => n.data.status === statusValue).length;
-
         const newCard = {
             parentId: id,
             extent: 'parent',
@@ -136,382 +123,285 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                 viewMode: 'icon',
                 order: existing
             },
-            position: { x: 0, y: 0 } // Position irrelevant in flex
+            position: { x: 0, y: 0 }
         };
-
         addNode('note', newCard.position, newCard.data, { width: 112, height: 112 }, id);
-    };
+    }, [addNode, childNodes, id]);
 
-    // --- DnD Handlers ---
 
-    // Global Move / Up Listeners
-    useEffect(() => {
-        if (!dragState) return;
+    // --- Dnd Kit Configuration ---
+    // --- Custom Collision Detection ---
+    const customCollisionDetection: CollisionDetection = useCallback((args) => {
+        const pointerCollisions = pointerWithin(args);
 
-        const handleMove = (e: MouseEvent) => {
-            // 1. Update Ghost Pos
-            setDragState(prev => {
-                if (!prev) return null;
-                return {
-                    ...prev,
-                    ghostPos: {
-                        x: e.clientX - prev.offset.x,
-                        y: e.clientY - prev.offset.y
-                    }
-                };
-            });
+        // Priority 1: Check if we are over a column directly using pointer
+        const columnCollision = pointerCollisions.find(c =>
+            data.columns.some(col => col.statusValue === c.id)
+        );
 
-            // 2. Hit Test Logic
-            // Check board bounds.
-            if (boardRef.current) {
-                const boardRect = boardRef.current.getBoundingClientRect();
-                // Reduce buffer to make it easier to drag out
-                const BUFFER = 10;
+        if (columnCollision) {
+            return [columnCollision];
+        }
 
-                const isOutside = (
-                    e.clientX < boardRect.left - BUFFER ||
-                    e.clientX > boardRect.right + BUFFER ||
-                    e.clientY < boardRect.top - BUFFER ||
-                    e.clientY > boardRect.bottom + BUFFER
-                );
+        // Priority 2: Standard rect intersection (good for items)
+        const rectCollisions = rectIntersection(args);
+        const cardCollision = rectCollisions.find(c =>
+            childNodes.some(n => n.id === c.id)
+        );
 
-                if (isOutside) {
-                    setDragState(prev => {
-                        if (!prev) return null;
-                        if (prev.currentCol === 'CANVAS') return prev;
-                        return { ...prev, currentCol: 'CANVAS', placeholderIndex: -1 };
-                    });
-                    return;
-                }
+        if (cardCollision) {
+            return [cardCollision];
+        }
+
+        // Fallback
+        return closestCorners(args);
+    }, [data.columns, childNodes]);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 5,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    // --- Custom Modifiers ---
+    const snapCenterToCursor: Modifier = useCallback(({ activatorEvent, draggingNodeRect, transform }) => {
+        if (draggingNodeRect && activatorEvent && (activatorEvent as any).clientX !== undefined) {
+            const evt = activatorEvent as any;
+
+            return {
+                ...transform,
+                x: evt.clientX - draggingNodeRect.left - (draggingNodeRect.width / 2),
+                y: evt.clientY - draggingNodeRect.top - (draggingNodeRect.height / 2),
+            };
+        }
+        return transform;
+    }, [zoom]);
+
+    const [activeId, setActiveId] = useState<string | null>(null);
+
+    const handleDragStart = useCallback((event: DragStartEvent) => {
+        setActiveId(event.active.id as string);
+        setInteractionState({ draggingKanbanNodeId: event.active.id as string });
+    }, [setInteractionState]);
+
+    const handleDragOver = useCallback((event: DragOverEvent) => {
+        const { active, over } = event;
+        if (!over) return;
+
+        const activeIdStr = active.id as string;
+        const overIdStr = over.id as string;
+
+        // Find the containers
+        const activeNode = childNodes.find(n => n.id === activeIdStr);
+        const overNode = childNodes.find(n => n.id === overIdStr);
+
+        if (!activeNode) return;
+
+        // Case 1: Over a column (dropping on empty column)
+        const isOverColumn = data.columns.some(col => col.statusValue === overIdStr);
+
+        if (isOverColumn) {
+            const newStatus = overIdStr;
+            if (activeNode.data.status !== newStatus) {
+                updateNodeData(activeIdStr, { status: newStatus });
             }
+            return;
+        }
 
-            // If inside, check columns
-            const hitColumn = data.columns.find(col => {
-                const ref = columnRefs.current[col.statusValue];
-                if (!ref) return false;
-                const rect = ref.getBoundingClientRect();
-                return e.clientX >= rect.left && e.clientX <= rect.right &&
-                    e.clientY >= rect.top && e.clientY <= rect.bottom; // Strict column hit
-            });
+        // Case 2: Over another card
+        if (activeNode && overNode && activeNode.data.status !== overNode.data.status) {
+            // Moving between columns by dragging over a card in a different column
+            const newStatus = overNode.data.status;
+            updateNodeData(activeIdStr, { status: newStatus });
+        }
+    }, [childNodes, data.columns, updateNodeData]);
 
-            if (hitColumn) {
-                const colStatus = hitColumn.statusValue;
-                const ref = columnRefs.current[colStatus];
-                if (ref) {
-                    // Find children cards
-                    const cardElements = Array.from(ref.querySelectorAll(`.${styles.cardWrapper}`))
-                        .filter(el => el.getAttribute('data-ghost') !== 'true'); // Exclude ghost if needed
+    const handleDragEnd = useCallback((event: DragEndEvent) => {
+        const { active, over } = event;
+        const activeIdStr = active.id as string;
+        const activeNode = childNodes.find(n => n.id === activeIdStr);
 
-                    const index = getInsertionIndex(e.clientY, cardElements);
+        setActiveId(null);
+        setInteractionState({ draggingKanbanNodeId: null });
 
-                    setDragState(prev => {
-                        if (!prev) return null;
-                        if (prev.currentCol === colStatus && prev.placeholderIndex === index) return prev;
-                        return { ...prev, currentCol: colStatus, placeholderIndex: index };
-                    });
-                }
-            } else {
-                // If we are INSIDE the board (passed isOutside check) but NOT hitting a column:
-                // We could treat this as "Still in previous column" (Sticky) OR "Canvas".
-                // If we treat it as Canvas, users can drop in the gaps to eject.
-                // Let's try treating gaps as Canvas for easier exit?
-                // Or maybe keep sticky to avoid accidental drops?
-                // Given user complaint "cannot drag out", maybe they are hitting the gap?
-                // Use a 'soft' stickiness or just default to CANVAS if not in column?
+        if (!activeNode) return;
 
-                // Let's set it to CANVAS if not in column. This makes "dragging out" very responsive.
-                setDragState(prev => {
-                    if (!prev) return null;
-                    if (prev.currentCol === 'CANVAS') return prev;
-                    return { ...prev, currentCol: 'CANVAS', placeholderIndex: -1 };
-                });
-            }
-        };
+        // --- EJECT TO CANVAS logic ---
+        // If not over anything, OR over the board main container but not a specific column?
+        // Actually simplest check: check if the 'over' is one of our columns or cards.
+        // If over is null, we definitely eject.
 
-        const handleUp = (_e: MouseEvent) => {
-            if (!dragState) return;
+        let shouldEject = !over;
 
-            // Commit Change
-            const { nodeId, currentCol, placeholderIndex, ghostPos } = dragState;
+        // Also check if we 'missed' the board entirely? 
+        // dnd-kit might return null if we drop on the canvas background since it's not a droppable.
+        // The board itself is not a droppable in this context, only columns are. 
+        // So dropping on the header or outside columns = null (or valid if we stick to last col).
 
-            if (currentCol === 'CANVAS') {
-                // --- DRAG OUT LOGIC ---
+        // We can use the layout rects to be sure.
+        if (shouldEject) {
+            // EJECT
+            // 1. Calculate drop position in ReactFlow units
+            // active.rect.current.translated includes the transform
+            if (active.rect.current.translated) {
+                const { left, top } = active.rect.current.translated;
+                const p1 = screenToFlowPosition({ x: left, y: top });
 
-                // 1. Calculate drop rect in Flow Units
-                // We used screenToFlowPosition which handles transform.
+                // 2. Check collisions for nesting
+                // Create a rect for collision check
+                const width = activeNode.style?.width as number || 112;
+                const height = activeNode.style?.height as number || 112;
+                const dropRect = { x: p1.x, y: p1.y, width, height };
 
-                // Calculate Flow Rect for intersections
-                const p1 = screenToFlowPosition({ x: ghostPos.x, y: ghostPos.y });
-                const p2 = screenToFlowPosition({ x: ghostPos.x + dragState.width, y: ghostPos.y + dragState.height });
-
-                const dropRect = {
-                    x: p1.x,
-                    y: p1.y,
-                    width: p2.x - p1.x,
-                    height: p2.y - p1.y
-                };
-
-                // 2. Check for Target Node (Nesting)
                 const intersections = getIntersectingNodes(dropRect as any);
                 const targetNode = intersections.find((n) =>
-                    n.id !== nodeId &&
+                    n.id !== activeIdStr &&
                     n.id !== id && // Not self (board)
-                    n.parentId !== id // Not a sibling in the board (though filter removes them usually if hidden)
-                    // We might want to filter out 'kanban' unless we support board-to-board
+                    n.parentId !== id // Not a sibling
                 );
 
                 if (targetNode && (targetNode.type === 'note' || targetNode.type === 'block' || targetNode.type === 'fused-note')) {
-                    // --- NESTING ---
-                    // Convert the dragged note into a Page Block inside the target
-                    // 1. Create Page Block
+                    // NESTING
                     const pageBlock = {
                         id: uuidv4(),
                         type: 'page',
-                        content: (childNodes.find(n => n.id === nodeId)?.data.label) || 'Untitled Page',
-                        metadata: { nodeId: nodeId }
+                        content: activeNode.data.label || 'Untitled',
+                        metadata: { nodeId: activeIdStr }
                     };
-
-                    // 2. Add to Target Content
                     const currentContent = Array.isArray((targetNode.data as any).content) ? (targetNode.data as any).content : [];
                     updateNodeData(targetNode.id, {
                         content: [...currentContent, pageBlock]
                     });
-
-                    // 3. Move Node into Target
-                    setNodes(nds => nds.map(n => {
-                        if (n.id === nodeId) {
-                            return {
-                                ...n,
-                                parentId: targetNode.id,
-                                extent: 'parent',
-                                position: { x: 0, y: 0 }, // Hidden/Virtual
-                                zIndex: 10
-                            };
-                        }
-                        return n;
-                    }));
-
-                } else {
-                    // --- EJECT TO CANVAS ---
-
-                    // 1. Calculate proper ReactFlow position
-                    // We already have p1 from above
-                    const newPos = p1;
-
-                    // 2. Update Node to be a Root Node via Store (Persist!)
-                    updateNode(nodeId, {
-                        parentId: undefined,
-                        extent: undefined,
-                        position: newPos,
+                    // Move Node into Target (Hide it)
+                    updateNode(activeIdStr, {
+                        parentId: targetNode.id,
+                        extent: 'parent',
+                        position: { x: 0, y: 0 },
                         zIndex: 10
                     });
 
-                    // Remove local setNodes call as store update will trigger re-render
+                } else {
+                    // PLAIN EJECT
+                    updateNode(activeIdStr, {
+                        parentId: undefined,
+                        extent: undefined,
+                        position: p1,
+                        zIndex: 10
+                    });
                 }
-            } else {
-                // --- REORDER WITHIN KANBAN ---
-                // (Existing logic)
-
-                // Get all items in target column EXCEPT the dragged one (if it was already there)
-                // But getting from 'nodes' state is safer 
-                // We need to construct the NEW order for the target column.
-
-                // 1. Get filtered list of Target Column
-                let targetList = childNodes.filter(n => n.data.status === currentCol && n.id !== nodeId);
-
-                // 2. Insert at index
-                // Clamp index
-                let safeIndex = placeholderIndex;
-                if (safeIndex < 0) safeIndex = 0;
-                if (safeIndex > targetList.length) safeIndex = targetList.length;
-
-                const movingNode = childNodes.find(n => n.id === nodeId);
-                if (movingNode) {
-                    targetList.splice(safeIndex, 0, movingNode);
-                }
-
-                // 3. Update ALL nodes in that column with new order
-                targetList.forEach((n, idx) => {
-                    // Only update if changed
-                    const isActive = n.id === nodeId;
-                    const newStatus = currentCol; // Only important for active
-
-                    // We batch update? or individual. 
-                    // updateNodeData merges data.
-
-                    const updates: any = { order: idx };
-                    if (isActive) updates.status = newStatus;
-
-                    updateNodeData(n.id, updates);
-                });
+                return;
             }
-
-            setDragState(null);
-            setInteractionState({ draggingKanbanNodeId: null });
-        };
-
-        window.addEventListener('mousemove', handleMove);
-        window.addEventListener('mouseup', handleUp);
-
-        return () => {
-            window.removeEventListener('mousemove', handleMove);
-            window.removeEventListener('mouseup', handleUp);
-        };
-    }, [dragState, data.columns, childNodes, updateNodeData, setNodes, screenToFlowPosition]);
-
-    const startDrag = (e: React.MouseEvent, node: NoteNode) => {
-        // Prevent drag if interacting with controls
-        const target = e.target as HTMLElement;
-        if (['INPUT', 'TEXTAREA', 'BUTTON'].includes(target.tagName) || target.closest('button') || target.closest('.nodrag')) {
-            return;
         }
 
-        e.preventDefault();
-        e.stopPropagation();
+        // --- REORDER LOGIC ---
+        if (over) {
+            const overIdStr = over.id as string;
 
-        const currentTarget = e.currentTarget as HTMLElement;
-        const rect = currentTarget.getBoundingClientRect();
+            // If dropped on a column (empty or end), it is already handled by DragOver for status change.
+            // We just need to ensure order is correct. 
+            // If dropped on a Card, we reorder.
 
-        // Find current index
-        const colList = columnsData[node.data.status || ''] || [];
-        const idx = colList.indexOf(node);
+            const overNode = childNodes.find(n => n.id === overIdStr);
+            if (activeIdStr !== overIdStr) {
+                // We are reordering within the (potentially new) column
+                // Get all cards in that column
+                const status = activeNode.data.status || ''; // It should have been updated in DragOver
+                const cardsInCol = childNodes.filter(n => n.data.status === status);
 
-        setInteractionState({ draggingKanbanNodeId: node.id });
+                const oldIndex = cardsInCol.findIndex(n => n.id === activeIdStr);
+                const newIndex = overNode ? cardsInCol.findIndex(n => n.id === overIdStr) : cardsInCol.length;
 
-        setDragState({
-            nodeId: node.id,
-            startCol: node.data.status || '',
-            startIndex: idx,
-            currentCol: node.data.status || '',
-            placeholderIndex: idx,
-            ghostPos: { x: rect.left, y: rect.top },
-            width: rect.width,
-            height: rect.height,
-            offset: { x: e.clientX - rect.left, y: e.clientY - rect.top }
+                // Note: if over is a column ID, newIndex is usually end, or 0? 
+                // arrayMove handles indices. 
+                // However, dnd-kit's SortableContext behaves best if we actually reorder the array.
+
+                if (oldIndex !== -1 && newIndex !== -1) {
+                    const newOrder = arrayMove(cardsInCol, oldIndex, newIndex);
+                    // Update ALL orders in this column
+                    newOrder.forEach((node, idx) => {
+                        updateNodeData(node.id, { order: idx });
+                    });
+                }
+            }
+        }
+    }, [childNodes, id, screenToFlowPosition, getIntersectingNodes, updateNodeData, updateNode]);
+
+
+    const activeNode = useMemo(() =>
+        childNodes.find(n => n.id === activeId),
+        [activeId, childNodes]);
+
+    const handleToggleColumn = useCallback((columnId: string) => {
+        updateNodeData(id, {
+            columns: data.columns.map(col =>
+                col.id === columnId ? { ...col, collapsed: !col.collapsed } : col
+            )
         });
-    };
+    }, [id, data.columns, updateNodeData]);
 
     return (
-        <div className={`${styles.board} ${selected ? styles.selected : ''}`}>
-
+        <div
+            className={`${styles.board} ${selected ? styles.selected : ''} ${data.background ? styles[data.background] : ''}`}
+            ref={boardRef}
+            style={data.background ? {
+                background: data.background.startsWith('#') || data.background.startsWith('rgba')
+                    ? data.background
+                    : undefined
+            } : undefined}
+        >
             {/* Header */}
             <div className={styles.header}>
                 <h3 className={styles.title}>{data.label}</h3>
                 <div className={styles.columnCount}>
                     {data.columns.length} columns
                 </div>
-            </div>
-
-            {/* Columns */}
-            <div className={`${styles.columnsContainer} nodrag`}>
-                {data.columns.map((col) => {
-                    const cards = columnsData[col.statusValue] || [];
-                    const isTargetCol = dragState?.currentCol === col.statusValue ||
-                        (interactionState.hoveredKanbanColumn?.kanbanId === id && interactionState.hoveredKanbanColumn?.columnId === col.statusValue);
-
-                    return (
-                        <div
-                            key={col.id}
-                            className={`${styles.column} ${isTargetCol ? styles.columnActive : ''}`}
-                            ref={el => { columnRefs.current[col.statusValue] = el; }}
-                        >
-                            <div className={styles.columnHeader}>
-                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                    <div className={styles.columnColorBar} style={{ background: col.color || '#ccc' }} />
-                                    <span className={styles.columnTitle}>{col.label}</span>
-                                </div>
-                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <span
-                                        className={styles.statusBadge}
-                                        style={{ background: `${col.color}33`, color: col.color }}
-                                    >
-                                        {cards.length}
-                                    </span>
-                                    <button
-                                        className={styles.addCardBtn}
-                                        onClick={(e) => handleAddCard(e, col.id, col.statusValue)}
-                                    >
-                                        <Plus size={14} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className={styles.dropZone}>
-                                {cards.map((card, idx) => {
-                                    // If this card is being dragged, hiding it (it becomes ghost)
-                                    if (dragState && dragState.nodeId === card.id) return null;
-
-                                    // Placeholder logic:
-                                    // If this is the target col, and we are at the placeholder index, render placeholder BEFORE this card
-                                    const showPlaceholderBefore = isTargetCol && dragState?.placeholderIndex === idx;
-
-                                    return (
-                                        <>
-                                            {showPlaceholderBefore && (
-                                                <div
-                                                    className={styles.dropPlaceholder}
-                                                    style={{ height: dragState.height, width: '100%' }}
-                                                />
-                                            )}
-
-                                            <div
-                                                key={card.id}
-                                                className={styles.cardWrapper}
-                                                onMouseDown={(e) => startDrag(e, card)}
-                                                style={{
-                                                    // Ensure it takes the height from NoteCard strict sizing
-                                                    height: card.style?.height ?? 112
-                                                }}
-                                            >
-                                                <NoteCard
-                                                    {...card}
-                                                    selected={selected && !dragState} // Only selected if board is selected? Or handle logic.
-                                                    dragging={false}
-                                                    zIndex={0}
-                                                    isConnectable={false}
-                                                    selectable={true}
-                                                    deletable={true}
-                                                    draggable={true}
-                                                    positionAbsoluteX={0}
-                                                    positionAbsoluteY={0}
-                                                />
-                                            </div>
-                                        </>
-                                    );
-                                })}
-
-                                {/* Edge Case: Placeholder at the end of list */}
-                                {(isTargetCol && dragState?.placeholderIndex === cards.length) ||
-                                    (isTargetCol && dragState?.nodeId && dragState.placeholderIndex >= (cards.filter(c => c.id !== dragState.nodeId).length)) ? (
-                                    <div
-                                        className={styles.dropPlaceholder}
-                                        style={{ height: dragState?.height, width: '100%' }}
-                                    />
-                                ) : null}
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* Drag Ghost Overlay */}
-            {dragState && (
-                <div
-                    className={styles.dragGhost}
-                    style={{
-                        top: dragState.ghostPos.y,
-                        left: dragState.ghostPos.x,
-                        width: dragState.width,
-                        height: dragState.height
+                <button
+                    className="nodrag"
+                    style={{ background: 'transparent', border: 'none', color: '#666', cursor: 'pointer', padding: 4 }}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingKanbanId(id);
+                        setKanbanModalOpen(true);
                     }}
                 >
-                    {/* Re-render the dragged card visuals for the ghost */}
-                    {(() => {
-                        const node = childNodes.find(n => n.id === dragState.nodeId);
-                        if (!node) return null;
-                        return (
+                    <Settings size={16} />
+                </button>
+            </div>
+
+            <DndContext
+                sensors={sensors}
+                collisionDetection={customCollisionDetection}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+            >
+                <div className={`${styles.columnsContainer} nodrag`}>
+                    {data.columns.map((col) => (
+                        <KanbanColumn
+                            key={col.id}
+                            column={col}
+                            cards={columnsData[col.statusValue] || []}
+                            onAddCard={handleAddCard}
+                            onToggleCollapse={handleToggleColumn}
+                        />
+                    ))}
+                </div>
+
+                <DragOverlay dropAnimation={dropAnimation} modifiers={[snapCenterToCursor]}>
+                    {activeNode ? (
+                        <div style={{
+                            transform: `scale(${zoom * 1.05}) rotate(4deg)`,
+                            cursor: 'grabbing',
+                            width: activeNode.measured?.width || activeNode.style?.width || 224,
+                            transformOrigin: 'center center'
+                        }}>
                             <NoteCard
-                                {...node}
+                                {...activeNode}
                                 selected={false}
                                 dragging={true}
                                 zIndex={100}
@@ -522,14 +412,13 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                                 positionAbsoluteX={0}
                                 positionAbsoluteY={0}
                             />
-                        );
-                    })()}
-                </div>
-            )}
+                        </div>
+                    ) : null}
+                </DragOverlay>
+            </DndContext>
 
             <Handle type="target" position={Position.Top} className={styles.handle} />
             <Handle type="source" position={Position.Bottom} className={styles.handle} />
         </div>
     );
 });
-
