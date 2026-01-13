@@ -167,6 +167,10 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
         deleteElements({ nodes: [{ id }] });
     }, [id, deleteElements]);
 
+    const handleContentUpdate = useCallback((blocks: any[]) => {
+        updateNodeData(id, { content: blocks });
+    }, [id, updateNodeData]);
+
     return (
         <div
             className={`${styles.fusedNoteNode} ${selected ? styles.selected : ''}`}
@@ -196,9 +200,10 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                     initialContent={data.content}
                     readOnly={false}
                     minimal={false}
-                    onUpdate={(blocks) => updateNodeData(id, { content: blocks })}
+                    onUpdate={handleContentUpdate}
                     nodeId={id}
-                    hideBlockHandles={true}
+                    hideBlockHandles={false}
+                    disableMediaControls={true}
                 />
             </div>
 

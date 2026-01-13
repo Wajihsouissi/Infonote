@@ -199,12 +199,17 @@ export const NoteCard = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 // Max limits
                 if (targetHeight > MAX_HEIGHT) targetHeight = MAX_HEIGHT;
 
-                // Grow Only Logic:
-                // We strictly only resize if we need MORE space (targetHeight > currentCardHeight).
-                // If we have extra space (targetHeight < currentCardHeight), we do nothing (retain current size).
-                if (targetHeight > currentCardHeight + 2) {
+                // Resizing Logic:
+                // 1. Grow if content pushes bounds (Normal behavior)
+                // 2. Shrink ONLY if significant empty space is detected (e.g. after a Split)
+                //    Threshold: > 112px (one grid step) empty space
+
+                const isGrowing = targetHeight > currentCardHeight + 2; // small buffer
+                const isShrinkingSignificantly = currentCardHeight - targetHeight > 112;
+
+                if (isGrowing || isShrinkingSignificantly) {
                     // Check if we are already at MAX and want more -> ignore
-                    if (currentCardHeight >= MAX_HEIGHT && targetHeight >= MAX_HEIGHT) return;
+                    if (isGrowing && currentCardHeight >= MAX_HEIGHT && targetHeight >= MAX_HEIGHT) return;
 
                     // Debounce slightly to avoid flicker
                     setTimeout(() => {

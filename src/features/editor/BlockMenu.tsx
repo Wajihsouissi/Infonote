@@ -10,7 +10,7 @@ interface BlockMenuProps {
     blockId: string;
     currentType: BlockType;
     onClose: () => void;
-    onAction: (action: 'turnInto' | 'color' | 'duplicate' | 'delete', value?: any) => void;
+    onAction: (action: 'turnInto' | 'color' | 'duplicate' | 'delete' | 'split', value?: any) => void;
 }
 
 const TURN_INTO_ITEMS: { label: string; type: BlockType; icon: React.ReactNode }[] = [
@@ -74,6 +74,14 @@ export function BlockMenu({ x, y, blockId, currentType, onClose, onAction }: Blo
                     <div className={`${styles.slashMenuItem} ${styles.dangerItem}`} onClick={() => handleMainAction('delete')}>
                         <span className={styles.slashIcon}><Trash2 size={16} /></span>
                         <span className={styles.slashLabel}>Delete</span>
+                    </div>
+
+                    <div className={styles.divider} />
+
+                    {/* Split Action */}
+                    <div className={styles.slashMenuItem} onClick={() => handleMainAction('split' as any)}>
+                        <span className={styles.slashIcon}><ArrowRight size={16} /></span>
+                        <span className={styles.slashLabel}>Split Note Here</span>
                     </div>
 
                     <div className={styles.divider} />

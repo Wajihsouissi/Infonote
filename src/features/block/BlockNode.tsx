@@ -86,7 +86,8 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     minimal={true} // Keep it clean
                     onUpdate={(blocks) => updateNodeData(id, { content: blocks })}
                     mode="atomic"
-                    hideBlockHandles={true}
+                    hideBlockHandles={false}
+                    disableMediaControls={true}
                 />
             </div>
 

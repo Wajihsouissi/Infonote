@@ -66,7 +66,13 @@
     cursor: grab;
     color: var(--color-text-muted);
     opacity: 0;
-    /* Still hidden by default, visible on hover */
+    /* By default hidden, revealed on wrapper hover. 
+       If user wants them to be seen, we rely on the wrapper hover. 
+       Let's ensure the wrapper hover works. 
+       
+       Wait, if the user said "i cant see", maybe they want them always visible?
+       Let's try keeping them hidden by default but ensure the hover works perfect.
+    */
     transition: opacity 0.2s ease, background 0.2s;
     border-radius: 4px;
 
@@ -75,13 +81,20 @@
     justify-content: center;
 }
 
-/* Hide internal handles in minimal mode to prevent clutter with node handles */
-.minimal .dragHandle {
-    display: none !important;
+/* Force visible on hover of wrapper */
+.sortableWrapper:hover .dragHandle {
+    opacity: 1 !important;
+    /* Make it fully opaque on hover */
 }
 
+/* Hide internal handles in minimal mode to prevent clutter with node handles */
+/* .minimal .dragHandle {
+    display: none !important;
+} */
+/* ENABLED HANDLES in minimal mode per user request */
+
 .sortableWrapper:hover {
-    background: rgba(255, 255, 255, 0.08);
+    /* background: rgba(255, 255, 255, 0.08); */
     /* Dark contrast */
     border-radius: 4px;
 }
@@ -89,8 +102,8 @@
 /* Remove hover background when handles are hidden (e.g. FusedNoteNode), show line instead */
 .sortableWrapper.hideHandle:hover {
     background: transparent;
-    box-shadow: inset 2px 0 0 0 var(--color-primary);
-    /* Left line indicator */
+    /* box-shadow: inset 2px 0 0 0 var(--color-primary); */
+    /* Left line indicator - REMOVED per user request */
     padding-left: 2px;
     /* Slight offset compensation if needed, but inset shadow doesn't take space */
 }

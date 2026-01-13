@@ -273,7 +273,7 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
                     initialContent={data.content}
                     readOnly={false}
                     minimal={false}
-                    onUpdate={(blocks) => onUpdate(id, { content: blocks })}
+                    onUpdate={useCallback((blocks: any[]) => onUpdate(id, { content: blocks }), [id, onUpdate])}
                     nodeId={nodeId}
                 />
             </div>

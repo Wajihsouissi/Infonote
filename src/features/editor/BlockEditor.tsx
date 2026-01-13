@@ -9,6 +9,7 @@ import { BlockMenu } from './BlockMenu';
 import { FloatingToolbar } from './FloatingToolbar';
 import { TextBlock, HeadingBlock, TodoBlock, QuoteBlock, ImageBlock, ListBlock, CalloutBlock, DividerBlock, PageBlock, ContainerBlock, VideoBlock, FileBlock, ColumnsBlock } from './BlockComponents';
 import { parseClipboardData } from './pasteUtils';
+import { useStore } from '../../store/useStore';
 
 interface BlockEditorProps {
     initialContent?: string | Block[];
@@ -19,9 +20,14 @@ interface BlockEditorProps {
     mode?: 'document' | 'atomic';
     nodeId?: string; // New prop
     hideBlockHandles?: boolean;
+    disableMediaControls?: boolean;
 }
 
-export function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles }: BlockEditorProps) {
+import { memo } from 'react';
+
+// ... imports
+
+export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles, disableMediaControls }: BlockEditorProps) {
     const editorRef = useRef<HTMLDivElement>(null);
     const [blocks, setBlocks] = useState<Block[]>(() => {
         if (Array.isArray(initialContent)) return initialContent;
@@ -163,9 +169,18 @@ export function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, min
     }, []);
 
     // Sync with external content updates (e.g. Fusion)
+    // Sync with external content updates (e.g. Fusion)
     useEffect(() => {
         if (initialContent) {
-            setBlocks(Array.isArray(initialContent) ? initialContent : [{ id: uuidv4(), type: 'text', content: initialContent }]);
+            const nextContent = Array.isArray(initialContent) ? initialContent : [{ id: uuidv4(), type: 'text' as const, content: typeof initialContent === 'string' ? initialContent : '' }];
+
+            setBlocks(prev => {
+                // Optimization: Avoid re-render if content is identical
+                if (JSON.stringify(prev) === JSON.stringify(nextContent)) {
+                    return prev;
+                }
+                return nextContent;
+            });
         }
     }, [initialContent]);
 
@@ -197,6 +212,12 @@ export function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, min
             onUpdate?.(newBlocks);
             return newBlocks;
         });
+
+        // Trigger Split Check if it's a structural type
+        if (['heading1', 'heading2', 'heading3', 'toggle', 'divider'].includes(type)) {
+            checkForSplit(targetId, type);
+        }
+
         setFocusId(targetId); // Keep focus
         setSlashMenuState(null);
     }, [slashMenuState, onUpdate]);
@@ -218,10 +239,28 @@ export function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, min
 
         if (typeof contentOrPatch === 'string') {
             const content = contentOrPatch;
-            if (content === '# ') { convertBlock(id, 'heading1'); return; }
-            if (content === '## ') { convertBlock(id, 'heading2'); return; }
-            if (content === '### ') { convertBlock(id, 'heading3'); return; }
+            // Define auto-split helper (DEBOUNCED or conditional?)
+            // We want to trigger it AFTER conversion to type.
+
+            if (content === '# ') {
+                convertBlock(id, 'heading1');
+                // Immediate split if not first block?
+                checkForSplit(id, 'heading1');
+                return;
+            }
+            if (content === '## ') {
+                convertBlock(id, 'heading2');
+                checkForSplit(id, 'heading2');
+                return;
+            }
+            if (content === '### ') {
+                convertBlock(id, 'heading3');
+                checkForSplit(id, 'heading3');
+                return;
+            }
             if (content === '> ') { convertBlock(id, 'quote'); return; }
+            if (content === '>> ') { convertBlock(id, 'toggle'); return; }
+            if (content === '--- ') { convertBlock(id, 'divider'); return; } // needs space usually to confirm? or just ---
             if (content === '[] ' || content === '- ') { convertBlock(id, 'todo'); return; }
 
             // Slash menu
@@ -231,7 +270,6 @@ export function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, min
                     if (selection && selection.rangeCount > 0 && editorRef.current) {
                         const range = selection.getRangeAt(0);
                         const rect = range.getBoundingClientRect();
-                        // Serialize rect properties as DOMRect is not iterable/spreadable for state sometimes, referencing directly is safer
                         setSlashMenuState({
                             anchorRect: { top: rect.top, left: rect.left, bottom: rect.bottom, right: rect.right } as any,
                             blockId: id
@@ -243,6 +281,23 @@ export function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, min
             }
         }
     }, [slashMenuState, onUpdate, convertBlock]);
+
+    // NEW Helper to trigger split
+    const checkForSplit = (blockId: string, newType: BlockType) => {
+        // We have nodeId prop.
+        if (!nodeId) return;
+
+        // Check Index: prevent splitting the very first block
+        setBlocks(prev => {
+            const index = prev.findIndex(b => b.id === blockId);
+            if (index > 0) {
+                // It is NOT the first block. Trigger split.
+                // Pass 'prev' as the current content source of truth
+                useStore.getState().splitNode(nodeId, blockId, prev);
+            }
+            return prev;
+        });
+    };
 
     const addBlock = useCallback((afterId: string, type: BlockType = 'text', initialIndent: number = 0, initialMetadata?: any) => {
         const newBlock: Block = { id: uuidv4(), type, content: '', indent: initialIndent };
@@ -312,7 +367,7 @@ export function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, min
         });
     }, [onUpdate]);
 
-    const handleBlockMenuAction = (action: 'turnInto' | 'color' | 'duplicate' | 'delete', value?: any) => {
+    const handleBlockMenuAction = (action: 'turnInto' | 'color' | 'duplicate' | 'delete' | 'split', value?: any) => {
         if (!blockMenuState) return;
         const { blockId } = blockMenuState;
 
@@ -329,6 +384,11 @@ export function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, min
                 break;
             case 'delete':
                 removeBlock(blockId);
+                break;
+            case 'split':
+                if (nodeId) {
+                    useStore.getState().splitNode(nodeId, blockId, blocks);
+                }
                 break;
         }
         setBlockMenuState(null);
@@ -582,7 +642,8 @@ export function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, min
             },
             onKeyDown: (e: React.KeyboardEvent) => handleKeyDown(e, block.id, block.content),
             onPaste: (e: React.ClipboardEvent) => handleBlockPaste(e, block.id),
-            domRef: (el: HTMLDivElement | null) => { blockRefs.current[block.id] = el; }
+            domRef: (el: HTMLDivElement | null) => { blockRefs.current[block.id] = el; },
+            disableMediaControls
         };
 
         switch (block.type) {
@@ -819,4 +880,4 @@ export function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, min
             )}
         </div>
     );
-}
+});

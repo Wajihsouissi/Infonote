@@ -25,18 +25,24 @@ import type { BlockType } from '../editor/types';
 import styles from './CanvasBoard.module.css';
 
 export function CanvasBoard() {
-    const {
-        nodes,
-        edges,
-        onNodesChange,
-        onEdgesChange,
-        onConnect,
-        addNode,
-        currentParentId,
-        updateNodeData,
-        interactionState,
-        setInteractionState
-    } = useStore();
+    // Atomic Selectors to prevent unnecessary re-renders
+    const nodes = useStore(useCallback(s => s.nodes, []));
+    const edges = useStore(useCallback(s => s.edges, []));
+    const currentParentId = useStore(useCallback(s => s.currentParentId, []));
+    const interactionState = useStore(useCallback(s => s.interactionState, []));
+
+    // Actions (stable references, no need for selectors typically if store is stable, 
+    // but better to match pattern or use getState() inside callbacks if appropriate.
+    // However, zustand actions are stable. We can pluck them or just use the hook for actions only if we are careful).
+    // Actually, simply plucking actions from the store hook without selector subscribes to the WHOLE store.
+    // So we MUST use specific selectors even for functions if we use the hook this way.
+
+    const onNodesChange = useStore(useCallback(s => s.onNodesChange, []));
+    const onEdgesChange = useStore(useCallback(s => s.onEdgesChange, []));
+    const onConnect = useStore(useCallback(s => s.onConnect, []));
+    const addNode = useStore(useCallback(s => s.addNode, []));
+    const updateNodeData = useStore(useCallback(s => s.updateNodeData, []));
+    const setInteractionState = useStore(useCallback(s => s.setInteractionState, []));
 
     const { fitView, screenToFlowPosition, getIntersectingNodes, deleteElements, setNodes, getNode } = useReactFlow();
 
@@ -129,22 +135,52 @@ export function CanvasBoard() {
         const content = activeParentNode.data.content;
 
         if (Array.isArray(content) && content.length > 0) {
-            const fusedNode = {
-                id: uuidv4(),
-                type: 'fused-note' as const,
-                position: { x: 0, y: 0 },
-                data: {
-                    content: content
-                },
-                style: { width: 350, height: 'auto' as any },
-                parentId: activeParentNode.id
-            };
+
+            // Splitting Logic
+            const chunks: any[][] = [];
+            let currentChunk: any[] = [];
+            const splitterTypes = ['heading1', 'heading2', 'heading3', 'toggle', 'divider'];
+
+            content.forEach((block: any) => {
+                if (splitterTypes.includes(block.type)) {
+                    if (currentChunk.length > 0) {
+                        chunks.push(currentChunk);
+                        currentChunk = [];
+                    }
+                }
+                currentChunk.push(block);
+            });
+            if (currentChunk.length > 0) {
+                chunks.push(currentChunk);
+            }
+
+            // Create Nodes from Chunks
+            let currentY = 0;
+            const newNodes = chunks.map((chunk) => {
+                const estimatedHeight = Math.max(100, chunk.length * 40); // Simple heuristic
+
+                const node = {
+                    id: uuidv4(),
+                    type: 'fused-note' as const,
+                    position: { x: 0, y: currentY },
+                    data: {
+                        content: chunk
+                    },
+                    style: { width: 350, height: 'auto' as any },
+                    parentId: activeParentNode.id
+                };
+
+                currentY += estimatedHeight + 50; // Gap
+                return node;
+            });
 
             useStore.setState(state => ({
-                nodes: [...state.nodes, fusedNode]
+                nodes: [...state.nodes, ...newNodes]
             }));
 
             setTimeout(() => fitView({ duration: 800 }), 100);
+        } else {
+            // console.log("CanvasBoard: Content empty or invalid", content);
         }
 
     }, [currentParentId, activeParentNode, visibleNodes.length, fitView, isSyncReady]);
@@ -181,11 +217,10 @@ export function CanvasBoard() {
             }
         };
 
-        const timer = setTimeout(syncContent, 500);
+        const timer = setTimeout(syncContent, 1000); // Debounce 1s to avoid drag thrashing
 
         return () => {
             clearTimeout(timer);
-            syncContent();
         };
 
     }, [visibleNodes, currentParentId, activeParentNode, updateNodeData, isSyncReady]);

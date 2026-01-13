@@ -61,6 +61,7 @@ interface AppState {
     setStorageStatus: (isConnected: boolean, directoryName: string | null) => void;
     setLastSaved: (date: string | null) => void;
     loadGraph: (nodes: AppNode[], edges: Edge[]) => void;
+    splitNode: (nodeId: string, splitBlockId: string, currentBlocks?: any[]) => void;
 }
 
 const initialNodes: AppNode[] = [
@@ -252,6 +253,83 @@ export const useStore = create<AppState>()(temporal((set, get) => ({
             edges,
             // Reset history when loading a new graph? Maybe.
             // For now, simplify.
+        });
+    },
+
+    splitNode: (nodeId, splitBlockId) => {
+        const { nodes, edges } = get();
+        const sourceNode = nodes.find(n => n.id === nodeId);
+
+        // Safety check for content
+        if (!sourceNode || !('content' in sourceNode.data) || !Array.isArray((sourceNode.data as any).content)) return;
+
+        const blocks = (sourceNode.data as any).content as any[];
+        const splitIndex = blocks.findIndex(b => b.id === splitBlockId);
+
+        if (splitIndex === -1 || splitIndex === 0) return; // Not found or splitting at start (no op?)
+
+        // Split Logic
+        const blocksToStay = blocks.slice(0, splitIndex);
+        const blocksToMove = blocks.slice(splitIndex);
+
+        if (blocksToMove.length === 0) return;
+
+        // Create New Node
+        // Position it below the current one? Or to the right?
+        // Let's go with "Below" + 20px gap
+        const currentHeight = sourceNode.style?.height && typeof sourceNode.style.height === 'number'
+            ? sourceNode.style.height
+            : 400; // rough estimate if auto
+
+        const newPostion = {
+            x: sourceNode.position.x,
+            y: sourceNode.position.y + Number(currentHeight) + 50
+        };
+
+        const newNodeId = uuidv4();
+
+        // Determine Label for new node from first block if it's a heading
+        const firstBlock = blocksToMove[0];
+        let newLabel = "New Note";
+        if (['heading1', 'heading2', 'heading3'].includes(firstBlock.type)) {
+            newLabel = firstBlock.content || "Untitled Section";
+        } else if (firstBlock.type === 'toggle') {
+            newLabel = firstBlock.content || "Toggle Section";
+        }
+
+        // Handle viewMode safely
+        const sourceViewMode = 'viewMode' in sourceNode.data ? (sourceNode.data as any).viewMode : 'medium';
+
+        const newNode: AppNode = {
+            id: newNodeId,
+            type: 'fused-note', // CHANGED: Create FusedNoteNode
+            position: newPostion,
+            data: {
+                content: blocksToMove,
+                // Fused notes don't need all the note metadata initially
+            } as any,
+            style: {
+                width: 350, // Standard width for fused note
+                height: 'auto'
+            },
+            parentId: sourceNode.parentId
+        };
+
+        // Create Edge connecting source -> new node (User "Nested" intent usually implies link)
+        const newEdge: Edge = {
+            id: `e-${nodeId}-${newNodeId}`,
+            source: nodeId,
+            target: newNodeId,
+            data: { parentId: sourceNode.parentId }
+        };
+
+        // Update Source Node (Remove moved blocks)
+        set({
+            nodes: [
+                ...nodes.map(n => n.id === nodeId ? { ...n, data: { ...n.data, content: blocksToStay } } : n) as AppNode[],
+                newNode
+            ],
+            edges: [...edges, newEdge]
         });
     },
 

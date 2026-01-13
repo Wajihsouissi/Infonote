@@ -10,6 +10,7 @@ interface ResizableMediaWrapperProps {
     readOnly?: boolean;
     onResize: (newWidth: number) => void;
     onAlign?: (alignment: 'left' | 'center' | 'right') => void;
+    disableMediaControls?: boolean;
 }
 
 export const ResizableMediaWrapper = ({
@@ -18,7 +19,8 @@ export const ResizableMediaWrapper = ({
     alignment = 'left',
     readOnly,
     onResize,
-    onAlign
+    onAlign,
+    disableMediaControls
 }: ResizableMediaWrapperProps) => {
     const wrapperRef = useRef<HTMLDivElement>(null);
     const [isResizing, setIsResizing] = useState(false);
@@ -77,7 +79,7 @@ export const ResizableMediaWrapper = ({
     return (
         <div className={styles.alignmentContainer} data-alignment={alignment}>
             {/* Alignment Menu */}
-            {!readOnly && onAlign && (
+            {!readOnly && onAlign && !disableMediaControls && (
                 <div
                     className={`${styles.alignmentMenu} nodrag`}
                     onMouseDown={(e) => e.stopPropagation()}

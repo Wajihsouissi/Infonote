@@ -18,6 +18,7 @@ interface BlockProps {
     onKeyDown: (e: React.KeyboardEvent) => void;
     onPaste?: (e: React.ClipboardEvent) => void;
     domRef?: React.Ref<HTMLDivElement>;
+    disableMediaControls?: boolean;
 }
 
 // Hook to safely handle contentEditable without cursor jumps
@@ -136,7 +137,7 @@ import { ResizableMediaWrapper } from './ResizableMediaWrapper';
 
 // ... (other blocks)
 
-export const ImageBlock = ({ block, readOnly, onChange }: BlockProps) => {
+export const ImageBlock = ({ block, readOnly, onChange, disableMediaControls }: BlockProps) => {
     if (!block.content) {
         return (
             <MediaPlaceholder type="image" onUpload={onChange} />
@@ -158,6 +159,7 @@ export const ImageBlock = ({ block, readOnly, onChange }: BlockProps) => {
             readOnly={readOnly}
             onResize={handleResize}
             onAlign={handleAlign}
+            disableMediaControls={disableMediaControls}
         >
             <div className={styles.mediaWrapper}>
                 <img src={block.content} alt="User content" className={styles.mediaImage} />
@@ -290,7 +292,7 @@ export const PageBlock = ({ block }: BlockProps) => {
     );
 };
 
-export const VideoBlock = ({ block, readOnly, onChange }: BlockProps) => {
+export const VideoBlock = ({ block, readOnly, onChange, disableMediaControls }: BlockProps) => {
     if (!block.content) {
         return (
             <MediaPlaceholder type="video" onUpload={onChange} />
@@ -312,6 +314,7 @@ export const VideoBlock = ({ block, readOnly, onChange }: BlockProps) => {
             readOnly={readOnly}
             onResize={handleResize}
             onAlign={handleAlign}
+            disableMediaControls={disableMediaControls}
         >
             <div className={styles.mediaWrapper}>
                 <video src={block.content} controls className={styles.mediaImage} />
