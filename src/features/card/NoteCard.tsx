@@ -457,6 +457,8 @@ export const NoteCard = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                             }
                         }}
                         onClick={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
                     />
                 </div>
             )}
@@ -476,6 +478,8 @@ export const NoteCard = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                                 }
                             }}
                             onClick={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
                         />
                     </div>
                     <textarea
@@ -489,6 +493,8 @@ export const NoteCard = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                             }
                         }}
                         onClick={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
                         placeholder="Add description..."
                     />
                 </div>

@@ -62,6 +62,10 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
         deleteElements({ nodes: [{ id }] });
     }, [id, deleteElements]);
 
+    const handleUpdate = useCallback((blocks: any) => {
+        updateNodeData(id, { content: blocks });
+    }, [id, updateNodeData]);
+
     const isSingleMedia = Array.isArray(data.content) && data.content.length === 1 && (data.content[0].type === 'image' || data.content[0].type === 'video' || data.content[0].type === 'file');
 
     return (
@@ -76,8 +80,8 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 <BlockEditor
                     initialContent={data.content}
                     readOnly={false}
-                    minimal={true} // Keep it clean
-                    onUpdate={(blocks) => updateNodeData(id, { content: blocks })}
+                    minimal={true}
+                    onUpdate={handleUpdate}
                     mode="atomic"
                     hideBlockHandles={false}
                     disableMediaControls={true}

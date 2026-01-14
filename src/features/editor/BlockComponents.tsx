@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useLayoutEffect } from 'react';
+import React, { useRef, useEffect, useLayoutEffect, memo } from 'react';
 import { FileText } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import pageStyles from './PageBlock.module.css'; // Import page styles
@@ -47,7 +47,7 @@ const useContentEditable = (content: string, domRef?: React.Ref<HTMLDivElement>)
     return internalRef;
 };
 
-export const TextBlock = ({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
+export const TextBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
     const ref = useContentEditable(block.content, domRef);
     return (
         <div
@@ -65,9 +65,9 @@ export const TextBlock = ({ block, readOnly, onChange, onKeyDown, onPaste, domRe
             data-placeholder="Type '/' for commands"
         />
     );
-};
+});
 
-export const HeadingBlock = ({ block, level, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps & { level: 1 | 2 | 3 }) => {
+export const HeadingBlock = memo(({ block, level, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps & { level: 1 | 2 | 3 }) => {
     const ref = useContentEditable(block.content, domRef);
     return (
         <div
@@ -85,9 +85,9 @@ export const HeadingBlock = ({ block, level, readOnly, onChange, onKeyDown, onPa
             data-placeholder={`Heading ${level}...`}
         />
     );
-};
+});
 
-export const TodoBlock = ({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
+export const TodoBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
     const ref = useContentEditable(block.content, domRef);
     return (
         <div className={styles.todoWrapper}>
@@ -108,9 +108,9 @@ export const TodoBlock = ({ block, readOnly, onChange, onKeyDown, onPaste, domRe
             />
         </div>
     );
-};
+});
 
-export const QuoteBlock = ({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
+export const QuoteBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
     const ref = useContentEditable(block.content, domRef);
     return (
         <div className={styles.quoteWrapper}>
@@ -130,7 +130,7 @@ export const QuoteBlock = ({ block, readOnly, onChange, onKeyDown, onPaste, domR
             />
         </div>
     );
-};
+});
 
 // ... imports
 import { MediaPlaceholder } from './MediaPlaceholder';
@@ -138,7 +138,7 @@ import { ResizableMediaWrapper } from './ResizableMediaWrapper';
 
 // ... (other blocks)
 
-export const ImageBlock = ({ block, readOnly, onChange, disableMediaControls }: BlockProps) => {
+export const ImageBlock = memo(({ block, readOnly, onChange, disableMediaControls }: BlockProps) => {
     if (!block.content) {
         return (
             <MediaPlaceholder type="image" onUpload={onChange} />
@@ -170,9 +170,9 @@ export const ImageBlock = ({ block, readOnly, onChange, disableMediaControls }: 
             </div>
         </ResizableMediaWrapper>
     );
-}
+});
 
-export const ListBlock = ({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
+export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
     const ref = useContentEditable(block.content, domRef);
 
     let prefix = null;
@@ -206,9 +206,9 @@ export const ListBlock = ({ block, readOnly, onChange, onKeyDown, onPaste, domRe
             />
         </div>
     );
-};
+});
 
-export const CalloutBlock = ({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
+export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
     const ref = useContentEditable(block.content, domRef);
     const [showIconPicker, setShowIconPicker] = React.useState(false);
 
@@ -261,15 +261,15 @@ export const CalloutBlock = ({ block, readOnly, onChange, onKeyDown, onPaste, do
             />
         </div>
     );
-};
+});
 
-export const DividerBlock = () => {
+export const DividerBlock = memo(() => {
     return (
         <div className={styles.divider} contentEditable={false}></div>
     );
-};
+});
 
-export const PageBlock = ({ block }: BlockProps) => {
+export const PageBlock = memo(({ block }: BlockProps) => {
     const { navigateToNode } = useStore();
     const nodeId = block.metadata?.nodeId;
     const title = block.content || "Untitled Page";
@@ -291,9 +291,9 @@ export const PageBlock = ({ block }: BlockProps) => {
             <span className={pageStyles.pageTitle}>{title}</span>
         </div>
     );
-};
+});
 
-export const VideoBlock = ({ block, readOnly, onChange, disableMediaControls }: BlockProps) => {
+export const VideoBlock = memo(({ block, readOnly, onChange, disableMediaControls }: BlockProps) => {
     if (!block.content) {
         return (
             <MediaPlaceholder type="video" onUpload={onChange} />
@@ -325,9 +325,9 @@ export const VideoBlock = ({ block, readOnly, onChange, disableMediaControls }: 
             </div>
         </ResizableMediaWrapper>
     );
-}
+});
 
-export const FileBlock = ({ block, readOnly, onChange }: BlockProps) => {
+export const FileBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
     const fileName = block.metadata?.name || block.content.split('/').pop() || "File";
     const [showPDF, setShowPDF] = React.useState(false);
 
@@ -392,4 +392,4 @@ export const FileBlock = ({ block, readOnly, onChange }: BlockProps) => {
             )}
         </>
     );
-}
+});

@@ -157,8 +157,35 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
         return closestCorners(args);
     }, [data.columns, childNodes]);
 
+    // --- Custom Smart Sensor ---
+    class SmartPointerSensor extends PointerSensor {
+        static activators = [
+            {
+                eventName: 'onPointerDown' as const,
+                handler: ({ nativeEvent: event }: { nativeEvent: PointerEvent }) => {
+                    if (
+                        !event.isPrimary ||
+                        event.button !== 0 ||
+                        isInteractiveElement(event.target as HTMLElement)
+                    ) {
+                        return false;
+                    }
+                    return true;
+                },
+            },
+        ];
+    }
+
+    function isInteractiveElement(element: HTMLElement | null) {
+        const interactiveTags = ['input', 'textarea', 'select', 'option', 'button'];
+        if (element && interactiveTags.includes(element.tagName.toLowerCase())) {
+            return true;
+        }
+        return element?.isContentEditable || element?.closest('[contenteditable]');
+    }
+
     const sensors = useSensors(
-        useSensor(PointerSensor, {
+        useSensor(SmartPointerSensor, {
             activationConstraint: {
                 distance: 5,
             },
