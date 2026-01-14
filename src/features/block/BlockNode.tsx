@@ -1,6 +1,5 @@
 import { memo, useLayoutEffect, useState, useCallback } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow } from '@xyflow/react';
-import { GripVertical } from 'lucide-react';
 import { BlockEditor } from '../editor/BlockEditor';
 import { EditBar } from '../ui/EditBar';
 import { useStore } from '../../store/useStore';
@@ -73,13 +72,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 backgroundColor: data.color || undefined,
             }}
         >
-            {!isSingleMedia && (
-                <div className={`custom-drag-handle ${styles.dragHandleLeft}`}>
-                    <GripVertical size={14} />
-                </div>
-            )}
-
-            <div className={`${styles.content} ${isSingleMedia ? '' : 'nodrag'}`}>
+            <div className={`${styles.content}`}>
                 <BlockEditor
                     initialContent={data.content}
                     readOnly={false}
@@ -88,6 +81,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     mode="atomic"
                     hideBlockHandles={false}
                     disableMediaControls={true}
+                    promoteBlockHandles={true}
                 />
             </div>
 

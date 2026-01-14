@@ -77,7 +77,7 @@ const initialNodes: AppNode[] = [
             category: 'Planning',
             date: new Date().toISOString()
         },
-        style: { width: 448, height: 448 },
+        style: { width: 432, height: 432 },
         parentId: undefined,
     },
     {
@@ -92,7 +92,7 @@ const initialNodes: AppNode[] = [
             description: 'Core features include atomic notes, infinite canvas, and smart linking between notes',
             category: 'Features'
         },
-        style: { width: 224, height: 224 },
+        style: { width: 208, height: 208 },
         parentId: undefined,
     },
     {
@@ -104,7 +104,7 @@ const initialNodes: AppNode[] = [
             viewMode: 'icon',
             icon: 'Settings'
         },
-        style: { width: 112, height: 112 },
+        style: { width: 96, height: 96 },
         parentId: undefined,
     },
 ];
@@ -175,11 +175,11 @@ export const useStore = create<AppState>()(temporal((set, get) => ({
             id: uuidv4(),
             type,
             position,
-            style: style || { width: 112, height: 112 },
+            style: style || { width: 432, height: 432 },
             data: {
                 label: initialData?.label || 'New Note',
                 content: '',
-                viewMode: 'icon',
+                viewMode: 'expanded',
                 icon: 'FileText',
                 ...initialData
             },

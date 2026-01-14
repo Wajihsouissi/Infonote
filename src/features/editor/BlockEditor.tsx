@@ -21,13 +21,14 @@ interface BlockEditorProps {
     nodeId?: string; // New prop
     hideBlockHandles?: boolean;
     disableMediaControls?: boolean;
+    promoteBlockHandles?: boolean;
 }
 
 import { memo } from 'react';
 
 // ... imports
 
-export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles, disableMediaControls }: BlockEditorProps) {
+export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles, disableMediaControls, promoteBlockHandles }: BlockEditorProps) {
     const editorRef = useRef<HTMLDivElement>(null);
     const [blocks, setBlocks] = useState<Block[]>(() => {
         if (Array.isArray(initialContent)) return initialContent;
@@ -448,14 +449,25 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             return;
         }
 
+        const getCaretOffset = () => {
+            const selection = window.getSelection();
+            const target = e.target as HTMLElement;
+            if (selection && selection.rangeCount > 0 && target) {
+                const range = selection.getRangeAt(0);
+                const preCaretRange = range.cloneRange();
+                preCaretRange.selectNodeContents(target);
+                preCaretRange.setEnd(range.endContainer, range.endOffset);
+                return preCaretRange.toString().length;
+            }
+            return 0;
+        };
+
         if (e.key === 'Enter' && !e.shiftKey) {
-            if (slashMenuState) return; // Allow Enter to work in SlashMenu
+            if (slashMenuState) return;
             e.preventDefault();
 
-            // Auto-continuation for lists
             const currentBlock = blocks.find(b => b.id === id);
 
-            // If empty list item -> Outdent or Turn to text
             if (currentBlock && ['bullet', 'numbered', 'todo', 'toggle'].includes(currentBlock.type) && content === '') {
                 if ((currentBlock.indent || 0) > 0) {
                     handleOutdent(id);
@@ -465,21 +477,96 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 return;
             }
 
-            const typeToCreate = (currentBlock && ['bullet', 'numbered', 'todo', 'toggle'].includes(currentBlock.type))
-                ? currentBlock.type
-                : 'text';
+            if (currentBlock) {
+                const caretOffset = getCaretOffset();
+                const textBefore = content.substring(0, caretOffset);
+                const textAfter = content.substring(caretOffset);
 
-            // Inherit indentation
-            const indent = currentBlock?.indent || 0;
-            addBlock(id, typeToCreate, indent); // Need to update addBlock signature
-        } else if (e.key === 'Backspace' && content === '') {
-            e.preventDefault();
-            // If indented, Backspace outdents first
+                const typeToCreate = ['bullet', 'numbered', 'todo', 'toggle'].includes(currentBlock.type)
+                    ? currentBlock.type
+                    : 'text';
+
+                const indent = currentBlock.indent || 0;
+
+                setBlocks(prev => {
+                    const index = prev.findIndex(b => b.id === id);
+                    if (index === -1) return prev;
+
+                    const newId = uuidv4();
+                    const newBlock: Block = {
+                        id: newId,
+                        type: typeToCreate,
+                        content: textAfter,
+                        indent: indent
+                    };
+
+                    const newBlocks = [...prev];
+                    newBlocks[index] = { ...newBlocks[index], content: textBefore };
+                    newBlocks.splice(index + 1, 0, newBlock);
+
+                    onUpdate?.(newBlocks);
+                    setTimeout(() => setFocusId(newId), 0);
+                    return newBlocks;
+                });
+                return;
+            }
+
+            addBlock(id, 'text');
+
+        } else if (e.key === 'Backspace') {
             const currentBlock = blocks.find(b => b.id === id);
-            if (currentBlock && (currentBlock.indent || 0) > 0) {
-                handleOutdent(id);
-            } else {
-                removeBlock(id);
+            if (!currentBlock) return;
+
+            if (content === '') {
+                e.preventDefault();
+                if ((currentBlock.indent || 0) > 0) {
+                    handleOutdent(id);
+                } else {
+                    removeBlock(id);
+                }
+                return;
+            }
+
+            // Start of Block -> Merge Up
+            if (getCaretOffset() === 0) {
+                const index = blocks.findIndex(b => b.id === id);
+                if (index > 0) {
+                    e.preventDefault();
+                    const prevBlock = blocks[index - 1];
+
+                    setBlocks(prev => {
+                        const newBlocks = [...prev];
+                        newBlocks.splice(index, 1);
+                        newBlocks[index - 1] = {
+                            ...prevBlock,
+                            content: prevBlock.content + content
+                        };
+                        onUpdate?.(newBlocks);
+                        setTimeout(() => setFocusId(prevBlock.id), 0);
+                        return newBlocks;
+                    });
+                }
+            }
+
+        } else if (e.key === 'Delete') {
+            // End of Block -> Merge Down
+            if (getCaretOffset() === content.length) {
+                const index = blocks.findIndex(b => b.id === id);
+                if (index < blocks.length - 1) {
+                    e.preventDefault();
+                    const nextBlock = blocks[index + 1];
+
+                    setBlocks(prev => {
+                        const newBlocks = [...prev];
+                        newBlocks.splice(index + 1, 1);
+                        newBlocks[index] = {
+                            ...prev[index], // Use fresh current
+                            content: prev[index].content + nextBlock.content
+                        };
+                        onUpdate?.(newBlocks);
+                        return newBlocks;
+                    });
+                }
             }
         } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
             if (slashMenuState) {
@@ -830,6 +917,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     onMenuOpen={handleBlockMenuOpen}
                     style={{ paddingLeft: `${(block.indent || 0) * 24}px` }} // Visual Indentation
                     hideHandle={hideBlockHandles}
+                    promoteBlockHandles={promoteBlockHandles}
                 >
                     {renderBlock(block)}
                 </SortableBlockWrapper>

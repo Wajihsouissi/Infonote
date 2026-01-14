@@ -8,7 +8,8 @@ export { ContainerBlock, ColumnsBlock };
 import type { Block } from './types';
 import styles from './BlockEditor.module.css';
 import { IconPicker, getIconByName } from '../card/IconPicker';
-import { PDFViewer } from '../ui/PDFViewer';
+// Lazy load PDFViewer
+const PDFViewer = React.lazy(() => import('../ui/PDFViewer').then(module => ({ default: module.PDFViewer })));
 import ReactDOM from 'react-dom';
 
 interface BlockProps {
@@ -380,11 +381,13 @@ export const FileBlock = ({ block, readOnly, onChange }: BlockProps) => {
             </div>
 
             {showPDF && ReactDOM.createPortal(
-                <PDFViewer
-                    fileUrl={block.content}
-                    fileName={fileName}
-                    onClose={() => setShowPDF(false)}
-                />,
+                <React.Suspense fallback={null}>
+                    <PDFViewer
+                        fileUrl={block.content}
+                        fileName={fileName}
+                        onClose={() => setShowPDF(false)}
+                    />
+                </React.Suspense>,
                 document.body
             )}
         </>

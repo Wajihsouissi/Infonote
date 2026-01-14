@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useCallback, useState } from 'react';
+import { useMemo, useEffect, useCallback, useState, Suspense, lazy, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import {
     ReactFlow,
@@ -19,7 +19,8 @@ import { CenterModal } from '../ui/CenterModal';
 import { MetadataMenu } from '../ui/MetadataMenu';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { KanbanNodeComponent } from '../kanban/KanbanNode';
-import { KanbanConfigModal } from '../kanban/KanbanConfigModal';
+// Lazy load KanbanConfigModal
+const KanbanConfigModal = lazy(() => import('../kanban/KanbanConfigModal').then(module => ({ default: module.KanbanConfigModal })));
 
 import type { BlockType } from '../editor/types';
 import styles from './CanvasBoard.module.css';
@@ -43,6 +44,9 @@ export function CanvasBoard() {
     const addNode = useStore(useCallback(s => s.addNode, []));
     const updateNodeData = useStore(useCallback(s => s.updateNodeData, []));
     const setInteractionState = useStore(useCallback(s => s.setInteractionState, []));
+
+    // Throttling Ref
+    const lastDragCheck = useRef(0);
 
     const { fitView, screenToFlowPosition, getIntersectingNodes, deleteElements, setNodes, getNode } = useReactFlow();
 
@@ -345,6 +349,11 @@ export function CanvasBoard() {
 
     // --- Drag In Logic (Canvas -> Kanban) ---
     const onNodeDrag = useCallback((_event: React.MouseEvent, node: any) => {
+        // Throttle to max once per 100ms to reduce INP
+        const now = Date.now();
+        if (now - lastDragCheck.current < 100) return;
+        lastDragCheck.current = now;
+
         // Only care if dragging a regular note
         if (node.type !== 'note') {
             if (interactionState.hoveredKanbanColumn) {
@@ -825,7 +834,9 @@ export function CanvasBoard() {
             <SidePanel />
             <FullscreenModal />
             <CenterModal />
-            <KanbanConfigModal />
+            <Suspense fallback={null}>
+                <KanbanConfigModal />
+            </Suspense>
         </div>
     );
 }

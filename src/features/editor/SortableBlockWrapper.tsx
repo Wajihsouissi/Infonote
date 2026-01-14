@@ -15,16 +15,24 @@ interface SortableBlockWrapperProps {
     onMenuOpen?: (e: React.MouseEvent, id: string) => void;
     style?: React.CSSProperties;
     // Helper to check if block is media
+    // Helper to check if block is media
     isMedia?: boolean;
+    promoteBlockHandles?: boolean;
 }
 
-export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, children, readOnly, block, nodeId, isSelected, onMoveBlock, onDragStart, onMenuOpen, style, hideHandle }: SortableBlockWrapperProps & { hideHandle?: boolean }) {
+export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, children, readOnly, block, nodeId, isSelected, onMoveBlock, onDragStart, onMenuOpen, style, hideHandle, promoteBlockHandles }: SortableBlockWrapperProps & { hideHandle?: boolean, promoteBlockHandles?: boolean }) {
     const ref = useRef<HTMLDivElement>(null);
     const [dropIndication, setDropIndication] = useState<'top' | 'bottom' | null>(null);
 
     const handleDragStart = (e: React.DragEvent) => {
+        // If promoting handles, we don't want internal block dragging
+        if (promoteBlockHandles) {
+            e.preventDefault();
+            return;
+        }
         if (!block) return;
 
+        // ... rest of drag start ...
         // Allow parent to override or augment data transfer (for multi-selection)
         if (onDragStart) {
             onDragStart(e, block);
@@ -89,7 +97,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
     };
 
     const isMedia = ['image', 'video', 'file'].includes(block?.type || '');
-    const canDragWrapper = !readOnly && (isMedia || hideHandle);
+    const canDragWrapper = !readOnly && (isMedia || hideHandle) && !promoteBlockHandles;
 
     const dropClass = dropIndication === 'top' ? styles.dropTargetTop : (dropIndication === 'bottom' ? styles.dropTargetBottom : '');
 
@@ -97,7 +105,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         <div
             ref={ref}
             data-block-type={block?.type}
-            className={`${styles.sortableWrapper} ${isSelected ? styles.selected : ''} ${hideHandle ? styles.hideHandle : ''} ${!canDragWrapper ? 'nodrag' : ''} ${dropClass}`}
+            className={`${styles.sortableWrapper} ${isSelected ? styles.selected : ''} ${hideHandle ? styles.hideHandle : ''} ${(!canDragWrapper && !promoteBlockHandles) ? 'nodrag' : ''} ${dropClass}`}
             style={style}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -111,10 +119,10 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         >
             {!readOnly && !hideHandle && !isMedia && (
                 <div
-                    className={styles.dragHandle}
+                    className={`${styles.dragHandle} ${promoteBlockHandles ? 'custom-drag-handle' : ''}`}
                     contentEditable={false}
-                    draggable={true}
-                    onDragStart={handleDragStart}
+                    draggable={!promoteBlockHandles}
+                    onDragStart={!promoteBlockHandles ? handleDragStart : undefined}
                     onClick={(e) => onMenuOpen?.(e, id)}
                 >
                     <GripVertical size={14} />

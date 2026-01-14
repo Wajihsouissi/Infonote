@@ -7,6 +7,8 @@ import {
     X
 } from 'lucide-react';
 import { useState } from 'react';
+import { useReactFlow } from '@xyflow/react';
+import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '../../store/useStore';
 import styles from './BottomMenu.module.css';
 import { MENU_ITEMS } from '../editor/menuConstants';
@@ -14,11 +16,12 @@ import { StorageControls } from './StorageControls';
 
 export function BottomMenu() {
     const { addNode } = useStore();
+    const { screenToFlowPosition } = useReactFlow();
     const [isSearchMode, setIsSearchMode] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
     const handleAddNote = () => {
-        addNode('note', { x: Math.random() * 200 + 100, y: Math.random() * 200 + 100 });
+        addNode('note', { x: Math.random() * 200 + 100, y: Math.random() * 200 + 100 }, { viewMode: 'expanded' }, { width: 432, height: 432 });
     };
 
     const handleDragStart = (e: React.DragEvent, type: string, metadata?: any) => {
@@ -27,6 +30,38 @@ export function BottomMenu() {
             e.dataTransfer.setData('application/infonote-block-metadata', JSON.stringify(metadata));
         }
         e.dataTransfer.effectAllowed = 'copy';
+    };
+
+    const handleBlockClick = (block: typeof MENU_ITEMS[0]) => {
+        // Calculate center of viewport
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+
+        const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
+
+        // Add random offset to prevent exact overlap
+        const offsetRange = 30;
+        const offsetX = (Math.random() - 0.5) * offsetRange * 2;
+        const offsetY = (Math.random() - 0.5) * offsetRange * 2;
+
+        const BLOCK_WIDTH = 300;
+        const BLOCK_HEIGHT = 100;
+
+        const position = {
+            x: flowPos.x - (BLOCK_WIDTH / 2) + offsetX,
+            y: flowPos.y - (BLOCK_HEIGHT / 2) + offsetY
+        };
+
+        const newBlock = {
+            id: uuidv4(),
+            type: block.type,
+            content: '',
+            metadata: block.meta
+        };
+
+        addNode('block', position, {
+            content: [newBlock]
+        }, { width: BLOCK_WIDTH, height: BLOCK_HEIGHT });
     };
 
     return (
@@ -103,6 +138,7 @@ export function BottomMenu() {
                                             className={styles.draggableItem}
                                             draggable
                                             onDragStart={(e) => handleDragStart(e, block.type, block.meta)}
+                                            onClick={() => handleBlockClick(block)}
                                         >
                                             <div className={styles.itemIconWrapper}>
                                                 <Icon size={20} />
