@@ -807,6 +807,14 @@ export function CanvasBoard() {
                     onDrop={onDrop}
                     onNodeDrag={onNodeDrag}
                     onNodeDragStop={onNodeDragStop}
+                    onPaneClick={() => {
+                        // Clear native text selection
+                        window.getSelection()?.removeAllRanges();
+                        // Blur any active input/contenteditable to stop typing
+                        if (document.activeElement instanceof HTMLElement) {
+                            document.activeElement.blur();
+                        }
+                    }}
                 >
                     {/* Visual Drop Zone for Kanban Drag Out - REMOVED */}
                     <CustomGrid />

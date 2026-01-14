@@ -50,78 +50,140 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
     // Multi-selection State
     const [selectedBlockIds, setSelectedBlockIds] = useState<Set<string>>(new Set());
+    const selectionRef = useRef(selectedBlockIds);
+
+    // Sync ref
+    useEffect(() => {
+        selectionRef.current = selectedBlockIds;
+    }, [selectedBlockIds]);
+
     const [dragSelection, setDragSelection] = useState<{ startX: number, startY: number, currentX: number, currentY: number } | null>(null);
     const wasDraggingRef = useRef(false);
 
+    const [mouseDownBlock, setMouseDownBlock] = useState<{ id: string, startX: number, startY: number, initialRect: DOMRect } | null>(null);
+
     // Selection Logic Effect
     useEffect(() => {
-        if (!dragSelection) return;
+        if (!dragSelection && !mouseDownBlock) return;
 
         const handleGlobalMouseMove = (e: MouseEvent) => {
             if (!editorRef.current) return;
             const editorRect = editorRef.current.getBoundingClientRect();
 
-            // Check if moved significantly
-            const cx = e.clientX - editorRect.left;
-            const cy = e.clientY - editorRect.top;
-            // If moved more than 5px, consider it a drag
-            if (dragSelection && (Math.abs(cx - dragSelection.startX) > 5 || Math.abs(cy - dragSelection.startY) > 5)) {
-                wasDraggingRef.current = true;
+            // ESCALATION LOGIC: Switch to Block Selection if dragging out of initial block
+            if (mouseDownBlock && !dragSelection) {
+                const { initialRect } = mouseDownBlock;
+                // Check if mouse has left the vertical bounds (or significantly horizontal) of the starting block
+                // We use a small buffer to prevent accidental triggers
+                const isOutside =
+                    e.clientY < initialRect.top ||
+                    e.clientY > initialRect.bottom ||
+                    e.clientX < initialRect.left - 50 || // Horizontal buffer (gutters are safe)
+                    e.clientX > initialRect.right + 50;
+
+                if (isOutside) {
+                    // Trigger Escalation
+                    window.getSelection()?.removeAllRanges(); // Clear text selection
+
+                    // Shift focus to editor container to prevent text input but capture hotkeys
+                    if (editorRef.current) {
+                        editorRef.current.focus();
+                    }
+
+                    // Calculate Scale
+                    const scale = editorRect.width ? (editorRect.width / editorRef.current.offsetWidth) : 1;
+
+                    // Normalize to CSS pixels
+                    const relX = (mouseDownBlock.startX - editorRect.left) / scale;
+                    const relY = (mouseDownBlock.startY - editorRect.top) / scale;
+                    const currentRelX = (e.clientX - editorRect.left) / scale;
+                    const currentRelY = (e.clientY - editorRect.top) / scale;
+
+                    setDragSelection({
+                        startX: relX,
+                        startY: relY,
+                        currentX: currentRelX,
+                        currentY: currentRelY
+                    });
+                    setSelectedBlockIds(new Set([mouseDownBlock.id]));
+                    wasDraggingRef.current = true;
+                    return;
+                }
             }
 
-            setDragSelection(prev => prev ? {
-                ...prev,
-                currentX: cx,
-                currentY: cy
-            } : null);
+            // Regular Block Selection Drag
+            if (dragSelection) {
+                // Calculate Scale
+                const scale = editorRect.width ? (editorRect.width / editorRef.current.offsetWidth) : 1;
+
+                // Normalize current mouse pos to CSS pixels
+                const cx = (e.clientX - editorRect.left) / scale;
+                const cy = (e.clientY - editorRect.top) / scale;
+
+                if (!wasDraggingRef.current && (Math.abs(cx - dragSelection.startX) > 5 || Math.abs(cy - dragSelection.startY) > 5)) {
+                    wasDraggingRef.current = true;
+                }
+
+                setDragSelection(prev => prev ? {
+                    ...prev,
+                    currentX: cx,
+                    currentY: cy
+                } : null);
+            }
         };
 
         const handleGlobalMouseUp = () => {
             setDragSelection(null);
+            setMouseDownBlock(null);
             // wasDraggingRef remains true for the subsequent click event
             setTimeout(() => { wasDraggingRef.current = false; }, 0);
         };
 
         // Calculate intersections live
-        if (!editorRef.current) return;
+        if (dragSelection && editorRef.current) {
+            // Normalize selection box (relative to editor)
+            const left = Math.min(dragSelection.startX, dragSelection.currentX);
+            const top = Math.min(dragSelection.startY, dragSelection.currentY);
+            const width = Math.abs(dragSelection.currentX - dragSelection.startX);
+            const height = Math.abs(dragSelection.currentY - dragSelection.startY);
+            const selectionBox = { left, top, right: left + width, bottom: top + height };
 
-        // Normalize selection box (relative to editor)
-        const left = Math.min(dragSelection.startX, dragSelection.currentX);
-        const top = Math.min(dragSelection.startY, dragSelection.currentY);
-        const width = Math.abs(dragSelection.currentX - dragSelection.startX);
-        const height = Math.abs(dragSelection.currentY - dragSelection.startY);
-        const selectionBox = { left, top, right: left + width, bottom: top + height };
+            const newSelected = new Set<string>(); // Start fresh or keep additive? Notion is replacing usually unless Shift.
+            // But we have mouseDownBlock which should be included? 
+            // Actually, if we are escalating, we want to start fresh to avoid stale state, but include what we touch.
 
-        const newSelected = new Set<string>();
-        const editorRect = editorRef.current.getBoundingClientRect();
+            // If dragging, we recalculate everything based on box
+            const editorRect = editorRef.current.getBoundingClientRect();
+            // Calculate Scale if zoomed
+            const scale = editorRect.width ? (editorRect.width / editorRef.current.offsetWidth) : 1;
 
-        blocks.forEach(block => {
-            const el = blockRefs.current[block.id];
-            if (el) {
-                const blockRect = el.getBoundingClientRect();
+            blocks.forEach(block => {
+                const el = blockRefs.current[block.id];
+                if (el) {
+                    const blockRect = el.getBoundingClientRect();
+                    // Normalize block position to CSS pixels (handling zoom)
+                    const blockRelative = {
+                        left: (blockRect.left - editorRect.left) / scale,
+                        top: (blockRect.top - editorRect.top) / scale,
+                        right: (blockRect.right - editorRect.left) / scale,
+                        bottom: (blockRect.bottom - editorRect.top) / scale
+                    };
 
-                // Convert block rect to relative coordinates
-                const blockRelative = {
-                    left: blockRect.left - editorRect.left,
-                    top: blockRect.top - editorRect.top,
-                    right: blockRect.right - editorRect.left,
-                    bottom: blockRect.bottom - editorRect.top
-                };
-
-                // Check intersection
-                if (
-                    blockRelative.left < selectionBox.right &&
-                    blockRelative.right > selectionBox.left &&
-                    blockRelative.top < selectionBox.bottom &&
-                    blockRelative.bottom > selectionBox.top
-                ) {
-                    newSelected.add(block.id);
+                    // Simple AABB intersection
+                    if (
+                        blockRelative.left < selectionBox.right &&
+                        blockRelative.right > selectionBox.left &&
+                        blockRelative.top < selectionBox.bottom &&
+                        blockRelative.bottom > selectionBox.top
+                    ) {
+                        newSelected.add(block.id);
+                    }
                 }
-            }
-        });
+            });
 
-        if (newSelected.size > 0) {
-            setSelectedBlockIds(newSelected);
+            if (newSelected.size > 0) {
+                setSelectedBlockIds(newSelected);
+            }
         }
 
         document.addEventListener('mousemove', handleGlobalMouseMove);
@@ -130,7 +192,25 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             document.removeEventListener('mousemove', handleGlobalMouseMove);
             document.removeEventListener('mouseup', handleGlobalMouseUp);
         };
-    }, [dragSelection, blocks]);
+    }, [dragSelection, blocks, mouseDownBlock]);
+
+    // Clear selection when clicking outside the editor
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (!editorRef.current) return;
+
+            // If click is inside editor, let editor internal logic handle it
+            if (editorRef.current.contains(e.target as Node)) return;
+
+            // If click is outside editor (and not stopped by Portals like BlockMenu), clear selection
+            if (selectedBlockIds.size > 0) {
+                setSelectedBlockIds(new Set());
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [selectedBlockIds]);
 
     // Auto-focus effect
     useEffect(() => {
@@ -216,7 +296,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
         // Trigger Split Check if it's a structural type
         if (['heading1', 'heading2', 'heading3', 'toggle', 'divider'].includes(type)) {
-            checkForSplit(targetId, type);
+            checkForSplit(targetId);
         }
 
         setFocusId(targetId); // Keep focus
@@ -246,17 +326,17 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             if (content === '# ') {
                 convertBlock(id, 'heading1');
                 // Immediate split if not first block?
-                checkForSplit(id, 'heading1');
+                checkForSplit(id);
                 return;
             }
             if (content === '## ') {
                 convertBlock(id, 'heading2');
-                checkForSplit(id, 'heading2');
+                checkForSplit(id);
                 return;
             }
             if (content === '### ') {
                 convertBlock(id, 'heading3');
-                checkForSplit(id, 'heading3');
+                checkForSplit(id);
                 return;
             }
             if (content === '> ') { convertBlock(id, 'quote'); return; }
@@ -284,7 +364,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
     }, [slashMenuState, onUpdate, convertBlock]);
 
     // NEW Helper to trigger split
-    const checkForSplit = (blockId: string, newType: BlockType) => {
+    const checkForSplit = (blockId: string) => {
         // We have nodeId prop.
         if (!nodeId) return;
 
@@ -335,56 +415,78 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         });
     }, [onUpdate]);
 
-    const duplicateBlock = useCallback((id: string) => {
-        setBlocks(prev => {
-            const index = prev.findIndex(b => b.id === id);
-            if (index === -1) return prev;
 
-            const blockToCopy = prev[index];
-            const newBlock = { ...blockToCopy, id: uuidv4(), indent: blockToCopy.indent || 0 }; // Explicitly copy indent
-            const newBlocks = [...prev];
-            newBlocks.splice(index + 1, 0, newBlock);
-            onUpdate?.(newBlocks);
-            return newBlocks;
-        });
-    }, [onUpdate]);
 
-    const updateBlockColor = useCallback((id: string, colorData: { type: 'text' | 'background', value: string }) => {
-        setBlocks(prev => {
-            const newBlocks = prev.map(b => {
-                if (b.id !== id) return b;
-
-                const newMetadata = { ...(b.metadata || {}) };
-                if (colorData.type === 'text') {
-                    newMetadata.textColor = colorData.value;
-                } else {
-                    newMetadata.backgroundColor = colorData.value;
-                }
-
-                return { ...b, metadata: newMetadata };
-            });
-            onUpdate?.(newBlocks);
-            return newBlocks;
-        });
-    }, [onUpdate]);
-
-    const handleBlockMenuAction = (action: 'turnInto' | 'color' | 'duplicate' | 'delete' | 'split', value?: any) => {
+    const handleBlockMenuAction = useCallback((action: 'turnInto' | 'color' | 'duplicate' | 'delete' | 'split', value?: any) => {
         if (!blockMenuState) return;
         const { blockId } = blockMenuState;
 
+        // Use direct state instead of ref to ensure consistency
+        const idsToUpdate = selectedBlockIds.has(blockId)
+            ? Array.from(selectedBlockIds)
+            : [blockId];
+
+        // Ensure we have valid targets
+        const targetIds = idsToUpdate.length > 0 ? idsToUpdate : [blockId];
+
+        const applyToBlocks = (blockHandler: (block: Block) => Block) => {
+            setBlocks(prev => {
+                const newBlocks = prev.map(b => targetIds.includes(b.id) ? blockHandler(b) : b);
+                onUpdate?.(newBlocks);
+                return newBlocks;
+            });
+        };
+
         switch (action) {
             case 'turnInto':
-                convertBlock(blockId, value);
+                setBlocks(prev => {
+                    const newBlocks = prev.map(b => {
+                        if (targetIds.includes(b.id)) {
+                            // Preserve content, change type.
+                            // Reset indent for non-list / non-indented types?
+                            // Notion keeps indent usually.
+                            return { ...b, type: value };
+                        }
+                        return b;
+                    });
+                    onUpdate?.(newBlocks);
+                    return newBlocks;
+                });
                 break;
             case 'color':
-                // types: value is { type: 'text' | 'background', value: string }
-                updateBlockColor(blockId, value);
+                applyToBlocks(b => {
+                    const newMetadata = { ...(b.metadata || {}) };
+                    if (value.type === 'text') newMetadata.textColor = value.value;
+                    else newMetadata.backgroundColor = value.value;
+                    return { ...b, metadata: newMetadata };
+                });
                 break;
             case 'duplicate':
-                duplicateBlock(blockId);
+                setBlocks(prev => {
+                    const newBlocks = [...prev];
+                    // Find indices
+                    const indices = targetIds.map(id => prev.findIndex(b => b.id === id)).filter(i => i !== -1).sort((a, b) => a - b);
+                    const lastIndex = indices[indices.length - 1];
+
+                    if (lastIndex === undefined) return prev;
+
+                    const copies = indices.map(i => {
+                        const b = prev[i];
+                        return { ...b, id: uuidv4(), indent: b.indent || 0 };
+                    });
+
+                    newBlocks.splice(lastIndex + 1, 0, ...copies);
+                    onUpdate?.(newBlocks);
+                    return newBlocks;
+                });
                 break;
             case 'delete':
-                removeBlock(blockId);
+                setBlocks(prev => {
+                    const newBlocks = prev.filter(b => !targetIds.includes(b.id));
+                    onUpdate?.(newBlocks);
+                    return newBlocks;
+                });
+                setSelectedBlockIds(new Set());
                 break;
             case 'split':
                 if (nodeId) {
@@ -393,7 +495,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 break;
         }
         setBlockMenuState(null);
-    };
+    }, [blockMenuState, selectedBlockIds, blocks, nodeId, onUpdate]);
 
     // Indentation Handlers
     const handleIndent = useCallback((id: string) => {
@@ -568,10 +670,61 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     });
                 }
             }
-        } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-            if (slashMenuState) {
-                // handled by SlashMenu global listener
+        } else if (e.key === 'ArrowUp') {
+            if (e.shiftKey) {
+                // If at start of block (offset 0), select previous block + current
+                if (getCaretOffset() === 0) {
+                    e.preventDefault();
+                    // If not already in selection mode, include current + prev
+                    // If already, extend upwards
+                    const currentIndex = blocks.findIndex(b => b.id === id);
+                    if (currentIndex > 0) {
+                        const newSelection = new Set(selectedBlockIds);
+                        newSelection.add(id);
+                        newSelection.add(blocks[currentIndex - 1].id);
+                        setSelectedBlockIds(newSelection);
+                        // Blur text to show block selection clearly?
+                        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+                        editorRef.current?.focus(); // Focus container to capture next arrows
+                    }
+                }
             }
+        } else if (e.key === 'ArrowDown') {
+            if (e.shiftKey) {
+                // If at end of block, select next block + current
+                if (getCaretOffset() === content.length) {
+                    e.preventDefault();
+                    const currentIndex = blocks.findIndex(b => b.id === id);
+                    if (currentIndex < blocks.length - 1) {
+                        const newSelection = new Set(selectedBlockIds);
+                        newSelection.add(id);
+                        newSelection.add(blocks[currentIndex + 1].id);
+                        setSelectedBlockIds(newSelection);
+                        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+                        editorRef.current?.focus();
+                    }
+                }
+            }
+        } else if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+            // "Select All" Logic
+            // Browser default selects text in current block.
+            // If we prevent default, we can select all blocks.
+            // But we want "Intelligent Select All": 1st press = text, 2nd press = blocks.
+            // We can check if all text is already selected?
+
+            const selection = window.getSelection();
+            // Check if current text is fully selected
+            const isFullTextSelected = selection && selection.toString() === content;
+
+            if (isFullTextSelected || content === '') {
+                // Escalate to Block Selection (All Blocks)
+                e.preventDefault();
+                const allIds = new Set(blocks.map(b => b.id));
+                setSelectedBlockIds(allIds);
+                if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+                editorRef.current?.focus();
+            }
+            // else let browser select all text (default)
         }
     };
 
@@ -661,7 +814,9 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 // Actually, standard behavior usually deletes selection if not in edit mode.
                 // But we are somewhat always in edit mode.
                 // Let's check if the user has a text selection range that is collapsed?
-                const selection = window.getSelection();
+                // Let's check if the user has a text selection range that is collapsed?
+                // const selection = window.getSelection(); // Unused
+                // If selection spans multiple blocks or we have "Block Selection Mode" active logic:
                 // If selection spans multiple blocks or we have "Block Selection Mode" active logic:
                 // Since we rely on manual selection mode via drag/click, we can assume intent to delete blocks.
 
@@ -872,26 +1027,88 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         }
     };
 
-    const handleBlockMenuOpen = (e: React.MouseEvent, id: string) => {
+    const handleBlockMenuOpen = useCallback((e: React.MouseEvent, id: string) => {
+        // INTELLIGENT RIGHT-CLICK:
+        // Cancel any pending left-click selection logic to prevent conflicts
+        setMouseDownBlock(null);
+
+        const target = e.target as HTMLElement;
+        const isInteractive =
+            target.isContentEditable ||
+            target.tagName === 'INPUT' ||
+            target.tagName === 'TEXTAREA';
+
+        const isHandle = target.closest(`.${styles.dragHandle}`);
+
+        // Interactive (Text) + Single Selection => Native Menu (Return early)
+        // Check if the block is even selected? Or if we just right-clicked it.
+        // If we right-click an unselected text block, we usually want native menu too? Yes.
+        // Notion: Right-clicking text -> Native. Right-clicking background -> Block Menu.
+        // But if multiple selected -> Block Menu always.
+
+        if (isInteractive && !isHandle) {
+            // INTELLIGENT CONTEXT MENU:
+            // 1. If block is NOT selected (Edit Mode), allow native menu (Copy/Paste etc)
+            // 2. If block IS selected (Block Mode), suppress native and show Block Actions
+            if (!selectedBlockIds.has(id)) {
+                // If we are in "Atomic/Promoted" mode (BlockNode), we WANT to bubble to the wrapper
+                // so it can show the EditBar (Color/Delete/Duplicate).
+                // If we are in standard mode (FusedNoteNode/Editor), we want to KEEP Native Menu,
+                // so we MUST stop propagation to prevent the wrapper from stealing functionality.
+                if (!promoteBlockHandles) {
+                    e.stopPropagation();
+                }
+                return;
+            }
+        }
+
         e.preventDefault();
         e.stopPropagation();
+
+        if (!selectedBlockIds.has(id)) {
+            setSelectedBlockIds(new Set([id]));
+        }
+
         setBlockMenuState({ x: e.clientX, y: e.clientY, blockId: id });
-    };
+    }, [selectedBlockIds]);
 
     return (
         <div
             className={`${styles.editor} ${minimal ? styles.minimal : ''}`}
             ref={editorRef}
+            tabIndex={-1}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onClick={handleEditorClick}
             onMouseDown={(e) => {
-                if (e.ctrlKey && e.button === 0 && editorRef.current) {
+                // Helper: Check if target is "interactive" (text, input, button)
+                const target = e.target as HTMLElement;
+                const isInteractive =
+                    target.isContentEditable ||
+                    target.tagName === 'INPUT' ||
+                    target.tagName === 'TEXTAREA' ||
+                    target.tagName === 'BUTTON' ||
+                    target.closest('button') ||
+                    // target.closest('.nodrag') || // REMOVED: wrappers have nodrag but we want to select from them
+                    target.closest(`.${styles.blockContent}`) || // Inside the actual text/content area
+                    target.closest(`.${styles.dragHandle}`); // The handle itself
+
+                // If user clicks directly on text/input, let browser handle text selection
+                if (isInteractive && !e.ctrlKey) {
+                    // Do NOT start block selection
+                    return;
+                }
+
+                // OTHERWISE: Start Block Selection (Margin/Gap click)
+                if (e.button === 0 && editorRef.current) {
                     wasDraggingRef.current = false;
                     // Start Selection
                     const rect = editorRef.current.getBoundingClientRect();
-                    const relativeX = e.clientX - rect.left;
-                    const relativeY = e.clientY - rect.top;
+                    // Calculate Scale (Robust check for width)
+                    const scale = rect.width ? (rect.width / editorRef.current.offsetWidth) : 1;
+
+                    const relativeX = (e.clientX - rect.left) / scale;
+                    const relativeY = (e.clientY - rect.top) / scale;
 
                     setDragSelection({
                         startX: relativeX,
@@ -899,8 +1116,11 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         currentX: relativeX,
                         currentY: relativeY
                     });
-                    // Clear previous if not additive (simple mode)
-                    setSelectedBlockIds(new Set());
+
+                    // Clear previous if not purely additive (Ctrl allows adding, but let's keep it simple: simple click clears)
+                    if (!e.shiftKey && !e.ctrlKey) {
+                        setSelectedBlockIds(new Set());
+                    }
                 }
             }}
         >
@@ -915,6 +1135,43 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     onMoveBlock={handleMoveBlock}
                     onDragStart={handleBlockDragStart}
                     onMenuOpen={handleBlockMenuOpen}
+                    onMouseDown={(e) => {
+                        // Range Selection (Shift+Click)
+                        if (e.shiftKey && selectedBlockIds.size > 0) {
+                            // If we have an existing selection, extend it to this block
+                            const lastSelectedId = Array.from(selectedBlockIds).pop(); // Simple heuristic for now
+                            if (lastSelectedId) {
+                                const startIdx = blocks.findIndex(b => b.id === lastSelectedId);
+                                const endIdx = blocks.findIndex(b => b.id === block.id);
+                                if (startIdx !== -1 && endIdx !== -1) {
+                                    e.preventDefault(); // Prevent text selection
+                                    const min = Math.min(startIdx, endIdx);
+                                    const max = Math.max(startIdx, endIdx);
+                                    const rangeIds = blocks.slice(min, max + 1).map(b => b.id);
+
+                                    // Combine with existing if Ctrl held, else replace? Notion adds to range.
+                                    // For simplicity: Replace with new range (mimics standard Shift-click)
+                                    setSelectedBlockIds(new Set(rangeIds));
+                                    return;
+                                }
+                            }
+                        }
+
+                        if (e.button === 0) {
+                            const target = e.currentTarget as HTMLElement;
+                            const rect = target.getBoundingClientRect();
+                            setMouseDownBlock({
+                                id: block.id,
+                                startX: e.clientX,
+                                startY: e.clientY,
+                                initialRect: rect
+                            });
+                            // CRITICAL: Stop propagation so the Editor Container doesn't try to handle this click
+                            // (which might preventDefault and kill focus).
+                            // We relied on bubbling for "Rubber Band" vs "Block", but here we explicitly clicked a Block.
+                            e.stopPropagation();
+                        }
+                    }}
                     style={{ paddingLeft: `${(block.indent || 0) * 24}px` }} // Visual Indentation
                     hideHandle={hideBlockHandles}
                     promoteBlockHandles={promoteBlockHandles}
@@ -936,7 +1193,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 <BlockMenu
                     x={blockMenuState.x}
                     y={blockMenuState.y}
-                    blockId={blockMenuState.blockId}
+                    // blockId={blockMenuState.blockId} // Passed via closure/state to onAction
                     currentType={blocks.find(b => b.id === blockMenuState.blockId)?.type || 'text'}
                     onClose={() => setBlockMenuState(null)}
                     onAction={handleBlockMenuAction}

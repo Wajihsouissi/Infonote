@@ -13,6 +13,7 @@ interface SortableBlockWrapperProps {
     onMoveBlock?: (sourceBlockId: string, targetBlockId: string, position: 'top' | 'bottom', dataTransfer?: DataTransfer) => void;
     onDragStart?: (e: React.DragEvent, block: Block) => void; // New prop
     onMenuOpen?: (e: React.MouseEvent, id: string) => void;
+    onMouseDown?: (e: React.MouseEvent) => void; // New prop for escalation tracking
     style?: React.CSSProperties;
     // Helper to check if block is media
     // Helper to check if block is media
@@ -20,7 +21,7 @@ interface SortableBlockWrapperProps {
     promoteBlockHandles?: boolean;
 }
 
-export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, children, readOnly, block, nodeId, isSelected, onMoveBlock, onDragStart, onMenuOpen, style, hideHandle, promoteBlockHandles }: SortableBlockWrapperProps & { hideHandle?: boolean, promoteBlockHandles?: boolean }) {
+export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, children, readOnly, block, nodeId, isSelected, onMoveBlock, onDragStart, onMenuOpen, onMouseDown, style, hideHandle, promoteBlockHandles }: SortableBlockWrapperProps & { hideHandle?: boolean, promoteBlockHandles?: boolean }) {
     const ref = useRef<HTMLDivElement>(null);
     const [dropIndication, setDropIndication] = useState<'top' | 'bottom' | null>(null);
 
@@ -111,6 +112,8 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onDragEnd={handleDragEnd}
+            onMouseDown={onMouseDown} // Linked prop
+            onContextMenu={(e) => onMenuOpen?.(e, id)}
             id={`block-${id}`}
 
             // Allow dragging from anywhere on media blocks or if handles are hidden
@@ -128,7 +131,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
                     <GripVertical size={14} />
                 </div>
             )}
-            <div className={styles.blockContent}>
+            <div className={`${styles.blockContent} ${promoteBlockHandles ? 'nodrag' : ''}`}>
                 {children}
             </div>
         </div>

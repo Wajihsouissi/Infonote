@@ -7,7 +7,7 @@ import type { BlockType } from './types';
 interface BlockMenuProps {
     x: number;
     y: number;
-    blockId: string;
+    // blockId: string; // Not needed
     currentType: BlockType;
     onClose: () => void;
     onAction: (action: 'turnInto' | 'color' | 'duplicate' | 'delete' | 'split', value?: any) => void;
@@ -37,14 +37,17 @@ const COLORS = [
     { label: 'Red', value: '#d44c47' },
 ];
 
-export function BlockMenu({ x, y, blockId, currentType, onClose, onAction }: BlockMenuProps) {
+export function BlockMenu({ x, y, currentType, onClose, onAction }: BlockMenuProps) {
     const menuRef = useRef<HTMLDivElement>(null);
-    const [subMenu, setSubMenu] = useState<'turnInto' | 'color' | null>(null);
+    const [activeSubMenu, setActiveSubMenu] = useState<'turnInto' | 'color' | null>(null);
     const [colorTab, setColorTab] = useState<'text' | 'background'>('text');
 
     // Close on click outside
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
+            // Check if click is inside main menu OR any submenu
+            // Since submenus are likely portals or children, simple contains check might need refinement 
+            // but if they are children of this div, strict contains works.
             if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
                 onClose();
             }
@@ -58,125 +61,151 @@ export function BlockMenu({ x, y, blockId, currentType, onClose, onAction }: Blo
         onClose();
     };
 
+    // Submenu Rendering Helper
+    const renderSubMenu = () => {
+        if (!activeSubMenu) return null;
+
+        // Position relative to parent menu width (approx 220px)
+        const subMenuStyle: React.CSSProperties = {
+            position: 'absolute',
+            top: 0,
+            left: '100%',
+            marginLeft: '4px', // Gap
+            width: '200px',
+            maxHeight: '300px',
+            overflowY: 'auto'
+        };
+
+        return (
+            <div className={styles.slashMenu} style={subMenuStyle}>
+                {activeSubMenu === 'turnInto' && (
+                    <>
+                        <div className={styles.menuHeader}>Turn into</div>
+                        {TURN_INTO_ITEMS.map(item => (
+                            <div
+                                key={item.type}
+                                className={`${styles.slashMenuItem} ${currentType === item.type ? styles.selected : ''}`}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onAction('turnInto', item.type);
+                                    onClose();
+                                }}
+                            >
+                                <span className={styles.slashIcon}>{item.icon}</span>
+                                <span className={styles.slashLabel}>{item.label}</span>
+                            </div>
+                        ))}
+                    </>
+                )}
+
+                {activeSubMenu === 'color' && (
+                    <>
+                        <div className={styles.tabContainer}>
+                            <button
+                                className={`${styles.tabButton} ${colorTab === 'text' ? styles.active : ''}`}
+                                onClick={(e) => { e.stopPropagation(); setColorTab('text'); }}
+                            >
+                                Text
+                            </button>
+                            <button
+                                className={`${styles.tabButton} ${colorTab === 'background' ? styles.active : ''}`}
+                                onClick={(e) => { e.stopPropagation(); setColorTab('background'); }}
+                            >
+                                Background
+                            </button>
+                        </div>
+                        <div className={styles.menuHeader} style={{ marginTop: 0 }}>{colorTab === 'text' ? 'Text Color' : 'Background'}</div>
+                        {COLORS.map(item => (
+                            <div
+                                key={`${colorTab}-${item.value}`}
+                                className={styles.slashMenuItem}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (colorTab === 'text') {
+                                        onAction('color', { type: 'text', value: item.value });
+                                    } else {
+                                        const val = item.value === 'inherit' ? 'transparent' : `${item.value}20`;
+                                        onAction('color', { type: 'background', value: val });
+                                    }
+                                    onClose();
+                                }}
+                            >
+                                <span className={styles.slashIcon} style={
+                                    colorTab === 'text' ? {
+                                        color: item.value === 'inherit' ? 'var(--color-text-main)' : item.value
+                                    } : {
+                                        background: item.value === 'inherit' ? 'transparent' : item.value,
+                                        border: item.value === 'inherit' ? '1px solid #555' : 'none'
+                                    }
+                                }>
+                                    {colorTab === 'text' ? (
+                                        <>
+                                            <div style={{ width: 12, height: 12, borderRadius: '2px', background: 'currentColor' }} />
+                                            <span style={{ marginLeft: 6 }}>A</span>
+                                        </>
+                                    ) : (
+                                        <div style={{ width: '100%', height: '100%' }} />
+                                    )}
+                                </span>
+                                <span className={styles.slashLabel}>{item.label}</span>
+                            </div>
+                        ))}
+                    </>
+                )}
+            </div>
+        );
+    };
+
     return createPortal(
         <div
             className={styles.slashMenu}
-            style={{ top: y, left: x }}
+            style={{ top: y, left: x, overflow: 'visible' }} // Allow submenu to overflow
             ref={menuRef}
+            onMouseDown={(e) => e.stopPropagation()}
         >
-            {!subMenu ? (
-                <>
-                    <div className={styles.menuHeader}>Actions</div>
-                    <div className={styles.slashMenuItem} onClick={() => handleMainAction('duplicate')}>
-                        <span className={styles.slashIcon}><Copy size={16} /></span>
-                        <span className={styles.slashLabel}>Duplicate</span>
-                    </div>
-                    <div className={`${styles.slashMenuItem} ${styles.dangerItem}`} onClick={() => handleMainAction('delete')}>
-                        <span className={styles.slashIcon}><Trash2 size={16} /></span>
-                        <span className={styles.slashLabel}>Delete</span>
-                    </div>
+            <div className={styles.menuHeader}>Actions</div>
 
-                    <div className={styles.divider} />
+            <div className={styles.slashMenuItem} onMouseEnter={() => setActiveSubMenu(null)} onClick={(e) => { e.stopPropagation(); handleMainAction('duplicate'); }}>
+                <span className={styles.slashIcon}><Copy size={16} /></span>
+                <span className={styles.slashLabel}>Duplicate</span>
+            </div>
 
-                    {/* Split Action */}
-                    <div className={styles.slashMenuItem} onClick={() => handleMainAction('split' as any)}>
-                        <span className={styles.slashIcon}><ArrowRight size={16} /></span>
-                        <span className={styles.slashLabel}>Split Note Here</span>
-                    </div>
+            <div className={`${styles.slashMenuItem} ${styles.dangerItem}`} onMouseEnter={() => setActiveSubMenu(null)} onClick={(e) => { e.stopPropagation(); handleMainAction('delete'); }}>
+                <span className={styles.slashIcon}><Trash2 size={16} /></span>
+                <span className={styles.slashLabel}>Delete</span>
+            </div>
 
-                    <div className={styles.divider} />
+            <div className={styles.divider} />
 
-                    <div className={styles.slashMenuItem} onClick={() => setSubMenu('turnInto')}>
-                        <span className={styles.slashIcon}><ArrowRight size={16} /></span>
-                        <span className={styles.slashLabel} style={{ flexGrow: 1 }}>Turn into</span>
-                        <span className={styles.menuArrow}>›</span>
-                    </div>
-                    <div className={styles.slashMenuItem} onClick={() => setSubMenu('color')}>
-                        <span className={styles.slashIcon}><Palette size={16} /></span>
-                        <span className={styles.slashLabel} style={{ flexGrow: 1 }}>Color</span>
-                        <span className={styles.menuArrow}>›</span>
-                    </div>
-                </>
-            ) : subMenu === 'turnInto' ? (
-                <>
-                    <div className={styles.menuHeader} onClick={() => setSubMenu(null)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        ‹ Back to Actions
-                    </div>
-                    {TURN_INTO_ITEMS.map(item => (
-                        <div
-                            key={item.type}
-                            className={`${styles.slashMenuItem} ${currentType === item.type ? styles.selected : ''}`}
-                            onClick={() => {
-                                onAction('turnInto', item.type);
-                                onClose();
-                            }}
-                        >
-                            <span className={styles.slashIcon}>{item.icon}</span>
-                            <span className={styles.slashLabel}>{item.label}</span>
-                        </div>
-                    ))}
-                </>
-            ) : (
-                <>
-                    <div className={styles.menuHeader} onClick={() => setSubMenu(null)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        ‹ Back to Actions
-                    </div>
+            <div className={styles.slashMenuItem} onMouseEnter={() => setActiveSubMenu(null)} onClick={(e) => { e.stopPropagation(); handleMainAction('split' as any); }}>
+                <span className={styles.slashIcon}><ArrowRight size={16} /></span>
+                <span className={styles.slashLabel}>Split Note Here</span>
+            </div>
 
-                    {/* Tab Switcher */}
-                    <div className={styles.tabContainer}>
-                        <button
-                            className={`${styles.tabButton} ${colorTab === 'text' ? styles.active : ''}`}
-                            onClick={(e) => { e.stopPropagation(); setColorTab('text'); }}
-                        >
-                            Text
-                        </button>
-                        <button
-                            className={`${styles.tabButton} ${colorTab === 'background' ? styles.active : ''}`}
-                            onClick={(e) => { e.stopPropagation(); setColorTab('background'); }}
-                        >
-                            Background
-                        </button>
-                    </div>
+            <div className={styles.divider} />
 
-                    <div className={styles.menuHeader} style={{ marginTop: 0 }}>{colorTab === 'text' ? 'Text Color' : 'Background'}</div>
+            <div
+                className={styles.slashMenuItem}
+                onMouseEnter={() => setActiveSubMenu('turnInto')}
+                style={activeSubMenu === 'turnInto' ? { background: 'white', color: 'black' } : {}} // Highlight parent
+            >
+                <span className={styles.slashIcon}><ArrowRight size={16} /></span>
+                <span className={styles.slashLabel} style={{ flexGrow: 1 }}>Turn into</span>
+                <span className={styles.menuArrow}>›</span>
+            </div>
 
-                    {COLORS.map(item => (
-                        <div
-                            key={`${colorTab}-${item.value}`}
-                            className={styles.slashMenuItem}
-                            onClick={() => {
-                                if (colorTab === 'text') {
-                                    onAction('color', { type: 'text', value: item.value });
-                                } else {
-                                    // Use 20% opacity for backgrounds, or transparent for default
-                                    const val = item.value === 'inherit' ? 'transparent' : `${item.value}20`;
-                                    onAction('color', { type: 'background', value: val });
-                                }
-                                onClose();
-                            }}
-                        >
-                            <span className={styles.slashIcon} style={
-                                colorTab === 'text' ? {
-                                    color: item.value === 'inherit' ? 'var(--color-text-main)' : item.value
-                                } : {
-                                    background: item.value === 'inherit' ? 'transparent' : item.value,
-                                    border: item.value === 'inherit' ? '1px solid #555' : 'none'
-                                }
-                            }>
-                                {colorTab === 'text' ? (
-                                    <>
-                                        <div style={{ width: 12, height: 12, borderRadius: '2px', background: 'currentColor' }} />
-                                        <span style={{ marginLeft: 6 }}>A</span>
-                                    </>
-                                ) : (
-                                    <div style={{ width: '100%', height: '100%' }} />
-                                )}
-                            </span>
-                            <span className={styles.slashLabel}>{item.label}</span>
-                        </div>
-                    ))}
-                </>
-            )}
+            <div
+                className={styles.slashMenuItem}
+                onMouseEnter={() => setActiveSubMenu('color')}
+                style={activeSubMenu === 'color' ? { background: 'white', color: 'black' } : {}} // Highlight parent
+            >
+                <span className={styles.slashIcon}><Palette size={16} /></span>
+                <span className={styles.slashLabel} style={{ flexGrow: 1 }}>Color</span>
+                <span className={styles.menuArrow}>›</span>
+            </div>
+
+            {/* Render Submenu Side-by-Side */}
+            {renderSubMenu()}
         </div>,
         document.body
     );

@@ -591,10 +591,16 @@
 
 /* Multi-select State */
 .sortableWrapper.selected {
-    background: transparent !important;
-    box-shadow: 0 0 0 1px rgba(100, 160, 255, 0.5);
-    /* Outline instead of fill */
-    border-radius: 6px;
+    background: rgba(35, 131, 226, 0.14) !important;
+    /* Soft blue highlight */
+    box-shadow: none !important;
+    /* Remove outline */
+    border-radius: 2px;
+}
+
+.slashMenuItem[style*="background: white"] {
+    background-color: var(--color-bg-elevated-hover) !important;
+    color: var(--color-text-main) !important;
 }
 
 
