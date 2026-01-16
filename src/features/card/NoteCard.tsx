@@ -10,8 +10,8 @@ import { NoteExpandedContent } from './NoteExpandedContent';
 import { EditBar } from '../ui/EditBar';
 
 export const NoteCard = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
-    const { updateNodeData, setNodes, getViewport, deleteElements } = useReactFlow();
-    const { navigateToNode, setFullscreenId, setSidePanelId, setCenterPanelId, activeIconMenuId, setActiveIconMenuId } = useStore();
+    const { setNodes, getViewport, deleteElements } = useReactFlow();
+    const { navigateToNode, setFullscreenId, setSidePanelId, setCenterPanelId, activeIconMenuId, setActiveIconMenuId, updateNodeData } = useStore();
     const viewMode = data.viewMode || 'medium';
 
     // Editing state

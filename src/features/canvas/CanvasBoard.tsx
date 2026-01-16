@@ -44,6 +44,7 @@ export function CanvasBoard() {
     const addNode = useStore(useCallback(s => s.addNode, []));
     const updateNodeData = useStore(useCallback(s => s.updateNodeData, []));
     const setInteractionState = useStore(useCallback(s => s.setInteractionState, []));
+    const extractPageFromBlock = useStore(useCallback(s => s.extractPageFromBlock, []));
 
     // Throttling Ref
     const lastDragCheck = useRef(0);
@@ -190,6 +191,12 @@ export function CanvasBoard() {
     }, [currentParentId, activeParentNode, visibleNodes.length, fitView, isSyncReady]);
 
     // Reverse Sync: Persist Children Nodes back to Parent Content
+    const isSyncReadyRef = useRef(isSyncReady);
+
+    useEffect(() => {
+        isSyncReadyRef.current = isSyncReady;
+    }, [isSyncReady]);
+
     useEffect(() => {
         if (!currentParentId || !activeParentNode || activeParentNode.type !== 'note') return;
 
@@ -228,6 +235,53 @@ export function CanvasBoard() {
         };
 
     }, [visibleNodes, currentParentId, activeParentNode, updateNodeData, isSyncReady]);
+
+    // Navigation Safety Sync: Ensure save on Unmount/Navigation
+    useEffect(() => {
+        // Need to capture the ID in the closure to know which node to update
+        const capturedParentId = currentParentId;
+
+        return () => {
+            if (!capturedParentId) return;
+            if (!isSyncReadyRef.current) return;
+
+            // Get latest state directly to ensure we have the target node even if props are stale
+            const state = useStore.getState();
+            const parent = state.nodes.find(n => n.id === capturedParentId);
+
+            if (!parent || parent.type !== 'note') return;
+
+            // CRITICAL FIX: Query the store directly for children instead of using visibleNodesRef.
+            // visibleNodesRef depends on React render cycle and may be stale.
+            const freshChildren = state.nodes.filter(n => n.parentId === capturedParentId);
+
+            const sortedChildren = [...freshChildren].sort((a, b) => {
+                if (Math.abs(a.position.y - b.position.y) < 10) {
+                    return a.position.x - b.position.x;
+                }
+                return a.position.y - b.position.y;
+            });
+
+            let reconstructedContent: any[] = [];
+            sortedChildren.forEach(child => {
+                if (child.type === 'fused-note' || child.type === 'block') {
+                    const content = (child.data as any).content;
+                    if (Array.isArray(content)) {
+                        reconstructedContent = [...reconstructedContent, ...content];
+                    }
+                }
+            });
+
+            // Always update on navigation if there is content to sync, to be safe.
+            // (Or compare with latest parent data to avoid redundant updates)
+            const currentContentStr = JSON.stringify(parent.data.content || []);
+            const newContentStr = JSON.stringify(reconstructedContent);
+
+            if (currentContentStr !== newContentStr) {
+                state.updateNodeData(capturedParentId, { content: reconstructedContent });
+            }
+        };
+    }, [currentParentId]); // Only run setup/cleanup when Parent ID changes (Navigation)
 
     // Drop Handlers
     const onDragOver = useCallback((event: React.DragEvent) => {
@@ -317,6 +371,16 @@ export function CanvasBoard() {
                 }
 
             } else {
+
+                // SPECIAL LOGIC: Dropping a 'page' block onto the canvas -> Convert to Icon Card
+                // Use Store Action for atomic update
+                if (blocksToAdd.length === 1 && blocksToAdd[0].type === 'page') {
+                    console.log("CanvasBoard: Detected Page Drop", blocksToAdd[0]);
+                    extractPageFromBlock(blocksToAdd[0], position, sourceNodeId || undefined);
+                    return;
+                }
+
+                // Standard Logic for other blocks -> Create Block Container
                 const BLOCK_WIDTH = 300;
                 const BLOCK_HEIGHT = 100;
                 const centeredPosition = {
@@ -341,7 +405,7 @@ export function CanvasBoard() {
                 }
             }
         },
-        [screenToFlowPosition, addNode, nodes, updateNodeData, getIntersectingNodes, deleteElements, setNodes],
+        [screenToFlowPosition, addNode, nodes, updateNodeData, getIntersectingNodes, deleteElements, setNodes, currentParentId],
     );
 
     // Grid config

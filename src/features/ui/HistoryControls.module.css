@@ -22,8 +22,9 @@
 }
 
 .historyBtn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--glass-bg-hover);
     color: var(--color-text-main);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .historyBtn:disabled {

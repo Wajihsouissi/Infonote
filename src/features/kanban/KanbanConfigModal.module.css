@@ -13,13 +13,15 @@
 }
 
 .modal {
-    background: #1e1e1e;
-    border: 1px solid #333;
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    border: 1px solid var(--glass-border);
     border-radius: 16px;
     width: 90%;
     max-width: 500px;
     padding: 24px;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--glass-shadow);
     animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -46,13 +48,13 @@
     margin: 0;
     font-size: 1.25rem;
     font-weight: 600;
-    color: #fff;
+    color: var(--color-text-main);
 }
 
 .closeBtn {
     background: transparent;
     border: none;
-    color: #888;
+    color: var(--color-text-muted);
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
@@ -60,8 +62,8 @@
 }
 
 .closeBtn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
+    background: var(--glass-bg-hover);
+    color: var(--color-text-main);
 }
 
 .fieldGroup {
@@ -71,18 +73,18 @@
 .fieldGroup label {
     display: block;
     margin-bottom: 8px;
-    color: #ccc;
+    color: var(--color-text-muted);
     font-size: 0.875rem;
     font-weight: 500;
 }
 
 .input {
     width: 100%;
-    background: #2a2a2a;
-    border: 1px solid #444;
+    background: var(--color-bg-surface);
+    border: 1px solid var(--glass-border);
     border-radius: 8px;
     padding: 10px 12px;
-    color: #fff;
+    color: var(--color-text-main);
     font-size: 0.95rem;
     outline: none;
     transition: border-color 0.2s;
@@ -90,7 +92,7 @@
 }
 
 .input:focus {
-    border-color: #8b5cf6;
+    border-color: var(--color-primary);
 }
 
 .columnsSection {
@@ -129,10 +131,10 @@
 }
 
 .columnsList {
-    background: #252525;
+    background: var(--color-bg-surface);
     border-radius: 8px;
     padding: 12px;
-    border: 1px solid #333;
+    border: 1px solid var(--glass-border);
 }
 
 .columnRow {
@@ -140,7 +142,7 @@
     gap: 8px;
     margin-bottom: 8px;
     align-items: center;
-    background: #2a2a2a;
+    background: var(--color-bg-card);
     padding: 8px;
     border-radius: 6px;
     border: 1px solid transparent;
@@ -178,20 +180,20 @@
     flex: 2;
     background: transparent;
     border: none;
-    border-bottom: 1px solid #444;
+    border-bottom: 1px solid var(--glass-border);
     padding: 4px 0;
-    color: #eee;
+    color: var(--color-text-main);
     font-size: 0.9rem;
     outline: none;
 }
 
 .colInput:focus {
-    border-bottom-color: #8b5cf6;
+    border-bottom-color: var(--color-primary);
 }
 
 .statusInput {
     flex: 1;
-    color: #aaa;
+    color: var(--color-text-muted);
     font-family: monospace;
     font-size: 0.8rem;
 }
@@ -199,7 +201,7 @@
 .deleteBtn {
     background: transparent;
     border: none;
-    color: #666;
+    color: var(--color-text-muted);
     cursor: pointer;
     padding: 4px;
     display: flex;

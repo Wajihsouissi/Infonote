@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bold, Italic, Underline, Strikethrough, Link } from 'lucide-react';
+import { Bold, Italic, Underline, Strikethrough, Link, FileText } from 'lucide-react';
 import styles from './BlockEditor.module.css';
 
 interface FloatingToolbarProps {
@@ -60,6 +60,9 @@ export function FloatingToolbar({ selectionRect, onFormat }: FloatingToolbarProp
                 <Strikethrough size={16} />
             </button>
             <div className={styles.toolbarDivider} />
+            <button className={styles.toolbarBtn} onClick={(e) => handleFormat(e, 'createPage')} title="Turn into Page">
+                <FileText size={16} />
+            </button>
             <button className={styles.toolbarBtn} onClick={(e) => handleFormat(e, 'createLink')} title="Link">
                 <Link size={16} />
             </button>

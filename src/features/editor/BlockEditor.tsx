@@ -1160,6 +1160,16 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     }
                 }
             }}
+            onDoubleClick={(e) => {
+                const target = e.target as HTMLElement;
+                const chip = target.closest(`.${styles.inlinePageChip}`) as HTMLElement;
+                if (chip && chip.dataset.nodeId) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const nodeId = chip.dataset.nodeId;
+                    useStore.getState().navigateToNode(nodeId);
+                }
+            }}
         >
             {blocks.map(block => (
                 <BlockItem
@@ -1208,9 +1218,28 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 <FloatingToolbar
                     selectionRect={selectionRect}
                     onFormat={(format, value) => {
-                        document.execCommand(format, false, value);
-                        // Note: execCommand is simple but reliable for contentEditable.
-                        // For advanced needs, we'd manually manipulate the range.
+                        if (format === 'createPage') {
+                            const selection = window.getSelection();
+                            if (selection && !selection.isCollapsed) {
+                                const text = selection.toString();
+                                if (text.trim()) {
+                                    const createPageFromText = useStore.getState().createPageFromText;
+                                    const rect = selection.getRangeAt(0).getBoundingClientRect();
+                                    const newPageId = createPageFromText(text, { x: rect.left, y: rect.bottom + 20 });
+
+                                    // Use Span with data-node-id for custom handling
+                                    const html = `<span data-node-id="${newPageId}" class="${styles.inlinePageChip}" contenteditable="false"><span class="${styles.inlinePageIcon}">📄</span>${text}</span>`;
+                                    document.execCommand('insertHTML', false, html);
+                                }
+                            }
+                        } else if (format === 'createLink') {
+                            const url = prompt('Enter URL:');
+                            if (url) {
+                                document.execCommand('createLink', false, url);
+                            }
+                        } else {
+                            document.execCommand(format, false, value);
+                        }
                     }}
                 />
             )}

@@ -482,9 +482,11 @@
 /* Floating Toolbar */
 .floatingToolbar {
     position: fixed;
-    background: var(--rf-controls-bg);
-    border: 1px solid var(--rf-controls-border);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
     border-radius: 6px;
     padding: 4px;
     display: flex;
@@ -623,6 +625,18 @@
     opacity: 0 !important;
     visibility: hidden !important;
     pointer-events: none !important;
+}
+
+.sortableWrapper[data-block-type="image"] .blockContent,
+.sortableWrapper[data-block-type="video"] .blockContent,
+.sortableWrapper[data-block-type="file"] .blockContent {
+    cursor: grab !important;
+}
+
+.sortableWrapper[data-block-type="image"]:active .blockContent,
+.sortableWrapper[data-block-type="video"]:active .blockContent,
+.sortableWrapper[data-block-type="file"]:active .blockContent {
+    cursor: grabbing !important;
 }
 
 
@@ -797,6 +811,45 @@
 
 .alignmentContainer[data-alignment="left"] {
     justify-content: flex-start;
+}
+
+/* Inline Page Chip */
+.inlinePageChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    /* Matched PageBlock */
+    background: rgba(255, 255, 255, 0.05);
+    /* Matched PageBlock */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    /* Matched PageBlock */
+    border-radius: 6px;
+    /* Matched PageBlock */
+    padding: 4px 8px;
+    /* Matched PageBlock (slightly adj for inline) */
+    margin: 0 4px;
+    color: var(--color-text-main);
+    text-decoration: none;
+    font-size: 0.9em;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s;
+    vertical-align: middle;
+    white-space: nowrap;
+    /* Prevent breaking inside chip */
+}
+
+.inlinePageChip:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--color-primary);
+    text-decoration: none;
+}
+
+.inlinePageIcon {
+    font-size: 1em;
+    color: var(--color-primary);
+    /* Matched PageBlock */
+    opacity: 0.8;
 }
 
 .alignmentContainer[data-alignment="center"] {

@@ -131,7 +131,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
                     <GripVertical size={14} />
                 </div>
             )}
-            <div className={`${styles.blockContent} ${promoteBlockHandles ? 'nodrag' : ''}`}>
+            <div className={`${styles.blockContent} ${(promoteBlockHandles && !isMedia) ? 'nodrag' : ''}`}>
                 {children}
             </div>
         </div>

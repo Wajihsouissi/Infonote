@@ -62,6 +62,8 @@ interface AppState {
     setLastSaved: (date: string | null) => void;
     loadGraph: (nodes: AppNode[], edges: Edge[]) => void;
     splitNode: (nodeId: string, splitBlockId: string, currentBlocks?: any[]) => void;
+    extractPageFromBlock: (block: any, position: { x: number; y: number }, sourceNodeId?: string) => void;
+    createPageFromText: (text: string, position?: { x: number; y: number }) => string;
 }
 
 const initialNodes: AppNode[] = [
@@ -331,6 +333,103 @@ export const useStore = create<AppState>()(temporal((set, get) => ({
             ],
             edges: [...edges, newEdge]
         });
+    },
+
+    extractPageFromBlock: (block, position, sourceNodeId) => {
+        const { nodes, currentParentId } = get();
+        const linkedNodeId = block.metadata?.nodeId;
+
+        console.log("Extracting Page:", { block, position, sourceNodeId, linkedNodeId });
+
+        // 1. Remove from source (if sourceNodeId provided)
+        let nodesToUpdate = nodes;
+        if (sourceNodeId) {
+            nodesToUpdate = nodesToUpdate.map(n => {
+                if (n.id === sourceNodeId && Array.isArray((n.data as any).content)) {
+                    const newContent = (n.data as any).content.filter((b: any) => b.id !== block.id);
+                    return { ...n, data: { ...n.data, content: newContent } };
+                }
+                return n;
+            }) as AppNode[];
+        }
+
+        // 2. Add or Update Target Node
+        // Target Logic: Icon Card (112x112)
+        const iconStyle = { width: 112, height: 112 };
+        const iconViewMode = 'icon';
+        const centeredPos = { x: position.x - 56, y: position.y - 56 };
+
+        const existingNode = linkedNodeId ? nodesToUpdate.find(n => n.id === linkedNodeId) : null;
+
+        if (existingNode) {
+            // Move Existing Node
+            set({
+                nodes: nodesToUpdate.map(n => {
+                    if (n.id === linkedNodeId) {
+                        return {
+                            ...n,
+                            parentId: currentParentId || undefined,
+                            position: centeredPos,
+                            extent: undefined,
+                            zIndex: 10,
+                            style: { ...n.style, ...iconStyle },
+                            data: { ...n.data, viewMode: iconViewMode }
+                        };
+                    }
+                    return n;
+                }) as AppNode[]
+            });
+        } else {
+            // Create New Icon Note
+            const newNode: AppNode = {
+                id: uuidv4(),
+                type: 'note',
+                position: centeredPos,
+                style: iconStyle,
+                data: {
+                    label: block.content || 'Untitled Page',
+                    content: [],
+                    viewMode: iconViewMode,
+                    icon: 'FileText', // Default icon
+                    date: new Date().toISOString()
+                },
+                parentId: currentParentId || undefined,
+            };
+
+            set({
+                nodes: [...nodesToUpdate, newNode]
+            });
+        }
+    },
+
+    createPageFromText: (text, position) => {
+        const { nodes, currentParentId } = get();
+        const newId = uuidv4();
+
+        // Default position if not provided: Center of screen or relative to something
+        // For now, let's dump it at 100, 100 or rely on the caller to provide pos
+        const pos = position || { x: 100, y: 100 };
+
+        const newNode: AppNode = {
+            id: newId,
+            type: 'note',
+            position: pos,
+            style: { width: 112, height: 112 },
+            data: {
+                label: text || 'Untitled Page',
+                content: [],
+                viewMode: 'icon',
+                icon: 'FileText', // Default icon
+                date: new Date().toISOString()
+            },
+            parentId: currentParentId || undefined,
+        };
+
+        set({
+            nodes: [...nodes, newNode]
+        });
+
+        return newId;
     },
 
 }), {

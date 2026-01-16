@@ -1,34 +1,14 @@
 .card {
-    /* FORCE DARK THEME VARIABLES - Consistent look across modes */
-    --color-bg-base: #0f1115;
-    --color-bg-surface: #1c1e26;
-    --color-bg-card: #252836;
-    --color-text-main: #f3f4f6;
-    --color-text-muted: #9ca3af;
-    --color-border: #333645;
-    --glass-bg: rgba(28, 30, 38, 0.7);
-    --glass-bg-hover: rgba(28, 30, 38, 0.85);
-    --glass-border: rgba(255, 255, 255, 0.08);
-    --rf-controls-bg: #1e1e1e;
-    --rf-controls-border: #333;
-    --rf-controls-text: #e5e7eb;
-
-    /* Forced Accents for Dark Card Context */
-    --color-primary: #8b5cf6;
-    --color-primary-glow: rgba(139, 92, 246, 0.4);
-    --color-secondary: #06b6d4;
-
     border-radius: 12px;
     background: var(--glass-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
     border: 1px solid var(--glass-border);
     color: var(--color-text-main);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    box-shadow: var(--glass-shadow);
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     display: flex;
     flex-direction: column;
-    /* overflow: hidden; Removed to allow hover menu to float outside */
 }
 
 /* React Flow Controls Customization */
@@ -39,7 +19,7 @@
     border: 1px solid var(--rf-controls-border);
     border-radius: 8px;
     padding: 4px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--glass-shadow);
     overflow: hidden;
 }
 
@@ -390,6 +370,7 @@
     border-radius: 6px;
     padding: 4px 8px;
     color: white;
+    caret-color: white;
     font-size: 0.8rem;
     outline: none;
     width: 60%;
@@ -639,8 +620,8 @@
     /* Added for controls */
 
     /* Visual Separation */
-    background: transparent;
-    /* Allow glass to show through */
+    background: var(--note-bg);
+    /* Allow glass to show through (Dark) or Solid (Light) */
     border-top: 1px solid var(--glass-border);
 }
 
@@ -808,9 +789,11 @@
     /* Float above the card */
     left: 50%;
     transform: translateX(-50%) translateY(10px);
-    background: #1e1e1e;
-    border: 1px solid #333;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
     border-radius: 99px;
     /* Capsule shape */
     padding: 4px 8px;
@@ -942,8 +925,9 @@
     /* Space between title and controls */
     gap: 12px;
     padding: 12px 24px;
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--glass-bg-hover);
     border-bottom: 1px solid var(--glass-border);
+    border-radius: 12px 12px 0 0;
     flex-shrink: 0;
 }
 
@@ -1068,14 +1052,13 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    color: white;
-    /* Force white icon color */
+    color: var(--color-text-main);
 }
 
 .iconButton svg,
 .expandedIconButton svg {
-    stroke: white;
-    color: white;
+    stroke: currentColor;
+    color: currentColor;
 }
 
 .iconButton {

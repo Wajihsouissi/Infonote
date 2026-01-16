@@ -10,6 +10,7 @@
 /* Dark Theme (Default) */
 :root,
 :root[data-theme="dark"] {
+  color-scheme: dark;
   /* Premium Dark Theme Palette */
   --color-bg-base: #0f1115;
   --color-bg-surface: #1c1e26;
@@ -23,24 +24,30 @@
   --color-text-muted: #9ca3af;
   --color-border: #333645;
 
-  /* Glassmorphism */
+  /* Glassmorphism - Source of Truth (From NoteCard) */
   --glass-bg: rgba(28, 30, 38, 0.7);
   --glass-bg-hover: rgba(28, 30, 38, 0.85);
   --glass-border: rgba(255, 255, 255, 0.08);
-  --backdrop-blur: 16px;
+  --glass-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --backdrop-blur: 12px;
 
-  /* React Flow */
-  --rf-controls-bg: #1e1e1e;
-  --rf-controls-border: #333;
-  --rf-controls-text: #e5e7eb;
+  /* Context Specific Overrides */
+  --modal-bg: var(--glass-bg);
+  --note-bg: transparent;
+
+  /* React Flow - Uses Glass System */
+  --rf-controls-bg: var(--glass-bg);
+  --rf-controls-border: var(--glass-border);
+  --rf-controls-text: var(--color-text-main);
 }
 
 /* Light Theme */
 :root[data-theme="light"] {
+  color-scheme: light;
   /* Premium Light Theme Palette */
   --color-bg-base: #f8f9fa;
   --color-bg-surface: #ffffff;
-  --color-bg-card: #f1f3f5;
+  --color-bg-card: #ffffff;
 
   --color-primary: #7c3aed;
   --color-primary-glow: rgba(124, 58, 237, 0.3);
@@ -50,16 +57,22 @@
   --color-text-muted: #6b7280;
   --color-border: #e5e7eb;
 
-  /* Glassmorphism */
+  /* Glassmorphism - Source of Truth (From BottomMenu) */
   --glass-bg: rgba(255, 255, 255, 0.7);
   --glass-bg-hover: rgba(255, 255, 255, 0.9);
+  /* Slightly warmer/opaque for visibility */
   --glass-border: rgba(0, 0, 0, 0.08);
-  --backdrop-blur: 16px;
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  --backdrop-blur: 12px;
 
-  /* React Flow */
-  --rf-controls-bg: #ffffff;
-  --rf-controls-border: #e5e7eb;
-  --rf-controls-text: #1f2937;
+  /* Context Specific Overrides - Light Mode = Solid White */
+  --modal-bg: #ffffff;
+  --note-bg: #ffffff;
+
+  /* React Flow - Uses Glass System */
+  --rf-controls-bg: var(--glass-bg);
+  --rf-controls-border: var(--glass-border);
+  --rf-controls-text: var(--color-text-main);
 }
 
 * {
@@ -71,10 +84,12 @@
 body {
   background-color: var(--color-bg-base);
   color: var(--color-text-main);
+  caret-color: var(--color-text-main);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
   /* Canvas app */
+  cursor: auto;
 }
 
 #root {
@@ -122,10 +137,12 @@ body {
   display: flex;
   flex-direction: column;
   background: var(--rf-controls-bg);
+  backdrop-filter: blur(var(--backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--backdrop-blur));
   border: 1px solid var(--rf-controls-border);
   border-radius: 8px;
   padding: 2px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--glass-shadow);
   overflow: hidden;
   gap: 1px;
 }

@@ -1,31 +1,12 @@
 .fusedNoteNode {
-    /* FORCE DARK THEME VARIABLES */
-    --color-bg-base: #0f1115;
-    --color-bg-surface: #1c1e26;
-    --color-bg-card: #252836;
-    --color-text-main: #f3f4f6;
-    --color-text-muted: #9ca3af;
-    --color-border: #333645;
-    --glass-bg: rgba(28, 30, 38, 0.7);
-    --glass-bg-hover: rgba(28, 30, 38, 0.85);
-    --glass-border: rgba(255, 255, 255, 0.08);
-    --rf-controls-bg: #1e1e1e;
-    --rf-controls-border: #333;
-    --rf-controls-text: #e5e7eb;
-
-    /* Forced Accents for Dark Card Context */
-    --color-primary: #8b5cf6;
-    --color-primary-glow: rgba(139, 92, 246, 0.4);
-    --color-secondary: #06b6d4;
-
     position: relative;
     /* Essential for absolute positioning of handles */
     display: block;
     /* Use block to wrap tightly */
-    background: #18181b;
-    /* Zinc 900 */
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    /* 2px border as requested */
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    border: 1px solid var(--glass-border);
     border-radius: 12px;
     padding: 16px;
     /* Minimal padding */
@@ -33,8 +14,7 @@
     height: 80%;
     box-sizing: border-box;
     transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
-    /* Subtle second layer hint */
-    backdrop-filter: blur(8px);
+    box-shadow: var(--glass-shadow);
     color: var(--color-text-main);
 }
 

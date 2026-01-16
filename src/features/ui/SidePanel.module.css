@@ -8,11 +8,11 @@
     /* Floating from bottom edge */
     width: 45vw;
     /* Slightly narrower to accommodate gaps */
-    background: var(--glass-bg);
+    background: var(--modal-bg);
     backdrop-filter: blur(var(--backdrop-blur));
     -webkit-backdrop-filter: blur(var(--backdrop-blur));
     border: 1px solid var(--glass-border);
-    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--glass-shadow);
     border-radius: 12px;
     /* Distinctive card rounding */
     z-index: 50;
@@ -33,7 +33,7 @@
 
 .header {
     padding: 16px 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid var(--glass-border);
     display: flex;
     justify-content: space-between;
     align-items: center;

@@ -13,7 +13,8 @@ export type FusedNoteNodeData = {
 };
 
 export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedNoteNodeData>>) => {
-    const { updateNodeData, setNodes, getViewport, deleteElements } = useReactFlow();
+    const { setNodes, getViewport, deleteElements } = useReactFlow();
+    const updateNodeData = useStore(s => s.updateNodeData);
     const contentRef = useRef<HTMLDivElement>(null);
     const nodeRef = useRef<HTMLDivElement>(null);
     const activeResize = useRef(false);

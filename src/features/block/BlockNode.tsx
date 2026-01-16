@@ -9,7 +9,8 @@ import styles from './BlockNode.module.css';
 
 // BlockNode is a "headless" or "chromeless" text unit.
 export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
-    const { updateNodeData, setNodes, deleteElements } = useReactFlow();
+    const { setNodes, deleteElements } = useReactFlow();
+    const updateNodeData = useStore(s => s.updateNodeData);
 
     // EditBar state
     const [showEditBar, setShowEditBar] = useState(false);
