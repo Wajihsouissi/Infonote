@@ -16,7 +16,8 @@ export type BlockType =
     | 'file'
     | 'page'
     | 'container'
-    | 'columns';
+    | 'columns'
+    | 'code';
 
 export type Block = {
     id: string;

@@ -11,6 +11,7 @@ import {
 } from '@xyflow/react';
 import { v4 as uuidv4 } from 'uuid';
 import type { AppNode } from '../types';
+import { computeParentContentUpdate } from './contentSync';
 
 interface Breadcrumb {
     id: string | null; // null represents Root for UI logic
@@ -64,6 +65,8 @@ interface AppState {
     splitNode: (nodeId: string, splitBlockId: string, currentBlocks?: any[]) => void;
     extractPageFromBlock: (block: any, position: { x: number; y: number }, sourceNodeId?: string) => void;
     createPageFromText: (text: string, position?: { x: number; y: number }) => string;
+    savePageContent: (parentId: string, content: any[], transientNodeIds: string[]) => void;
+    syncParentContent: (parentId: string) => void;
 }
 
 const initialNodes: AppNode[] = [
@@ -146,6 +149,10 @@ export const useStore = create<AppState>()(temporal((set, get) => ({
         set({
             nodes: applyNodeChanges(changes, get().nodes) as AppNode[],
         });
+        const { currentParentId } = get();
+        if (currentParentId) {
+            get().syncParentContent(currentParentId);
+        }
     },
 
     onEdgesChange: (changes) => {
@@ -189,6 +196,10 @@ export const useStore = create<AppState>()(temporal((set, get) => ({
         };
 
         set((state) => ({ nodes: [...state.nodes, newNode] }));
+
+        if (targetParentId) {
+            get().syncParentContent(targetParentId);
+        }
     },
 
     navigateToNode: (nodeId) => {
@@ -226,6 +237,56 @@ export const useStore = create<AppState>()(temporal((set, get) => ({
                 node.id === id ? { ...node, data: { ...node.data, ...data } } : node
             ),
         });
+
+        // 1. Upward Sync (Child -> Parent)
+        // If we are INSIDE a parent, any change to a child should sync UP to the parent.
+        const { currentParentId } = get();
+        // console.log("updateNodeData called:", { id, data, currentParentId });
+        if (currentParentId) {
+            get().syncParentContent(currentParentId);
+        }
+
+        // 2. Downstream Sync (Parent -> Child)
+        // If we are modifying the CONTENT of a node (e.g. typing in Expanded View),
+        // we must check if any "Page Blocks" inside that content refer to Linked Child Nodes.
+        // If so, we must sync the label downwards.
+        if (data.content && Array.isArray(data.content)) {
+            // We need a helper for this too. Let's reuse computeParentContentUpdate logic?
+            // Actually, we can just call a lightweight sync helper or inline it.
+            // Since we have 'contentSync.ts', let's stick to doing it here for now or add a helper.
+            // Let's iterate the new content and update linked nodes directly.
+
+            const linkedUpdates: { id: string, label: string }[] = [];
+            data.content.forEach((b: any) => {
+                if (b.type === 'page' && b.metadata?.nodeId) {
+                    linkedUpdates.push({ id: b.metadata.nodeId, label: b.content });
+                }
+            });
+
+            if (linkedUpdates.length > 0) {
+                set((state) => {
+                    // Filter only if actual change needed?
+                    const nodesToUpdate = state.nodes.filter(n => {
+                        const update = linkedUpdates.find(u => u.id === n.id);
+                        return update && (n.data as any).label !== update.label;
+                    });
+
+                    if (nodesToUpdate.length === 0) return state;
+
+                    console.log("Downstream Sync (Parent -> Child):", nodesToUpdate.length);
+
+                    return {
+                        nodes: state.nodes.map(n => {
+                            const update = linkedUpdates.find(u => u.id === n.id);
+                            if (update && (n.data as any).label !== update.label) {
+                                return { ...n, data: { ...n.data, label: update.label } };
+                            }
+                            return n;
+                        }) as AppNode[]
+                    };
+                });
+            }
+        }
     },
 
     updateNode: (id, updates) => {
@@ -290,17 +351,17 @@ export const useStore = create<AppState>()(temporal((set, get) => ({
 
         const newNodeId = uuidv4();
 
-        // Determine Label for new node from first block if it's a heading
-        const firstBlock = blocksToMove[0];
-        let newLabel = "New Note";
-        if (['heading1', 'heading2', 'heading3'].includes(firstBlock.type)) {
-            newLabel = firstBlock.content || "Untitled Section";
-        } else if (firstBlock.type === 'toggle') {
-            newLabel = firstBlock.content || "Toggle Section";
-        }
+        // Determine Label for new node
+        // const firstBlock = blocksToMove[0];
+        // let newLabel = "New Note";
+        // if (['heading1', 'heading2', 'heading3'].includes(firstBlock.type)) {
+        //     newLabel = firstBlock.content || "Untitled Section";
+        // } else if (firstBlock.type === 'toggle') {
+        //     newLabel = firstBlock.content || "Toggle Section";
+        // }
 
         // Handle viewMode safely
-        const sourceViewMode = 'viewMode' in sourceNode.data ? (sourceNode.data as any).viewMode : 'medium';
+        // const sourceViewMode = 'viewMode' in sourceNode.data ? (sourceNode.data as any).viewMode : 'medium';
 
         const newNode: AppNode = {
             id: newNodeId,
@@ -430,6 +491,36 @@ export const useStore = create<AppState>()(temporal((set, get) => ({
         });
 
         return newId;
+    },
+
+    savePageContent: (parentId, content, transientNodeIds) => {
+        set((state) => ({
+            nodes: state.nodes
+                .map((node) => node.id === parentId ? { ...node, data: { ...node.data, content } } : node)
+                .filter((node) => !transientNodeIds.includes(node.id))
+        }) as Partial<AppState>);
+    },
+
+    syncParentContent: (parentId: string) => {
+        const { nodes } = get();
+        const result = computeParentContentUpdate(parentId, nodes);
+
+        if (result && result.shouldUpdate) {
+            set((state) => ({
+                nodes: state.nodes.map(n => {
+                    // Update Parent
+                    if (n.id === parentId) {
+                        return { ...n, data: { ...n.data, content: result.parentContent } };
+                    }
+                    // Update Ejected Children
+                    const update = result.nodesToUpdate.find(u => u.id === n.id);
+                    if (update) {
+                        return { ...n, data: update.data };
+                    }
+                    return n;
+                })
+            }));
+        }
     },
 
 }), {

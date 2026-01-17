@@ -380,6 +380,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             if (content === '>> ') { convertBlock(id, 'toggle'); return; }
             if (content === '--- ') { convertBlock(id, 'divider'); return; } // needs space usually to confirm? or just ---
             if (content === '[] ' || content === '- ') { convertBlock(id, 'todo'); return; }
+            if (content === '``` ') { convertBlock(id, 'code'); return; }
 
             // Slash menu
             if (content.startsWith('/')) {
@@ -1171,28 +1172,48 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 }
             }}
         >
-            {blocks.map(block => (
-                <BlockItem
-                    key={block.id}
-                    block={block}
-                    isSelected={selectedBlockIds.has(block.id)}
-                    readOnly={readOnly}
-                    nodeId={nodeId}
-                    hideBlockHandles={hideBlockHandles}
-                    promoteBlockHandles={promoteBlockHandles}
-                    disableMediaControls={disableMediaControls}
+            {blocks.map((block, index) => {
+                // Calculate List Index
+                let listIndex = undefined;
+                if (block.type === 'numbered') {
+                    // Look backwards to count consecutive numbered blocks (ignoring indentation children for now? or simplified sequence)
+                    // Simplified: Count how many numbered blocks are immediately preceding this one (ignoring pure indentation logic for now, or just monotonic increase)
+                    // Actually, simple sequential logic:
+                    let count = 1;
+                    for (let i = index - 1; i >= 0; i--) {
+                        if (blocks[i].type === 'numbered') {
+                            count++;
+                        } else {
+                            break;
+                        }
+                    }
+                    listIndex = count;
+                }
 
-                    onUpdateBlock={updateBlock}
-                    onKeyDown={handleKeyDown}
-                    onPaste={handleBlockPaste}
-                    onMoveBlock={handleMoveBlock}
-                    onDragStart={handleBlockDragStart}
-                    onMenuOpen={handleBlockMenuOpen}
-                    onSelectionClick={() => { }}
-                    onSelectionMouseDown={handleSelectionMouseDown}
-                    onRegisterRef={handleRegisterRef}
-                />
-            ))}
+                return (
+                    <BlockItem
+                        key={block.id}
+                        block={block}
+                        index={listIndex} // Pass calculated index
+                        isSelected={selectedBlockIds.has(block.id)}
+                        readOnly={readOnly}
+                        nodeId={nodeId}
+                        hideBlockHandles={hideBlockHandles}
+                        promoteBlockHandles={promoteBlockHandles}
+                        disableMediaControls={disableMediaControls}
+
+                        onUpdateBlock={updateBlock}
+                        onKeyDown={handleKeyDown}
+                        onPaste={handleBlockPaste}
+                        onMoveBlock={handleMoveBlock}
+                        onDragStart={handleBlockDragStart}
+                        onMenuOpen={handleBlockMenuOpen}
+                        onSelectionClick={() => { }}
+                        onSelectionMouseDown={handleSelectionMouseDown}
+                        onRegisterRef={handleRegisterRef}
+                    />
+                );
+            })}
 
             {slashMenuState && (
                 <SlashMenu

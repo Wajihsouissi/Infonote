@@ -16,7 +16,8 @@ import {
     File,
     Columns2,
     Columns3,
-    LayoutGrid
+    LayoutGrid,
+    Code
 } from 'lucide-react';
 import type { BlockType } from './types';
 
@@ -44,6 +45,7 @@ export const MENU_ITEMS: MenuItem[] = [
 
     // Advanced Text
     { label: 'Callout', description: 'Highlight information', type: 'callout', icon: MessageSquare, keywords: ['box', 'note', 'alert'] },
+    { label: 'Code', description: 'Capture a code snippet', type: 'code', icon: Code, keywords: ['code', 'block', 'snippet'] },
     { label: 'Quote', description: 'Capture a quote', type: 'quote', icon: Quote, keywords: ['blockquote', 'citation'] },
     { label: 'Divider', description: 'Visual separator', type: 'divider', icon: Minus, keywords: ['line', 'hr', 'separator'] },
     { label: 'Table', description: 'Tabular data', type: 'table', icon: Table, keywords: ['grid', 'rows', 'columns'] },

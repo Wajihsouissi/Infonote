@@ -1,4 +1,4 @@
-import { memo, useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useCallback, useRef, useState } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow } from '@xyflow/react';
 import { StickyNote, GripHorizontal } from 'lucide-react';
 import { BlockEditor } from '../editor/BlockEditor';
@@ -24,15 +24,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     const [editBarPosition, setEditBarPosition] = useState({ x: 0, y: 0 });
 
     // Auto-fit height logic - respecting manual resize if set
-    useLayoutEffect(() => {
-        setNodes(nodes => nodes.map(n => {
-            // Only force auto if height is not set at all (initial state)
-            if (n.id === id && !n.style?.height) {
-                return { ...n, style: { ...n.style, height: 'auto' } };
-            }
-            return n;
-        }));
-    }, [id, setNodes]);
+
 
     const handleConvertToCard = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();

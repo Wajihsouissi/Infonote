@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FolderOpen, Check, Save, Loader2, AlertTriangle } from 'lucide-react';
+import { FolderOpen, Check, Loader2, AlertTriangle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { fileSystemStorage } from '../../services/FileSystemStorage';
 import styles from './BottomMenu.module.css';
@@ -9,14 +9,14 @@ export const StorageControls: React.FC = () => {
         storage,
         setStorageStatus,
         setLastSaved,
-        loadGraph,
-        nodes,
-        edges
+        loadGraph
+        // Removed nodes/edges from render-critical path
     } = useStore();
 
     // Local state to track if we found a handle but haven't connected yet (needs permission)
     const [hasStoredHandle, setHasStoredHandle] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const timeoutRef = React.useRef<any>(); // Simple typing for browser/node compat
 
     // Initial check for stored handle
     useEffect(() => {
@@ -35,7 +35,6 @@ export const StorageControls: React.FC = () => {
                     }
                 }
 
-                // If silent reconnect failed (needs user gesture), show the warning state
                 setHasStoredHandle(true);
             }
         };
@@ -46,12 +45,10 @@ export const StorageControls: React.FC = () => {
         setIsLoading(true);
         let success = false;
 
-        // Try to reconnect if we have a stored handle
         if (hasStoredHandle) {
             success = await fileSystemStorage.reconnect();
         }
 
-        // If reconnection failed or no handle, ask user to pick
         if (!success) {
             success = await fileSystemStorage.selectDirectory();
         }
@@ -61,33 +58,44 @@ export const StorageControls: React.FC = () => {
             if (data) {
                 loadGraph(data.nodes, data.edges);
             } else {
-                // Save current state if empty
+                const { nodes, edges } = useStore.getState();
                 await fileSystemStorage.saveData(nodes, edges);
             }
 
             setStorageStatus(true, fileSystemStorage.directoryName || 'Local Folder');
-            setHasStoredHandle(false); // Connected now
+            setHasStoredHandle(false);
         }
         setIsLoading(false);
     };
 
-    // Auto-save effect
+    // Auto-save effect using SUBSCRIPTION (No Re-renders)
     useEffect(() => {
         if (!storage.isConnected) return;
 
-        const save = async () => {
-            try {
-                await fileSystemStorage.saveData(nodes, edges);
-                setLastSaved(new Date().toLocaleTimeString());
-            } catch (error) {
-                console.error("Auto-save failed", error);
-                // setStorageStatus(false, null); // Don't disconnect hard, just warn?
-            }
-        };
+        // Subscribe to changes
+        const unsub = useStore.subscribe((state: any, prevState: any) => {
+            // Manual Equality Check
+            if (state.nodes === prevState.nodes && state.edges === prevState.edges) return;
 
-        const timeoutId = setTimeout(save, 2000);
-        return () => clearTimeout(timeoutId);
-    }, [nodes, edges, storage.isConnected, setLastSaved]);
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+            timeoutRef.current = setTimeout(async () => {
+                try {
+                    // Always fetch fresh state inside the timeout
+                    const currentStore = useStore.getState();
+                    await fileSystemStorage.saveData(currentStore.nodes, currentStore.edges);
+                    setLastSaved(new Date().toLocaleTimeString());
+                } catch (error) {
+                    console.error("Auto-save failed", error);
+                }
+            }, 2000);
+        });
+
+        return () => {
+            unsub();
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        };
+    }, [storage.isConnected, setLastSaved]);
 
     // Render logic
     const getIcon = () => {

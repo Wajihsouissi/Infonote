@@ -69,7 +69,16 @@ export function CanvasBoard() {
         // If we implement "Canvas Groups" later, we can whitelist them here.
         // For now, we return only the nodes for the current navigation level.
 
-        return rootNodes;
+        // STRIP PARENT ID for View Roots
+        // When we navigate INTO a parent (currentParentId), that parent is NOT rendered.
+        // Therefore, its children must effectively become "Root" nodes for the renderer.
+        // If we leave `parentId` set, React Flow crashes because it can't find the parent in `nodes`.
+        return rootNodes.map(n => {
+            if (n.parentId === currentParentId) {
+                return { ...n, parentId: undefined };
+            }
+            return n;
+        });
     }, [nodes, currentParentId]);
 
     // Update edges
@@ -111,177 +120,202 @@ export function CanvasBoard() {
         return () => observer.disconnect();
     }, []);
 
-    // Sync Readiness State
-    const [isSyncReady, setIsSyncReady] = useState(false);
+    // --- REF ACTORED PERSISTENCE LOGIC ---
+
+    // 1. LOAD CONTENT (Forward Sync) - "Mount" Logic
+    // Runs once when currentParentId changes to populate the canvas.
+    const hasLoadedRef = useRef<string | null>(null);
 
     useEffect(() => {
-        setIsSyncReady(false);
-    }, [currentParentId]);
-
-    useEffect(() => {
-        if (!activeParentNode || activeParentNode.type !== 'note') return;
-
-        const hasContentNodes = visibleNodes.some(n => n.type === 'block' || n.type === 'fused-note');
-        if (hasContentNodes) {
-            setIsSyncReady(true);
+        if (!activeParentNode || activeParentNode.type !== 'note') {
+            hasLoadedRef.current = null; // CRITICAL: Reset loaded state when leaving a note
+            return;
         }
-        else if (Array.isArray(activeParentNode.data.content) && activeParentNode.data.content.length === 0) {
-            setIsSyncReady(true);
-        }
-    }, [visibleNodes.length, activeParentNode]);
+        if (hasLoadedRef.current === activeParentNode.id) return; // Prevent double load
 
-    // Migration Logic: Copy Note Content into a Fused Note Node (Forward Sync)
-    useEffect(() => {
-        if (!activeParentNode || activeParentNode.type !== 'note') return;
+        // Determine if we need to load content
+        // Strict Rule: If we just navigated here, we MUST regenerate the transient view.
+        // We do this by checking if there are ANY visible nodes for this parent.
+        // If the store is already populated (e.g. from history), we might want to keep it?
+        // User requested "remove temporary info", suggesting a fresh reconstruction is better.
 
-        const hasContentNodes = visibleNodes.some(n => n.type === 'block' || n.type === 'fused-note');
-        if (hasContentNodes || isSyncReady) return;
+        const content = activeParentNode.data.content || [];
+        console.log("CanvasBoard: Loading Content", { parentId: activeParentNode.id, items: Array.isArray(content) ? content.length : 0 });
 
-        const content = activeParentNode.data.content;
+        // A. EXPLOSION LOGIC
+        const itemsToRender: Array<{ type: 'fused' | 'note', data: any }> = [];
+        let currentChunk: any[] = [];
+        const splitterTypes = ['heading1', 'heading2', 'heading3', 'toggle', 'divider'];
 
-        if (Array.isArray(content) && content.length > 0) {
-
-            // Splitting Logic
-            const chunks: any[][] = [];
-            let currentChunk: any[] = [];
-            const splitterTypes = ['heading1', 'heading2', 'heading3', 'toggle', 'divider'];
-
+        if (Array.isArray(content)) {
             content.forEach((block: any) => {
+                if (block.type === 'page') {
+                    if (currentChunk.length > 0) {
+                        itemsToRender.push({ type: 'fused', data: currentChunk });
+                        currentChunk = [];
+                    }
+                    itemsToRender.push({ type: 'note', data: block });
+                    return;
+                }
+
                 if (splitterTypes.includes(block.type)) {
                     if (currentChunk.length > 0) {
-                        chunks.push(currentChunk);
+                        itemsToRender.push({ type: 'fused', data: currentChunk });
                         currentChunk = [];
                     }
                 }
                 currentChunk.push(block);
             });
-            if (currentChunk.length > 0) {
-                chunks.push(currentChunk);
-            }
+        }
+        if (currentChunk.length > 0) {
+            itemsToRender.push({ type: 'fused', data: currentChunk });
+        }
 
-            // Create Nodes from Chunks
-            let currentY = 0;
-            const newNodes = chunks.map((chunk) => {
-                const estimatedHeight = Math.max(100, chunk.length * 40); // Simple heuristic
+        // B. NODE GENERATION
+        let currentY = 0;
+        const newNodes: any[] = [];
+
+        // Deduplication: Check for existing nodes to preserve identities (and positions if possible?)
+        // If we want a CLEAN LOAD, we should probably clear old ones first?
+        // But removing nodes breaks ReactFlow internal state if we are not careful.
+        // "setNodes" replaces the list. So we just need to filter out OLD children of this parent.
+
+        // HOWEVER: Persistent formatting (positions) of cards?
+        // If we regenerate every time, positions reset. User might not like that.
+        // Compromise: Keep existing 'note' nodes (Cards) if they match ID. Regenerate 'fused-note' (Text).
+
+        const existingNodesMap = new Map(
+            useStore.getState().nodes
+                .filter(n => n.parentId === activeParentNode.id)
+                .map(n => [n.id, n])
+        );
+
+        const missingLinks: { blockId: string; nodeId: string }[] = [];
+
+        itemsToRender.forEach((item) => {
+            if (item.type === 'note') {
+                const block = item.data;
+                const persistentId = block.metadata?.nodeId;
+
+                // Check if we have a persistent ID and if the node actually exists
+                if (persistentId && existingNodesMap.has(persistentId)) {
+                    // KEEP EXISTING CARD (Preserve position/state)
+                    const existing = existingNodesMap.get(persistentId)!;
+
+                    // CHECK FOR VERTICAL OVERLAP/FLOW
+                    // If the existing node is positioned *above* the current flow cursor (currentY),
+                    // it means it's overlapping with the text we just generated above it.
+                    // We must push it down to maintain visibility and document order.
+                    let finalY = existing.position.y;
+                    if (finalY < currentY) {
+                        finalY = currentY;
+                    }
+
+                    // CRITICAL FIX: Force Update Data from Source of Truth (Parent Content)
+                    const updatedNode = {
+                        ...existing,
+                        position: { ...existing.position, y: finalY },
+                        zIndex: 10, // Ensure Cards are above canvas but below modals (if any)
+                        data: {
+                            ...existing.data,
+                            label: block.content
+                        }
+                    };
+                    newNodes.push(updatedNode);
+                    currentY = Math.max(currentY, finalY + (existing.style?.height as number || 112) + 50); // Increased gap
+                } else {
+                    // NEW CARD (or lost ID)
+                    // If we have a persistentId but the node is missing, we must recreate it.
+                    // If we don't have a persistentId, we create a new node AND need to link it.
+
+                    const newNodeId = persistentId || uuidv4();
+
+                    if (!persistentId) {
+                        missingLinks.push({ blockId: block.id, nodeId: newNodeId });
+                    }
+
+                    const node = {
+                        id: newNodeId,
+                        type: 'note',
+                        position: { x: 0, y: currentY },
+                        zIndex: 10,
+                        data: {
+                            label: block.content,
+                            viewMode: 'icon',
+                            icon: 'FileText',
+                            date: new Date().toISOString()
+                        },
+                        style: { width: 112, height: 112 },
+                        parentId: activeParentNode.id
+                    };
+                    newNodes.push(node);
+                    currentY += 132 + 20; // Height + Gap
+                }
+            } else {
+                // FUSED NOTE (Always Regenerate to ensure content sync)
+                const chunk = item.data;
+                const estimatedHeight = Math.max(100, chunk.length * 40);
 
                 const node = {
                     id: uuidv4(),
                     type: 'fused-note' as const,
                     position: { x: 0, y: currentY },
-                    data: {
-                        content: chunk
-                    },
+                    zIndex: 5, // Text is base layer
+                    data: { content: chunk },
                     style: { width: 350, height: 'auto' as any },
                     parentId: activeParentNode.id
                 };
+                newNodes.push(node);
+                currentY += estimatedHeight + 50;
+            }
+        });
 
-                currentY += estimatedHeight + 50; // Gap
-                return node;
-            });
 
-            useStore.setState(state => ({
-                nodes: [...state.nodes, ...newNodes]
-            }));
 
-            setTimeout(() => fitView({ duration: 800 }), 100);
-        } else {
-            // console.log("CanvasBoard: Content empty or invalid", content);
+        // UPDATE STORE 
+        useStore.setState(state => ({
+            nodes: [
+                ...state.nodes.filter(n => n.parentId !== activeParentNode.id), // Keep others
+                ...newNodes // Add new
+            ]
+        }));
+
+        // CRITICAL: Patch Parent Content if we created new links
+        if (missingLinks.length > 0) {
+            console.log("CanvasBoard: Patching Missing Links", missingLinks);
+            const parent = useStore.getState().nodes.find(n => n.id === activeParentNode.id);
+            if (parent && Array.isArray((parent.data as any).content)) {
+
+                const newContent = (parent.data as any).content.map((b: any) => {
+                    const link = missingLinks.find(l => l.blockId === b.id);
+                    if (link) {
+                        return { ...b, metadata: { ...b.metadata || {}, nodeId: link.nodeId } };
+                    }
+                    return b;
+                });
+
+                // Update parent without triggering full sync loop?
+                // Actually, we WANT to persist this to the parent node.
+                // updateNodeData triggers syncParentContent for the user actions, but for this...
+                // If we use updateNodeData, it will trigger syncParentContent(grandParent).
+                // It WON'T trigger syncParentContent(parent) (Backwards).
+                updateNodeData(activeParentNode.id, { content: newContent });
+            }
         }
 
-    }, [currentParentId, activeParentNode, visibleNodes.length, fitView, isSyncReady]);
+        hasLoadedRef.current = activeParentNode.id;
+        setTimeout(() => fitView({ duration: 800 }), 50);
 
-    // Reverse Sync: Persist Children Nodes back to Parent Content
-    const isSyncReadyRef = useRef(isSyncReady);
+    }, [activeParentNode?.id]); // Only run on ID change
 
-    useEffect(() => {
-        isSyncReadyRef.current = isSyncReady;
-    }, [isSyncReady]);
 
-    useEffect(() => {
-        if (!currentParentId || !activeParentNode || activeParentNode.type !== 'note') return;
+    // 2. AUTO-SAVE (Reverse Sync) - "Update" Logic
+    // Runs when visible content changes to persist back to parent.
+    // 2. AUTO-SAVE REMOVED (Replaced by Store Action Sync)
+    // The store now handles 'syncParentContent' triggers on every 'updateNodeData' and 'onNodesChange'.
+    // This ensures immediate, dynamic persistence without timer-based effects here.
 
-        if (!isSyncReady) return;
 
-        const syncContent = () => {
-            const sortedChildren = [...visibleNodes].sort((a, b) => {
-                if (Math.abs(a.position.y - b.position.y) < 10) {
-                    return a.position.x - b.position.x;
-                }
-                return a.position.y - b.position.y;
-            });
-
-            let reconstructedContent: any[] = [];
-            sortedChildren.forEach(child => {
-                if (child.type === 'fused-note' || child.type === 'block') {
-                    const content = (child.data as any).content;
-                    if (Array.isArray(content)) {
-                        reconstructedContent = [...reconstructedContent, ...content];
-                    }
-                }
-            });
-
-            const currentContentStr = JSON.stringify(activeParentNode.data.content || []);
-            const newContentStr = JSON.stringify(reconstructedContent);
-
-            if (currentContentStr !== newContentStr) {
-                updateNodeData(currentParentId, { content: reconstructedContent });
-            }
-        };
-
-        const timer = setTimeout(syncContent, 1000); // Debounce 1s to avoid drag thrashing
-
-        return () => {
-            clearTimeout(timer);
-        };
-
-    }, [visibleNodes, currentParentId, activeParentNode, updateNodeData, isSyncReady]);
-
-    // Navigation Safety Sync: Ensure save on Unmount/Navigation
-    useEffect(() => {
-        // Need to capture the ID in the closure to know which node to update
-        const capturedParentId = currentParentId;
-
-        return () => {
-            if (!capturedParentId) return;
-            if (!isSyncReadyRef.current) return;
-
-            // Get latest state directly to ensure we have the target node even if props are stale
-            const state = useStore.getState();
-            const parent = state.nodes.find(n => n.id === capturedParentId);
-
-            if (!parent || parent.type !== 'note') return;
-
-            // CRITICAL FIX: Query the store directly for children instead of using visibleNodesRef.
-            // visibleNodesRef depends on React render cycle and may be stale.
-            const freshChildren = state.nodes.filter(n => n.parentId === capturedParentId);
-
-            const sortedChildren = [...freshChildren].sort((a, b) => {
-                if (Math.abs(a.position.y - b.position.y) < 10) {
-                    return a.position.x - b.position.x;
-                }
-                return a.position.y - b.position.y;
-            });
-
-            let reconstructedContent: any[] = [];
-            sortedChildren.forEach(child => {
-                if (child.type === 'fused-note' || child.type === 'block') {
-                    const content = (child.data as any).content;
-                    if (Array.isArray(content)) {
-                        reconstructedContent = [...reconstructedContent, ...content];
-                    }
-                }
-            });
-
-            // Always update on navigation if there is content to sync, to be safe.
-            // (Or compare with latest parent data to avoid redundant updates)
-            const currentContentStr = JSON.stringify(parent.data.content || []);
-            const newContentStr = JSON.stringify(reconstructedContent);
-
-            if (currentContentStr !== newContentStr) {
-                state.updateNodeData(capturedParentId, { content: reconstructedContent });
-            }
-        };
-    }, [currentParentId]); // Only run setup/cleanup when Parent ID changes (Navigation)
 
     // Drop Handlers
     const onDragOver = useCallback((event: React.DragEvent) => {

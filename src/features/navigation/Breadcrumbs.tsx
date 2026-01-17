@@ -4,7 +4,8 @@ import { HistoryControls } from '../ui/HistoryControls';
 import styles from './Breadcrumbs.module.css';
 
 export function Breadcrumbs() {
-    const { breadcrumbs, navigateToNode } = useStore();
+    const breadcrumbs = useStore(s => s.breadcrumbs);
+    const navigateToNode = useStore(s => s.navigateToNode);
 
     return (
         <div className={styles.container}>

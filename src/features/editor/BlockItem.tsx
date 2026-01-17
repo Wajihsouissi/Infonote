@@ -2,7 +2,7 @@ import React, { memo, useCallback } from 'react';
 import { SortableBlockWrapper } from './SortableBlockWrapper';
 import {
     TextBlock, HeadingBlock, TodoBlock, QuoteBlock, ImageBlock, ListBlock, CalloutBlock,
-    DividerBlock, PageBlock, ContainerBlock, VideoBlock, FileBlock, ColumnsBlock
+    DividerBlock, PageBlock, ContainerBlock, VideoBlock, FileBlock, ColumnsBlock, CodeBlock
 } from './BlockComponents';
 import type { Block } from './types';
 
@@ -49,8 +49,9 @@ export const BlockItem = memo(function BlockItem({
     onMenuOpen,
     // onSelectionClick, // not used in implementation
     onSelectionMouseDown,
-    onRegisterRef
-}: BlockItemProps) {
+    onRegisterRef,
+    index // New Prop
+}: BlockItemProps & { index?: number }) {
 
     // Memoized wrapper handlers
     const handleWrapperMouseDown = useCallback((e: React.MouseEvent) => {
@@ -82,7 +83,8 @@ export const BlockItem = memo(function BlockItem({
             onKeyDown: handleKeyDown,
             onPaste: handlePaste,
             disableMediaControls,
-            domRef: handleRegisterRef
+            domRef: handleRegisterRef,
+            index // Pass to children (ListBlock needs it)
         };
 
         switch (block.type) {
@@ -102,6 +104,7 @@ export const BlockItem = memo(function BlockItem({
             case 'columns': return <ColumnsBlock block={block} onUpdate={(data: Partial<Block>) => onUpdateBlock(block.id, data as any)} readOnly={readOnly} nodeId={nodeId} />;
             case 'divider': return <DividerBlock />;
             case 'file': return <FileBlock {...props} />;
+            case 'code': return <CodeBlock {...props} />;
             default: return <TextBlock {...props} />;
         }
     };

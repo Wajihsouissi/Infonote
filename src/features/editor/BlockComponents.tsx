@@ -172,7 +172,7 @@ export const ImageBlock = memo(({ block, readOnly, onChange, disableMediaControl
     );
 });
 
-export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
+export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef, ...rest }: BlockProps & { index?: number }) => {
     const ref = useContentEditable(block.content, domRef);
 
     let prefix = null;
@@ -181,7 +181,9 @@ export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
     if (block.type === 'bullet') {
         prefix = <span className={styles.listBullet}>•</span>;
     } else if (block.type === 'numbered') {
-        prefix = <span className={styles.listNumber}>1.</span>;
+        // Use index from props (passed via BlockItem), fallback to 1 if undefined
+        const idx = rest.index || 1;
+        prefix = <span className={styles.listNumber}>{idx}.</span>;
     } else if (block.type === 'toggle') {
         wrapperClass = styles.toggleWrapper;
         prefix = <div className={styles.toggleTriangle} />;
@@ -258,6 +260,28 @@ export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPast
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
                 data-placeholder="Callout text..."
+            />
+        </div>
+    );
+});
+
+
+
+export const CodeBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
+    const ref = useContentEditable(block.content, domRef);
+
+    return (
+        <div className={styles.codeBlockWrapper}>
+            <div
+                ref={ref}
+                className={`${styles.block} ${styles.codeBlock}`}
+                contentEditable={!readOnly}
+                suppressContentEditableWarning
+                onInput={(e) => onChange(e.currentTarget.innerText)}
+                onKeyDown={onKeyDown}
+                onPaste={onPaste}
+                spellCheck={false}
+                data-placeholder="Code snippet..."
             />
         </div>
     );
