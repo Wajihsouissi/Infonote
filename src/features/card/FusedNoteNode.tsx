@@ -6,7 +6,7 @@ import { EditBar } from '../ui/EditBar';
 import { useStore } from '../../store/useStore';
 import type { Node } from '@xyflow/react';
 import styles from './FusedNoteNode.module.css';
-import { snapDimensions, MEDIUM_SIZE } from '../../config/layout';
+import { snapDimensions, MEDIUM_SIZE, MIN_EXPANDED_SIZE } from '../../config/layout';
 
 export type FusedNoteNodeData = {
     content: any[];
@@ -49,15 +49,15 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                         data: {
                             ...n.data,
                             label: (data.content[0]?.content) || 'Created Note',
-                            viewMode: 'medium',
+                            viewMode: 'expanded',
                             content: data.content,
                             description: '',
                             date: new Date().toISOString()
                         },
                         style: {
                             ...n.style,
-                            width: MEDIUM_SIZE,
-                            height: MEDIUM_SIZE,
+                            width: MIN_EXPANDED_SIZE,
+                            height: MIN_EXPANDED_SIZE,
                         }
                     } as any;
                 }
@@ -92,10 +92,10 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             data: {
                 label: myBlocks[0].content || 'New Note',
                 content: myBlocks,
-                viewMode: 'medium',
+                viewMode: 'expanded',
                 date: new Date().toISOString()
             },
-            style: { width: MEDIUM_SIZE, height: MEDIUM_SIZE },
+            style: { width: MIN_EXPANDED_SIZE, height: MIN_EXPANDED_SIZE },
             zIndex: 10
         };
 

@@ -85,6 +85,20 @@ export function CanvasBoard() {
         });
     }, [nodes, currentParentId]);
 
+    // Debug Log
+    useEffect(() => {
+        if (currentParentId && visibleNodes.length > 0) {
+            console.log("CanvasBoard Visible Nodes (Child View):", visibleNodes.map(n => ({
+                id: n.id,
+                type: n.type,
+                w: n.style?.width,
+                h: n.style?.height,
+                pos: n.position,
+                zIndex: n.zIndex
+            })));
+        }
+    }, [currentParentId, visibleNodes]);
+
     // Update edges
     const visibleEdges = useMemo(() => {
         const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
