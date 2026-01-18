@@ -17,7 +17,8 @@ import {
     Columns2,
     Columns3,
     LayoutGrid,
-    Code
+    Code,
+    Palette
 } from 'lucide-react';
 import type { BlockType } from './types';
 
@@ -59,4 +60,5 @@ export const MENU_ITEMS: MenuItem[] = [
     { label: '2 Columns', description: 'Side-by-side layout', type: 'columns', icon: Columns2, keywords: ['2cols', 'layout', 'grid'], meta: { count: 2 } },
     { label: '3 Columns', description: 'Three column grid', type: 'columns', icon: Columns3, keywords: ['3cols', 'layout', 'grid'], meta: { count: 3 } },
     { label: '4 Columns', description: 'Four column grid', type: 'columns', icon: LayoutGrid, keywords: ['4cols', 'layout', 'grid'], meta: { count: 4 } },
+    { label: 'Color Block', description: 'Display a color swatch', type: 'color', icon: Palette, keywords: ['color', 'swatch', 'hex'] },
 ];

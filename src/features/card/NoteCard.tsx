@@ -1,6 +1,6 @@
 import { memo, useCallback, useRef, useEffect, useState } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow } from '@xyflow/react';
-import { Scan, PanelRight, Monitor } from 'lucide-react';
+import { Scan, PanelRight, Monitor, Image as ImageIcon } from 'lucide-react';
 import styles from './NoteCard.module.css';
 import type { NoteNode } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -8,14 +8,28 @@ import { IconPicker } from './IconPicker';
 import { iconMap, defaultIconName } from './iconMap';
 import { NoteExpandedContent } from './NoteExpandedContent';
 import { EditBar } from '../ui/EditBar';
+import { CoverPicker } from './CoverPicker';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { calculateNoteLayout, MIN_EXPANDED_SIZE, MAX_HEIGHT, MAX_WIDTH, SNAP_STEP } from '../../config/layout';
 
-export const NoteCard = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
+export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<NoteNode>) => {
     const { setNodes, getViewport, deleteElements } = useReactFlow();
-    const { navigateToNode, setFullscreenId, setSidePanelId, setCenterPanelId, activeIconMenuId, setActiveIconMenuId, updateNodeData } = useStore();
+
+    // Use atomic selectors to prevent unnecessary re-renders when other parts of the store change
+    const navigateToNode = useStore(s => s.navigateToNode);
+    const setFullscreenId = useStore(s => s.setFullscreenId);
+    const setSidePanelId = useStore(s => s.setSidePanelId);
+    const setCenterPanelId = useStore(s => s.setCenterPanelId);
+    const activeIconMenuId = useStore(s => s.activeIconMenuId);
+    const setActiveIconMenuId = useStore(s => s.setActiveIconMenuId);
+    const updateNodeData = useStore(s => s.updateNodeData);
+    const updateNode = useStore(s => s.updateNode);
+
     const viewMode = data.viewMode || 'medium';
 
     // Editing state
     const [isEditingMetadata, setIsEditingMetadata] = useState(false);
+    const [showCoverPicker, setShowCoverPicker] = useState(false);
     // Metadata visibility state for Expanded view
     const [showExpandedMetadata, setShowExpandedMetadata] = useState(false);
 
@@ -64,85 +78,19 @@ export const NoteCard = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const cardRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
 
-    const SNAP_Step = 112; // 2 * 56
-    const GRID_GAP = 16;
-    const MAX_HEIGHT_UNITS = 20;
-    const MAX_HEIGHT = (MAX_HEIGHT_UNITS * 56) - GRID_GAP; // 1104px
-    const MAX_WIDTH_UNITS = 12;
-    const MAX_WIDTH = (MAX_WIDTH_UNITS * 56) - GRID_GAP; // 656px
-    const MIN_EXPANDED_SIZE = 448 - GRID_GAP; // 432px
-
-    // Helper to calculate strict grid size
-    const getStrictSize = useCallback((rawWidth: number, rawHeight: number) => {
-        // We add the gap back to 'normalize' input to the grid system
-        // e.g. input 96 visual -> 112 logical
-        const normalizedW = rawWidth + GRID_GAP;
-        const normalizedH = rawHeight + GRID_GAP;
-        const largerDim = Math.max(normalizedW, normalizedH);
-
-        let targetWidth = 112 - GRID_GAP;
-        let targetHeight = 112 - GRID_GAP;
-        let mode = 'icon';
-
-        // Thresholds designed to snap comfortably (using normalized dimensions)
-        // 112 (Icon) -> jump to 224 at ~168
-        // 224 (Medium) -> jump to 448 (Expanded) at ~336
-        // Expanded grows in +112 steps
-
-        if (largerDim < 168) {
-            // Icon: 2x2 (112 - 16 = 96)
-            targetWidth = 112 - GRID_GAP;
-            targetHeight = 112 - GRID_GAP;
-            mode = 'icon';
-        } else if (largerDim < 336) {
-            // Medium: 4x4 (224 - 16 = 208)
-            targetWidth = 224 - GRID_GAP;
-            targetHeight = 224 - GRID_GAP;
-            mode = 'medium';
-        } else {
-            // Expanded: 8x8 minimum, then +2 steps
-            mode = 'expanded';
-
-            // Quantize to 112 steps using normalized values
-            let w = Math.round(normalizedW / SNAP_Step) * SNAP_Step;
-            let h = Math.round(normalizedH / SNAP_Step) * SNAP_Step;
-
-            // Subtract gap for visual size
-            w = w - GRID_GAP;
-            h = h - GRID_GAP;
-
-            // Enforce minimum 8x8
-            w = Math.max(MIN_EXPANDED_SIZE, w);
-            h = Math.max(MIN_EXPANDED_SIZE, h);
-
-            // Enforce maximums
-            w = Math.min(w, MAX_WIDTH);
-            h = Math.min(h, MAX_HEIGHT);
-
-            targetWidth = w;
-            targetHeight = h;
-        }
-
-        return { width: targetWidth, height: targetHeight, mode };
-    }, [MAX_HEIGHT, MAX_WIDTH, SNAP_Step, MIN_EXPANDED_SIZE, GRID_GAP]);
-
-
-
-
     // Aggressive Self-Correction for Dimensions
     useEffect(() => {
+        /* DISABLED FOR DEBUGGING INFINITE LOOP
         if (activeResize.current) return; // Don't fight the user while dragging
 
-        if (!cardRef.current) return;
+        // We use measured dimensions from React Flow if available
+        const currentW = width;
+        const currentH = height;
 
-        // We must normalize to flow coordinates using zoom
-        const { zoom } = getViewport();
-        const rect = cardRef.current.getBoundingClientRect();
-        const currentW = rect.width / zoom;
-        const currentH = rect.height / zoom;
+        if (!currentW || !currentH) return;
 
         // Check current validity
-        const { width: validWidth, height: validHeight, mode: correctMode } = getStrictSize(currentW, currentH);
+        const { width: validWidth, height: validHeight, mode: correctMode } = calculateNoteLayout(currentW, currentH);
 
         // We only correct if significantly off (> 2px) to allow sub-pixel rendering or slight browser variances
         const widthDiff = Math.abs(currentW - validWidth);
@@ -160,26 +108,31 @@ export const NoteCard = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
         }
 
         // Also correct mode if it somehow drifted, though usually size drives mode
-        // But if we are in 'expanded' physically but data says 'medium', we should update data.
         if (correctMode !== viewMode) {
             updateNodeData(id, { viewMode: correctMode as any });
         }
-
-    }, [viewMode, id, setNodes, updateNodeData, getStrictSize, getViewport]);
+        */
+    }, [viewMode, id, setNodes, updateNodeData, width, height]);
 
 
     useEffect(() => {
         // Auto-grow logic ONLY for Expanded mode
         if (viewMode !== 'expanded' || !contentRef.current || !cardRef.current) return;
 
+        // Track if this resize is due to metadata toggle to prevent unwanted height changes
+        let isMetadataToggling = false;
+        const metadataToggleTimeout = setTimeout(() => {
+            isMetadataToggling = false;
+        }, 50);
+
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 if (activeResize.current) return;
+                if (isMetadataToggling) return; // Prevent resize during metadata toggle
 
                 if (!cardRef.current) return;
 
                 // Dynamic Chrome Height Calculation
-                // contentHeight (visible) vs cardHeight (total)
                 const currentCardHeight = cardRef.current.offsetHeight;
                 const contentVisibleHeight = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
                 const chromeHeight = currentCardHeight - contentVisibleHeight;
@@ -188,48 +141,43 @@ export const NoteCard = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 const contentScrollHeight = entry.target.scrollHeight;
                 const neededHeight = contentScrollHeight + chromeHeight;
 
-                // Calculate required grid units (step of 2 -> 112px)
-                // Normalize to logical grid (add gap), snapping, then subtract gap for visual height
-                const neededLogicalHeight = neededHeight + GRID_GAP;
-                let targetLogicalHeight = Math.ceil(neededLogicalHeight / SNAP_Step) * SNAP_Step;
-                let targetHeight = targetLogicalHeight - GRID_GAP;
-
-                // Min 448 (Logical 448 -> Visual 432)
-                if (targetHeight < MIN_EXPANDED_SIZE) targetHeight = MIN_EXPANDED_SIZE;
-                // Max limits
-                if (targetHeight > MAX_HEIGHT) targetHeight = MAX_HEIGHT;
+                // Calculate required grid units using centralized layout logic
+                const { height: targetHeight } = calculateNoteLayout(cardRef.current.offsetWidth, neededHeight);
 
                 // Resizing Logic:
-                // 1. Grow if content pushes bounds (Normal behavior)
-                // 2. Shrink ONLY if significant empty space is detected (e.g. after a Split)
-                //    Threshold: > 112px (one grid step) empty space
-
                 const isGrowing = targetHeight > currentCardHeight + 2; // small buffer
-                const isShrinkingSignificantly = currentCardHeight - targetHeight > 112;
+                const isShrinkingSignificantly = currentCardHeight - targetHeight > SNAP_STEP;
+
+                // CRITICAL: Prevent Micro-Oscillations or Loops
+                // We compare the actual rendered height (offsetHeight) with the target.
+                // If they are close enough, we assume we reached the target.
+                if (Math.abs(currentCardHeight - targetHeight) <= 4) return;
 
                 if (isGrowing || isShrinkingSignificantly) {
                     // Check if we are already at MAX and want more -> ignore
                     if (isGrowing && currentCardHeight >= MAX_HEIGHT && targetHeight >= MAX_HEIGHT) return;
 
                     // Debounce slightly to avoid flicker
+                    // Debounce slightly to avoid flicker
+                    // Debounce slightly to avoid flicker
                     setTimeout(() => {
-                        setNodes((nodes) => nodes.map((n) => {
-                            if (n.id === id) {
-                                return {
-                                    ...n,
-                                    style: { ...n.style, height: targetHeight },
-                                };
-                            }
-                            return n;
-                        }));
+                        updateNode(id, {
+                            style: { width: cardRef.current?.offsetWidth || width || 300, height: targetHeight }
+                        });
                     }, 10);
                 }
             }
         });
 
+        // Mark that metadata is toggling at the start of this effect
+        isMetadataToggling = true;
+
         observer.observe(contentRef.current);
-        return () => observer.disconnect();
-    }, [viewMode, id, setNodes, MAX_HEIGHT, SNAP_Step, MIN_EXPANDED_SIZE, showExpandedMetadata]);
+        return () => {
+            observer.disconnect();
+            clearTimeout(metadataToggleTimeout);
+        };
+    }, [viewMode, id, updateNode, showExpandedMetadata]);
 
     const handleDoubleClick = (e: React.MouseEvent) => {
         e.stopPropagation(); // Prevent ReactFlow from catching it
@@ -339,29 +287,28 @@ export const NoteCard = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                         const rawH = startH + deltaY;
 
                         // Use strict calculator but for visual feedback during drag, we might want to just show the snapped result directly
-                        const { width: targetW, height: targetH, mode: targetMode } = getStrictSize(rawW, rawH);
+                        const { width: targetW, height: targetH, mode: targetMode } = calculateNoteLayout(rawW, rawH);
 
-                        setNodes(nodes => nodes.map(n => {
-                            if (n.id === id) {
-                                // 1. Check Dimensions
-                                const currentW = n.style?.width;
-                                const currentH = n.style?.height;
-                                const dimChanged = currentW !== targetW || currentH !== targetH;
+                        if (cardRef.current) {
+                            // Check against current visual to avoid thrashing? 
+                            // Actually, props.width/height update via store.
+                            // We calculate 'target' based on absolute delta.
 
-                                // 2. Check ViewMode
-                                const currentMode = n.data.viewMode || 'medium';
-                                const modeChanged = currentMode !== targetMode;
+                            // Check if changed from current props
+                            const currentW = width;
+                            const currentH = height;
+                            const dimChanged = currentW !== targetW || currentH !== targetH;
 
-                                if (!dimChanged && !modeChanged) return n;
+                            const currentMode = data.viewMode || 'medium';
+                            const modeChanged = currentMode !== targetMode;
 
-                                return {
-                                    ...n,
-                                    style: { ...n.style, width: targetW, height: targetH },
-                                    data: modeChanged ? { ...n.data, viewMode: targetMode as any } : n.data
-                                };
+                            if (dimChanged || modeChanged) {
+                                updateNode(id, {
+                                    style: { width: targetW, height: targetH },
+                                    ...(modeChanged && { data: { ...data, viewMode: targetMode as any } })
+                                });
                             }
-                            return n;
-                        }));
+                        }
                     };
 
                     const onMouseUp = (upEvent: MouseEvent) => {
@@ -375,19 +322,12 @@ export const NoteCard = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                         const rawH = startH + deltaY;
 
                         // Final snap and mode update
-                        const { width: finalW, height: finalH, mode: finalMode } = getStrictSize(rawW, rawH);
+                        const { width: finalW, height: finalH, mode: finalMode } = calculateNoteLayout(rawW, rawH);
 
-                        setNodes(nodes => nodes.map(n => {
-                            if (n.id === id) {
-                                return {
-                                    ...n,
-                                    style: { ...n.style, width: finalW, height: finalH },
-                                    data: { ...n.data, viewMode: finalMode as any }
-                                };
-                            }
-                            return n;
-                        }));
-                        // We removed the separate updateNodeData call here because we handled it in setNodes above.
+                        updateNode(id, {
+                            style: { width: finalW, height: finalH },
+                            data: { ...data, viewMode: finalMode as any }
+                        });
                     };
 
                     window.addEventListener('mousemove', onMouseMove);
@@ -471,7 +411,10 @@ export const NoteCard = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                             className={styles.mediumTitleInput}
                             value={isEditingMetadata ? editedData.label : data.label}
                             onChange={(e) => setEditedData({ ...editedData, label: e.target.value })}
-                            onFocus={() => setIsEditingMetadata(true)}
+                            onFocus={(e) => {
+                                e.stopPropagation();
+                                setIsEditingMetadata(true);
+                            }}
                             onBlur={() => {
                                 if (isEditingMetadata) {
                                     handleSaveMetadata();
@@ -484,9 +427,18 @@ export const NoteCard = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     </div>
                     <textarea
                         className={styles.mediumDescInput}
-                        value={isEditingMetadata ? editedData.description : (data.description || 'Add description...')}
-                        onChange={(e) => setEditedData({ ...editedData, description: e.target.value })}
-                        onFocus={() => setIsEditingMetadata(true)}
+                        value={isEditingMetadata ? editedData.description : (data.description || '')}
+                        onChange={(e) => {
+                            setEditedData({ ...editedData, description: e.target.value });
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                        }}
+                        onFocus={(e) => {
+                            e.stopPropagation();
+                            setIsEditingMetadata(true);
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                        }}
                         onBlur={() => {
                             if (isEditingMetadata) {
                                 handleSaveMetadata();
@@ -503,15 +455,17 @@ export const NoteCard = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             {/* View 3: Expanded Mode - Cover + Icon/Title Row + Description + Date + Note Area */}
             {viewMode === 'expanded' && (
                 <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                    <NoteExpandedContent
-                        id={id}
-                        data={data}
-                        onUpdate={updateNodeData}
-                        contentRef={contentRef}
-                        nodeId={id}
-                        showMetadata={showExpandedMetadata}
-                        setShowMetadata={setShowExpandedMetadata}
-                    />
+                    <ErrorBoundary name="NoteExpandedContent">
+                        <NoteExpandedContent
+                            id={id}
+                            data={data}
+                            onUpdate={updateNodeData}
+                            contentRef={contentRef}
+                            nodeId={id}
+                            showMetadata={showExpandedMetadata}
+                            setShowMetadata={setShowExpandedMetadata}
+                        />
+                    </ErrorBoundary>
                 </div>
             )}
 
@@ -528,6 +482,17 @@ export const NoteCard = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     currentColor={data.color}
                     onDelete={handleDelete}
                     onDuplicate={handleDuplicate}
+                />
+            )}
+
+            {showCoverPicker && (
+                <CoverPicker
+                    currentCover={data.coverImage || ''}
+                    onSelect={(url) => {
+                        updateNodeData(id, { coverImage: url });
+                        setShowCoverPicker(false);
+                    }}
+                    onClose={() => setShowCoverPicker(false)}
                 />
             )}
         </div>

@@ -297,7 +297,7 @@
 .codeBlockWrapper {
     position: relative;
     width: 100%;
-    margin: 8px 0;
+    margin: 0;
 }
 
 .codeBlock {
@@ -306,8 +306,8 @@
     line-height: 1.5;
     background: #1e1e1e;
     /* VS Code dark default or similar */
-    color: #d4d4d4;
-    padding: 12px 16px;
+    color: #9670ff;
+    padding: 8px 12px;
     border-radius: 8px;
     white-space: pre;
     /* Use pre to respect indentation */
@@ -382,7 +382,7 @@
     user-select: none;
     color: var(--color-text-main);
     border-radius: 4px;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .calloutIconWrapper.clickable {
@@ -459,7 +459,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     color: var(--color-text-main);
-    transition: all 0.1s ease;
+    transition: background-color 0.1s ease, color 0.1s ease;
 }
 
 .slashMenuItem:hover,
@@ -572,7 +572,7 @@
     font-weight: 500;
     cursor: pointer;
     border-radius: 6px;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .tabButton:hover {
@@ -635,7 +635,8 @@
 /* Strict Overrides for Media Blocks placed at the end */
 .sortableWrapper[data-block-type="image"],
 .sortableWrapper[data-block-type="video"],
-.sortableWrapper[data-block-type="file"] {
+.sortableWrapper[data-block-type="file"],
+.sortableWrapper[data-block-type="color"] {
     display: block !important;
     gap: 0 !important;
     padding: 0 !important;
@@ -646,7 +647,8 @@
 
 .sortableWrapper[data-block-type="image"] .dragHandle,
 .sortableWrapper[data-block-type="video"] .dragHandle,
-.sortableWrapper[data-block-type="file"] .dragHandle {
+.sortableWrapper[data-block-type="file"] .dragHandle,
+.sortableWrapper[data-block-type="color"] .dragHandle {
     display: none !important;
     opacity: 0 !important;
     visibility: hidden !important;
@@ -655,13 +657,15 @@
 
 .sortableWrapper[data-block-type="image"] .blockContent,
 .sortableWrapper[data-block-type="video"] .blockContent,
-.sortableWrapper[data-block-type="file"] .blockContent {
+.sortableWrapper[data-block-type="file"] .blockContent,
+.sortableWrapper[data-block-type="color"] .blockContent {
     cursor: grab !important;
 }
 
 .sortableWrapper[data-block-type="image"]:active .blockContent,
 .sortableWrapper[data-block-type="video"]:active .blockContent,
-.sortableWrapper[data-block-type="file"]:active .blockContent {
+.sortableWrapper[data-block-type="file"]:active .blockContent,
+.sortableWrapper[data-block-type="color"]:active .blockContent {
     cursor: grabbing !important;
 }
 
@@ -791,13 +795,166 @@
 
 /* Resizable Media Wrappers */
 .resizeWrapper {
+    max-width: 100%;
+    /* Ensure height adapts to content (which uses aspect-ratio) */
+    height: auto;
     position: relative;
-    display: inline-block;
-    /* Allow wrapping around image tightly */
-    max-width: none;
-    /* Ensure it doesn't overflow parent */
-    vertical-align: top;
+    /* transition: width 0.1s ease-out; - Optional smoothing */
 }
+
+
+/* Color Block */
+.colorBlockWrapper {
+    position: relative;
+    width: 100%;
+    /* Start with a default aspect ratio but allow height to scale */
+    aspect-ratio: 16 / 9;
+    /* Min height to ensure it's not invisible if something breaks */
+    min-height: 100px;
+    margin: 8px 0;
+}
+
+.colorBlockPreview {
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    position: relative;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: 4px solid var(--color-bg-base);
+    /* White border in typical mode */
+    outline: 1px solid var(--glass-border);
+    /* Outer thin border */
+}
+
+.colorBlockPreview:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.colorBlockHexGroup {
+    position: absolute;
+    top: 16px;
+    left: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 4px 8px;
+    margin: -4px -8px;
+    /* Negative margin to increase click area without moving visual text */
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.colorBlockHexGroup:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.colorBlockHex {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: white;
+    /* Ideally dynamic based on brightness */
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.copyIcon {
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.colorBlockHexGroup:hover .copyIcon {
+    opacity: 1;
+}
+
+.colorBlockName {
+    position: absolute;
+    bottom: 16px;
+    left: 20px;
+    font-family: 'Inter', sans-serif;
+    font-size: 1.2rem;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.colorBlockHandle {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 24px;
+    height: 24px;
+    background: white;
+    border: 2px solid var(--color-bg-base);
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    z-index: 10;
+    transition: transform 0.2s;
+}
+
+.colorBlockHandle:hover {
+    transform: scale(1.2);
+}
+
+.colorPopover {
+    position: absolute;
+    top: 20px;
+    right: -240px;
+    /* Position to the right side if possible */
+    background: #1e1e1e;
+    /* Dark theme popover as per image */
+    padding: 0;
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+    width: 200px;
+    overflow: hidden;
+}
+
+.colorPopover .react-colorful {
+    width: 100%;
+    height: 150px;
+}
+
+.colorPopoverInputs {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #252525;
+}
+
+.colorInputRow {
+    display: flex;
+    gap: 4px;
+    justify-content: space-between;
+}
+
+.colorInputGroup {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.colorInput {
+    background: #333;
+    border: 1px solid #444;
+    color: white;
+    padding: 4px;
+    border-radius: 4px;
+    width: 40px;
+    text-align: center;
+    font-size: 0.8rem;
+}
+
+.colorInputLabel {
+    font-size: 0.7rem;
+    color: #888;
+}
+
 
 .resizeHandle {
     position: absolute;
@@ -833,6 +990,7 @@
     position: relative;
     /* Ensure z-index context for menu */
     z-index: 10;
+    align-items: flex-start;
 }
 
 .alignmentContainer[data-alignment="left"] {
@@ -859,7 +1017,7 @@
     font-size: 0.9em;
     cursor: pointer;
     user-select: none;
-    transition: all 0.2s;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
     vertical-align: middle;
     white-space: nowrap;
     /* Prevent breaking inside chip */
@@ -927,7 +1085,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
     width: 24px;
     height: 24px;
 }

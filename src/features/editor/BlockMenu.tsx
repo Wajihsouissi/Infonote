@@ -23,6 +23,7 @@ const TURN_INTO_ITEMS: { label: string; type: BlockType; icon: React.ReactNode }
     { label: 'To-do', type: 'todo', icon: <CheckSquare size={16} /> },
     { label: 'Quote', type: 'quote', icon: <Quote size={16} /> },
     { label: 'Code', type: 'code', icon: <Code size={16} /> },
+    { label: 'Color Block', type: 'color', icon: <Palette size={16} /> },
 ];
 
 const COLORS = [

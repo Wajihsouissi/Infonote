@@ -97,7 +97,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         }
     };
 
-    const isMedia = ['image', 'video', 'file'].includes(block?.type || '');
+    const isMedia = ['image', 'video', 'file', 'color'].includes(block?.type || '');
     const canDragWrapper = !readOnly && (isMedia || hideHandle) && !promoteBlockHandles;
 
     const dropClass = dropIndication === 'top' ? styles.dropTargetTop : (dropIndication === 'bottom' ? styles.dropTargetBottom : '');

@@ -4,7 +4,11 @@ import styles from './SidePanel.module.css';
 import { NoteExpandedContent } from '../card/NoteExpandedContent';
 
 export function SidePanel() {
-    const { nodes, sidePanelId, setSidePanelId, updateNodeData } = useStore();
+    // Atomic Selectors
+    const nodes = useStore(s => s.nodes);
+    const sidePanelId = useStore(s => s.sidePanelId);
+    const setSidePanelId = useStore(s => s.setSidePanelId);
+    const updateNodeData = useStore(s => s.updateNodeData);
 
     if (!sidePanelId) return null;
 
@@ -25,7 +29,7 @@ export function SidePanel() {
                     <div className={styles.content}>
                         <BlockEditor
                             key={sidePanelId}
-                            initialContent={activeNode.data.content}
+                            initialContent={(activeNode.data as any).content}
                             onUpdate={(blocks) => updateNodeData(sidePanelId, { content: blocks })}
                             autoFocus={true}
                         />

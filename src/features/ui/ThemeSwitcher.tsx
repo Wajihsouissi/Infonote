@@ -1,21 +1,10 @@
-import { useEffect, useState } from 'react';
 import { Sun, Moon } from 'lucide-react';
+import { useStore } from '../../store/useStore';
 import styles from './ThemeSwitcher.module.css';
 
 export function ThemeSwitcher() {
-    const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-        const saved = localStorage.getItem('infonote-theme');
-        return (saved as 'light' | 'dark') || 'dark';
-    });
-
-    useEffect(() => {
-        document.documentElement.setAttribute('data-theme', theme);
-        localStorage.setItem('infonote-theme', theme);
-    }, [theme]);
-
-    const toggleTheme = () => {
-        setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-    };
+    const theme = useStore(s => s.theme);
+    const toggleTheme = useStore(s => s.toggleTheme);
 
     return (
         <button

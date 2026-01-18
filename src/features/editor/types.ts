@@ -17,7 +17,8 @@ export type BlockType =
     | 'page'
     | 'container'
     | 'columns'
-    | 'code';
+    | 'code'
+    | 'color';
 
 export type Block = {
     id: string;

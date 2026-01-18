@@ -65,7 +65,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    transition: background-color 0.2s, color 0.2s;
     outline: none;
     width: 32px;
     height: 32px;
@@ -85,7 +85,7 @@
     border-radius: 8px;
     padding: 12px;
     margin-bottom: 20px;
-    transition: all 0.2s;
+    transition: background-color 0.2s, color 0.2s;
 }
 
 .searchBox:focus-within {
@@ -152,7 +152,7 @@
     align-items: center;
     justify-content: center;
     color: var(--color-text-muted);
-    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
     aspect-ratio: 1;
 }
 

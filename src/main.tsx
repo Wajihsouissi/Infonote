@@ -10,9 +10,12 @@ import '@fontsource/poppins/500.css';
 import '@fontsource/poppins/600.css';
 import '@fontsource/poppins/700.css';
 import App from './App.tsx'
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary name="AppRoot">
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 )

@@ -5,7 +5,11 @@ import { NoteExpandedContent } from '../card/NoteExpandedContent';
 import { BlockEditor } from '../editor/BlockEditor';
 
 export function FullscreenModal() {
-    const { nodes, fullscreenId, setFullscreenId, updateNodeData } = useStore();
+    // Atomic Selectors
+    const nodes = useStore(s => s.nodes);
+    const fullscreenId = useStore(s => s.fullscreenId);
+    const setFullscreenId = useStore(s => s.setFullscreenId);
+    const updateNodeData = useStore(s => s.updateNodeData);
     const isLocalFullscreen = useRef(false);
 
     // Sync React state -> Native Fullscreen (Backup/Redundancy)
@@ -62,7 +66,7 @@ export function FullscreenModal() {
                     ) : (
                         <div className={styles.editorContainer}>
                             <BlockEditor
-                                initialContent={activeNode.data.content}
+                                initialContent={(activeNode.data as any).content}
                                 onUpdate={(blocks) => updateNodeData(fullscreenId, { content: blocks })}
                                 autoFocus={true}
                             />

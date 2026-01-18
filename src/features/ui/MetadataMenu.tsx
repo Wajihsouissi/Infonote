@@ -15,7 +15,10 @@ interface MetadataMenuProps {
 }
 
 export function MetadataMenu({ nodeId }: MetadataMenuProps) {
-    const { nodes, updateNodeData, navigateToNode } = useStore();
+    // Atomic Selectors
+    const nodes = useStore(s => s.nodes);
+    const updateNodeData = useStore(s => s.updateNodeData);
+    const navigateToNode = useStore(s => s.navigateToNode);
 
     // Collapsible state
     const [isOpen, setIsOpen] = useState(false);
@@ -172,7 +175,7 @@ export function MetadataMenu({ nodeId }: MetadataMenuProps) {
                         <div className={styles.coverSection}>
                             {editedData.coverImage ? (
                                 <div className={styles.coverPreview}>
-                                    <img src={editedData.coverImage} alt="Cover" />
+                                    <img src={editedData.coverImage} alt="Cover" loading="lazy" />
                                     <button
                                         className={styles.removeCoverBtn}
                                         onClick={() => handleImmediateUpdate({ coverImage: '' })}
@@ -234,7 +237,7 @@ export function MetadataMenu({ nodeId }: MetadataMenuProps) {
                         <div className={styles.fieldGroup}>
                             <label>Status</label>
                             <CustomSelect
-                                value={editedData.status}
+                                value={editedData.status || 'todo'}
                                 options={[
                                     { label: 'To Do', value: 'todo' },
                                     { label: 'In Progress', value: 'in-progress' },
@@ -249,7 +252,7 @@ export function MetadataMenu({ nodeId }: MetadataMenuProps) {
                         <div className={styles.fieldGroup}>
                             <label>Priority</label>
                             <CustomSelect
-                                value={editedData.priority}
+                                value={editedData.priority || 'medium'}
                                 options={[
                                     { label: 'Low', value: 'low' },
                                     { label: 'Medium', value: 'medium' },
@@ -273,7 +276,7 @@ export function MetadataMenu({ nodeId }: MetadataMenuProps) {
                         <div className={styles.fieldGroup}>
                             <label>Date</label>
                             <CustomDatePicker
-                                value={editedData.date}
+                                value={editedData.date || ''}
                                 onChange={(val) => handleImmediateUpdate({ date: val })}
                                 placeholder="Set date"
                             />
@@ -283,7 +286,7 @@ export function MetadataMenu({ nodeId }: MetadataMenuProps) {
                         <div className={styles.fieldGroup}>
                             <label>Due Date</label>
                             <CustomDatePicker
-                                value={editedData.dueDate}
+                                value={editedData.dueDate || ''}
                                 onChange={(val) => handleImmediateUpdate({ dueDate: val })}
                                 placeholder="Set due date"
                             />

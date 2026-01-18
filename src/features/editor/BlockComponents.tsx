@@ -163,7 +163,7 @@ export const ImageBlock = memo(({ block, readOnly, onChange, disableMediaControl
             disableMediaControls={disableMediaControls}
         >
             <div className={styles.mediaWrapper}>
-                <img src={block.content} alt="User content" className={styles.mediaImage} />
+                <img src={block.content} alt="User content" className={styles.mediaImage} loading="lazy" />
                 {!readOnly && (
                     <button onClick={() => onChange('')} className={styles.removeMediaBtn}>×</button>
                 )}
@@ -294,7 +294,7 @@ export const DividerBlock = memo(() => {
 });
 
 export const PageBlock = memo(({ block }: BlockProps) => {
-    const { navigateToNode } = useStore();
+    const navigateToNode = useStore(s => s.navigateToNode);
     const nodeId = block.metadata?.nodeId;
     const title = block.content || "Untitled Page";
 

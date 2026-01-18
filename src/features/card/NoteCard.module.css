@@ -6,7 +6,8 @@
     border: 1px solid var(--glass-border);
     color: var(--color-text-main);
     box-shadow: var(--glass-shadow);
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    will-change: background-color, border-color, box-shadow;
     display: flex;
     flex-direction: column;
 }
@@ -60,7 +61,7 @@
 .potentialMerge {
     box-shadow: 0 0 0 4px var(--color-secondary-glow), 0 0 20px rgba(139, 92, 246, 0.4);
     border-color: var(--color-secondary);
-    transition: all 0.2s ease;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 /* --- View Modes --- */
@@ -99,7 +100,7 @@
 
 .iconTextInput {
     background: transparent;
-    border: 1px solid transparent;
+    border: none;
     border-radius: 6px;
     padding: 4px;
     font-size: 0.75rem;
@@ -108,12 +109,17 @@
     text-align: center;
     width: 100%;
     outline: none;
-    transition: all 0.2s;
+    transition: background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    cursor: text;
+}
+
+.iconTextInput:hover {
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .iconTextInput:focus {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: var(--color-primary);
+    background: rgba(139, 92, 246, 0.05);
+    box-shadow: 0 0 0 1px var(--color-primary);
 }
 
 /* 2. Medium View */
@@ -121,7 +127,7 @@
     padding: 8px;
     display: flex;
     flex-direction: column;
-    justify-content: 4px;
+    gap: 4px;
     height: 100%;
 }
 
@@ -169,52 +175,57 @@
 .mediumTitleInput {
     background: transparent;
     border: none;
-    padding: 0;
+    padding: 2px 4px;
     font-size: 14px;
-    /* Match minimalTitle usually 1rem or 1.1rem */
-    font-weight: 400;
+    font-weight: 700;
     color: var(--color-text-main);
     width: 100%;
     outline: none;
-    line-height: 1;
-    transition: all 0.2s;
+    line-height: 1.2;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    border-radius: 4px;
+    cursor: text;
+}
+
+.mediumTitleInput:hover {
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .mediumTitleInput:focus {
-    opacity: 0.8;
+    background: rgba(139, 92, 246, 0.05);
+    box-shadow: 0 0 0 1px var(--color-primary);
 }
 
 .mediumDescInput {
     background: transparent;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    padding: 2px;
+    border: none;
+    border-radius: 4px;
+    padding: 4px;
     font-size: 12px;
-    /* Slightly bigger font */
-    font-weight: 300;
-    opacity: 0.9;
-    color: var(--color-text-main);
+    font-weight: 400;
+    opacity: 0.8;
+    color: var(--color-text-muted);
     width: 100%;
+    height: 100%;
     outline: none;
     resize: none;
     font-family: inherit;
-    margin-top: 0px;
     line-height: 1.4;
-    transition: all 0.2s;
-    flex: 1;
-    /* Fill remaining space */
-    min-height: 0;
-    /* Allow flex shrink if needed */
+    transition: background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    cursor: text;
+    overflow: hidden;
 }
 
 .mediumDescInput:hover {
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(255, 255, 255, 0.03);
+     height: 100%;
 }
 
 .mediumDescInput:focus {
     background: rgba(139, 92, 246, 0.05);
-    border-color: var(--color-primary);
+    box-shadow: 0 0 0 1px var(--color-primary);
     opacity: 1;
+    color: var(--color-text-main);
 }
 
 /* Category Pill */
@@ -230,7 +241,7 @@
     border: 1px solid transparent;
     color: var(--color-text-main);
     outline: none;
-    transition: all 0.2s;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .categoryInput:focus {
@@ -267,7 +278,7 @@
     overflow: hidden;
     flex-shrink: 0;
     position: relative;
-    background: #0f0f11;
+    background: var(--color-bg-base);
 }
 
 .coverImage img {
@@ -297,18 +308,18 @@
 }
 
 .metaChip {
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--glass-bg);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid var(--glass-border);
     padding: 3px 8px;
     border-radius: 6px;
     font-size: 0.65rem;
     font-weight: 700;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--color-text-main);
     letter-spacing: 0.05em;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -339,7 +350,7 @@
 .coverPlaceholder {
     width: 100%;
     height: 100%;
-    background: radial-gradient(circle at center, rgba(30, 30, 35, 1) 0%, rgba(15, 15, 17, 1) 100%);
+    background: var(--glass-bg-hover);
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -347,7 +358,7 @@
     gap: 8px;
     color: var(--color-text-muted);
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .coverEmptyState {
@@ -365,12 +376,12 @@
 }
 
 .coverUrlInput {
-    background: rgba(0, 0, 0, 0.7);
+    background: var(--glass-bg);
     border: 1px solid var(--color-primary);
     border-radius: 6px;
     padding: 4px 8px;
-    color: white;
-    caret-color: white;
+    color: var(--color-text-main);
+    caret-color: var(--color-primary);
     font-size: 0.8rem;
     outline: none;
     width: 60%;
@@ -412,7 +423,7 @@
     flex-shrink: 0;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), background-color 0.2s ease, border-color 0.2s ease;
     z-index: 2;
     padding: 0;
     /* Reset */
@@ -443,20 +454,26 @@
 .expandedTitleInput {
     background: transparent;
     border: none;
-    padding: 0;
+    padding: 4px 8px;
     color: var(--color-text-main);
     font-size: 1.5rem;
-    font-weight: 600;
-    /* Less bold */
+    font-weight: 700;
     outline: none;
     width: 100%;
-    transition: all 0.2s;
+    transition: background-color 0.2s ease, color 0.2s ease;
     line-height: 1.2;
     letter-spacing: -0.01em;
+    border-radius: 6px;
+    cursor: text;
+}
+
+.expandedTitleInput:hover {
+    background: rgba(255, 255, 255, 0.03);
 }
 
 .expandedTitleInput:focus {
-    opacity: 0.8;
+    background: rgba(139, 92, 246, 0.05);
+    box-shadow: 0 0 0 1px var(--color-primary);
 }
 
 .expandedTitleInput::placeholder {
@@ -480,42 +497,36 @@
 .expandedDescEdit {
     width: 100%;
     background: transparent;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    padding: 2px 0;
-    /* Even tighter padding */
-    font-size: 0.8rem;
-    /* Smaller font as requested */
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;  
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.9rem;
     font-weight: 400;
     color: var(--color-text-muted);
-    line-height: 1.4;
+    line-height: 1.5;
     resize: none;
     outline: none;
-    transition: all 0.2s;
-    min-height: 20px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    min-height: 24px;
     overflow: hidden;
-    /* No scrolling */
+    cursor: text;
 }
 
 .expandedDescEdit:hover {
     background: rgba(255, 255, 255, 0.03);
-    padding-left: 6px;
-    /* Shift text slightly on hover to show box */
-    padding-right: 6px;
 }
 
 .expandedDescEdit:focus {
-    background: rgba(255, 255, 255, 0.05);
-    padding-left: 8px;
-    padding-right: 8px;
+    background: rgba(139, 92, 246, 0.05);
+    box-shadow: 0 0 0 1px var(--color-primary);
     color: var(--color-text-main);
-    overflow: hidden;
-    /* Ensure stays hidden even when focused */
+    font-family: 'Poppins', sans-serif;
 }
 
 .expandedDescEdit::placeholder {
     color: var(--color-text-muted);
-    font-style: italic;
+    font-family: 'Poppins', sans-serif;
     opacity: 0.5;
 }
 
@@ -578,12 +589,203 @@
     border-radius: 6px;
     font-size: 0.7rem;
     color: var(--color-text-muted);
-    transition: all 0.2s;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-.footerDateBadge:hover {
-    background: var(--glass-bg-hover);
+/* --- Cover Picker Modal --- */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.coverPickerModal {
+    background: #1e1e20;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    width: 420px;
+    max-width: 90vw;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.modalHeader h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.closeModalBtn {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.closeModalBtn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.modalTabs {
+    display: flex;
+    padding: 4px;
+    background: var(--color-bg-base);
+    margin: 12px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+}
+
+.modalTab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+    font-size: 0.85rem;
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.modalTab:hover {
+    color: white;
+}
+
+.modalTab.active {
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--color-primary);
+}
+
+.modalContent {
+    padding: 0 20px 20px;
+    min-height: 200px;
+}
+
+.modalDropZone {
+    height: 180px;
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.modalDropZone:hover, .modalDropZone.dragOver {
+    border-color: var(--color-primary);
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.modalDropIcon {
+    color: var(--color-primary);
+    opacity: 0.7;
+}
+
+.modalLinkInput {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 20px;
+}
+
+.modalLinkInput input {
+    background: var(--color-bg-base);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 12px;
     color: var(--color-text-main);
+    outline: none;
+    font-size: 0.9rem;
+}
+
+.modalLinkInput input:focus {
+    border-color: var(--color-primary);
+}
+
+.modalSubmitBtn {
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.modalLibrary {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding-top: 12px;
+}
+
+.libraryItem {
+    height: 80px;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.libraryItem img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.libraryItem:hover {
+    transform: scale(1.02);
+    border-color: var(--color-primary);
+}
+
+.modalFooter {
+    padding: 12px 20px;
+    background: rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.removeCoverBtn {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.removeCoverBtn:hover {
+    background: rgba(239, 68, 68, 0.2);
 }
 
 .dateInput {
@@ -674,7 +876,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
     flex-shrink: 0;
 }
 
@@ -768,7 +970,7 @@
     height: 10px !important;
     background: var(--color-primary) !important;
     border: 2px solid var(--bg-dark) !important;
-    transition: all 0.2s;
+    transition: opacity 0.2s, transform 0.2s;
     opacity: 0;
 }
 
@@ -803,7 +1005,7 @@
     height: 40px;
     opacity: 0;
     pointer-events: none;
-    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
     z-index: 2000;
 }
 
@@ -835,7 +1037,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .menuBtn:hover {
@@ -851,8 +1053,8 @@
     right: 8px;
     width: 24px;
     height: 24px;
-    background: rgba(30, 30, 30, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
     border-radius: 6px;
     display: flex;
     align-items: center;
@@ -880,13 +1082,13 @@
     border-radius: 50%;
 
     /* Glassy Style */
-    background: rgba(30, 30, 30, 0.6);
+    background: var(--glass-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 
-    color: #e2e8f0;
+    color: var(--color-text-main);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -895,7 +1097,7 @@
     /* No initial opacity - always visible in header */
     opacity: 0;
     transform: scale(0.9);
-    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .expandedView:hover .controlBtn {
@@ -999,7 +1201,7 @@
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: nwse-resize;
     z-index: 30;
     pointer-events: auto;
@@ -1013,12 +1215,12 @@
     display: block;
     /* Base soft glow */
     filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .handlePath {
     stroke-opacity: 0.9;
-    transition: all 0.3s ease;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .card:hover .modernResizeHandle {
@@ -1047,7 +1249,7 @@
     border: 2px dashed transparent;
     border-radius: 12px;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1122,9 +1324,9 @@
 
 /* Status Colors */
 .todo {
-    background: rgba(100, 116, 139, 0.2);
-    color: #cbd5e1;
-    border: 1px solid rgba(100, 116, 139, 0.3);
+    background: var(--color-bg-base);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
 }
 
 .in-progress {
@@ -1159,9 +1361,9 @@
 }
 
 .urgent {
-    background: rgba(239, 68, 68, 0.2);
-    color: #f87171;
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .dueDateBadge {
@@ -1204,16 +1406,16 @@
     gap: 4px;
     z-index: 20;
     padding: 3px;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--glass-bg);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     border-radius: 99px;
     /* Capsule */
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
     opacity: 0;
     transform: translateY(-5px);
-    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: var(--glass-shadow);
 }
 
 .noteArea:hover .columnControls,
@@ -1235,7 +1437,7 @@
     cursor: pointer;
     font-size: 0.8rem;
     font-weight: 600;
-    transition: all 0.2s;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .columnBtn:hover {

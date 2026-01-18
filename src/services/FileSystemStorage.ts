@@ -124,14 +124,17 @@ export class FileSystemStorage {
         return this.directoryHandle?.name;
     }
 
-    async saveData(nodes: AppNode[], edges: Edge[]): Promise<void> {
+    async saveData(nodes: AppNode[], edges: Edge[], force: boolean = false): Promise<void> {
         if (!this.directoryHandle) return;
 
         try {
-            await this.writeJsonFile(NODES_FILE, nodes);
-            await this.writeJsonFile(EDGES_FILE, edges);
+            // Write main data files (compact JSON)
+            await Promise.all([
+                this.writeJsonFile(NODES_FILE, nodes),
+                this.writeJsonFile(EDGES_FILE, edges)
+            ]);
 
-            // Sync individual cards to folders
+            // Sync individual cards to folders (concurrently)
             await this.syncCardsToFolders(nodes);
 
         } catch (error) {
@@ -144,13 +147,11 @@ export class FileSystemStorage {
         if (!this.directoryHandle) return;
 
         try {
-            // 1. Group by parent
             const childrenMap = new Map<string, AppNode[]>();
             const roots: AppNode[] = [];
 
             for (const node of nodes) {
-                if (node.type !== 'note') continue; // Only sync Note type for now
-
+                if (node.type !== 'note') continue;
                 if (!node.parentId) {
                     roots.push(node);
                 } else {
@@ -160,39 +161,33 @@ export class FileSystemStorage {
                 }
             }
 
-            // 2. Recursive Writer Helper
             const writeLevel = async (dirHandle: FileSystemDirectoryHandle, nodeList: AppNode[]) => {
-                for (const node of nodeList) {
-                    // We filtered for type === 'note' earlier in the main loop, but types need help
+                // Use Promise.all for concurrent writes at this level
+                await Promise.all(nodeList.map(async (node) => {
                     const label = (node.data as any).label || 'Untitled';
-                    // Sanitize name for folder safety
                     const safeName = label.replace(/[^a-z0-9]/gi, '_').toLowerCase();
                     const folderName = `${safeName}_${node.id.slice(0, 4)}`;
 
-                    // Create folder for card
                     const nodeDir = await dirHandle.getDirectoryHandle(folderName, { create: true });
 
-                    // Save card specific data
+                    // Save card data
                     const fileHandle = await nodeDir.getFileHandle('card.json', { create: true });
                     const writable = await fileHandle.createWritable();
-                    await writable.write(JSON.stringify(node, null, 2));
+                    await writable.write(JSON.stringify(node)); // Compact JSON
                     await writable.close();
 
-                    // Recurse for children
                     const children = childrenMap.get(node.id);
                     if (children && children.length > 0) {
                         await writeLevel(nodeDir, children);
                     }
-                }
+                }));
             };
 
-            // Start at 'Cards' root
             const cardsDir = await this.directoryHandle.getDirectoryHandle('Cards', { create: true });
             await writeLevel(cardsDir, roots);
 
         } catch (error) {
             console.warn('Failed to sync card folders:', error);
-            // Don't crash main save if folder sync fails
         }
     }
 
@@ -202,7 +197,32 @@ export class FileSystemStorage {
         try {
             const nodes = await this.readJsonFile<AppNode[]>(NODES_FILE);
             const edges = await this.readJsonFile<Edge[]>(EDGES_FILE);
-            return { nodes, edges };
+            
+            // Validate loaded data
+            if (!Array.isArray(nodes) || !Array.isArray(edges)) {
+                console.warn('Invalid data structure in storage files');
+                return null;
+            }
+            
+            // Validate node structure
+            const validNodes = nodes.filter(node => {
+                if (!node || typeof node !== 'object') return false;
+                if (!node.id || !node.type) return false;
+                if (!['note', 'block', 'fused-note', 'kanban'].includes(node.type)) return false;
+                if (!node.data || typeof node.data !== 'object') return false;
+                return true;
+            });
+            
+            // Validate edge structure
+            const validEdges = edges.filter(edge => {
+                if (!edge || typeof edge !== 'object') return false;
+                if (!edge.id || !edge.source || !edge.target) return false;
+                return true;
+            });
+            
+            console.log(`Loaded ${validNodes.length}/${nodes.length} valid nodes and ${validEdges.length}/${edges.length} valid edges`);
+            
+            return { nodes: validNodes, edges: validEdges };
         } catch (error) {
             console.log('No existing data found (or error reading), starting fresh in this directory.', error);
             return null;
@@ -214,7 +234,7 @@ export class FileSystemStorage {
 
         const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: true });
         const writable = await fileHandle.createWritable();
-        await writable.write(JSON.stringify(data, null, 2));
+        await writable.write(JSON.stringify(data)); // Compact JSON
         await writable.close();
     }
 

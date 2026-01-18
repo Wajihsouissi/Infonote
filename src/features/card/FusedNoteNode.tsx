@@ -6,15 +6,19 @@ import { EditBar } from '../ui/EditBar';
 import { useStore } from '../../store/useStore';
 import type { Node } from '@xyflow/react';
 import styles from './FusedNoteNode.module.css';
+import { snapDimensions, MEDIUM_SIZE } from '../../config/layout';
 
 export type FusedNoteNodeData = {
     content: any[];
     color?: string;
 };
 
+import { v4 as uuidv4 } from 'uuid';
+
 export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedNoteNodeData>>) => {
-    const { setNodes, getViewport, deleteElements } = useReactFlow();
+    const { setNodes, getViewport, deleteElements } = useReactFlow(); // Added setNodes back
     const updateNodeData = useStore(s => s.updateNodeData);
+    const updateNode = useStore(s => s.updateNode);
     const contentRef = useRef<HTMLDivElement>(null);
     const nodeRef = useRef<HTMLDivElement>(null);
     const activeResize = useRef(false);
@@ -23,56 +27,136 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     const [showEditBar, setShowEditBar] = useState(false);
     const [editBarPosition, setEditBarPosition] = useState({ x: 0, y: 0 });
 
-    // Auto-fit height logic - respecting manual resize if set
-
-
     const handleConvertToCard = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
 
-        setNodes((nodes) => nodes.map(n => {
-            if (n.id === id) {
-                return {
-                    ...n,
-                    type: 'note',
-                    data: {
-                        ...n.data,
-                        label: 'Created Note',
-                        viewMode: 'medium',
-                        content: data.content,
-                        description: '',
-                        date: new Date().toISOString()
-                    },
-                    style: {
-                        ...n.style,
-                        width: 224,
-                        height: 224,
-                    }
-                };
+        const { nodes, setNodes } = useStore.getState();
+        const thisNode = nodes.find(n => n.id === id);
+
+        if (!thisNode) {
+            console.warn("FusedNoteNode: Node not found in store", id);
+            return;
+        }
+
+        // If no parent, we can just transform the node type (Root Level Fused Note)
+        const parentId = thisNode.parentId;
+        if (!parentId) {
+            setNodes((currentNodes) => currentNodes.map(n => {
+                if (n.id === id) {
+                    return {
+                        ...n,
+                        type: 'note',
+                        data: {
+                            ...n.data,
+                            label: (data.content[0]?.content) || 'Created Note',
+                            viewMode: 'medium',
+                            content: data.content,
+                            description: '',
+                            date: new Date().toISOString()
+                        },
+                        style: {
+                            ...n.style,
+                            width: MEDIUM_SIZE,
+                            height: MEDIUM_SIZE,
+                        }
+                    } as any;
+                }
+                return n;
+            }));
+            return;
+        }
+
+        // Nested Fused Note: Must update Parent Content
+        const parentNode = nodes.find(n => n.id === parentId);
+        if (!parentNode) return;
+
+        const parentContent = (parentNode.data as any).content;
+        if (!Array.isArray(parentContent)) return;
+
+        const myBlocks = data.content;
+        if (!myBlocks || myBlocks.length === 0) return;
+
+        // Find blocks in parent
+        const firstBlockId = myBlocks[0].id;
+        const startIndex = parentContent.findIndex((b: any) => b.id === firstBlockId);
+
+        if (startIndex === -1) return;
+
+        // 1. Prepare New Node
+        const newNodeId = uuidv4();
+        const newNode = {
+            id: newNodeId,
+            type: 'note',
+            parentId: parentId,
+            position: thisNode.position,
+            data: {
+                label: myBlocks[0].content || 'New Note',
+                content: myBlocks,
+                viewMode: 'medium',
+                date: new Date().toISOString()
+            },
+            style: { width: MEDIUM_SIZE, height: MEDIUM_SIZE },
+            zIndex: 10
+        };
+
+        // 2. Prepare Page Block to replace fused blocks
+        const pageBlock = {
+            id: uuidv4(),
+            type: 'page',
+            content: myBlocks[0].content || 'New Note',
+            metadata: { nodeId: newNodeId }
+        };
+
+        // 3. Update Store Atomically
+        setNodes((currentNodes) => {
+            const parentNode = currentNodes.find(n => n.id === parentId);
+            if (!parentNode) {
+                console.error("FusedNoteNode: Parent not found during update");
+                return currentNodes;
             }
-            return n;
-        }));
-    }, [id, data.content, setNodes]);
 
-    // Resizing Logic from NoteCard
-    const SNAP_Step = 112;
-    const GRID_GAP = 16;
-    const MIN_SIZE = 112 - GRID_GAP; // 96px (Icon size)
+            const oldContent = (parentNode.data as any).content || [];
+            // Create a shallow copy to modify
+            const newParentContent = [...oldContent];
 
-    const getStrictSize = useCallback((rawWidth: number, rawHeight: number) => {
-        const normalizedW = rawWidth + GRID_GAP;
-        const normalizedH = rawHeight + GRID_GAP;
+            // Re-find index in authoritative state
+            const currentStartIndex = newParentContent.findIndex((b: any) => b.id === firstBlockId);
 
-        let w = Math.round(normalizedW / SNAP_Step) * SNAP_Step;
-        let h = Math.round(normalizedH / SNAP_Step) * SNAP_Step;
+            if (currentStartIndex !== -1) {
+                console.log("FusedNoteNode: Splicing content at index", currentStartIndex, "replacing", myBlocks.length, "blocks");
+                newParentContent.splice(currentStartIndex, myBlocks.length, pageBlock);
+            } else {
+                console.error("FusedNoteNode: Could not find block sequence in parent content!", firstBlockId);
+                // Abort to prevent duplicates/instability
+                return currentNodes;
+            }
 
-        w = w - GRID_GAP;
-        h = h - GRID_GAP;
+            // FILTER CHECK
+            const filteredNodes = currentNodes.filter(n => n.id !== id && n.id !== parentId);
+            const removedCount = currentNodes.length - filteredNodes.length;
+            console.log(`FusedNoteNode: Removed ${removedCount} nodes (should be 2: fused + parent). FusedID: ${id}`);
 
-        w = Math.max(MIN_SIZE, w);
-        h = Math.max(MIN_SIZE, h);
+            if (removedCount < 2) {
+                // Check what we missed
+                if (currentNodes.some(n => n.id === id)) console.warn("Fused ID still present in filtered?");
+                if (currentNodes.some(n => n.id === parentId)) console.warn("Parent ID still present in filtered?");
+                // Force strict filter again by ID string?
+            }
 
-        return { width: w, height: h };
-    }, [SNAP_Step, GRID_GAP, MIN_SIZE]);
+            console.log("FusedNoteNode: Conversion Successful. Removing fused node, adding note.");
+
+            return filteredNodes.concat([
+                // Updated Parent
+                {
+                    ...parentNode,
+                    data: { ...parentNode.data, content: newParentContent }
+                } as any,
+                // New Node
+                newNode as any
+            ]);
+        });
+
+    }, [id, data.content]);
 
     const handleResizeStart = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -97,19 +181,21 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             const rawH = startH + deltaY;
 
             // Strict snap during drag for visual consistency
-            const { width, height } = getStrictSize(rawW, rawH);
+            const { width, height } = snapDimensions(rawW, rawH);
 
-            setNodes(nodes => nodes.map(n => {
-                if (n.id === id) {
-                    // Verify change to avoid updates
-                    const currentW = n.style?.width;
-                    const currentH = n.style?.height;
-                    if (currentW !== width || currentH !== height) {
-                        return { ...n, style: { ...n.style, width, height } };
-                    }
-                }
-                return n;
-            }));
+            // Verify change to check against props/ref
+            if (nodeRef.current) {
+                const currentW = nodeRef.current.offsetWidth;
+                const currentH = nodeRef.current.offsetHeight;
+                // But better to check against stored/prop style if possible to avoid layout thrashing?
+                // The previous code checked `n.style.width` inside setState.
+                // Here we can just dispatch update. Store will dedup if identical?
+                // Actually `updateNode` just sets state.
+                // We can check against `width` prop if we had it, but `FusedNoteNode` uses `NodeProps<Node<...>>`.
+                // `style` is usually not in `data`. It's on the node.
+                // We can just dispatch.
+                updateNode(id, { style: { width, height } });
+            }
         };
 
         const onMouseUp = () => {

@@ -22,8 +22,10 @@ import { KanbanNodeComponent } from '../kanban/KanbanNode';
 // Lazy load KanbanConfigModal
 const KanbanConfigModal = lazy(() => import('../kanban/KanbanConfigModal').then(module => ({ default: module.KanbanConfigModal })));
 
-import type { BlockType } from '../editor/types';
-import styles from './CanvasBoard.module.css';
+import type { BlockType } from "../editor/types";
+import type { AppNode } from "../../types";
+import styles from "./CanvasBoard.module.css";
+import { CANVAS_HORIZONTAL_GAP, CANVAS_VERTICAL_GAP, MAX_ITEMS_PER_ROW, ICON_SIZE, BASE_UNIT } from '../../config/layout';
 
 export function CanvasBoard() {
     // Atomic Selectors to prevent unnecessary re-renders
@@ -42,14 +44,16 @@ export function CanvasBoard() {
     const onEdgesChange = useStore(useCallback(s => s.onEdgesChange, []));
     const onConnect = useStore(useCallback(s => s.onConnect, []));
     const addNode = useStore(useCallback(s => s.addNode, []));
+    const setNodesStore = useStore(useCallback(s => s.setNodes, []));
     const updateNodeData = useStore(useCallback(s => s.updateNodeData, []));
     const setInteractionState = useStore(useCallback(s => s.setInteractionState, []));
     const extractPageFromBlock = useStore(useCallback(s => s.extractPageFromBlock, []));
+    const syncParentContent = useStore(useCallback(s => s.syncParentContent, []));
 
     // Throttling Ref
     const lastDragCheck = useRef(0);
 
-    const { fitView, screenToFlowPosition, getIntersectingNodes, deleteElements, setNodes, getNode } = useReactFlow();
+    const { fitView, screenToFlowPosition, getIntersectingNodes, deleteElements, getNode } = useReactFlow();
 
     // Filter nodes and edges for the current view
     const visibleNodes = useMemo(() => {
@@ -102,23 +106,7 @@ export function CanvasBoard() {
     );
 
     // Track theme for ReactFlow colorMode
-    const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-        return (document.documentElement.getAttribute('data-theme') as 'light' | 'dark') || 'dark';
-    });
-
-    useEffect(() => {
-        const observer = new MutationObserver(() => {
-            const currentTheme = document.documentElement.getAttribute('data-theme') as 'light' | 'dark';
-            setTheme(currentTheme || 'dark');
-        });
-
-        observer.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ['data-theme']
-        });
-
-        return () => observer.disconnect();
-    }, []);
+    const theme = useStore(s => s.theme);
 
     // --- REF ACTORED PERSISTENCE LOGIC ---
 
@@ -173,17 +161,13 @@ export function CanvasBoard() {
 
         // B. NODE GENERATION
         let currentY = 0;
+        let currentX = 0;
+        let itemsInRow = 0;
+        let currentRowMaxHeight = 0;
+
         const newNodes: any[] = [];
 
-        // Deduplication: Check for existing nodes to preserve identities (and positions if possible?)
-        // If we want a CLEAN LOAD, we should probably clear old ones first?
-        // But removing nodes breaks ReactFlow internal state if we are not careful.
-        // "setNodes" replaces the list. So we just need to filter out OLD children of this parent.
-
-        // HOWEVER: Persistent formatting (positions) of cards?
-        // If we regenerate every time, positions reset. User might not like that.
-        // Compromise: Keep existing 'note' nodes (Cards) if they match ID. Regenerate 'fused-note' (Text).
-
+        // Deduplication: Check for existing nodes to preserve identities and positions
         const existingNodesMap = new Map(
             useStore.getState().nodes
                 .filter(n => n.parentId === activeParentNode.id)
@@ -193,80 +177,87 @@ export function CanvasBoard() {
         const missingLinks: { blockId: string; nodeId: string }[] = [];
 
         itemsToRender.forEach((item) => {
-            if (item.type === 'note') {
-                const block = item.data;
-                const persistentId = block.metadata?.nodeId;
+            const isNote = item.type === 'note';
 
-                // Check if we have a persistent ID and if the node actually exists
-                if (persistentId && existingNodesMap.has(persistentId)) {
-                    // KEEP EXISTING CARD (Preserve position/state)
-                    const existing = existingNodesMap.get(persistentId)!;
-
-                    // CHECK FOR VERTICAL OVERLAP/FLOW
-                    // If the existing node is positioned *above* the current flow cursor (currentY),
-                    // it means it's overlapping with the text we just generated above it.
-                    // We must push it down to maintain visibility and document order.
-                    let finalY = existing.position.y;
-                    if (finalY < currentY) {
-                        finalY = currentY;
-                    }
-
-                    // CRITICAL FIX: Force Update Data from Source of Truth (Parent Content)
-                    const updatedNode = {
-                        ...existing,
-                        position: { ...existing.position, y: finalY },
-                        zIndex: 10, // Ensure Cards are above canvas but below modals (if any)
-                        data: {
-                            ...existing.data,
-                            label: block.content
-                        }
-                    };
-                    newNodes.push(updatedNode);
-                    currentY = Math.max(currentY, finalY + (existing.style?.height as number || 112) + 50); // Increased gap
-                } else {
-                    // NEW CARD (or lost ID)
-                    // If we have a persistentId but the node is missing, we must recreate it.
-                    // If we don't have a persistentId, we create a new node AND need to link it.
-
-                    const newNodeId = persistentId || uuidv4();
-
-                    if (!persistentId) {
-                        missingLinks.push({ blockId: block.id, nodeId: newNodeId });
-                    }
-
-                    const node = {
-                        id: newNodeId,
-                        type: 'note',
-                        position: { x: 0, y: currentY },
-                        zIndex: 10,
-                        data: {
-                            label: block.content,
-                            viewMode: 'icon',
-                            icon: 'FileText',
-                            date: new Date().toISOString()
-                        },
-                        style: { width: 112, height: 112 },
-                        parentId: activeParentNode.id
-                    };
-                    newNodes.push(node);
-                    currentY += 132 + 20; // Height + Gap
-                }
+            // Stable ID Generation
+            let nodeId: string;
+            if (isNote) {
+                nodeId = item.data.metadata?.nodeId || uuidv4();
             } else {
-                // FUSED NOTE (Always Regenerate to ensure content sync)
-                const chunk = item.data;
-                const estimatedHeight = Math.max(100, chunk.length * 40);
+                // Use first block ID for fused note stability
+                const firstBlock = item.data[0];
+                nodeId = firstBlock ? `fused-${firstBlock.id}` : uuidv4();
+            }
+
+            const existing = existingNodesMap.get(nodeId);
+
+            if (existing) {
+                // Finish current row to avoid overlap with existing items
+                if (itemsInRow > 0) {
+                    currentY += currentRowMaxHeight + CANVAS_VERTICAL_GAP;
+                    currentX = 0;
+                    itemsInRow = 0;
+                    currentRowMaxHeight = 0;
+                }
+
+                // KEEP EXISTING (Preserve position/state)
+                const updatedNode = {
+                    ...existing,
+                    zIndex: isNote ? 10 : 5,
+                    data: isNote ? {
+                        ...existing.data,
+                        label: item.data.content
+                    } : {
+                        ...existing.data,
+                        content: item.data
+                    }
+                };
+                newNodes.push(updatedNode);
+
+                // Update flow cursor to be below this existing node
+                const h = existing.style?.height;
+                const nodeHeight = (typeof h === 'number' ? h : parseInt(h as string)) || (isNote ? ICON_SIZE : 200);
+                currentY = Math.max(currentY, existing.position.y + nodeHeight + CANVAS_VERTICAL_GAP);
+            } else {
+                // NEW ITEM - Place in Grid
+                if (itemsInRow >= MAX_ITEMS_PER_ROW) {
+                    currentY += currentRowMaxHeight + CANVAS_VERTICAL_GAP;
+                    currentX = 0;
+                    itemsInRow = 0;
+                    currentRowMaxHeight = 0;
+                }
+
+                const width = isNote ? ICON_SIZE : 350;
+                const estimatedHeight = isNote ? ICON_SIZE : Math.max(120, item.data.length * 45);
 
                 const node = {
-                    id: uuidv4(),
-                    type: 'fused-note' as const,
-                    position: { x: 0, y: currentY },
-                    zIndex: 5, // Text is base layer
-                    data: { content: chunk },
-                    style: { width: 350, height: 'auto' as any },
+                    id: nodeId,
+                    type: isNote ? 'note' : 'fused-note',
+                    position: { x: currentX, y: currentY },
+                    zIndex: isNote ? 10 : 5,
+                    data: isNote ? {
+                        label: item.data.content,
+                        viewMode: 'icon',
+                        icon: 'FileText',
+                        date: new Date().toISOString()
+                    } : {
+                        content: item.data
+                    },
+                    style: {
+                        width,
+                        height: isNote ? estimatedHeight : 'auto' as any
+                    },
                     parentId: activeParentNode.id
                 };
+
+                if (isNote && !item.data.metadata?.nodeId) {
+                    missingLinks.push({ blockId: item.data.id, nodeId });
+                }
+
                 newNodes.push(node);
-                currentY += estimatedHeight + 50;
+                currentX += width + CANVAS_HORIZONTAL_GAP;
+                currentRowMaxHeight = Math.max(currentRowMaxHeight, estimatedHeight);
+                itemsInRow++;
             }
         });
 
@@ -330,10 +321,16 @@ export function CanvasBoard() {
             const blockDataJson = event.dataTransfer.getData('application/infonote-block-data');
             const type = event.dataTransfer.getData('application/reactflow-block-type') as BlockType;
 
-            const position = screenToFlowPosition({
+            const rawPosition = screenToFlowPosition({
                 x: event.clientX,
                 y: event.clientY,
             });
+
+            // Snap drop position to grid (BASE_UNIT = 56)
+            const position = {
+                x: Math.round(rawPosition.x / BASE_UNIT) * BASE_UNIT,
+                y: Math.round(rawPosition.y / BASE_UNIT) * BASE_UNIT
+            };
 
             let blocksToAdd: any[] = [];
             let sourceNodeId: string | null = null;
@@ -380,16 +377,23 @@ export function CanvasBoard() {
                 });
 
                 if (targetNode.type === 'block') {
-                    setNodes(nds => nds.map(n => {
+                    // Convert block to fused-note by updating its data
+                    updateNodeData(targetNode.id, {
+                        content: [...currentContent, ...blocksToAdd]
+                    });
+
+                    // Update the node type and style separately to avoid complex typing
+                    const updatedNodes = nodes.map(n => {
                         if (n.id === targetNode.id) {
                             return {
                                 ...n,
-                                type: 'fused-note',
+                                type: 'fused-note' as const,
                                 style: { ...n.style, height: 'auto' }
-                            };
+                            } as AppNode;
                         }
                         return n;
-                    }));
+                    });
+                    setNodesStore(updatedNodes);
                 }
 
                 if (sourceNodeId && draggedBlockId) {
@@ -439,7 +443,7 @@ export function CanvasBoard() {
                 }
             }
         },
-        [screenToFlowPosition, addNode, nodes, updateNodeData, getIntersectingNodes, deleteElements, setNodes, currentParentId],
+        [screenToFlowPosition, addNode, nodes, updateNodeData, getIntersectingNodes, deleteElements, setNodesStore, currentParentId],
     );
 
     // Grid config
@@ -540,7 +544,7 @@ export function CanvasBoard() {
                     y: parentNode.position.y + node.position.y
                 };
 
-                setNodes(nds => nds.map(n => {
+                setNodesStore(nds => nds.map(n => {
                     if (n.id === node.id) {
                         return {
                             ...n,
@@ -620,7 +624,7 @@ export function CanvasBoard() {
                         nextY = lastSibling.position.y + lastSiblingH + GAP;
                     }
 
-                    setNodes(nds => nds.map(n => {
+                    setNodesStore((nds: AppNode[]) => nds.map((n: AppNode) => {
                         if (n.id === node.id) {
                             return {
                                 ...n,
@@ -634,7 +638,7 @@ export function CanvasBoard() {
                                     height: targetHeight
                                 },
                                 data: {
-                                    ...n.data,
+                                    ...(n.data as any),
                                     viewMode: targetViewMode as any,
                                     status: newStatus
                                 }
@@ -778,7 +782,7 @@ export function CanvasBoard() {
                     }
 
                     // Update Node
-                    setNodes(nds => nds.map(n => {
+                    const updatedNodesForKanban = nodes.map(n => {
                         if (n.id === node.id) {
                             return {
                                 ...n,
@@ -792,14 +796,15 @@ export function CanvasBoard() {
                                     height: targetHeight
                                 },
                                 data: {
-                                    ...n.data,
+                                    ...(n.data as any),
                                     viewMode: targetViewMode as any,
                                     status: newStatus
                                 }
-                            };
+                            } as AppNode;
                         }
                         return n;
-                    }));
+                    });
+                    setNodesStore(updatedNodesForKanban);
                 }
                 return;
             }
@@ -811,7 +816,7 @@ export function CanvasBoard() {
                 const targetContent = Array.isArray((targetNode.data as any).content) ? (targetNode.data as any).content : [];
                 const newContent = [...targetContent, ...sourceContent];
 
-                setNodes((nds) => nds.map((n) => {
+                setNodesStore((nds) => nds.map((n) => {
                     if (n.id === targetNode.id) {
                         return {
                             ...n,
@@ -848,7 +853,7 @@ export function CanvasBoard() {
                         content: [...targetContent, pageBlock]
                     });
 
-                    setNodes((nds) => nds.map((n) => {
+                    setNodesStore((nds) => nds.map((n) => {
                         if (n.id === node.id) {
                             return {
                                 ...n,
@@ -876,13 +881,25 @@ export function CanvasBoard() {
                 }
             }
         }
-    }, [getIntersectingNodes, deleteElements, setNodes, updateNodeData, getNode, nodes]); // Added getNode, nodes dependencies
+
+        // Final Sync to ensure parent content order matches new positions
+        if (currentParentId) {
+            syncParentContent(currentParentId);
+        }
+    }, [getIntersectingNodes, deleteElements, setNodesStore, updateNodeData, getNode, nodes, currentParentId, syncParentContent]); // Added currentParentId, syncParentContent
+
+    // Cleanup ref on unmount
+    useEffect(() => {
+        return () => {
+            lastDragCheck.current = 0;
+        };
+    }, []);
 
     return (
         <div className={styles.container}>
             <div className={styles.canvasArea}>
                 <ThemeSwitcher />
-                <div style={{ position: 'absolute', top: 20, left: 30, zIndex: 100, transition: 'all 0.3s' }}>
+                <div style={{ position: 'absolute', top: 20, left: 30, zIndex: 100 }}>
                     <Breadcrumbs />
                 </div>
                 {activeParentNode && (
@@ -916,22 +933,12 @@ export function CanvasBoard() {
                 >
                     {/* Visual Drop Zone for Kanban Drag Out - REMOVED */}
                     <CustomGrid />
-                    <Controls
-                        style={{
-                            background: '#1e1e1e',
-                            borderColor: '#333',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fill: 'white',
-                            padding: '4px'
-                        }}
-                    />
+                    <Controls className={styles.canvasControls} />
                     <MiniMap
                         position="bottom-right"
-                        nodeColor="#8b5cf6"
-                        maskColor="rgba(0,0,0, 0.6)"
-                        className="glass-panel"
-                        style={{ background: 'transparent', margin: 20 }}
+                        nodeColor="var(--color-primary)"
+                        maskColor="var(--glass-bg)"
+                        className={styles.canvasMiniMap}
                     />
                 </ReactFlow>
             </div>

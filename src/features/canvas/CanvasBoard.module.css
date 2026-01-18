@@ -8,12 +8,17 @@
     overflow: hidden;
 }
 
+/* Optimization: Disable blur during pan/zoom */
+.isMoving {
+    --backdrop-blur: 0px !important;
+}
+
 /* Canvas Area */
 .canvasArea {
     flex: 1;
     position: relative;
     height: 100%;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: background-color 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .canvasWithSidebar {

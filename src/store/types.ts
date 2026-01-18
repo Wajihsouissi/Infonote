@@ -1,0 +1,72 @@
+import {
+    type Edge,
+    type NodeChange,
+    type EdgeChange,
+    type Connection,
+} from '@xyflow/react';
+import type { AppNode } from '../types';
+
+export interface Breadcrumb {
+    id: string | null;
+    label: string;
+}
+
+export interface NodeSlice {
+    nodes: AppNode[];
+    edges: Edge[];
+    onNodesChange: (changes: NodeChange[]) => void;
+    setNodes: (nodes: AppNode[] | ((nodes: AppNode[]) => AppNode[])) => void;
+    onEdgesChange: (changes: EdgeChange[]) => void;
+    onConnect: (connection: Connection) => void;
+    addNode: (type: 'note' | 'block', position: { x: number; y: number }, initialData?: any, style?: React.CSSProperties, parentId?: string) => void;
+    updateNodeData: (id: string, data: any) => void;
+    updateNode: (id: string, updates: Partial<AppNode>) => void;
+    splitNode: (nodeId: string, splitBlockId: string, currentBlocks?: any[]) => void;
+    extractPageFromBlock: (block: any, position: { x: number; y: number }, sourceNodeId?: string) => void;
+    createPageFromText: (text: string, position?: { x: number; y: number }) => string;
+    savePageContent: (parentId: string, content: any[], transientNodeIds: string[]) => void;
+    syncParentContent: (parentId: string) => void;
+}
+
+export interface NavigationSlice {
+    currentParentId: string | null;
+    breadcrumbs: Breadcrumb[];
+    fullscreenId: string | null;
+    sidePanelId: string | null;
+    centerPanelId: string | null;
+    navigateToNode: (nodeId: string | null) => void;
+    setFullscreenId: (id: string | null) => void;
+    setSidePanelId: (id: string | null) => void;
+    setCenterPanelId: (id: string | null) => void;
+}
+
+export interface StorageSlice {
+    storage: {
+        isConnected: boolean;
+        directoryName: string | null;
+        lastSaved: string | null;
+        isSaving: boolean;
+    };
+    setStorageStatus: (isConnected: boolean, directoryName: string | null) => void;
+    setLastSaved: (date: string | null) => void;
+    setIsSaving: (isSaving: boolean) => void;
+    loadGraph: (nodes: AppNode[], edges: Edge[]) => void;
+}
+
+export interface UISlice {
+    activeIconMenuId: string | null;
+    isKanbanModalOpen: boolean;
+    theme: 'light' | 'dark';
+    interactionState: {
+        draggingKanbanNodeId: string | null;
+        hoveredKanbanColumn: { kanbanId: string; columnId: string } | null;
+    };
+    editingKanbanId: string | null;
+    setActiveIconMenuId: (id: string | null) => void;
+    setKanbanModalOpen: (isOpen: boolean) => void;
+    setEditingKanbanId: (id: string | null) => void;
+    setInteractionState: (state: Partial<UISlice['interactionState']>) => void;
+    toggleTheme: () => void;
+}
+
+export type AppState = NodeSlice & NavigationSlice & StorageSlice & UISlice;

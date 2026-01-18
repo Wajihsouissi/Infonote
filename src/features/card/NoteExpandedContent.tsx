@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { Image as ImageIcon, StickyNote, Video, FileText, Layers, Eye, X } from 'lucide-react';
+import { Image as ImageIcon, StickyNote, Video, FileText, Layers, Eye, EyeOff, X } from 'lucide-react';
 import styles from './NoteCard.module.css';
 import { BlockEditor } from '../editor/BlockEditor';
 import { IconPicker } from './IconPicker';
 import { iconMap, defaultIconName } from './iconMap';
 import type { NoteNode } from '../../types';
 import { useStore } from '../../store/useStore';
+import { CoverPicker } from './CoverPicker';
 
 interface NoteExpandedContentProps {
     id: string;
@@ -19,7 +20,21 @@ interface NoteExpandedContentProps {
 }
 
 export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, showMetadata: propShowMetadata, setShowMetadata: propSetShowMetadata, onClose }: NoteExpandedContentProps) {
-    const { activeIconMenuId, setActiveIconMenuId } = useStore();
+    // Add error boundary-like logging
+    if (!data) {
+        console.error('NoteExpandedContent: data prop is missing or undefined', { id });
+        return <div>Error: Missing data</div>;
+    }
+
+    // Validate required properties
+    if (typeof data.label === 'undefined') {
+        console.warn('NoteExpandedContent: data.label is undefined, using default', { id, data });
+        data = { ...data, label: 'Untitled' };
+    }
+
+    // Atomic Selectors
+    const activeIconMenuId = useStore(s => s.activeIconMenuId);
+    const setActiveIconMenuId = useStore(s => s.setActiveIconMenuId);
 
     // Internal state for when props are not provided
     const [localShowMetadata, setLocalShowMetadata] = useState(false);
@@ -29,12 +44,13 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
 
     // Editing state
     const [isEditingMetadata, setIsEditingMetadata] = useState(false);
+    const [showCoverPicker, setShowCoverPicker] = useState(false);
 
     // Derived state
     const showIconPicker = activeIconMenuId === id;
 
     const [editedData, setEditedData] = useState({
-        label: data.label,
+        label: data.label || 'Untitled',
         icon: data.icon || defaultIconName,
         description: data.description || '',
         category: data.category || '',
@@ -55,19 +71,32 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
     }, [data]);
 
     const stats = useMemo(() => {
-        if (!Array.isArray(data.content)) return null;
+        // Defensive check for data.content
+        if (!data.content || !Array.isArray(data.content)) {
+            console.warn('NoteExpandedContent: data.content is not an array', { id, content: data.content });
+            return null;
+        }
 
         const content = data.content as any[];
         const total = content.length;
-        const cards = content.filter(b => b.type === 'page').length;
-        const images = content.filter(b => b.type === 'image').length;
-        const videos = content.filter(b => b.type === 'video').length;
-        const pdfs = content.filter(b => b.type === 'file').length;
+        const cards = content.filter(b => b && b.type === 'page').length;
+        const images = content.filter(b => b && b.type === 'image').length;
+        const videos = content.filter(b => b && b.type === 'video').length;
+        const pdfs = content.filter(b => b && b.type === 'file').length;
 
         return { total, cards, images, videos, pdfs };
-    }, [data.content]);
+    }, [data.content, id]);
 
     const IconComponent = iconMap[data.icon || defaultIconName] || iconMap[defaultIconName];
+
+    // Fallback if IconComponent is still undefined
+    if (!IconComponent) {
+        console.warn('NoteExpandedContent: IconComponent is undefined, using FileText', {
+            id,
+            icon: data.icon,
+            defaultIconName
+        });
+    }
 
     const handleSaveMetadata = useCallback(() => {
         onUpdate(id, editedData);
@@ -101,37 +130,15 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
             {showMetadata ? (
                 <>
                     {/* Cover Image */}
-                    <div className={styles.coverImage}>
+                    <div className={styles.coverImage} onClick={() => setShowCoverPicker(true)}>
                         {data.coverImage ? (
-                            <img src={data.coverImage} alt="Cover" />
+                            <img src={data.coverImage} alt="Cover" loading="lazy" />
                         ) : (
-                            <div
-                                className={styles.coverPlaceholder}
-                                onClick={() => setIsEditingMetadata(true)}
-                            >
-                                {!isEditingMetadata && !editedData.coverImage ? (
-                                    <div className={styles.coverEmptyState}>
-                                        <ImageIcon size={24} />
-                                        <span>Add Cover</span>
-                                    </div>
-                                ) : (
-                                    <input
-                                        className={styles.coverUrlInput}
-                                        value={isEditingMetadata ? editedData.coverImage : ''}
-                                        onChange={(e) => setEditedData({ ...editedData, coverImage: e.target.value })}
-                                        onFocus={() => setIsEditingMetadata(true)}
-                                        onBlur={() => {
-                                            if (isEditingMetadata && !editedData.coverImage) {
-                                                setIsEditingMetadata(false);
-                                            } else if (isEditingMetadata) {
-                                                handleSaveMetadata();
-                                            }
-                                        }}
-                                        onClick={(e) => e.stopPropagation()}
-                                        placeholder="Paste image URL..."
-                                        autoFocus
-                                    />
-                                )}
+                            <div className={styles.coverPlaceholder}>
+                                <div className={styles.coverEmptyState}>
+                                    <ImageIcon size={24} />
+                                    <span>Add Cover</span>
+                                </div>
                             </div>
                         )}
 
@@ -139,29 +146,32 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
                         <div className={styles.coverMetadataOverlay}>
                             {/* Metadata Chips */}
                             {data.status && (
-                                <span className={styles.metaChip}>
+                                <span className={styles.metaChip} onClick={(e) => e.stopPropagation()}>
                                     {data.status}
                                 </span>
                             )}
                             {data.priority && (
-                                <span className={`${styles.metaChip} ${styles.blue}`}>
+                                <span className={`${styles.metaChip} ${styles.blue}`} onClick={(e) => e.stopPropagation()}>
                                     {data.priority}
                                 </span>
                             )}
                             {data.tags && data.tags.map(tag => (
-                                <span key={tag} className={`${styles.metaChip} ${styles.purple}`}>
+                                <span key={tag} className={`${styles.metaChip} ${styles.purple}`} onClick={(e) => e.stopPropagation()}>
                                     {tag}
                                 </span>
                             ))}
 
                             {/* Top Controls (Expanded Mode - Integrated) */}
-                            <div className={styles.controlsGroup} onMouseDown={(e) => e.stopPropagation()}>
+                            <div className={styles.controlsGroup} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
                                 <button
                                     className={`${styles.controlBtn} ${showMetadata ? styles.active : ''}`}
-                                    onClick={() => setShowMetadata(!showMetadata)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowMetadata(!showMetadata);
+                                    }}
                                     title="Hide Metadata"
                                 >
-                                    <Eye size={20} />
+                                    <EyeOff size={20} />
                                 </button>
                                 {onClose && (
                                     <button
@@ -242,10 +252,13 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
                     </div>
 
                     {/* Top Controls (Collapsed Mode - Integrated) */}
-                    <div className={styles.controlsGroup} onMouseDown={(e) => e.stopPropagation()}>
+                    <div className={styles.controlsGroup} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
                         <button
                             className={`${styles.controlBtn} ${showMetadata ? styles.active : ''}`}
-                            onClick={() => setShowMetadata(!showMetadata)}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowMetadata(!showMetadata);
+                            }}
                             title="Show Metadata"
                         >
                             <Eye size={20} />
@@ -270,7 +283,7 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
                 ref={contentRef}
             >
                 <BlockEditor
-                    initialContent={data.content}
+                    initialContent={Array.isArray(data.content) ? data.content : []}
                     readOnly={false}
                     minimal={false}
                     onUpdate={useCallback((blocks: any[]) => onUpdate(id, { content: blocks }), [id, onUpdate])}
@@ -334,6 +347,17 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
                     />
                 )
             }
+
+            {showCoverPicker && (
+                <CoverPicker
+                    currentCover={data.coverImage || ''}
+                    onSelect={(url) => {
+                        onUpdate(id, { coverImage: url });
+                        setShowCoverPicker(false);
+                    }}
+                    onClose={() => setShowCoverPicker(false)}
+                />
+            )}
         </div >
     );
 }

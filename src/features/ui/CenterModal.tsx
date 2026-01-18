@@ -4,7 +4,11 @@ import styles from './FullscreenModal.module.css';
 import { NoteExpandedContent } from '../card/NoteExpandedContent';
 
 export function CenterModal() {
-    const { nodes, centerPanelId, setCenterPanelId, updateNodeData } = useStore();
+    // Atomic Selectors
+    const nodes = useStore(s => s.nodes);
+    const centerPanelId = useStore(s => s.centerPanelId);
+    const setCenterPanelId = useStore(s => s.setCenterPanelId);
+    const updateNodeData = useStore(s => s.updateNodeData);
 
     if (!centerPanelId) return null;
 
@@ -26,7 +30,7 @@ export function CenterModal() {
                         <div className={styles.editorContainer}>
                             <BlockEditor
                                 key={centerPanelId}
-                                initialContent={activeNode.data.content}
+                                initialContent={(activeNode.data as any).content}
                                 onUpdate={(blocks) => updateNodeData(centerPanelId, { content: blocks })}
                                 autoFocus={true}
                             />

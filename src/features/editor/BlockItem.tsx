@@ -4,6 +4,7 @@ import {
     TextBlock, HeadingBlock, TodoBlock, QuoteBlock, ImageBlock, ListBlock, CalloutBlock,
     DividerBlock, PageBlock, ContainerBlock, VideoBlock, FileBlock, ColumnsBlock, CodeBlock
 } from './BlockComponents';
+import { ColorBlock } from './ColorBlock';
 import type { Block } from './types';
 
 interface BlockItemProps {
@@ -105,6 +106,7 @@ export const BlockItem = memo(function BlockItem({
             case 'divider': return <DividerBlock />;
             case 'file': return <FileBlock {...props} />;
             case 'code': return <CodeBlock {...props} />;
+            case 'color': return <ColorBlock {...props} />;
             default: return <TextBlock {...props} />;
         }
     };

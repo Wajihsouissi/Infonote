@@ -78,7 +78,14 @@ const SortableColumnRow = ({ column, updateColumn, removeColumn, canDelete }: an
 };
 
 export function KanbanConfigModal() {
-    const { isKanbanModalOpen, setKanbanModalOpen, setEditingKanbanId, addNode, updateNodeData, editingKanbanId, nodes } = useStore();
+    // Atomic Selectors
+    const isKanbanModalOpen = useStore(s => s.isKanbanModalOpen);
+    const setKanbanModalOpen = useStore(s => s.setKanbanModalOpen);
+    const setEditingKanbanId = useStore(s => s.setEditingKanbanId);
+    const addNode = useStore(s => s.addNode);
+    const updateNodeData = useStore(s => s.updateNodeData);
+    const editingKanbanId = useStore(s => s.editingKanbanId);
+    const nodes = useStore(s => s.nodes);
 
     const [boardName, setBoardName] = useState('My Board');
     const [background, setBackground] = useState<string>(''); // '' = default/glass

@@ -7,7 +7,9 @@ interface NoteContentPanelProps {
 }
 
 export function NoteContentPanel({ nodeId }: NoteContentPanelProps) {
-    const { nodes, updateNodeData } = useStore();
+    // Atomic Selectors
+    const nodes = useStore(s => s.nodes);
+    const updateNodeData = useStore(s => s.updateNodeData);
     const node = nodes.find(n => n.id === nodeId);
 
     if (!node) return null;
@@ -17,7 +19,7 @@ export function NoteContentPanel({ nodeId }: NoteContentPanelProps) {
             <div className={styles.contentContainer} onMouseDownCapture={(e) => e.stopPropagation()}>
                 <BlockEditor
                     key={nodeId} // Reset Key on change
-                    initialContent={node.data.content}
+                    initialContent={(node.data as any).content}
                     onUpdate={(blocks) => updateNodeData(nodeId, { content: blocks })}
                 />
             </div>

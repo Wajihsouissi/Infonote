@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useStore } from '../../store/useStore';
 import styles from './BottomMenu.module.css';
-import { FileText, Cuboid, ChevronRight } from 'lucide-react';
+import { FileText, Cuboid, ChevronRight, Hash, Flag, Clock, Search } from 'lucide-react';
+import { highlightMatch, parseSearchQuery } from './searchUtils';
 
 interface SearchResultsProps {
     query: string;
@@ -9,9 +10,18 @@ interface SearchResultsProps {
 }
 
 export function SearchResults({ query, onClose }: SearchResultsProps) {
-    const { nodes, navigateToNode, setFullscreenId, setSidePanelId, setCenterPanelId } = useStore();
+    // Atomic Selectors
+    const nodes = useStore(s => s.nodes);
+    const navigateToNode = useStore(s => s.navigateToNode);
+    const setFullscreenId = useStore(s => s.setFullscreenId);
+    const setSidePanelId = useStore(s => s.setSidePanelId);
+    const setCenterPanelId = useStore(s => s.setCenterPanelId);
+
     const [results, setResults] = useState<any[]>([]);
     const [selectedIndex, setSelectedIndex] = useState(0);
+
+    // Initialize worker
+    const worker = useMemo(() => new Worker(new URL('./search.worker.ts', import.meta.url), { type: 'module' }), []);
 
     useEffect(() => {
         if (!query.trim()) {
@@ -19,31 +29,17 @@ export function SearchResults({ query, onClose }: SearchResultsProps) {
             return;
         }
 
-        const lowerQuery = query.toLowerCase();
-        const filtered = nodes.filter(node => {
-            if (!node || !node.data) return false;
-            const data = node.data as any;
+        // Send task to worker
+        worker.postMessage({ query, nodes });
 
-            const label = String(data.label || '').toLowerCase();
-            const content = String(data.content || '').toLowerCase();
-            const description = String(data.description || '').toLowerCase();
+        const handleMessage = (e: MessageEvent) => {
+            setResults(e.data.results);
+            setSelectedIndex(0);
+        };
 
-            return label.includes(lowerQuery) ||
-                content.includes(lowerQuery) ||
-                description.includes(lowerQuery);
-        }).map(node => {
-            const data = node.data as any;
-            return {
-                id: node.id,
-                label: String(data.label || 'Untitled'),
-                type: node.type,
-                preview: String(data.description || data.content || '')
-            };
-        }).slice(0, 5); // Limit to 5 results
-
-        setResults(filtered);
-        setSelectedIndex(0);
-    }, [query, nodes]);
+        worker.addEventListener('message', handleMessage);
+        return () => worker.removeEventListener('message', handleMessage);
+    }, [query, nodes, worker]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -92,10 +88,30 @@ export function SearchResults({ query, onClose }: SearchResultsProps) {
                         {result.type === 'note' ? <FileText size={16} /> : <Cuboid size={16} />}
                     </div>
                     <div className={styles.resultContent}>
-                        <div className={styles.resultTitle}>{result.label}</div>
+                        <div className={styles.resultTitle}>
+                            <span dangerouslySetInnerHTML={{ __html: highlightMatch(result.label, parseSearchQuery(query).text) }} />
+                            {result.status && <span className={styles.resultBadge}>{result.status}</span>}
+                        </div>
+                        <div className={styles.resultMeta}>
+                            {result.priority && (
+                                <span className={`${styles.metaItem} ${styles[result.priority]}`}>
+                                    <Flag size={10} /> {result.priority}
+                                </span>
+                            )}
+                            {result.tags?.map((tag: string) => (
+                                <span key={tag} className={styles.metaItem}>
+                                    <Hash size={10} /> {tag}
+                                </span>
+                            ))}
+                        </div>
                         {result.preview && (
                             <div className={styles.resultPreview}>
-                                {result.preview.slice(0, 40)}{result.preview.length > 40 ? '...' : ''}
+                                <span dangerouslySetInnerHTML={{ 
+                                    __html: highlightMatch(
+                                        result.preview.length > 80 ? result.preview.slice(0, 80) + '...' : result.preview,
+                                        parseSearchQuery(query).text
+                                    ) 
+                                }} />
                             </div>
                         )}
                     </div>

@@ -38,7 +38,15 @@ const dropAnimation = {
 };
 
 export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<KanbanNode>) => {
-    const { nodes, addNode, updateNodeData, updateNode, setInteractionState, setKanbanModalOpen, setEditingKanbanId } = useStore();
+    // Atomic Selectors
+    const nodes = useStore(s => s.nodes);
+    const addNode = useStore(s => s.addNode);
+    const updateNodeData = useStore(s => s.updateNodeData);
+    const updateNode = useStore(s => s.updateNode);
+    const setInteractionState = useStore(s => s.setInteractionState);
+    const setKanbanModalOpen = useStore(s => s.setKanbanModalOpen);
+    const setEditingKanbanId = useStore(s => s.setEditingKanbanId);
+
     const { setNodes, screenToFlowPosition, getIntersectingNodes, getViewport } = useReactFlow();
     const { zoom } = getViewport();
 
