@@ -6,14 +6,19 @@ import { useStore } from '../../store/useStore';
 
 import type { NoteNode } from '../../types';
 import styles from './BlockNode.module.css';
+import { toPastelColor } from '../../utils/colorUtils';
 
 // BlockNode is a "headless" or "chromeless" text unit.
 export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const { setNodes, deleteElements } = useReactFlow();
     const updateNodeData = useStore(s => s.updateNodeData);
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
+    const theme = useStore(s => s.theme);
 
     const isMultiSelected = selectedCanvasNodeIds.has(id);
+
+    // Convert color to pastel for better readability
+    const displayColor = data.color ? toPastelColor(data.color, theme === 'light') : undefined;
 
     // EditBar state
     const [showEditBar, setShowEditBar] = useState(false);
@@ -86,7 +91,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 e.stopPropagation();
             }}
             style={{
-                backgroundColor: data.color || undefined,
+                backgroundColor: displayColor || undefined,
             }}
         >
             <div className={`${styles.content}`}>

@@ -7,7 +7,9 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     editingKanbanId: null,
     interactionState: {
         draggingKanbanNodeId: null,
-        hoveredKanbanColumn: null
+        hoveredKanbanColumn: null,
+        draggedNodeId: null,
+        dropTarget: null
     },
     theme: (localStorage.getItem('infonote-theme') as 'light' | 'dark') || 'dark',
     selectedCanvasNodeIds: new Set<string>(),

@@ -52,7 +52,14 @@ export function initStorageManager(
                     const data = await fileSystemStorage.loadData();
                     if (data) {
                         console.log('[StorageManager] Initial load:', data.nodes.length, 'nodes');
-                        loadGraph(data.nodes, data.edges);
+                        
+                        // Progressive loading: load in batches for large datasets
+                        if (data.nodes.length > 1000) {
+                            console.log('[StorageManager] Large dataset detected, progressive loading...');
+                            await progressiveLoad(data.nodes, data.edges, loadGraph);
+                        } else {
+                            loadGraph(data.nodes, data.edges);
+                        }
                     } else {
                         console.log('[StorageManager] No existing data found in directory');
                     }
@@ -98,15 +105,49 @@ export function initStorageManager(
                 console.log('[StorageManager] Structural change, saving immediately');
                 performSave(getState);
             } else {
-                // Debounce content changes
+                // Debounce content changes - reduced to 500ms for more responsive saves
                 saveTimeout = window.setTimeout(() => {
                     performSave(getState);
-                }, 1000); // Increased debounce to 1s for better performance
+                }, 500);
             }
         }
     });
 
     console.log('[StorageManager] Initialized');
+}
+
+// Progressive loading for large datasets
+async function progressiveLoad(
+    nodes: any[],
+    edges: any[],
+    loadGraph: (nodes: any[], edges: any[]) => void
+) {
+    const BATCH_SIZE = 500;
+    const BATCH_DELAY = 16; // ~60fps
+    
+    // Load first batch immediately (priority nodes)
+    const firstBatch = nodes.slice(0, BATCH_SIZE);
+    const firstEdges = edges.filter(e => 
+        firstBatch.some(n => n.id === e.source || n.id === e.target)
+    );
+    
+    console.log('[StorageManager] Loading batch 1:', firstBatch.length, 'nodes');
+    loadGraph(firstBatch, firstEdges);
+    
+    // Load remaining batches progressively
+    for (let i = BATCH_SIZE; i < nodes.length; i += BATCH_SIZE) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+        
+        const batch = nodes.slice(0, i + BATCH_SIZE);
+        const batchEdges = edges.filter(e =>
+            batch.some(n => n.id === e.source || n.id === e.target)
+        );
+        
+        console.log(`[StorageManager] Loading batch ${Math.floor(i/BATCH_SIZE) + 1}:`, batch.length, 'nodes total');
+        loadGraph(batch, batchEdges);
+    }
+    
+    console.log('[StorageManager] Progressive load complete:', nodes.length, 'nodes');
 }
 
 async function performSave(getState: () => { nodes: any[]; edges: any[] }) {
@@ -151,7 +192,13 @@ export async function connectStorage(
         if (success) {
             const data = await fileSystemStorage.loadData();
             if (data) {
-                loadGraph(data.nodes, data.edges);
+                // Progressive loading for large datasets
+                if (data.nodes.length > 1000) {
+                    console.log('[StorageManager] Large dataset detected, progressive loading...');
+                    await progressiveLoad(data.nodes, data.edges, loadGraph);
+                } else {
+                    loadGraph(data.nodes, data.edges);
+                }
             } else {
                 // No data on disk, save current state
                 const { nodes, edges } = getState();

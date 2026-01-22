@@ -28,6 +28,9 @@ import type { AppNode } from "../../types";
 import styles from "./CanvasBoard.module.css";
 import { CANVAS_HORIZONTAL_GAP, CANVAS_VERTICAL_GAP, MAX_ITEMS_PER_ROW, ICON_SIZE, BASE_UNIT } from '../../config/layout';
 
+// Debug flag
+const DEBUG = import.meta.env.DEV;
+
 // Selection box state type - now uses screen coordinates for visual and flow coordinates for detection
 interface SelectionBox {
     // Screen coordinates (for visual rendering)
@@ -72,53 +75,66 @@ export function CanvasBoard() {
     // Throttling Ref
     const lastDragCheck = useRef(0);
     
+    // Viewport tracking for culling
+    const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
+    const lastViewportUpdate = useRef(0);
+    
     // Box selection state
     const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
     const [isCtrlPressed, setIsCtrlPressed] = useState(false);
     const selectionBoxRef = useRef<HTMLDivElement>(null);
     const justFinishedBoxSelection = useRef(false); // Prevents pane click from clearing selection immediately after box select
 
-    const { fitView, screenToFlowPosition, getIntersectingNodes, deleteElements, getNode, addNodes: reactFlowAddNodes, getNodes } = useReactFlow();
+    const { fitView, screenToFlowPosition, getIntersectingNodes, deleteElements, getNode, addNodes: reactFlowAddNodes, getNodes, getViewport } = useReactFlow();
 
-    // Filter nodes and edges for the current view
-    const visibleNodes = useMemo(() => {
-        console.log("[visibleNodes] Computing for currentParentId:", currentParentId);
+    // Memoize root nodes for the current parent level to avoid filtering all nodes on every viewport change
+    const rootNodes = useMemo(() => {
+        if (DEBUG) console.log("[rootNodes] Computing for currentParentId:", currentParentId);
         
-        // SIMPLE RULE: Show all nodes that belong to the current level
-        // If currentParentId is null (home), show nodes with no parent or undefined parent
-        // If currentParentId is set (child canvas), show nodes whose parentId matches
-        const rootNodes = nodes.filter(n => {
-            const matches = (n.parentId === undefined && currentParentId === null) ||
-                           n.parentId === currentParentId;
-            
-            if (currentParentId && matches) {
-                console.log("[visibleNodes] Including node:", {
-                    id: n.id,
-                    type: n.type,
-                    parentId: n.parentId,
-                    isStandalone: (n.data as any).isStandaloneBlock
-                });
-            }
-            
-            return matches;
-        });
+        return nodes.filter(n => 
+            (n.parentId === undefined && currentParentId === null) ||
+            n.parentId === currentParentId
+        );
+    }, [nodes, currentParentId]);
 
-        console.log("[visibleNodes] Result:", {
-            currentParentId,
-            totalNodes: nodes.length,
-            visibleCount: rootNodes.length
-        });
+    // Filter nodes and edges for the current view using viewport culling
+    const visibleNodes = useMemo(() => {
+        // Performance: For large graphs (>100 nodes), apply viewport culling
+        let culledNodes = rootNodes;
+        if (rootNodes.length > 100 && viewport) {
+            // Calculate visible viewport bounds with margin
+            const MARGIN = 500; // Reduced from 1000px for tighter culling
+            const minX = viewport.x - MARGIN;
+            const maxX = viewport.x + (window.innerWidth / viewport.zoom) + MARGIN;
+            const minY = viewport.y - MARGIN;
+            const maxY = viewport.y + (window.innerHeight / viewport.zoom) + MARGIN;
+            
+            culledNodes = rootNodes.filter(n => {
+                const nodeWidth = (n.style?.width as number) || 432;
+                const nodeHeight = (n.style?.height as number) || 432;
+                const nodeX = n.position.x;
+                const nodeY = n.position.y;
+                
+                // Check if node intersects with viewport
+                return (
+                    nodeX + nodeWidth >= minX &&
+                    nodeX <= maxX &&
+                    nodeY + nodeHeight >= minY &&
+                    nodeY <= maxY
+                );
+            });
+            
+            if (DEBUG) console.log("[visibleNodes] Culled:", rootNodes.length, "->", culledNodes.length);
+        }
 
         // STRIP PARENT ID for ReactFlow rendering
-        // When inside a child canvas, ReactFlow needs nodes to have undefined parentId
-        // Otherwise it tries to find the parent node (which isn't rendered) and crashes
-        return rootNodes.map(n => {
+        return culledNodes.map(n => {
             if (n.parentId === currentParentId) {
                 return { ...n, parentId: undefined };
             }
             return n;
         });
-    }, [nodes, currentParentId]);
+    }, [rootNodes, currentParentId, viewport]);
 
     useEffect(() => {
         if (currentParentId) {
@@ -440,49 +456,51 @@ export function CanvasBoard() {
     // Grid config
     const snapGrid: [number, number] = [56, 56];
 
+    const onNodeDragStart = useCallback((_event: React.MouseEvent, node: any) => {
+        setInteractionState({ draggedNodeId: node.id });
+        // Temporarily boost Z-index of the dragged node in the store
+        setNodesStore(nds => nds.map(n => n.id === node.id ? { ...n, zIndex: 10000 } : n));
+    }, [setInteractionState, setNodesStore]);
+
     // --- Drag In Logic (Canvas -> Kanban) ---
     const onNodeDrag = useCallback((_event: React.MouseEvent, node: any) => {
         // Throttle to max once per 100ms to reduce INP
         const now = Date.now();
-        if (now - lastDragCheck.current < 100) return;
+        if (now - lastDragCheck.current < 50) return; // Reduced throttle for smoother visual feedback
         lastDragCheck.current = now;
 
-        // Only care if dragging a regular note
-        if (node.type !== 'note') {
-            if (interactionState.hoveredKanbanColumn) {
-                setInteractionState({ hoveredKanbanColumn: null });
-            }
-            return;
-        }
-
         const intersections = getIntersectingNodes(node);
-        // Find a Kanban board we are hovering over
+        
+        // Find potential targets
         const targetKanban = intersections.find(n => n.type === 'kanban');
+        const targetOther = intersections.find(n => n.id !== node.id && (n.type === 'note' || n.type === 'fused-note' || n.type === 'block'));
 
-        if (targetKanban) {
-            // Calculate column
+        let newDropTarget: { id: string; type: 'fusion' | 'nesting' | 'kanban-column' } | null = null;
+
+        // Priority 1: Kanban Column
+        if (targetKanban && node.type === 'note') {
             const kanbanData = targetKanban.data as any;
             const currentColumns = kanbanData.columns;
 
             if (currentColumns && currentColumns.length > 0) {
                 const boardWidth = targetKanban.measured?.width ?? (targetKanban.style?.width as number) ?? 800;
-
-                // Calculate relative position based on absolute node position vs absolute board position
                 const relativeX = node.position.x - targetKanban.position.x;
-
                 const visualColWidth = (boardWidth - 48 - (20 * (currentColumns.length - 1))) / currentColumns.length;
                 const gap = 20;
                 const padding = 24;
                 const totalStep = visualColWidth + gap;
 
                 let colIndex = Math.floor((relativeX - padding + (gap / 2)) / totalStep);
-
                 if (colIndex < 0) colIndex = 0;
                 if (colIndex >= currentColumns.length) colIndex = currentColumns.length - 1;
 
                 const targetCol = currentColumns[colIndex];
+                
+                newDropTarget = {
+                    id: targetKanban.id,
+                    type: 'kanban-column'
+                };
 
-                // Update shared state only if changed
                 if (
                     interactionState.hoveredKanbanColumn?.kanbanId !== targetKanban.id ||
                     interactionState.hoveredKanbanColumn?.columnId !== targetCol.statusValue
@@ -491,25 +509,57 @@ export function CanvasBoard() {
                         hoveredKanbanColumn: {
                             kanbanId: targetKanban.id,
                             columnId: targetCol.statusValue
-                        }
+                        },
+                        dropTarget: newDropTarget
                     });
                 }
                 return;
             }
         }
 
-        // If no intersection or not kanban, clear state
-        if (interactionState.hoveredKanbanColumn) {
+        // Clear Kanban hover if not hovering kanban anymore
+        if (!targetKanban && interactionState.hoveredKanbanColumn) {
             setInteractionState({ hoveredKanbanColumn: null });
         }
 
-    }, [getIntersectingNodes, interactionState.hoveredKanbanColumn, setInteractionState]);
+        // Priority 2: Fusion or Nesting
+        if (targetOther) {
+            const isSourceBlock = node.type === 'block';
+            const isSourceFused = node.type === 'fused-note';
+            const isSourceNote = node.type === 'note';
+
+            const isTargetBlock = targetOther.type === 'block';
+            const isTargetFused = targetOther.type === 'fused-note';
+            const isTargetNote = targetOther.type === 'note';
+
+            if ((isTargetBlock || isTargetFused) && (isSourceBlock || isSourceFused)) {
+                newDropTarget = { id: targetOther.id, type: 'fusion' };
+            } else if (isTargetNote && (isSourceFused || isSourceNote || isSourceBlock)) {
+                newDropTarget = { id: targetOther.id, type: 'nesting' };
+            }
+        }
+
+        if (interactionState.dropTarget?.id !== newDropTarget?.id || interactionState.dropTarget?.type !== newDropTarget?.type) {
+            setInteractionState({ dropTarget: newDropTarget });
+        }
+
+    }, [getIntersectingNodes, interactionState.hoveredKanbanColumn, interactionState.dropTarget, setInteractionState]);
+
 
 
     const onNodeDragStop = useCallback((_event: React.MouseEvent, node: any) => {
         // Capture state before clearing
         const hoveredColumn = interactionState.hoveredKanbanColumn;
-        setInteractionState({ hoveredKanbanColumn: null });
+        
+        // Clear interaction states
+        setInteractionState({ 
+            hoveredKanbanColumn: null, 
+            draggedNodeId: null, 
+            dropTarget: null 
+        });
+
+        // Restore Z-index
+        setNodesStore(nds => nds.map(n => n.id === node.id ? { ...n, zIndex: 10 } : n));
 
         const isSourceBlock = node.type === 'block';
         const isSourceFused = node.type === 'fused-note';
@@ -1073,6 +1123,16 @@ export function CanvasBoard() {
             lastDragCheck.current = 0;
         };
     }, []);
+    
+    // Track viewport changes (throttled)
+    const handleViewportChange = useCallback(() => {
+        const now = Date.now();
+        if (now - lastViewportUpdate.current < 200) return; // Throttle to 200ms
+        
+        lastViewportUpdate.current = now;
+        const currentViewport = getViewport();
+        setViewport(currentViewport);
+    }, [getViewport]);
 
     return (
         <div 
@@ -1126,13 +1186,32 @@ export function CanvasBoard() {
                     snapGrid={snapGrid}
                     onDragOver={onDragOver}
                     onDrop={onDrop}
+                    onNodeDragStart={onNodeDragStart}
                     onNodeDrag={onNodeDrag}
                     onNodeDragStop={onNodeDragStop}
                     onNodeClick={onNodeClick}
                     onPaneClick={handlePaneClick}
+                    onMove={handleViewportChange}
                     selectionOnDrag={false}
                     panOnDrag={!isCtrlPressed}
                     selectionMode={SelectionMode.Partial}
+                    // Performance optimizations
+                    nodesDraggable={true}
+                    nodesConnectable={true}
+                    nodesFocusable={true}
+                    edgesFocusable={false}
+                    elementsSelectable={true}
+                    selectNodesOnDrag={false}
+                    panOnScroll={true}
+                    zoomOnScroll={true}
+                    zoomOnPinch={true}
+                    zoomOnDoubleClick={false}
+                    preventScrolling={false}
+                    // Improve rendering performance
+                    autoPanOnConnect={false}
+                    autoPanOnNodeDrag={false}
+                    connectOnClick={false}
+                    deleteKeyCode={null}
                 >
                     <CustomGrid />
                     <Controls className={styles.canvasControls} />

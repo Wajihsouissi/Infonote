@@ -16,9 +16,51 @@
     min-height: 40px;
     box-sizing: border-box;
     box-sizing: border-box;
-    transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.2s cubic-bezier(0.2, 0, 0.2, 1), border-color 0.2s ease, box-shadow 0.2s ease;
     box-shadow: var(--glass-shadow);
     color: var(--color-text-main);
+    will-change: transform, box-shadow, border-color;
+}
+
+.dragging {
+    transform: scale(1.01) rotate(1.5deg);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4), 0 0 0 2px var(--color-primary);
+    opacity: 0.95;
+    z-index: 10000 !important;
+}
+
+.dropTarget {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px var(--color-primary-glow), 0 0 20px var(--color-primary-glow);
+    animation: targetPulse 1.5s ease-in-out infinite;
+}
+
+.fusionTarget {
+    border-color: var(--color-secondary);
+    box-shadow: 0 0 0 4px var(--color-secondary-glow), 0 0 30px var(--color-secondary-glow);
+    animation: fusionPulse 1s ease-in-out infinite;
+}
+
+.fusing {
+    animation: fusionEffect 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes targetPulse {
+    0% { box-shadow: 0 0 0 2px var(--color-primary-glow); }
+    50% { box-shadow: 0 0 0 6px var(--color-primary-glow), 0 0 25px var(--color-primary-glow); }
+    100% { box-shadow: 0 0 0 2px var(--color-primary-glow); }
+}
+
+@keyframes fusionPulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 2px var(--color-secondary-glow); }
+    50% { transform: scale(1.02); box-shadow: 0 0 0 8px var(--color-secondary-glow), 0 0 40px var(--color-secondary-glow); }
+    100% { transform: scale(1); box-shadow: 0 0 0 2px var(--color-secondary-glow); }
+}
+
+@keyframes fusionEffect {
+    0% { transform: scale(1); filter: brightness(1); }
+    50% { transform: scale(1.1); filter: brightness(2) contrast(1.2); }
+    100% { transform: scale(1); filter: brightness(1); }
 }
 
 .floatingHandle {

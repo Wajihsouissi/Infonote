@@ -1,32 +1,58 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { AppNode } from '../types';
 
+// Debug flag
+const DEBUG = import.meta.env.DEV;
+
 interface SyncResult {
     parentContent: any[];
     nodesToUpdate: Array<{ id: string; data: any }>;
     shouldUpdate: boolean;
 }
 
+// Helper to build indexes for fast lookups
+function buildNodeIndexes(nodes: AppNode[]) {
+    const byId = new Map<string, AppNode>();
+    const childrenByParent = new Map<string | undefined, AppNode[]>();
+    
+    for (const node of nodes) {
+        byId.set(node.id, node);
+        
+        const parentKey = node.parentId;
+        if (!childrenByParent.has(parentKey)) {
+            childrenByParent.set(parentKey, []);
+        }
+        childrenByParent.get(parentKey)!.push(node);
+    }
+    
+    return { byId, childrenByParent };
+}
+
 export const computeParentContentUpdate = (parentId: string, allNodes: AppNode[]): SyncResult | null => {
-    const parent = allNodes.find(n => n.id === parentId);
+    // Build indexes for O(1) lookups instead of O(n) find/filter
+    const { byId, childrenByParent } = buildNodeIndexes(allNodes);
+    
+    const parent = byId.get(parentId);
     if (!parent || parent.type !== 'note') return null;
 
     // 1. Get Children - Include all nodes that belong to this parent
-    const children = allNodes.filter(n =>
-        n.parentId === parentId &&
+    const allChildren = childrenByParent.get(parentId) || [];
+    const children = allChildren.filter(n =>
         ['fused-note', 'block', 'note', 'kanban'].includes(n.type)
     );
 
-    console.log("[ContentSync] Processing parent:", {
-        parentId,
-        allChildrenCount: allNodes.filter(n => n.parentId === parentId).length,
-        syncedChildrenCount: children.length,
-        children: children.map(c => ({
-            id: c.id,
-            type: c.type,
-            isStandalone: (c.data as any).isStandaloneBlock
-        }))
-    });
+    if (DEBUG) {
+        console.log("[ContentSync] Processing parent:", {
+            parentId,
+            allChildrenCount: allChildren.length,
+            syncedChildrenCount: children.length,
+            children: children.map(c => ({
+                id: c.id,
+                type: c.type,
+                isStandalone: (c.data as any).isStandaloneBlock
+            }))
+        });
+    }
 
     // 2. Sort by Visual Position
     children.sort((a, b) => {
@@ -57,18 +83,20 @@ export const computeParentContentUpdate = (parentId: string, allNodes: AppNode[]
                 // If a block is a 'page' reference, ensure the actual Node label matches the Block content.
                 content.forEach((b: any) => {
                     if (b.type === 'page' && b.metadata?.nodeId) {
-                        const linkedNode = allNodes.find(n => n.id === b.metadata.nodeId);
+                        const linkedNode = byId.get(b.metadata.nodeId);
 
                         if (linkedNode) {
                             const currentLabel = (linkedNode.data as any).label;
                             const contentMatch = currentLabel === b.content;
 
                             if (!contentMatch) {
-                                console.log("Sync Check: MISMATCH DETECTED. Scheduling Update.", {
-                                    id: linkedNode.id,
-                                    old: currentLabel,
-                                    new: b.content
-                                });
+                                if (DEBUG) {
+                                    console.log("Sync Check: MISMATCH DETECTED. Scheduling Update.", {
+                                        id: linkedNode.id,
+                                        old: currentLabel,
+                                        new: b.content
+                                    });
+                                }
 
                                 const existingUpdate = nodesToUpdate.find(u => u.id === linkedNode.id);
                                 if (existingUpdate) {
@@ -106,14 +134,16 @@ export const computeParentContentUpdate = (parentId: string, allNodes: AppNode[]
     const shouldUpdate = currentContentStr !== newContentStr || nodesToUpdate.length > 0;
 
     if (shouldUpdate) {
-        console.log("SyncParentContent (Computed):", {
-            parentId,
-            childrenCount: children.length,
-            currentLen: (parent.data.content as any[])?.length,
-            newLen: reconstructedContent.length,
-            hasChanged: currentContentStr !== newContentStr,
-            updates: nodesToUpdate.length
-        });
+        if (DEBUG) {
+            console.log("SyncParentContent (Computed):", {
+                parentId,
+                childrenCount: children.length,
+                currentLen: (parent.data.content as any[])?.length,
+                newLen: reconstructedContent.length,
+                hasChanged: currentContentStr !== newContentStr,
+                updates: nodesToUpdate.length
+            });
+        }
     }
 
     return {

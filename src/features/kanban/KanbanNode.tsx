@@ -419,6 +419,7 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                     {data.columns.map((col) => (
                         <KanbanColumn
                             key={col.id}
+                            kanbanId={id}
                             column={col}
                             cards={columnsData[col.statusValue] || []}
                             onAddCard={handleAddCard}
@@ -430,7 +431,7 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                 <DragOverlay dropAnimation={dropAnimation} modifiers={[snapCenterToCursor]}>
                     {activeNode ? (
                         <div style={{
-                            transform: `scale(${zoom * 1.05}) rotate(4deg)`,
+                            transform: `scale(${zoom * 1.02}) rotate(2deg)`,
                             cursor: 'grabbing',
                             width: activeNode.measured?.width || activeNode.style?.width || 224,
                             transformOrigin: 'center center'

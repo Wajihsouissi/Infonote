@@ -1,11 +1,14 @@
 import { ReactFlowProvider } from '@xyflow/react';
 import { CanvasBoard } from './features/canvas/CanvasBoard';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
   return (
-    <ReactFlowProvider>
-      <CanvasBoard />
-    </ReactFlowProvider>
+    <ErrorBoundary>
+      <ReactFlowProvider>
+        <CanvasBoard />
+      </ReactFlowProvider>
+    </ErrorBoundary>
   );
 }
 

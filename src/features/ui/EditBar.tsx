@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Palette, Trash2, Copy, Link } from 'lucide-react';
 import styles from './EditBar.module.css';
+import { toPastelColor } from '../../utils/colorUtils';
+import { useStore } from '../../store/useStore';
 
 interface EditBarProps {
     position: { x: number; y: number };
@@ -33,8 +35,13 @@ export function EditBar({
     onDuplicate,
     onCopyLink
 }: EditBarProps) {
+    const theme = useStore(s => s.theme);
     const [showColorPicker, setShowColorPicker] = useState(false);
     const editBarRef = useRef<HTMLDivElement>(null);
+
+    const pastelPresetColors = useMemo(() => {
+        return PRESET_COLORS.map(color => toPastelColor(color, theme === 'light'));
+    }, [theme]);
 
     // Adjust position to prevent overflow
     useEffect(() => {
@@ -118,14 +125,14 @@ export function EditBar({
                     {showColorPicker && (
                         <div className={styles.colorPicker}>
                             <div className={styles.colorGrid}>
-                                {PRESET_COLORS.map((color) => (
+                                {PRESET_COLORS.map((color, index) => (
                                     <button
                                         key={color}
                                         className={`${styles.colorSwatch} ${currentColor === color ? styles.colorSwatchActive : ''
                                             }`}
-                                        style={{ background: color }}
+                                        style={{ background: pastelPresetColors[index] }}
                                         onClick={() => handleColorSelect(color)}
-                                        title={color}
+                                        title={`${color} (pastel)`}
                                     />
                                 ))}
                             </div>

@@ -10,6 +10,29 @@ import type { AppNode } from '../../types';
 import { computeParentContentUpdate } from '../contentSync';
 import type { AppState, NodeSlice } from '../types';
 
+// Debug flag - set to false in production
+const DEBUG = import.meta.env.DEV;
+
+// Debounce map for parent content sync to prevent thrashing
+const pendingSyncTimers = new Map<string, number>();
+
+// Helper to schedule debounced sync
+function scheduleParentSync(parentId: string, syncFn: () => void, delayMs: number = 250) {
+    // Clear existing timer for this parent
+    const existingTimer = pendingSyncTimers.get(parentId);
+    if (existingTimer) {
+        clearTimeout(existingTimer);
+    }
+    
+    // Schedule new sync
+    const timerId = window.setTimeout(() => {
+        pendingSyncTimers.delete(parentId);
+        syncFn();
+    }, delayMs);
+    
+    pendingSyncTimers.set(parentId, timerId);
+}
+
 // Default initial state (will be replaced by loadGraph if storage has data)
 const getInitialNodes = (): AppNode[] => {
     // Check if we should skip defaults (storage will load)
@@ -91,8 +114,10 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             return detail;
         });
 
-        console.log("[onNodesChange] Received changes (detailed):");
-        detailedChanges.forEach(c => console.log("  ", c));
+        if (DEBUG) {
+            console.log("[onNodesChange] Received changes (detailed):");
+            detailedChanges.forEach(c => console.log("  ", c));
+        }
 
         // CRITICAL FIX: Preserve parentId for standalone blocks during 'replace' changes
         const filteredChanges = changes.map(change => {
@@ -100,7 +125,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 const nodeId = (change as any).id;
                 const existingNode = get().nodes.find(n => n.id === nodeId);
                 if (existingNode && (existingNode.data as any).isStandaloneBlock && existingNode.parentId) {
-                    console.log("[onNodesChange] Preserving parentId for standalone block during replace:", nodeId);
+                    if (DEBUG) console.log("[onNodesChange] Preserving parentId for standalone block during replace:", nodeId);
                     // Modify the replace change to preserve parentId
                     return {
                         ...change,
@@ -124,10 +149,12 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         const nodesAfter = get().nodes.length;
 
         if (nodesBefore !== nodesAfter) {
-            console.log("[onNodesChange] Nodes count changed:", {
-                before: nodesBefore,
-                after: nodesAfter
-            });
+            if (DEBUG) {
+                console.log("[onNodesChange] Nodes count changed:", {
+                    before: nodesBefore,
+                    after: nodesAfter
+                });
+            }
         }
 
         // Optimization: Sync parent content on structural changes OR position changes (to update order)
@@ -136,8 +163,8 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         const { currentParentId } = get();
         if (currentParentId && (hasStructuralChange || hasFinishedDragging)) {
-            console.log("[onNodesChange] Triggering syncParentContent for:", currentParentId);
-            get().syncParentContent(currentParentId);
+            if (DEBUG) console.log("[onNodesChange] Scheduling syncParentContent for:", currentParentId);
+            scheduleParentSync(currentParentId, () => get().syncParentContent(currentParentId));
         }
     },
 
@@ -184,25 +211,27 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             parentId: targetParentId,
         };
 
-        console.log("[addNode] Creating node:", {
-            id: newNode.id,
-            type: newNode.type,
-            parentId: targetParentId,
-            isStandalone: (newNode.data as any).isStandaloneBlock,
-            currentParentId
-        });
+        if (DEBUG) {
+            console.log("[addNode] Creating node:", {
+                id: newNode.id,
+                type: newNode.type,
+                parentId: targetParentId,
+                isStandalone: (newNode.data as any).isStandaloneBlock,
+                currentParentId
+            });
+        }
 
         set((state) => {
             if (state.nodes.some(n => n.id === newNode.id)) {
-                console.warn(`[Store] Duplicate node ID detected: ${newNode.id}. Skipping add.`);
+                if (DEBUG) console.warn(`[Store] Duplicate node ID detected: ${newNode.id}. Skipping add.`);
                 return {};
             }
             return { nodes: [...state.nodes, newNode] };
         });
 
         if (targetParentId) {
-            console.log("[addNode] Calling syncParentContent for:", targetParentId);
-            get().syncParentContent(targetParentId);
+            if (DEBUG) console.log("[addNode] Scheduling syncParentContent for:", targetParentId);
+            scheduleParentSync(targetParentId, () => get().syncParentContent(targetParentId));
         }
     },
 
@@ -217,7 +246,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         
         // Sync parent content if we're updating a child node
         if (currentParentId) {
-            get().syncParentContent(currentParentId);
+            scheduleParentSync(currentParentId, () => get().syncParentContent(currentParentId));
         }
 
         // BIDIRECTIONAL SYNC: If updating a parent note's content, sync down to child nodes
@@ -368,7 +397,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         // Sync parent content if we are splitInside a child canvas
         if (sourceNode.parentId) {
-            get().syncParentContent(sourceNode.parentId);
+            scheduleParentSync(sourceNode.parentId, () => get().syncParentContent(sourceNode.parentId));
         }
     },
 
@@ -469,21 +498,25 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
     syncParentContent: (parentId: string) => {
         const { nodes } = get();
-        console.log("[syncParentContent] Before sync - nodes with parentId", parentId, ":",
-            nodes.filter(n => n.parentId === parentId).map(n => ({
-                id: n.id,
-                type: n.type,
-                isStandalone: (n.data as any).isStandaloneBlock
-            }))
-        );
+        if (DEBUG) {
+            console.log("[syncParentContent] Before sync - nodes with parentId", parentId, ":",
+                nodes.filter(n => n.parentId === parentId).map(n => ({
+                    id: n.id,
+                    type: n.type,
+                    isStandalone: (n.data as any).isStandaloneBlock
+                }))
+            );
+        }
 
         const result = computeParentContentUpdate(parentId, nodes);
 
         if (result && result.shouldUpdate) {
-            console.log("[syncParentContent] Updating nodes:", {
-                parentId,
-                nodesToUpdate: result.nodesToUpdate.map(u => u.id)
-            });
+            if (DEBUG) {
+                console.log("[syncParentContent] Updating nodes:", {
+                    parentId,
+                    nodesToUpdate: result.nodesToUpdate.map(u => u.id)
+                });
+            }
 
             set((state) => ({
                 nodes: state.nodes.map(n => {
@@ -498,45 +531,53 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 })
             }));
 
-            console.log("[syncParentContent] After sync - nodes with parentId", parentId, ":",
-                get().nodes.filter(n => n.parentId === parentId).map(n => ({
-                    id: n.id,
-                    type: n.type,
-                    isStandalone: (n.data as any).isStandaloneBlock
-                }))
-            );
+            if (DEBUG) {
+                console.log("[syncParentContent] After sync - nodes with parentId", parentId, ":",
+                    get().nodes.filter(n => n.parentId === parentId).map(n => ({
+                        id: n.id,
+                        type: n.type,
+                        isStandalone: (n.data as any).isStandaloneBlock
+                    }))
+                );
+            }
         } else {
-            console.log("[syncParentContent] No update needed for:", parentId);
+            if (DEBUG) console.log("[syncParentContent] No update needed for:", parentId);
         }
     },
 
     bulkDeleteNodes: (nodeIds: string[]) => {
         const { nodes, edges } = get();
 
-        console.log("[bulkDeleteNodes] Input nodeIds:", nodeIds);
-        console.log("[bulkDeleteNodes] Total nodes before:", nodes.length);
+        if (DEBUG) {
+            console.log("[bulkDeleteNodes] Input nodeIds:", nodeIds);
+            console.log("[bulkDeleteNodes] Total nodes before:", nodes.length);
+        }
 
         // Filter out nodes and edges connected to deleted nodes
         const newNodes = nodes.filter(n => !nodeIds.includes(n.id));
         const newEdges = edges.filter(e => !nodeIds.includes(e.source) && !nodeIds.includes(e.target));
 
-        console.log("[bulkDeleteNodes] Total nodes after:", newNodes.length);
-        console.log("[bulkDeleteNodes] Deleted count:", nodes.length - newNodes.length);
+        if (DEBUG) {
+            console.log("[bulkDeleteNodes] Total nodes after:", newNodes.length);
+            console.log("[bulkDeleteNodes] Deleted count:", nodes.length - newNodes.length);
+        }
 
         set({ nodes: newNodes, edges: newEdges });
 
-        console.log("[bulkDeleteNodes] Completed");
+        if (DEBUG) console.log("[bulkDeleteNodes] Completed");
     },
 
     bulkDuplicateNodes: (nodeIds: string[]) => {
         const { nodes, currentParentId } = get();
         const nodesToDuplicate = nodes.filter(n => nodeIds.includes(n.id));
 
-        console.log("[bulkDuplicateNodes] Input nodeIds:", nodeIds);
-        console.log("[bulkDuplicateNodes] Found nodes to duplicate:", nodesToDuplicate.length);
+        if (DEBUG) {
+            console.log("[bulkDuplicateNodes] Input nodeIds:", nodeIds);
+            console.log("[bulkDuplicateNodes] Found nodes to duplicate:", nodesToDuplicate.length);
+        }
 
         if (nodesToDuplicate.length === 0) {
-            console.log("[bulkDuplicateNodes] No nodes found to duplicate!");
+            if (DEBUG) console.log("[bulkDuplicateNodes] No nodes found to duplicate!");
             return;
         }
 
@@ -544,7 +585,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         const newNodes: AppNode[] = [];
 
         nodesToDuplicate.forEach(node => {
-            console.log("[bulkDuplicateNodes] Duplicating node:", node.id, "type:", node.type);
+            if (DEBUG) console.log("[bulkDuplicateNodes] Duplicating node:", node.id, "type:", node.type);
             const newNode = {
                 ...node,
                 id: uuidv4(),
@@ -563,21 +604,23 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             newNodes.push(newNode);
         });
 
-        console.log("[bulkDuplicateNodes] Created", newNodes.length, "new nodes");
+        if (DEBUG) console.log("[bulkDuplicateNodes] Created", newNodes.length, "new nodes");
 
         set((state) => ({ nodes: [...state.nodes, ...newNodes] }));
 
-        console.log("[bulkDuplicateNodes] Completed");
+        if (DEBUG) console.log("[bulkDuplicateNodes] Completed");
     },
 
     bulkApplyColor: (nodeIds: string[], color: string) => {
-        console.log("[bulkApplyColor] Input nodeIds:", nodeIds);
-        console.log("[bulkApplyColor] Color:", color);
+        if (DEBUG) {
+            console.log("[bulkApplyColor] Input nodeIds:", nodeIds);
+            console.log("[bulkApplyColor] Color:", color);
+        }
 
         set((state) => ({
             nodes: state.nodes.map(n => {
                 if (nodeIds.includes(n.id)) {
-                    console.log("[bulkApplyColor] Applying color to node:", n.id);
+                    if (DEBUG) console.log("[bulkApplyColor] Applying color to node:", n.id);
                     return {
                         ...n,
                         data: {
@@ -590,19 +633,21 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             })
         }));
 
-        console.log("[bulkApplyColor] Completed");
+        if (DEBUG) console.log("[bulkApplyColor] Completed");
     },
 
     fuseNodes: (nodeIds: string[]) => {
         const { nodes, edges, currentParentId } = get();
         const nodesToFuse = nodes.filter(n => nodeIds.includes(n.id));
 
-        console.log("[fuseNodes] Input nodeIds:", nodeIds);
-        console.log("[fuseNodes] Found nodes to fuse:", nodesToFuse.length);
-        console.log("[fuseNodes] All node IDs before:", nodes.map(n => n.id));
+        if (DEBUG) {
+            console.log("[fuseNodes] Input nodeIds:", nodeIds);
+            console.log("[fuseNodes] Found nodes to fuse:", nodesToFuse.length);
+            console.log("[fuseNodes] All node IDs before:", nodes.map(n => n.id));
+        }
 
         if (nodesToFuse.length < 2) {
-            console.log("[fuseNodes] Need at least 2 nodes to fuse, got:", nodesToFuse.length);
+            if (DEBUG) console.log("[fuseNodes] Need at least 2 nodes to fuse, got:", nodesToFuse.length);
             return;
         }
 
@@ -610,12 +655,12 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         const avgX = nodesToFuse.reduce((sum, n) => sum + n.position.x, 0) / nodesToFuse.length;
         const avgY = nodesToFuse.reduce((sum, n) => sum + n.position.y, 0) / nodesToFuse.length;
 
-        console.log("[fuseNodes] Average position:", { x: avgX, y: avgY });
+        if (DEBUG) console.log("[fuseNodes] Average position:", { x: avgX, y: avgY });
 
         // Collect all content from all nodes
         const allContent: any[] = [];
         nodesToFuse.forEach(node => {
-            console.log("[fuseNodes] Processing node:", node.id, "type:", node.type);
+            if (DEBUG) console.log("[fuseNodes] Processing node:", node.id, "type:", node.type);
             if (node.type === 'note') {
                 // Convert note to a page block
                 const pageBlock = {
@@ -630,11 +675,11 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             }
         });
 
-        console.log("[fuseNodes] Total content blocks:", allContent.length);
+        if (DEBUG) console.log("[fuseNodes] Total content blocks:", allContent.length);
 
         // Generate NEW unique ID
         const fusedNodeId = uuidv4();
-        console.log("[fuseNodes] Generated new fused node ID:", fusedNodeId);
+        if (DEBUG) console.log("[fuseNodes] Generated new fused node ID:", fusedNodeId);
 
         // Create fused node
         const fusedNode: AppNode = {
@@ -654,24 +699,26 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         // Remove original nodes and add fused node
         const newNodes = nodes.filter(n => !nodeIds.includes(n.id));
-        console.log("[fuseNodes] Nodes after filtering:", newNodes.length, "removed:", nodes.length - newNodes.length);
+        if (DEBUG) console.log("[fuseNodes] Nodes after filtering:", newNodes.length, "removed:", nodes.length - newNodes.length);
 
         newNodes.push(fusedNode);
-        console.log("[fuseNodes] Nodes after adding fused:", newNodes.length);
+        if (DEBUG) console.log("[fuseNodes] Nodes after adding fused:", newNodes.length);
 
         // Check for duplicates
         const nodeIdSet = new Set(newNodes.map(n => n.id));
         if (nodeIdSet.size !== newNodes.length) {
-            console.error("[fuseNodes] ERROR: Duplicate node IDs detected!");
-            const idCounts = new Map<string, number>();
-            newNodes.forEach(n => {
-                idCounts.set(n.id, (idCounts.get(n.id) || 0) + 1);
-            });
-            idCounts.forEach((count, id) => {
-                if (count > 1) {
-                    console.error("[fuseNodes] Duplicate ID:", id, "count:", count);
-                }
-            });
+            if (DEBUG) {
+                console.error("[fuseNodes] ERROR: Duplicate node IDs detected!");
+                const idCounts = new Map<string, number>();
+                newNodes.forEach(n => {
+                    idCounts.set(n.id, (idCounts.get(n.id) || 0) + 1);
+                });
+                idCounts.forEach((count, id) => {
+                    if (count > 1) {
+                        console.error("[fuseNodes] Duplicate ID:", id, "count:", count);
+                    }
+                });
+            }
         }
 
         // Remove edges connected to deleted nodes
@@ -679,12 +726,25 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         set({ nodes: newNodes, edges: newEdges });
 
-        console.log("[fuseNodes] Completed - Final node count:", newNodes.length);
+        if (DEBUG) console.log("[fuseNodes] Completed - Final node count:", newNodes.length);
     },
 
     hydrateCanvasFromContent: (nodeId: string) => {
         const { nodes } = get();
-        const parentNode = nodes.find(n => n.id === nodeId);
+        
+        // Build index for O(1) lookups
+        const byId = new Map<string, AppNode>();
+        const childrenByParent = new Map<string | undefined, AppNode[]>();
+        for (const node of nodes) {
+            byId.set(node.id, node);
+            const parentKey = node.parentId;
+            if (!childrenByParent.has(parentKey)) {
+                childrenByParent.set(parentKey, []);
+            }
+            childrenByParent.get(parentKey)!.push(node);
+        }
+        
+        const parentNode = byId.get(nodeId);
 
         if (!parentNode || !(parentNode.data as any).content || !Array.isArray((parentNode.data as any).content)) {
             return;
@@ -693,8 +753,8 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         const parentContent = (parentNode.data as any).content as any[];
         if (parentContent.length === 0) return;
 
-        // Get existing children
-        const children = nodes.filter(n => n.parentId === nodeId);
+        // Get existing children using index
+        const children = childrenByParent.get(nodeId) || [];
 
         // Collect all block IDs currently represented on the canvas
         const representedBlockIds = new Set<string>();
@@ -714,11 +774,11 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         const orphanBlocks = parentContent.filter(b => !representedBlockIds.has(b.id));
 
         if (orphanBlocks.length === 0) {
-            console.log("[hydrateCanvas] No orphan blocks found.");
+            if (DEBUG) console.log("[hydrateCanvas] No orphan blocks found.");
             return;
         }
 
-        console.log("[hydrateCanvas] Found orphans:", orphanBlocks.length);
+        if (DEBUG) console.log("[hydrateCanvas] Found orphans:", orphanBlocks.length);
 
         // Build sections from orphans, split by headings and dividers
         const orphanIdSet = new Set(orphanBlocks.map(b => b.id));
@@ -755,7 +815,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         }
 
         if (sections.length === 0) {
-            console.log("[hydrateCanvas] Orphans exist but no sections were formed.");
+            if (DEBUG) console.log("[hydrateCanvas] Orphans exist but no sections were formed.");
             return;
         }
 
@@ -800,6 +860,6 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             nodes: [...state.nodes, ...newNodes]
         }));
 
-        console.log("[hydrateCanvas] Created fused nodes for sections:", newNodes.map(n => n.id));
+        if (DEBUG) console.log("[hydrateCanvas] Created fused nodes for sections:", newNodes.map(n => n.id));
     }
 });

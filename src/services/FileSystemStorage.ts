@@ -1,8 +1,15 @@
 import type { AppNode } from '../types';
 import type { Edge } from '@xyflow/react';
+import LZString from 'lz-string';
+import { perfMonitor } from '../utils/performance';
 
 const NODES_FILE = 'nodes.json';
 const EDGES_FILE = 'edges.json';
+const BACKUP_NODES_FILE = 'nodes.backup.json';
+const BACKUP_EDGES_FILE = 'edges.backup.json';
+const TEMP_NODES_FILE = 'nodes.tmp.json';
+const TEMP_EDGES_FILE = 'edges.tmp.json';
+const USE_COMPRESSION = true; // Enable compression for large datasets
 
 // Extend the Window interface to include the File System Access API
 // Extend the Window interface and FileSystem definitions
@@ -36,6 +43,7 @@ export class FileSystemStorage {
     private _saveQueue: (() => Promise<void>)[] = [];
     private _lastSavedState: { nodes: AppNode[]; edges: Edge[] } | null = null;
     private _pendingResolvers: { resolve: () => void; reject: (e: any) => void }[] = [];
+    private _lastSaveHash: string | null = null;
 
     constructor() {
         this.initDB();
@@ -109,18 +117,12 @@ export class FileSystemStorage {
         const handle = await this.getStoredHandle();
         if (!handle) return false;
 
-        // We have a handle, but we need to verify permissions
-        // This MUST be triggered by user gesture for 'readwrite'
         try {
-            // Check if we already have permission
             if ((await handle.queryPermission({ mode: 'readwrite' })) === 'granted') {
                 this.directoryHandle = handle;
                 return true;
             }
 
-            // If not, we might be able to request it, but often the browser blocks 
-            // full requestPermission() unless in a gesture.
-            // We will assume this is called inside a click handler.
             if ((await handle.requestPermission({ mode: 'readwrite' })) === 'granted') {
                 this.directoryHandle = handle;
                 return true;
@@ -141,7 +143,6 @@ export class FileSystemStorage {
 
     private getFolderName(node: AppNode): string {
         const label = (node.data as any).label || 'Untitled';
-        // Limit label length and use longer ID segment to avoid collisions and path limits
         const safeName = label.replace(/[^a-z0-9]/gi, '_').toLowerCase().slice(0, 32);
         return `${safeName}_${node.id.slice(0, 8)}`;
     }
@@ -149,16 +150,12 @@ export class FileSystemStorage {
     async saveData(nodes: AppNode[], edges: Edge[], options?: { skipFolderSync?: boolean }): Promise<void> {
         if (!this.directoryHandle) return;
 
-        // If already saving, queue this save and return a promise that resolves when the NEXT save finishes
+        // If already saving, queue this save properly (don't drop it)
         if (this._isSaving) {
             return new Promise((resolve, reject) => {
-                // Store the resolver so we can notify this caller when the queued save finishes
                 this._pendingResolvers.push({ resolve, reject });
                 
-                // Replace the actual queued operation with the latest data
-                // We only need one operation in the queue at any time
-                this._saveQueue = [async () => {
-                    // Capture resolvers for THIS specific batch
+                this._saveQueue.push(async () => {
                     const resolvers = [...this._pendingResolvers];
                     this._pendingResolvers = [];
                     
@@ -168,7 +165,7 @@ export class FileSystemStorage {
                     } catch (e) {
                         resolvers.forEach(r => r.reject(e));
                     }
-                }];
+                });
             });
         }
 
@@ -178,46 +175,181 @@ export class FileSystemStorage {
     private async _doSave(nodes: AppNode[], edges: Edge[], options?: { skipFolderSync?: boolean }): Promise<void> {
         if (!this.directoryHandle) return;
         
+        perfMonitor.startTimer('storage.save', { nodeCount: nodes.length });
+        
+        // Quick hash to detect duplicate saves
+        const currentHash = this.hashState(nodes, edges);
+        if (this._lastSaveHash === currentHash) {
+            console.log('[Storage] Skip - identical state already saved');
+            perfMonitor.endTimer('storage.save');
+            return;
+        }
+        
         this._isSaving = true;
+        const startTime = Date.now();
         console.log('[Storage] Starting save...', nodes.length, 'nodes');
 
         try {
-            // Write main data files (compact JSON) - This is the critical path for data safety
+            // 1. Create backup of existing files (Obsidian-style safety)
+            await this.createBackup();
+            
+            // 2. Write to temporary files first (atomic write pattern)
             await Promise.all([
-                this.writeJsonFile(NODES_FILE, nodes),
-                this.writeJsonFile(EDGES_FILE, edges)
+                this.writeJsonFile(TEMP_NODES_FILE, nodes),
+                this.writeJsonFile(TEMP_EDGES_FILE, edges)
             ]);
+            
+            // 3. Verify temp files are valid
+            try {
+                await this.readJsonFile<AppNode[]>(TEMP_NODES_FILE);
+                await this.readJsonFile<Edge[]>(TEMP_EDGES_FILE);
+            } catch (verifyError) {
+                console.error('[Storage] Temp file verification failed, aborting save');
+                throw new Error('Save verification failed');
+            }
+            
+            // 4. Atomic rename: temp -> main (this is the commit point)
+            await this.atomicReplace(TEMP_NODES_FILE, NODES_FILE);
+            await this.atomicReplace(TEMP_EDGES_FILE, EDGES_FILE);
 
-            // Store the last saved state for comparison
+            // Store state and hash
             this._lastSavedState = { nodes, edges };
-            console.log('[Storage] Saved successfully:', nodes.length, 'nodes');
+            this._lastSaveHash = currentHash;
+            
+            const duration = Date.now() - startTime;
+            console.log(`[Storage] Saved successfully in ${duration}ms:`, nodes.length, 'nodes');
+            perfMonitor.endTimer('storage.save', { success: true });
 
-            // Sync individual cards to folders (create new, update existing, delete orphans)
-            if (!options?.skipFolderSync) {
-                await this.syncCardsToFolders(nodes);
+            // Sync individual cards to folders (background, non-critical)
+            if (!options?.skipFolderSync && nodes.length <= 2000) {
+                this.syncCardsToFolders(nodes).catch(err => 
+                    console.warn('[Storage] Background folder sync failed:', err)
+                );
+            } else if (nodes.length > 2000) {
+                console.log('[Storage] Skipping folder sync for large graph:', nodes.length, 'nodes');
             }
 
         } catch (error: any) {
-            console.error('Failed to save data:', error);
+            console.error('[Storage] Save failed:', error);
+            perfMonitor.endTimer('storage.save', { success: false, error: error.message });
+            
+            await this.restoreFromBackup().catch(restoreErr =>
+                console.error('[Storage] Backup restore also failed:', restoreErr)
+            );
+            
             if (error.name === 'NotFoundError' || error.name === 'NotAllowedError') {
-                console.warn('Directory handle invalidated. Disconnecting.');
+                console.warn('[Storage] Directory handle invalidated. Disconnecting.');
                 this.directoryHandle = null;
             }
             throw error;
         } finally {
             this._isSaving = false;
             
-            // Process queued saves
             if (this._saveQueue.length > 0) {
                 const nextSave = this._saveQueue.shift();
                 if (nextSave) {
-                    // Start the next save in the queue
-                    // We don't await here to avoid blocking the finally block, 
-                    // but the promise inside the queue will handle its own resolution.
                     nextSave();
                 }
             }
         }
+    }
+
+    private hashState(nodes: AppNode[], edges: Edge[]): string {
+        return `${nodes.length}-${edges.length}-${JSON.stringify(nodes.slice(0, 3)).slice(0, 50)}`;
+    }
+    
+    private async createBackup(): Promise<void> {
+        if (!this.directoryHandle) return;
+        
+        try {
+            const nodesExist = await this.fileExists(NODES_FILE);
+            const edgesExist = await this.fileExists(EDGES_FILE);
+            
+            if (nodesExist) {
+                const nodesData = await this.readJsonFile<AppNode[]>(NODES_FILE);
+                await this.writeJsonFile(BACKUP_NODES_FILE, nodesData);
+            }
+            
+            if (edgesExist) {
+                const edgesData = await this.readJsonFile<Edge[]>(EDGES_FILE);
+                await this.writeJsonFile(BACKUP_EDGES_FILE, edgesData);
+            }
+        } catch (error) {
+            console.warn('[Storage] Backup creation failed:', error);
+        }
+    }
+    
+    private async restoreFromBackup(): Promise<void> {
+        if (!this.directoryHandle) return;
+        
+        try {
+            const backupNodesExist = await this.fileExists(BACKUP_NODES_FILE);
+            const backupEdgesExist = await this.fileExists(BACKUP_EDGES_FILE);
+            
+            if (backupNodesExist && backupEdgesExist) {
+                const nodesData = await this.readJsonFile<AppNode[]>(BACKUP_NODES_FILE);
+                const edgesData = await this.readJsonFile<Edge[]>(BACKUP_EDGES_FILE);
+                
+                await this.writeJsonFile(NODES_FILE, nodesData);
+                await this.writeJsonFile(EDGES_FILE, edgesData);
+                
+                console.log('[Storage] Restored from backup');
+            }
+        } catch (error) {
+            console.error('[Storage] Backup restore failed:', error);
+            throw error;
+        }
+    }
+    
+    private async atomicReplace(tempFile: string, targetFile: string): Promise<void> {
+        if (!this.directoryHandle) return;
+        
+        try {
+            const data = await this.readRawFile(tempFile);
+            await this.writeRawFile(targetFile, data);
+            await this.deleteFile(tempFile);
+        } catch (error) {
+            console.error('[Storage] Atomic replace failed:', error);
+            throw error;
+        }
+    }
+    
+    private async fileExists(filename: string): Promise<boolean> {
+        if (!this.directoryHandle) return false;
+        
+        try {
+            await this.directoryHandle.getFileHandle(filename, { create: false });
+            return true;
+        } catch {
+            return false;
+        }
+    }
+    
+    private async deleteFile(filename: string): Promise<void> {
+        if (!this.directoryHandle) return;
+        
+        try {
+            await this.directoryHandle.removeEntry(filename);
+        } catch (error) {
+            console.warn('[Storage] Failed to delete file:', filename, error);
+        }
+    }
+    
+    private async readRawFile(filename: string): Promise<string> {
+        if (!this.directoryHandle) throw new Error('No directory selected');
+        
+        const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: false });
+        const file = await fileHandle.getFile();
+        return await file.text();
+    }
+    
+    private async writeRawFile(filename: string, content: string): Promise<void> {
+        if (!this.directoryHandle) throw new Error('No directory selected');
+        
+        const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(content);
+        await writable.close();
     }
 
     private async syncCardsToFolders(nodes: AppNode[]) {
@@ -239,13 +371,11 @@ export class FileSystemStorage {
             }
 
             const writeLevel = async (dirHandle: FileSystemDirectoryHandle, nodeList: AppNode[]) => {
-                // 1. Identify expected folders at this level
                 const expectedFolders = new Set<string>();
                 for (const node of nodeList) {
                     expectedFolders.add(this.getFolderName(node));
                 }
 
-                // 2. Clean orphans (delete folders that shouldn't be here)
                 const orphans: string[] = [];
                 try {
                     for await (const [name, handle] of dirHandle.entries()) {
@@ -259,7 +389,6 @@ export class FileSystemStorage {
                     console.warn('Failed to read directory entries for cleanup', e);
                 }
 
-                // Delete identified orphans
                 for (const name of orphans) {
                     try {
                         await dirHandle.removeEntry(name, { recursive: true });
@@ -268,19 +397,16 @@ export class FileSystemStorage {
                     }
                 }
 
-                // 3. Write/Update current nodes - Sequential to avoid browser concurrency limits
                 for (const node of nodeList) {
                     try {
                         const folderName = this.getFolderName(node);
                         const nodeDir = await dirHandle.getDirectoryHandle(folderName, { create: true });
 
-                        // Save card data
                         const fileHandle = await nodeDir.getFileHandle('card.json', { create: true });
                         const writable = await fileHandle.createWritable();
                         await writable.write(JSON.stringify(node));
                         await writable.close();
 
-                        // Recurse
                         const children = childrenMap.get(node.id) || [];
                         await writeLevel(nodeDir, children);
                     } catch (e) {
@@ -300,9 +426,11 @@ export class FileSystemStorage {
     async loadData(): Promise<{ nodes: AppNode[]; edges: Edge[] } | null> {
         if (!this.directoryHandle) return null;
         
-        // CRITICAL: Block loads while saving is in progress
+        perfMonitor.startTimer('storage.load');
+        
         if (this._isSaving) {
             console.log('[Storage] Load blocked - save in progress, returning cached state');
+            perfMonitor.endTimer('storage.load', { cached: true });
             return this._lastSavedState;
         }
 
@@ -312,15 +440,16 @@ export class FileSystemStorage {
 
             if (!Array.isArray(nodes) || !Array.isArray(edges)) {
                 console.warn('Invalid data structure in storage files');
+                perfMonitor.endTimer('storage.load', { success: false });
                 return null;
             }
 
-            // Trust the nodes.json as the source of truth. 
-            // We removed the destructive filesystem integrity check to prevent accidental data loss.
             console.log(`[Storage] Loaded ${nodes.length} nodes from ${NODES_FILE}`);
+            perfMonitor.endTimer('storage.load', { success: true, nodeCount: nodes.length });
             return { nodes, edges };
         } catch (error) {
             console.log('No existing data found (or error reading), starting fresh.', error);
+            perfMonitor.endTimer('storage.load', { success: false });
             return null;
         }
     }
@@ -330,7 +459,19 @@ export class FileSystemStorage {
 
         const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: true });
         const writable = await fileHandle.createWritable();
-        await writable.write(JSON.stringify(data)); // Compact JSON
+        
+        const jsonStr = JSON.stringify(data);
+        
+        // Compress if enabled and data is large enough
+        if (USE_COMPRESSION && jsonStr.length > 10000) {
+            const compressed = LZString.compressToUTF16(jsonStr);
+            const compressionRatio = ((1 - compressed.length / jsonStr.length) * 100).toFixed(1);
+            console.log(`[Storage] Compressed ${filename}: ${jsonStr.length} → ${compressed.length} bytes (${compressionRatio}% saved)`);
+            await writable.write(compressed);
+        } else {
+            await writable.write(jsonStr);
+        }
+        
         await writable.close();
     }
 
@@ -340,6 +481,19 @@ export class FileSystemStorage {
         const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: false });
         const file = await fileHandle.getFile();
         const text = await file.text();
+        
+        // Try to decompress, fall back to plain JSON
+        try {
+            if (USE_COMPRESSION && text.length > 0 && !text.startsWith('{') && !text.startsWith('[')) {
+                const decompressed = LZString.decompressFromUTF16(text);
+                if (decompressed) {
+                    return JSON.parse(decompressed) as T;
+                }
+            }
+        } catch (e) {
+            console.warn('[Storage] Decompression failed, trying plain JSON:', e);
+        }
+        
         return JSON.parse(text) as T;
     }
 }

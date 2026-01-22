@@ -3,6 +3,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Plus, ChevronLeft } from 'lucide-react';
 import type { KanbanColumn as IKanbanColumn, NoteNode } from '../../types';
 import { SortableCard } from './SortableCard';
+import { useStore } from '../../store/useStore';
 import styles from './KanbanNode.module.css';
 
 interface KanbanColumnProps {
@@ -10,9 +11,15 @@ interface KanbanColumnProps {
     cards: NoteNode[];
     onAddCard?: (e: React.MouseEvent, columnId: string, statusValue: string) => void;
     onToggleCollapse: (columnId: string) => void;
+    kanbanId: string;
 }
 
-export const KanbanColumn = ({ column, cards, onAddCard, onToggleCollapse }: KanbanColumnProps) => {
+export const KanbanColumn = ({ column, cards, onAddCard, onToggleCollapse, kanbanId }: KanbanColumnProps) => {
+    const interactionState = useStore(s => s.interactionState);
+    
+    // Check if this specific column is being hovered from canvas drag
+    const isHoveredFromCanvas = interactionState.hoveredKanbanColumn?.kanbanId === kanbanId && 
+                               interactionState.hoveredKanbanColumn?.columnId === column.statusValue;
 
     // We make the column itself droppable so we can drop items into empty columns
     const { setNodeRef, isOver } = useDroppable({
@@ -29,7 +36,11 @@ export const KanbanColumn = ({ column, cards, onAddCard, onToggleCollapse }: Kan
     return (
         <div
             ref={setNodeRef}
-            className={`${styles.column} ${isOver && !isCollapsed ? styles.columnActive : ''} ${isCollapsed ? styles.columnCollapsed : ''}`}
+            className={`
+                ${styles.column} 
+                ${(isOver || isHoveredFromCanvas) && !isCollapsed ? styles.columnHovered : ''} 
+                ${isCollapsed ? styles.columnCollapsed : ''}
+            `}
             onClick={(e) => {
                 if (isCollapsed) {
                     onToggleCollapse(column.id);

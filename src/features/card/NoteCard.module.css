@@ -6,10 +6,81 @@
     border: 1px solid var(--glass-border);
     color: var(--color-text-main);
     box-shadow: var(--glass-shadow);
-    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
-    will-change: background-color, border-color, box-shadow;
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+    will-change: background-color, border-color, box-shadow, transform;
     display: flex;
     flex-direction: column;
+}
+
+.dragging {
+    transform: scale(1.02) rotate(2deg);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 2px var(--color-primary);
+    opacity: 0.95;
+    z-index: 10000 !important;
+}
+
+.dropTarget {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px var(--color-primary-glow), 0 0 20px var(--color-primary-glow);
+    animation: targetPulse 1.5s ease-in-out infinite;
+}
+
+.fusionTarget {
+    border-color: var(--color-secondary);
+    box-shadow: 0 0 0 4px var(--color-secondary-glow), 0 0 30px var(--color-secondary-glow);
+    animation: fusionPulse 1s ease-in-out infinite;
+}
+
+.fusing {
+    animation: fusionEffect 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes targetPulse {
+    0% {
+        box-shadow: 0 0 0 2px var(--color-primary-glow);
+    }
+
+    50% {
+        box-shadow: 0 0 0 6px var(--color-primary-glow), 0 0 25px var(--color-primary-glow);
+    }
+
+    100% {
+        box-shadow: 0 0 0 2px var(--color-primary-glow);
+    }
+}
+
+@keyframes fusionPulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 2px var(--color-secondary-glow);
+    }
+
+    50% {
+        transform: scale(1.02);
+        box-shadow: 0 0 0 8px var(--color-secondary-glow), 0 0 40px var(--color-secondary-glow);
+    }
+
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 2px var(--color-secondary-glow);
+    }
+}
+
+@keyframes fusionEffect {
+    0% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+        filter: brightness(2) contrast(1.2);
+    }
+
+    100% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
 }
 
 /* React Flow Controls Customization */
@@ -224,7 +295,7 @@
 
 .mediumDescInput:hover {
     background: rgba(255, 255, 255, 0.03);
-     height: 100%;
+    height: 100%;
 }
 
 .mediumDescInput:focus {
@@ -505,7 +576,7 @@
     background: transparent;
     border: none;
     border-radius: 6px;
-    padding: 8px 12px;  
+    padding: 8px 12px;
     font-family: 'Poppins', sans-serif;
     font-size: 0.9rem;
     font-weight: 400;
@@ -705,7 +776,8 @@
     transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-.modalDropZone:hover, .modalDropZone.dragOver {
+.modalDropZone:hover,
+.modalDropZone.dragOver {
     border-color: var(--color-primary);
     background: rgba(139, 92, 246, 0.05);
 }
@@ -1485,4 +1557,67 @@
 .noteColumn:last-child {
     border-right: none;
     padding-right: 0;
+}
+
+/* Skeleton Loader Animation */
+.skeletonContainer {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    opacity: 0.6;
+}
+
+.skeletonBlock {
+    width: 100%;
+    height: 16px;
+    background: rgba(120, 120, 120, 0.1);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+    /* Hardware acceleration */
+    transform: translateZ(0);
+}
+
+.skeletonBlock::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.1) 50%,
+            transparent 100%);
+    transform: translateX(-100%);
+    animation: skeletonShimmer 1.5s infinite;
+}
+
+@keyframes skeletonShimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.skeletonTitle {
+    height: 32px;
+    width: 50%;
+    margin-bottom: 12px;
+    border-radius: 6px;
+}
+
+.skeletonTextShort {
+    width: 75%;
+}
+
+.skeletonImage {
+    height: 120px;
+    margin-top: 12px;
+    border-radius: 8px;
 }

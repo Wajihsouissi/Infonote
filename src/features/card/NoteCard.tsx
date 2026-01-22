@@ -11,6 +11,7 @@ import { EditBar } from '../ui/EditBar';
 import { CoverPicker } from './CoverPicker';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { calculateNoteLayout, MIN_EXPANDED_SIZE, MAX_HEIGHT, MAX_WIDTH, SNAP_STEP } from '../../config/layout';
+import { toPastelColor } from '../../utils/colorUtils';
 
 export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<NoteNode>) => {
     const { setNodes, getViewport, deleteElements } = useReactFlow();
@@ -25,9 +26,32 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     const updateNodeData = useStore(s => s.updateNodeData);
     const updateNode = useStore(s => s.updateNode);
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
+    const interactionState = useStore(s => s.interactionState);
+    const theme = useStore(s => s.theme);
+
+    const isDragging = interactionState.draggedNodeId === id;
+    const isDropTarget = interactionState.dropTarget?.id === id;
+    const dropType = isDropTarget ? interactionState.dropTarget?.type : null;
+
+    // Track fusion event for animation
+    const [isFusing, setIsFusing] = useState(false);
+    const lastContentLength = useRef(Array.isArray(data.content) ? data.content.length : 0);
+
+    useEffect(() => {
+        const currentLength = Array.isArray(data.content) ? data.content.length : 0;
+        if (currentLength > lastContentLength.current && lastContentLength.current > 0) {
+            setIsFusing(true);
+            const timer = setTimeout(() => setIsFusing(false), 500);
+            return () => clearTimeout(timer);
+        }
+        lastContentLength.current = currentLength;
+    }, [data.content]);
 
     const viewMode = data.viewMode || 'medium';
     const isMultiSelected = selectedCanvasNodeIds.has(id);
+
+    // Convert color to pastel for better readability
+    const displayColor = data.color ? toPastelColor(data.color, theme === 'light') : undefined;
 
     // Editing state
     const [isEditingMetadata, setIsEditingMetadata] = useState(false);
@@ -38,6 +62,28 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     // EditBar state for context menu
     const [showEditBar, setShowEditBar] = useState(false);
     const [editBarPosition, setEditBarPosition] = useState({ x: 0, y: 0 });
+
+    // Performance: Visibility tracking for heavy features (ResizeObserver, etc.)
+    const [isVisible, setIsVisible] = useState(true);
+    const observerRef = useRef<IntersectionObserver | null>(null);
+
+    useEffect(() => {
+        if (!cardRef.current) return;
+
+        observerRef.current = new IntersectionObserver(
+            (entries) => {
+                const entry = entries[0];
+                setIsVisible(entry.isIntersecting);
+            },
+            { rootMargin: '200px' } // Buffer to start heavy logic just before entering viewport
+        );
+
+        observerRef.current.observe(cardRef.current);
+
+        return () => {
+            if (observerRef.current) observerRef.current.disconnect();
+        };
+    }, []);
 
     // Derived state for icon picker visibility
     const showIconPicker = activeIconMenuId === id;
@@ -118,8 +164,8 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
 
     useEffect(() => {
-        // Auto-grow logic ONLY for Expanded mode
-        if (viewMode !== 'expanded' || !contentRef.current || !cardRef.current) return;
+        // Auto-grow logic ONLY for Expanded mode and ONLY when visible
+        if (viewMode !== 'expanded' || !contentRef.current || !cardRef.current || !isVisible) return;
 
         // Track if this resize is due to metadata toggle to prevent unwanted height changes
         let isMetadataToggling = false;
@@ -250,6 +296,10 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
         ${styles[viewMode]} 
         ${selected ? styles.selected : ''}
         ${isMultiSelected ? styles.multiSelected : ''}
+        ${isDragging ? styles.dragging : ''}
+        ${isDropTarget && dropType === 'nesting' ? styles.dropTarget : ''}
+        ${isDropTarget && dropType === 'fusion' ? styles.fusionTarget : ''}
+        ${isFusing ? styles.fusing : ''}
       `}
             onDoubleClick={handleDoubleClick}
             onContextMenu={handleContextMenu}
@@ -273,7 +323,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                 height: '100%',
                 // Ensure the card fills the resized node area
                 boxSizing: 'border-box',
-                backgroundColor: data.color || undefined,
+                backgroundColor: displayColor || undefined,
             }}
         >
             {/* custom strict resize handle */}
@@ -472,7 +522,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             {/* View 3: Expanded Mode - Cover + Icon/Title Row + Description + Date + Note Area */}
             {viewMode === 'expanded' && (
                 <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                    <ErrorBoundary name="NoteExpandedContent">
+                    <ErrorBoundary>
                         <NoteExpandedContent
                             id={id}
                             data={data}

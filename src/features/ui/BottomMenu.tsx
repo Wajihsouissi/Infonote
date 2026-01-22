@@ -192,7 +192,7 @@ export function BottomMenu() {
                     <input
                         type="text"
                         className={styles.searchInput}
-                        placeholder="Search... (Try #tag, status:todo, is:note)"
+                        placeholder="Search... "
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         autoFocus

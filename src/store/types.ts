@@ -65,6 +65,11 @@ export interface UISlice {
     interactionState: {
         draggingKanbanNodeId: string | null;
         hoveredKanbanColumn: { kanbanId: string; columnId: string } | null;
+        draggedNodeId: string | null;
+        dropTarget: {
+            id: string;
+            type: 'fusion' | 'nesting' | 'kanban-column';
+        } | null;
     };
     editingKanbanId: string | null;
     selectedCanvasNodeIds: Set<string>;

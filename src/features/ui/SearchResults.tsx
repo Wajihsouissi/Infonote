@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useStore } from '../../store/useStore';
 import styles from './BottomMenu.module.css';
 import { FileText, Cuboid, ChevronRight, Hash, Flag, Clock, Search } from 'lucide-react';
@@ -19,6 +19,7 @@ export function SearchResults({ query, onClose }: SearchResultsProps) {
 
     const [results, setResults] = useState<any[]>([]);
     const [selectedIndex, setSelectedIndex] = useState(0);
+    const debounceTimerRef = useRef<number | null>(null);
 
     // Initialize worker
     const worker = useMemo(() => new Worker(new URL('./search.worker.ts', import.meta.url), { type: 'module' }), []);
@@ -29,8 +30,16 @@ export function SearchResults({ query, onClose }: SearchResultsProps) {
             return;
         }
 
-        // Send task to worker
-        worker.postMessage({ query, nodes });
+        // Clear existing debounce timer
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+
+        // Debounce search requests (250ms)
+        debounceTimerRef.current = window.setTimeout(() => {
+            // Send task to worker
+            worker.postMessage({ query, nodes });
+        }, 250);
 
         const handleMessage = (e: MessageEvent) => {
             setResults(e.data.results);
@@ -38,7 +47,12 @@ export function SearchResults({ query, onClose }: SearchResultsProps) {
         };
 
         worker.addEventListener('message', handleMessage);
-        return () => worker.removeEventListener('message', handleMessage);
+        return () => {
+            worker.removeEventListener('message', handleMessage);
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+        };
     }, [query, nodes, worker]);
 
     useEffect(() => {

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Image as ImageIcon, StickyNote, Video, FileText, Layers, Eye, EyeOff, X } from 'lucide-react';
 import styles from './NoteCard.module.css';
@@ -8,6 +8,8 @@ import { iconMap, defaultIconName } from './iconMap';
 import type { NoteNode } from '../../types';
 import { useStore } from '../../store/useStore';
 import { CoverPicker } from './CoverPicker';
+import { lightenColor } from '../../utils/colorUtils';
+import { SkeletonLoader } from './SkeletonLoader';
 
 interface NoteExpandedContentProps {
     id: string;
@@ -21,18 +23,6 @@ interface NoteExpandedContentProps {
 }
 
 export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, showMetadata: propShowMetadata, setShowMetadata: propSetShowMetadata, onClose }: NoteExpandedContentProps) {
-    // Add error boundary-like logging
-    if (!data) {
-        console.error('NoteExpandedContent: data prop is missing or undefined', { id });
-        return <div>Error: Missing data</div>;
-    }
-
-    // Validate required properties
-    if (typeof data.label === 'undefined') {
-        console.warn('NoteExpandedContent: data.label is undefined, using default', { id, data });
-        data = { ...data, label: 'Untitled' };
-    }
-
     // Atomic Selectors
     const activeIconMenuId = useStore(s => s.activeIconMenuId);
     const setActiveIconMenuId = useStore(s => s.setActiveIconMenuId);
@@ -47,34 +37,61 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
     const [isEditingMetadata, setIsEditingMetadata] = useState(false);
     const [showCoverPicker, setShowCoverPicker] = useState(false);
 
-    // Derived state
-    const showIconPicker = activeIconMenuId === id;
+    // CRITICAL: Lazy render - only render content when visible
+    const [hasRendered, setHasRendered] = useState(false);
+    const observerRef = useRef<IntersectionObserver | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const [editedData, setEditedData] = useState({
-        label: data.label || 'Untitled',
-        icon: data.icon || defaultIconName,
-        description: data.description || '',
-        category: data.category || '',
-        coverImage: data.coverImage || '',
-        date: data.date || new Date().toISOString()
+        label: data?.label || 'Untitled',
+        icon: data?.icon || defaultIconName,
+        description: data?.description || '',
+        category: data?.category || '',
+        coverImage: data?.coverImage || '',
+        date: data?.date || new Date().toISOString()
     });
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        // Intersection observer for lazy rendering
+        observerRef.current = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting && !hasRendered) {
+                        setHasRendered(true);
+                    }
+                });
+            },
+            { rootMargin: '400px' } // Pre-render 400px before entering viewport
+        );
+
+        observerRef.current.observe(containerRef.current);
+
+        return () => {
+            if (observerRef.current) {
+                observerRef.current.disconnect();
+            }
+        };
+    }, [hasRendered]);
 
     // Sync state with props
     useEffect(() => {
-        setEditedData({
-            label: data.label,
-            icon: data.icon || defaultIconName,
-            description: data.description || '',
-            category: data.category || '',
-            coverImage: data.coverImage || '',
-            date: data.date || new Date().toISOString()
-        });
+        if (data) {
+            setEditedData({
+                label: data.label,
+                icon: data.icon || defaultIconName,
+                description: data.description || '',
+                category: data.category || '',
+                coverImage: data.coverImage || '',
+                date: data.date || new Date().toISOString()
+            });
+        }
     }, [data]);
 
     const stats = useMemo(() => {
         // Defensive check for data.content
-        if (!data.content || !Array.isArray(data.content)) {
-            console.warn('NoteExpandedContent: data.content is not an array', { id, content: data.content });
+        if (!data || !data.content || !Array.isArray(data.content)) {
             return null;
         }
 
@@ -86,18 +103,7 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
         const pdfs = content.filter(b => b && b.type === 'file').length;
 
         return { total, cards, images, videos, pdfs };
-    }, [data.content, id]);
-
-    const IconComponent = iconMap[data.icon || defaultIconName] || iconMap[defaultIconName];
-
-    // Fallback if IconComponent is still undefined
-    if (!IconComponent) {
-        console.warn('NoteExpandedContent: IconComponent is undefined, using FileText', {
-            id,
-            icon: data.icon,
-            defaultIconName
-        });
-    }
+    }, [data?.content, id]);
 
     const handleSaveMetadata = useCallback(() => {
         onUpdate(id, editedData);
@@ -118,6 +124,7 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
     }, [id, setActiveIconMenuId]);
 
     const handleAreaDrop = useCallback((e: React.DragEvent) => {
+        if (!data) return;
         console.log("[NoteExpandedContent.handleAreaDrop] START - Event triggered, nodeId:", id);
         // Allow dropping on the empty area to append to end
         // Only if block editor didn't catch it (bubbled up, but noteArea is container)
@@ -128,15 +135,15 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
 
         let blocksToAdd: any[] = [];
         let sourceNodeId: string | null = null;
-        
+
         try {
             const rawData = e.dataTransfer.getData('application/infonote-block-data');
             if (rawData) {
                 const parsed = JSON.parse(rawData);
                 sourceNodeId = parsed.sourceNodeId || null;
-                
+
                 console.log("[NoteExpandedContent.handleAreaDrop] Parsed data - sourceNodeId:", sourceNodeId, "currentId:", id);
-                
+
                 // Handle external drops (menu) or cross-node drops
                 if (sourceNodeId === null || sourceNodeId !== id) {
                     if (parsed.blocks) blocksToAdd = parsed.blocks;
@@ -168,22 +175,22 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
             const current = Array.isArray(data.content) ? data.content : [];
             console.log("[NoteExpandedContent.handleAreaDrop] Adding blocks to node:", id);
             onUpdate(id, { content: [...current, ...blocksToAdd] });
-            
+
             // Remove blocks from source node if cross-node drop
             if (sourceNodeId && sourceNodeId !== id) {
                 console.log("[NoteExpandedContent.handleAreaDrop] Removing blocks from source node:", sourceNodeId);
                 const { nodes, updateNodeData, setNodes } = useStore.getState();
                 const sourceNode = nodes.find(n => n.id === sourceNodeId);
-                
+
                 if (sourceNode && Array.isArray((sourceNode.data as any).content)) {
                     const blockIds = blocksToAdd.map((b: any) => b.id);
                     const currentContent = (sourceNode.data as any).content;
                     const newContent = currentContent.filter((b: any) => !blockIds.includes(b.id));
-                    
+
                     console.log("[NoteExpandedContent.handleAreaDrop] Source content before:", currentContent.length, "after:", newContent.length);
-                    
+
                     updateNodeData(sourceNodeId, { content: newContent });
-                    
+
                     // If source node is now empty and is a fused-note, delete it
                     if (newContent.length === 0 && sourceNode.type === 'fused-note') {
                         setTimeout(() => {
@@ -191,7 +198,7 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
                         }, 0);
                     }
                 }
-                
+
                 // Trigger cleanup events
                 if ((window as any).infonoteMultiDragCleanup) {
                     (window as any).infonoteMultiDragCleanup();
@@ -210,8 +217,55 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
         }
     };
 
+    const handleContentUpdate = useCallback((blocks: any[]) => {
+        onUpdate(id, { content: blocks });
+    }, [id, onUpdate]);
+
+    // Late early return - MUST BE AFTER ALL HOOKS
+    if (!data) {
+        return <div>Error: Missing data</div>;
+    }
+
+    // Derived state
+    const showIconPicker = activeIconMenuId === id;
+    const IconComponent = iconMap[data.icon || defaultIconName] || iconMap[defaultIconName];
+
+    // Dynamic Color Logic
+    const dynamicStyles = useMemo(() => {
+        if (!data.color) return {};
+
+        // User requested dark text for ALL colors (sticky note style)
+        return {
+            '--color-text-main': '#1f2937',
+            '--color-text-muted': '#6b7280',
+            '--color-border': 'rgba(0,0,0,0.1)',
+            '--note-bg-dynamic': data.color
+        } as React.CSSProperties;
+    }, [data.color]);
+
+    const headerStyle = useMemo(() => {
+        if (!data.color) return {};
+        const bg = lightenColor(data.color, 15); // Lighten by 15%
+        return {
+            backgroundColor: bg,
+            color: '#1f2937', // Force dark text
+            // Override variables within header scope
+            '--color-text-main': '#1f2937',
+            '--color-text-muted': '#6b7280',
+            '--color-border': 'rgba(0,0,0,0.1)',
+        } as React.CSSProperties;
+    }, [data.color]);
+
+
+
+
+
     return (
-        <div className={styles.expandedView}>
+        <div
+            className={styles.expandedView}
+            ref={containerRef}
+            style={dynamicStyles}
+        >
 
             {showMetadata ? (
                 <>
@@ -330,8 +384,7 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
                 </>
             ) : (
                 /* Minimal Header (When Hidden) */
-                /* Minimal Header (When Hidden) */
-                <div className={styles.minimalHeader}>
+                <div className={styles.minimalHeader} style={headerStyle}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
                         <IconComponent size={20} />
                         <span className={styles.minimalTitle}>{data.label || 'Untitled'}</span>
@@ -374,13 +427,17 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
                     e.dataTransfer.dropEffect = 'copy';
                 }}
             >
-                <BlockEditor
-                    initialContent={Array.isArray(data.content) ? data.content : []}
-                    readOnly={false}
-                    minimal={false}
-                    onUpdate={useCallback((blocks: any[]) => onUpdate(id, { content: blocks }), [id, onUpdate])}
-                    nodeId={nodeId}
-                />
+                {hasRendered ? (
+                    <BlockEditor
+                        initialContent={Array.isArray(data.content) ? data.content : []}
+                        readOnly={false}
+                        minimal={false}
+                        onUpdate={handleContentUpdate}
+                        nodeId={nodeId}
+                    />
+                ) : (
+                    <SkeletonLoader />
+                )}
             </div>
 
 

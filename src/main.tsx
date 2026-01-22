@@ -14,7 +14,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ErrorBoundary name="AppRoot">
+    <ErrorBoundary>
       <App />
     </ErrorBoundary>
   </StrictMode>,

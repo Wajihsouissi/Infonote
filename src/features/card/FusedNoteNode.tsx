@@ -1,4 +1,4 @@
-import { memo, useCallback, useRef, useState } from 'react';
+import { memo, useCallback, useRef, useState, useEffect } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow } from '@xyflow/react';
 import { StickyNote, GripHorizontal } from 'lucide-react';
 import { BlockEditor } from '../editor/BlockEditor';
@@ -6,7 +6,8 @@ import { EditBar } from '../ui/EditBar';
 import { useStore } from '../../store/useStore';
 import type { Node } from '@xyflow/react';
 import styles from './FusedNoteNode.module.css';
-import { snapDimensions, MEDIUM_SIZE, MIN_EXPANDED_SIZE } from '../../config/layout';
+import { snapDimensions, MIN_EXPANDED_SIZE } from '../../config/layout';
+import { toPastelColor } from '../../utils/colorUtils';
 
 export type FusedNoteNodeData = {
     content: any[];
@@ -20,11 +21,63 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     const updateNodeData = useStore(s => s.updateNodeData);
     const updateNode = useStore(s => s.updateNode);
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
+    const interactionState = useStore(s => s.interactionState);
+    const theme = useStore(s => s.theme);
+
+    const isDragging = interactionState.draggedNodeId === id;
+    const isDropTarget = interactionState.dropTarget?.id === id;
+    const dropType = isDropTarget ? interactionState.dropTarget?.type : null;
+
+    // Track fusion event for animation
+    const [isFusing, setIsFusing] = useState(false);
+    const lastContentLength = useRef(Array.isArray(data.content) ? data.content.length : 0);
+
+    useEffect(() => {
+        const currentLength = Array.isArray(data.content) ? data.content.length : 0;
+        if (currentLength > lastContentLength.current && lastContentLength.current > 0) {
+            setIsFusing(true);
+            const timer = setTimeout(() => setIsFusing(false), 500);
+            return () => clearTimeout(timer);
+        }
+        lastContentLength.current = currentLength;
+    }, [data.content]);
+
     const contentRef = useRef<HTMLDivElement>(null);
     const nodeRef = useRef<HTMLDivElement>(null);
     const activeResize = useRef(false);
 
+    // CRITICAL: Lazy render - only render content when visible
+    const [hasRendered, setHasRendered] = useState(false);
+    const observerRef = useRef<IntersectionObserver | null>(null);
+
+    useEffect(() => {
+        if (!nodeRef.current) return;
+
+        // Intersection observer for lazy rendering
+        observerRef.current = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting && !hasRendered) {
+                        setHasRendered(true);
+                    }
+                });
+            },
+            { rootMargin: '500px' } // Pre-render 500px before entering viewport
+        );
+
+        observerRef.current.observe(nodeRef.current);
+
+        return () => {
+            if (observerRef.current) {
+                observerRef.current.disconnect();
+            }
+        };
+    }, [hasRendered]);
+
     const isMultiSelected = selectedCanvasNodeIds.has(id);
+
+    // Convert color to pastel for better readability
+    const displayColor = data.color ? toPastelColor(data.color, theme === 'light') : undefined;
 
     // EditBar state
     const [showEditBar, setShowEditBar] = useState(false);
@@ -188,8 +241,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
             // Verify change to check against props/ref
             if (nodeRef.current) {
-                const currentW = nodeRef.current.offsetWidth;
-                const currentH = nodeRef.current.offsetHeight;
+
                 // But better to check against stored/prop style if possible to avoid layout thrashing?
                 // The previous code checked `n.style.width` inside setState.
                 // Here we can just dispatch update. Store will dedup if identical?
@@ -255,7 +307,15 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
     return (
         <div
-            className={`${styles.fusedNoteNode} ${selected ? styles.selected : ''} ${isMultiSelected ? styles.multiSelected : ''}`}
+            className={`
+                ${styles.fusedNoteNode} 
+                ${selected ? styles.selected : ''} 
+                ${isMultiSelected ? styles.multiSelected : ''}
+                ${isDragging ? styles.dragging : ''}
+                ${isDropTarget && dropType === 'nesting' ? styles.dropTarget : ''}
+                ${isDropTarget && dropType === 'fusion' ? styles.fusionTarget : ''}
+                ${isFusing ? styles.fusing : ''}
+            `}
             ref={nodeRef}
             onContextMenu={handleContextMenu}
             onDragOver={(e) => {
@@ -268,7 +328,14 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 e.stopPropagation();
             }}
             style={{
-                backgroundColor: data.color || undefined,
+                backgroundColor: displayColor || undefined,
+                // Force dark text contrast when a custom color is active (pastel background)
+                ...(displayColor ? {
+                    '--color-text-main': '#1f2937',
+                    '--color-text-muted': '#6b7280',
+                    '--color-border': 'rgba(0,0,0,0.1)',
+                    color: '#1f2937'
+                } : {})
             }}
         >
             {/* Floating Handle - Centered Top */}
@@ -287,15 +354,21 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             </button>
 
             <div className={`${styles.content} nodrag`} ref={contentRef}>
-                <BlockEditor
-                    initialContent={data.content}
-                    readOnly={false}
-                    minimal={false}
-                    onUpdate={handleContentUpdate}
-                    nodeId={id}
-                    hideBlockHandles={false}
-                    disableMediaControls={true}
-                />
+                {hasRendered ? (
+                    <BlockEditor
+                        initialContent={data.content}
+                        readOnly={false}
+                        minimal={false}
+                        onUpdate={handleContentUpdate}
+                        nodeId={id}
+                        hideBlockHandles={false}
+                        disableMediaControls={true}
+                    />
+                ) : (
+                    <div style={{ padding: '16px', color: 'var(--color-text-muted)', textAlign: 'center' }}>
+                        Loading {data.content?.length || 0} blocks...
+                    </div>
+                )}
             </div>
 
             {/* Resize Handle */}
