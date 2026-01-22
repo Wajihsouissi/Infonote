@@ -19,12 +19,18 @@ import styles from './BottomMenu.module.css';
 import { MENU_ITEMS } from '../editor/menuConstants';
 import { StorageControls } from './StorageControls';
 import { parseSearchQuery } from './searchUtils';
+import { MultiSelectionToolbar } from './MultiSelectionToolbar';
 
 export function BottomMenu() {
     // Atomic Selectors
     const addNode = useStore(s => s.addNode);
     const nodes = useStore(s => s.nodes);
-    
+    const centerPanelId = useStore(s => s.centerPanelId);
+    const fullscreenId = useStore(s => s.fullscreenId);
+    const currentParentId = useStore(s => s.currentParentId);
+    const updateNodeData = useStore(s => s.updateNodeData);
+    const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
+
     const { screenToFlowPosition } = useReactFlow();
     const [isSearchMode, setIsSearchMode] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -36,6 +42,7 @@ export function BottomMenu() {
     const allTags = useMemo(() => {
         const tags = new Set<string>();
         nodes.forEach(node => {
+            // ... (rest of filtering logic)
             const nodeTags = (node.data as any).tags;
             if (Array.isArray(nodeTags)) {
                 nodeTags.forEach(tag => tags.add(tag));
@@ -45,6 +52,7 @@ export function BottomMenu() {
     }, [nodes]);
 
     const toggleFilter = (key: string, value: string) => {
+        // ... (rest of toggleFilter)
         const filters = { ...activeFilters };
         if (key === 'tag') {
             if (filters.tags.includes(value)) {
@@ -68,15 +76,29 @@ export function BottomMenu() {
         if (filters.startDate) newQuery += ` after:${filters.startDate}`;
         if (filters.endDate) newQuery += ` before:${filters.endDate}`;
 
-        setSearchQuery(newQuery.trim());
+        const cleanedQuery = newQuery.trim();
+        setSearchQuery(cleanedQuery);
+        if (cleanedQuery && !isSearchMode) setIsSearchMode(true);
     };
 
     const handleAddNote = () => {
-        addNode('note', { x: Math.random() * 200 + 100, y: Math.random() * 200 + 100 }, { viewMode: 'expanded' }, { width: 432, height: 432 });
+        addNode('note', { x: Math.random() * 200 + 100, y: Math.random() * 200 + 100 }, { viewMode: 'expanded' }, { width: 432, height: 432 }, currentParentId || undefined);
     };
 
     const handleDragStart = (e: React.DragEvent, type: string, metadata?: any) => {
         e.dataTransfer.setData('application/reactflow-block-type', type);
+
+        const blockData = {
+            block: {
+                id: uuidv4(),
+                type: type,
+                content: '',
+                metadata: metadata
+            },
+            sourceNodeId: null
+        };
+        e.dataTransfer.setData('application/infonote-block-data', JSON.stringify(blockData));
+
         if (metadata) {
             e.dataTransfer.setData('application/infonote-block-metadata', JSON.stringify(metadata));
         }
@@ -84,6 +106,49 @@ export function BottomMenu() {
     };
 
     const handleBlockClick = (block: typeof MENU_ITEMS[0]) => {
+        const newBlock = {
+            id: uuidv4(),
+            type: block.type,
+            content: '',
+            metadata: block.meta
+        };
+
+        // If a card is open (Center Modal OR Fullscreen), add the block to that card
+        const targetNodeId = centerPanelId || fullscreenId;
+
+        if (targetNodeId) {
+            const activeNode = nodes.find(n => n.id === targetNodeId);
+            if (activeNode) {
+                const currentContent = (activeNode.data as any).content || [];
+                const safeContent = Array.isArray(currentContent) ? currentContent : [];
+                updateNodeData(targetNodeId, {
+                    content: [...safeContent, newBlock]
+                });
+                return;
+            }
+        }
+
+        // Check for Selected Node on Canvas (for "Child Canvas" / Expanded View context)
+        const selectedNode = nodes.find(n => n.selected && (n.type === 'note' || n.type === 'fused-note' || n.type === 'block'));
+        if (selectedNode) {
+            const currentContent = (selectedNode.data as any).content || [];
+            const safeContent = Array.isArray(currentContent) ? currentContent : [];
+            updateNodeData(selectedNode.id, {
+                content: [...safeContent, newBlock]
+            });
+
+            // If it was a 'block' type, convert to 'fused-note' if it now has multiple items?
+            // The updateNodeData logic in CanvasBoard usually handles this, 
+            // but here we are just updating data. 
+            // Ideally we should ensure type correctness if we append to a 'block'.
+            // For safety, let's just update data. 
+            return;
+        }
+
+        // Otherwise (Home/Canvas), create a new block node
+
+        // Otherwise (Home/Canvas), create a new block node
+
         // Calculate center of viewport
         const centerX = window.innerWidth / 2;
         const centerY = window.innerHeight / 2;
@@ -103,21 +168,18 @@ export function BottomMenu() {
             y: flowPos.y - (BLOCK_HEIGHT / 2) + offsetY
         };
 
-        const newBlock = {
-            id: uuidv4(),
-            type: block.type,
-            content: '',
-            metadata: block.meta
-        };
-
+        // Mark as standalone canvas block when created directly on canvas
         addNode('block', position, {
-            content: [newBlock]
-        }, { width: BLOCK_WIDTH, height: BLOCK_HEIGHT });
+            content: [newBlock],
+            isStandaloneBlock: true // Flag to prevent sync back to parent content
+        }, { width: BLOCK_WIDTH, height: BLOCK_HEIGHT }, currentParentId || undefined);
     };
 
     return (
         <div className={styles.bottomMenu}>
-            {isSearchMode ? (
+            {selectedCanvasNodeIds.size > 0 ? (
+                <MultiSelectionToolbar />
+            ) : isSearchMode ? (
                 <div className={styles.searchContainer}>
                     <SearchResults
                         query={searchQuery}
@@ -135,8 +197,8 @@ export function BottomMenu() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         autoFocus
                     />
-                    
-                    <button 
+
+                    <button
                         className={`${styles.filterToggleBtn} ${showFilters ? styles.active : ''}`}
                         onClick={() => setShowFilters(!showFilters)}
                         title="Filters"
@@ -162,8 +224,8 @@ export function BottomMenu() {
                                 <label><Tag size={12} /> Tags</label>
                                 <div className={styles.filterChips}>
                                     {allTags.map(tag => (
-                                        <span 
-                                            key={tag} 
+                                        <span
+                                            key={tag}
                                             className={`${styles.filterChip} ${activeFilters.tags.includes(tag.toLowerCase()) ? styles.selected : ''}`}
                                             onClick={() => toggleFilter('tag', tag.toLowerCase())}
                                         >
@@ -179,8 +241,8 @@ export function BottomMenu() {
                                     <label><CheckCircle size={12} /> Status</label>
                                     <div className={styles.filterChips}>
                                         {['todo', 'in-progress', 'done', 'backlog'].map(s => (
-                                            <span 
-                                                key={s} 
+                                            <span
+                                                key={s}
                                                 className={`${styles.filterChip} ${activeFilters.status === s ? styles.selected : ''}`}
                                                 onClick={() => toggleFilter('status', s)}
                                             >
@@ -194,8 +256,8 @@ export function BottomMenu() {
                                     <label><Flag size={12} /> Priority</label>
                                     <div className={styles.filterChips}>
                                         {['low', 'medium', 'high', 'urgent'].map(p => (
-                                            <span 
-                                                key={p} 
+                                            <span
+                                                key={p}
                                                 className={`${styles.filterChip} ${activeFilters.priority === p ? styles.selected : ''}`}
                                                 onClick={() => toggleFilter('priority', p)}
                                             >
@@ -211,8 +273,8 @@ export function BottomMenu() {
                                     <label><Calendar size={12} /> Type</label>
                                     <div className={styles.filterChips}>
                                         {['note', 'kanban', 'block'].map(t => (
-                                            <span 
-                                                key={t} 
+                                            <span
+                                                key={t}
                                                 className={`${styles.filterChip} ${activeFilters.type === t ? styles.selected : ''}`}
                                                 onClick={() => toggleFilter('is', t)}
                                             >
@@ -225,13 +287,13 @@ export function BottomMenu() {
                                 <div className={styles.filterGroup}>
                                     <label><Calendar size={12} /> Time</label>
                                     <div className={styles.filterChips}>
-                                        <span 
+                                        <span
                                             className={`${styles.filterChip} ${activeFilters.startDate === new Date().toISOString().split('T')[0] ? styles.selected : ''}`}
                                             onClick={() => toggleFilter('after', new Date().toISOString().split('T')[0])}
                                         >
                                             Today
                                         </span>
-                                        <span 
+                                        <span
                                             className={`${styles.filterChip} ${activeFilters.date?.includes(new Date().toISOString().split('T')[0].substring(0, 7)) ? styles.selected : ''}`}
                                             onClick={() => toggleFilter('date', new Date().toISOString().split('T')[0].substring(0, 7))}
                                         >
@@ -291,9 +353,10 @@ export function BottomMenu() {
                                             <div className={styles.itemIconWrapper}>
                                                 <Icon size={20} />
                                             </div>
-                                            <div className={styles.itemContent}>
-                                                <div className={styles.itemLabel}>{block.label}</div>
-                                                <div className={styles.itemDescription}>{block.description}</div>
+                                            {/* Custom Tooltip */}
+                                            <div className={styles.customTooltip}>
+                                                <div className={styles.tooltipLabel}>{block.label}</div>
+                                                <div className={styles.tooltipDesc}>{block.description}</div>
                                             </div>
                                         </div>
                                     );

@@ -11,6 +11,9 @@ import styles from './BlockNode.module.css';
 export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const { setNodes, deleteElements } = useReactFlow();
     const updateNodeData = useStore(s => s.updateNodeData);
+    const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
+
+    const isMultiSelected = selectedCanvasNodeIds.has(id);
 
     // EditBar state
     const [showEditBar, setShowEditBar] = useState(false);
@@ -71,8 +74,17 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
 
     return (
         <div
-            className={`${styles.blockNode} ${isSingleMedia ? styles.mediaBlockNode : ''} ${selected ? styles.selected : ''}`}
+            className={`${styles.blockNode} ${isSingleMedia ? styles.mediaBlockNode : ''} ${selected ? styles.selected : ''} ${isMultiSelected ? styles.multiSelected : ''}`}
             onContextMenu={handleContextMenu}
+            onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }}
+            onDrop={(e) => {
+                // Stop propagation to prevent ReactFlow's onDrop from catching it
+                // The BlockEditor inside handles its own drops
+                e.stopPropagation();
+            }}
             style={{
                 backgroundColor: data.color || undefined,
             }}

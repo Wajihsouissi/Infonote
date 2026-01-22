@@ -58,6 +58,12 @@
     box-shadow: 0 0 0 2px var(--color-primary-glow);
 }
 
+.multiSelected {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary), 0 0 20px rgba(139, 92, 246, 0.5);
+    background: rgba(139, 92, 246, 0.08);
+}
+
 .potentialMerge {
     box-shadow: 0 0 0 4px var(--color-secondary-glow), 0 0 20px rgba(139, 92, 246, 0.4);
     border-color: var(--color-secondary);

@@ -46,6 +46,12 @@
     background: var(--glass-bg-hover);
 }
 
+.blockNode.multiSelected {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary), 0 0 20px rgba(139, 92, 246, 0.5);
+    background: rgba(139, 92, 246, 0.08);
+}
+
 .blockNode:hover {
     background: var(--glass-bg-hover);
     border-color: var(--color-primary);

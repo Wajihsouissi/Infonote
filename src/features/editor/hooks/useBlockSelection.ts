@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { Block } from '../types';
+import { throttle } from '../../../utils/throttle';
 
 interface SelectionProps {
     editorRef: React.RefObject<HTMLDivElement | null>;
@@ -18,6 +19,54 @@ export function useBlockSelection({ editorRef, blocks, blockRefs }: SelectionPro
     useEffect(() => {
         selectedBlockIdsRef.current = selectedBlockIds;
     }, [selectedBlockIds]);
+
+    // Throttled selection calculation to improve performance
+    const throttledCalculateSelection = useMemo(
+        () => throttle((dragSel: { startX: number, startY: number, currentX: number, currentY: number }, editorEl: HTMLDivElement, blockElements: typeof blockRefs.current, currentBlocks: Block[]) => {
+            const left = Math.min(dragSel.startX, dragSel.currentX);
+            const top = Math.min(dragSel.startY, dragSel.currentY);
+            const width = Math.abs(dragSel.currentX - dragSel.startX);
+            const height = Math.abs(dragSel.currentY - dragSel.startY);
+            const selectionBox = { left, top, right: left + width, bottom: top + height };
+
+            const newSelected = new Set<string>();
+            const editorRect = editorEl.getBoundingClientRect();
+            const computedStyle = getComputedStyle(editorEl);
+            const transform = computedStyle.transform || 'matrix(1, 0, 0, 1, 0, 0)';
+            const scaleMatch = transform.match(/matrix\(([^)]+)\)/);
+            const scale = scaleMatch ? 
+                parseFloat(scaleMatch[1].split(',')[3] || '1') : 
+                (editorRect.width && editorEl.offsetWidth ? 
+                 editorRect.width / editorEl.offsetWidth : 1);
+
+            currentBlocks.forEach(block => {
+                const el = blockElements[block.id];
+                if (el) {
+                    const blockRect = el.getBoundingClientRect();
+                    const blockRelative = {
+                        left: (blockRect.left - editorRect.left) / scale,
+                        top: (blockRect.top - editorRect.top) / scale,
+                        right: (blockRect.right - editorRect.left) / scale,
+                        bottom: (blockRect.bottom - editorRect.top) / scale
+                    };
+
+                    if (
+                        blockRelative.left < selectionBox.right &&
+                        blockRelative.right > selectionBox.left &&
+                        blockRelative.top < selectionBox.bottom &&
+                        blockRelative.bottom > selectionBox.top
+                    ) {
+                        newSelected.add(block.id);
+                    }
+                }
+            });
+
+            if (newSelected.size > 0) {
+                setSelectedBlockIds(newSelected);
+            }
+        }, 16), // ~60fps
+        [setSelectedBlockIds]
+    );
 
     // Selection Logic Effect
     useEffect(() => {
@@ -41,7 +90,13 @@ export function useBlockSelection({ editorRef, blocks, blockRefs }: SelectionPro
                         editorRef.current.focus();
                     }
 
-                    const scale = editorRect.width ? (editorRect.width / editorRef.current.offsetWidth) : 1;
+                    const computedStyle = editorRef.current ? getComputedStyle(editorRef.current) : null;
+                    const transform = computedStyle?.transform || 'matrix(1, 0, 0, 1, 0, 0)';
+                    const scaleMatch = transform.match(/matrix\(([^)]+)\)/);
+                    const scale = scaleMatch ? 
+                        parseFloat(scaleMatch[1].split(',')[3] || '1') : 
+                        (editorRect.width && editorRef.current?.offsetWidth ? 
+                         editorRect.width / editorRef.current.offsetWidth : 1);
                     const relX = (mouseDownBlock.startX - editorRect.left) / scale;
                     const relY = (mouseDownBlock.startY - editorRect.top) / scale;
                     const currentRelX = (e.clientX - editorRect.left) / scale;
@@ -60,7 +115,13 @@ export function useBlockSelection({ editorRef, blocks, blockRefs }: SelectionPro
             }
 
             if (dragSelection) {
-                const scale = editorRect.width ? (editorRect.width / editorRef.current.offsetWidth) : 1;
+                const computedStyle = editorRef.current ? getComputedStyle(editorRef.current) : null;
+                const transform = computedStyle?.transform || 'matrix(1, 0, 0, 1, 0, 0)';
+                const scaleMatch = transform.match(/matrix\(([^)]+)\)/);
+                const scale = scaleMatch ? 
+                    parseFloat(scaleMatch[1].split(',')[3] || '1') : 
+                    (editorRect.width && editorRef.current?.offsetWidth ? 
+                     editorRect.width / editorRef.current.offsetWidth : 1);
                 const cx = (e.clientX - editorRect.left) / scale;
                 const cy = (e.clientY - editorRect.top) / scale;
 
@@ -95,41 +156,7 @@ export function useBlockSelection({ editorRef, blocks, blockRefs }: SelectionPro
         };
 
         if (dragSelection && editorRef.current) {
-            const left = Math.min(dragSelection.startX, dragSelection.currentX);
-            const top = Math.min(dragSelection.startY, dragSelection.currentY);
-            const width = Math.abs(dragSelection.currentX - dragSelection.startX);
-            const height = Math.abs(dragSelection.currentY - dragSelection.startY);
-            const selectionBox = { left, top, right: left + width, bottom: top + height };
-
-            const newSelected = new Set<string>();
-            const editorRect = editorRef.current.getBoundingClientRect();
-            const scale = editorRect.width ? (editorRect.width / editorRef.current.offsetWidth) : 1;
-
-            blocks.forEach(block => {
-                const el = blockRefs.current[block.id];
-                if (el) {
-                    const blockRect = el.getBoundingClientRect();
-                    const blockRelative = {
-                        left: (blockRect.left - editorRect.left) / scale,
-                        top: (blockRect.top - editorRect.top) / scale,
-                        right: (blockRect.right - editorRect.left) / scale,
-                        bottom: (blockRect.bottom - editorRect.top) / scale
-                    };
-
-                    if (
-                        blockRelative.left < selectionBox.right &&
-                        blockRelative.right > selectionBox.left &&
-                        blockRelative.top < selectionBox.bottom &&
-                        blockRelative.bottom > selectionBox.top
-                    ) {
-                        newSelected.add(block.id);
-                    }
-                }
-            });
-
-            if (newSelected.size > 0) {
-                setSelectedBlockIds(newSelected);
-            }
+            throttledCalculateSelection(dragSelection, editorRef.current, blockRefs.current, blocks);
         }
 
         document.addEventListener('mousemove', handleGlobalMouseMove);
@@ -147,8 +174,15 @@ export function useBlockSelection({ editorRef, blocks, blockRefs }: SelectionPro
             const target = e.target as HTMLElement;
             if (editorRef.current.contains(target)) return;
             
-            // Portals handling (SlashMenu, FloatingToolbar)
-            if (target.closest('[data-portal="true"]')) return;
+            // Improved portals handling
+            if (target.closest('[data-portal="true"]') || 
+                target.closest('[data-radix-popper-content-wrapper]') || 
+                target.closest('[role="dialog"]') || 
+                target.closest('.modal') || 
+                target.closest('.popover') || 
+                target.closest('.dropdown') ||
+                target.closest('.fullscreen-modal') ||
+                target.closest('.center-modal')) return;
 
             if (selectedBlockIds.size > 0) {
                 setSelectedBlockIds(new Set());

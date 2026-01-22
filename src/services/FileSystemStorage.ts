@@ -19,6 +19,10 @@ declare global {
         queryPermission(descriptor: { mode: 'read' | 'readwrite' }): Promise<'granted' | 'denied' | 'prompt'>;
         requestPermission(descriptor: { mode: 'read' | 'readwrite' }): Promise<'granted' | 'denied' | 'prompt'>;
     }
+
+    interface FileSystemDirectoryHandle extends FileSystemHandle {
+        entries(): AsyncIterableIterator<[string, FileSystemHandle]>;
+    }
 }
 
 export class FileSystemStorage {
@@ -26,9 +30,20 @@ export class FileSystemStorage {
     private readonly DB_NAME = 'infonote-db';
     private readonly STORE_NAME = 'handles';
     private readonly KEY = 'project-dir';
+    
+    // Sync state management
+    private _isSaving = false;
+    private _saveQueue: (() => Promise<void>)[] = [];
+    private _lastSavedState: { nodes: AppNode[]; edges: Edge[] } | null = null;
+    private _pendingResolvers: { resolve: () => void; reject: (e: any) => void }[] = [];
 
     constructor() {
         this.initDB();
+    }
+
+    // Check if currently saving (used to block loads during saves)
+    get isSaving(): boolean {
+        return this._isSaving;
     }
 
     private initDB() {
@@ -124,22 +139,84 @@ export class FileSystemStorage {
         return this.directoryHandle?.name;
     }
 
-    async saveData(nodes: AppNode[], edges: Edge[], force: boolean = false): Promise<void> {
+    private getFolderName(node: AppNode): string {
+        const label = (node.data as any).label || 'Untitled';
+        // Limit label length and use longer ID segment to avoid collisions and path limits
+        const safeName = label.replace(/[^a-z0-9]/gi, '_').toLowerCase().slice(0, 32);
+        return `${safeName}_${node.id.slice(0, 8)}`;
+    }
+
+    async saveData(nodes: AppNode[], edges: Edge[], options?: { skipFolderSync?: boolean }): Promise<void> {
         if (!this.directoryHandle) return;
 
+        // If already saving, queue this save and return a promise that resolves when the NEXT save finishes
+        if (this._isSaving) {
+            return new Promise((resolve, reject) => {
+                // Store the resolver so we can notify this caller when the queued save finishes
+                this._pendingResolvers.push({ resolve, reject });
+                
+                // Replace the actual queued operation with the latest data
+                // We only need one operation in the queue at any time
+                this._saveQueue = [async () => {
+                    // Capture resolvers for THIS specific batch
+                    const resolvers = [...this._pendingResolvers];
+                    this._pendingResolvers = [];
+                    
+                    try {
+                        await this._doSave(nodes, edges, options);
+                        resolvers.forEach(r => r.resolve());
+                    } catch (e) {
+                        resolvers.forEach(r => r.reject(e));
+                    }
+                }];
+            });
+        }
+
+        await this._doSave(nodes, edges, options);
+    }
+
+    private async _doSave(nodes: AppNode[], edges: Edge[], options?: { skipFolderSync?: boolean }): Promise<void> {
+        if (!this.directoryHandle) return;
+        
+        this._isSaving = true;
+        console.log('[Storage] Starting save...', nodes.length, 'nodes');
+
         try {
-            // Write main data files (compact JSON)
+            // Write main data files (compact JSON) - This is the critical path for data safety
             await Promise.all([
                 this.writeJsonFile(NODES_FILE, nodes),
                 this.writeJsonFile(EDGES_FILE, edges)
             ]);
 
-            // Sync individual cards to folders (concurrently)
-            await this.syncCardsToFolders(nodes);
+            // Store the last saved state for comparison
+            this._lastSavedState = { nodes, edges };
+            console.log('[Storage] Saved successfully:', nodes.length, 'nodes');
 
-        } catch (error) {
+            // Sync individual cards to folders (create new, update existing, delete orphans)
+            if (!options?.skipFolderSync) {
+                await this.syncCardsToFolders(nodes);
+            }
+
+        } catch (error: any) {
             console.error('Failed to save data:', error);
+            if (error.name === 'NotFoundError' || error.name === 'NotAllowedError') {
+                console.warn('Directory handle invalidated. Disconnecting.');
+                this.directoryHandle = null;
+            }
             throw error;
+        } finally {
+            this._isSaving = false;
+            
+            // Process queued saves
+            if (this._saveQueue.length > 0) {
+                const nextSave = this._saveQueue.shift();
+                if (nextSave) {
+                    // Start the next save in the queue
+                    // We don't await here to avoid blocking the finally block, 
+                    // but the promise inside the queue will handle its own resolution.
+                    nextSave();
+                }
+            }
         }
     }
 
@@ -162,25 +239,54 @@ export class FileSystemStorage {
             }
 
             const writeLevel = async (dirHandle: FileSystemDirectoryHandle, nodeList: AppNode[]) => {
-                // Use Promise.all for concurrent writes at this level
-                await Promise.all(nodeList.map(async (node) => {
-                    const label = (node.data as any).label || 'Untitled';
-                    const safeName = label.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                    const folderName = `${safeName}_${node.id.slice(0, 4)}`;
+                // 1. Identify expected folders at this level
+                const expectedFolders = new Set<string>();
+                for (const node of nodeList) {
+                    expectedFolders.add(this.getFolderName(node));
+                }
 
-                    const nodeDir = await dirHandle.getDirectoryHandle(folderName, { create: true });
-
-                    // Save card data
-                    const fileHandle = await nodeDir.getFileHandle('card.json', { create: true });
-                    const writable = await fileHandle.createWritable();
-                    await writable.write(JSON.stringify(node)); // Compact JSON
-                    await writable.close();
-
-                    const children = childrenMap.get(node.id);
-                    if (children && children.length > 0) {
-                        await writeLevel(nodeDir, children);
+                // 2. Clean orphans (delete folders that shouldn't be here)
+                const orphans: string[] = [];
+                try {
+                    for await (const [name, handle] of dirHandle.entries()) {
+                        if (handle.kind === 'directory') {
+                            if (!expectedFolders.has(name)) {
+                                orphans.push(name);
+                            }
+                        }
                     }
-                }));
+                } catch (e) {
+                    console.warn('Failed to read directory entries for cleanup', e);
+                }
+
+                // Delete identified orphans
+                for (const name of orphans) {
+                    try {
+                        await dirHandle.removeEntry(name, { recursive: true });
+                    } catch (e) {
+                        console.warn('Failed to remove orphan folder:', name, e);
+                    }
+                }
+
+                // 3. Write/Update current nodes - Sequential to avoid browser concurrency limits
+                for (const node of nodeList) {
+                    try {
+                        const folderName = this.getFolderName(node);
+                        const nodeDir = await dirHandle.getDirectoryHandle(folderName, { create: true });
+
+                        // Save card data
+                        const fileHandle = await nodeDir.getFileHandle('card.json', { create: true });
+                        const writable = await fileHandle.createWritable();
+                        await writable.write(JSON.stringify(node));
+                        await writable.close();
+
+                        // Recurse
+                        const children = childrenMap.get(node.id) || [];
+                        await writeLevel(nodeDir, children);
+                    } catch (e) {
+                        console.warn('Failed to sync node folder:', node.id, e);
+                    }
+                }
             };
 
             const cardsDir = await this.directoryHandle.getDirectoryHandle('Cards', { create: true });
@@ -193,38 +299,28 @@ export class FileSystemStorage {
 
     async loadData(): Promise<{ nodes: AppNode[]; edges: Edge[] } | null> {
         if (!this.directoryHandle) return null;
+        
+        // CRITICAL: Block loads while saving is in progress
+        if (this._isSaving) {
+            console.log('[Storage] Load blocked - save in progress, returning cached state');
+            return this._lastSavedState;
+        }
 
         try {
             const nodes = await this.readJsonFile<AppNode[]>(NODES_FILE);
             const edges = await this.readJsonFile<Edge[]>(EDGES_FILE);
-            
-            // Validate loaded data
+
             if (!Array.isArray(nodes) || !Array.isArray(edges)) {
                 console.warn('Invalid data structure in storage files');
                 return null;
             }
-            
-            // Validate node structure
-            const validNodes = nodes.filter(node => {
-                if (!node || typeof node !== 'object') return false;
-                if (!node.id || !node.type) return false;
-                if (!['note', 'block', 'fused-note', 'kanban'].includes(node.type)) return false;
-                if (!node.data || typeof node.data !== 'object') return false;
-                return true;
-            });
-            
-            // Validate edge structure
-            const validEdges = edges.filter(edge => {
-                if (!edge || typeof edge !== 'object') return false;
-                if (!edge.id || !edge.source || !edge.target) return false;
-                return true;
-            });
-            
-            console.log(`Loaded ${validNodes.length}/${nodes.length} valid nodes and ${validEdges.length}/${edges.length} valid edges`);
-            
-            return { nodes: validNodes, edges: validEdges };
+
+            // Trust the nodes.json as the source of truth. 
+            // We removed the destructive filesystem integrity check to prevent accidental data loss.
+            console.log(`[Storage] Loaded ${nodes.length} nodes from ${NODES_FILE}`);
+            return { nodes, edges };
         } catch (error) {
-            console.log('No existing data found (or error reading), starting fresh in this directory.', error);
+            console.log('No existing data found (or error reading), starting fresh.', error);
             return null;
         }
     }

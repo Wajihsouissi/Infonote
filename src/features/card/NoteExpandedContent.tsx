@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { Image as ImageIcon, StickyNote, Video, FileText, Layers, Eye, EyeOff, X } from 'lucide-react';
 import styles from './NoteCard.module.css';
 import { BlockEditor } from '../editor/BlockEditor';
@@ -115,6 +116,91 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
         e.stopPropagation();
         setActiveIconMenuId(id);
     }, [id, setActiveIconMenuId]);
+
+    const handleAreaDrop = useCallback((e: React.DragEvent) => {
+        console.log("[NoteExpandedContent.handleAreaDrop] START - Event triggered, nodeId:", id);
+        // Allow dropping on the empty area to append to end
+        // Only if block editor didn't catch it (bubbled up, but noteArea is container)
+        // Check if target is not inside editor?
+        // Actually, preventing default here is fine.
+        e.preventDefault();
+        e.stopPropagation();
+
+        let blocksToAdd: any[] = [];
+        let sourceNodeId: string | null = null;
+        
+        try {
+            const rawData = e.dataTransfer.getData('application/infonote-block-data');
+            if (rawData) {
+                const parsed = JSON.parse(rawData);
+                sourceNodeId = parsed.sourceNodeId || null;
+                
+                console.log("[NoteExpandedContent.handleAreaDrop] Parsed data - sourceNodeId:", sourceNodeId, "currentId:", id);
+                
+                // Handle external drops (menu) or cross-node drops
+                if (sourceNodeId === null || sourceNodeId !== id) {
+                    if (parsed.blocks) blocksToAdd = parsed.blocks;
+                    else if (parsed.block) blocksToAdd = [parsed.block];
+                }
+            } else {
+                const type = e.dataTransfer.getData('application/reactflow-block-type');
+                if (type) {
+                    let metadata = undefined;
+                    try {
+                        const metaJson = e.dataTransfer.getData('application/infonote-block-metadata');
+                        if (metaJson) metadata = JSON.parse(metaJson);
+                    } catch (e) { }
+
+                    // Generate new block for type-only drop
+                    blocksToAdd = [{
+                        id: uuidv4(),
+                        type,
+                        content: '',
+                        metadata
+                    }];
+                }
+            }
+        } catch (err) { console.error("Drop failed", err); }
+
+        console.log("[NoteExpandedContent.handleAreaDrop] blocksToAdd count:", blocksToAdd.length);
+
+        if (blocksToAdd.length > 0) {
+            const current = Array.isArray(data.content) ? data.content : [];
+            console.log("[NoteExpandedContent.handleAreaDrop] Adding blocks to node:", id);
+            onUpdate(id, { content: [...current, ...blocksToAdd] });
+            
+            // Remove blocks from source node if cross-node drop
+            if (sourceNodeId && sourceNodeId !== id) {
+                console.log("[NoteExpandedContent.handleAreaDrop] Removing blocks from source node:", sourceNodeId);
+                const { nodes, updateNodeData, setNodes } = useStore.getState();
+                const sourceNode = nodes.find(n => n.id === sourceNodeId);
+                
+                if (sourceNode && Array.isArray((sourceNode.data as any).content)) {
+                    const blockIds = blocksToAdd.map((b: any) => b.id);
+                    const currentContent = (sourceNode.data as any).content;
+                    const newContent = currentContent.filter((b: any) => !blockIds.includes(b.id));
+                    
+                    console.log("[NoteExpandedContent.handleAreaDrop] Source content before:", currentContent.length, "after:", newContent.length);
+                    
+                    updateNodeData(sourceNodeId, { content: newContent });
+                    
+                    // If source node is now empty and is a fused-note, delete it
+                    if (newContent.length === 0 && sourceNode.type === 'fused-note') {
+                        setTimeout(() => {
+                            setNodes(nds => nds.filter(n => n.id !== sourceNodeId));
+                        }, 0);
+                    }
+                }
+                
+                // Trigger cleanup events
+                if ((window as any).infonoteMultiDragCleanup) {
+                    (window as any).infonoteMultiDragCleanup();
+                    delete (window as any).infonoteMultiDragCleanup;
+                }
+                window.dispatchEvent(new CustomEvent('infonote-clear-selection'));
+            }
+        }
+    }, [data.content, id, onUpdate]);
 
     // Textarea auto-resize logic
     const textareaRef = (element: HTMLTextAreaElement | null) => {
@@ -281,6 +367,12 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
                 className={`${styles.noteArea} nodrag`}
                 onWheelCapture={(e) => e.stopPropagation()}
                 ref={contentRef}
+                onDrop={handleAreaDrop}
+                onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.dataTransfer.dropEffect = 'copy';
+                }}
             >
                 <BlockEditor
                     initialContent={Array.isArray(data.content) ? data.content : []}

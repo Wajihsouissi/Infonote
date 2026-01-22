@@ -19,9 +19,12 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     const { setNodes, getViewport, deleteElements } = useReactFlow(); // Added setNodes back
     const updateNodeData = useStore(s => s.updateNodeData);
     const updateNode = useStore(s => s.updateNode);
+    const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
     const contentRef = useRef<HTMLDivElement>(null);
     const nodeRef = useRef<HTMLDivElement>(null);
     const activeResize = useRef(false);
+
+    const isMultiSelected = selectedCanvasNodeIds.has(id);
 
     // EditBar state
     const [showEditBar, setShowEditBar] = useState(false);
@@ -252,9 +255,18 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
     return (
         <div
-            className={`${styles.fusedNoteNode} ${selected ? styles.selected : ''}`}
+            className={`${styles.fusedNoteNode} ${selected ? styles.selected : ''} ${isMultiSelected ? styles.multiSelected : ''}`}
             ref={nodeRef}
             onContextMenu={handleContextMenu}
+            onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }}
+            onDrop={(e) => {
+                // Stop propagation to prevent ReactFlow's onDrop from catching it
+                // The BlockEditor inside handles its own drops
+                e.stopPropagation();
+            }}
             style={{
                 backgroundColor: data.color || undefined,
             }}

@@ -10,6 +10,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
         hoveredKanbanColumn: null
     },
     theme: (localStorage.getItem('infonote-theme') as 'light' | 'dark') || 'dark',
+    selectedCanvasNodeIds: new Set<string>(),
 
     setActiveIconMenuId: (id) => set({ activeIconMenuId: id }),
     setKanbanModalOpen: (isOpen) => set({ isKanbanModalOpen: isOpen, editingKanbanId: isOpen ? get().editingKanbanId : null }),
@@ -33,4 +34,18 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
             }, 300);
         });
     },
+
+    setSelectedCanvasNodeIds: (ids) => set({ selectedCanvasNodeIds: ids }),
+    
+    toggleCanvasNodeSelection: (id) => set((state) => {
+        const newSelection = new Set(state.selectedCanvasNodeIds);
+        if (newSelection.has(id)) {
+            newSelection.delete(id);
+        } else {
+            newSelection.add(id);
+        }
+        return { selectedCanvasNodeIds: newSelection };
+    }),
+
+    clearCanvasSelection: () => set({ selectedCanvasNodeIds: new Set<string>() }),
 });

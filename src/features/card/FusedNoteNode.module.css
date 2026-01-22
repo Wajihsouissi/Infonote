@@ -59,6 +59,12 @@
     box-shadow: 0 0 0 1px var(--color-primary, #60A5FA);
 }
 
+.fusedNoteNode.multiSelected {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary), 0 0 20px rgba(139, 92, 246, 0.5);
+    background: rgba(139, 92, 246, 0.08);
+}
+
 .fusedNoteNode:hover {
     border-color: rgba(255, 255, 255, 0.3);
     /* Subtle glow intensity */

@@ -18,7 +18,7 @@ export interface NodeSlice {
     setNodes: (nodes: AppNode[] | ((nodes: AppNode[]) => AppNode[])) => void;
     onEdgesChange: (changes: EdgeChange[]) => void;
     onConnect: (connection: Connection) => void;
-    addNode: (type: 'note' | 'block', position: { x: number; y: number }, initialData?: any, style?: React.CSSProperties, parentId?: string) => void;
+    addNode: (type: 'note' | 'block' | 'fused-note' | 'kanban', position: { x: number; y: number }, initialData?: any, style?: React.CSSProperties, parentId?: string, customId?: string) => void;
     updateNodeData: (id: string, data: any) => void;
     updateNode: (id: string, updates: Partial<AppNode>) => void;
     splitNode: (nodeId: string, splitBlockId: string, currentBlocks?: any[]) => void;
@@ -26,6 +26,11 @@ export interface NodeSlice {
     createPageFromText: (text: string, position?: { x: number; y: number }) => string;
     savePageContent: (parentId: string, content: any[], transientNodeIds: string[]) => void;
     syncParentContent: (parentId: string) => void;
+    bulkDeleteNodes: (nodeIds: string[]) => void;
+    bulkDuplicateNodes: (nodeIds: string[]) => void;
+    bulkApplyColor: (nodeIds: string[], color: string) => void;
+    fuseNodes: (nodeIds: string[]) => void;
+    hydrateCanvasFromContent: (nodeId: string) => void;
 }
 
 export interface NavigationSlice {
@@ -62,11 +67,15 @@ export interface UISlice {
         hoveredKanbanColumn: { kanbanId: string; columnId: string } | null;
     };
     editingKanbanId: string | null;
+    selectedCanvasNodeIds: Set<string>;
     setActiveIconMenuId: (id: string | null) => void;
     setKanbanModalOpen: (isOpen: boolean) => void;
     setEditingKanbanId: (id: string | null) => void;
     setInteractionState: (state: Partial<UISlice['interactionState']>) => void;
     toggleTheme: () => void;
+    setSelectedCanvasNodeIds: (ids: Set<string>) => void;
+    toggleCanvasNodeSelection: (id: string) => void;
+    clearCanvasSelection: () => void;
 }
 
 export type AppState = NodeSlice & NavigationSlice & StorageSlice & UISlice;

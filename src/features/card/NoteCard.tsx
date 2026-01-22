@@ -24,8 +24,10 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     const setActiveIconMenuId = useStore(s => s.setActiveIconMenuId);
     const updateNodeData = useStore(s => s.updateNodeData);
     const updateNode = useStore(s => s.updateNode);
+    const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
 
     const viewMode = data.viewMode || 'medium';
+    const isMultiSelected = selectedCanvasNodeIds.has(id);
 
     // Editing state
     const [isEditingMetadata, setIsEditingMetadata] = useState(false);
@@ -247,9 +249,24 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
         ${styles.card} 
         ${styles[viewMode]} 
         ${selected ? styles.selected : ''}
+        ${isMultiSelected ? styles.multiSelected : ''}
       `}
             onDoubleClick={handleDoubleClick}
             onContextMenu={handleContextMenu}
+            onDragOver={(e) => {
+                // Only intercept in expanded mode where we have content to drop into
+                if (viewMode === 'expanded') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }}
+            onDrop={(e) => {
+                // Only intercept in expanded mode
+                // The NoteExpandedContent/BlockEditor inside will handle its own drops
+                if (viewMode === 'expanded') {
+                    e.stopPropagation();
+                }
+            }}
             ref={cardRef}
             style={{
                 width: '100%',

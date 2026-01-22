@@ -71,16 +71,72 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
     edges: initialEdges,
 
     onNodesChange: (changes) => {
-        set({
-            nodes: applyNodeChanges(changes, get().nodes) as AppNode[],
+        const detailedChanges = changes.map(c => {
+            const detail: any = {
+                type: c.type,
+                id: (c as any).id
+            };
+
+            if (c.type === 'remove') {
+                detail.removing = (c as any).id;
+            } else if (c.type === 'position') {
+                detail.position = (c as any).position;
+                detail.dragging = (c as any).dragging;
+            } else if (c.type === 'select') {
+                detail.selected = (c as any).selected;
+            } else if (c.type === 'dimensions') {
+                detail.dimensions = (c as any).dimensions;
+            }
+
+            return detail;
         });
 
-        // Optimization: Only sync parent content on structural changes (add/remove/dimensions)
-        // Position changes are handled in onNodeDragStop to avoid per-frame overhead
-        const hasStructuralChange = changes.some(c => c.type === 'remove' || c.type === 'add' || c.type === 'dimensions');
+        console.log("[onNodesChange] Received changes (detailed):");
+        detailedChanges.forEach(c => console.log("  ", c));
+
+        // CRITICAL FIX: Preserve parentId for standalone blocks during 'replace' changes
+        const filteredChanges = changes.map(change => {
+            if (change.type === 'replace') {
+                const nodeId = (change as any).id;
+                const existingNode = get().nodes.find(n => n.id === nodeId);
+                if (existingNode && (existingNode.data as any).isStandaloneBlock && existingNode.parentId) {
+                    console.log("[onNodesChange] Preserving parentId for standalone block during replace:", nodeId);
+                    // Modify the replace change to preserve parentId
+                    return {
+                        ...change,
+                        item: {
+                            ...(change as any).item,
+                            parentId: existingNode.parentId
+                        }
+                    };
+                }
+            }
+
+            return change;
+        }).filter(c => c !== null) as any[];
+
+        const nodesBefore = get().nodes.length;
+
+        set({
+            nodes: applyNodeChanges(filteredChanges, get().nodes) as AppNode[],
+        });
+
+        const nodesAfter = get().nodes.length;
+
+        if (nodesBefore !== nodesAfter) {
+            console.log("[onNodesChange] Nodes count changed:", {
+                before: nodesBefore,
+                after: nodesAfter
+            });
+        }
+
+        // Optimization: Sync parent content on structural changes OR position changes (to update order)
+        const hasStructuralChange = filteredChanges.some(c => c.type === 'remove' || c.type === 'add' || c.type === 'dimensions');
+        const hasFinishedDragging = filteredChanges.some(c => c.type === 'position' && c.dragging === false);
 
         const { currentParentId } = get();
-        if (currentParentId && hasStructuralChange) {
+        if (currentParentId && (hasStructuralChange || hasFinishedDragging)) {
+            console.log("[onNodesChange] Triggering syncParentContent for:", currentParentId);
             get().syncParentContent(currentParentId);
         }
     },
@@ -109,12 +165,12 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         });
     },
 
-    addNode: (type, position, initialData, style, parentId) => {
+    addNode: (type, position, initialData, style, parentId, customId) => {
         const { currentParentId } = get();
         const targetParentId = parentId !== undefined ? parentId : (currentParentId || undefined);
 
         const newNode: AppNode = {
-            id: uuidv4(),
+            id: customId || uuidv4(),
             type,
             position,
             style: style || { width: 432, height: 432 },
@@ -128,9 +184,24 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             parentId: targetParentId,
         };
 
-        set((state) => ({ nodes: [...state.nodes, newNode] }));
+        console.log("[addNode] Creating node:", {
+            id: newNode.id,
+            type: newNode.type,
+            parentId: targetParentId,
+            isStandalone: (newNode.data as any).isStandaloneBlock,
+            currentParentId
+        });
+
+        set((state) => {
+            if (state.nodes.some(n => n.id === newNode.id)) {
+                console.warn(`[Store] Duplicate node ID detected: ${newNode.id}. Skipping add.`);
+                return {};
+            }
+            return { nodes: [...state.nodes, newNode] };
+        });
 
         if (targetParentId) {
+            console.log("[addNode] Calling syncParentContent for:", targetParentId);
             get().syncParentContent(targetParentId);
         }
     },
@@ -143,11 +214,63 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         });
 
         const { currentParentId } = get();
+        
+        // Sync parent content if we're updating a child node
         if (currentParentId) {
             get().syncParentContent(currentParentId);
         }
 
+        // BIDIRECTIONAL SYNC: If updating a parent note's content, sync down to child nodes
         if (data.content && Array.isArray(data.content)) {
+            const updatedNode = get().nodes.find(n => n.id === id);
+            
+            // Only sync down if this is a parent note (has children) AND we're NOT in that parent's canvas
+            // This prevents sync loops and only syncs when editing from outside the child canvas
+            if (updatedNode && updatedNode.type === 'note' && currentParentId !== id) {
+                const children = get().nodes.filter(n => n.parentId === id);
+                
+                if (children.length > 0) {
+                    // Update child nodes based on parent content changes
+                    set((state) => ({
+                        nodes: state.nodes.map(node => {
+                            if (node.parentId === id) {
+                                // For fused-note and block nodes, update their content from parent
+                                if (node.type === 'fused-note' || node.type === 'block') {
+                                    const childContent = (node.data as any).content;
+                                    if (Array.isArray(childContent) && childContent.length > 0) {
+                                        // Find matching blocks in parent content by ID
+                                        const firstBlockId = childContent[0].id;
+                                        const matchingIndex = data.content.findIndex((b: any) => b.id === firstBlockId);
+                                        
+                                        if (matchingIndex !== -1) {
+                                            // Extract the corresponding blocks from parent
+                                            const updatedBlocks = data.content.slice(
+                                                matchingIndex,
+                                                matchingIndex + childContent.length
+                                            );
+                                            
+                                            // Only update if blocks actually changed
+                                            const hasChanged = JSON.stringify(childContent) !== JSON.stringify(updatedBlocks);
+                                            if (hasChanged && updatedBlocks.length === childContent.length) {
+                                                return {
+                                                    ...node,
+                                                    data: {
+                                                        ...node.data,
+                                                        content: updatedBlocks
+                                                    }
+                                                };
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            return node;
+                        })
+                    }));
+                }
+            }
+
+            // Update linked page block labels
             const linkedUpdates: { id: string, label: string }[] = [];
             data.content.forEach((b: any) => {
                 if (b.type === 'page' && b.metadata?.nodeId) {
@@ -219,6 +342,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             position: newPostion,
             data: {
                 content: blocksToMove,
+                isStandaloneBlock: true
             } as any,
             style: {
                 width: 350,
@@ -241,6 +365,11 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             ],
             edges: [...edges, newEdge]
         });
+
+        // Sync parent content if we are splitInside a child canvas
+        if (sourceNode.parentId) {
+            get().syncParentContent(sourceNode.parentId);
+        }
     },
 
     extractPageFromBlock: (block, position, sourceNodeId) => {
@@ -340,9 +469,22 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
     syncParentContent: (parentId: string) => {
         const { nodes } = get();
+        console.log("[syncParentContent] Before sync - nodes with parentId", parentId, ":",
+            nodes.filter(n => n.parentId === parentId).map(n => ({
+                id: n.id,
+                type: n.type,
+                isStandalone: (n.data as any).isStandaloneBlock
+            }))
+        );
+
         const result = computeParentContentUpdate(parentId, nodes);
 
         if (result && result.shouldUpdate) {
+            console.log("[syncParentContent] Updating nodes:", {
+                parentId,
+                nodesToUpdate: result.nodesToUpdate.map(u => u.id)
+            });
+
             set((state) => ({
                 nodes: state.nodes.map(n => {
                     if (n.id === parentId) {
@@ -355,6 +497,309 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                     return n;
                 })
             }));
+
+            console.log("[syncParentContent] After sync - nodes with parentId", parentId, ":",
+                get().nodes.filter(n => n.parentId === parentId).map(n => ({
+                    id: n.id,
+                    type: n.type,
+                    isStandalone: (n.data as any).isStandaloneBlock
+                }))
+            );
+        } else {
+            console.log("[syncParentContent] No update needed for:", parentId);
         }
     },
+
+    bulkDeleteNodes: (nodeIds: string[]) => {
+        const { nodes, edges } = get();
+
+        console.log("[bulkDeleteNodes] Input nodeIds:", nodeIds);
+        console.log("[bulkDeleteNodes] Total nodes before:", nodes.length);
+
+        // Filter out nodes and edges connected to deleted nodes
+        const newNodes = nodes.filter(n => !nodeIds.includes(n.id));
+        const newEdges = edges.filter(e => !nodeIds.includes(e.source) && !nodeIds.includes(e.target));
+
+        console.log("[bulkDeleteNodes] Total nodes after:", newNodes.length);
+        console.log("[bulkDeleteNodes] Deleted count:", nodes.length - newNodes.length);
+
+        set({ nodes: newNodes, edges: newEdges });
+
+        console.log("[bulkDeleteNodes] Completed");
+    },
+
+    bulkDuplicateNodes: (nodeIds: string[]) => {
+        const { nodes, currentParentId } = get();
+        const nodesToDuplicate = nodes.filter(n => nodeIds.includes(n.id));
+
+        console.log("[bulkDuplicateNodes] Input nodeIds:", nodeIds);
+        console.log("[bulkDuplicateNodes] Found nodes to duplicate:", nodesToDuplicate.length);
+
+        if (nodesToDuplicate.length === 0) {
+            console.log("[bulkDuplicateNodes] No nodes found to duplicate!");
+            return;
+        }
+
+        const OFFSET = 50; // Offset for duplicated nodes to avoid overlap
+        const newNodes: AppNode[] = [];
+
+        nodesToDuplicate.forEach(node => {
+            console.log("[bulkDuplicateNodes] Duplicating node:", node.id, "type:", node.type);
+            const newNode = {
+                ...node,
+                id: uuidv4(),
+                position: {
+                    x: node.position.x + OFFSET,
+                    y: node.position.y + OFFSET
+                },
+                data: {
+                    ...node.data,
+                    // Deep clone content if it's an array
+                    content: Array.isArray((node.data as any).content)
+                        ? (node.data as any).content.map((block: any) => ({ ...block, id: uuidv4() }))
+                        : (node.data as any).content
+                }
+            } as AppNode;
+            newNodes.push(newNode);
+        });
+
+        console.log("[bulkDuplicateNodes] Created", newNodes.length, "new nodes");
+
+        set((state) => ({ nodes: [...state.nodes, ...newNodes] }));
+
+        console.log("[bulkDuplicateNodes] Completed");
+    },
+
+    bulkApplyColor: (nodeIds: string[], color: string) => {
+        console.log("[bulkApplyColor] Input nodeIds:", nodeIds);
+        console.log("[bulkApplyColor] Color:", color);
+
+        set((state) => ({
+            nodes: state.nodes.map(n => {
+                if (nodeIds.includes(n.id)) {
+                    console.log("[bulkApplyColor] Applying color to node:", n.id);
+                    return {
+                        ...n,
+                        data: {
+                            ...n.data,
+                            color: color === 'transparent' ? undefined : color
+                        }
+                    } as AppNode;
+                }
+                return n;
+            })
+        }));
+
+        console.log("[bulkApplyColor] Completed");
+    },
+
+    fuseNodes: (nodeIds: string[]) => {
+        const { nodes, edges, currentParentId } = get();
+        const nodesToFuse = nodes.filter(n => nodeIds.includes(n.id));
+
+        console.log("[fuseNodes] Input nodeIds:", nodeIds);
+        console.log("[fuseNodes] Found nodes to fuse:", nodesToFuse.length);
+        console.log("[fuseNodes] All node IDs before:", nodes.map(n => n.id));
+
+        if (nodesToFuse.length < 2) {
+            console.log("[fuseNodes] Need at least 2 nodes to fuse, got:", nodesToFuse.length);
+            return;
+        }
+
+        // Calculate average position for the fused node
+        const avgX = nodesToFuse.reduce((sum, n) => sum + n.position.x, 0) / nodesToFuse.length;
+        const avgY = nodesToFuse.reduce((sum, n) => sum + n.position.y, 0) / nodesToFuse.length;
+
+        console.log("[fuseNodes] Average position:", { x: avgX, y: avgY });
+
+        // Collect all content from all nodes
+        const allContent: any[] = [];
+        nodesToFuse.forEach(node => {
+            console.log("[fuseNodes] Processing node:", node.id, "type:", node.type);
+            if (node.type === 'note') {
+                // Convert note to a page block
+                const pageBlock = {
+                    id: uuidv4(),
+                    type: 'page',
+                    content: (node.data as any).label || 'Untitled',
+                    metadata: { nodeId: node.id }
+                };
+                allContent.push(pageBlock);
+            } else if (Array.isArray((node.data as any).content)) {
+                allContent.push(...(node.data as any).content);
+            }
+        });
+
+        console.log("[fuseNodes] Total content blocks:", allContent.length);
+
+        // Generate NEW unique ID
+        const fusedNodeId = uuidv4();
+        console.log("[fuseNodes] Generated new fused node ID:", fusedNodeId);
+
+        // Create fused node
+        const fusedNode: AppNode = {
+            id: fusedNodeId,
+            type: 'fused-note',
+            position: { x: avgX, y: avgY },
+            data: {
+                content: allContent,
+                isStandaloneBlock: true
+            },
+            style: {
+                width: 350,
+                height: 'auto' as any
+            },
+            parentId: currentParentId || undefined
+        };
+
+        // Remove original nodes and add fused node
+        const newNodes = nodes.filter(n => !nodeIds.includes(n.id));
+        console.log("[fuseNodes] Nodes after filtering:", newNodes.length, "removed:", nodes.length - newNodes.length);
+
+        newNodes.push(fusedNode);
+        console.log("[fuseNodes] Nodes after adding fused:", newNodes.length);
+
+        // Check for duplicates
+        const nodeIdSet = new Set(newNodes.map(n => n.id));
+        if (nodeIdSet.size !== newNodes.length) {
+            console.error("[fuseNodes] ERROR: Duplicate node IDs detected!");
+            const idCounts = new Map<string, number>();
+            newNodes.forEach(n => {
+                idCounts.set(n.id, (idCounts.get(n.id) || 0) + 1);
+            });
+            idCounts.forEach((count, id) => {
+                if (count > 1) {
+                    console.error("[fuseNodes] Duplicate ID:", id, "count:", count);
+                }
+            });
+        }
+
+        // Remove edges connected to deleted nodes
+        const newEdges = edges.filter(e => !nodeIds.includes(e.source) && !nodeIds.includes(e.target));
+
+        set({ nodes: newNodes, edges: newEdges });
+
+        console.log("[fuseNodes] Completed - Final node count:", newNodes.length);
+    },
+
+    hydrateCanvasFromContent: (nodeId: string) => {
+        const { nodes } = get();
+        const parentNode = nodes.find(n => n.id === nodeId);
+
+        if (!parentNode || !(parentNode.data as any).content || !Array.isArray((parentNode.data as any).content)) {
+            return;
+        }
+
+        const parentContent = (parentNode.data as any).content as any[];
+        if (parentContent.length === 0) return;
+
+        // Get existing children
+        const children = nodes.filter(n => n.parentId === nodeId);
+
+        // Collect all block IDs currently represented on the canvas
+        const representedBlockIds = new Set<string>();
+        children.forEach(child => {
+            if (Array.isArray((child.data as any).content)) {
+                (child.data as any).content.forEach((b: any) => representedBlockIds.add(b.id));
+            }
+            if (child.type === 'note') {
+                const matchingBlock = parentContent.find(b => b.type === 'page' && b.metadata?.nodeId === child.id);
+                if (matchingBlock) {
+                    representedBlockIds.add(matchingBlock.id);
+                }
+            }
+        });
+
+        // Identify orphan blocks (not yet represented in the canvas)
+        const orphanBlocks = parentContent.filter(b => !representedBlockIds.has(b.id));
+
+        if (orphanBlocks.length === 0) {
+            console.log("[hydrateCanvas] No orphan blocks found.");
+            return;
+        }
+
+        console.log("[hydrateCanvas] Found orphans:", orphanBlocks.length);
+
+        // Build sections from orphans, split by headings and dividers
+        const orphanIdSet = new Set(orphanBlocks.map(b => b.id));
+        const isSectionBoundary = (b: any) =>
+            b.type === 'heading1' ||
+            b.type === 'heading2' ||
+            b.type === 'heading3' ||
+            b.type === 'divider';
+
+        const sections: any[][] = [];
+        let currentSection: any[] = [];
+
+        parentContent.forEach((block: any) => {
+            if (!orphanIdSet.has(block.id)) {
+                return;
+            }
+
+            if (isSectionBoundary(block)) {
+                if (currentSection.length > 0) {
+                    sections.push(currentSection);
+                }
+                currentSection = [block];
+            } else {
+                if (currentSection.length === 0) {
+                    currentSection = [block];
+                } else {
+                    currentSection.push(block);
+                }
+            }
+        });
+
+        if (currentSection.length > 0) {
+            sections.push(currentSection);
+        }
+
+        if (sections.length === 0) {
+            console.log("[hydrateCanvas] Orphans exist but no sections were formed.");
+            return;
+        }
+
+        // Calculate base position: below existing children or default
+        let startY = 100;
+        const startX = 100;
+        const gridColumnWidth = 450;  // Increased to 450 (350 width + 100 gap)
+        const gridRowHeight = 600;    // Significantly increased to accommodate tall modules
+        const maxColumns = 5;         // Maximum 5 fused notes per row
+
+        if (children.length > 0) {
+            const maxY = Math.max(
+                ...children.map(c => c.position.y + ((c.style?.height as number) || 100))
+            );
+            startY = maxY + 50;
+        }
+
+        const newNodes: AppNode[] = sections.map((sectionBlocks, index) => {
+            const newNodeId = uuidv4();
+            
+            // Calculate grid position
+            const row = Math.floor(index / maxColumns);
+            const col = index % maxColumns;
+            
+            const x = startX + (col * gridColumnWidth);
+            const y = startY + (row * gridRowHeight);
+
+            return {
+                id: newNodeId,
+                type: 'fused-note',
+                position: { x, y },
+                style: { width: 350, height: 'auto' as any },
+                data: {
+                    content: sectionBlocks,
+                    isStandaloneBlock: true
+                },
+                parentId: nodeId
+            };
+        });
+
+        set(state => ({
+            nodes: [...state.nodes, ...newNodes]
+        }));
+
+        console.log("[hydrateCanvas] Created fused nodes for sections:", newNodes.map(n => n.id));
+    }
 });

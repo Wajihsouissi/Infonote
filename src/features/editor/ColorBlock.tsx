@@ -124,31 +124,38 @@ export const ColorBlock = memo(({ block, readOnly, onChange, disableMediaControl
             disableMediaControls={disableMediaControls}
         >
             <div className={styles.colorBlockWrapper} style={{ width: '100%' }}>
-                <div className={styles.colorBlockPreview} style={{ backgroundColor: color }}>
+                <div className={styles.colorBlockCard}>
 
-                    <div
-                        className={styles.colorBlockHexGroup}
-                        onClick={handleCopyHex}
-                        title="Copy Hex Code"
-                    >
-                        <span className={styles.colorBlockHex}>{color}</span>
-                        {copied ? <Check size={18} color="white" /> : <Copy size={18} color="rgba(255,255,255,0.7)" className={styles.copyIcon} />}
+                    {/* Top Color Section */}
+                    <div className={styles.colorSection} style={{ backgroundColor: color }}>
+                        <div
+                            className={styles.colorBlockHexGroup}
+                            onClick={handleCopyHex}
+                            title="Copy Hex Code"
+                        >
+                            <span className={styles.colorBlockHex}>{color}</span>
+                            {copied ? <Check size={18} color="white" /> : <Copy size={18} color="rgba(255,255,255,0.7)" className={styles.copyIcon} />}
+                        </div>
+
+                        {!readOnly && (
+                            <div className={styles.colorBlockHandle} onClick={() => setIsOpen(!isOpen)} />
+                        )}
                     </div>
 
-                    <span
-                        className={styles.colorBlockName}
-                        contentEditable={!readOnly}
-                        suppressContentEditableWarning
-                        onBlur={(e) => onChange(color, { ...block.metadata, name: e.currentTarget.innerText })}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ cursor: 'text' }}
-                    >
-                        {displayName}
-                    </span>
+                    {/* Bottom Info Section */}
+                    <div className={styles.infoSection}>
+                        <span
+                            className={styles.colorBlockName}
+                            contentEditable={!readOnly}
+                            suppressContentEditableWarning
+                            onBlur={(e) => onChange(color, { ...block.metadata, name: e.currentTarget.innerText })}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ cursor: 'text' }}
+                        >
+                            {displayName}
+                        </span>
+                    </div>
 
-                    {!readOnly && (
-                        <div className={styles.colorBlockHandle} onClick={() => setIsOpen(!isOpen)} />
-                    )}
                 </div>
 
                 {isOpen && (

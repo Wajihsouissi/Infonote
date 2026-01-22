@@ -33,6 +33,16 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         }
         if (!block) return;
 
+        // Register cleanup function for when drag ends
+        // This will clear selection in the source editor
+        (window as any).infonoteDragCleanup = () => {
+            console.log('Executing drag cleanup function');
+            // Clear selection in the parent BlockEditor component
+            const event = new CustomEvent('infonote-clear-selection');
+            window.dispatchEvent(event);
+        };
+        console.log('Registered drag cleanup function for block:', block.id);
+
         // ... rest of drag start ...
         // Allow parent to override or augment data transfer (for multi-selection)
         if (onDragStart) {
@@ -61,6 +71,34 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
     const handleDragEnd = () => {
         if (ref.current) ref.current.classList.remove(styles.dragging);
         setDropIndication(null);
+
+        // Execute both regular and multi-block cleanup
+        const regularCleanup = (window as any).infonoteDragCleanup;
+        const multiCleanup = (window as any).infonoteMultiDragCleanup;
+
+        if (regularCleanup) {
+            try {
+                console.log('Executing regular drag cleanup for block:', block?.id);
+                regularCleanup();
+            } catch (error) {
+                console.warn('Error during regular drag cleanup:', error);
+            }
+            (window as any).infonoteDragCleanup = undefined;
+        }
+
+        if (multiCleanup) {
+            try {
+                console.log('Executing multi-drag cleanup');
+                multiCleanup();
+            } catch (error) {
+                console.warn('Error during multi-drag cleanup:', error);
+            }
+            (window as any).infonoteMultiDragCleanup = undefined;
+        }
+
+        if (!regularCleanup && !multiCleanup) {
+            console.log('No drag cleanup functions found for block:', block?.id);
+        }
     };
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -83,22 +121,27 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
 
     const handleDrop = (e: React.DragEvent) => {
         if (readOnly) return;
-        e.preventDefault();
-        e.stopPropagation();
-        setDropIndication(null);
 
         const sourceBlockId = e.dataTransfer.getData('application/infonote-block-id');
+        const type = e.dataTransfer.getData('application/reactflow-block-type');
 
-        if (sourceBlockId && onMoveBlock) {
-            // Internal Reorder or External Move
-            // Use ID check if we are in the same editor context, or rely on sourceBlockId being present
+        if ((sourceBlockId || type) && onMoveBlock) {
+            e.preventDefault();
+            e.stopPropagation();
+            setDropIndication(null);
+
             if (sourceBlockId === id) return;
-            onMoveBlock(sourceBlockId, id, dropIndication || 'bottom', e.dataTransfer);
+            // Use special ID for external drops to satisfy type but indicate source
+            onMoveBlock(sourceBlockId || "EXTERNAL_DROP", id, dropIndication || 'bottom', e.dataTransfer);
+        } else {
+            // For unhandled types (like files) or missing move handler,
+            // let the event bubble to the parent BlockEditor
+            setDropIndication(null);
         }
     };
 
     const isMedia = ['image', 'video', 'file', 'color'].includes(block?.type || '');
-    const canDragWrapper = !readOnly && (isMedia || hideHandle) && !promoteBlockHandles;
+    const canDragWrapper = !readOnly && (isMedia || hideHandle || isSelected) && !promoteBlockHandles;
 
     const dropClass = dropIndication === 'top' ? styles.dropTargetTop : (dropIndication === 'bottom' ? styles.dropTargetBottom : '');
 
@@ -116,7 +159,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
             onContextMenu={(e) => onMenuOpen?.(e, id)}
             id={`block-${id}`}
 
-            // Allow dragging from anywhere on media blocks or if handles are hidden
+            // Allow dragging from anywhere on media blocks, when handles are hidden, or when block is selected
             draggable={canDragWrapper}
             onDragStart={canDragWrapper ? handleDragStart : undefined}
         >

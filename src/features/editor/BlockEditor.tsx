@@ -1,14 +1,13 @@
-import { useState, useCallback, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
-import type { Block, BlockType } from './types';
+import type { Block } from './types';
 import styles from './BlockEditor.module.css';
 
 import { SlashMenu } from './SlashMenu';
 import { BlockMenu } from './BlockMenu';
 import { FloatingToolbar } from './FloatingToolbar';
 
-import { parseClipboardData } from './pasteUtils';
 import { BlockItem } from './BlockItem';
 import { useStore } from '../../store/useStore';
 
@@ -17,6 +16,9 @@ import { useBlockSelection } from './hooks/useBlockSelection';
 import { useSlashCommand } from './hooks/useSlashCommand';
 import { useBlockCommands } from './hooks/useBlockCommands';
 import { useBlockDragAndDrop } from './hooks/useBlockDragAndDrop';
+
+// UI
+import { SelectionCapsule } from './ui/SelectionCapsule';
 
 interface BlockEditorProps {
     initialContent?: string | Block[];
@@ -75,7 +77,6 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         setSelectedBlockIds,
         dragSelection,
         setDragSelection,
-        mouseDownBlock,
         setMouseDownBlock,
         selectionRect,
         wasDraggingRef,
@@ -90,13 +91,13 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         slashMenuStateRef,
         convertBlock,
         handleSlashOpen
-    } = useSlashCommand({ 
-        editorRef, 
-        blocks, 
-        setBlocks, 
-        debouncedOnUpdate, 
+    } = useSlashCommand({
+        editorRef,
+        blocks,
+        setBlocks,
+        debouncedOnUpdate,
         setFocusId,
-        nodeId 
+        nodeId
     });
 
     // 3. Block Commands Hook
@@ -107,7 +108,8 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         handleOutdent,
         handleBlockMenuAction,
         handleBlockPaste,
-        handleEditorClick
+        handleEditorClick,
+        deleteSelectedBlocks
     } = useBlockCommands({
         editorRef,
         blocks,
@@ -140,6 +142,84 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         nodeId,
         addBlock
     });
+
+    // Escape key handler for clearing selection
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && selectedBlockIds.size > 0) {
+                e.preventDefault();
+                setSelectedBlockIds(new Set());
+                if (document.activeElement instanceof HTMLElement) {
+                    document.activeElement.blur();
+                }
+                editorRef.current?.focus();
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [selectedBlockIds.size, setSelectedBlockIds]);
+
+    // Listen for drag completion events to clear selection
+    // Listen for drag completion events to clear selection
+    useEffect(() => {
+        const handleDragClearSelection = () => {
+            console.log('Received drag clear selection event');
+
+            // Explicitly clear drag selection artifacts
+            setDragSelection(null);
+            setMouseDownBlock(null);
+
+            if (selectedBlockIds.size > 0) {
+                console.log('Clearing selection of', selectedBlockIds.size, 'blocks');
+                setSelectedBlockIds(new Set());
+                if (document.activeElement instanceof HTMLElement) {
+                    document.activeElement.blur();
+                }
+                editorRef.current?.focus();
+            }
+        };
+
+        // Listen for both regular and multi-block cleanup events
+        window.addEventListener('infonote-clear-selection', handleDragClearSelection);
+
+        return () => {
+            window.removeEventListener('infonote-clear-selection', handleDragClearSelection);
+        };
+    }, [selectedBlockIds.size, setSelectedBlockIds, setDragSelection, setMouseDownBlock]);
+
+    // Listen specifically for multi-block drag cleanup
+    useEffect(() => {
+        const handleMultiDragClearSelection = () => {
+            console.log('Received multi-block drag clear selection event');
+            if (selectedBlockIds.size > 0) {
+                console.log('Clearing selection of', selectedBlockIds.size, 'blocks (multi-drag)');
+                setSelectedBlockIds(new Set());
+                if (document.activeElement instanceof HTMLElement) {
+                    document.activeElement.blur();
+                }
+                editorRef.current?.focus();
+            }
+        };
+
+        window.addEventListener('infonote-multi-drag-clear-selection', handleMultiDragClearSelection);
+
+        return () => {
+            window.removeEventListener('infonote-multi-drag-clear-selection', handleMultiDragClearSelection);
+        };
+    }, [selectedBlockIds.size, setSelectedBlockIds]);
+
+    // Additional cleanup: Clear selection when blocks are removed (happens during drag operations)
+    const prevBlocksLengthRef = useRef(blocks.length);
+
+    useEffect(() => {
+        if (blocks.length < prevBlocksLengthRef.current && selectedBlockIds.size > 0) {
+            // Blocks were removed and we had selection - likely from drag operation
+            console.log('Blocks removed, clearing selection');
+            setSelectedBlockIds(new Set());
+        }
+
+        prevBlocksLengthRef.current = blocks.length;
+    }, [blocks.length, selectedBlockIds.size, setSelectedBlockIds]);
 
     // Auto-focus effect
     useEffect(() => {
@@ -203,7 +283,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             }
             if (content === '> ') { convertBlock(id, 'quote'); return; }
             if (content === '>> ') { convertBlock(id, 'toggle'); return; }
-            if (content === '--- ') { convertBlock(id, 'divider'); return; } 
+            if (content === '--- ') { convertBlock(id, 'divider'); return; }
             if (content === '[] ' || content === '- ') { convertBlock(id, 'todo'); return; }
             if (content === '``` ') { convertBlock(id, 'code'); return; }
 
@@ -404,6 +484,20 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 editorRef.current?.focus();
             }
             // else let browser select all text (default)
+        } else if ((e.ctrlKey || e.metaKey) && e.key === 'Delete') {
+            // Ctrl+Delete to delete selected blocks
+            if (selectedBlockIds.size > 0) {
+                e.preventDefault();
+                deleteSelectedBlocks();
+            }
+        } else if (e.key === 'Backspace' && selectedBlockIds.size > 0) {
+            // Backspace/Delete to delete selected blocks
+            e.preventDefault();
+            deleteSelectedBlocks();
+        } else if (e.key === 'Delete' && selectedBlockIds.size > 0) {
+            // Delete key to delete selected blocks
+            e.preventDefault();
+            deleteSelectedBlocks();
         }
     }, [handleIndent, handleOutdent, convertBlock, addBlock, removeBlock, debouncedOnUpdate]);
 
@@ -440,6 +534,18 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
     const handleRegisterRef = useCallback((id: string, el: HTMLDivElement | null) => {
         blockRefs.current[id] = el;
     }, []);
+
+    const handleCopySelection = useCallback(() => {
+        const selectedBlocks = blocks.filter(b => selectedBlockIds.has(b.id));
+        if (selectedBlocks.length === 0) return;
+
+        const data = JSON.stringify({ blocks: selectedBlocks });
+        navigator.clipboard.writeText(data).then(() => {
+            console.log('Copied blocks to clipboard');
+        }).catch(err => {
+            console.error('Failed to copy blocks', err);
+        });
+    }, [blocks, selectedBlockIds]);
 
 
 
@@ -608,6 +714,17 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         width: Math.abs(dragSelection.currentX - dragSelection.startX),
                         height: Math.abs(dragSelection.currentY - dragSelection.startY)
                     }}
+                />
+            )}
+
+            {/* Selection Counter */}
+            {/* Selection Capsule (Dynamic Island) */}
+            {selectedBlockIds.size > 0 && (
+                <SelectionCapsule
+                    count={selectedBlockIds.size}
+                    onClear={() => setSelectedBlockIds(new Set())}
+                    onDelete={deleteSelectedBlocks}
+                    onCopy={handleCopySelection}
                 />
             )}
         </div>

@@ -35,12 +35,14 @@ export type NoteNode = Node<NoteData, 'note'> & { parentId?: string | null };
 
 export type BlockNodeData = {
     content: any[];
+    isStandaloneBlock?: boolean; // Flag to indicate standalone canvas block (not part of parent content)
 };
 
 export type BlockNode = Node<BlockNodeData, 'block'> & { parentId?: string | null };
 
 export type FusedNoteNodeData = {
     content: any[];
+    isStandaloneBlock?: boolean; // Flag to indicate standalone canvas block (not part of parent content)
 };
 
 export type FusedNoteNode = Node<FusedNoteNodeData, 'fused-note'> & { parentId?: string | null };

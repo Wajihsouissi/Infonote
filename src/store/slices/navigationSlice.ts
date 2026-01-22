@@ -19,6 +19,11 @@ export const createNavigationSlice: StateCreator<AppState, [], [], NavigationSli
         const targetNode = nodes.find((n) => n.id === nodeId);
         if (!targetNode) return;
 
+        // Hydrate canvas from content if it's a note
+        if (targetNode.type === 'note') {
+            get().hydrateCanvasFromContent(nodeId);
+        }
+
         const existingIndex = breadcrumbs.findIndex((b) => b.id === nodeId);
         if (existingIndex !== -1) {
             set({

@@ -53,7 +53,18 @@ export function FullscreenModal() {
     };
 
     return (
-        <div className={styles.overlay}>
+        <div
+            className={styles.overlay}
+            onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }}
+            onDrop={(e) => {
+                // Prevent drops on the overlay itself from propagating to ReactFlow
+                // The actual content (NoteExpandedContent/BlockEditor) will handle their own drops
+                e.stopPropagation();
+            }}
+        >
             <div className={styles.modal}>
                 <div style={{ height: '100%', width: '100%', overflow: 'hidden' }}>
                     {activeNode.type === 'note' ? (

@@ -8,6 +8,15 @@
     overflow: hidden;
 }
 
+/* Selection Mode - Ctrl held down */
+.selectMode {
+    cursor: crosshair;
+}
+
+.selectMode :global(.react-flow__pane) {
+    cursor: crosshair !important;
+}
+
 /* Optimization: Disable blur during pan/zoom */
 .isMoving {
     --backdrop-blur: 0px !important;
@@ -31,6 +40,81 @@
     /* Wait, NoteContentPanel is absolute position left:0. 
        So we need to add margin-left here to push canvas.
     */
+}
+
+/* Selection Box (Ctrl+Drag) */
+.selectionBox {
+    background: rgba(139, 92, 246, 0.15);
+    border: 2px solid var(--color-primary);
+    border-radius: 4px;
+    z-index: 1000;
+    pointer-events: none;
+    animation: selectionPulse 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes selectionPulse {
+    from {
+        background: rgba(139, 92, 246, 0.1);
+    }
+    to {
+        background: rgba(139, 92, 246, 0.2);
+    }
+}
+
+/* Selection Mode Indicator */
+.selectionModeIndicator {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 16px;
+    background: var(--color-primary);
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 8px;
+    z-index: 10000;
+    pointer-events: none;
+    animation: fadeIn 0.2s ease-out;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* Selection Count during drag */
+.selectionCount {
+    position: fixed;
+    bottom: 140px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 6px 12px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    color: var(--color-text-primary);
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 16px;
+    z-index: 10000;
+    pointer-events: none;
+    border: 1px solid var(--color-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Node preview highlight during box selection - applied via className */
+:global(.box-selection-preview) {
+    outline: 2px solid var(--color-primary) !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.3), 0 0 20px rgba(139, 92, 246, 0.2) !important;
+    transition: outline 0.1s ease, box-shadow 0.1s ease !important;
 }
 
 /* DEPRECATED: Old Parent Header styles - Keeping just in case user wants revert or reference, 

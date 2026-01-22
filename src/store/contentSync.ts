@@ -11,8 +11,22 @@ export const computeParentContentUpdate = (parentId: string, allNodes: AppNode[]
     const parent = allNodes.find(n => n.id === parentId);
     if (!parent || parent.type !== 'note') return null;
 
-    // 1. Get Children
-    const children = allNodes.filter(n => n.parentId === parentId);
+    // 1. Get Children - Include all nodes that belong to this parent
+    const children = allNodes.filter(n =>
+        n.parentId === parentId &&
+        ['fused-note', 'block', 'note', 'kanban'].includes(n.type)
+    );
+
+    console.log("[ContentSync] Processing parent:", {
+        parentId,
+        allChildrenCount: allNodes.filter(n => n.parentId === parentId).length,
+        syncedChildrenCount: children.length,
+        children: children.map(c => ({
+            id: c.id,
+            type: c.type,
+            isStandalone: (c.data as any).isStandaloneBlock
+        }))
+    });
 
     // 2. Sort by Visual Position
     children.sort((a, b) => {
@@ -31,22 +45,13 @@ export const computeParentContentUpdate = (parentId: string, allNodes: AppNode[]
 
     children.forEach(child => {
         if (child.type === 'fused-note' || child.type === 'block') {
-            const content = (child.data as any).content;
+            const childData = child.data as any;
+            const content = childData.content;
+
             if (Array.isArray(content)) {
-                const clean: any[] = [];
-                let ejected = false;
                 content.forEach((b: any) => {
                     reconstructedContent.push(b);
-                    if (b.type === 'page') {
-                        ejected = true;
-                    } else {
-                        clean.push(b);
-                    }
                 });
-
-                if (ejected) {
-                    nodesToUpdate.push({ id: child.id, data: { ...child.data, content: clean } });
-                }
 
                 // SYNC LINKED NODES (Block -> Node)
                 // If a block is a 'page' reference, ensure the actual Node label matches the Block content.
@@ -58,8 +63,6 @@ export const computeParentContentUpdate = (parentId: string, allNodes: AppNode[]
                             const currentLabel = (linkedNode.data as any).label;
                             const contentMatch = currentLabel === b.content;
 
-                            // console.log("Sync Check:", { blockContent: b.content, nodeLabel: currentLabel, match: contentMatch });
-
                             if (!contentMatch) {
                                 console.log("Sync Check: MISMATCH DETECTED. Scheduling Update.", {
                                     id: linkedNode.id,
@@ -67,9 +70,6 @@ export const computeParentContentUpdate = (parentId: string, allNodes: AppNode[]
                                     new: b.content
                                 });
 
-                                // Correct the Linked Node's label to match the Block
-                                // Use push to avoid duplicates if multiple refs exist?
-                                // Check if already in nodesToUpdate?
                                 const existingUpdate = nodesToUpdate.find(u => u.id === linkedNode.id);
                                 if (existingUpdate) {
                                     existingUpdate.data.label = b.content;
@@ -84,15 +84,18 @@ export const computeParentContentUpdate = (parentId: string, allNodes: AppNode[]
                     }
                 });
             }
-        } else if (child.type === 'note') {
+        } else if (child.type === 'note' || child.type === 'kanban') {
             // Try to find existing block for this node
             const existingBlock = existingContent.find((b: any) => b.metadata?.nodeId === child.id);
 
             reconstructedContent.push({
-                id: existingBlock?.id || uuidv4(), // Preserve ID or generate new
+                id: existingBlock?.id || uuidv4(),
                 type: 'page',
-                content: child.data.label || 'Untitled',
-                metadata: { nodeId: child.id }
+                content: child.data.label || (child.type === 'kanban' ? 'Kanban Board' : 'Untitled'),
+                metadata: { 
+                    nodeId: child.id,
+                    isKanban: child.type === 'kanban'
+                }
             });
         }
     });

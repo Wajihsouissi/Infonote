@@ -29,11 +29,18 @@ export function useBlockCommands({
 }: BlockCommandsProps) {
 
     const addBlock = useCallback((afterId: string, type: BlockType = 'text', initialIndent: number = 0, initialMetadata?: any) => {
-        const newBlock: Block = { id: uuidv4(), type, content: '', indent: initialIndent };
+        const newBlock: Block = {
+            id: uuidv4(),
+            type,
+            content: '',
+            indent: initialIndent,
+            metadata: initialMetadata || undefined
+        };
 
         if (type === 'columns') {
             const count = initialMetadata?.count || 2;
             newBlock.metadata = {
+                ...initialMetadata,
                 columns: Array.from({ length: count }).map(() => ({ id: uuidv4(), content: [] }))
             };
         }
@@ -191,6 +198,30 @@ export function useBlockCommands({
         }
     }, [debouncedOnUpdate, setBlocks]);
 
+    // Batch operations
+    const deleteSelectedBlocks = useCallback(() => {
+        if (selectedBlockIds.size === 0) return;
+
+        setBlocks(prev => {
+            const newBlocks = prev.filter(b => !selectedBlockIds.has(b.id));
+            debouncedOnUpdate(newBlocks);
+            setSelectedBlockIds(new Set()); // Clear selection
+            return newBlocks;
+        });
+    }, [selectedBlockIds, setBlocks, debouncedOnUpdate, setSelectedBlockIds]);
+
+    const convertSelectedBlocks = useCallback((newType: BlockType) => {
+        if (selectedBlockIds.size === 0) return;
+
+        setBlocks(prev => {
+            const newBlocks = prev.map(b =>
+                selectedBlockIds.has(b.id) ? { ...b, type: newType } : b
+            );
+            debouncedOnUpdate(newBlocks);
+            return newBlocks;
+        });
+    }, [selectedBlockIds, setBlocks, debouncedOnUpdate]);
+
     const handleEditorClick = useCallback((e: React.MouseEvent, wasDragging: boolean) => {
         if (wasDragging) return;
 
@@ -225,6 +256,8 @@ export function useBlockCommands({
         handleOutdent,
         handleBlockMenuAction,
         handleBlockPaste,
-        handleEditorClick
+        handleEditorClick,
+        deleteSelectedBlocks,
+        convertSelectedBlocks
     };
 }

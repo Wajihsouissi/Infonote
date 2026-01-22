@@ -5,6 +5,7 @@ import {
     Controls,
     useReactFlow,
     MiniMap,
+    SelectionMode,
 } from '@xyflow/react';
 import { NoteCard } from '../card/NoteCard';
 import { BlockNode } from '../block/BlockNode';
@@ -27,12 +28,27 @@ import type { AppNode } from "../../types";
 import styles from "./CanvasBoard.module.css";
 import { CANVAS_HORIZONTAL_GAP, CANVAS_VERTICAL_GAP, MAX_ITEMS_PER_ROW, ICON_SIZE, BASE_UNIT } from '../../config/layout';
 
+// Selection box state type - now uses screen coordinates for visual and flow coordinates for detection
+interface SelectionBox {
+    // Screen coordinates (for visual rendering)
+    screenStartX: number;
+    screenStartY: number;
+    screenCurrentX: number;
+    screenCurrentY: number;
+    // Flow coordinates (for node detection)
+    flowStartX: number;
+    flowStartY: number;
+    flowCurrentX: number;
+    flowCurrentY: number;
+}
+
 export function CanvasBoard() {
     // Atomic Selectors to prevent unnecessary re-renders
     const nodes = useStore(useCallback(s => s.nodes, []));
     const edges = useStore(useCallback(s => s.edges, []));
     const currentParentId = useStore(useCallback(s => s.currentParentId, []));
     const interactionState = useStore(useCallback(s => s.interactionState, []));
+    const selectedCanvasNodeIds = useStore(useCallback(s => s.selectedCanvasNodeIds, []));
 
     // Actions (stable references, no need for selectors typically if store is stable, 
     // but better to match pattern or use getState() inside callbacks if appropriate.
@@ -49,34 +65,53 @@ export function CanvasBoard() {
     const setInteractionState = useStore(useCallback(s => s.setInteractionState, []));
     const extractPageFromBlock = useStore(useCallback(s => s.extractPageFromBlock, []));
     const syncParentContent = useStore(useCallback(s => s.syncParentContent, []));
+    const toggleCanvasNodeSelection = useStore(useCallback(s => s.toggleCanvasNodeSelection, []));
+    const setSelectedCanvasNodeIds = useStore(useCallback(s => s.setSelectedCanvasNodeIds, []));
+    const clearCanvasSelection = useStore(useCallback(s => s.clearCanvasSelection, []));
 
     // Throttling Ref
     const lastDragCheck = useRef(0);
+    
+    // Box selection state
+    const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
+    const [isCtrlPressed, setIsCtrlPressed] = useState(false);
+    const selectionBoxRef = useRef<HTMLDivElement>(null);
+    const justFinishedBoxSelection = useRef(false); // Prevents pane click from clearing selection immediately after box select
 
-    const { fitView, screenToFlowPosition, getIntersectingNodes, deleteElements, getNode } = useReactFlow();
+    const { fitView, screenToFlowPosition, getIntersectingNodes, deleteElements, getNode, addNodes: reactFlowAddNodes, getNodes } = useReactFlow();
 
     // Filter nodes and edges for the current view
     const visibleNodes = useMemo(() => {
-        // 1. Identify "Root" nodes for this view level
-        const rootNodes = nodes.filter(n =>
-            (n.parentId === undefined && currentParentId === null) ||
-            n.parentId === currentParentId
-        );
+        console.log("[visibleNodes] Computing for currentParentId:", currentParentId);
+        
+        // SIMPLE RULE: Show all nodes that belong to the current level
+        // If currentParentId is null (home), show nodes with no parent or undefined parent
+        // If currentParentId is set (child canvas), show nodes whose parentId matches
+        const rootNodes = nodes.filter(n => {
+            const matches = (n.parentId === undefined && currentParentId === null) ||
+                           n.parentId === currentParentId;
+            
+            if (currentParentId && matches) {
+                console.log("[visibleNodes] Including node:", {
+                    id: n.id,
+                    type: n.type,
+                    parentId: n.parentId,
+                    isStandalone: (n.data as any).isStandaloneBlock
+                });
+            }
+            
+            return matches;
+        });
 
-        // 2. Identify "Child" nodes that should also be visible
-        // We ONLY show children if they belong to specific container types that rely on ReactFlow's nesting (e.g. explicit Groups).
-        // Standard 'note' cards in this app act as opaque pages/folders, so we do NOT show their children on the canvas
-        // unless we navigate INTO them.
+        console.log("[visibleNodes] Result:", {
+            currentParentId,
+            totalNodes: nodes.length,
+            visibleCount: rootNodes.length
+        });
 
-        // This fixes the "duplication" issue where children appeared on top of parent icons.
-
-        // If we implement "Canvas Groups" later, we can whitelist them here.
-        // For now, we return only the nodes for the current navigation level.
-
-        // STRIP PARENT ID for View Roots
-        // When we navigate INTO a parent (currentParentId), that parent is NOT rendered.
-        // Therefore, its children must effectively become "Root" nodes for the renderer.
-        // If we leave `parentId` set, React Flow crashes because it can't find the parent in `nodes`.
+        // STRIP PARENT ID for ReactFlow rendering
+        // When inside a child canvas, ReactFlow needs nodes to have undefined parentId
+        // Otherwise it tries to find the parent node (which isn't rendered) and crashes
         return rootNodes.map(n => {
             if (n.parentId === currentParentId) {
                 return { ...n, parentId: undefined };
@@ -85,19 +120,17 @@ export function CanvasBoard() {
         });
     }, [nodes, currentParentId]);
 
-    // Debug Log
     useEffect(() => {
-        if (currentParentId && visibleNodes.length > 0) {
-            console.log("CanvasBoard Visible Nodes (Child View):", visibleNodes.map(n => ({
+        if (currentParentId) {
+            console.log("CanvasBoard Visible Nodes:", visibleNodes.map(n => ({
                 id: n.id,
                 type: n.type,
-                w: n.style?.width,
-                h: n.style?.height,
-                pos: n.position,
-                zIndex: n.zIndex
+                parentId: n.parentId, // Should be undefined after mapping
+                realParentId: nodes.find(og => og.id === n.id)?.parentId, // Check actual store parentId
+                pos: n.position
             })));
         }
-    }, [currentParentId, visibleNodes]);
+    }, [currentParentId, visibleNodes, nodes]);
 
     // Update edges
     const visibleEdges = useMemo(() => {
@@ -115,224 +148,111 @@ export function CanvasBoard() {
     }), []);
 
     const activeParentNode = useMemo(() =>
-        nodes.find(n => n.id === currentParentId),
+        currentParentId ? nodes.find(n => n.id === currentParentId) : null,
         [nodes, currentParentId]
     );
 
     // Track theme for ReactFlow colorMode
     const theme = useStore(s => s.theme);
 
-    // --- REF ACTORED PERSISTENCE LOGIC ---
-
-    // 1. LOAD CONTENT (Forward Sync) - "Mount" Logic
-    // Runs once when currentParentId changes to populate the canvas.
-    const hasLoadedRef = useRef<string | null>(null);
-
-    useEffect(() => {
-        if (!activeParentNode || activeParentNode.type !== 'note') {
-            hasLoadedRef.current = null; // CRITICAL: Reset loaded state when leaving a note
-            return;
-        }
-        if (hasLoadedRef.current === activeParentNode.id) return; // Prevent double load
-
-        // Determine if we need to load content
-        // Strict Rule: If we just navigated here, we MUST regenerate the transient view.
-        // We do this by checking if there are ANY visible nodes for this parent.
-        // If the store is already populated (e.g. from history), we might want to keep it?
-        // User requested "remove temporary info", suggesting a fresh reconstruction is better.
-
-        const content = activeParentNode.data.content || [];
-        console.log("CanvasBoard: Loading Content", { parentId: activeParentNode.id, items: Array.isArray(content) ? content.length : 0 });
-
-        // A. EXPLOSION LOGIC
-        const itemsToRender: Array<{ type: 'fused' | 'note', data: any }> = [];
-        let currentChunk: any[] = [];
-        const splitterTypes = ['heading1', 'heading2', 'heading3', 'toggle', 'divider'];
-
-        if (Array.isArray(content)) {
-            content.forEach((block: any) => {
-                if (block.type === 'page') {
-                    if (currentChunk.length > 0) {
-                        itemsToRender.push({ type: 'fused', data: currentChunk });
-                        currentChunk = [];
-                    }
-                    itemsToRender.push({ type: 'note', data: block });
-                    return;
-                }
-
-                if (splitterTypes.includes(block.type)) {
-                    if (currentChunk.length > 0) {
-                        itemsToRender.push({ type: 'fused', data: currentChunk });
-                        currentChunk = [];
-                    }
-                }
-                currentChunk.push(block);
-            });
-        }
-        if (currentChunk.length > 0) {
-            itemsToRender.push({ type: 'fused', data: currentChunk });
-        }
-
-        // B. NODE GENERATION
-        let currentY = 0;
-        let currentX = 0;
-        let itemsInRow = 0;
-        let currentRowMaxHeight = 0;
-
-        const newNodes: any[] = [];
-
-        // Deduplication: Check for existing nodes to preserve identities and positions
-        const existingNodesMap = new Map(
-            useStore.getState().nodes
-                .filter(n => n.parentId === activeParentNode.id)
-                .map(n => [n.id, n])
-        );
-
-        const missingLinks: { blockId: string; nodeId: string }[] = [];
-
-        itemsToRender.forEach((item) => {
-            const isNote = item.type === 'note';
-
-            // Stable ID Generation
-            let nodeId: string;
-            if (isNote) {
-                nodeId = item.data.metadata?.nodeId || uuidv4();
-            } else {
-                // Use first block ID for fused note stability
-                const firstBlock = item.data[0];
-                nodeId = firstBlock ? `fused-${firstBlock.id}` : uuidv4();
-            }
-
-            const existing = existingNodesMap.get(nodeId);
-
-            if (existing) {
-                // Finish current row to avoid overlap with existing items
-                if (itemsInRow > 0) {
-                    currentY += currentRowMaxHeight + CANVAS_VERTICAL_GAP;
-                    currentX = 0;
-                    itemsInRow = 0;
-                    currentRowMaxHeight = 0;
-                }
-
-                // KEEP EXISTING (Preserve position/state)
-                const updatedNode = {
-                    ...existing,
-                    zIndex: isNote ? 10 : 5,
-                    data: isNote ? {
-                        ...existing.data,
-                        label: item.data.content
-                    } : {
-                        ...existing.data,
-                        content: item.data
-                    }
-                };
-                newNodes.push(updatedNode);
-
-                // Update flow cursor to be below this existing node
-                const h = existing.style?.height;
-                const nodeHeight = (typeof h === 'number' ? h : parseInt(h as string)) || (isNote ? ICON_SIZE : 200);
-                currentY = Math.max(currentY, existing.position.y + nodeHeight + CANVAS_VERTICAL_GAP);
-            } else {
-                // NEW ITEM - Place in Grid
-                if (itemsInRow >= MAX_ITEMS_PER_ROW) {
-                    currentY += currentRowMaxHeight + CANVAS_VERTICAL_GAP;
-                    currentX = 0;
-                    itemsInRow = 0;
-                    currentRowMaxHeight = 0;
-                }
-
-                const width = isNote ? ICON_SIZE : 350;
-                const estimatedHeight = isNote ? ICON_SIZE : Math.max(120, item.data.length * 45);
-
-                const node = {
-                    id: nodeId,
-                    type: isNote ? 'note' : 'fused-note',
-                    position: { x: currentX, y: currentY },
-                    zIndex: isNote ? 10 : 5,
-                    data: isNote ? {
-                        label: item.data.content,
-                        viewMode: 'icon',
-                        icon: 'FileText',
-                        date: new Date().toISOString()
-                    } : {
-                        content: item.data
-                    },
-                    style: {
-                        width,
-                        height: isNote ? estimatedHeight : 'auto' as any
-                    },
-                    parentId: activeParentNode.id
-                };
-
-                if (isNote && !item.data.metadata?.nodeId) {
-                    missingLinks.push({ blockId: item.data.id, nodeId });
-                }
-
-                newNodes.push(node);
-                currentX += width + CANVAS_HORIZONTAL_GAP;
-                currentRowMaxHeight = Math.max(currentRowMaxHeight, estimatedHeight);
-                itemsInRow++;
-            }
-        });
-
-
-
-        // UPDATE STORE 
-        useStore.setState(state => ({
-            nodes: [
-                ...state.nodes.filter(n => n.parentId !== activeParentNode.id), // Keep others
-                ...newNodes // Add new
-            ]
-        }));
-
-        // CRITICAL: Patch Parent Content if we created new links
-        if (missingLinks.length > 0) {
-            console.log("CanvasBoard: Patching Missing Links", missingLinks);
-            const parent = useStore.getState().nodes.find(n => n.id === activeParentNode.id);
-            if (parent && Array.isArray((parent.data as any).content)) {
-
-                const newContent = (parent.data as any).content.map((b: any) => {
-                    const link = missingLinks.find(l => l.blockId === b.id);
-                    if (link) {
-                        return { ...b, metadata: { ...b.metadata || {}, nodeId: link.nodeId } };
-                    }
-                    return b;
-                });
-
-                // Update parent without triggering full sync loop?
-                // Actually, we WANT to persist this to the parent node.
-                // updateNodeData triggers syncParentContent for the user actions, but for this...
-                // If we use updateNodeData, it will trigger syncParentContent(grandParent).
-                // It WON'T trigger syncParentContent(parent) (Backwards).
-                updateNodeData(activeParentNode.id, { content: newContent });
-            }
-        }
-
-        hasLoadedRef.current = activeParentNode.id;
-        setTimeout(() => fitView({ duration: 800 }), 50);
-
-    }, [activeParentNode?.id]); // Only run on ID change
-
-
-    // 2. AUTO-SAVE (Reverse Sync) - "Update" Logic
-    // Runs when visible content changes to persist back to parent.
-    // 2. AUTO-SAVE REMOVED (Replaced by Store Action Sync)
-    // The store now handles 'syncParentContent' triggers on every 'updateNodeData' and 'onNodesChange'.
-    // This ensures immediate, dynamic persistence without timer-based effects here.
+    // --- REMOVED EXPLOSION LOGIC ---
+    // Blocks now persist in the store with their parentId
+    // The visibleNodes filter handles showing the right nodes for each canvas level
+    // No need to "explode" parent content into temporary nodes
 
 
 
     // Drop Handlers
     const onDragOver = useCallback((event: React.DragEvent) => {
+        const { centerPanelId, fullscreenId } = useStore.getState();
+        if (centerPanelId || fullscreenId) return;
+
         event.preventDefault();
         event.dataTransfer.dropEffect = 'copy';
     }, []);
 
     const onDrop = useCallback(
         (event: React.DragEvent) => {
+            console.log("[CanvasBoard.onDrop] START - Event triggered");
+            
+            const { centerPanelId, fullscreenId, currentParentId, nodes } = useStore.getState();
+            if (centerPanelId || fullscreenId) {
+                console.log("[CanvasBoard.onDrop] SKIP - Modal open");
+                return;
+            }
+
+            // Check if the drop landed inside a node's BlockEditor - if so, let BlockEditor handle it
+            const target = event.target as HTMLElement;
+            console.log("[CanvasBoard.onDrop] Drop target element:", {
+                tagName: target.tagName,
+                className: target.className,
+                id: target.id,
+                parentClassName: target.parentElement?.className
+            });
+            
+            const isInsideBlockEditor = target.closest('[class*="BlockEditor"]') || 
+                                        target.closest('[class*="editor"]') ||
+                                        target.closest('[class*="noteArea"]') ||
+                                        target.closest('[class*="fusedNoteNode"]') ||
+                                        target.closest('[class*="content"]');
+            
+            console.log("[CanvasBoard.onDrop] isInsideBlockEditor check:", {
+                result: !!isInsideBlockEditor,
+                matchedElement: isInsideBlockEditor?.className
+            });
+            
+            // Parse block data to check if this is a cross-node block transfer
+            const blockDataJson = event.dataTransfer.getData('application/infonote-block-data');
+            let hasSourceNode = false;
+            let sourceNodeIdFromData: string | null = null;
+            
+            if (blockDataJson) {
+                try {
+                    const parsed = JSON.parse(blockDataJson);
+                    hasSourceNode = !!parsed.sourceNodeId;
+                    sourceNodeIdFromData = parsed.sourceNodeId;
+                    console.log("[CanvasBoard.onDrop] Parsed block data - sourceNodeId:", parsed.sourceNodeId, "hasSourceNode:", hasSourceNode);
+                } catch (e) { 
+                    console.log("[CanvasBoard.onDrop] Failed to parse block data");
+                }
+            } else {
+                console.log("[CanvasBoard.onDrop] No block data in dataTransfer");
+            }
+            
+            // Check if drop position intersects with a node (early check)
+            const earlyPosition = screenToFlowPosition({
+                x: event.clientX,
+                y: event.clientY,
+            });
+            const earlyDropRect = {
+                x: earlyPosition.x - 10,
+                y: earlyPosition.y - 10,
+                width: 20,
+                height: 20
+            };
+            const earlyIntersections = getIntersectingNodes(earlyDropRect as any);
+            const earlyTargetNode = earlyIntersections.find(n =>
+                (n.type === 'block' || n.type === 'fused-note' || n.type === 'note') &&
+                n.id !== sourceNodeIdFromData &&
+                n.id !== currentParentId
+            );
+            
+            console.log("[CanvasBoard.onDrop] Intersection check:", {
+                intersectionCount: earlyIntersections.length,
+                intersectionTypes: earlyIntersections.map(n => ({ id: n.id, type: n.type })),
+                targetNode: earlyTargetNode ? { id: earlyTargetNode.id, type: earlyTargetNode.type } : null
+            });
+            
+            // If dropping inside a node's content area OR on a target node AND it's from another node, 
+            // let BlockEditor handle it
+            if ((isInsideBlockEditor || earlyTargetNode) && hasSourceNode) {
+                console.log("[CanvasBoard.onDrop] SKIP - Drop on/inside node, letting BlockEditor handle it");
+                return;
+            }
+
+            console.log("[CanvasBoard.onDrop] PROCEEDING with canvas-level drop handling");
             event.preventDefault();
 
-            const blockDataJson = event.dataTransfer.getData('application/infonote-block-data');
             const type = event.dataTransfer.getData('application/reactflow-block-type') as BlockType;
 
             const rawPosition = screenToFlowPosition({
@@ -353,7 +273,11 @@ export function CanvasBoard() {
             if (blockDataJson) {
                 try {
                     const parsed = JSON.parse(blockDataJson);
-                    if (parsed.block) {
+                    if (parsed.blocks && Array.isArray(parsed.blocks)) {
+                        blocksToAdd = parsed.blocks;
+                        sourceNodeId = parsed.sourceNodeId;
+                        draggedBlockId = null;
+                    } else if (parsed.block) {
                         blocksToAdd = [parsed.block];
                         sourceNodeId = parsed.sourceNodeId;
                         draggedBlockId = parsed.block.id;
@@ -362,10 +286,17 @@ export function CanvasBoard() {
                     console.error("Failed to parse block data", e);
                 }
             } else if (type) {
+                let metadata = undefined;
+                try {
+                    const metaJson = event.dataTransfer.getData('application/infonote-block-metadata');
+                    if (metaJson) metadata = JSON.parse(metaJson);
+                } catch (e) { console.error("Failed to parse metadata", e); }
+
                 blocksToAdd = [{
                     id: uuidv4(),
                     type: type,
-                    content: ''
+                    content: '', // Empty content for new blocks
+                    metadata
                 }];
             } else {
                 return;
@@ -381,8 +312,19 @@ export function CanvasBoard() {
             const intersections = getIntersectingNodes(dropRect as any);
             const targetNode = intersections.find(n =>
                 (n.type === 'block' || n.type === 'fused-note' || n.type === 'note') &&
-                n.id !== sourceNodeId
+                n.id !== sourceNodeId &&
+                n.id !== currentParentId
             );
+
+            console.log("[DND Debug] Drop Event:", {
+                type,
+                currentParentId,
+                rawPosition,
+                position,
+                intersections: intersections.map(n => ({ id: n.id, type: n.type })),
+                targetNode: targetNode ? { id: targetNode.id, type: targetNode.type } : null,
+                blocksToAdd
+            });
 
             if (targetNode) {
                 const currentContent = Array.isArray((targetNode.data as any).content) ? (targetNode.data as any).content : [];
@@ -391,13 +333,12 @@ export function CanvasBoard() {
                 });
 
                 if (targetNode.type === 'block') {
-                    // Convert block to fused-note by updating its data
+                    // Upgrade block to fused-note if needed
                     updateNodeData(targetNode.id, {
                         content: [...currentContent, ...blocksToAdd]
                     });
 
-                    // Update the node type and style separately to avoid complex typing
-                    const updatedNodes = nodes.map(n => {
+                    const updatedNodes = nodes.map((n: AppNode) => {
                         if (n.id === targetNode.id) {
                             return {
                                 ...n,
@@ -410,12 +351,15 @@ export function CanvasBoard() {
                     setNodesStore(updatedNodes);
                 }
 
-                if (sourceNodeId && draggedBlockId) {
-                    const sourceNode = nodes.find(n => n.id === sourceNodeId);
+                if (sourceNodeId) {
+                    // Logic to cleanup source node if moving...
+                    console.log("[CanvasBoard.onDrop] Cleaning up source node (targetNode case):", sourceNodeId);
+                    const sourceNode = nodes.find((n: AppNode) => n.id === sourceNodeId);
                     if (sourceNode && Array.isArray((sourceNode.data as any).content)) {
-                        const newContent = (sourceNode.data as any).content.filter((b: any) => b.id !== draggedBlockId);
+                        const draggedBlockIds = blocksToAdd.map(b => b.id);
+                        let newContent = (sourceNode.data as any).content.filter((b: any) => !draggedBlockIds.includes(b.id));
+                        console.log("[CanvasBoard.onDrop] Source cleanup - removing blocks:", draggedBlockIds, "original:", (sourceNode.data as any).content.length, "new:", newContent.length);
                         updateNodeData(sourceNodeId, { content: newContent });
-
                         if (newContent.length === 0 && sourceNode.type === 'fused-note') {
                             setTimeout(() => deleteElements({ nodes: [{ id: sourceNodeId! }] }), 0);
                         }
@@ -423,16 +367,15 @@ export function CanvasBoard() {
                 }
 
             } else {
-
-                // SPECIAL LOGIC: Dropping a 'page' block onto the canvas -> Convert to Icon Card
-                // Use Store Action for atomic update
+                // ADDING NEW NODE TO CANVAS
                 if (blocksToAdd.length === 1 && blocksToAdd[0].type === 'page') {
-                    console.log("CanvasBoard: Detected Page Drop", blocksToAdd[0]);
                     extractPageFromBlock(blocksToAdd[0], position, sourceNodeId || undefined);
+                    // Standard cleanup for page extraction
+                    if ((window as any).infonoteMultiDragCleanup) ((window as any).infonoteMultiDragCleanup(), delete (window as any).infonoteMultiDragCleanup);
+                    window.dispatchEvent(new CustomEvent('infonote-clear-selection'));
                     return;
                 }
 
-                // Standard Logic for other blocks -> Create Block Container
                 const BLOCK_WIDTH = 300;
                 const BLOCK_HEIGHT = 100;
                 const centeredPosition = {
@@ -440,24 +383,58 @@ export function CanvasBoard() {
                     y: position.y - (BLOCK_HEIGHT / 2),
                 };
 
-                addNode('block', centeredPosition, {
-                    content: blocksToAdd,
-                }, { width: BLOCK_WIDTH, height: BLOCK_HEIGHT });
+                // SIMPLE FIX: Just add directly to the store with correct parentId
+                const nodeId = uuidv4();
+                const targetParentId = currentParentId || undefined;
+                
+                console.log("[DND] Adding block to store:", { 
+                    nodeId,
+                    parentId: targetParentId,
+                    currentParentId,
+                    blockCount: blocksToAdd.length
+                });
 
-                if (sourceNodeId && draggedBlockId) {
-                    const sourceNode = nodes.find(n => n.id === sourceNodeId);
+                const newNode: AppNode = {
+                    id: nodeId,
+                    type: blocksToAdd.length > 1 ? 'fused-note' : 'block',
+                    position: centeredPosition,
+                    data: {
+                        content: blocksToAdd,
+                        isStandaloneBlock: true
+                    },
+                    style: { 
+                        width: blocksToAdd.length > 1 ? 350 : BLOCK_WIDTH, 
+                        height: blocksToAdd.length > 1 ? 'auto' as any : BLOCK_HEIGHT 
+                    },
+                    parentId: targetParentId,
+                };
+
+                // Add directly to store - bypass onNodesChange
+                useStore.setState(state => ({
+                    nodes: [...state.nodes, newNode]
+                }));
+
+                if (sourceNodeId) {
+                    console.log("[CanvasBoard.onDrop] Cleaning up source node:", sourceNodeId);
+                    const sourceNode = nodes.find((n: AppNode) => n.id === sourceNodeId);
                     if (sourceNode && Array.isArray((sourceNode.data as any).content)) {
-                        const newContent = (sourceNode.data as any).content.filter((b: any) => b.id !== draggedBlockId);
+                        const draggedBlockIds = blocksToAdd.map(b => b.id);
+                        let newContent = (sourceNode.data as any).content.filter((b: any) => !draggedBlockIds.includes(b.id));
+                        console.log("[CanvasBoard.onDrop] Source cleanup - removing blocks:", draggedBlockIds, "original:", (sourceNode.data as any).content.length, "new:", newContent.length);
                         updateNodeData(sourceNodeId, { content: newContent });
-
                         if (newContent.length === 0 && sourceNode.type === 'fused-note') {
                             setTimeout(() => deleteElements({ nodes: [{ id: sourceNodeId! }] }), 0);
                         }
                     }
                 }
             }
+            if ((window as any).infonoteMultiDragCleanup) {
+                (window as any).infonoteMultiDragCleanup();
+                delete (window as any).infonoteMultiDragCleanup;
+            }
+            window.dispatchEvent(new CustomEvent('infonote-clear-selection'));
         },
-        [screenToFlowPosition, addNode, nodes, updateNodeData, getIntersectingNodes, deleteElements, setNodesStore, currentParentId],
+        [screenToFlowPosition, addNode, updateNodeData, getIntersectingNodes, deleteElements, setNodesStore, extractPageFromBlock],
     );
 
     // Grid config
@@ -541,7 +518,7 @@ export function CanvasBoard() {
         if (!isSourceBlock && !isSourceFused && !isSourceNote) return;
 
         const intersections = getIntersectingNodes(node);
-        const targetNode = intersections.find(n => n.id !== node.id);
+        const targetNode = intersections.find(n => n.id !== node.id && n.id !== currentParentId);
 
         // CASE 0: DRAG OUT - Un-nesting
         // Check if we are dragging a nested node onto the canvas background (targetNode is null/undefined)
@@ -830,6 +807,9 @@ export function CanvasBoard() {
                 const targetContent = Array.isArray((targetNode.data as any).content) ? (targetNode.data as any).content : [];
                 const newContent = [...targetContent, ...sourceContent];
 
+                // Preserve standalone flag if either node was standalone
+                const isStandalone = (node.data as any).isStandaloneBlock || (targetNode.data as any).isStandaloneBlock;
+
                 setNodesStore((nds) => nds.map((n) => {
                     if (n.id === targetNode.id) {
                         return {
@@ -842,6 +822,7 @@ export function CanvasBoard() {
                             data: {
                                 ...n.data,
                                 content: newContent,
+                                ...(isStandalone ? { isStandaloneBlock: true } : {})
                             }
                         };
                     }
@@ -902,6 +883,190 @@ export function CanvasBoard() {
         }
     }, [getIntersectingNodes, deleteElements, setNodesStore, updateNodeData, getNode, nodes, currentParentId, syncParentContent]); // Added currentParentId, syncParentContent
 
+    // Handle node click for multi-selection
+    const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
+        // Ignore clicks on interactive elements within nodes
+        const target = event.target as HTMLElement;
+        if (target.closest('button') || target.closest('input') || target.closest('textarea') || 
+            target.closest('[contenteditable="true"]') || target.closest('a')) {
+            return;
+        }
+
+        // Shift+Click for multi-selection
+        if (event.shiftKey) {
+            event.stopPropagation();
+            toggleCanvasNodeSelection(node.id);
+        } else {
+            // Single click without modifiers clears selection
+            if (selectedCanvasNodeIds.size > 0) {
+                clearCanvasSelection();
+            }
+        }
+    }, [toggleCanvasNodeSelection, clearCanvasSelection, selectedCanvasNodeIds.size]);
+
+    // Clear selection when clicking pane
+    const handlePaneClick = useCallback((event: React.MouseEvent) => {
+        // Don't clear if we just finished a box selection
+        if (selectionBox || justFinishedBoxSelection.current) return;
+        
+        // Clear native text selection
+        window.getSelection()?.removeAllRanges();
+        // Blur any active input/contenteditable to stop typing
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+        }
+        // Clear canvas node selection
+        if (selectedCanvasNodeIds.size > 0) {
+            clearCanvasSelection();
+        }
+    }, [clearCanvasSelection, selectedCanvasNodeIds.size, selectionBox]);
+
+    // Track Ctrl key state
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Control') {
+                setIsCtrlPressed(true);
+            }
+        };
+        const handleKeyUp = (e: KeyboardEvent) => {
+            if (e.key === 'Control') {
+                setIsCtrlPressed(false);
+                setSelectionBox(null);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+        };
+    }, []);
+
+    // Box selection handlers
+    const handleSelectionStart = useCallback((event: React.MouseEvent) => {
+        // Only start box selection with Ctrl+drag on pane (not on nodes)
+        if (!event.ctrlKey) return;
+        
+        const target = event.target as HTMLElement;
+        // Check if clicking on pane (react-flow__pane)
+        if (!target.classList.contains('react-flow__pane')) return;
+
+        event.preventDefault();
+        
+        // Get the container rect for relative screen positioning
+        const containerRect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+        const screenX = event.clientX - containerRect.left;
+        const screenY = event.clientY - containerRect.top;
+        
+        const flowPosition = screenToFlowPosition({
+            x: event.clientX,
+            y: event.clientY,
+        });
+        
+        setSelectionBox({
+            screenStartX: screenX,
+            screenStartY: screenY,
+            screenCurrentX: screenX,
+            screenCurrentY: screenY,
+            flowStartX: flowPosition.x,
+            flowStartY: flowPosition.y,
+            flowCurrentX: flowPosition.x,
+            flowCurrentY: flowPosition.y,
+        });
+    }, [screenToFlowPosition]);
+
+    const handleSelectionMove = useCallback((event: React.MouseEvent) => {
+        if (!selectionBox) return;
+        
+        // Get the container rect for relative screen positioning
+        const containerRect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+        const screenX = event.clientX - containerRect.left;
+        const screenY = event.clientY - containerRect.top;
+        
+        const flowPosition = screenToFlowPosition({
+            x: event.clientX,
+            y: event.clientY,
+        });
+        
+        setSelectionBox(prev => prev ? {
+            ...prev,
+            screenCurrentX: screenX,
+            screenCurrentY: screenY,
+            flowCurrentX: flowPosition.x,
+            flowCurrentY: flowPosition.y,
+        } : null);
+    }, [selectionBox, screenToFlowPosition]);
+
+    // Calculate which nodes are currently under the selection box (for live preview)
+    const nodesUnderSelection = useMemo(() => {
+        if (!selectionBox) return new Set<string>();
+        
+        const left = Math.min(selectionBox.flowStartX, selectionBox.flowCurrentX);
+        const right = Math.max(selectionBox.flowStartX, selectionBox.flowCurrentX);
+        const top = Math.min(selectionBox.flowStartY, selectionBox.flowCurrentY);
+        const bottom = Math.max(selectionBox.flowStartY, selectionBox.flowCurrentY);
+        
+        const selectedIds = new Set<string>();
+        
+        visibleNodes.forEach(node => {
+            const nodeWidth = (node.measured?.width || node.style?.width as number) || 200;
+            const nodeHeight = (node.measured?.height || node.style?.height as number) || 100;
+            
+            const nodeLeft = node.position.x;
+            const nodeRight = node.position.x + nodeWidth;
+            const nodeTop = node.position.y;
+            const nodeBottom = node.position.y + nodeHeight;
+            
+            // Check if rectangles intersect
+            const intersects = !(
+                nodeRight < left ||
+                nodeLeft > right ||
+                nodeBottom < top ||
+                nodeTop > bottom
+            );
+            
+            if (intersects) {
+                selectedIds.add(node.id);
+            }
+        });
+        
+        return selectedIds;
+    }, [selectionBox, visibleNodes]);
+
+    const handleSelectionEnd = useCallback(() => {
+        if (!selectionBox) return;
+        
+        // Use the already computed nodesUnderSelection
+        if (nodesUnderSelection.size > 0) {
+            // Set flag to prevent pane click from immediately clearing selection
+            justFinishedBoxSelection.current = true;
+            setTimeout(() => {
+                justFinishedBoxSelection.current = false;
+            }, 100);
+            
+            setSelectedCanvasNodeIds(nodesUnderSelection);
+        }
+        
+        setSelectionBox(null);
+    }, [selectionBox, nodesUnderSelection, setSelectedCanvasNodeIds]);
+
+    // Calculate selection box visual bounds (in screen coordinates relative to container)
+    const selectionBoxStyle = useMemo(() => {
+        if (!selectionBox) return null;
+        
+        const left = Math.min(selectionBox.screenStartX, selectionBox.screenCurrentX);
+        const top = Math.min(selectionBox.screenStartY, selectionBox.screenCurrentY);
+        const width = Math.abs(selectionBox.screenCurrentX - selectionBox.screenStartX);
+        const height = Math.abs(selectionBox.screenCurrentY - selectionBox.screenStartY);
+        
+        return {
+            left,
+            top,
+            width,
+            height,
+        };
+    }, [selectionBox]);
+
     // Cleanup ref on unmount
     useEffect(() => {
         return () => {
@@ -910,7 +1075,13 @@ export function CanvasBoard() {
     }, []);
 
     return (
-        <div className={styles.container}>
+        <div 
+            className={`${styles.container} ${isCtrlPressed ? styles.selectMode : ''}`}
+            onMouseDown={handleSelectionStart}
+            onMouseMove={handleSelectionMove}
+            onMouseUp={handleSelectionEnd}
+            onMouseLeave={handleSelectionEnd}
+        >
             <div className={styles.canvasArea}>
                 <ThemeSwitcher />
                 <div style={{ position: 'absolute', top: 20, left: 30, zIndex: 100 }}>
@@ -919,8 +1090,29 @@ export function CanvasBoard() {
                 {activeParentNode && (
                     <MetadataMenu nodeId={activeParentNode.id} />
                 )}
+                
+                {/* Selection Box Overlay - Rendered outside ReactFlow for accurate positioning */}
+                {selectionBoxStyle && (
+                    <div
+                        className={styles.selectionBox}
+                        style={{
+                            position: 'absolute',
+                            left: selectionBoxStyle.left,
+                            top: selectionBoxStyle.top,
+                            width: selectionBoxStyle.width,
+                            height: selectionBoxStyle.height,
+                            pointerEvents: 'none',
+                            zIndex: 9999,
+                        }}
+                    />
+                )}
+                
                 <ReactFlow
-                    nodes={visibleNodes}
+                    nodes={visibleNodes.map(node => ({
+                        ...node,
+                        // Add preview selection class during box selection drag
+                        className: nodesUnderSelection.has(node.id) ? 'box-selection-preview' : '',
+                    }))}
                     edges={visibleEdges}
                     onNodesChange={onNodesChange}
                     onEdgesChange={onEdgesChange}
@@ -936,16 +1128,12 @@ export function CanvasBoard() {
                     onDrop={onDrop}
                     onNodeDrag={onNodeDrag}
                     onNodeDragStop={onNodeDragStop}
-                    onPaneClick={() => {
-                        // Clear native text selection
-                        window.getSelection()?.removeAllRanges();
-                        // Blur any active input/contenteditable to stop typing
-                        if (document.activeElement instanceof HTMLElement) {
-                            document.activeElement.blur();
-                        }
-                    }}
+                    onNodeClick={onNodeClick}
+                    onPaneClick={handlePaneClick}
+                    selectionOnDrag={false}
+                    panOnDrag={!isCtrlPressed}
+                    selectionMode={SelectionMode.Partial}
                 >
-                    {/* Visual Drop Zone for Kanban Drag Out - REMOVED */}
                     <CustomGrid />
                     <Controls className={styles.canvasControls} />
                     <MiniMap
@@ -956,6 +1144,20 @@ export function CanvasBoard() {
                     />
                 </ReactFlow>
             </div>
+
+            {/* Selection mode indicator */}
+            {isCtrlPressed && (
+                <div className={styles.selectionModeIndicator}>
+                    Ctrl+Drag to select area
+                </div>
+            )}
+            
+            {/* Live selection count during drag */}
+            {selectionBox && nodesUnderSelection.size > 0 && (
+                <div className={styles.selectionCount}>
+                    {nodesUnderSelection.size} node{nodesUnderSelection.size > 1 ? 's' : ''}
+                </div>
+            )}
 
             <BottomMenu />
             <SidePanel />
