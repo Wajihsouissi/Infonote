@@ -196,7 +196,7 @@ body {
   height: 14px;
 }
 
-/* Remove default borders and shadows */
-.react-flow__controls-button {
-  box-shadow: none !important;
+/* Global override for dragging nodes (CanvasBoard) */
+.infonote-node-dragging * {
+  cursor: grabbing !important;
 }

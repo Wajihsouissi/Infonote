@@ -117,7 +117,6 @@ export function MultiSelectionToolbar() {
                     <div className={styles.selectionInfo}>
                         <span className={styles.count}>{selectedCount}</span>
                         <span>item{selectedCount > 1 ? 's' : ''} selected</span>
-                        <span className={styles.hint}>(Shift+click or Ctrl+drag)</span>
                     </div>
 
                     <div className={styles.actions}>

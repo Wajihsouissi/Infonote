@@ -756,11 +756,13 @@
     transform: scale(0.98);
 }
 
-.dropTargetTop {
+.dropTargetTop,
+[data-external-drop-target="top"] {
     position: relative;
 }
 
-.dropTargetTop::before {
+.dropTargetTop::before,
+[data-external-drop-target="top"]::before {
     content: '';
     position: absolute;
     top: -4px;
@@ -775,11 +777,13 @@
     pointer-events: none;
 }
 
-.dropTargetBottom {
+.dropTargetBottom,
+[data-external-drop-target="bottom"] {
     position: relative;
 }
 
-.dropTargetBottom::after {
+.dropTargetBottom::after,
+[data-external-drop-target="bottom"]::after {
     content: '';
     position: absolute;
     bottom: -4px;

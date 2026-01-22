@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import type { AppState, StorageSlice } from '../types';
+import type { AppNode } from '../../types';
 
 export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = (set, get) => ({
     storage: {
@@ -64,5 +65,8 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
             nodes: validNodes,
             edges: validEdges,
         });
+
+        // Reconstruct breadcrumbs if we restored a parent ID from localStorage
+        get().reconstructBreadcrumbs();
     },
 });

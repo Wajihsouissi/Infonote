@@ -8,10 +8,12 @@ import type { Node } from '@xyflow/react';
 import styles from './FusedNoteNode.module.css';
 import { snapDimensions, MIN_EXPANDED_SIZE } from '../../config/layout';
 import { toPastelColor } from '../../utils/colorUtils';
+import { SkeletonLoader } from './SkeletonLoader';
 
 export type FusedNoteNodeData = {
     content: any[];
     color?: string;
+    lastFusedAt?: number;
 };
 
 import { v4 as uuidv4 } from 'uuid';
@@ -30,17 +32,18 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
     // Track fusion event for animation
     const [isFusing, setIsFusing] = useState(false);
-    const lastContentLength = useRef(Array.isArray(data.content) ? data.content.length : 0);
+    const lastFusedTimeRef = useRef(data.lastFusedAt || 0);
 
     useEffect(() => {
-        const currentLength = Array.isArray(data.content) ? data.content.length : 0;
-        if (currentLength > lastContentLength.current && lastContentLength.current > 0) {
+        if (data.lastFusedAt && data.lastFusedAt > lastFusedTimeRef.current) {
             setIsFusing(true);
             const timer = setTimeout(() => setIsFusing(false), 500);
+            lastFusedTimeRef.current = data.lastFusedAt;
             return () => clearTimeout(timer);
         }
-        lastContentLength.current = currentLength;
-    }, [data.content]);
+        // Sync ref if data is older or same (e.g. init)
+        if (data.lastFusedAt) lastFusedTimeRef.current = data.lastFusedAt;
+    }, [data.lastFusedAt]);
 
     const contentRef = useRef<HTMLDivElement>(null);
     const nodeRef = useRef<HTMLDivElement>(null);
@@ -94,6 +97,9 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             return;
         }
 
+        // Get color from the actual node data in store
+        const fusedNodeColor = (thisNode.data as any).color;
+
         // If no parent, we can just transform the node type (Root Level Fused Note)
         const parentId = thisNode.parentId;
         if (!parentId) {
@@ -103,12 +109,12 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                         ...n,
                         type: 'note',
                         data: {
-                            ...n.data,
                             label: (data.content[0]?.content) || 'Created Note',
                             viewMode: 'expanded',
                             content: data.content,
                             description: '',
-                            date: new Date().toISOString()
+                            date: new Date().toISOString(),
+                            color: fusedNodeColor
                         },
                         style: {
                             ...n.style,
@@ -149,7 +155,8 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 label: myBlocks[0].content || 'New Note',
                 content: myBlocks,
                 viewMode: 'expanded',
-                date: new Date().toISOString()
+                date: new Date().toISOString(),
+                color: fusedNodeColor
             },
             style: { width: MIN_EXPANDED_SIZE, height: MIN_EXPANDED_SIZE },
             zIndex: 10
@@ -333,7 +340,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 ...(displayColor ? {
                     '--color-text-main': '#1f2937',
                     '--color-text-muted': '#6b7280',
-                    '--color-border': 'rgba(0,0,0,0.1)',
+                    '--color-border': 'rgba(0,0,0,0.2)',
                     color: '#1f2937'
                 } : {})
             }}
@@ -365,9 +372,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                         disableMediaControls={true}
                     />
                 ) : (
-                    <div style={{ padding: '16px', color: 'var(--color-text-muted)', textAlign: 'center' }}>
-                        Loading {data.content?.length || 0} blocks...
-                    </div>
+                    <SkeletonLoader />
                 )}
             </div>
 

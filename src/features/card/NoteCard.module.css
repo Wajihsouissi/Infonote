@@ -894,8 +894,9 @@
     overflow-y: auto;
     overflow-x: hidden;
     padding: 20px;
+    padding: 20px;
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    scrollbar-color: var(--color-border) transparent;
     position: relative;
     /* Added for controls */
 
@@ -919,7 +920,7 @@
 }
 
 .noteArea::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--color-text-muted);
 }
 
 /* 4. Chromeless View */
@@ -1241,7 +1242,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    scrollbar-color: var(--color-border) transparent;
     font-size: 0.9rem;
     color: var(--color-text-muted);
     line-height: 1.6;
@@ -1258,12 +1259,12 @@
 }
 
 .content::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--color-border);
     border-radius: 4px;
 }
 
 .content::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--color-text-muted);
 }
 
 /* Apple Vision Pro Style Resize Handle - Truly Curved Arc, Outside */

@@ -177,14 +177,6 @@ export class FileSystemStorage {
         
         perfMonitor.startTimer('storage.save', { nodeCount: nodes.length });
         
-        // Quick hash to detect duplicate saves
-        const currentHash = this.hashState(nodes, edges);
-        if (this._lastSaveHash === currentHash) {
-            console.log('[Storage] Skip - identical state already saved');
-            perfMonitor.endTimer('storage.save');
-            return;
-        }
-        
         this._isSaving = true;
         const startTime = Date.now();
         console.log('[Storage] Starting save...', nodes.length, 'nodes');
@@ -212,9 +204,8 @@ export class FileSystemStorage {
             await this.atomicReplace(TEMP_NODES_FILE, NODES_FILE);
             await this.atomicReplace(TEMP_EDGES_FILE, EDGES_FILE);
 
-            // Store state and hash
+            // Store state
             this._lastSavedState = { nodes, edges };
-            this._lastSaveHash = currentHash;
             
             const duration = Date.now() - startTime;
             console.log(`[Storage] Saved successfully in ${duration}ms:`, nodes.length, 'nodes');
@@ -254,10 +245,6 @@ export class FileSystemStorage {
         }
     }
 
-    private hashState(nodes: AppNode[], edges: Edge[]): string {
-        return `${nodes.length}-${edges.length}-${JSON.stringify(nodes.slice(0, 3)).slice(0, 50)}`;
-    }
-    
     private async createBackup(): Promise<void> {
         if (!this.directoryHandle) return;
         

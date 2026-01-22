@@ -43,6 +43,7 @@ export interface NavigationSlice {
     setFullscreenId: (id: string | null) => void;
     setSidePanelId: (id: string | null) => void;
     setCenterPanelId: (id: string | null) => void;
+    reconstructBreadcrumbs: () => void;
 }
 
 export interface StorageSlice {

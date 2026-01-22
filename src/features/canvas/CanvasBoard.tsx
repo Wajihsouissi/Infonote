@@ -74,11 +74,11 @@ export function CanvasBoard() {
 
     // Throttling Ref
     const lastDragCheck = useRef(0);
-    
+
     // Viewport tracking for culling
     const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
     const lastViewportUpdate = useRef(0);
-    
+
     // Box selection state
     const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
     const [isCtrlPressed, setIsCtrlPressed] = useState(false);
@@ -90,8 +90,8 @@ export function CanvasBoard() {
     // Memoize root nodes for the current parent level to avoid filtering all nodes on every viewport change
     const rootNodes = useMemo(() => {
         if (DEBUG) console.log("[rootNodes] Computing for currentParentId:", currentParentId);
-        
-        return nodes.filter(n => 
+
+        return nodes.filter(n =>
             (n.parentId === undefined && currentParentId === null) ||
             n.parentId === currentParentId
         );
@@ -108,13 +108,13 @@ export function CanvasBoard() {
             const maxX = viewport.x + (window.innerWidth / viewport.zoom) + MARGIN;
             const minY = viewport.y - MARGIN;
             const maxY = viewport.y + (window.innerHeight / viewport.zoom) + MARGIN;
-            
+
             culledNodes = rootNodes.filter(n => {
                 const nodeWidth = (n.style?.width as number) || 432;
                 const nodeHeight = (n.style?.height as number) || 432;
                 const nodeX = n.position.x;
                 const nodeY = n.position.y;
-                
+
                 // Check if node intersects with viewport
                 return (
                     nodeX + nodeWidth >= minX &&
@@ -123,7 +123,7 @@ export function CanvasBoard() {
                     nodeY <= maxY
                 );
             });
-            
+
             if (DEBUG) console.log("[visibleNodes] Culled:", rootNodes.length, "->", culledNodes.length);
         }
 
@@ -190,7 +190,7 @@ export function CanvasBoard() {
     const onDrop = useCallback(
         (event: React.DragEvent) => {
             console.log("[CanvasBoard.onDrop] START - Event triggered");
-            
+
             const { centerPanelId, fullscreenId, currentParentId, nodes } = useStore.getState();
             if (centerPanelId || fullscreenId) {
                 console.log("[CanvasBoard.onDrop] SKIP - Modal open");
@@ -205,36 +205,36 @@ export function CanvasBoard() {
                 id: target.id,
                 parentClassName: target.parentElement?.className
             });
-            
-            const isInsideBlockEditor = target.closest('[class*="BlockEditor"]') || 
-                                        target.closest('[class*="editor"]') ||
-                                        target.closest('[class*="noteArea"]') ||
-                                        target.closest('[class*="fusedNoteNode"]') ||
-                                        target.closest('[class*="content"]');
-            
+
+            const isInsideBlockEditor = target.closest('[class*="BlockEditor"]') ||
+                target.closest('[class*="editor"]') ||
+                target.closest('[class*="noteArea"]') ||
+                target.closest('[class*="fusedNoteNode"]') ||
+                target.closest('[class*="content"]');
+
             console.log("[CanvasBoard.onDrop] isInsideBlockEditor check:", {
                 result: !!isInsideBlockEditor,
                 matchedElement: isInsideBlockEditor?.className
             });
-            
+
             // Parse block data to check if this is a cross-node block transfer
             const blockDataJson = event.dataTransfer.getData('application/infonote-block-data');
             let hasSourceNode = false;
             let sourceNodeIdFromData: string | null = null;
-            
+
             if (blockDataJson) {
                 try {
                     const parsed = JSON.parse(blockDataJson);
                     hasSourceNode = !!parsed.sourceNodeId;
                     sourceNodeIdFromData = parsed.sourceNodeId;
                     console.log("[CanvasBoard.onDrop] Parsed block data - sourceNodeId:", parsed.sourceNodeId, "hasSourceNode:", hasSourceNode);
-                } catch (e) { 
+                } catch (e) {
                     console.log("[CanvasBoard.onDrop] Failed to parse block data");
                 }
             } else {
                 console.log("[CanvasBoard.onDrop] No block data in dataTransfer");
             }
-            
+
             // Check if drop position intersects with a node (early check)
             const earlyPosition = screenToFlowPosition({
                 x: event.clientX,
@@ -252,13 +252,13 @@ export function CanvasBoard() {
                 n.id !== sourceNodeIdFromData &&
                 n.id !== currentParentId
             );
-            
+
             console.log("[CanvasBoard.onDrop] Intersection check:", {
                 intersectionCount: earlyIntersections.length,
                 intersectionTypes: earlyIntersections.map(n => ({ id: n.id, type: n.type })),
                 targetNode: earlyTargetNode ? { id: earlyTargetNode.id, type: earlyTargetNode.type } : null
             });
-            
+
             // If dropping inside a node's content area OR on a target node AND it's from another node, 
             // let BlockEditor handle it
             if ((isInsideBlockEditor || earlyTargetNode) && hasSourceNode) {
@@ -345,7 +345,8 @@ export function CanvasBoard() {
             if (targetNode) {
                 const currentContent = Array.isArray((targetNode.data as any).content) ? (targetNode.data as any).content : [];
                 updateNodeData(targetNode.id, {
-                    content: [...currentContent, ...blocksToAdd]
+                    content: [...currentContent, ...blocksToAdd],
+                    lastFusedAt: Date.now()
                 });
 
                 if (targetNode.type === 'block') {
@@ -402,8 +403,8 @@ export function CanvasBoard() {
                 // SIMPLE FIX: Just add directly to the store with correct parentId
                 const nodeId = uuidv4();
                 const targetParentId = currentParentId || undefined;
-                
-                console.log("[DND] Adding block to store:", { 
+
+                console.log("[DND] Adding block to store:", {
                     nodeId,
                     parentId: targetParentId,
                     currentParentId,
@@ -418,9 +419,9 @@ export function CanvasBoard() {
                         content: blocksToAdd,
                         isStandaloneBlock: true
                     },
-                    style: { 
-                        width: blocksToAdd.length > 1 ? 350 : BLOCK_WIDTH, 
-                        height: blocksToAdd.length > 1 ? 'auto' as any : BLOCK_HEIGHT 
+                    style: {
+                        width: blocksToAdd.length > 1 ? 350 : BLOCK_WIDTH,
+                        height: blocksToAdd.length > 1 ? 'auto' as any : BLOCK_HEIGHT
                     },
                     parentId: targetParentId,
                 };
@@ -458,19 +459,31 @@ export function CanvasBoard() {
 
     const onNodeDragStart = useCallback((_event: React.MouseEvent, node: any) => {
         setInteractionState({ draggedNodeId: node.id });
-        // Temporarily boost Z-index of the dragged node in the store
-        setNodesStore(nds => nds.map(n => n.id === node.id ? { ...n, zIndex: 10000 } : n));
+        // DON'T hide the node - causes it to disappear
+        // Instead, just boost z-index for better visual layering
+        setNodesStore(nds => nds.map(n => n.id === node.id ? {
+            ...n,
+            zIndex: 10000
+        } : n));
+
+        // Safety cleanup explicitly
+        document.querySelectorAll('[data-external-drop-target]').forEach(el => {
+            (el as HTMLElement).removeAttribute('data-external-drop-target');
+        });
+        document.body.classList.add('infonote-node-dragging');
     }, [setInteractionState, setNodesStore]);
 
     // --- Drag In Logic (Canvas -> Kanban) ---
-    const onNodeDrag = useCallback((_event: React.MouseEvent, node: any) => {
+    const onNodeDrag = useCallback((event: React.MouseEvent, node: any) => {
         // Throttle to max once per 100ms to reduce INP
         const now = Date.now();
-        if (now - lastDragCheck.current < 50) return; // Reduced throttle for smoother visual feedback
+        if (now - lastDragCheck.current < 32) return; // ~30fps for smoother feedback
         lastDragCheck.current = now;
 
-        const intersections = getIntersectingNodes(node);
-        
+        const mousePos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+        const mouseRect = { x: mousePos.x - 1, y: mousePos.y - 1, width: 2, height: 2 };
+        const intersections = getIntersectingNodes(mouseRect as any);
+
         // Find potential targets
         const targetKanban = intersections.find(n => n.type === 'kanban');
         const targetOther = intersections.find(n => n.id !== node.id && (n.type === 'note' || n.type === 'fused-note' || n.type === 'block'));
@@ -495,7 +508,7 @@ export function CanvasBoard() {
                 if (colIndex >= currentColumns.length) colIndex = currentColumns.length - 1;
 
                 const targetCol = currentColumns[colIndex];
-                
+
                 newDropTarget = {
                     id: targetKanban.id,
                     type: 'kanban-column'
@@ -537,37 +550,84 @@ export function CanvasBoard() {
             } else if (isTargetNote && (isSourceFused || isSourceNote || isSourceBlock)) {
                 newDropTarget = { id: targetOther.id, type: 'nesting' };
             }
+
+            // VISUAL INDICATOR LOGIC
+            // Clear previous indicators first (global or scoped to target)
+            document.querySelectorAll('[data-external-drop-target]').forEach(el => {
+                (el as HTMLElement).removeAttribute('data-external-drop-target');
+            });
+
+            if (newDropTarget && (newDropTarget.type === 'fusion' || newDropTarget.type === 'nesting')) {
+                const elementsUnderCursor = document.elementsFromPoint(event.clientX, event.clientY);
+                const blockElement = elementsUnderCursor.find(el => el.id && el.id.startsWith('block-'));
+
+                if (blockElement) {
+                    const rect = blockElement.getBoundingClientRect();
+                    const midY = rect.top + (rect.height / 2);
+                    const position = event.clientY < midY ? 'top' : 'bottom';
+                    blockElement.setAttribute('data-external-drop-target', position);
+                }
+            }
         }
 
         if (interactionState.dropTarget?.id !== newDropTarget?.id || interactionState.dropTarget?.type !== newDropTarget?.type) {
             setInteractionState({ dropTarget: newDropTarget });
         }
 
-    }, [getIntersectingNodes, interactionState.hoveredKanbanColumn, interactionState.dropTarget, setInteractionState]);
+    }, [getIntersectingNodes, interactionState.hoveredKanbanColumn, interactionState.dropTarget, setInteractionState, screenToFlowPosition]);
 
 
 
-    const onNodeDragStop = useCallback((_event: React.MouseEvent, node: any) => {
+    const onNodeDragStop = useCallback((event: React.MouseEvent, node: any) => {
         // Capture state before clearing
         const hoveredColumn = interactionState.hoveredKanbanColumn;
-        
+
         // Clear interaction states
-        setInteractionState({ 
-            hoveredKanbanColumn: null, 
-            draggedNodeId: null, 
-            dropTarget: null 
+        setInteractionState({
+            hoveredKanbanColumn: null,
+            draggedNodeId: null,
+            dropTarget: null
         });
 
-        // Restore Z-index
-        setNodesStore(nds => nds.map(n => n.id === node.id ? { ...n, zIndex: 10 } : n));
+        // FORCE CLEANUP of visual indicators
+        document.querySelectorAll('[data-external-drop-target]').forEach(el => {
+            (el as HTMLElement).removeAttribute('data-external-drop-target');
+        });
+        document.body.classList.remove('infonote-node-dragging');
+
+        // Helper function to restore node z-index
+        const restoreNodeZIndex = () => {
+            setNodesStore(nds => nds.map(n => {
+                if (n.id === node.id) {
+                    return {
+                        ...n,
+                        zIndex: 10
+                    };
+                }
+                return n;
+            }));
+        };
+
+        // Restore Z-index and visibility (OR DELETE if dropped)
+        // We defer this check to see if we dropped successfully below.
+        // Actually, let's restore first, and if we merged, the next setNodesStore will delete it.
+        // BUT, to be atomic, we should combine operations if possible.
+        // For now, let's just do the restore here as a fallback if no drop happens, 
+        // OR better: handle it in the specific drop cases to avoid flicker.
+
+        // Let's hold off on global restore here and do it inside the cases OR at end if no match.
 
         const isSourceBlock = node.type === 'block';
         const isSourceFused = node.type === 'fused-note';
         const isSourceNote = node.type === 'note';
 
-        if (!isSourceBlock && !isSourceFused && !isSourceNote) return;
 
-        const intersections = getIntersectingNodes(node);
+
+        const supportsInteraction = isSourceBlock || isSourceFused || isSourceNote;
+
+        const mousePos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+        const mouseRect = { x: mousePos.x - 1, y: mousePos.y - 1, width: 2, height: 2 };
+        const intersections = getIntersectingNodes(mouseRect as any);
         const targetNode = intersections.find(n => n.id !== node.id && n.id !== currentParentId);
 
         // CASE 0: DRAG OUT - Un-nesting
@@ -589,13 +649,10 @@ export function CanvasBoard() {
                     if (n.id === node.id) {
                         return {
                             ...n,
-                            parentId: undefined, // Clear Parent
-                            extent: undefined,   // Clear boundary
-                            zIndex: 10,          // Reset Z-Index
-                            position: absPos,    // Use new absolute position
-                            // Keep style/size as is? Or reset? 
-                            // The user probably wants it to stay 'Icon' size or maybe return to previous?
-                            // For now, let's keep it as is, user can resize.
+                            parentId: undefined,
+                            extent: undefined,
+                            zIndex: 10,
+                            position: absPos
                         };
                     }
                     return n;
@@ -855,31 +912,61 @@ export function CanvasBoard() {
 
                 const sourceContent = Array.isArray(node.data.content) ? node.data.content : [];
                 const targetContent = Array.isArray((targetNode.data as any).content) ? (targetNode.data as any).content : [];
-                const newContent = [...targetContent, ...sourceContent];
+
+                // Calculate Insertion Index
+                let insertIndex = targetContent.length; // Default to append
+
+                const elementsUnderCursor = document.elementsFromPoint(event.clientX, event.clientY);
+                const blockElement = elementsUnderCursor.find(el => el.id && el.id.startsWith('block-'));
+
+                if (blockElement) {
+                    const blockId = blockElement.id.replace('block-', '');
+                    const targetBlockIndex = targetContent.findIndex((b: any) => b.id === blockId);
+
+                    if (targetBlockIndex !== -1) {
+                        const rect = blockElement.getBoundingClientRect();
+                        const midY = rect.top + (rect.height / 2);
+                        // If cursor is above middle, insert before. Else insert after.
+                        insertIndex = event.clientY < midY ? targetBlockIndex : targetBlockIndex + 1;
+                    }
+                }
+
+                // Insert source content at calculation index
+                const newContent = [
+                    ...targetContent.slice(0, insertIndex),
+                    ...sourceContent,
+                    ...targetContent.slice(insertIndex)
+                ];
 
                 // Preserve standalone flag if either node was standalone
                 const isStandalone = (node.data as any).isStandaloneBlock || (targetNode.data as any).isStandaloneBlock;
 
-                setNodesStore((nds) => nds.map((n) => {
-                    if (n.id === targetNode.id) {
-                        return {
-                            ...n,
-                            type: 'fused-note',
-                            style: {
-                                ...n.style,
-                                height: 'auto',
-                            },
-                            data: {
-                                ...n.data,
-                                content: newContent,
-                                ...(isStandalone ? { isStandaloneBlock: true } : {})
-                            }
-                        };
-                    }
-                    return n;
-                }));
+                // ATOMIC UPDATE: Update Target + Delete Source
+                setNodesStore((nds) => {
+                    // 1. Filter out the source node (DELETE)
+                    const filtered = nds.filter(n => n.id !== node.id);
 
-                setTimeout(() => deleteElements({ nodes: [{ id: node.id }] }), 0);
+                    // 2. Update the target node
+                    return filtered.map(n => {
+                        if (n.id === targetNode.id) {
+                            return {
+                                ...n,
+                                type: 'fused-note',
+                                style: {
+                                    ...n.style,
+                                    height: 'auto',
+                                },
+                                data: {
+                                    ...n.data,
+                                    content: newContent,
+                                    lastFusedAt: Date.now(),
+                                    ...(isStandalone ? { isStandaloneBlock: true } : {})
+                                }
+                            };
+                        }
+                        return n;
+                    });
+                });
             }
             // CASE 3: Nesting (Block/Fused/Note -> Note Card)
             else if (isTargetNote && (isSourceFused || isSourceNote || isSourceBlock)) {
@@ -894,8 +981,30 @@ export function CanvasBoard() {
 
                     const targetContent = Array.isArray((targetNode.data as any).content) ? (targetNode.data as any).content : [];
 
+                    // Simple append for Page nesting (or could implement index logic here too if pages are blocks)
+                    // Usually pages are just appended, but let's see if we can obey index too.
+                    // Assuming PageBlock is also rendered with block-id if it's in content.
+
+                    let insertIndex = targetContent.length;
+                    const elementsUnderCursor = document.elementsFromPoint(event.clientX, event.clientY);
+                    const blockElement = elementsUnderCursor.find(el => el.id && el.id.startsWith('block-'));
+
+                    if (blockElement) {
+                        const blockId = blockElement.id.replace('block-', '');
+                        const targetBlockIndex = targetContent.findIndex((b: any) => b.id === blockId);
+                        if (targetBlockIndex !== -1) {
+                            const rect = blockElement.getBoundingClientRect();
+                            const midY = rect.top + (rect.height / 2);
+                            insertIndex = event.clientY < midY ? targetBlockIndex : targetBlockIndex + 1;
+                        }
+                    }
+
                     updateNodeData(targetNode.id, {
-                        content: [...targetContent, pageBlock]
+                        content: [
+                            ...targetContent.slice(0, insertIndex),
+                            pageBlock,
+                            ...targetContent.slice(insertIndex)
+                        ]
                     });
 
                     setNodesStore((nds) => nds.map((n) => {
@@ -904,7 +1013,8 @@ export function CanvasBoard() {
                                 ...n,
                                 parentId: targetNode.id,
                                 extent: 'parent',
-                                position: { x: 0, y: 0 }
+                                position: { x: 0, y: 0 },
+                                style: n.style
                             };
                         }
                         return n;
@@ -918,26 +1028,65 @@ export function CanvasBoard() {
                 if (sourceContent.length > 0) {
                     const targetContent = Array.isArray((targetNode.data as any).content) ? (targetNode.data as any).content : [];
 
-                    updateNodeData(targetNode.id, {
-                        content: [...targetContent, ...sourceContent]
-                    });
+                    let insertIndex = targetContent.length;
+                    const elementsUnderCursor = document.elementsFromPoint(event.clientX, event.clientY);
+                    const blockElement = elementsUnderCursor.find(el => el.id && el.id.startsWith('block-'));
 
-                    setTimeout(() => deleteElements({ nodes: [{ id: node.id }] }), 0);
+                    if (blockElement) {
+                        const blockId = blockElement.id.replace('block-', '');
+                        const targetBlockIndex = targetContent.findIndex((b: any) => b.id === blockId);
+                        if (targetBlockIndex !== -1) {
+                            const rect = blockElement.getBoundingClientRect();
+                            const midY = rect.top + (rect.height / 2);
+                            insertIndex = event.clientY < midY ? targetBlockIndex : targetBlockIndex + 1;
+                        }
+                    }
+
+                    const newTargetContent = [
+                        ...targetContent.slice(0, insertIndex),
+                        ...sourceContent,
+                        ...targetContent.slice(insertIndex)
+                    ];
+
+                    // ATOMIC UPDATE for Content Nesting
+                    setNodesStore((nds) => {
+                        const filtered = nds.filter(n => n.id !== node.id);
+                        return filtered.map(n => {
+                            if (n.id === targetNode.id) {
+                                return {
+                                    ...n,
+                                    data: {
+                                        ...n.data,
+                                        content: newTargetContent,
+                                        lastFusedAt: Date.now()
+                                    }
+                                } as any; // Cast to any to avoid union type discrimination issues
+                            }
+                            return n;
+                        });
+                    });
                 }
+            } else {
+                // No Drop Target Found - Restore Node Z-Index
+                restoreNodeZIndex();
             }
+        } else {
+            // NO TARGET NODE (Dropped on Canvas Root)
+            // Restore Z-Index
+            restoreNodeZIndex();
         }
 
         // Final Sync to ensure parent content order matches new positions
         if (currentParentId) {
             syncParentContent(currentParentId);
         }
-    }, [getIntersectingNodes, deleteElements, setNodesStore, updateNodeData, getNode, nodes, currentParentId, syncParentContent]); // Added currentParentId, syncParentContent
+    }, [getIntersectingNodes, deleteElements, setNodesStore, updateNodeData, getNode, nodes, currentParentId, syncParentContent, screenToFlowPosition]); // Added currentParentId, syncParentContent
 
     // Handle node click for multi-selection
     const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
         // Ignore clicks on interactive elements within nodes
         const target = event.target as HTMLElement;
-        if (target.closest('button') || target.closest('input') || target.closest('textarea') || 
+        if (target.closest('button') || target.closest('input') || target.closest('textarea') ||
             target.closest('[contenteditable="true"]') || target.closest('a')) {
             return;
         }
@@ -958,7 +1107,7 @@ export function CanvasBoard() {
     const handlePaneClick = useCallback((event: React.MouseEvent) => {
         // Don't clear if we just finished a box selection
         if (selectionBox || justFinishedBoxSelection.current) return;
-        
+
         // Clear native text selection
         window.getSelection()?.removeAllRanges();
         // Blur any active input/contenteditable to stop typing
@@ -996,23 +1145,23 @@ export function CanvasBoard() {
     const handleSelectionStart = useCallback((event: React.MouseEvent) => {
         // Only start box selection with Ctrl+drag on pane (not on nodes)
         if (!event.ctrlKey) return;
-        
+
         const target = event.target as HTMLElement;
         // Check if clicking on pane (react-flow__pane)
         if (!target.classList.contains('react-flow__pane')) return;
 
         event.preventDefault();
-        
+
         // Get the container rect for relative screen positioning
         const containerRect = (event.currentTarget as HTMLElement).getBoundingClientRect();
         const screenX = event.clientX - containerRect.left;
         const screenY = event.clientY - containerRect.top;
-        
+
         const flowPosition = screenToFlowPosition({
             x: event.clientX,
             y: event.clientY,
         });
-        
+
         setSelectionBox({
             screenStartX: screenX,
             screenStartY: screenY,
@@ -1027,17 +1176,17 @@ export function CanvasBoard() {
 
     const handleSelectionMove = useCallback((event: React.MouseEvent) => {
         if (!selectionBox) return;
-        
+
         // Get the container rect for relative screen positioning
         const containerRect = (event.currentTarget as HTMLElement).getBoundingClientRect();
         const screenX = event.clientX - containerRect.left;
         const screenY = event.clientY - containerRect.top;
-        
+
         const flowPosition = screenToFlowPosition({
             x: event.clientX,
             y: event.clientY,
         });
-        
+
         setSelectionBox(prev => prev ? {
             ...prev,
             screenCurrentX: screenX,
@@ -1050,23 +1199,23 @@ export function CanvasBoard() {
     // Calculate which nodes are currently under the selection box (for live preview)
     const nodesUnderSelection = useMemo(() => {
         if (!selectionBox) return new Set<string>();
-        
+
         const left = Math.min(selectionBox.flowStartX, selectionBox.flowCurrentX);
         const right = Math.max(selectionBox.flowStartX, selectionBox.flowCurrentX);
         const top = Math.min(selectionBox.flowStartY, selectionBox.flowCurrentY);
         const bottom = Math.max(selectionBox.flowStartY, selectionBox.flowCurrentY);
-        
+
         const selectedIds = new Set<string>();
-        
+
         visibleNodes.forEach(node => {
             const nodeWidth = (node.measured?.width || node.style?.width as number) || 200;
             const nodeHeight = (node.measured?.height || node.style?.height as number) || 100;
-            
+
             const nodeLeft = node.position.x;
             const nodeRight = node.position.x + nodeWidth;
             const nodeTop = node.position.y;
             const nodeBottom = node.position.y + nodeHeight;
-            
+
             // Check if rectangles intersect
             const intersects = !(
                 nodeRight < left ||
@@ -1074,18 +1223,18 @@ export function CanvasBoard() {
                 nodeBottom < top ||
                 nodeTop > bottom
             );
-            
+
             if (intersects) {
                 selectedIds.add(node.id);
             }
         });
-        
+
         return selectedIds;
     }, [selectionBox, visibleNodes]);
 
     const handleSelectionEnd = useCallback(() => {
         if (!selectionBox) return;
-        
+
         // Use the already computed nodesUnderSelection
         if (nodesUnderSelection.size > 0) {
             // Set flag to prevent pane click from immediately clearing selection
@@ -1093,22 +1242,22 @@ export function CanvasBoard() {
             setTimeout(() => {
                 justFinishedBoxSelection.current = false;
             }, 100);
-            
+
             setSelectedCanvasNodeIds(nodesUnderSelection);
         }
-        
+
         setSelectionBox(null);
     }, [selectionBox, nodesUnderSelection, setSelectedCanvasNodeIds]);
 
     // Calculate selection box visual bounds (in screen coordinates relative to container)
     const selectionBoxStyle = useMemo(() => {
         if (!selectionBox) return null;
-        
+
         const left = Math.min(selectionBox.screenStartX, selectionBox.screenCurrentX);
         const top = Math.min(selectionBox.screenStartY, selectionBox.screenCurrentY);
         const width = Math.abs(selectionBox.screenCurrentX - selectionBox.screenStartX);
         const height = Math.abs(selectionBox.screenCurrentY - selectionBox.screenStartY);
-        
+
         return {
             left,
             top,
@@ -1123,19 +1272,19 @@ export function CanvasBoard() {
             lastDragCheck.current = 0;
         };
     }, []);
-    
+
     // Track viewport changes (throttled)
     const handleViewportChange = useCallback(() => {
         const now = Date.now();
         if (now - lastViewportUpdate.current < 200) return; // Throttle to 200ms
-        
+
         lastViewportUpdate.current = now;
         const currentViewport = getViewport();
         setViewport(currentViewport);
     }, [getViewport]);
 
     return (
-        <div 
+        <div
             className={`${styles.container} ${isCtrlPressed ? styles.selectMode : ''}`}
             onMouseDown={handleSelectionStart}
             onMouseMove={handleSelectionMove}
@@ -1150,7 +1299,7 @@ export function CanvasBoard() {
                 {activeParentNode && (
                     <MetadataMenu nodeId={activeParentNode.id} />
                 )}
-                
+
                 {/* Selection Box Overlay - Rendered outside ReactFlow for accurate positioning */}
                 {selectionBoxStyle && (
                     <div
@@ -1166,7 +1315,7 @@ export function CanvasBoard() {
                         }}
                     />
                 )}
-                
+
                 <ReactFlow
                     nodes={visibleNodes.map(node => ({
                         ...node,
@@ -1230,7 +1379,7 @@ export function CanvasBoard() {
                     Ctrl+Drag to select area
                 </div>
             )}
-            
+
             {/* Live selection count during drag */}
             {selectionBox && nodesUnderSelection.size > 0 && (
                 <div className={styles.selectionCount}>

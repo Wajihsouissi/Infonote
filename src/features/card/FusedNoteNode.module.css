@@ -46,21 +46,51 @@
 }
 
 @keyframes targetPulse {
-    0% { box-shadow: 0 0 0 2px var(--color-primary-glow); }
-    50% { box-shadow: 0 0 0 6px var(--color-primary-glow), 0 0 25px var(--color-primary-glow); }
-    100% { box-shadow: 0 0 0 2px var(--color-primary-glow); }
+    0% {
+        box-shadow: 0 0 0 2px var(--color-primary-glow);
+    }
+
+    50% {
+        box-shadow: 0 0 0 6px var(--color-primary-glow), 0 0 25px var(--color-primary-glow);
+    }
+
+    100% {
+        box-shadow: 0 0 0 2px var(--color-primary-glow);
+    }
 }
 
 @keyframes fusionPulse {
-    0% { transform: scale(1); box-shadow: 0 0 0 2px var(--color-secondary-glow); }
-    50% { transform: scale(1.02); box-shadow: 0 0 0 8px var(--color-secondary-glow), 0 0 40px var(--color-secondary-glow); }
-    100% { transform: scale(1); box-shadow: 0 0 0 2px var(--color-secondary-glow); }
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 2px var(--color-secondary-glow);
+    }
+
+    50% {
+        transform: scale(1.02);
+        box-shadow: 0 0 0 8px var(--color-secondary-glow), 0 0 40px var(--color-secondary-glow);
+    }
+
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 2px var(--color-secondary-glow);
+    }
 }
 
 @keyframes fusionEffect {
-    0% { transform: scale(1); filter: brightness(1); }
-    50% { transform: scale(1.1); filter: brightness(2) contrast(1.2); }
-    100% { transform: scale(1); filter: brightness(1); }
+    0% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+        filter: brightness(2) contrast(1.2);
+    }
+
+    100% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
 }
 
 .floatingHandle {
@@ -127,12 +157,12 @@
 }
 
 .content::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--color-border);
     border-radius: 2px;
 }
 
 .content::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--color-text-muted);
 }
 
 .convertBtn {

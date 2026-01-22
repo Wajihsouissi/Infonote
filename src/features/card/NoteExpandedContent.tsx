@@ -174,7 +174,10 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
         if (blocksToAdd.length > 0) {
             const current = Array.isArray(data.content) ? data.content : [];
             console.log("[NoteExpandedContent.handleAreaDrop] Adding blocks to node:", id);
-            onUpdate(id, { content: [...current, ...blocksToAdd] });
+            onUpdate(id, {
+                content: [...current, ...blocksToAdd],
+                lastFusedAt: Date.now()
+            });
 
             // Remove blocks from source node if cross-node drop
             if (sourceNodeId && sourceNodeId !== id) {
@@ -238,7 +241,7 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
         return {
             '--color-text-main': '#1f2937',
             '--color-text-muted': '#6b7280',
-            '--color-border': 'rgba(0,0,0,0.1)',
+            '--color-border': 'rgba(0,0,0,0.2)',
             '--note-bg-dynamic': data.color
         } as React.CSSProperties;
     }, [data.color]);
@@ -252,7 +255,7 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
             // Override variables within header scope
             '--color-text-main': '#1f2937',
             '--color-text-muted': '#6b7280',
-            '--color-border': 'rgba(0,0,0,0.1)',
+            '--color-border': 'rgba(0,0,0,0.2)',
         } as React.CSSProperties;
     }, [data.color]);
 

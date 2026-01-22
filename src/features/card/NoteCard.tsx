@@ -35,17 +35,18 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
     // Track fusion event for animation
     const [isFusing, setIsFusing] = useState(false);
-    const lastContentLength = useRef(Array.isArray(data.content) ? data.content.length : 0);
+    const lastFusedTimeRef = useRef(data.lastFusedAt || 0);
 
     useEffect(() => {
-        const currentLength = Array.isArray(data.content) ? data.content.length : 0;
-        if (currentLength > lastContentLength.current && lastContentLength.current > 0) {
+        if (data.lastFusedAt && data.lastFusedAt > lastFusedTimeRef.current) {
             setIsFusing(true);
             const timer = setTimeout(() => setIsFusing(false), 500);
+            lastFusedTimeRef.current = data.lastFusedAt;
             return () => clearTimeout(timer);
         }
-        lastContentLength.current = currentLength;
-    }, [data.content]);
+        // Sync ref if data is older or same (e.g. init)
+        if (data.lastFusedAt) lastFusedTimeRef.current = data.lastFusedAt;
+    }, [data.lastFusedAt]);
 
     const viewMode = data.viewMode || 'medium';
     const isMultiSelected = selectedCanvasNodeIds.has(id);
