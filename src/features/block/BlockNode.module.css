@@ -111,6 +111,45 @@
     box-shadow: none !important;
 }
 
+.colorBlockNode {
+    display: flex;
+    align-items: flex-start;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    width: 100%;
+    height: auto;
+    box-sizing: border-box;
+    transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: none;
+}
+
+.colorBlockNode:hover {
+    background: transparent;
+    border: none;
+    border-color: transparent;
+    transform: none;
+    box-shadow: none;
+}
+
+.colorBlockNode.selected {
+    border: 2px solid var(--color-primary);
+    background: transparent;
+    box-shadow: 0 0 0 2px var(--color-primary-glow);
+}
+
+.colorBlockNode.multiSelected {
+    border: 2px solid var(--color-primary);
+    background: transparent;
+    box-shadow: 0 0 0 3px var(--color-primary-glow);
+}
+
+.colorBlockNode:hover .handle {
+    opacity: 0.6;
+    transform: scale(1);
+}
+
 /* Ensure selection shows a subtle border only, no background */
 .mediaBlockNode.selected {
     border: 2px solid var(--color-primary);

@@ -7,7 +7,7 @@ import { useStore } from '../../store/useStore';
 import type { Node } from '@xyflow/react';
 import styles from './FusedNoteNode.module.css';
 import { snapDimensions, MIN_EXPANDED_SIZE } from '../../config/layout';
-import { toPastelColor } from '../../utils/colorUtils';
+import { toPastelColor, lightenColor } from '../../utils/colorUtils';
 import { SkeletonLoader } from './SkeletonLoader';
 
 export type FusedNoteNodeData = {
@@ -81,6 +81,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
     // Convert color to pastel for better readability
     const displayColor = data.color ? toPastelColor(data.color, theme === 'light') : undefined;
+    const accentColor = data.color ? lightenColor(data.color, 15) : displayColor;
 
     // EditBar state
     const [showEditBar, setShowEditBar] = useState(false);
@@ -197,7 +198,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             // FILTER CHECK
             const filteredNodes = currentNodes.filter(n => n.id !== id && n.id !== parentId);
             const removedCount = currentNodes.length - filteredNodes.length;
-            console.log(`FusedNoteNode: Removed ${removedCount} nodes (should be 2: fused + parent). FusedID: ${id}`);
+           // Logging disabled
 
             if (removedCount < 2) {
                 // Check what we missed
@@ -341,10 +342,17 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                     '--color-text-main': '#1f2937',
                     '--color-text-muted': '#6b7280',
                     '--color-border': 'rgba(0,0,0,0.2)',
+                    '--note-bg-dynamic': data.color,
                     color: '#1f2937'
                 } : {})
             }}
         >
+            {/* Top accent strip using the note color */}
+            <div
+                className={styles.accentStrip}
+                style={{ backgroundColor: accentColor || 'var(--color-primary)' }}
+            />
+
             {/* Floating Handle - Centered Top */}
             <div className={`custom-drag-handle ${styles.floatingHandle}`}>
                 <GripHorizontal size={16} />

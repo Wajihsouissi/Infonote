@@ -9,10 +9,8 @@ const BACKUP_NODES_FILE = 'nodes.backup.json';
 const BACKUP_EDGES_FILE = 'edges.backup.json';
 const TEMP_NODES_FILE = 'nodes.tmp.json';
 const TEMP_EDGES_FILE = 'edges.tmp.json';
-const USE_COMPRESSION = true; // Enable compression for large datasets
+const USE_COMPRESSION = true;
 
-// Extend the Window interface to include the File System Access API
-// Extend the Window interface and FileSystem definitions
 declare global {
     interface Window {
         showDirectoryPicker(options?: {
@@ -38,99 +36,17 @@ export class FileSystemStorage {
     private readonly STORE_NAME = 'handles';
     private readonly KEY = 'project-dir';
     
-    // Sync state management
     private _isSaving = false;
     private _saveQueue: (() => Promise<void>)[] = [];
     private _lastSavedState: { nodes: AppNode[]; edges: Edge[] } | null = null;
     private _pendingResolvers: { resolve: () => void; reject: (e: any) => void }[] = [];
-    private _lastSaveHash: string | null = null;
 
     constructor() {
         this.initDB();
     }
 
-    // Check if currently saving (used to block loads during saves)
     get isSaving(): boolean {
         return this._isSaving;
-    }
-
-    private initDB() {
-        // Minimal IndexedDB wrapper
-        const request = indexedDB.open(this.DB_NAME, 1);
-        request.onupgradeneeded = (e: any) => {
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains(this.STORE_NAME)) {
-                db.createObjectStore(this.STORE_NAME);
-            }
-        };
-    }
-
-    private async saveHandle(handle: FileSystemDirectoryHandle) {
-        return new Promise<void>((resolve, reject) => {
-            const request = indexedDB.open(this.DB_NAME, 1);
-            request.onsuccess = (e: any) => {
-                const db = e.target.result;
-                const tx = db.transaction(this.STORE_NAME, 'readwrite');
-                const store = tx.objectStore(this.STORE_NAME);
-                store.put(handle, this.KEY);
-                tx.oncomplete = () => resolve();
-                tx.onerror = () => reject('Failed to save handle');
-            };
-        });
-    }
-
-    async getStoredHandle(): Promise<FileSystemDirectoryHandle | null> {
-        return new Promise((resolve) => {
-            const request = indexedDB.open(this.DB_NAME, 1);
-            request.onsuccess = (e: any) => {
-                const db = e.target.result;
-                try {
-                    const tx = db.transaction(this.STORE_NAME, 'readonly');
-                    const store = tx.objectStore(this.STORE_NAME);
-                    const getReq = store.get(this.KEY);
-                    getReq.onsuccess = () => resolve(getReq.result || null);
-                    getReq.onerror = () => resolve(null);
-                } catch (err) {
-                    console.error("DB Error", err);
-                    resolve(null);
-                }
-            };
-            request.onerror = () => resolve(null);
-        });
-    }
-
-    async selectDirectory(): Promise<boolean> {
-        try {
-            this.directoryHandle = await window.showDirectoryPicker({
-                mode: 'readwrite',
-                id: 'infonote-data',
-            });
-            await this.saveHandle(this.directoryHandle);
-            return true;
-        } catch (error) {
-            console.warn('User cancelled directory selection or API error:', error);
-            return false;
-        }
-    }
-
-    async reconnect(): Promise<boolean> {
-        const handle = await this.getStoredHandle();
-        if (!handle) return false;
-
-        try {
-            if ((await handle.queryPermission({ mode: 'readwrite' })) === 'granted') {
-                this.directoryHandle = handle;
-                return true;
-            }
-
-            if ((await handle.requestPermission({ mode: 'readwrite' })) === 'granted') {
-                this.directoryHandle = handle;
-                return true;
-            }
-        } catch (e) {
-            console.error("Reconnection failed", e);
-        }
-        return false;
     }
 
     get isConnected(): boolean {
@@ -141,24 +57,170 @@ export class FileSystemStorage {
         return this.directoryHandle?.name;
     }
 
-    private getFolderName(node: AppNode): string {
-        const label = (node.data as any).label || 'Untitled';
-        const safeName = label.replace(/[^a-z0-9]/gi, '_').toLowerCase().slice(0, 32);
-        return `${safeName}_${node.id.slice(0, 8)}`;
+    private initDB(): void {
+        const request = indexedDB.open(this.DB_NAME, 1);
+        request.onupgradeneeded = (e: any) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(this.STORE_NAME)) {
+                db.createObjectStore(this.STORE_NAME);
+            }
+        };
+        request.onerror = () => {
+            console.error('[Storage] Failed to initialize IndexedDB');
+        };
+    }
+
+    private async saveHandleToIndexedDB(handle: FileSystemDirectoryHandle): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.DB_NAME, 1);
+            request.onsuccess = (e: any) => {
+                try {
+                    const db = e.target.result;
+                    const tx = db.transaction(this.STORE_NAME, 'readwrite');
+                    const store = tx.objectStore(this.STORE_NAME);
+                    store.put(handle, this.KEY);
+                    tx.oncomplete = () => {
+                        // Handle saved
+                        resolve();
+                    };
+                    tx.onerror = () => reject(new Error('Failed to save handle to IndexedDB'));
+                } catch (err) {
+                    reject(err);
+                }
+            };
+            request.onerror = () => reject(new Error('Failed to open IndexedDB'));
+        });
+    }
+
+    async getStoredHandle(): Promise<FileSystemDirectoryHandle | null> {
+        return new Promise((resolve) => {
+            const request = indexedDB.open(this.DB_NAME, 1);
+            request.onsuccess = (e: any) => {
+                try {
+                    const db = e.target.result;
+                    const tx = db.transaction(this.STORE_NAME, 'readonly');
+                    const store = tx.objectStore(this.STORE_NAME);
+                    const getReq = store.get(this.KEY);
+                    getReq.onsuccess = () => resolve(getReq.result || null);
+                    getReq.onerror = () => resolve(null);
+                } catch (err) {
+                    console.error('[Storage] Failed to get stored handle:', err);
+                    resolve(null);
+                }
+            };
+            request.onerror = () => resolve(null);
+        });
+    }
+
+    async clearStoredHandle(): Promise<void> {
+        return new Promise((resolve) => {
+            const request = indexedDB.open(this.DB_NAME, 1);
+            request.onsuccess = (e: any) => {
+                try {
+                    const db = e.target.result;
+                    const tx = db.transaction(this.STORE_NAME, 'readwrite');
+                    const store = tx.objectStore(this.STORE_NAME);
+                    store.delete(this.KEY);
+                    tx.oncomplete = () => {
+                        // Handle cleared
+                        resolve();
+                    };
+                    tx.onerror = () => resolve();
+                } catch (err) {
+                    console.warn('[Storage] Failed to clear stored handle:', err);
+                    resolve();
+                }
+            };
+            request.onerror = () => resolve();
+        });
+    }
+
+    async selectDirectory(): Promise<boolean> {
+        try {
+            console.log('[Storage] Opening directory picker...');
+            this.directoryHandle = await window.showDirectoryPicker({
+                mode: 'readwrite',
+                id: 'infonote-data',
+            });
+            await this.saveHandleToIndexedDB(this.directoryHandle);
+            console.log('[Storage] Directory selected:', this.directoryHandle.name);
+            return true;
+        } catch (error: any) {
+            if (error.name === 'AbortError') {
+                console.log('[Storage] User cancelled directory selection');
+            } else {
+                console.error('[Storage] Directory selection failed:', error);
+            }
+            return false;
+        }
+    }
+
+    async reconnect(): Promise<boolean> {
+        // Attempting reconnect
+        const handle = await this.getStoredHandle();
+        
+        if (!handle) {
+            console.log('[Storage] No stored handle found');
+            return false;
+        }
+
+        try {
+            // First check current permission
+            const currentPermission = await handle.queryPermission({ mode: 'readwrite' });
+            // Permission check
+            
+            if (currentPermission === 'granted') {
+                // Verify the handle is still valid by trying to access it
+                try {
+                    await handle.entries().next();
+                    this.directoryHandle = handle;
+                    // Reconnected
+                    return true;
+                } catch (accessError) {
+                    console.warn('[Storage] Handle exists but directory is inaccessible:', accessError);
+                    await this.clearStoredHandle();
+                    return false;
+                }
+            }
+
+            // Try to request permission
+            console.log('[Storage] Requesting permission...');
+            const requestResult = await handle.requestPermission({ mode: 'readwrite' });
+            
+            if (requestResult === 'granted') {
+                this.directoryHandle = handle;
+                console.log('[Storage] Reconnected with new permission grant');
+                return true;
+            }
+            
+            console.log('[Storage] Permission denied by user');
+            return false;
+        } catch (error: any) {
+            console.error('[Storage] Reconnection failed:', error.message || error);
+            // Handle is likely stale, clear it
+            await this.clearStoredHandle();
+            this.directoryHandle = null;
+            return false;
+        }
+    }
+
+    disconnect(): void {
+        this.directoryHandle = null;
+        console.log('[Storage] Disconnected');
     }
 
     async saveData(nodes: AppNode[], edges: Edge[], options?: { skipFolderSync?: boolean }): Promise<void> {
-        if (!this.directoryHandle) return;
+        if (!this.directoryHandle) {
+            console.warn('[Storage] Cannot save - not connected');
+            return;
+        }
 
-        // If already saving, queue this save properly (don't drop it)
         if (this._isSaving) {
             return new Promise((resolve, reject) => {
                 this._pendingResolvers.push({ resolve, reject });
-                
                 this._saveQueue.push(async () => {
                     const resolvers = [...this._pendingResolvers];
                     this._pendingResolvers = [];
-                    
                     try {
                         await this._doSave(nodes, edges, options);
                         resolvers.forEach(r => r.resolve());
@@ -176,72 +238,116 @@ export class FileSystemStorage {
         if (!this.directoryHandle) return;
         
         perfMonitor.startTimer('storage.save', { nodeCount: nodes.length });
-        
         this._isSaving = true;
         const startTime = Date.now();
-        console.log('[Storage] Starting save...', nodes.length, 'nodes');
+        // Saving...
 
         try {
-            // 1. Create backup of existing files (Obsidian-style safety)
+            // 1. Create backup
             await this.createBackup();
             
-            // 2. Write to temporary files first (atomic write pattern)
+            // 2. Write temp files
             await Promise.all([
                 this.writeJsonFile(TEMP_NODES_FILE, nodes),
                 this.writeJsonFile(TEMP_EDGES_FILE, edges)
             ]);
             
-            // 3. Verify temp files are valid
+            // 3. Verify temp files
             try {
                 await this.readJsonFile<AppNode[]>(TEMP_NODES_FILE);
                 await this.readJsonFile<Edge[]>(TEMP_EDGES_FILE);
             } catch (verifyError) {
-                console.error('[Storage] Temp file verification failed, aborting save');
+                console.error('[Storage] Temp file verification failed');
                 throw new Error('Save verification failed');
             }
             
-            // 4. Atomic rename: temp -> main (this is the commit point)
+            // 4. Atomic replace
             await this.atomicReplace(TEMP_NODES_FILE, NODES_FILE);
             await this.atomicReplace(TEMP_EDGES_FILE, EDGES_FILE);
 
-            // Store state
             this._lastSavedState = { nodes, edges };
             
             const duration = Date.now() - startTime;
-            console.log(`[Storage] Saved successfully in ${duration}ms:`, nodes.length, 'nodes');
+            console.log('[Storage] Saved in', duration, 'ms');
             perfMonitor.endTimer('storage.save', { success: true });
 
-            // Sync individual cards to folders (background, non-critical)
-            if (!options?.skipFolderSync && nodes.length <= 2000) {
-                this.syncCardsToFolders(nodes).catch(err => 
-                    console.warn('[Storage] Background folder sync failed:', err)
-                );
-            } else if (nodes.length > 2000) {
-                console.log('[Storage] Skipping folder sync for large graph:', nodes.length, 'nodes');
-            }
+            // Skip folder sync for now (expensive)
+            // if (!options?.skipFolderSync && nodes.length <= 2000) {
+            //     this.syncCardsToFolders(nodes).catch(err => 
+            //         console.warn('[Storage] Folder sync failed:', err)
+            //     );
+            // }
 
         } catch (error: any) {
             console.error('[Storage] Save failed:', error);
             perfMonitor.endTimer('storage.save', { success: false, error: error.message });
             
             await this.restoreFromBackup().catch(restoreErr =>
-                console.error('[Storage] Backup restore also failed:', restoreErr)
+                console.error('[Storage] Backup restore failed:', restoreErr)
             );
             
-            if (error.name === 'NotFoundError' || error.name === 'NotAllowedError') {
-                console.warn('[Storage] Directory handle invalidated. Disconnecting.');
+            // Check for invalid handle
+            if (error.name === 'NotFoundError' || error.name === 'NotAllowedError' ||
+                error.message?.includes('not found') || error.message?.includes('directory')) {
+                console.warn('[Storage] Handle invalidated, disconnecting');
                 this.directoryHandle = null;
             }
             throw error;
         } finally {
             this._isSaving = false;
-            
             if (this._saveQueue.length > 0) {
                 const nextSave = this._saveQueue.shift();
-                if (nextSave) {
-                    nextSave();
-                }
+                if (nextSave) nextSave();
             }
+        }
+    }
+
+    async loadData(): Promise<{ nodes: AppNode[]; edges: Edge[] } | null> {
+        if (!this.directoryHandle) {
+            console.warn('[Storage] Cannot load - not connected');
+            return null;
+        }
+        
+        perfMonitor.startTimer('storage.load');
+        
+        if (this._isSaving) {
+            console.log('[Storage] Load blocked - save in progress');
+            perfMonitor.endTimer('storage.load', { cached: true });
+            return this._lastSavedState;
+        }
+
+        try {
+            // Check if files exist first
+            const nodesExist = await this.fileExists(NODES_FILE);
+            const edgesExist = await this.fileExists(EDGES_FILE);
+            
+            if (!nodesExist || !edgesExist) {
+                console.log('[Storage] No existing data files found');
+                perfMonitor.endTimer('storage.load', { success: true, empty: true });
+                return null;
+            }
+
+            const nodes = await this.readJsonFile<AppNode[]>(NODES_FILE);
+            const edges = await this.readJsonFile<Edge[]>(EDGES_FILE);
+
+            if (!Array.isArray(nodes) || !Array.isArray(edges)) {
+                console.warn('[Storage] Invalid data structure');
+                perfMonitor.endTimer('storage.load', { success: false });
+                return null;
+            }
+
+            // Data loaded
+            perfMonitor.endTimer('storage.load', { success: true, nodeCount: nodes.length });
+            return { nodes, edges };
+        } catch (error: any) {
+            console.error('[Storage] Load failed:', error.message || error);
+            perfMonitor.endTimer('storage.load', { success: false });
+            
+            // Check for invalid handle
+            if (error.name === 'NotFoundError' || error.name === 'NotAllowedError') {
+                this.directoryHandle = null;
+            }
+            return null;
         }
     }
 
@@ -249,15 +355,11 @@ export class FileSystemStorage {
         if (!this.directoryHandle) return;
         
         try {
-            const nodesExist = await this.fileExists(NODES_FILE);
-            const edgesExist = await this.fileExists(EDGES_FILE);
-            
-            if (nodesExist) {
+            if (await this.fileExists(NODES_FILE)) {
                 const nodesData = await this.readJsonFile<AppNode[]>(NODES_FILE);
                 await this.writeJsonFile(BACKUP_NODES_FILE, nodesData);
             }
-            
-            if (edgesExist) {
+            if (await this.fileExists(EDGES_FILE)) {
                 const edgesData = await this.readJsonFile<Edge[]>(EDGES_FILE);
                 await this.writeJsonFile(BACKUP_EDGES_FILE, edgesData);
             }
@@ -276,21 +378,18 @@ export class FileSystemStorage {
             if (backupNodesExist && backupEdgesExist) {
                 const nodesData = await this.readJsonFile<AppNode[]>(BACKUP_NODES_FILE);
                 const edgesData = await this.readJsonFile<Edge[]>(BACKUP_EDGES_FILE);
-                
                 await this.writeJsonFile(NODES_FILE, nodesData);
                 await this.writeJsonFile(EDGES_FILE, edgesData);
-                
                 console.log('[Storage] Restored from backup');
             }
         } catch (error) {
-            console.error('[Storage] Backup restore failed:', error);
+            console.error('[Storage] Restore failed:', error);
             throw error;
         }
     }
     
     private async atomicReplace(tempFile: string, targetFile: string): Promise<void> {
         if (!this.directoryHandle) return;
-        
         try {
             const data = await this.readRawFile(tempFile);
             await this.writeRawFile(targetFile, data);
@@ -303,7 +402,6 @@ export class FileSystemStorage {
     
     private async fileExists(filename: string): Promise<boolean> {
         if (!this.directoryHandle) return false;
-        
         try {
             await this.directoryHandle.getFileHandle(filename, { create: false });
             return true;
@@ -314,32 +412,76 @@ export class FileSystemStorage {
     
     private async deleteFile(filename: string): Promise<void> {
         if (!this.directoryHandle) return;
-        
         try {
             await this.directoryHandle.removeEntry(filename);
-        } catch (error) {
-            console.warn('[Storage] Failed to delete file:', filename, error);
+        } catch {
+            // Ignore delete errors
         }
     }
     
     private async readRawFile(filename: string): Promise<string> {
-        if (!this.directoryHandle) throw new Error('No directory selected');
-        
+        if (!this.directoryHandle) throw new Error('Not connected');
         const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: false });
         const file = await fileHandle.getFile();
         return await file.text();
     }
     
     private async writeRawFile(filename: string, content: string): Promise<void> {
-        if (!this.directoryHandle) throw new Error('No directory selected');
-        
+        if (!this.directoryHandle) throw new Error('Not connected');
         const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: true });
         const writable = await fileHandle.createWritable();
         await writable.write(content);
         await writable.close();
     }
 
-    private async syncCardsToFolders(nodes: AppNode[]) {
+    private async writeJsonFile(filename: string, data: any): Promise<void> {
+        if (!this.directoryHandle) throw new Error('Not connected');
+
+        const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: true });
+        const writable = await fileHandle.createWritable();
+        
+        const jsonStr = JSON.stringify(data);
+        
+        if (USE_COMPRESSION && jsonStr.length > 10000) {
+            const compressed = LZString.compressToUTF16(jsonStr);
+            // Compressed
+            await writable.write(compressed);
+        } else {
+            await writable.write(jsonStr);
+        }
+        
+        await writable.close();
+    }
+
+    private async readJsonFile<T>(filename: string): Promise<T> {
+        if (!this.directoryHandle) throw new Error('Not connected');
+
+        const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: false });
+        const file = await fileHandle.getFile();
+        const text = await file.text();
+        
+        // Try decompress
+        if (USE_COMPRESSION && text.length > 0 && !text.startsWith('{') && !text.startsWith('[')) {
+            try {
+                const decompressed = LZString.decompressFromUTF16(text);
+                if (decompressed) {
+                    return JSON.parse(decompressed) as T;
+                }
+            } catch {
+                // Fall through to plain JSON
+            }
+        }
+        
+        return JSON.parse(text) as T;
+    }
+
+    private getFolderName(node: AppNode): string {
+        const label = (node.data as any).label || 'Untitled';
+        const safeName = label.replace(/[^a-z0-9]/gi, '_').toLowerCase().slice(0, 32);
+        return `${safeName}_${node.id.slice(0, 8)}`;
+    }
+
+    private async syncCardsToFolders(nodes: AppNode[]): Promise<void> {
         if (!this.directoryHandle) return;
 
         try {
@@ -358,130 +500,30 @@ export class FileSystemStorage {
             }
 
             const writeLevel = async (dirHandle: FileSystemDirectoryHandle, nodeList: AppNode[]) => {
-                const expectedFolders = new Set<string>();
-                for (const node of nodeList) {
-                    expectedFolders.add(this.getFolderName(node));
-                }
-
-                const orphans: string[] = [];
-                try {
-                    for await (const [name, handle] of dirHandle.entries()) {
-                        if (handle.kind === 'directory') {
-                            if (!expectedFolders.has(name)) {
-                                orphans.push(name);
-                            }
-                        }
-                    }
-                } catch (e) {
-                    console.warn('Failed to read directory entries for cleanup', e);
-                }
-
-                for (const name of orphans) {
-                    try {
-                        await dirHandle.removeEntry(name, { recursive: true });
-                    } catch (e) {
-                        console.warn('Failed to remove orphan folder:', name, e);
-                    }
-                }
-
                 for (const node of nodeList) {
                     try {
                         const folderName = this.getFolderName(node);
                         const nodeDir = await dirHandle.getDirectoryHandle(folderName, { create: true });
-
                         const fileHandle = await nodeDir.getFileHandle('card.json', { create: true });
                         const writable = await fileHandle.createWritable();
                         await writable.write(JSON.stringify(node));
                         await writable.close();
 
                         const children = childrenMap.get(node.id) || [];
-                        await writeLevel(nodeDir, children);
+                        if (children.length > 0) {
+                            await writeLevel(nodeDir, children);
+                        }
                     } catch (e) {
-                        console.warn('Failed to sync node folder:', node.id, e);
+                        console.warn('[Storage] Failed to sync folder for node:', node.id);
                     }
                 }
             };
 
             const cardsDir = await this.directoryHandle.getDirectoryHandle('Cards', { create: true });
             await writeLevel(cardsDir, roots);
-
         } catch (error) {
-            console.warn('Failed to sync card folders:', error);
+            console.warn('[Storage] Folder sync failed:', error);
         }
-    }
-
-    async loadData(): Promise<{ nodes: AppNode[]; edges: Edge[] } | null> {
-        if (!this.directoryHandle) return null;
-        
-        perfMonitor.startTimer('storage.load');
-        
-        if (this._isSaving) {
-            console.log('[Storage] Load blocked - save in progress, returning cached state');
-            perfMonitor.endTimer('storage.load', { cached: true });
-            return this._lastSavedState;
-        }
-
-        try {
-            const nodes = await this.readJsonFile<AppNode[]>(NODES_FILE);
-            const edges = await this.readJsonFile<Edge[]>(EDGES_FILE);
-
-            if (!Array.isArray(nodes) || !Array.isArray(edges)) {
-                console.warn('Invalid data structure in storage files');
-                perfMonitor.endTimer('storage.load', { success: false });
-                return null;
-            }
-
-            console.log(`[Storage] Loaded ${nodes.length} nodes from ${NODES_FILE}`);
-            perfMonitor.endTimer('storage.load', { success: true, nodeCount: nodes.length });
-            return { nodes, edges };
-        } catch (error) {
-            console.log('No existing data found (or error reading), starting fresh.', error);
-            perfMonitor.endTimer('storage.load', { success: false });
-            return null;
-        }
-    }
-
-    private async writeJsonFile(filename: string, data: any): Promise<void> {
-        if (!this.directoryHandle) throw new Error('No directory selected');
-
-        const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: true });
-        const writable = await fileHandle.createWritable();
-        
-        const jsonStr = JSON.stringify(data);
-        
-        // Compress if enabled and data is large enough
-        if (USE_COMPRESSION && jsonStr.length > 10000) {
-            const compressed = LZString.compressToUTF16(jsonStr);
-            const compressionRatio = ((1 - compressed.length / jsonStr.length) * 100).toFixed(1);
-            console.log(`[Storage] Compressed ${filename}: ${jsonStr.length} → ${compressed.length} bytes (${compressionRatio}% saved)`);
-            await writable.write(compressed);
-        } else {
-            await writable.write(jsonStr);
-        }
-        
-        await writable.close();
-    }
-
-    private async readJsonFile<T>(filename: string): Promise<T> {
-        if (!this.directoryHandle) throw new Error('No directory selected');
-
-        const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: false });
-        const file = await fileHandle.getFile();
-        const text = await file.text();
-        
-        // Try to decompress, fall back to plain JSON
-        try {
-            if (USE_COMPRESSION && text.length > 0 && !text.startsWith('{') && !text.startsWith('[')) {
-                const decompressed = LZString.decompressFromUTF16(text);
-                if (decompressed) {
-                    return JSON.parse(decompressed) as T;
-                }
-            }
-        } catch (e) {
-            console.warn('[Storage] Decompression failed, trying plain JSON:', e);
-        }
-        
-        return JSON.parse(text) as T;
     }
 }
 

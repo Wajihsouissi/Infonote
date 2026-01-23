@@ -76,10 +76,12 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     }, [id, updateNodeData]);
 
     const isSingleMedia = Array.isArray(data.content) && data.content.length === 1 && (data.content[0].type === 'image' || data.content[0].type === 'video' || data.content[0].type === 'file');
+    const isSingleColor = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'color';
+    const baseClassName = isSingleColor ? styles.colorBlockNode : styles.blockNode;
 
     return (
         <div
-            className={`${styles.blockNode} ${isSingleMedia ? styles.mediaBlockNode : ''} ${selected ? styles.selected : ''} ${isMultiSelected ? styles.multiSelected : ''}`}
+            className={`${baseClassName} ${isSingleMedia ? styles.mediaBlockNode : ''} ${selected ? styles.selected : ''} ${isMultiSelected ? styles.multiSelected : ''}`}
             onContextMenu={handleContextMenu}
             onDragOver={(e) => {
                 e.preventDefault();

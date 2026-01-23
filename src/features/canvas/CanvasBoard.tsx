@@ -138,7 +138,7 @@ export function CanvasBoard() {
 
     useEffect(() => {
         if (currentParentId) {
-            console.log("CanvasBoard Visible Nodes:", visibleNodes.map(n => ({
+            if (DEBUG) console.log("CanvasBoard Visible Nodes:", visibleNodes.map(n => ({
                 id: n.id,
                 type: n.type,
                 parentId: n.parentId, // Should be undefined after mapping
@@ -189,22 +189,17 @@ export function CanvasBoard() {
 
     const onDrop = useCallback(
         (event: React.DragEvent) => {
-            console.log("[CanvasBoard.onDrop] START - Event triggered");
+            // Performance: Skip logging
 
             const { centerPanelId, fullscreenId, currentParentId, nodes } = useStore.getState();
             if (centerPanelId || fullscreenId) {
-                console.log("[CanvasBoard.onDrop] SKIP - Modal open");
+            // Skipping due to modal
                 return;
             }
 
             // Check if the drop landed inside a node's BlockEditor - if so, let BlockEditor handle it
             const target = event.target as HTMLElement;
-            console.log("[CanvasBoard.onDrop] Drop target element:", {
-                tagName: target.tagName,
-                className: target.className,
-                id: target.id,
-                parentClassName: target.parentElement?.className
-            });
+            // Drop target logging disabled
 
             const isInsideBlockEditor = target.closest('[class*="BlockEditor"]') ||
                 target.closest('[class*="editor"]') ||
@@ -212,10 +207,7 @@ export function CanvasBoard() {
                 target.closest('[class*="fusedNoteNode"]') ||
                 target.closest('[class*="content"]');
 
-            console.log("[CanvasBoard.onDrop] isInsideBlockEditor check:", {
-                result: !!isInsideBlockEditor,
-                matchedElement: isInsideBlockEditor?.className
-            });
+            // BlockEditor check result cached
 
             // Parse block data to check if this is a cross-node block transfer
             const blockDataJson = event.dataTransfer.getData('application/infonote-block-data');
@@ -227,12 +219,12 @@ export function CanvasBoard() {
                     const parsed = JSON.parse(blockDataJson);
                     hasSourceNode = !!parsed.sourceNodeId;
                     sourceNodeIdFromData = parsed.sourceNodeId;
-                    console.log("[CanvasBoard.onDrop] Parsed block data - sourceNodeId:", parsed.sourceNodeId, "hasSourceNode:", hasSourceNode);
+            // Block data parsed
                 } catch (e) {
-                    console.log("[CanvasBoard.onDrop] Failed to parse block data");
+            // Parse failed
                 }
             } else {
-                console.log("[CanvasBoard.onDrop] No block data in dataTransfer");
+            // No block data
             }
 
             // Check if drop position intersects with a node (early check)
@@ -253,20 +245,16 @@ export function CanvasBoard() {
                 n.id !== currentParentId
             );
 
-            console.log("[CanvasBoard.onDrop] Intersection check:", {
-                intersectionCount: earlyIntersections.length,
-                intersectionTypes: earlyIntersections.map(n => ({ id: n.id, type: n.type })),
-                targetNode: earlyTargetNode ? { id: earlyTargetNode.id, type: earlyTargetNode.type } : null
-            });
+            // Intersection logging disabled
 
             // If dropping inside a node's content area OR on a target node AND it's from another node, 
             // let BlockEditor handle it
             if ((isInsideBlockEditor || earlyTargetNode) && hasSourceNode) {
-                console.log("[CanvasBoard.onDrop] SKIP - Drop on/inside node, letting BlockEditor handle it");
+            // BlockEditor handling
                 return;
             }
 
-            console.log("[CanvasBoard.onDrop] PROCEEDING with canvas-level drop handling");
+            // Canvas drop handling
             event.preventDefault();
 
             const type = event.dataTransfer.getData('application/reactflow-block-type') as BlockType;
@@ -332,15 +320,7 @@ export function CanvasBoard() {
                 n.id !== currentParentId
             );
 
-            console.log("[DND Debug] Drop Event:", {
-                type,
-                currentParentId,
-                rawPosition,
-                position,
-                intersections: intersections.map(n => ({ id: n.id, type: n.type })),
-                targetNode: targetNode ? { id: targetNode.id, type: targetNode.type } : null,
-                blocksToAdd
-            });
+            // Drop event logging disabled
 
             if (targetNode) {
                 const currentContent = Array.isArray((targetNode.data as any).content) ? (targetNode.data as any).content : [];
@@ -370,7 +350,7 @@ export function CanvasBoard() {
 
                 if (sourceNodeId) {
                     // Logic to cleanup source node if moving...
-                    console.log("[CanvasBoard.onDrop] Cleaning up source node (targetNode case):", sourceNodeId);
+            // Cleanup skipped
                     const sourceNode = nodes.find((n: AppNode) => n.id === sourceNodeId);
                     if (sourceNode && Array.isArray((sourceNode.data as any).content)) {
                         const draggedBlockIds = blocksToAdd.map(b => b.id);
@@ -432,7 +412,7 @@ export function CanvasBoard() {
                 }));
 
                 if (sourceNodeId) {
-                    console.log("[CanvasBoard.onDrop] Cleaning up source node:", sourceNodeId);
+            // Final cleanup
                     const sourceNode = nodes.find((n: AppNode) => n.id === sourceNodeId);
                     if (sourceNode && Array.isArray((sourceNode.data as any).content)) {
                         const draggedBlockIds = blocksToAdd.map(b => b.id);

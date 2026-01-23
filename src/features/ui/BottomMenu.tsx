@@ -81,8 +81,113 @@ export function BottomMenu() {
         if (cleanedQuery && !isSearchMode) setIsSearchMode(true);
     };
 
+    const findNonOverlappingPosition = (
+        center: { x: number; y: number },
+        size: { width: number; height: number }
+    ) => {
+        const PADDING = 24;
+        const STEP = 60;
+        const MAX_RADIUS = 1200;
+
+        const relevantNodes = nodes.filter(n =>
+            currentParentId === null
+                ? n.parentId === undefined
+                : n.parentId === currentParentId
+        );
+
+        const doesOverlap = (x: number, y: number) => {
+            const left = x - PADDING;
+            const top = y - PADDING;
+            const right = x + size.width + PADDING;
+            const bottom = y + size.height + PADDING;
+
+            return relevantNodes.some(n => {
+                const nodeWidth = (n.style?.width as number) || 432;
+                const nodeHeight = (n.style?.height as number) || 432;
+                const nx = n.position.x;
+                const ny = n.position.y;
+                const nLeft = nx;
+                const nTop = ny;
+                const nRight = nx + nodeWidth;
+                const nBottom = ny + nodeHeight;
+
+                return !(
+                    right < nLeft ||
+                    left > nRight ||
+                    bottom < nTop ||
+                    top > nBottom
+                );
+            });
+        };
+
+        const centerX = center.x;
+        const centerY = center.y;
+
+        let bestX = centerX - size.width / 2;
+        let bestY = centerY - size.height / 2;
+
+        if (!doesOverlap(bestX, bestY)) {
+            return { x: bestX, y: bestY };
+        }
+
+        for (let radius = STEP; radius <= MAX_RADIUS; radius += STEP) {
+            const steps = Math.max(8, Math.round((2 * Math.PI * radius) / STEP));
+            for (let i = 0; i < steps; i++) {
+                const angle = (i / steps) * 2 * Math.PI;
+                const candidateCenterX = centerX + radius * Math.cos(angle);
+                const candidateCenterY = centerY + radius * Math.sin(angle);
+                const candidateX = candidateCenterX - size.width / 2;
+                const candidateY = candidateCenterY - size.height / 2;
+
+                if (!doesOverlap(candidateX, candidateY)) {
+                    return { x: candidateX, y: candidateY };
+                }
+            }
+        }
+
+        // Fallback: canvas around the center is dense; try a few random spots
+        const FALLBACK_RADIUS = MAX_RADIUS * 0.75;
+        const FALLBACK_ATTEMPTS = 20;
+
+        for (let i = 0; i < FALLBACK_ATTEMPTS; i++) {
+            const angle = Math.random() * 2 * Math.PI;
+            const radius = Math.random() * FALLBACK_RADIUS;
+            const candidateCenterX = centerX + radius * Math.cos(angle);
+            const candidateCenterY = centerY + radius * Math.sin(angle);
+            const candidateX = candidateCenterX - size.width / 2;
+            const candidateY = candidateCenterY - size.height / 2;
+
+            if (!doesOverlap(candidateX, candidateY)) {
+                return { x: candidateX, y: candidateY };
+            }
+        }
+
+        // Last resort: place at a random position around center, even if overlapping
+        const angle = Math.random() * 2 * Math.PI;
+        const radius = FALLBACK_RADIUS;
+        const fallbackCenterX = centerX + radius * Math.cos(angle);
+        const fallbackCenterY = centerY + radius * Math.sin(angle);
+
+        return {
+            x: fallbackCenterX - size.width / 2,
+            y: fallbackCenterY - size.height / 2,
+        };
+    };
+
     const handleAddNote = () => {
-        addNode('note', { x: Math.random() * 200 + 100, y: Math.random() * 200 + 100 }, { viewMode: 'expanded' }, { width: 432, height: 432 }, currentParentId || undefined);
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
+
+        const NOTE_WIDTH = 432;
+        const NOTE_HEIGHT = 432;
+
+        const position = findNonOverlappingPosition(flowPos, {
+            width: NOTE_WIDTH,
+            height: NOTE_HEIGHT
+        });
+
+        addNode('note', position, { viewMode: 'expanded' }, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, currentParentId || undefined);
     };
 
     const handleDragStart = (e: React.DragEvent, type: string, metadata?: any) => {
@@ -147,26 +252,19 @@ export function BottomMenu() {
 
         // Otherwise (Home/Canvas), create a new block node
 
-        // Otherwise (Home/Canvas), create a new block node
-
         // Calculate center of viewport
         const centerX = window.innerWidth / 2;
         const centerY = window.innerHeight / 2;
 
         const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
 
-        // Add random offset to prevent exact overlap
-        const offsetRange = 30;
-        const offsetX = (Math.random() - 0.5) * offsetRange * 2;
-        const offsetY = (Math.random() - 0.5) * offsetRange * 2;
-
         const BLOCK_WIDTH = 300;
         const BLOCK_HEIGHT = 100;
 
-        const position = {
-            x: flowPos.x - (BLOCK_WIDTH / 2) + offsetX,
-            y: flowPos.y - (BLOCK_HEIGHT / 2) + offsetY
-        };
+        const position = findNonOverlappingPosition(flowPos, {
+            width: BLOCK_WIDTH,
+            height: BLOCK_HEIGHT
+        });
 
         // Mark as standalone canvas block when created directly on canvas
         addNode('block', position, {

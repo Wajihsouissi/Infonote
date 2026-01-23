@@ -826,101 +826,130 @@
 .colorBlockWrapper {
     position: relative;
     width: 100%;
-    aspect-ratio: 16 / 9;
-    min-height: 160px;
+    aspect-ratio: 4 / 5;
+    min-height: 200px;
     margin: 8px 0;
-    /* Clean bg */
     background: transparent;
 }
 
 .colorBlockCard {
     width: 100%;
     height: 100%;
-    border-radius: 16px;
+    border-radius: 14px;
     display: flex;
     flex-direction: column;
     position: relative;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    border: 4px solid #fff;
+    overflow: hidden;
+    background: #f7f7f7;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
-    background: #fff;
-    /* Border fix fallback */
 }
 
 .colorBlockCard:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.18);
 }
 
 .colorSection {
-    flex: 1;
+    flex: 1 1 auto;
     position: relative;
     width: 100%;
-    min-height: 0;
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
+    min-height: 140px;
 }
 
 .infoSection {
-    height: 60px;
-    background: #2A2A2A;
+    padding: 16px 18px 18px;
+    background: #f7f7f7;
     display: flex;
-    align-items: center;
-    padding: 0 24px;
-    flex-shrink: 0;
-    border-bottom-left-radius: 12px;
-    border-bottom-right-radius: 12px;
-}
-
-/* Hex Text Group */
-.colorBlockHexGroup {
-    position: absolute;
-    top: 24px;
-    left: 24px;
-    display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 10px;
-    cursor: pointer;
-    z-index: 5;
+    flex-shrink: 0;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 
-.colorBlockHex {
-    font-family: 'Inter', sans-serif;
-    font-weight: 700;
-    font-size: 1.8rem;
-    color: white;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    letter-spacing: -0.02em;
+.colorInfoTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
 }
 
-.copyIcon {
-    opacity: 0;
-    transition: opacity 0.2s;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
-}
-
-.colorBlockHexGroup:hover .copyIcon {
-    opacity: 1;
-}
-
-/* Info Name */
 .colorBlockName {
     font-family: 'Inter', sans-serif;
-    font-size: 1.25rem;
-    color: #fff;
-    font-weight: 500;
+    font-size: 1.1rem;
+    color: #141414;
+    font-weight: 600;
     letter-spacing: 0.01em;
+}
+
+.colorCodeGroup {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.colorCodeButton {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 8px 10px;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.colorCodeButton:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+    border-color: rgba(0, 0, 0, 0.16);
+}
+
+.colorCodeLabel {
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #6b7280;
+}
+
+.colorCodeValueRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    justify-content: space-between;
+}
+
+.colorCodeValue {
+    font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+    font-size: 0.78rem;
+    color: #111827;
+}
+
+.colorCodeIcon {
+    width: 14px;
+    height: 14px;
+    color: #6b7280;
+}
+
+.colorCodeIconActive {
+    width: 14px;
+    height: 14px;
+    color: #22c55e;
 }
 
 /* Handle (Picker Trigger) */
 .colorBlockHandle {
     position: absolute;
-    top: -6px;
-    right: -6px;
-    width: 24px;
-    height: 24px;
+    top: 10px;
+    right: 10px;
+    width: 22px;
+    height: 22px;
     background: white;
-    border: 2px solid #fff;
+    border: 1px solid rgba(0, 0, 0, 0.15);
     border-radius: 50%;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     cursor: pointer;
@@ -929,7 +958,7 @@
 }
 
 .colorBlockHandle:hover {
-    transform: scale(1.1);
+    transform: scale(1.08);
 }
 
 /* Popover */
@@ -937,34 +966,59 @@
     position: absolute;
     top: 30px;
     left: 100%;
-    /* Position to the right */
     margin-left: 12px;
-    background: #2A2A2A;
+    background: #ffffff;
     padding: 0;
-    border-radius: 12px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(0, 0, 0, 0.08);
     z-index: 1000;
-    width: 240px;
+    width: 100%;
+    max-width: 280px;
     overflow: hidden;
     animation: fadeIn 0.1s ease-out;
 }
 
 .colorPopover .react-colorful {
     width: 100%;
-    height: 180px;
+    height: 200px;
 }
 
 .colorPopoverInputs {
-    padding: 16px;
+    padding: 14px 16px 16px;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    background: #2A2A2A;
+    background: #ffffff;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.colorInputModeSelect {
+    width: 100%;
+    padding: 8px 10px;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    color: #111827;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.2s, background-color 0.2s;
+}
+
+.colorInputModeSelect:hover {
+    border-color: #d1d5db;
+}
+
+.colorInputModeSelect:focus {
+    outline: none;
+    border-color: #8b5cf6;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
 }
 
 .colorInputRow {
     display: flex;
-    gap: 4px;
+    gap: 6px;
     justify-content: space-between;
 }
 
@@ -972,23 +1026,24 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: 4px;
+    flex: 1;
 }
 
 .colorInput {
-    background: #333;
-    border: 1px solid #444;
-    color: white;
-    padding: 4px;
-    border-radius: 4px;
-    width: 40px;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    color: #111827;
+    padding: 6px;
+    border-radius: 6px;
+    width: 100%;
     text-align: center;
     font-size: 0.8rem;
 }
 
 .colorInputLabel {
     font-size: 0.7rem;
-    color: #888;
+    color: #6b7280;
 }
 
 

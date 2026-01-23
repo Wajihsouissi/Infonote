@@ -18,12 +18,11 @@ export const useStore = create<AppState>()(
                 ...createUISlice(...a),
             }),
             {
-                limit: 50, // Limit history stack size
+                limit: 50,
                 partialize: (state) => {
                     const { nodes, edges } = state;
                     return { nodes, edges };
                 },
-                // Use a more efficient equality check or remove to use default
             }
         )
     )
@@ -31,14 +30,11 @@ export const useStore = create<AppState>()(
 
 // Initialize storage manager ONCE at module load (outside React)
 if (typeof window !== 'undefined') {
-    // Use setTimeout to ensure store is fully created
     setTimeout(() => {
-        const state = useStore.getState();
-        
         initStorageManager(
             () => ({ nodes: useStore.getState().nodes, edges: useStore.getState().edges }),
             useStore.subscribe,
-            state.loadGraph,
+            (nodes, edges) => useStore.getState().loadGraph(nodes, edges),
             {
                 onStatusChange: (connected, dirName) => {
                     useStore.getState().setStorageStatus(connected, dirName);
@@ -52,30 +48,5 @@ if (typeof window !== 'undefined') {
                 }
             }
         );
-        
-        // One-time cleanup: Remove duplicate nodes
-        const nodes = state.nodes;
-        const seenIds = new Set<string>();
-        const duplicates: string[] = [];
-        nodes.forEach(node => {
-            if (seenIds.has(node.id)) {
-                duplicates.push(node.id);
-            }
-            seenIds.add(node.id);
-        });
-        
-        if (duplicates.length > 0) {
-            console.warn('[Store Cleanup] Found duplicate node IDs:', duplicates);
-            const cleanedNodes = nodes.filter((node, index) => {
-                const firstIndex = nodes.findIndex(n => n.id === node.id);
-                return firstIndex === index;
-            });
-            
-            if (cleanedNodes.length !== nodes.length) {
-                console.warn('[Store Cleanup] Removing', nodes.length - cleanedNodes.length, 'duplicate nodes');
-                state.setNodes(cleanedNodes);
-            }
-        }
     }, 100);
 }
-
