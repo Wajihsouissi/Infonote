@@ -5,7 +5,9 @@ export const createNavigationSlice: StateCreator<AppState, [], [], NavigationSli
     currentParentId: typeof window !== 'undefined' ? localStorage.getItem('infonote-current-parent-id') : null,
     breadcrumbs: [{ id: null, label: 'Home' }],
     fullscreenId: null,
-    sidePanelId: null,
+    sidePanelId: null, // Deprecated, kept for backward compatibility if any
+    rightSidePanelId: null,
+    leftSidePanelId: null,
     centerPanelId: null,
 
     navigateToNode: (nodeId) => {
@@ -42,9 +44,11 @@ export const createNavigationSlice: StateCreator<AppState, [], [], NavigationSli
         }
     },
 
-    setFullscreenId: (id) => set({ fullscreenId: id, sidePanelId: null, centerPanelId: null }),
-    setSidePanelId: (id) => set({ sidePanelId: id, fullscreenId: null, centerPanelId: null }),
-    setCenterPanelId: (id) => set({ centerPanelId: id, fullscreenId: null, sidePanelId: null }),
+    setFullscreenId: (id) => set({ fullscreenId: id, rightSidePanelId: null, leftSidePanelId: null, centerPanelId: null }),
+    setSidePanelId: (id) => get().setRightSidePanelId(id), // Alias to right panel
+    setRightSidePanelId: (id) => set({ rightSidePanelId: id, fullscreenId: null, centerPanelId: null }),
+    setLeftSidePanelId: (id) => set({ leftSidePanelId: id, fullscreenId: null, centerPanelId: null }),
+    setCenterPanelId: (id) => set({ centerPanelId: id, fullscreenId: null, rightSidePanelId: null, leftSidePanelId: null }),
 
     reconstructBreadcrumbs: () => {
         const { nodes, currentParentId } = get();

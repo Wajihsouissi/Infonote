@@ -311,27 +311,32 @@ export class FileSystemStorage {
         perfMonitor.startTimer('storage.load');
         
         if (this._isSaving) {
-            console.log('[Storage] Load blocked - save in progress');
-            perfMonitor.endTimer('storage.load', { cached: true });
-            return this._lastSavedState;
+            console.log('[Storage] Load blocked - waiting for save to complete');
+            // Wait for queue to empty
+            while (this._isSaving) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
         }
 
         try {
             // Check if files exist first
             const nodesExist = await this.fileExists(NODES_FILE);
-            const edgesExist = await this.fileExists(EDGES_FILE);
             
-            if (!nodesExist || !edgesExist) {
-                console.log('[Storage] No existing data files found');
+            if (!nodesExist) {
+                console.log('[Storage] No existing nodes file found');
                 perfMonitor.endTimer('storage.load', { success: true, empty: true });
                 return null;
             }
 
             const nodes = await this.readJsonFile<AppNode[]>(NODES_FILE);
-            const edges = await this.readJsonFile<Edge[]>(EDGES_FILE);
+            let edges: Edge[] = [];
+            
+            if (await this.fileExists(EDGES_FILE)) {
+                edges = await this.readJsonFile<Edge[]>(EDGES_FILE);
+            }
 
-            if (!Array.isArray(nodes) || !Array.isArray(edges)) {
-                console.warn('[Storage] Invalid data structure');
+            if (!Array.isArray(nodes)) {
+                console.warn('[Storage] Invalid nodes data structure');
                 perfMonitor.endTimer('storage.load', { success: false });
                 return null;
             }

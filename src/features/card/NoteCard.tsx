@@ -1,6 +1,6 @@
 import { memo, useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow } from '@xyflow/react';
-import { Scan, PanelRight, Monitor, Image as ImageIcon } from 'lucide-react';
+import { Scan, PanelRight, PanelLeft, Monitor } from 'lucide-react';
 import styles from './NoteCard.module.css';
 import type { NoteNode } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -10,7 +10,7 @@ import { NoteExpandedContent } from './NoteExpandedContent';
 import { EditBar } from '../ui/EditBar';
 import { CoverPicker } from './CoverPicker';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
-import { calculateNoteLayout, MIN_EXPANDED_SIZE, MAX_HEIGHT, MAX_WIDTH, SNAP_STEP } from '../../config/layout';
+import { calculateNoteLayout, MAX_HEIGHT, SNAP_STEP } from '../../config/layout';
 import { toPastelColor, darkenColor } from '../../utils/colorUtils';
 
 export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<NoteNode>) => {
@@ -19,7 +19,8 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     // Use atomic selectors to prevent unnecessary re-renders when other parts of the store change
     const navigateToNode = useStore(s => s.navigateToNode);
     const setFullscreenId = useStore(s => s.setFullscreenId);
-    const setSidePanelId = useStore(s => s.setSidePanelId);
+    const setRightSidePanelId = useStore(s => s.setRightSidePanelId);
+    const setLeftSidePanelId = useStore(s => s.setLeftSidePanelId);
     const setCenterPanelId = useStore(s => s.setCenterPanelId);
     const activeIconMenuId = useStore(s => s.activeIconMenuId);
     const setActiveIconMenuId = useStore(s => s.setActiveIconMenuId);
@@ -119,6 +120,20 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
         coverImage: data.coverImage || '',
         date: data.date || new Date().toISOString()
     });
+
+    // Update local state when data changes externally (e.g. from Side Peek)
+    useEffect(() => {
+        if (!isEditingMetadata) {
+            setEditedData({
+                label: data.label,
+                icon: data.icon || defaultIconName,
+                description: data.description || '',
+                category: data.category || '',
+                coverImage: data.coverImage || '',
+                date: data.date || new Date().toISOString()
+            });
+        }
+    }, [data, isEditingMetadata]);
 
     // Get the icon component
     const IconComponent = iconMap[data.icon || defaultIconName] || iconMap[defaultIconName];
@@ -257,7 +272,12 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
     const handleSidePeak = (e: React.MouseEvent) => {
         e.stopPropagation();
-        setSidePanelId(id);
+        setRightSidePanelId(id);
+    };
+
+    const handleLeftSidePeak = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setLeftSidePanelId(id);
     };
 
     const handleFullScreen = (e: React.MouseEvent) => {
@@ -443,13 +463,16 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             {/* Floating Hover Menu - Hide in Chromeless mode */}
             {/* Floating Hover Menu */}
             <div className={styles.hoverMenu}>
+                <button className={styles.menuBtn} onClick={handleLeftSidePeak} title="Side Panel (Left)">
+                    <PanelLeft size={16} />
+                </button>
                 <button className={styles.menuBtn} onClick={handleFullScreen} title="Full Screen">
                     <Monitor size={16} />
                 </button>
                 <button className={styles.menuBtn} onClick={handleCenterPeak} title="Center Peak">
                     <Scan size={16} />
                 </button>
-                <button className={styles.menuBtn} onClick={handleSidePeak} title="Side Panel">
+                <button className={styles.menuBtn} onClick={handleSidePeak} title="Side Panel (Right)">
                     <PanelRight size={16} />
                 </button>
             </div>

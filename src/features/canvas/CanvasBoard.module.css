@@ -8,6 +8,19 @@
     overflow: hidden;
 }
 
+/* Dual Panel Focus Backdrop */
+.dualPanelBackdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 40;
+    /* Below SidePanels (50) but above everything else */
+}
+
 /* Selection Mode - Ctrl held down */
 .selectMode {
     cursor: crosshair;
@@ -56,6 +69,7 @@
     from {
         background: rgba(139, 92, 246, 0.1);
     }
+
     to {
         background: rgba(139, 92, 246, 0.2);
     }
@@ -84,6 +98,7 @@
         opacity: 0;
         transform: translateX(-50%) translateY(10px);
     }
+
     to {
         opacity: 1;
         transform: translateX(-50%) translateY(0);

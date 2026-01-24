@@ -12,6 +12,8 @@ export function useCanvasStoreSelectors() {
     const currentParentId = useStore(useCallback(s => s.currentParentId, []));
     const interactionState = useStore(useCallback(s => s.interactionState, []));
     const selectedCanvasNodeIds = useStore(useCallback(s => s.selectedCanvasNodeIds, []));
+    const rightSidePanelId = useStore(useCallback(s => s.rightSidePanelId, []));
+    const leftSidePanelId = useStore(useCallback(s => s.leftSidePanelId, []));
     const theme = useStore(s => s.theme);
 
     // Actions (stable references via atomic selectors)
@@ -27,6 +29,8 @@ export function useCanvasStoreSelectors() {
     const toggleCanvasNodeSelection = useStore(useCallback(s => s.toggleCanvasNodeSelection, []));
     const setSelectedCanvasNodeIds = useStore(useCallback(s => s.setSelectedCanvasNodeIds, []));
     const clearCanvasSelection = useStore(useCallback(s => s.clearCanvasSelection, []));
+    const setRightSidePanelId = useStore(useCallback(s => s.setRightSidePanelId, []));
+    const setLeftSidePanelId = useStore(useCallback(s => s.setLeftSidePanelId, []));
 
     return {
         // State
@@ -35,6 +39,8 @@ export function useCanvasStoreSelectors() {
         currentParentId,
         interactionState,
         selectedCanvasNodeIds,
+        rightSidePanelId,
+        leftSidePanelId,
         theme,
         // Actions
         onNodesChange,
@@ -49,5 +55,7 @@ export function useCanvasStoreSelectors() {
         toggleCanvasNodeSelection,
         setSelectedCanvasNodeIds,
         clearCanvasSelection,
+        setRightSidePanelId,
+        setLeftSidePanelId,
     };
 }

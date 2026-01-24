@@ -28,7 +28,7 @@ export function useCanvasNodeDrag({
     syncParentContent,
 }: UseCanvasNodeDragOptions) {
     const { screenToFlowPosition, getIntersectingNodes, getNode } = useReactFlow();
-    
+
     // Throttling Ref
     const lastDragCheck = useRef(0);
 
@@ -48,13 +48,19 @@ export function useCanvasNodeDrag({
     }, [setInteractionState, setNodes]);
 
     const onNodeDrag = useCallback((event: React.MouseEvent, node: any) => {
-        // Remove throttle for smoother grid response
+        // Throttle for smoother grid response (approx 30fps)
+        const now = Date.now();
+        if (now - lastDragCheck.current < 32) {
+            return;
+        }
+        lastDragCheck.current = now;
+
         const mousePos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
         const mouseRect = { x: mousePos.x - 1, y: mousePos.y - 1, width: 2, height: 2 };
         const intersections = getIntersectingNodes(mouseRect as any);
 
         const targetKanban = intersections.find(n => n.type === 'kanban');
-        const targetOther = intersections.find(n => 
+        const targetOther = intersections.find(n =>
             n.id !== node.id && (n.type === 'note' || n.type === 'fused-note' || n.type === 'block')
         );
 
@@ -139,11 +145,11 @@ export function useCanvasNodeDrag({
             }
         }
 
-        if (interactionState.dropTarget?.id !== newDropTarget?.id || 
+        if (interactionState.dropTarget?.id !== newDropTarget?.id ||
             interactionState.dropTarget?.type !== newDropTarget?.type) {
             setInteractionState({ dropTarget: newDropTarget });
         }
-    }, [getIntersectingNodes, interactionState.hoveredKanbanColumn, interactionState.dropTarget, 
+    }, [getIntersectingNodes, interactionState.hoveredKanbanColumn, interactionState.dropTarget,
         setInteractionState, screenToFlowPosition]);
 
     const onNodeDragStop = useCallback((event: React.MouseEvent, node: any) => {
@@ -169,7 +175,7 @@ export function useCanvasNodeDrag({
                     const abs = (n as any).positionAbsolute || n.position;
                     const snappedAbsX = snapToGridValue(abs.x);
                     const snappedAbsY = snapToGridValue(abs.y);
-                    
+
                     // If nested, convert snapped absolute back to relative
                     let newPos = { x: snappedAbsX, y: snappedAbsY };
                     if (n.parentId) {
@@ -214,7 +220,7 @@ export function useCanvasNodeDrag({
                 // Calculate absolute position and snap to grid
                 const rawX = parentNode.position.x + node.position.x;
                 const rawY = parentNode.position.y + node.position.y;
-                
+
                 const absPos = {
                     x: Math.round(rawX / BASE_UNIT) * BASE_UNIT,
                     y: Math.round(rawY / BASE_UNIT) * BASE_UNIT
@@ -337,7 +343,7 @@ export function useCanvasNodeDrag({
         if (currentParentId) {
             syncParentContent(currentParentId);
         }
-    }, [getIntersectingNodes, setNodes, updateNodeData, getNode, nodes, currentParentId, 
+    }, [getIntersectingNodes, setNodes, updateNodeData, getNode, nodes, currentParentId,
         syncParentContent, screenToFlowPosition, interactionState.hoveredKanbanColumn, setInteractionState]);
 
     return {
@@ -479,10 +485,10 @@ function handleFusionDrop(targetNode: any, node: any, event: React.MouseEvent, s
 
 // Helper: Handle Nesting drop
 function handleNestingDrop(
-    targetNode: any, 
-    node: any, 
-    event: React.MouseEvent, 
-    updateNodeData: any, 
+    targetNode: any,
+    node: any,
+    event: React.MouseEvent,
+    updateNodeData: any,
     setNodes: any
 ) {
     const isSourceNote = node.type === 'note';

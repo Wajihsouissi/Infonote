@@ -54,6 +54,12 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     const observerRef = useRef<IntersectionObserver | null>(null);
 
     useEffect(() => {
+        if (isDragging && !hasRendered) {
+            setHasRendered(true);
+        }
+    }, [isDragging, hasRendered]);
+
+    useEffect(() => {
         if (!nodeRef.current) return;
 
         // Intersection observer for lazy rendering
@@ -198,7 +204,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             // FILTER CHECK
             const filteredNodes = currentNodes.filter(n => n.id !== id && n.id !== parentId);
             const removedCount = currentNodes.length - filteredNodes.length;
-           // Logging disabled
+            // Logging disabled
 
             if (removedCount < 2) {
                 // Check what we missed
@@ -317,6 +323,9 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
         updateNodeData(id, { content: blocks });
     }, [id, updateNodeData]);
 
+    // Force render content if dragging to ensure it doesn't disappear
+    const shouldRenderContent = hasRendered || isDragging;
+
     return (
         <div
             className={`
@@ -373,7 +382,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             </button>
 
             <div className={`${styles.content} nodrag`} ref={contentRef}>
-                {hasRendered ? (
+                {shouldRenderContent ? (
                     <BlockEditor
                         initialContent={data.content}
                         readOnly={false}

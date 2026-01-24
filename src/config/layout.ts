@@ -15,7 +15,7 @@ export const MAX_WIDTH_UNITS = 12;
 export const MAX_HEIGHT = (MAX_HEIGHT_UNITS * BASE_UNIT) - GRID_GAP;
 export const MAX_WIDTH = (MAX_WIDTH_UNITS * BASE_UNIT) - GRID_GAP;
 
-export const MIN_EXPANDED_SIZE = (8 * BASE_UNIT) - GRID_GAP; // 432px
+export const MIN_EXPANDED_SIZE = (8 * BASE_UNIT) - GRID_GAP; // 432px (8 units)
 export const ICON_SIZE = (2 * BASE_UNIT) - GRID_GAP; // 96px
 export const MEDIUM_SIZE = (4 * BASE_UNIT) - GRID_GAP; // 208px
 
@@ -58,10 +58,6 @@ export const snapToGrid = (value: number): number => {
     return getStrictSize(value);
 };
 
-/**
- * Calculates note dimensions and view mode based on raw width/height.
- * Used by NoteCard.tsx for strict size enforcement and mode switching.
- */
 export const calculateNoteLayout = (rawWidth: number, rawHeight: number) => {
     const normalizedW = rawWidth + GRID_GAP;
     const normalizedH = rawHeight + GRID_GAP;
@@ -80,7 +76,7 @@ export const calculateNoteLayout = (rawWidth: number, rawHeight: number) => {
         targetHeight = ICON_SIZE;
         mode = 'icon';
 
-    } else if (largerDim < 6 * BASE_UNIT) {
+    } else if (largerDim < 7 * BASE_UNIT) {
         targetWidth = MEDIUM_SIZE;
         targetHeight = MEDIUM_SIZE;
         mode = 'medium';
@@ -88,11 +84,11 @@ export const calculateNoteLayout = (rawWidth: number, rawHeight: number) => {
         mode = 'expanded';
         // Snap to module grid steps (2-unit increments for consistency with FusedNodes)
         const snapStep = MODULE_SNAP_STEP;
-        
+
         let w = Math.round((rawWidth + GRID_GAP) / snapStep) * snapStep - GRID_GAP;
         let h = Math.round((rawHeight + GRID_GAP) / snapStep) * snapStep - GRID_GAP;
 
-        // Apply expanded constraints - Now starts at 8x8
+        // Apply expanded constraints - Min 8x8
         w = Math.max(MIN_EXPANDED_SIZE, Math.min(w, MAX_WIDTH));
         h = Math.max(MIN_EXPANDED_SIZE, Math.min(h, MAX_HEIGHT));
 
@@ -109,11 +105,11 @@ export const calculateNoteLayout = (rawWidth: number, rawHeight: number) => {
  */
 export const snapFusedDimensions = (rawWidth: number, rawHeight: number) => {
     const size = Math.max(rawWidth, rawHeight);
-    
+
     // Find the closest step in FUSED_GRID_STEPS
     let closestSize = FUSED_GRID_STEPS[0];
     let minDiff = Math.abs(size - closestSize);
-    
+
     for (let i = 1; i < FUSED_GRID_STEPS.length; i++) {
         const diff = Math.abs(size - FUSED_GRID_STEPS[i]);
         if (diff < minDiff) {
@@ -121,7 +117,7 @@ export const snapFusedDimensions = (rawWidth: number, rawHeight: number) => {
             closestSize = FUSED_GRID_STEPS[i];
         }
     }
-    
+
     return { width: closestSize, height: closestSize };
 };
 

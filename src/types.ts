@@ -32,6 +32,9 @@ export type NoteData = {
 
     // Animation Triggers
     lastFusedAt?: number;
+
+    // View State
+    showMetadata?: boolean;
 };
 
 export type NoteNode = Node<NoteData, 'note'> & { parentId?: string | null };

@@ -59,6 +59,10 @@ export function CanvasBoard() {
         toggleCanvasNodeSelection,
         setSelectedCanvasNodeIds,
         clearCanvasSelection,
+        rightSidePanelId,
+        leftSidePanelId,
+        setRightSidePanelId,
+        setLeftSidePanelId,
     } = useCanvasStoreSelectors();
 
     // Throttling Ref for drag cleanup
@@ -230,8 +234,22 @@ export function CanvasBoard() {
                 </ReactFlow>
             </div>
 
+            {/* Dual Panel Backdrop (only when both sides are open) */}
+            {rightSidePanelId && leftSidePanelId && (
+                <div className={styles.dualPanelBackdrop} />
+            )}
+
             <BottomMenu />
-            <SidePanel />
+            <SidePanel
+                side="right"
+                nodeId={rightSidePanelId}
+                onClose={() => setRightSidePanelId(null)}
+            />
+            <SidePanel
+                side="left"
+                nodeId={leftSidePanelId}
+                onClose={() => setLeftSidePanelId(null)}
+            />
             <FullscreenModal />
             <CenterModal />
             <Suspense fallback={null}>

@@ -120,14 +120,13 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             detailedChanges.forEach(c => console.log("  ", c));
         }
 
-        // CRITICAL FIX: Preserve parentId for standalone blocks during 'replace' changes
+        // CRITICAL FIX: Preserve parentId for nodes during 'replace' and other changes
         const filteredChanges = changes.map(change => {
             if (change.type === 'replace') {
                 const nodeId = (change as any).id;
                 const existingNode = get().nodes.find(n => n.id === nodeId);
-                if (existingNode && (existingNode.data as any).isStandaloneBlock && existingNode.parentId) {
-                    if (DEBUG) console.log("[onNodesChange] Preserving parentId for standalone block during replace:", nodeId);
-                    // Modify the replace change to preserve parentId
+                if (existingNode && existingNode.parentId) {
+                    if (DEBUG) console.log("[onNodesChange] Preserving parentId for node during replace:", nodeId);
                     return {
                         ...change,
                         item: {
@@ -137,7 +136,6 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                     };
                 }
             }
-
             return change;
         }).filter(c => c !== null) as any[];
 
@@ -398,7 +396,8 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         // Sync parent content if we are splitInside a child canvas
         if (sourceNode.parentId) {
-            scheduleParentSync(sourceNode.parentId, () => get().syncParentContent(sourceNode.parentId));
+            const pid = sourceNode.parentId;
+            scheduleParentSync(pid, () => get().syncParentContent(pid));
         }
     },
 

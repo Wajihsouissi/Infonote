@@ -14,7 +14,8 @@ export function SearchResults({ query, onClose }: SearchResultsProps) {
     const nodes = useStore(s => s.nodes);
     const navigateToNode = useStore(s => s.navigateToNode);
     const setFullscreenId = useStore(s => s.setFullscreenId);
-    const setSidePanelId = useStore(s => s.setSidePanelId);
+    const setRightSidePanelId = useStore(s => s.setRightSidePanelId);
+    const setLeftSidePanelId = useStore(s => s.setLeftSidePanelId);
     const setCenterPanelId = useStore(s => s.setCenterPanelId);
 
     const [results, setResults] = useState<any[]>([]);
@@ -80,7 +81,8 @@ export function SearchResults({ query, onClose }: SearchResultsProps) {
     const handleSelect = (nodeId: string) => {
         // Reset any panel states to ensure we see the canvas/node
         setFullscreenId(null);
-        setSidePanelId(null);
+        setRightSidePanelId(null);
+        setLeftSidePanelId(null);
         setCenterPanelId(null);
 
         navigateToNode(nodeId);
@@ -120,11 +122,11 @@ export function SearchResults({ query, onClose }: SearchResultsProps) {
                         </div>
                         {result.preview && (
                             <div className={styles.resultPreview}>
-                                <span dangerouslySetInnerHTML={{ 
+                                <span dangerouslySetInnerHTML={{
                                     __html: highlightMatch(
                                         result.preview.length > 80 ? result.preview.slice(0, 80) + '...' : result.preview,
                                         parseSearchQuery(query).text
-                                    ) 
+                                    )
                                 }} />
                             </div>
                         )}

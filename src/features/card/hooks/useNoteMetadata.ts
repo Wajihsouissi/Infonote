@@ -44,9 +44,9 @@ export function useNoteMetadata({ id, data, onUpdate }: UseNoteMetadataOptions) 
         date: data?.date || new Date().toISOString()
     });
 
-    // Sync state with props
+    // Update local state when data prop changes (e.g. from external updates)
     useEffect(() => {
-        if (data) {
+        if (!isEditingMetadata && data) {
             setEditedData({
                 label: data.label || 'Untitled',
                 icon: data.icon || defaultIconName,

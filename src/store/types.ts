@@ -37,11 +37,14 @@ export interface NavigationSlice {
     currentParentId: string | null;
     breadcrumbs: Breadcrumb[];
     fullscreenId: string | null;
-    sidePanelId: string | null;
+    rightSidePanelId: string | null;
+    leftSidePanelId: string | null;
     centerPanelId: string | null;
     navigateToNode: (nodeId: string | null) => void;
     setFullscreenId: (id: string | null) => void;
-    setSidePanelId: (id: string | null) => void;
+    setSidePanelId: (id: string | null) => void; // Deprecated, aliases to setRightSidePanelId
+    setRightSidePanelId: (id: string | null) => void;
+    setLeftSidePanelId: (id: string | null) => void;
     setCenterPanelId: (id: string | null) => void;
     reconstructBreadcrumbs: () => void;
 }

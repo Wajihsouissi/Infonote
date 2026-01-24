@@ -39,9 +39,9 @@ export const DragGridOverlay = memo(() => {
 
     const absPos = useMemo(() => {
         if (!draggedNode) return { x: 0, y: 0 };
-        
+
         if ((draggedNode as any).positionAbsolute) return (draggedNode as any).positionAbsolute;
-        
+
         let x = draggedNode.position.x;
         let y = draggedNode.position.y;
         let parentId = draggedNode.parentId;
@@ -59,101 +59,63 @@ export const DragGridOverlay = memo(() => {
     const width = draggedNode?.measured?.width ?? (draggedNode?.style?.width as number) ?? 112;
     const height = draggedNode?.measured?.height ?? (draggedNode?.style?.height as number) ?? 112;
 
-    // 2. Define the "flashlight" range
-    const RANGE = 650; // Visual aura radius
+    // 4. Optimized Render: use CSS Masking instead of hundreds of DOM nodes
     const centerX = absPos.x + width / 2;
     const centerY = absPos.y + height / 2;
+    const flashlightSize = 800;
 
-    // 3. Find grid indices to render (absolute global alignment)
-    const startCol = Math.floor((absPos.x - RANGE) / BASE_UNIT);
-    const endCol = Math.ceil((absPos.x + width + RANGE) / BASE_UNIT);
-    const startRow = Math.floor((absPos.y - RANGE) / BASE_UNIT);
-    const endRow = Math.ceil((absPos.y + height + RANGE) / BASE_UNIT);
+    // Use a large offset divisible by BASE_UNIT (56) to ensure grid alignment
+    // 56 * 900 = 50400
+    const GRID_OFFSET = 50400;
 
-    // 4. Generate cells with dynamic illumination
-    const cells = useMemo(() => {
-        if (!draggedNode) return [];
+    const maskX = centerX + GRID_OFFSET - (flashlightSize / 2);
+    const maskY = centerY + GRID_OFFSET - (flashlightSize / 2);
 
-        const res = [];
-        // Calculate effective node spans in 56px units
-        const nodeCols = Math.round((width + GRID_GAP) / BASE_UNIT);
-        const nodeRows = Math.round((height + GRID_GAP) / BASE_UNIT);
-        
-        // Use standard snap logic to find where the node *would* sit on the 56px grid
-        const nodeSnappedX = Math.round(absPos.x / BASE_UNIT) * BASE_UNIT;
-        const nodeSnappedY = Math.round(absPos.y / BASE_UNIT) * BASE_UNIT;
+    // 5. Calculate Snap Highlight Position (The "Follow" effect)
+    const snapX = Math.round(absPos.x / BASE_UNIT) * BASE_UNIT;
+    const snapY = Math.round(absPos.y / BASE_UNIT) * BASE_UNIT;
 
-        // Determine grid cells that should be highlighted BEFORE the node lands
-        const targetStartCol = Math.floor(nodeSnappedX / BASE_UNIT);
-        const targetEndCol = targetStartCol + nodeCols;
-        const targetStartRow = Math.floor(nodeSnappedY / BASE_UNIT);
-        const targetEndRow = targetStartRow + nodeRows;
-
-        // Skip calculations for very distant cells by slightly tightening the loop
-        for (let r = startRow; r <= endRow; r++) {
-            for (let c = startCol; c <= endCol; c++) {
-                const cellX = c * BASE_UNIT;
-                const cellY = r * BASE_UNIT;
-                
-                const midX = cellX + BASE_UNIT / 2;
-                const midY = cellY + BASE_UNIT / 2;
-                
-                const dx = midX - centerX;
-                const dy = midY - centerY;
-                const distanceSq = dx * dx + dy * dy;
-                const rangeSq = RANGE * RANGE;
-                
-                if (distanceSq > rangeSq) continue;
-
-                const distance = Math.sqrt(distanceSq);
-                const lightIntensity = Math.pow(1 - distance / RANGE, 2);
-
-                const isTarget = 
-                    c >= targetStartCol && 
-                    c < targetEndCol &&
-                    r >= targetStartRow &&
-                    r < targetEndRow;
-
-                res.push({
-                    x: cellX,
-                    y: cellY,
-                    isTarget,
-                    opacity: lightIntensity
-                });
-            }
-        }
-        return res;
-    }, [draggedNode, startRow, endRow, startCol, endCol, centerX, centerY, width, height, RANGE]);
+    // Snap width/height to grid units to draw the box correctly
+    const snapW = Math.round((width + GRID_GAP) / BASE_UNIT) * BASE_UNIT - GRID_GAP;
+    const snapH = Math.round((height + GRID_GAP) / BASE_UNIT) * BASE_UNIT - GRID_GAP;
 
     if (!draggedNode) return null;
 
     return (
         <div className={`${styles.overlayContainer} ${isVisible ? styles.visible : ''}`}>
             <div
+                className={styles.gridLayer}
                 style={{
+                    // Move the Grid Layer with the viewport
                     transform: `translate(${viewportX}px, ${viewportY}px) scale(${zoom})`,
-                    transformOrigin: '0 0',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
+                    transformOrigin: `${GRID_OFFSET}px ${GRID_OFFSET}px`,
+
+                    top: -GRID_OFFSET,
+                    left: -GRID_OFFSET,
+                    width: GRID_OFFSET * 2,
+                    height: GRID_OFFSET * 2,
+
+                    // Dynamic Mask Position (The "Flashlight")
+                    maskImage: `radial-gradient(circle ${flashlightSize / 2}px at 50%, black 0%, transparent 100%)`,
+                    WebkitMaskImage: `radial-gradient(circle ${flashlightSize / 2}px at 50%, black 0%, transparent 100%)`,
+
+                    maskPosition: `${maskX}px ${maskY}px`,
+                    WebkitMaskPosition: `${maskX}px ${maskY}px`,
+
+                    maskSize: `${flashlightSize}px ${flashlightSize}px`,
+                    WebkitMaskSize: `${flashlightSize}px ${flashlightSize}px`,
                 }}
-            >
-                {cells.map((cell) => (
-                    <div
-                        key={`${cell.x}-${cell.y}`}
-                        className={`${styles.gridCell} ${cell.isTarget ? styles.activeCell : ''}`}
-                        style={{   
-                            willChange: 'opacity, transform',
-                            transform: `translate3d(${cell.x}px, ${cell.y}px, 0)`,
-                            width: BASE_UNIT - GRID_GAP,
-                            height: BASE_UNIT - GRID_GAP,
-                            opacity: cell.isTarget 
-                                ? 0.5 + (cell.opacity * 0.3)
-                                : cell.opacity * 0.25,
-                        }}
-                    />
-                ))}
-            </div>
+            />
+
+            {/* Snap Indicator - The "Current Grid" highligther */}
+            <div
+                className={styles.snapIndicator}
+                style={{
+                    transform: `translate(${viewportX + snapX * zoom}px, ${viewportY + snapY * zoom}px)`,
+                    width: snapW * zoom,
+                    height: snapH * zoom,
+                }}
+            />
         </div>
     );
 });

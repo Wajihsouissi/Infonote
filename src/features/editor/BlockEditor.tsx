@@ -58,6 +58,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         timeoutRef.current = setTimeout(() => {
             onUpdate?.(newBlocks);
+            timeoutRef.current = null;
         }, 300); // 300ms debounce for store sync
     }, [onUpdate]);
 
@@ -168,7 +169,6 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
     }, [selectedBlockIds.size, setSelectedBlockIds]);
 
     // Listen for drag completion events to clear selection
-    // Listen for drag completion events to clear selection
     useEffect(() => {
         const handleDragClearSelection = () => {
             console.log('Received drag clear selection event');
@@ -239,14 +239,17 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
     // Sync with external content updates (e.g. Fusion)
     useEffect(() => {
+        // If we have pending local changes (debounce active), we assume we are the source of truth
+        // and ignore incoming props to prevent overwriting typing.
+        if (timeoutRef.current) return;
+
         if (initialContent) {
             const nextContent = Array.isArray(initialContent) ? initialContent : [{ id: uuidv4(), type: 'text' as const, content: typeof initialContent === 'string' ? initialContent : '' }];
 
             setBlocks(prev => {
-                // Fast shallow comparison - check length and first/last block IDs
-                if (prev.length === nextContent.length &&
-                    prev[0]?.id === nextContent[0]?.id &&
-                    prev[prev.length - 1]?.id === nextContent[nextContent.length - 1]?.id) {
+                // Deep comparison to allow text updates from outside
+                // If the content is identical, skip update preventing re-renders
+                if (JSON.stringify(prev) === JSON.stringify(nextContent)) {
                     return prev;
                 }
                 return nextContent;

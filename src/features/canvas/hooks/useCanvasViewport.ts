@@ -24,10 +24,12 @@ export function useCanvasViewport({ nodes, currentParentId }: UseCanvasViewportO
     const rootNodes = useMemo(() => {
         if (DEBUG) console.log("[rootNodes] Computing for currentParentId:", currentParentId);
 
-        return nodes.filter(n =>
-            (n.parentId === undefined && currentParentId === null) ||
-            n.parentId === currentParentId
-        );
+        return nodes.filter(n => {
+            // Treat undefined, null, and empty string as root level
+            const nodeParentId = n.parentId || null;
+            const activeParentId = currentParentId || null;
+            return nodeParentId === activeParentId;
+        });
     }, [nodes, currentParentId]);
 
     // Filter nodes for the current view using viewport culling
@@ -37,14 +39,14 @@ export function useCanvasViewport({ nodes, currentParentId }: UseCanvasViewportO
         // Performance: For large graphs (>100 nodes), apply viewport culling
         if (rootNodes.length > 100 && viewport) {
             const MARGIN = 500;
-            const minX = viewport.x - MARGIN;
-            const maxX = viewport.x + (window.innerWidth / viewport.zoom) + MARGIN;
-            const minY = viewport.y - MARGIN;
-            const maxY = viewport.y + (window.innerHeight / viewport.zoom) + MARGIN;
+            const minX = (-viewport.x - MARGIN) / viewport.zoom;
+            const maxX = (-viewport.x + window.innerWidth + MARGIN) / viewport.zoom;
+            const minY = (-viewport.y - MARGIN) / viewport.zoom;
+            const maxY = (-viewport.y + window.innerHeight + MARGIN) / viewport.zoom;
 
             culledNodes = rootNodes.filter(n => {
-                const nodeWidth = (n.style?.width as number) || 432;
-                const nodeHeight = (n.style?.height as number) || 432;
+                const nodeWidth = typeof n.style?.width === 'number' ? n.style.width : 432;
+                const nodeHeight = typeof n.style?.height === 'number' ? n.style.height : 432;
                 const nodeX = n.position.x;
                 const nodeY = n.position.y;
 

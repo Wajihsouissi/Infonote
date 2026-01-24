@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Eye, X } from 'lucide-react';
 import styles from './NoteCard.module.css';
@@ -24,8 +24,6 @@ interface NoteExpandedContentProps {
     onUpdate: (id: string, data: Partial<NoteNode['data']>) => void;
     contentRef?: React.RefObject<HTMLDivElement | null>;
     nodeId?: string;
-    showMetadata?: boolean;
-    setShowMetadata?: (show: boolean) => void;
     onClose?: () => void;
     selectionIslandPortalId?: string; // Portal target for selection island
 }
@@ -36,15 +34,15 @@ export function NoteExpandedContent({
     onUpdate,
     contentRef,
     nodeId,
-    showMetadata: propShowMetadata,
-    setShowMetadata: propSetShowMetadata,
     onClose,
     selectionIslandPortalId
 }: NoteExpandedContentProps) {
-    // Internal state for when props are not provided
-    const [localShowMetadata, setLocalShowMetadata] = useState(true);
-    const showMetadata = propShowMetadata ?? localShowMetadata;
-    const setShowMetadata = propSetShowMetadata ?? setLocalShowMetadata;
+    // Use data state (persistent) or fallback to true
+    const showMetadata = data.showMetadata ?? true;
+
+    const setShowMetadata = useCallback((show: boolean) => {
+        onUpdate(id, { showMetadata: show });
+    }, [id, onUpdate]);
 
     // Lazy rendering hook
     const { hasRendered, containerRef } = useLazyRender();

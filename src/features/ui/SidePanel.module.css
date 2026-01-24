@@ -2,10 +2,6 @@
     position: fixed;
     top: 80px;
     /* Floating below header */
-    right: 24px;
-    /* Floating from right edge */
-    bottom: 24px;
-    /* Floating from bottom edge */
     width: 45vw;
     /* Slightly narrower to accommodate gaps */
     background: var(--modal-bg);
@@ -15,15 +11,39 @@
     box-shadow: var(--glass-shadow);
     border-radius: 12px;
     /* Distinctive card rounding */
-    z-index: 50;
+    z-index: 500;
     display: flex;
     flex-direction: column;
     animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes slideIn {
+.panelLeft {
+    left: 24px;
+    right: auto;
+    bottom: 24px;
+    animation: slideInLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.panelRight {
+    right: 24px;
+    left: auto;
+    bottom: 24px;
+    animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideInRight {
     from {
         transform: translateX(100%);
+    }
+
+    to {
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-100%);
     }
 
     to {
