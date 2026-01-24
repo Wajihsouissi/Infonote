@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { createPortal } from 'react-dom';
 
 import type { Block } from './types';
 import styles from './BlockEditor.module.css';
@@ -31,11 +32,12 @@ interface BlockEditorProps {
     hideBlockHandles?: boolean;
     disableMediaControls?: boolean;
     promoteBlockHandles?: boolean;
+    selectionIslandPortalId?: string; // Portal target for selection island
 }
 
 import { memo } from 'react';
 
-export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles, disableMediaControls, promoteBlockHandles }: BlockEditorProps) {
+export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles, disableMediaControls, promoteBlockHandles, selectionIslandPortalId }: BlockEditorProps) {
     const editorRef = useRef<HTMLDivElement>(null);
     const [blocks, setBlocks] = useState<Block[]>(() => {
         if (Array.isArray(initialContent)) return initialContent;
@@ -109,7 +111,13 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         handleBlockMenuAction,
         handleBlockPaste,
         handleEditorClick,
-        deleteSelectedBlocks
+        deleteSelectedBlocks,
+        moveBlockUp,
+        moveBlockDown,
+        duplicateBlock,
+        focusPreviousBlock,
+        focusNextBlock,
+        addBlockBelow
     } = useBlockCommands({
         editorRef,
         blocks,
@@ -235,8 +243,10 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             const nextContent = Array.isArray(initialContent) ? initialContent : [{ id: uuidv4(), type: 'text' as const, content: typeof initialContent === 'string' ? initialContent : '' }];
 
             setBlocks(prev => {
-                // Optimization: Avoid re-render if content is identical
-                if (JSON.stringify(prev) === JSON.stringify(nextContent)) {
+                // Fast shallow comparison - check length and first/last block IDs
+                if (prev.length === nextContent.length &&
+                    prev[0]?.id === nextContent[0]?.id &&
+                    prev[prev.length - 1]?.id === nextContent[nextContent.length - 1]?.id) {
                     return prev;
                 }
                 return nextContent;
@@ -270,22 +280,24 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             const content = contentOrPatch;
 
             if (content === '# ') {
-                convertBlock(id, 'heading1');
+                convertBlock(id, 'heading1', undefined, '');
                 return;
             }
             if (content === '## ') {
-                convertBlock(id, 'heading2');
+                convertBlock(id, 'heading2', undefined, '');
                 return;
             }
             if (content === '### ') {
-                convertBlock(id, 'heading3');
+                convertBlock(id, 'heading3', undefined, '');
                 return;
             }
-            if (content === '> ') { convertBlock(id, 'quote'); return; }
-            if (content === '>> ') { convertBlock(id, 'toggle'); return; }
-            if (content === '--- ') { convertBlock(id, 'divider'); return; }
-            if (content === '[] ' || content === '- ') { convertBlock(id, 'todo'); return; }
-            if (content === '``` ') { convertBlock(id, 'code'); return; }
+            if (content === '> ') { convertBlock(id, 'quote', undefined, ''); return; }
+            if (content === '>> ') { convertBlock(id, 'toggle', undefined, ''); return; }
+            if (content === '--- ') { convertBlock(id, 'divider', undefined, ''); return; }
+            if (content === '[] ' || content === '- ') { convertBlock(id, 'todo', undefined, ''); return; }
+            if (content === '1. ') { convertBlock(id, 'numbered', undefined, ''); return; } // Numbered list
+            if (content === '* ') { convertBlock(id, 'bullet', undefined, ''); return; } // Bullet list
+            if (content === '``` ') { convertBlock(id, 'code', undefined, ''); return; }
 
             // Slash menu
             if (content.startsWith('/')) {
@@ -300,6 +312,47 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
 
     const handleKeyDown = useCallback((e: React.KeyboardEvent, id: string, content: string) => {
+        const isCtrl = e.ctrlKey || e.metaKey;
+
+        // Ctrl+Shift+↑ - Move block up
+        if (isCtrl && e.shiftKey && e.key === 'ArrowUp') {
+            e.preventDefault();
+            moveBlockUp(id);
+            return;
+        }
+
+        // Ctrl+Shift+↓ - Move block down
+        if (isCtrl && e.shiftKey && e.key === 'ArrowDown') {
+            e.preventDefault();
+            moveBlockDown(id);
+            return;
+        }
+
+        // Ctrl+D - Duplicate block
+        if (isCtrl && e.key === 'd') {
+            e.preventDefault();
+            duplicateBlock(id);
+            return;
+        }
+
+        // Ctrl+/ - Open block menu
+        if (isCtrl && e.key === '/') {
+            e.preventDefault();
+            const blockEl = blockRefs.current[id];
+            if (blockEl) {
+                const rect = blockEl.getBoundingClientRect();
+                setBlockMenuState({ x: rect.left, y: rect.bottom, blockId: id });
+            }
+            return;
+        }
+
+        // Ctrl+Enter - Add block below and focus
+        if (isCtrl && e.key === 'Enter') {
+            e.preventDefault();
+            addBlockBelow(id);
+            return;
+        }
+
         if (e.key === 'Tab') {
             e.preventDefault();
             if (e.shiftKey) {
@@ -447,6 +500,15 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         editorRef.current?.focus(); // Focus container to capture next arrows
                     }
                 }
+            } else {
+                // Block navigation: Arrow Up at start or empty block -> focus previous
+                if (content === '' || getCaretOffset() === 0) {
+                    const currentIndex = blocksRef.current.findIndex(b => b.id === id);
+                    if (currentIndex > 0) {
+                        e.preventDefault();
+                        focusPreviousBlock(id);
+                    }
+                }
             }
         } else if (e.key === 'ArrowDown') {
             if (e.shiftKey) {
@@ -461,6 +523,15 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         setSelectedBlockIds(newSelection);
                         if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
                         editorRef.current?.focus();
+                    }
+                }
+            } else {
+                // Block navigation: Arrow Down at end of block -> focus next
+                if (getCaretOffset() === content.length) {
+                    const currentIndex = blocksRef.current.findIndex(b => b.id === id);
+                    if (currentIndex < blocksRef.current.length - 1) {
+                        e.preventDefault();
+                        focusNextBlock(id);
                     }
                 }
             }
@@ -539,9 +610,19 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         const selectedBlocks = blocks.filter(b => selectedBlockIds.has(b.id));
         if (selectedBlocks.length === 0) return;
 
-        const data = JSON.stringify({ blocks: selectedBlocks });
-        navigator.clipboard.writeText(data).then(() => {
-            console.log('Copied blocks to clipboard');
+        // Copy actual text content instead of JSON
+        const textContent = selectedBlocks
+            .map(b => {
+                // Handle different block types to extract text
+                if (b.type === 'todo') return `[${b.metadata?.checked ? 'x' : ' '}] ${b.content}`;
+                if (b.type === 'bullet') return `• ${b.content}`;
+                if (b.type === 'numbered') return `1. ${b.content}`; // Simplified, as we don't have global index here easily
+                return b.content;
+            })
+            .join('\n');
+
+        navigator.clipboard.writeText(textContent).then(() => {
+            console.log('Copied blocks text to clipboard');
         }).catch(err => {
             console.error('Failed to copy blocks', err);
         });
@@ -558,21 +639,8 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             onDragOver={handleDragOver}
             onClick={(e) => handleEditorClick(e, wasDraggingRef.current)}
             onMouseDown={(e) => {
-                // Helper: Check if target is "interactive" (text, input, button)
-                const target = e.target as HTMLElement;
-                const isInteractive =
-                    target.isContentEditable ||
-                    target.tagName === 'INPUT' ||
-                    target.tagName === 'TEXTAREA' ||
-                    target.tagName === 'BUTTON' ||
-                    target.closest('button') ||
-                    // target.closest('.nodrag') || // REMOVED: wrappers have nodrag but we want to select from them
-                    target.closest(`.${styles.blockContent}`) || // Inside the actual text/content area
-                    target.closest(`.${styles.dragHandle}`); // The handle itself
-
-                // If user clicks directly on text/input, let browser handle text selection
-                if (isInteractive && !e.ctrlKey) {
-                    // Do NOT start block selection
+                // Require Ctrl key for bulk selection
+                if (!e.ctrlKey) {
                     return;
                 }
 
@@ -634,7 +702,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         key={block.id}
                         block={block}
                         index={listIndex} // Pass calculated index
-                        isSelected={selectedBlockIds.has(block.id)}
+                        isSelected={selectedBlockIds.size > 1 && selectedBlockIds.has(block.id)}
                         readOnly={readOnly}
                         nodeId={nodeId}
                         hideBlockHandles={hideBlockHandles}
@@ -705,7 +773,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             )}
 
             {/* Selection Rect Overlay */}
-            {dragSelection && (
+            {dragSelection && selectedBlockIds.size > 1 && (
                 <div
                     className={styles.selectionRect}
                     style={{
@@ -719,7 +787,22 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
             {/* Selection Counter */}
             {/* Selection Capsule (Dynamic Island) */}
-            {selectedBlockIds.size > 0 && (
+            {selectedBlockIds.size > 1 && selectionIslandPortalId && (() => {
+                const portalTarget = document.getElementById(selectionIslandPortalId);
+                if (!portalTarget) return null;
+                return createPortal(
+                    <SelectionCapsule
+                        count={selectedBlockIds.size}
+                        onClear={() => setSelectedBlockIds(new Set())}
+                        onDelete={deleteSelectedBlocks}
+                        onCopy={handleCopySelection}
+                    />,
+                    portalTarget
+                );
+            })()}
+
+            {/* Fallback for non-portal mode */}
+            {selectedBlockIds.size > 1 && !selectionIslandPortalId && (
                 <SelectionCapsule
                     count={selectedBlockIds.size}
                     onClear={() => setSelectedBlockIds(new Set())}

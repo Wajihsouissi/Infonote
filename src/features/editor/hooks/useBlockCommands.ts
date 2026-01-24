@@ -199,6 +199,69 @@ export function useBlockCommands({
     }, [debouncedOnUpdate, setBlocks]);
 
     // Batch operations
+
+    // Move block up in the list
+    const moveBlockUp = useCallback((id: string) => {
+        setBlocks(prev => {
+            const index = prev.findIndex(b => b.id === id);
+            if (index <= 0) return prev; // Already at top or not found
+            const newBlocks = [...prev];
+            [newBlocks[index - 1], newBlocks[index]] = [newBlocks[index], newBlocks[index - 1]];
+            debouncedOnUpdate(newBlocks);
+            return newBlocks;
+        });
+    }, [setBlocks, debouncedOnUpdate]);
+
+    // Move block down in the list
+    const moveBlockDown = useCallback((id: string) => {
+        setBlocks(prev => {
+            const index = prev.findIndex(b => b.id === id);
+            if (index === -1 || index >= prev.length - 1) return prev; // At bottom or not found
+            const newBlocks = [...prev];
+            [newBlocks[index], newBlocks[index + 1]] = [newBlocks[index + 1], newBlocks[index]];
+            debouncedOnUpdate(newBlocks);
+            return newBlocks;
+        });
+    }, [setBlocks, debouncedOnUpdate]);
+
+    // Duplicate a single block
+    const duplicateBlock = useCallback((id: string) => {
+        setBlocks(prev => {
+            const index = prev.findIndex(b => b.id === id);
+            if (index === -1) return prev;
+            const block = prev[index];
+            const newBlock = { ...block, id: uuidv4() };
+            const newBlocks = [...prev];
+            newBlocks.splice(index + 1, 0, newBlock);
+            debouncedOnUpdate(newBlocks);
+            setFocusId(newBlock.id);
+            return newBlocks;
+        });
+    }, [setBlocks, debouncedOnUpdate, setFocusId]);
+
+    // Focus previous block
+    const focusPreviousBlock = useCallback((currentId: string) => {
+        const index = blocks.findIndex(b => b.id === currentId);
+        if (index > 0) {
+            setFocusId(blocks[index - 1].id);
+        }
+    }, [blocks, setFocusId]);
+
+    // Focus next block
+    const focusNextBlock = useCallback((currentId: string) => {
+        const index = blocks.findIndex(b => b.id === currentId);
+        if (index < blocks.length - 1) {
+            setFocusId(blocks[index + 1].id);
+        }
+    }, [blocks, setFocusId]);
+
+    // Add block below current and focus it
+    const addBlockBelow = useCallback((id: string) => {
+        const currentBlock = blocks.find(b => b.id === id);
+        const indent = currentBlock?.indent || 0;
+        addBlock(id, 'text', indent);
+    }, [blocks, addBlock]);
+
     const deleteSelectedBlocks = useCallback(() => {
         if (selectedBlockIds.size === 0) return;
 
@@ -258,6 +321,13 @@ export function useBlockCommands({
         handleBlockPaste,
         handleEditorClick,
         deleteSelectedBlocks,
-        convertSelectedBlocks
+        convertSelectedBlocks,
+        // New keyboard shortcut functions
+        moveBlockUp,
+        moveBlockDown,
+        duplicateBlock,
+        focusPreviousBlock,
+        focusNextBlock,
+        addBlockBelow
     };
 }

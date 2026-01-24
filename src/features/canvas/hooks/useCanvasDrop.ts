@@ -1,0 +1,258 @@
+import { useCallback } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { useReactFlow } from '@xyflow/react';
+import { useStore } from '../../../store/useStore';
+import type { BlockType } from '../../editor/types';
+import type { AppNode } from '../../../types';
+import { BASE_UNIT } from '../../../config/layout';
+
+interface UseCanvasDropOptions {
+    updateNodeData: (id: string, data: any) => void;
+    setNodes: (updater: (nodes: AppNode[]) => AppNode[]) => void;
+    extractPageFromBlock: (block: any, position: { x: number; y: number }, sourceNodeId?: string) => void;
+}
+
+/**
+ * Hook that handles drag-over and drop events on the canvas.
+ * Manages block drops, node creation, and fusion logic.
+ */
+export function useCanvasDrop({
+    updateNodeData,
+    setNodes,
+    extractPageFromBlock,
+}: UseCanvasDropOptions) {
+    const { screenToFlowPosition, getIntersectingNodes, deleteElements } = useReactFlow();
+
+    const onDragOver = useCallback((event: React.DragEvent) => {
+        const { centerPanelId, fullscreenId } = useStore.getState();
+        if (centerPanelId || fullscreenId) return;
+
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+    }, []);
+
+    const onDrop = useCallback(
+        (event: React.DragEvent) => {
+            const { centerPanelId, fullscreenId, currentParentId, nodes } = useStore.getState();
+            if (centerPanelId || fullscreenId) return;
+
+            // Check if the drop landed inside a node's BlockEditor
+            const target = event.target as HTMLElement;
+            const isInsideBlockEditor = target.closest('[class*="BlockEditor"]') ||
+                target.closest('[class*="editor"]') ||
+                target.closest('[class*="noteArea"]') ||
+                target.closest('[class*="fusedNoteNode"]') ||
+                target.closest('[class*="content"]');
+
+            // Parse block data to check if this is a cross-node block transfer
+            const blockDataJson = event.dataTransfer.getData('application/infonote-block-data');
+            let hasSourceNode = false;
+            let sourceNodeIdFromData: string | null = null;
+
+            if (blockDataJson) {
+                try {
+                    const parsed = JSON.parse(blockDataJson);
+                    hasSourceNode = !!parsed.sourceNodeId;
+                    sourceNodeIdFromData = parsed.sourceNodeId;
+                } catch (e) {
+                    // Parse failed
+                }
+            }
+
+            // Check if drop position intersects with a node (early check)
+            const earlyPosition = screenToFlowPosition({
+                x: event.clientX,
+                y: event.clientY,
+            });
+            const earlyDropRect = {
+                x: earlyPosition.x - 10,
+                y: earlyPosition.y - 10,
+                width: 20,
+                height: 20
+            };
+            const earlyIntersections = getIntersectingNodes(earlyDropRect as any);
+            const earlyTargetNode = earlyIntersections.find(n =>
+                (n.type === 'block' || n.type === 'fused-note' || n.type === 'note') &&
+                n.id !== sourceNodeIdFromData &&
+                n.id !== currentParentId
+            );
+
+            // If dropping inside a node's content area AND it's from another node, let BlockEditor handle it
+            if ((isInsideBlockEditor || earlyTargetNode) && hasSourceNode) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const type = event.dataTransfer.getData('application/reactflow-block-type') as BlockType;
+
+            const rawPosition = screenToFlowPosition({
+                x: event.clientX,
+                y: event.clientY,
+            });
+
+            // Snap drop position to grid
+            const position = {
+                x: Math.round(rawPosition.x / BASE_UNIT) * BASE_UNIT,
+                y: Math.round(rawPosition.y / BASE_UNIT) * BASE_UNIT
+            };
+
+            let blocksToAdd: any[] = [];
+            let sourceNodeId: string | null = null;
+
+            if (blockDataJson) {
+                try {
+                    const parsed = JSON.parse(blockDataJson);
+                    if (parsed.blocks && Array.isArray(parsed.blocks)) {
+                        blocksToAdd = parsed.blocks;
+                        sourceNodeId = parsed.sourceNodeId;
+                    } else if (parsed.block) {
+                        blocksToAdd = [parsed.block];
+                        sourceNodeId = parsed.sourceNodeId;
+                    }
+                } catch (e) {
+                    console.error("Failed to parse block data", e);
+                }
+            } else if (type) {
+                let metadata = undefined;
+                try {
+                    const metaJson = event.dataTransfer.getData('application/infonote-block-metadata');
+                    if (metaJson) metadata = JSON.parse(metaJson);
+                } catch (e) { console.error("Failed to parse metadata", e); }
+
+                blocksToAdd = [{
+                    id: uuidv4(),
+                    type: type,
+                    content: '',
+                    metadata
+                }];
+            } else {
+                return;
+            }
+
+            const dropRect = {
+                x: position.x - 10,
+                y: position.y - 10,
+                width: 20,
+                height: 20
+            };
+
+            const intersections = getIntersectingNodes(dropRect as any);
+            const targetNode = intersections.find(n =>
+                (n.type === 'block' || n.type === 'fused-note' || n.type === 'note') &&
+                n.id !== sourceNodeId &&
+                n.id !== currentParentId
+            );
+
+            if (targetNode) {
+                const currentContent = Array.isArray((targetNode.data as any).content) ? (targetNode.data as any).content : [];
+                updateNodeData(targetNode.id, {
+                    content: [...currentContent, ...blocksToAdd],
+                    lastFusedAt: Date.now()
+                });
+
+                if (targetNode.type === 'block') {
+                    updateNodeData(targetNode.id, {
+                        content: [...currentContent, ...blocksToAdd]
+                    });
+
+                    const updatedNodes = nodes.map((n: AppNode) => {
+                        if (n.id === targetNode.id) {
+                            return {
+                                ...n,
+                                type: 'fused-note' as const,
+                                style: { ...n.style, height: 'auto' }
+                            } as AppNode;
+                        }
+                        return n;
+                    });
+                    setNodes(() => updatedNodes);
+                }
+
+                if (sourceNodeId) {
+                    const sourceNode = nodes.find((n: AppNode) => n.id === sourceNodeId);
+                    if (sourceNode && Array.isArray((sourceNode.data as any).content)) {
+                        const draggedBlockIds = blocksToAdd.map(b => b.id);
+                        let newContent = (sourceNode.data as any).content.filter((b: any) => !draggedBlockIds.includes(b.id));
+                        console.log("[useCanvasDrop] Source cleanup - removing blocks:", draggedBlockIds);
+                        updateNodeData(sourceNodeId, { content: newContent });
+                        if (newContent.length === 0 && sourceNode.type === 'fused-note') {
+                            setTimeout(() => deleteElements({ nodes: [{ id: sourceNodeId! }] }), 0);
+                        }
+                    }
+                }
+            } else {
+                // Adding new node to canvas
+                if (blocksToAdd.length === 1 && blocksToAdd[0].type === 'page') {
+                    extractPageFromBlock(blocksToAdd[0], position, sourceNodeId || undefined);
+                    if ((window as any).infonoteMultiDragCleanup) {
+                        (window as any).infonoteMultiDragCleanup();
+                        delete (window as any).infonoteMultiDragCleanup;
+                    }
+                    window.dispatchEvent(new CustomEvent('infonote-clear-selection'));
+                    return;
+                }
+
+                const BLOCK_WIDTH = 300;
+                const BLOCK_HEIGHT = 100;
+                const centeredPosition = {
+                    x: position.x - (BLOCK_WIDTH / 2),
+                    y: position.y - (BLOCK_HEIGHT / 2),
+                };
+
+                const nodeId = uuidv4();
+                const targetParentId = currentParentId || undefined;
+
+                console.log("[useCanvasDrop] Adding block to store:", {
+                    nodeId,
+                    parentId: targetParentId,
+                    blockCount: blocksToAdd.length
+                });
+
+                const newNode: AppNode = {
+                    id: nodeId,
+                    type: blocksToAdd.length > 1 ? 'fused-note' : 'block',
+                    position: centeredPosition,
+                    data: {
+                        content: blocksToAdd,
+                        isStandaloneBlock: true
+                    },
+                    style: {
+                        width: blocksToAdd.length > 1 ? 350 : BLOCK_WIDTH,
+                        height: blocksToAdd.length > 1 ? 'auto' as any : BLOCK_HEIGHT
+                    },
+                    parentId: targetParentId,
+                };
+
+                useStore.setState(state => ({
+                    nodes: [...state.nodes, newNode]
+                }));
+
+                if (sourceNodeId) {
+                    const sourceNode = nodes.find((n: AppNode) => n.id === sourceNodeId);
+                    if (sourceNode && Array.isArray((sourceNode.data as any).content)) {
+                        const draggedBlockIds = blocksToAdd.map(b => b.id);
+                        let newContent = (sourceNode.data as any).content.filter((b: any) => !draggedBlockIds.includes(b.id));
+                        console.log("[useCanvasDrop] Source cleanup:", draggedBlockIds.length, "blocks");
+                        updateNodeData(sourceNodeId, { content: newContent });
+                        if (newContent.length === 0 && sourceNode.type === 'fused-note') {
+                            setTimeout(() => deleteElements({ nodes: [{ id: sourceNodeId! }] }), 0);
+                        }
+                    }
+                }
+            }
+
+            if ((window as any).infonoteMultiDragCleanup) {
+                (window as any).infonoteMultiDragCleanup();
+                delete (window as any).infonoteMultiDragCleanup;
+            }
+            window.dispatchEvent(new CustomEvent('infonote-clear-selection'));
+        },
+        [screenToFlowPosition, updateNodeData, getIntersectingNodes, deleteElements, setNodes, extractPageFromBlock],
+    );
+
+    return {
+        onDragOver,
+        onDrop,
+    };
+}

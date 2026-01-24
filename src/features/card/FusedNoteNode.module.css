@@ -176,6 +176,22 @@
     background: var(--color-text-muted);
 }
 
+.selectionIslandContainer {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    padding-top: 12px;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.selectionIslandContainer > * {
+    pointer-events: auto;
+}
+
 .convertBtn {
     position: absolute;
     top: -32px;

@@ -15,10 +15,19 @@ export function useBlockSelection({ editorRef, blocks, blockRefs }: SelectionPro
     const [selectionRect, setSelectionRect] = useState<DOMRect | null>(null);
     const wasDraggingRef = useRef(false);
 
+    // Use refs to avoid re-renders on frequent updates
+    const selectionRectRef = useRef<DOMRect | null>(null);
+    const dragSelectionRef = useRef(dragSelection);
+
     const selectedBlockIdsRef = useRef(selectedBlockIds);
     useEffect(() => {
         selectedBlockIdsRef.current = selectedBlockIds;
     }, [selectedBlockIds]);
+
+    // Keep drag selection ref in sync
+    useEffect(() => {
+        dragSelectionRef.current = dragSelection;
+    }, [dragSelection]);
 
     // Throttled selection calculation to improve performance
     const throttledCalculateSelection = useMemo(
@@ -34,10 +43,10 @@ export function useBlockSelection({ editorRef, blocks, blockRefs }: SelectionPro
             const computedStyle = getComputedStyle(editorEl);
             const transform = computedStyle.transform || 'matrix(1, 0, 0, 1, 0, 0)';
             const scaleMatch = transform.match(/matrix\(([^)]+)\)/);
-            const scale = scaleMatch ? 
-                parseFloat(scaleMatch[1].split(',')[3] || '1') : 
-                (editorRect.width && editorEl.offsetWidth ? 
-                 editorRect.width / editorEl.offsetWidth : 1);
+            const scale = scaleMatch ?
+                parseFloat(scaleMatch[1].split(',')[3] || '1') :
+                (editorRect.width && editorEl.offsetWidth ?
+                    editorRect.width / editorEl.offsetWidth : 1);
 
             currentBlocks.forEach(block => {
                 const el = blockElements[block.id];
@@ -64,11 +73,11 @@ export function useBlockSelection({ editorRef, blocks, blockRefs }: SelectionPro
             if (newSelected.size > 0) {
                 setSelectedBlockIds(newSelected);
             }
-        }, 16), // ~60fps
+        }, 32), // ~30fps instead of 60fps for less CPU usage
         [setSelectedBlockIds]
     );
 
-    // Selection Logic Effect
+    // Selection Logic Effect - optimized to avoid frequent state updates
     useEffect(() => {
         if (!dragSelection && !mouseDownBlock) return;
 
@@ -76,7 +85,7 @@ export function useBlockSelection({ editorRef, blocks, blockRefs }: SelectionPro
             if (!editorRef.current) return;
             const editorRect = editorRef.current.getBoundingClientRect();
 
-            if (mouseDownBlock && !dragSelection) {
+            if (mouseDownBlock && !dragSelectionRef.current) {
                 const { initialRect } = mouseDownBlock;
                 const isOutside =
                     e.clientY < initialRect.top ||
@@ -93,10 +102,10 @@ export function useBlockSelection({ editorRef, blocks, blockRefs }: SelectionPro
                     const computedStyle = editorRef.current ? getComputedStyle(editorRef.current) : null;
                     const transform = computedStyle?.transform || 'matrix(1, 0, 0, 1, 0, 0)';
                     const scaleMatch = transform.match(/matrix\(([^)]+)\)/);
-                    const scale = scaleMatch ? 
-                        parseFloat(scaleMatch[1].split(',')[3] || '1') : 
-                        (editorRect.width && editorRef.current?.offsetWidth ? 
-                         editorRect.width / editorRef.current.offsetWidth : 1);
+                    const scale = scaleMatch ?
+                        parseFloat(scaleMatch[1].split(',')[3] || '1') :
+                        (editorRect.width && editorRef.current?.offsetWidth ?
+                            editorRect.width / editorRef.current.offsetWidth : 1);
                     const relX = (mouseDownBlock.startX - editorRect.left) / scale;
                     const relY = (mouseDownBlock.startY - editorRect.top) / scale;
                     const currentRelX = (e.clientX - editorRect.left) / scale;
@@ -114,18 +123,18 @@ export function useBlockSelection({ editorRef, blocks, blockRefs }: SelectionPro
                 }
             }
 
-            if (dragSelection) {
+            if (dragSelectionRef.current) {
                 const computedStyle = editorRef.current ? getComputedStyle(editorRef.current) : null;
                 const transform = computedStyle?.transform || 'matrix(1, 0, 0, 1, 0, 0)';
                 const scaleMatch = transform.match(/matrix\(([^)]+)\)/);
-                const scale = scaleMatch ? 
-                    parseFloat(scaleMatch[1].split(',')[3] || '1') : 
-                    (editorRect.width && editorRef.current?.offsetWidth ? 
-                     editorRect.width / editorRef.current.offsetWidth : 1);
+                const scale = scaleMatch ?
+                    parseFloat(scaleMatch[1].split(',')[3] || '1') :
+                    (editorRect.width && editorRef.current?.offsetWidth ?
+                        editorRect.width / editorRef.current.offsetWidth : 1);
                 const cx = (e.clientX - editorRect.left) / scale;
                 const cy = (e.clientY - editorRect.top) / scale;
 
-                if (!wasDraggingRef.current && (Math.abs(cx - dragSelection.startX) > 5 || Math.abs(cy - dragSelection.startY) > 5)) {
+                if (!wasDraggingRef.current && (Math.abs(cx - dragSelectionRef.current.startX) > 5 || Math.abs(cy - dragSelectionRef.current.startY) > 5)) {
                     wasDraggingRef.current = true;
                 }
 
@@ -141,9 +150,9 @@ export function useBlockSelection({ editorRef, blocks, blockRefs }: SelectionPro
             if (!wasDraggingRef.current && mouseDownBlock) {
                 if (!e.shiftKey && !e.ctrlKey) {
                     if (mouseDownBlock.isInteractive) {
-                        if (selectedBlockIds.size > 0) setSelectedBlockIds(new Set());
+                        if (selectedBlockIdsRef.current.size > 0) setSelectedBlockIds(new Set());
                     } else {
-                        if (selectedBlockIds.size !== 1 || !selectedBlockIds.has(mouseDownBlock.id)) {
+                        if (selectedBlockIdsRef.current.size !== 1 || !selectedBlockIdsRef.current.has(mouseDownBlock.id)) {
                             setSelectedBlockIds(new Set([mouseDownBlock.id]));
                         }
                     }
@@ -165,40 +174,43 @@ export function useBlockSelection({ editorRef, blocks, blockRefs }: SelectionPro
             document.removeEventListener('mousemove', handleGlobalMouseMove);
             document.removeEventListener('mouseup', handleGlobalMouseUp);
         };
-    }, [dragSelection, blocks, mouseDownBlock, editorRef, blockRefs, selectedBlockIds.size, selectedBlockIds]);
+    }, [dragSelection, blocks, mouseDownBlock, editorRef, blockRefs, throttledCalculateSelection]);
 
-    // Clear selection when clicking outside
+    // Clear selection when clicking outside - use ref to avoid re-registering
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (!editorRef.current) return;
             const target = e.target as HTMLElement;
             if (editorRef.current.contains(target)) return;
-            
+
             // Improved portals handling
-            if (target.closest('[data-portal="true"]') || 
-                target.closest('[data-radix-popper-content-wrapper]') || 
-                target.closest('[role="dialog"]') || 
-                target.closest('.modal') || 
-                target.closest('.popover') || 
+            if (target.closest('[data-portal="true"]') ||
+                target.closest('[data-radix-popper-content-wrapper]') ||
+                target.closest('[role="dialog"]') ||
+                target.closest('.modal') ||
+                target.closest('.popover') ||
                 target.closest('.dropdown') ||
                 target.closest('.fullscreen-modal') ||
                 target.closest('.center-modal')) return;
 
-            if (selectedBlockIds.size > 0) {
+            if (selectedBlockIdsRef.current.size > 0) {
                 setSelectedBlockIds(new Set());
             }
         };
 
         document.addEventListener('mousedown', handleClickOutside, { capture: true });
         return () => document.removeEventListener('mousedown', handleClickOutside, { capture: true });
-    }, [selectedBlockIds, editorRef]);
+    }, [editorRef]); // Removed selectedBlockIds.size - use ref instead
 
-    // Selection Monitor for Floating Toolbar
-    useEffect(() => {
-        const handleSelectionChange = () => {
+    // Throttled selection change handler for floating toolbar
+    const throttledSelectionChange = useMemo(
+        () => throttle(() => {
             const selection = window.getSelection();
             if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
-                setSelectionRect(null);
+                if (selectionRectRef.current !== null) {
+                    selectionRectRef.current = null;
+                    setSelectionRect(null);
+                }
                 return;
             }
 
@@ -206,18 +218,29 @@ export function useBlockSelection({ editorRef, blocks, blockRefs }: SelectionPro
             if (editorRef.current && editorRef.current.contains(range.commonAncestorContainer)) {
                 const rect = range.getBoundingClientRect();
                 if (rect.width > 2) {
-                    setSelectionRect(rect);
-                } else {
+                    // Only update state if rect changed significantly
+                    const prev = selectionRectRef.current;
+                    if (!prev || Math.abs(prev.x - rect.x) > 5 || Math.abs(prev.y - rect.y) > 5 || Math.abs(prev.width - rect.width) > 5) {
+                        selectionRectRef.current = rect;
+                        setSelectionRect(rect);
+                    }
+                } else if (selectionRectRef.current !== null) {
+                    selectionRectRef.current = null;
                     setSelectionRect(null);
                 }
-            } else {
+            } else if (selectionRectRef.current !== null) {
+                selectionRectRef.current = null;
                 setSelectionRect(null);
             }
-        };
+        }, 100), // Throttle to 10 updates/second max
+        [editorRef]
+    );
 
-        document.addEventListener('selectionchange', handleSelectionChange);
-        return () => document.removeEventListener('selectionchange', handleSelectionChange);
-    }, [editorRef]);
+    // Selection Monitor for Floating Toolbar - now throttled
+    useEffect(() => {
+        document.addEventListener('selectionchange', throttledSelectionChange);
+        return () => document.removeEventListener('selectionchange', throttledSelectionChange);
+    }, [throttledSelectionChange]);
 
     const handleSelectionMouseDown = useCallback((e: React.MouseEvent, id: string) => {
         if (e.shiftKey && selectedBlockIdsRef.current.size > 0) {

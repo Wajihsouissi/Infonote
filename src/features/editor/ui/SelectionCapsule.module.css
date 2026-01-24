@@ -1,8 +1,5 @@
 .capsule {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
+    position: relative;
     background: rgba(20, 20, 23, 0.85);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -10,17 +7,17 @@
     box-shadow:
         0 4px 6px -1px rgba(0, 0, 0, 0.1),
         0 2px 4px -1px rgba(0, 0, 0, 0.06),
-        0 20px 25px -5px rgba(0, 0, 0, 0.2);
+        0 10px 15px -5px rgba(0, 0, 0, 0.1);
     border-radius: 9999px;
     padding: 8px 16px;
-    z-index: 10000;
+    z-index: 100;
     color: white;
     font-size: 0.9rem;
     font-weight: 500;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     /* Animation entry */
-    animation: capsuleSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: capsuleFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 
     display: flex;
     align-items: center;
@@ -30,25 +27,24 @@
     min-width: 140px;
 }
 
-@keyframes capsuleSlideUp {
+@keyframes capsuleFadeIn {
     from {
         opacity: 0;
-        transform: translate(-50%, 20px);
+        transform: translateY(10px);
     }
 
     to {
         opacity: 1;
-        transform: translate(-50%, 0);
+        transform: translateY(0);
     }
 }
 
 .capsule:hover {
     background: rgba(20, 20, 23, 0.95);
-    transform: translate(-50%, -2px);
+    transform: translateY(-2px);
     box-shadow:
         0 10px 15px -3px rgba(0, 0, 0, 0.2),
-        0 4px 6px -2px rgba(0, 0, 0, 0.1),
-        0 25px 30px -5px rgba(0, 0, 0, 0.3);
+        0 4px 6px -2px rgba(0, 0, 0, 0.1);
 }
 
 .content {

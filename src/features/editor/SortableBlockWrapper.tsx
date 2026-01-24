@@ -141,7 +141,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
     };
 
     const isMedia = ['image', 'video', 'file', 'color'].includes(block?.type || '');
-    const canDragWrapper = !readOnly && (isMedia || hideHandle || isSelected) && !promoteBlockHandles;
+    const canDragWrapper = !readOnly && isMedia && !promoteBlockHandles;
 
     const dropClass = dropIndication === 'top' ? styles.dropTargetTop : (dropIndication === 'bottom' ? styles.dropTargetBottom : '');
 
@@ -159,7 +159,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
             onContextMenu={(e) => onMenuOpen?.(e, id)}
             id={`block-${id}`}
 
-            // Allow dragging from anywhere on media blocks, when handles are hidden, or when block is selected
+            // Allow dragging from anywhere on media blocks only
             draggable={canDragWrapper}
             onDragStart={canDragWrapper ? handleDragStart : undefined}
         >

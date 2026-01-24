@@ -12,21 +12,21 @@ interface SlashCommandProps {
     nodeId?: string;
 }
 
-export function useSlashCommand({ 
-    editorRef, 
-    blocks, 
-    setBlocks, 
-    debouncedOnUpdate, 
+export function useSlashCommand({
+    editorRef,
+    blocks,
+    setBlocks,
+    debouncedOnUpdate,
     setFocusId,
-    nodeId 
+    nodeId
 }: SlashCommandProps) {
     const [slashMenuState, setSlashMenuState] = useState<{ anchorRect: DOMRect | { top: number; left: number; bottom: number }, blockId: string } | null>(null);
     const slashMenuStateRef = useRef(slashMenuState);
-    
+
     // Sync ref
     slashMenuStateRef.current = slashMenuState;
 
-    const convertBlock = useCallback((id: string | undefined, type: BlockType, metadata?: any) => {
+    const convertBlock = useCallback((id: string | undefined, type: BlockType, metadata?: any, content?: string) => {
         const targetId = id || (slashMenuStateRef.current ? slashMenuStateRef.current.blockId : null);
         if (!targetId) return;
 
@@ -36,6 +36,7 @@ export function useSlashCommand({
                     ? {
                         ...b,
                         type,
+                        content: content !== undefined ? content : b.content,
                         metadata: type === 'columns' ? {
                             columns: Array.from({ length: metadata?.count || 2 }).map(() => ({ id: uuidv4(), content: [] }))
                         } : b.metadata

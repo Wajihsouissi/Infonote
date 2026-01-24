@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Image as ImageIcon, StickyNote, Video, FileText, Layers, Eye, EyeOff, X } from 'lucide-react';
+import { Eye, X } from 'lucide-react';
 import styles from './NoteCard.module.css';
 import { BlockEditor } from '../editor/BlockEditor';
 import { IconPicker } from './IconPicker';
@@ -8,8 +8,14 @@ import { iconMap, defaultIconName } from './iconMap';
 import type { NoteNode } from '../../types';
 import { useStore } from '../../store/useStore';
 import { CoverPicker } from './CoverPicker';
-import { lightenColor } from '../../utils/colorUtils';
+import { lightenColor, darkenColor } from '../../utils/colorUtils';
 import { SkeletonLoader } from './SkeletonLoader';
+
+// Extracted components and hooks
+import { useNoteMetadata, useLazyRender } from './hooks';
+import { NoteCoverSection } from './NoteCoverSection';
+import { NoteMetadataSection } from './NoteMetadataSection';
+import { NoteFooterStats } from './NoteFooterStats';
 
 interface NoteExpandedContentProps {
     id: string;
@@ -20,116 +26,48 @@ interface NoteExpandedContentProps {
     showMetadata?: boolean;
     setShowMetadata?: (show: boolean) => void;
     onClose?: () => void;
+    selectionIslandPortalId?: string; // Portal target for selection island
 }
 
-export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, showMetadata: propShowMetadata, setShowMetadata: propSetShowMetadata, onClose }: NoteExpandedContentProps) {
-    // Atomic Selectors
-    const activeIconMenuId = useStore(s => s.activeIconMenuId);
-    const setActiveIconMenuId = useStore(s => s.setActiveIconMenuId);
-
+export function NoteExpandedContent({
+    id,
+    data,
+    onUpdate,
+    contentRef,
+    nodeId,
+    showMetadata: propShowMetadata,
+    setShowMetadata: propSetShowMetadata,
+    onClose,
+    selectionIslandPortalId
+}: NoteExpandedContentProps) {
     // Internal state for when props are not provided
     const [localShowMetadata, setLocalShowMetadata] = useState(false);
-
     const showMetadata = propShowMetadata ?? localShowMetadata;
     const setShowMetadata = propSetShowMetadata ?? setLocalShowMetadata;
 
-    // Editing state
-    const [isEditingMetadata, setIsEditingMetadata] = useState(false);
-    const [showCoverPicker, setShowCoverPicker] = useState(false);
+    // Lazy rendering hook
+    const { hasRendered, containerRef } = useLazyRender();
 
-    // CRITICAL: Lazy render - only render content when visible
-    const [hasRendered, setHasRendered] = useState(false);
-    const observerRef = useRef<IntersectionObserver | null>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
+    // Metadata editing hook
+    const {
+        editedData,
+        setEditedData,
+        isEditingMetadata,
+        setIsEditingMetadata,
+        showCoverPicker,
+        setShowCoverPicker,
+        showIconPicker,
+        handleSaveMetadata,
+        handleIconSelect,
+        handleIconClick,
+        handleCoverSelect,
+        setActiveIconMenuId,
+    } = useNoteMetadata({ id, data, onUpdate });
 
-    const [editedData, setEditedData] = useState({
-        label: data?.label || 'Untitled',
-        icon: data?.icon || defaultIconName,
-        description: data?.description || '',
-        category: data?.category || '',
-        coverImage: data?.coverImage || '',
-        date: data?.date || new Date().toISOString()
-    });
-
-    useEffect(() => {
-        if (!containerRef.current) return;
-
-        // Intersection observer for lazy rendering
-        observerRef.current = new IntersectionObserver(
-            (entries) => {
-                entries.forEach((entry) => {
-                    if (entry.isIntersecting && !hasRendered) {
-                        setHasRendered(true);
-                    }
-                });
-            },
-            { rootMargin: '400px' } // Pre-render 400px before entering viewport
-        );
-
-        observerRef.current.observe(containerRef.current);
-
-        return () => {
-            if (observerRef.current) {
-                observerRef.current.disconnect();
-            }
-        };
-    }, [hasRendered]);
-
-    // Sync state with props
-    useEffect(() => {
-        if (data) {
-            setEditedData({
-                label: data.label,
-                icon: data.icon || defaultIconName,
-                description: data.description || '',
-                category: data.category || '',
-                coverImage: data.coverImage || '',
-                date: data.date || new Date().toISOString()
-            });
-        }
-    }, [data]);
-
-    const stats = useMemo(() => {
-        // Defensive check for data.content
-        if (!data || !data.content || !Array.isArray(data.content)) {
-            return null;
-        }
-
-        const content = data.content as any[];
-        const total = content.length;
-        const cards = content.filter(b => b && b.type === 'page').length;
-        const images = content.filter(b => b && b.type === 'image').length;
-        const videos = content.filter(b => b && b.type === 'video').length;
-        const pdfs = content.filter(b => b && b.type === 'file').length;
-
-        return { total, cards, images, videos, pdfs };
-    }, [data?.content, id]);
-
-    const handleSaveMetadata = useCallback(() => {
-        onUpdate(id, editedData);
-        setIsEditingMetadata(false);
-    }, [id, editedData, onUpdate]);
-
-    const handleIconSelect = useCallback((icon: string) => {
-        setEditedData(prev => ({ ...prev, icon }));
-        if (!isEditingMetadata) {
-            onUpdate(id, { icon });
-        }
-        setActiveIconMenuId(null);
-    }, [id, isEditingMetadata, onUpdate, setActiveIconMenuId]);
-
-    const handleIconClick = useCallback((e: React.MouseEvent) => {
-        e.stopPropagation();
-        setActiveIconMenuId(id);
-    }, [id, setActiveIconMenuId]);
-
+    // Area drop handler
     const handleAreaDrop = useCallback((e: React.DragEvent) => {
         if (!data) return;
-        console.log("[NoteExpandedContent.handleAreaDrop] START - Event triggered, nodeId:", id);
-        // Allow dropping on the empty area to append to end
-        // Only if block editor didn't catch it (bubbled up, but noteArea is container)
-        // Check if target is not inside editor?
-        // Actually, preventing default here is fine.
+        console.log("[NoteExpandedContent.handleAreaDrop] START - nodeId:", id);
         e.preventDefault();
         e.stopPropagation();
 
@@ -142,9 +80,6 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
                 const parsed = JSON.parse(rawData);
                 sourceNodeId = parsed.sourceNodeId || null;
 
-                console.log("[NoteExpandedContent.handleAreaDrop] Parsed data - sourceNodeId:", sourceNodeId, "currentId:", id);
-
-                // Handle external drops (menu) or cross-node drops
                 if (sourceNodeId === null || sourceNodeId !== id) {
                     if (parsed.blocks) blocksToAdd = parsed.blocks;
                     else if (parsed.block) blocksToAdd = [parsed.block];
@@ -158,7 +93,6 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
                         if (metaJson) metadata = JSON.parse(metaJson);
                     } catch (e) { }
 
-                    // Generate new block for type-only drop
                     blocksToAdd = [{
                         id: uuidv4(),
                         type,
@@ -169,19 +103,14 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
             }
         } catch (err) { console.error("Drop failed", err); }
 
-        console.log("[NoteExpandedContent.handleAreaDrop] blocksToAdd count:", blocksToAdd.length);
-
         if (blocksToAdd.length > 0) {
             const current = Array.isArray(data.content) ? data.content : [];
-            console.log("[NoteExpandedContent.handleAreaDrop] Adding blocks to node:", id);
             onUpdate(id, {
                 content: [...current, ...blocksToAdd],
                 lastFusedAt: Date.now()
             });
 
-            // Remove blocks from source node if cross-node drop
             if (sourceNodeId && sourceNodeId !== id) {
-                console.log("[NoteExpandedContent.handleAreaDrop] Removing blocks from source node:", sourceNodeId);
                 const { nodes, updateNodeData, setNodes } = useStore.getState();
                 const sourceNode = nodes.find(n => n.id === sourceNodeId);
 
@@ -190,11 +119,8 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
                     const currentContent = (sourceNode.data as any).content;
                     const newContent = currentContent.filter((b: any) => !blockIds.includes(b.id));
 
-                    console.log("[NoteExpandedContent.handleAreaDrop] Source content before:", currentContent.length, "after:", newContent.length);
-
                     updateNodeData(sourceNodeId, { content: newContent });
 
-                    // If source node is now empty and is a fused-note, delete it
                     if (newContent.length === 0 && sourceNode.type === 'fused-note') {
                         setTimeout(() => {
                             setNodes(nds => nds.filter(n => n.id !== sourceNodeId));
@@ -202,7 +128,6 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
                     }
                 }
 
-                // Trigger cleanup events
                 if ((window as any).infonoteMultiDragCleanup) {
                     (window as any).infonoteMultiDragCleanup();
                     delete (window as any).infonoteMultiDragCleanup;
@@ -210,58 +135,59 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
                 window.dispatchEvent(new CustomEvent('infonote-clear-selection'));
             }
         }
-    }, [data.content, id, onUpdate]);
-
-    // Textarea auto-resize logic
-    const textareaRef = (element: HTMLTextAreaElement | null) => {
-        if (element) {
-            element.style.height = 'auto';
-            element.style.height = element.scrollHeight + 'px';
-        }
-    };
+    }, [data?.content, id, onUpdate]);
 
     const handleContentUpdate = useCallback((blocks: any[]) => {
         onUpdate(id, { content: blocks });
     }, [id, onUpdate]);
 
-    // Late early return - MUST BE AFTER ALL HOOKS
+    // Early return after hooks
     if (!data) {
         return <div>Error: Missing data</div>;
     }
 
     // Derived state
-    const showIconPicker = activeIconMenuId === id;
     const IconComponent = iconMap[data.icon || defaultIconName] || iconMap[defaultIconName];
 
-    // Dynamic Color Logic
+    // Dynamic color styles
     const dynamicStyles = useMemo(() => {
         if (!data.color) return {};
-
-        // User requested dark text for ALL colors (sticky note style)
+        const noteAreaBg = lightenColor(data.color, 70); // Very light pastel for note area
         return {
             '--color-text-main': '#1f2937',
             '--color-text-muted': '#6b7280',
             '--color-border': 'rgba(0,0,0,0.2)',
-            '--note-bg-dynamic': data.color
+            '--note-bg-dynamic': data.color,
+            '--note-area-bg': noteAreaBg, // Pastel background for note area
         } as React.CSSProperties;
     }, [data.color]);
 
     const headerStyle = useMemo(() => {
         if (!data.color) return {};
-        const bg = lightenColor(data.color, 15); // Lighten by 15%
+        const bg = lightenColor(data.color, 15);
+        const darkText = darkenColor(data.color, 50); // Dark shade for icons/labels
+        const mutedText = darkenColor(data.color, 35); // Slightly lighter for muted text
+        const activeBg = lightenColor(data.color, 40); // Lighter background for active state
+        const btnBg = darkenColor(data.color, 15); // Slightly darker background for buttons
         return {
             backgroundColor: bg,
-            color: '#1f2937', // Force dark text
-            // Override variables within header scope
-            '--color-text-main': '#1f2937',
-            '--color-text-muted': '#6b7280',
+            color: darkText,
+            '--color-text-main': darkText,
+            '--color-text-muted': mutedText,
             '--color-border': 'rgba(0,0,0,0.2)',
+            // Control button default state
+            '--control-btn-bg': `${btnBg}40`, // Semi-transparent darker shade
+            '--control-btn-border': `${darkText}50`, // Semi-transparent dark border
+            '--control-btn-shadow': '0 2px 8px rgba(0, 0, 0, 0.15)',
+            // Control button hover state
+            '--control-btn-hover-border': darkText,
+            '--control-btn-hover-color': darkText,
+            // Control button active state
+            '--control-btn-active-bg': activeBg,
+            '--control-btn-active-border': darkText,
+            '--control-btn-active-color': darkText,
         } as React.CSSProperties;
     }, [data.color]);
-
-
-
-
 
     return (
         <div
@@ -269,121 +195,42 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
             ref={containerRef}
             style={dynamicStyles}
         >
-
             {showMetadata ? (
                 <>
-                    {/* Cover Image */}
-                    <div className={styles.coverImage} onClick={() => setShowCoverPicker(true)}>
-                        {data.coverImage ? (
-                            <img src={data.coverImage} alt="Cover" loading="lazy" />
-                        ) : (
-                            <div className={styles.coverPlaceholder}>
-                                <div className={styles.coverEmptyState}>
-                                    <ImageIcon size={24} />
-                                    <span>Add Cover</span>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Cover Metadata Chips (Top Right) */}
-                        <div className={styles.coverMetadataOverlay}>
-                            {/* Metadata Chips */}
-                            {data.status && (
-                                <span className={styles.metaChip} onClick={(e) => e.stopPropagation()}>
-                                    {data.status}
-                                </span>
-                            )}
-                            {data.priority && (
-                                <span className={`${styles.metaChip} ${styles.blue}`} onClick={(e) => e.stopPropagation()}>
-                                    {data.priority}
-                                </span>
-                            )}
-                            {data.tags && data.tags.map(tag => (
-                                <span key={tag} className={`${styles.metaChip} ${styles.purple}`} onClick={(e) => e.stopPropagation()}>
-                                    {tag}
-                                </span>
-                            ))}
-
-                            {/* Top Controls (Expanded Mode - Integrated) */}
-                            <div className={styles.controlsGroup} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-                                <button
-                                    className={`${styles.controlBtn} ${showMetadata ? styles.active : ''}`}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setShowMetadata(!showMetadata);
-                                    }}
-                                    title="Hide Metadata"
-                                >
-                                    <EyeOff size={20} />
-                                </button>
-                                {onClose && (
-                                    <button
-                                        className={styles.controlBtn}
-                                        onClick={onClose}
-                                        title="Close"
-                                    >
-                                        <X size={20} />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                    {/* Cover Section */}
+                    <NoteCoverSection
+                        coverImage={data.coverImage}
+                        status={data.status}
+                        priority={data.priority}
+                        tags={data.tags}
+                        showMetadata={showMetadata}
+                        setShowMetadata={setShowMetadata}
+                        onCoverClick={() => setShowCoverPicker(true)}
+                        onClose={onClose}
+                    />
 
                     {/* Metadata Section */}
-                    <div className={styles.expandedMetadata}>
-                        {/* Header with Icon and Title */}
-                        <div className={styles.expandedHeader}>
-                            <button
-                                className={styles.expandedIconButton}
-                                onClick={handleIconClick}
-                                title="Change icon"
-                            >
-                                <IconComponent size={32} />
-                            </button>
-                            <div className={styles.titleSection}>
-                                <input
-                                    className={styles.expandedTitleInput}
-                                    value={isEditingMetadata ? editedData.label : data.label}
-                                    onChange={(e) => setEditedData({ ...editedData, label: e.target.value })}
-                                    onFocus={() => setIsEditingMetadata(true)}
-                                    onBlur={() => {
-                                        if (isEditingMetadata) {
-                                            handleSaveMetadata();
-                                        }
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                    onMouseDownCapture={(e) => e.stopPropagation()}
-                                    placeholder="Untitled Page"
-                                />
-                            </div>
-                        </div>
-
-                        <div className={styles.metaContainer}>
-                            {/* Description */}
-                            <div className={styles.expandedDescContainer}>
-                                <textarea
-                                    className={styles.expandedDescEdit}
-                                    ref={textareaRef}
-                                    value={isEditingMetadata ? editedData.description : (data.description || '')}
-                                    onChange={(e) => {
-                                        setEditedData({ ...editedData, description: e.target.value });
-                                        e.target.style.height = 'auto'; // Reset to auto to get correct scrollHeight
-                                        e.target.style.height = e.target.scrollHeight + 'px';
-                                    }}
-                                    onFocus={() => setIsEditingMetadata(true)}
-                                    onBlur={() => {
-                                        if (isEditingMetadata) {
-                                            handleSaveMetadata();
-                                        }
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                    onMouseDownCapture={(e) => e.stopPropagation()}
-                                    rows={1}
-                                    placeholder="Add a description..."
-                                />
-                            </div>
-                        </div>
-                    </div>
+                    <NoteMetadataSection
+                        IconComponent={IconComponent}
+                        label={data.label}
+                        description={data.description || ''}
+                        editedLabel={editedData.label}
+                        editedDescription={editedData.description}
+                        isEditing={isEditingMetadata}
+                        onIconClick={handleIconClick}
+                        onLabelChange={(value) => setEditedData(prev => ({ ...prev, label: value }))}
+                        onDescriptionChange={(value, element) => {
+                            setEditedData(prev => ({ ...prev, description: value }));
+                            element.style.height = 'auto';
+                            element.style.height = element.scrollHeight + 'px';
+                        }}
+                        onFocus={() => setIsEditingMetadata(true)}
+                        onBlur={() => {
+                            if (isEditingMetadata) {
+                                handleSaveMetadata();
+                            }
+                        }}
+                    />
                 </>
             ) : (
                 /* Minimal Header (When Hidden) */
@@ -393,7 +240,6 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
                         <span className={styles.minimalTitle}>{data.label || 'Untitled'}</span>
                     </div>
 
-                    {/* Top Controls (Collapsed Mode - Integrated) */}
                     <div className={styles.controlsGroup} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
                         <button
                             className={`${styles.controlBtn} ${showMetadata ? styles.active : ''}`}
@@ -437,79 +283,35 @@ export function NoteExpandedContent({ id, data, onUpdate, contentRef, nodeId, sh
                         minimal={false}
                         onUpdate={handleContentUpdate}
                         nodeId={nodeId}
+                        selectionIslandPortalId={selectionIslandPortalId}
                     />
                 ) : (
                     <SkeletonLoader />
                 )}
             </div>
 
-
-            {/* Footer with Date (Read-Only) - Only show when metadata is visible */}
+            {/* Footer (only when metadata visible) */}
             {showMetadata && (
-                <div className={styles.expandedFooter}>
-                    {/* Left Stats */}
-                    <div className={styles.footerStats}>
-                        {stats && stats.cards > 0 && (
-                            <span className={styles.statItem} title={`${stats.cards} Nested Cards`}>
-                                <StickyNote size={14} /> {stats.cards}
-                            </span>
-                        )}
-                        {stats && stats.total > 0 && (
-                            <span className={styles.statItem} title={`${stats.total} Total Blocks`}>
-                                <Layers size={14} /> {stats.total}
-                            </span>
-                        )}
-                        {stats && stats.images > 0 && (
-                            <span className={styles.statItem} title={`${stats.images} Images`}>
-                                <ImageIcon size={14} /> {stats.images}
-                            </span>
-                        )}
-                        {stats && stats.videos > 0 && (
-                            <span className={styles.statItem} title={`${stats.videos} Videos`}>
-                                <Video size={14} /> {stats.videos}
-                            </span>
-                        )}
-                        {stats && stats.pdfs > 0 && (
-                            <span className={styles.statItem} title={`${stats.pdfs} PDFs/Files`}>
-                                <FileText size={14} /> {stats.pdfs}
-                            </span>
-                        )}
-                    </div>
-
-                    <div className={styles.footerDateBadge}>
-                        <span style={{ opacity: 0.5 }}>Created</span>
-                        <span>
-                            {new Date(data.date || new Date()).toLocaleDateString(undefined, {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric'
-                            })}
-                        </span>
-                    </div>
-                </div>
+                <NoteFooterStats content={data.content} date={data.date} />
             )}
 
             {/* Icon Picker Modal */}
-            {
-                showIconPicker && (
-                    <IconPicker
-                        currentIcon={editedData.icon}
-                        onSelect={handleIconSelect}
-                        onClose={() => setActiveIconMenuId(null)}
-                    />
-                )
-            }
+            {showIconPicker && (
+                <IconPicker
+                    currentIcon={editedData.icon}
+                    onSelect={handleIconSelect}
+                    onClose={() => setActiveIconMenuId(null)}
+                />
+            )}
 
+            {/* Cover Picker Modal */}
             {showCoverPicker && (
                 <CoverPicker
                     currentCover={data.coverImage || ''}
-                    onSelect={(url) => {
-                        onUpdate(id, { coverImage: url });
-                        setShowCoverPicker(false);
-                    }}
+                    onSelect={handleCoverSelect}
                     onClose={() => setShowCoverPicker(false)}
                 />
             )}
-        </div >
+        </div>
     );
 }

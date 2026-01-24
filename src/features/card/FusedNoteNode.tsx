@@ -378,10 +378,16 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                         nodeId={id}
                         hideBlockHandles={false}
                         disableMediaControls={true}
+                        selectionIslandPortalId={`selection-island-${id}`}
                     />
                 ) : (
                     <SkeletonLoader />
                 )}
+            </div>
+
+            {/* Selection Island Container - positioned outside card */}
+            <div id={`selection-island-${id}`} className={styles.selectionIslandContainer}>
+                {/* SelectionCapsule will render here via portal */}
             </div>
 
             {/* Resize Handle */}

@@ -532,10 +532,16 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                             nodeId={id}
                             showMetadata={showExpandedMetadata}
                             setShowMetadata={setShowExpandedMetadata}
+                            selectionIslandPortalId={`selection-island-${id}`}
                         />
                     </ErrorBoundary>
                 </div>
             )}
+
+            {/* Selection Island Container - positioned outside card */}
+            <div id={`selection-island-${id}`} className={styles.selectionIslandContainer}>
+                {/* SelectionCapsule will render here via portal */}
+            </div>
 
 
 

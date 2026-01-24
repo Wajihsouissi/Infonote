@@ -141,6 +141,22 @@
     transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
+.selectionIslandContainer {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    padding-top: 12px;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.selectionIslandContainer>* {
+    pointer-events: auto;
+}
+
 /* --- View Modes --- */
 
 /* 1. Icon View */
@@ -900,8 +916,8 @@
     position: relative;
     /* Added for controls */
 
-    /* Visual Separation */
-    background: var(--note-bg);
+    /* Visual Separation - use dynamic override or default */
+    background: var(--note-area-bg, var(--note-bg));
     /* Allow glass to show through (Dark) or Solid (Light) */
     border-top: 1px solid var(--glass-border);
 }
@@ -1160,12 +1176,12 @@
     height: 32px;
     border-radius: 50%;
 
-    /* Glassy Style */
-    background: var(--glass-bg);
+    /* Glassy Style - use CSS variables for customization */
+    background: var(--control-btn-bg, var(--glass-bg));
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--glass-border);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--control-btn-border, var(--glass-border));
+    box-shadow: var(--control-btn-shadow, 0 4px 12px rgba(0, 0, 0, 0.1));
 
     color: var(--color-text-main);
     display: flex;
@@ -1186,15 +1202,15 @@
 
 .controlBtn:hover {
     background: rgba(255, 255, 255, 0.15);
-    border-color: var(--color-primary);
+    border-color: var(--control-btn-hover-border, var(--color-primary));
     transform: scale(1.05);
-    color: white;
+    color: var(--control-btn-hover-color, var(--color-text-main));
 }
 
 .controlBtn.active {
-    background: rgba(139, 92, 246, 0.2);
-    border-color: rgba(139, 92, 246, 0.6);
-    color: #a78bfa;
+    background: var(--control-btn-active-bg, rgba(139, 92, 246, 0.2));
+    border-color: var(--control-btn-active-border, rgba(139, 92, 246, 0.6));
+    color: var(--control-btn-active-color, #a78bfa);
 }
 
 /* Minimal Header Mode */
