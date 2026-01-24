@@ -18,6 +18,7 @@ import { MetadataMenu } from '../ui/MetadataMenu';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { KanbanNodeComponent } from '../kanban/KanbanNode';
 import { CanvasOverlay } from './CanvasOverlay';
+import { DragGridOverlay } from './DragGridOverlay';
 
 // Hooks
 import {
@@ -29,7 +30,7 @@ import {
 } from './hooks';
 
 // Lazy load KanbanConfigModal
-const KanbanConfigModal = lazy(() => 
+const KanbanConfigModal = lazy(() =>
     import('../kanban/KanbanConfigModal').then(module => ({ default: module.KanbanConfigModal }))
 );
 
@@ -218,7 +219,7 @@ export function CanvasBoard() {
                     connectOnClick={false}
                     deleteKeyCode={null}
                 >
-                    <CustomGrid />
+                    <DragGridOverlay />
                     <Controls className={styles.canvasControls} />
                     <MiniMap
                         position="bottom-right"

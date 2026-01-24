@@ -26,6 +26,7 @@ import type { KanbanNode, NoteNode } from '../../types';
 import { NoteCard } from '../card/NoteCard';
 import { KanbanColumn } from './KanbanColumn';
 import styles from './KanbanNode.module.css';
+import { getStrictSize, ICON_SIZE, snapToGridValue } from '../../config/layout';
 
 const dropAnimation = {
     sideEffects: defaultDropAnimationSideEffects({
@@ -46,9 +47,12 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
     const setInteractionState = useStore(s => s.setInteractionState);
     const setKanbanModalOpen = useStore(s => s.setKanbanModalOpen);
     const setEditingKanbanId = useStore(s => s.setEditingKanbanId);
+    const interactionState = useStore(s => s.interactionState);
 
     const { setNodes, screenToFlowPosition, getIntersectingNodes, getViewport } = useReactFlow();
     const { zoom } = getViewport();
+
+    const isDraggingBoard = interactionState.draggedNodeId === id;
 
     const boardRef = useRef<HTMLDivElement>(null);
 
@@ -62,17 +66,20 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                 const newWidth = target.scrollWidth;
                 const newHeight = target.scrollHeight;
 
+                // Snap width to grid
+                const snappedWidth = getStrictSize(newWidth);
+
                 setNodes(nds => nds.map(n => {
                     if (n.id === id) {
                         const currentW = n.style?.width as number;
                         const currentH = n.style?.height as number;
 
-                        if (Math.abs(currentW - newWidth) > 5 || Math.abs(currentH - newHeight) > 5) {
+                        if (Math.abs(currentW - snappedWidth) > 5 || Math.abs(currentH - newHeight) > 5) {
                             return {
                                 ...n,
                                 style: {
                                     ...n.style,
-                                    width: newWidth,
+                                    width: snappedWidth,
                                     height: newHeight
                                 }
                             };
@@ -133,7 +140,7 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
             },
             position: { x: 0, y: 0 }
         };
-        addNode('note', newCard.position, newCard.data, { width: 112, height: 112 }, id);
+        addNode('note', newCard.position, newCard.data, { width: ICON_SIZE, height: ICON_SIZE }, id);
     }, [addNode, childNodes, id]);
 
 
@@ -289,8 +296,8 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
 
                 // 2. Check collisions for nesting
                 // Create a rect for collision check
-                const width = activeNode.style?.width as number || 112;
-                const height = activeNode.style?.height as number || 112;
+                const width = activeNode.style?.width as number || ICON_SIZE;
+                const height = activeNode.style?.height as number || ICON_SIZE;
                 const dropRect = { x: p1.x, y: p1.y, width, height };
 
                 const intersections = getIntersectingNodes(dropRect as any);
@@ -325,7 +332,10 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                     updateNode(activeIdStr, {
                         parentId: undefined,
                         extent: undefined,
-                        position: p1,
+                        position: {
+                            x: snapToGridValue(p1.x),
+                            y: snapToGridValue(p1.y)
+                        },
                         zIndex: 10
                     });
                 }
@@ -381,7 +391,7 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
 
     return (
         <div
-            className={`${styles.board} ${selected ? styles.selected : ''} ${data.background ? styles[data.background] : ''}`}
+            className={`${styles.board} ${selected ? styles.selected : ''} ${isDraggingBoard ? styles.dragging : ''} ${data.background ? styles[data.background] : ''}`}
             ref={boardRef}
             style={data.background ? {
                 background: data.background.startsWith('#') || data.background.startsWith('rgba')
@@ -431,7 +441,7 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                 <DragOverlay dropAnimation={dropAnimation} modifiers={[snapCenterToCursor]}>
                     {activeNode ? (
                         <div style={{
-                            transform: `scale(${zoom * 1.02}) rotate(2deg)`,
+                            transform: `scale(${zoom * 0.98}) rotate(2deg)`,
                             cursor: 'grabbing',
                             width: activeNode.measured?.width || activeNode.style?.width || 224,
                             transformOrigin: 'center center'

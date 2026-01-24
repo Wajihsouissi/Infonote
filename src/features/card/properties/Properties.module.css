@@ -1,0 +1,170 @@
+.propertyRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px;
+    border-radius: 4px;
+    min-height: 32px;
+    position: relative;
+    transition: background-color 0.1s ease;
+    font-size: 0.9rem;
+}
+
+.propertyRow:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+/* Icon Column */
+.iconCol {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    opacity: 0.7;
+    width: 24px;
+    flex-shrink: 0;
+}
+
+/* Label Column */
+.labelCol {
+    width: 120px;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+}
+
+/* Value Content */
+.valueCol {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    color: var(--color-text-main);
+}
+
+/* Controls (Delete/Hide) */
+.controlsCol {
+    opacity: 0;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    transition: opacity 0.1s ease;
+}
+
+.propertyRow:hover .controlsCol {
+    opacity: 1;
+}
+
+.iconBtn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.1s ease, color 0.1s ease;
+}
+
+.iconBtn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--color-text-main);
+}
+
+/* --- Specific Property Types --- */
+
+/* Clickable Value Container */
+.interactiveValue {
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: -6px;
+    /* Offset to align text properly */
+    transition: background 0.1s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.interactiveValue:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.placeholder {
+    color: var(--color-text-muted);
+    opacity: 0.6;
+    font-style: italic;
+}
+
+/* Status Badge */
+.statusBadge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--color-text-main);
+    gap: 6px;
+}
+
+/* Add Property Button */
+.addPropertyBtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 6px 4px;
+    border-radius: 4px;
+    opacity: 0.7;
+    transition: opacity 0.2s, background 0.2s;
+    margin-top: 4px;
+}
+
+.addPropertyBtn:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.03);
+}
+
+/* --- Popover / Menu --- */
+.popover {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: var(--color-bg-surface, #ffffff);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 4px;
+    z-index: 100;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.menuItem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--color-text-main);
+    transition: background 0.1s ease;
+}
+
+.menuItem:hover {
+    background: rgba(0, 0, 0, 0.05);
+}

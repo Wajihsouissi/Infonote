@@ -16,14 +16,19 @@
     min-height: 40px;
     box-sizing: border-box;
     box-sizing: border-box;
-    transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.2s cubic-bezier(0.2, 0, 0.2, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+    transition: width 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+        height 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+        background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1),
+        transform 0.15s cubic-bezier(0.2, 0, 0.2, 1),
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
     box-shadow: var(--glass-shadow);
     color: var(--color-text-main);
     will-change: transform, box-shadow, border-color;
 }
 
 .dragging {
-    transform: scale(1.01) rotate(1.5deg);
+    transform: scale(0.98) rotate(2deg);
     box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4), 0 0 0 2px var(--color-primary);
     opacity: 0.95;
     z-index: 10000 !important;
@@ -266,7 +271,7 @@
     justify-content: center;
     opacity: 0;
     transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: nwse-resize;
+    cursor: nwse-resize !important;
     z-index: 30;
     pointer-events: auto;
     transform: rotate(180deg);
@@ -277,6 +282,7 @@
     width: 60%;
     height: 60%;
     display: block;
+    pointer-events: none;
     /* Base soft glow */
     filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
     transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);

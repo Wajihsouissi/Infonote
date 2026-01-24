@@ -7,6 +7,7 @@ import {
 } from '@xyflow/react';
 import { v4 as uuidv4 } from 'uuid';
 import type { AppNode } from '../../types';
+import { MIN_FUSED_SIZE, BASE_UNIT, snapToGridValue, ICON_SIZE } from '../../config/layout';
 import { computeParentContentUpdate } from '../contentSync';
 import type { AppState, NodeSlice } from '../types';
 
@@ -374,8 +375,8 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 isStandaloneBlock: true
             } as any,
             style: {
-                width: 350,
-                height: 'auto'
+                width: MIN_FUSED_SIZE,
+                height: MIN_FUSED_SIZE
             },
             parentId: sourceNode.parentId
         };
@@ -416,9 +417,12 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             }) as AppNode[];
         }
 
-        const iconStyle = { width: 112, height: 112 };
+        const iconStyle = { width: ICON_SIZE, height: ICON_SIZE };
         const iconViewMode = 'icon';
-        const centeredPos = { x: position.x - 56, y: position.y - 56 };
+        const centeredPos = { 
+            x: snapToGridValue(position.x - ICON_SIZE / 2), 
+            y: snapToGridValue(position.y - ICON_SIZE / 2) 
+        };
 
         const existingNode = linkedNodeId ? nodesToUpdate.find(n => n.id === linkedNodeId) : null;
 
@@ -464,13 +468,16 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
     createPageFromText: (text, position) => {
         const { nodes, currentParentId } = get();
         const newId = uuidv4();
-        const pos = position || { x: 100, y: 100 };
+        const pos = position ? {
+            x: snapToGridValue(position.x),
+            y: snapToGridValue(position.y)
+        } : { x: 112, y: 112 };
 
         const newNode: AppNode = {
             id: newId,
             type: 'note',
             position: pos,
-            style: { width: 112, height: 112 },
+            style: { width: ICON_SIZE, height: ICON_SIZE },
             data: {
                 label: text || 'Untitled Page',
                 content: [],
@@ -691,8 +698,8 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 isStandaloneBlock: true
             },
             style: {
-                width: 350,
-                height: 'auto' as any
+                width: MIN_FUSED_SIZE,
+                height: MIN_FUSED_SIZE
             },
             parentId: currentParentId || undefined
         };
@@ -820,17 +827,17 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         }
 
         // Calculate base position: below existing children or default
-        let startY = 100;
-        const startX = 100;
-        const gridColumnWidth = 450;  // Increased to 450 (350 width + 100 gap)
-        const gridRowHeight = 600;    // Significantly increased to accommodate tall modules
+        let startY = BASE_UNIT * 2;
+        const startX = BASE_UNIT * 2;
+        const gridColumnWidth = BASE_UNIT * 8;  // 448px
+        const gridRowHeight = BASE_UNIT * 11;   // 616px
         const maxColumns = 5;         // Maximum 5 fused notes per row
 
         if (children.length > 0) {
             const maxY = Math.max(
                 ...children.map(c => c.position.y + ((c.style?.height as number) || 100))
             );
-            startY = maxY + 50;
+            startY = snapToGridValue(maxY + BASE_UNIT);
         }
 
         const newNodes: AppNode[] = sections.map((sectionBlocks, index) => {
@@ -847,7 +854,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 id: newNodeId,
                 type: 'fused-note',
                 position: { x, y },
-                style: { width: 350, height: 'auto' as any },
+                style: { width: MIN_FUSED_SIZE, height: MIN_FUSED_SIZE },
                 data: {
                     content: sectionBlocks,
                     isStandaloneBlock: true

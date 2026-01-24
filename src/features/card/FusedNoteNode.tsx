@@ -6,7 +6,7 @@ import { EditBar } from '../ui/EditBar';
 import { useStore } from '../../store/useStore';
 import type { Node } from '@xyflow/react';
 import styles from './FusedNoteNode.module.css';
-import { snapDimensions, MIN_EXPANDED_SIZE } from '../../config/layout';
+import { snapFusedDimensions, MIN_FUSED_SIZE, MIN_EXPANDED_SIZE } from '../../config/layout';
 import { toPastelColor, lightenColor } from '../../utils/colorUtils';
 import { SkeletonLoader } from './SkeletonLoader';
 
@@ -236,6 +236,8 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
         const startH = rect.height / zoom;
 
         activeResize.current = true;
+        document.body.style.cursor = 'nwse-resize';
+        document.body.classList.add('infonote-resizing-active');
 
         const onMouseMove = (moveEvent: MouseEvent) => {
             const deltaX = (moveEvent.clientX - startX) / zoom;
@@ -244,8 +246,8 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             const rawW = startW + deltaX;
             const rawH = startH + deltaY;
 
-            // Strict snap during drag for visual consistency
-            const { width, height } = snapDimensions(rawW, rawH);
+            // Strict step-based snapping for fused notes (4x4, 6x6, 8x8, 10x10, 12x12)
+            const { width, height } = snapFusedDimensions(rawW, rawH);
 
             // Verify change to check against props/ref
             if (nodeRef.current) {
@@ -263,6 +265,8 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
         const onMouseUp = () => {
             activeResize.current = false;
+            document.body.style.cursor = '';
+            document.body.classList.remove('infonote-resizing-active');
             window.removeEventListener('mousemove', onMouseMove);
             window.removeEventListener('mouseup', onMouseUp);
         };

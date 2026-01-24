@@ -1,4 +1,4 @@
-import { memo, useCallback, useRef, useEffect, useState } from 'react';
+import { memo, useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow } from '@xyflow/react';
 import { Scan, PanelRight, Monitor, Image as ImageIcon } from 'lucide-react';
 import styles from './NoteCard.module.css';
@@ -11,7 +11,7 @@ import { EditBar } from '../ui/EditBar';
 import { CoverPicker } from './CoverPicker';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { calculateNoteLayout, MIN_EXPANDED_SIZE, MAX_HEIGHT, MAX_WIDTH, SNAP_STEP } from '../../config/layout';
-import { toPastelColor } from '../../utils/colorUtils';
+import { toPastelColor, darkenColor } from '../../utils/colorUtils';
 
 export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<NoteNode>) => {
     const { setNodes, getViewport, deleteElements } = useReactFlow();
@@ -53,6 +53,25 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
     // Convert color to pastel for better readability
     const displayColor = data.color ? toPastelColor(data.color, theme === 'light') : undefined;
+
+    // Dynamic styles for contrast
+    const dynamicStyles = useMemo(() => {
+        if (!displayColor) return {};
+
+        // If we have a pastel background, force dark text for contrast
+        // regardless of the system theme (light/dark mode)
+        const darkText = darkenColor(displayColor, 60); // Dark text derived from bg
+        const mutedText = darkenColor(displayColor, 40); // Muted text
+        const borderColor = darkenColor(displayColor, 20);
+
+        return {
+            '--color-text-main': darkText,
+            '--color-text-muted': mutedText,
+            '--color-border': `${borderColor}40`, // 40% opacity
+            '--glass-border': `${borderColor}40`,
+            '--icon-color': darkText,
+        } as React.CSSProperties;
+    }, [displayColor]);
 
     // Editing state
     const [isEditingMetadata, setIsEditingMetadata] = useState(false);
@@ -104,7 +123,6 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     // Get the icon component
     const IconComponent = iconMap[data.icon || defaultIconName] || iconMap[defaultIconName];
 
-    // ... (keep handlers same) ...
     // Metadata editing handlers
     const handleSaveMetadata = useCallback(() => {
         updateNodeData(id, editedData);
@@ -206,8 +224,6 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                     // Check if we are already at MAX and want more -> ignore
                     if (isGrowing && currentCardHeight >= MAX_HEIGHT && targetHeight >= MAX_HEIGHT) return;
 
-                    // Debounce slightly to avoid flicker
-                    // Debounce slightly to avoid flicker
                     // Debounce slightly to avoid flicker
                     setTimeout(() => {
                         updateNode(id, {
@@ -325,6 +341,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                 // Ensure the card fills the resized node area
                 boxSizing: 'border-box',
                 backgroundColor: displayColor || undefined,
+                ...dynamicStyles
             }}
         >
             {/* custom strict resize handle */}
@@ -345,6 +362,8 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                     const startH = rect.height / zoom;
 
                     activeResize.current = true;
+                    document.body.style.cursor = 'nwse-resize';
+                    document.body.classList.add('infonote-resizing-active');
 
 
                     const onMouseMove = (moveEvent: MouseEvent) => {
@@ -381,6 +400,8 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
                     const onMouseUp = (upEvent: MouseEvent) => {
                         activeResize.current = false;
+                        document.body.style.cursor = '';
+                        document.body.classList.remove('infonote-resizing-active');
                         window.removeEventListener('mousemove', onMouseMove);
                         window.removeEventListener('mouseup', onMouseUp);
 
@@ -446,7 +467,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
             {/* View 1: Icon Mode - Icon + Text */}
             {viewMode === 'icon' && (
-                <div className={styles.iconView}>
+                <div className={styles.iconView} key="icon">
                     <button
                         className={styles.iconButton}
                         onClick={handleIconClick}
@@ -455,7 +476,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                         <IconComponent size={32} />
                     </button>
                     <input
-                        className={styles.iconTextInput}
+                        className={`${styles.iconTextInput} nodrag`}
                         value={isEditingMetadata ? editedData.label : data.label}
                         onChange={(e) => setEditedData({ ...editedData, label: e.target.value })}
                         onFocus={() => setIsEditingMetadata(true)}
@@ -473,10 +494,10 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
             {/* View 2: Medium Mode - Icon + Title Row, Description Below */}
             {viewMode === 'medium' && (
-                <div className={styles.mediumView}>
+                <div className={styles.mediumView} key="medium">
                     <div className={styles.mediumHeader}>
                         <input
-                            className={styles.mediumTitleInput}
+                            className={`${styles.mediumTitleInput} nodrag`}
                             value={isEditingMetadata ? editedData.label : data.label}
                             onChange={(e) => setEditedData({ ...editedData, label: e.target.value })}
                             onFocus={(e) => {
@@ -494,7 +515,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                         />
                     </div>
                     <textarea
-                        className={styles.mediumDescInput}
+                        className={`${styles.mediumDescInput} nodrag`}
                         value={isEditingMetadata ? editedData.description : (data.description || '')}
                         onChange={(e) => {
                             setEditedData({ ...editedData, description: e.target.value });
@@ -522,7 +543,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
             {/* View 3: Expanded Mode - Cover + Icon/Title Row + Description + Date + Note Area */}
             {viewMode === 'expanded' && (
-                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <div className={styles.expandedView} key="expanded">
                     <ErrorBoundary>
                         <NoteExpandedContent
                             id={id}

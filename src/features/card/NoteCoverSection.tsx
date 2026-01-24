@@ -3,9 +3,6 @@ import styles from './NoteCard.module.css';
 
 interface NoteCoverSectionProps {
     coverImage?: string;
-    status?: string;
-    priority?: string;
-    tags?: string[];
     showMetadata: boolean;
     setShowMetadata: (show: boolean) => void;
     onCoverClick: () => void;
@@ -13,14 +10,11 @@ interface NoteCoverSectionProps {
 }
 
 /**
- * Cover image section with metadata chips overlay.
- * Displays cover image, status/priority/tags chips, and view controls.
+ * Cover image section.
+ * Displays cover image and view controls.
  */
 export function NoteCoverSection({
     coverImage,
-    status,
-    priority,
-    tags,
     showMetadata,
     setShowMetadata,
     onCoverClick,
@@ -39,24 +33,8 @@ export function NoteCoverSection({
                 </div>
             )}
 
-            {/* Cover Metadata Chips (Top Right) */}
+            {/* Controls Overlay (Top Right) */}
             <div className={styles.coverMetadataOverlay}>
-                {status && (
-                    <span className={styles.metaChip} onClick={(e) => e.stopPropagation()}>
-                        {status}
-                    </span>
-                )}
-                {priority && (
-                    <span className={`${styles.metaChip} ${styles.blue}`} onClick={(e) => e.stopPropagation()}>
-                        {priority}
-                    </span>
-                )}
-                {tags && tags.map(tag => (
-                    <span key={tag} className={`${styles.metaChip} ${styles.purple}`} onClick={(e) => e.stopPropagation()}>
-                        {tag}
-                    </span>
-                ))}
-
                 {/* Top Controls */}
                 <div className={styles.controlsGroup} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
                     <button

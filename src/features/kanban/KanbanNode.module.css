@@ -10,11 +10,19 @@
     display: flex;
     flex-direction: column;
     box-shadow: var(--glass-shadow);
-    transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.2, 0, 0.2, 1);
     /* Ensure dragged items can be seen if they overflow initial bounds */
     overflow: visible;
     height: auto;
     width: fit-content;
+    will-change: transform, box-shadow;
+}
+
+.dragging {
+    transform: scale(0.98) rotate(1deg); /* Less rotation for large board */
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), 0 0 0 2px var(--color-primary);
+    opacity: 0.95;
+    z-index: 10000 !important;
 }
 
 .dots {

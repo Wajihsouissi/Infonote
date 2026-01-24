@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useReactFlow } from '@xyflow/react';
+import { BASE_UNIT, snapToGridValue } from '../../../config/layout';
 import type { AppNode } from '../../../types';
 
 interface UseCanvasNodeDragOptions {
@@ -47,11 +48,7 @@ export function useCanvasNodeDrag({
     }, [setInteractionState, setNodes]);
 
     const onNodeDrag = useCallback((event: React.MouseEvent, node: any) => {
-        // Throttle to ~30fps for smoother feedback
-        const now = Date.now();
-        if (now - lastDragCheck.current < 32) return;
-        lastDragCheck.current = now;
-
+        // Remove throttle for smoother grid response
         const mousePos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
         const mouseRect = { x: mousePos.x - 1, y: mousePos.y - 1, width: 2, height: 2 };
         const intersections = getIntersectingNodes(mouseRect as any);
@@ -165,13 +162,39 @@ export function useCanvasNodeDrag({
         });
         document.body.classList.remove('infonote-node-dragging');
 
-        const restoreNodeZIndex = () => {
+        // Snap final position to absolute grid for perfect alignment across nesting levels
+        const snapFinalPosition = () => {
             setNodes(nds => nds.map(n => {
                 if (n.id === node.id) {
-                    return { ...n, zIndex: 10 };
+                    const abs = (n as any).positionAbsolute || n.position;
+                    const snappedAbsX = snapToGridValue(abs.x);
+                    const snappedAbsY = snapToGridValue(abs.y);
+                    
+                    // If nested, convert snapped absolute back to relative
+                    let newPos = { x: snappedAbsX, y: snappedAbsY };
+                    if (n.parentId) {
+                        const parent = nds.find(p => p.id === n.parentId);
+                        if (parent) {
+                            const parentAbs = (parent as any).positionAbsolute || parent.position;
+                            newPos = {
+                                x: snappedAbsX - parentAbs.x,
+                                y: snappedAbsY - parentAbs.y
+                            };
+                        }
+                    }
+
+                    return {
+                        ...n,
+                        zIndex: 10,
+                        position: newPos
+                    };
                 }
                 return n;
             }));
+        };
+
+        const restoreNodeZIndex = () => {
+            snapFinalPosition();
         };
 
         const isSourceBlock = node.type === 'block';
@@ -188,9 +211,13 @@ export function useCanvasNodeDrag({
             const parentNode = getNode(node.parentId);
 
             if (parentNode) {
+                // Calculate absolute position and snap to grid
+                const rawX = parentNode.position.x + node.position.x;
+                const rawY = parentNode.position.y + node.position.y;
+                
                 const absPos = {
-                    x: parentNode.position.x + node.position.x,
-                    y: parentNode.position.y + node.position.y
+                    x: Math.round(rawX / BASE_UNIT) * BASE_UNIT,
+                    y: Math.round(rawY / BASE_UNIT) * BASE_UNIT
                 };
 
                 setNodes(nds => nds.map(n => {
@@ -376,12 +403,13 @@ function handleKanbanDrop(targetNode: any, node: any, nodes: AppNode[], setNodes
     }
 
     const colXOffset = 24 + (colIndex * (visualColWidth + 20));
-    const centeredX = colXOffset + (visualColWidth - targetWidth) / 2;
+    // Grid alignment for kanban items
+    const centeredX = snapToGridValue(colXOffset + (visualColWidth - targetWidth) / 2);
 
     let nextY = HEADER_OFFSET;
     if (lastSibling) {
         const lastSiblingH = (lastSibling.style?.height as number) || 112;
-        nextY = lastSibling.position.y + lastSiblingH + GAP;
+        nextY = snapToGridValue(lastSibling.position.y + lastSiblingH + GAP);
     }
 
     setNodes((nds: AppNode[]) => nds.map((n: AppNode) => {

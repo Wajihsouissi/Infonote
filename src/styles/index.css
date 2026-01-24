@@ -200,3 +200,10 @@ body {
 .infonote-node-dragging * {
   cursor: grabbing !important;
 }
+
+/* Global override for resizing nodes */
+.infonote-resizing-active,
+.infonote-resizing-active * {
+  cursor: nwse-resize !important;
+  transition: none !important;
+}

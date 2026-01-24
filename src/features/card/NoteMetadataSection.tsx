@@ -53,7 +53,7 @@ export function NoteMetadataSection({
                 </button>
                 <div className={styles.titleSection}>
                     <input
-                        className={styles.expandedTitleInput}
+                        className={`${styles.expandedTitleInput} nodrag`}
                         value={isEditing ? editedLabel : label}
                         onChange={(e) => onLabelChange(e.target.value)}
                         onFocus={onFocus}
@@ -69,7 +69,7 @@ export function NoteMetadataSection({
                 {/* Description */}
                 <div className={styles.expandedDescContainer}>
                     <textarea
-                        className={styles.expandedDescEdit}
+                        className={`${styles.expandedDescEdit} nodrag`}
                         ref={textareaRef}
                         value={isEditing ? editedDescription : (description || '')}
                         onChange={(e) => {

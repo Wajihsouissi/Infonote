@@ -16,6 +16,7 @@ import { useNoteMetadata, useLazyRender } from './hooks';
 import { NoteCoverSection } from './NoteCoverSection';
 import { NoteMetadataSection } from './NoteMetadataSection';
 import { NoteFooterStats } from './NoteFooterStats';
+import { NotePropertiesPanel } from './properties/NotePropertiesPanel';
 
 interface NoteExpandedContentProps {
     id: string;
@@ -41,7 +42,7 @@ export function NoteExpandedContent({
     selectionIslandPortalId
 }: NoteExpandedContentProps) {
     // Internal state for when props are not provided
-    const [localShowMetadata, setLocalShowMetadata] = useState(false);
+    const [localShowMetadata, setLocalShowMetadata] = useState(true);
     const showMetadata = propShowMetadata ?? localShowMetadata;
     const setShowMetadata = propSetShowMetadata ?? setLocalShowMetadata;
 
@@ -197,19 +198,17 @@ export function NoteExpandedContent({
         >
             {showMetadata ? (
                 <>
+
                     {/* Cover Section */}
                     <NoteCoverSection
                         coverImage={data.coverImage}
-                        status={data.status}
-                        priority={data.priority}
-                        tags={data.tags}
                         showMetadata={showMetadata}
                         setShowMetadata={setShowMetadata}
                         onCoverClick={() => setShowCoverPicker(true)}
                         onClose={onClose}
                     />
 
-                    {/* Metadata Section */}
+                    {/* Metadata Section (Icon + Title + Desc) */}
                     <NoteMetadataSection
                         IconComponent={IconComponent}
                         label={data.label}
@@ -231,13 +230,34 @@ export function NoteExpandedContent({
                             }
                         }}
                     />
+
+                    {/* NEW: Properties Panel */}
+                    <NotePropertiesPanel
+                        data={data}
+                        onUpdate={(updates) => onUpdate(id, updates)}
+                    />
                 </>
             ) : (
                 /* Minimal Header (When Hidden) */
                 <div className={styles.minimalHeader} style={headerStyle}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
                         <IconComponent size={20} />
-                        <span className={styles.minimalTitle}>{data.label || 'Untitled'}</span>
+                        <input
+                            type="text"
+                            value={editedData.label}
+                            onChange={(e) => setEditedData(prev => ({ ...prev, label: e.target.value }))}
+                            onBlur={handleSaveMetadata}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.currentTarget.blur();
+                                }
+                            }}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
+                            className={`${styles.minimalTitleInput} nodrag`}
+                            placeholder="Untitled"
+                        />
                     </div>
 
                     <div className={styles.controlsGroup} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
