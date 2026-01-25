@@ -20,7 +20,8 @@ export type NoteData = {
     url?: string;
     color?: string;
     order?: number; // Kanban order
-
+    progress?: number; // 0-100 completion percentage
+    subtasks?: { id: string; text: string; completed: boolean }[]; // Checklist items
 
     // Auto
     createdAt?: string;
@@ -70,6 +71,9 @@ export type KanbanNodeData = {
     label: string; // Board Name
     columns: KanbanColumn[];
     background?: string;
+    swimlaneField?: 'assignee' | 'category' | 'priority' | null;
+    sortBy?: 'dueDate' | 'priority' | 'createdAt' | 'label' | null;
+    sortDirection?: 'asc' | 'desc';
 };
 
 export type KanbanNode = Node<KanbanNodeData, 'kanban'> & { parentId?: string | null };

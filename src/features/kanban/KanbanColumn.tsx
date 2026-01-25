@@ -11,15 +11,17 @@ interface KanbanColumnProps {
     cards: NoteNode[];
     onAddCard?: (e: React.MouseEvent, columnId: string, statusValue: string) => void;
     onToggleCollapse: (columnId: string) => void;
+    onCardClick?: (node: NoteNode) => void;
+    onCardDoubleClick?: (node: NoteNode) => void;
     kanbanId: string;
 }
 
-export const KanbanColumn = ({ column, cards, onAddCard, onToggleCollapse, kanbanId }: KanbanColumnProps) => {
+export const KanbanColumn = ({ column, cards, onAddCard, onToggleCollapse, onCardClick, onCardDoubleClick, kanbanId }: KanbanColumnProps) => {
     const interactionState = useStore(s => s.interactionState);
-    
+
     // Check if this specific column is being hovered from canvas drag
-    const isHoveredFromCanvas = interactionState.hoveredKanbanColumn?.kanbanId === kanbanId && 
-                               interactionState.hoveredKanbanColumn?.columnId === column.statusValue;
+    const isHoveredFromCanvas = interactionState.hoveredKanbanColumn?.kanbanId === kanbanId &&
+        interactionState.hoveredKanbanColumn?.columnId === column.statusValue;
 
     // We make the column itself droppable so we can drop items into empty columns
     const { setNodeRef, isOver } = useDroppable({
@@ -92,7 +94,11 @@ export const KanbanColumn = ({ column, cards, onAddCard, onToggleCollapse, kanba
                     <div className={styles.dropZone}>
                         {cards.map((card) => (
                             <div key={card.id} className={styles.cardWrapper}>
-                                <SortableCard node={card} style={{ height: card.style?.height ?? 112 }} />
+                                <SortableCard
+                                    node={card}
+                                    onCardClick={onCardClick}
+                                    onCardDoubleClick={onCardDoubleClick}
+                                />
                             </div>
                         ))}
                     </div>
@@ -101,3 +107,4 @@ export const KanbanColumn = ({ column, cards, onAddCard, onToggleCollapse, kanba
         </div>
     );
 };
+

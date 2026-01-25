@@ -1,0 +1,209 @@
+.card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 12px;
+    cursor: pointer;
+    /* Only animate visual properties, NOT transform (dnd-kit handles that) */
+    transition: box-shadow 150ms ease, border-color 150ms ease, opacity 150ms ease;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 60px;
+}
+
+.card:hover {
+    border-color: rgba(139, 92, 246, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Dragging state for overlay */
+.dragging {
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35), 0 0 0 2px var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+/* Status Row */
+.statusRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.statusBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.priorityBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.65rem;
+    font-weight: 500;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.subtaskBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.65rem;
+    font-weight: 500;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(139, 92, 246, 0.15);
+    color: #8b5cf6;
+}
+
+.subtaskComplete {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+/* Title Row */
+.titleRow {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    justify-content: space-between;
+}
+
+.title {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--color-text-main);
+    line-height: 1.4;
+    flex: 1;
+    word-break: break-word;
+}
+
+.titleInput {
+    background: transparent;
+    border: 1px solid var(--color-primary);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--color-text-main);
+    width: 100%;
+    outline: none;
+}
+
+/* Priority Dot */
+.priorityDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 6px;
+}
+
+/* Description */
+.description {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    line-height: 1.4;
+    margin: 0;
+    opacity: 0.8;
+}
+
+/* Progress Bar */
+.progressContainer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.progressBar {
+    flex: 1;
+    height: 4px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progressFill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease, background 0.3s ease;
+}
+
+.progressText {
+    font-size: 0.7rem;
+    font-weight: 600;
+    min-width: 32px;
+    text-align: right;
+}
+
+/* Metadata Row */
+.metaRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: auto;
+}
+
+/* Due Date Badge */
+.dueDateBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(107, 114, 128, 0.15);
+    color: #6b7280;
+}
+
+.dueDateBadge.overdue {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.dueDateBadge.today {
+    background: rgba(249, 115, 22, 0.15);
+    color: #f97316;
+}
+
+.dueDateBadge.soon {
+    background: rgba(234, 179, 8, 0.15);
+    color: #eab308;
+}
+
+.dueDateBadge.upcoming {
+    background: rgba(139, 92, 246, 0.15);
+    color: #8b5cf6;
+}
+
+.dueDateBadge.normal {
+    background: rgba(107, 114, 128, 0.1);
+    color: #6b7280;
+}
+
+/* Assignee Avatar */
+.assigneeAvatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #8b5cf6, #6366f1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: #fff;
+    flex-shrink: 0;
+}

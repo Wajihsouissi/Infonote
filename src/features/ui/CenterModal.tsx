@@ -9,11 +9,18 @@ export function CenterModal() {
     const centerPanelId = useStore(s => s.centerPanelId);
     const setCenterPanelId = useStore(s => s.setCenterPanelId);
     const updateNodeData = useStore(s => s.updateNodeData);
+    const navigateToNode = useStore(s => s.navigateToNode);
 
     if (!centerPanelId) return null;
 
     const activeNode = nodes.find(n => n.id === centerPanelId);
     if (!activeNode) return null;
+
+    const handleNavigate = () => {
+        // Close the modal and navigate to the card's nested canvas
+        setCenterPanelId(null);
+        navigateToNode(centerPanelId);
+    };
 
     return (
         <div
@@ -36,6 +43,7 @@ export function CenterModal() {
                             data={activeNode.data as any}
                             onUpdate={updateNodeData}
                             onClose={() => setCenterPanelId(null)}
+                            onNavigate={handleNavigate}
                         />
                     ) : (
                         <div className={styles.editorContainer}>

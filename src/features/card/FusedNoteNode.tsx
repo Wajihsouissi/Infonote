@@ -6,9 +6,8 @@ import { EditBar } from '../ui/EditBar';
 import { useStore } from '../../store/useStore';
 import type { Node } from '@xyflow/react';
 import styles from './FusedNoteNode.module.css';
-import { snapFusedDimensions, MIN_FUSED_SIZE, MIN_EXPANDED_SIZE } from '../../config/layout';
+import { snapFusedDimensions, MIN_EXPANDED_SIZE } from '../../config/layout';
 import { toPastelColor, lightenColor } from '../../utils/colorUtils';
-import { SkeletonLoader } from './SkeletonLoader';
 
 export type FusedNoteNodeData = {
     content: any[];
@@ -48,40 +47,6 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     const contentRef = useRef<HTMLDivElement>(null);
     const nodeRef = useRef<HTMLDivElement>(null);
     const activeResize = useRef(false);
-
-    // CRITICAL: Lazy render - only render content when visible
-    const [hasRendered, setHasRendered] = useState(false);
-    const observerRef = useRef<IntersectionObserver | null>(null);
-
-    useEffect(() => {
-        if (isDragging && !hasRendered) {
-            setHasRendered(true);
-        }
-    }, [isDragging, hasRendered]);
-
-    useEffect(() => {
-        if (!nodeRef.current) return;
-
-        // Intersection observer for lazy rendering
-        observerRef.current = new IntersectionObserver(
-            (entries) => {
-                entries.forEach((entry) => {
-                    if (entry.isIntersecting && !hasRendered) {
-                        setHasRendered(true);
-                    }
-                });
-            },
-            { rootMargin: '500px' } // Pre-render 500px before entering viewport
-        );
-
-        observerRef.current.observe(nodeRef.current);
-
-        return () => {
-            if (observerRef.current) {
-                observerRef.current.disconnect();
-            }
-        };
-    }, [hasRendered]);
 
     const isMultiSelected = selectedCanvasNodeIds.has(id);
 
@@ -323,9 +288,6 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
         updateNodeData(id, { content: blocks });
     }, [id, updateNodeData]);
 
-    // Force render content if dragging to ensure it doesn't disappear
-    const shouldRenderContent = hasRendered || isDragging;
-
     return (
         <div
             className={`
@@ -382,20 +344,16 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             </button>
 
             <div className={`${styles.content} nodrag`} ref={contentRef}>
-                {shouldRenderContent ? (
-                    <BlockEditor
-                        initialContent={data.content}
-                        readOnly={false}
-                        minimal={false}
-                        onUpdate={handleContentUpdate}
-                        nodeId={id}
-                        hideBlockHandles={false}
-                        disableMediaControls={true}
-                        selectionIslandPortalId={`selection-island-${id}`}
-                    />
-                ) : (
-                    <SkeletonLoader />
-                )}
+                <BlockEditor
+                    initialContent={data.content}
+                    readOnly={false}
+                    minimal={false}
+                    onUpdate={handleContentUpdate}
+                    nodeId={id}
+                    hideBlockHandles={false}
+                    disableMediaControls={true}
+                    selectionIslandPortalId={`selection-island-${id}`}
+                />
             </div>
 
             {/* Selection Island Container - positioned outside card */}

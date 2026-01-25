@@ -23,16 +23,19 @@ import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 
 import { useStore } from '../../store/useStore';
 import type { KanbanNode, NoteNode } from '../../types';
-import { NoteCard } from '../card/NoteCard';
+import { KanbanCardPreview } from './KanbanCardPreview';
 import { KanbanColumn } from './KanbanColumn';
+import { KanbanToolbar } from './KanbanToolbar';
 import styles from './KanbanNode.module.css';
 import { getStrictSize, ICON_SIZE, snapToGridValue } from '../../config/layout';
 
 const dropAnimation = {
+    duration: 200,
+    easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
     sideEffects: defaultDropAnimationSideEffects({
         styles: {
             active: {
-                opacity: '0.5',
+                opacity: '0',
             },
         },
     }),
@@ -47,14 +50,55 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
     const setInteractionState = useStore(s => s.setInteractionState);
     const setKanbanModalOpen = useStore(s => s.setKanbanModalOpen);
     const setEditingKanbanId = useStore(s => s.setEditingKanbanId);
+    const setCenterPanelId = useStore(s => s.setCenterPanelId);
     const interactionState = useStore(s => s.interactionState);
 
-    const { setNodes, screenToFlowPosition, getIntersectingNodes, getViewport } = useReactFlow();
-    const { zoom } = getViewport();
+    const { setNodes, screenToFlowPosition, getIntersectingNodes } = useReactFlow();
 
     const isDraggingBoard = interactionState.draggedNodeId === id;
 
     const boardRef = useRef<HTMLDivElement>(null);
+
+    // --- FILTER STATE ---
+    const [searchQuery, setSearchQuery] = useState('');
+    const [priorityFilter, setPriorityFilter] = useState<string[]>([]);
+    const [assigneeFilter, setAssigneeFilter] = useState('');
+
+    // --- SORT STATE ---
+    type SortField = 'dueDate' | 'priority' | 'createdAt' | 'label' | null;
+    type SortDirection = 'asc' | 'desc';
+    const [sortBy, setSortBy] = useState<SortField>(data.sortBy || null);
+    const [sortDirection, setSortDirection] = useState<SortDirection>(data.sortDirection || 'asc');
+
+    const handleSortChange = useCallback((field: SortField, direction: SortDirection) => {
+        setSortBy(field);
+        setSortDirection(direction);
+        // Persist to node data
+        updateNodeData(id, { sortBy: field, sortDirection: direction });
+    }, [id, updateNodeData]);
+
+    // --- SWIMLANE STATE ---
+    type SwimlaneField = 'assignee' | 'category' | 'priority' | null;
+    const [swimlaneField, setSwimlaneField] = useState<SwimlaneField>(data.swimlaneField || null);
+
+    const handleSwimlaneChange = useCallback((field: SwimlaneField) => {
+        setSwimlaneField(field);
+        // Persist to node data
+        updateNodeData(id, { swimlaneField: field });
+    }, [id, updateNodeData]);
+
+    const hasActiveFilters = searchQuery.length > 0 || priorityFilter.length > 0 || assigneeFilter.length > 0;
+
+    const clearFilters = useCallback(() => {
+        setSearchQuery('');
+        setPriorityFilter([]);
+        setAssigneeFilter('');
+    }, []);
+
+    // Open card in center peek
+    const handleCardClick = useCallback((node: NoteNode) => {
+        setCenterPanelId(node.id);
+    }, [setCenterPanelId]);
 
     // --- AUTO RESIZE LOGIC ---
     useEffect(() => {
@@ -96,7 +140,7 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
 
 
     // 1. Filter and Sort Children
-    const childNodes = useMemo(() => {
+    const allChildNodes = useMemo(() => {
         const children = nodes.filter(n => n.parentId === id && n.type === 'note') as NoteNode[];
         return children.sort((a, b) => {
             const orderA = a.data.order ?? 0;
@@ -104,6 +148,36 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
             return orderA - orderB;
         });
     }, [nodes, id]);
+
+    // Apply filters
+    const childNodes = useMemo(() => {
+        return allChildNodes.filter(node => {
+            // Search filter
+            if (searchQuery) {
+                const query = searchQuery.toLowerCase();
+                const matchesLabel = node.data.label?.toLowerCase().includes(query);
+                const matchesDescription = node.data.description?.toLowerCase().includes(query);
+                if (!matchesLabel && !matchesDescription) return false;
+            }
+
+            // Priority filter
+            if (priorityFilter.length > 0) {
+                if (!node.data.priority || !priorityFilter.includes(node.data.priority)) {
+                    return false;
+                }
+            }
+
+            // Assignee filter
+            if (assigneeFilter) {
+                const filter = assigneeFilter.toLowerCase();
+                if (!node.data.assignee?.toLowerCase().includes(filter)) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+    }, [allChildNodes, searchQuery, priorityFilter, assigneeFilter]);
 
     // 2. Group by Column
     const columnsData = useMemo(() => {
@@ -122,8 +196,45 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                 }
             }
         });
+
+        // Sort cards within each column
+        if (sortBy) {
+            const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
+
+            Object.keys(map).forEach(status => {
+                map[status].sort((a, b) => {
+                    let aVal: any, bVal: any;
+
+                    switch (sortBy) {
+                        case 'dueDate':
+                            aVal = a.data.dueDate ? new Date(a.data.dueDate).getTime() : Infinity;
+                            bVal = b.data.dueDate ? new Date(b.data.dueDate).getTime() : Infinity;
+                            break;
+                        case 'priority':
+                            aVal = priorityOrder[a.data.priority as keyof typeof priorityOrder] || 0;
+                            bVal = priorityOrder[b.data.priority as keyof typeof priorityOrder] || 0;
+                            break;
+                        case 'createdAt':
+                            aVal = a.data.createdAt ? new Date(a.data.createdAt).getTime() : 0;
+                            bVal = b.data.createdAt ? new Date(b.data.createdAt).getTime() : 0;
+                            break;
+                        case 'label':
+                            aVal = a.data.label?.toLowerCase() || '';
+                            bVal = b.data.label?.toLowerCase() || '';
+                            break;
+                        default:
+                            return 0;
+                    }
+
+                    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+                    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+                    return 0;
+                });
+            });
+        }
+
         return map;
-    }, [childNodes, data.columns]);
+    }, [data.columns, childNodes, sortBy, sortDirection]);
 
     const handleAddCard = useCallback((e: React.MouseEvent, _columnId: string, statusValue: string) => {
         e.stopPropagation();
@@ -149,6 +260,19 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
     const customCollisionDetection: CollisionDetection = useCallback((args) => {
         const pointerCollisions = pointerWithin(args);
 
+        // First check: is the pointer outside the board?
+        // If so, return empty to trigger eject
+        if (boardRef.current && args.pointerCoordinates) {
+            const boardRect = boardRef.current.getBoundingClientRect();
+            const { x, y } = args.pointerCoordinates;
+
+            // Check if pointer is outside board bounds
+            if (x < boardRect.left || x > boardRect.right || y < boardRect.top || y > boardRect.bottom) {
+                // Outside board - return empty to trigger eject
+                return [];
+            }
+        }
+
         // Priority 1: Check if we are over a column directly using pointer
         const columnCollision = pointerCollisions.find(c =>
             data.columns.some(col => col.statusValue === c.id)
@@ -168,7 +292,7 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
             return [cardCollision];
         }
 
-        // Fallback
+        // Fallback to closest corners only if inside board
         return closestCorners(args);
     }, [data.columns, childNodes]);
 
@@ -210,29 +334,43 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
         })
     );
 
-    // --- Custom Modifiers ---
-    const snapCenterToCursor: Modifier = useCallback(({ activatorEvent, draggingNodeRect, transform }) => {
-        if (draggingNodeRect && activatorEvent && (activatorEvent as any).clientX !== undefined) {
-            const evt = activatorEvent as any;
-
-            return {
-                ...transform,
-                x: evt.clientX - draggingNodeRect.left - (draggingNodeRect.width / 2),
-                y: evt.clientY - draggingNodeRect.top - (draggingNodeRect.height / 2),
-            };
-        }
-        return transform;
-    }, [zoom]);
-
     const [activeId, setActiveId] = useState<string | null>(null);
+    const [isOutsideBoard, setIsOutsideBoard] = useState(false);
+
+    // Modifier: Adjust overlay position so click point stays under cursor
+    const adjustOffset: Modifier = useCallback(({ transform, activatorEvent, draggingNodeRect }) => {
+        if (!activatorEvent || !draggingNodeRect) return transform;
+
+        const event = activatorEvent as PointerEvent;
+        if (!event.clientX) return transform;
+
+        // Calculate where in the element the click happened
+        const offsetX = event.clientX - draggingNodeRect.left;
+        const offsetY = event.clientY - draggingNodeRect.top;
+
+        // The overlay starts at position 0,0 relative to the original element
+        // We need to shift it so the click point is at the cursor
+        return {
+            ...transform,
+            x: transform.x - (draggingNodeRect.width / 2 - offsetX),
+            y: transform.y - (draggingNodeRect.height / 2 - offsetY),
+        };
+    }, []);
 
     const handleDragStart = useCallback((event: DragStartEvent) => {
-        setActiveId(event.active.id as string);
-        setInteractionState({ draggingKanbanNodeId: event.active.id as string });
+        const { active } = event;
+        setActiveId(active.id as string);
+        setIsOutsideBoard(false);
+        setInteractionState({ draggingKanbanNodeId: active.id as string });
     }, [setInteractionState]);
 
     const handleDragOver = useCallback((event: DragOverEvent) => {
         const { active, over } = event;
+
+        // Update outside board state based on collision detection result
+        // If over is null, it means collision detection returned empty (outside board)
+        setIsOutsideBoard(!over);
+
         if (!over) return;
 
         const activeIdStr = active.id as string;
@@ -269,6 +407,7 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
         const activeNode = childNodes.find(n => n.id === activeIdStr);
 
         setActiveId(null);
+        setIsOutsideBoard(false);
         setInteractionState({ draggingKanbanNodeId: null });
 
         if (!activeNode) return;
@@ -403,7 +542,7 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
             <div className={styles.header}>
                 <h3 className={styles.title}>{data.label}</h3>
                 <div className={styles.columnCount}>
-                    {data.columns.length} columns
+                    {childNodes.length} / {allChildNodes.length} cards
                 </div>
                 <button
                     className="nodrag"
@@ -416,6 +555,25 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                 >
                     <Settings size={16} />
                 </button>
+            </div>
+
+            {/* Toolbar */}
+            <div className="nodrag">
+                <KanbanToolbar
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    priorityFilter={priorityFilter}
+                    onPriorityFilterChange={setPriorityFilter}
+                    assigneeFilter={assigneeFilter}
+                    onAssigneeFilterChange={setAssigneeFilter}
+                    onClearFilters={clearFilters}
+                    hasActiveFilters={hasActiveFilters}
+                    sortBy={sortBy}
+                    sortDirection={sortDirection}
+                    onSortChange={handleSortChange}
+                    swimlaneField={swimlaneField}
+                    onSwimlaneChange={handleSwimlaneChange}
+                />
             </div>
 
             <DndContext
@@ -434,30 +592,23 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                             cards={columnsData[col.statusValue] || []}
                             onAddCard={handleAddCard}
                             onToggleCollapse={handleToggleColumn}
+                            onCardClick={handleCardClick}
                         />
                     ))}
                 </div>
 
-                <DragOverlay dropAnimation={dropAnimation} modifiers={[snapCenterToCursor]}>
+                <DragOverlay dropAnimation={dropAnimation} modifiers={[adjustOffset]}>
                     {activeNode ? (
-                        <div style={{
-                            transform: `scale(${zoom * 0.98}) rotate(2deg)`,
-                            cursor: 'grabbing',
-                            width: activeNode.measured?.width || activeNode.style?.width || 224,
-                            transformOrigin: 'center center'
-                        }}>
-                            <NoteCard
-                                {...activeNode}
-                                selected={false}
-                                dragging={true}
-                                zIndex={100}
-                                isConnectable={false}
-                                selectable={false}
-                                deletable={false}
-                                draggable={false}
-                                positionAbsoluteX={0}
-                                positionAbsoluteY={0}
+                        <div className={styles.dragOverlayCard} data-ejecting={isOutsideBoard || undefined}>
+                            <KanbanCardPreview
+                                node={activeNode}
+                                isDragging={true}
                             />
+                            {isOutsideBoard && (
+                                <div className={styles.ejectBadge}>
+                                    ↗
+                                </div>
+                            )}
                         </div>
                     ) : null}
                 </DragOverlay>

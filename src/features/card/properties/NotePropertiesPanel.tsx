@@ -3,6 +3,10 @@ import type { NoteData } from '../../../types';
 import { StatusProperty } from './StatusProperty';
 import { DateProperty } from './DateProperty';
 import { UrlProperty } from './UrlProperty';
+import { PriorityProperty } from './PriorityProperty';
+import { AssigneeProperty } from './AssigneeProperty';
+import { ProgressProperty } from './ProgressProperty';
+import { SubtaskProperty } from './SubtaskProperty';
 import { AddPropertyMenu, getPropertyIcon } from './AddPropertyMenu';
 import styles from './Properties.module.css';
 
@@ -16,9 +20,12 @@ export function NotePropertiesPanel({ data, onUpdate }: NotePropertiesPanelProps
     // "key" must match fields in NoteData
     const allProperties = [
         { key: 'status', label: 'Status' },
+        { key: 'priority', label: 'Priority' },
         { key: 'dueDate', label: 'Due Date' },
+        { key: 'assignee', label: 'Assignee' },
+        { key: 'progress', label: 'Progress' },
+        { key: 'subtasks', label: 'Subtasks' },
         { key: 'url', label: 'URL' },
-        // { key: 'assignee', label: 'Assignee' }, // Future
     ] as const;
 
     // A property is visible if it has a value OR if we want to default-show it.
@@ -38,6 +45,9 @@ export function NotePropertiesPanel({ data, onUpdate }: NotePropertiesPanelProps
         // Initialize with default value to make it visible
         let defaultVal: any = '';
         if (key === 'status') defaultVal = 'todo';
+        if (key === 'priority') defaultVal = 'medium';
+        if (key === 'progress') defaultVal = 0;
+        if (key === 'subtasks') defaultVal = [];
 
         onUpdate({ [key]: defaultVal });
     };
@@ -68,11 +78,42 @@ export function NotePropertiesPanel({ data, onUpdate }: NotePropertiesPanelProps
                 />
             )}
 
+            {isVisible('priority') && (
+                <PriorityProperty
+                    value={data.priority}
+                    onChange={(v) => handleChange('priority', v)}
+                    onHide={() => handleHide('priority')}
+                />
+            )}
+
             {isVisible('dueDate') && (
                 <DateProperty
                     value={data.dueDate}
                     onChange={(v) => handleChange('dueDate', v)}
                     onHide={() => handleHide('dueDate')}
+                />
+            )}
+
+            {isVisible('assignee') && (
+                <AssigneeProperty
+                    value={data.assignee}
+                    onChange={(v) => handleChange('assignee', v)}
+                    onHide={() => handleHide('assignee')}
+                />
+            )}
+
+            {isVisible('progress') && (
+                <ProgressProperty
+                    value={data.progress}
+                    onChange={(v) => handleChange('progress', v)}
+                    onHide={() => handleHide('progress')}
+                />
+            )}
+
+            {isVisible('subtasks') && (
+                <SubtaskProperty
+                    subtasks={data.subtasks || []}
+                    onChange={(v) => handleChange('subtasks', v)}
                 />
             )}
 
@@ -92,3 +133,4 @@ export function NotePropertiesPanel({ data, onUpdate }: NotePropertiesPanelProps
         </div>
     );
 }
+

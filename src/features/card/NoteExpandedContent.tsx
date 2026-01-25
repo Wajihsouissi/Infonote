@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Eye, X } from 'lucide-react';
+import { Eye, X, ExternalLink } from 'lucide-react';
 import styles from './NoteCard.module.css';
 import { BlockEditor } from '../editor/BlockEditor';
 import { IconPicker } from './IconPicker';
@@ -25,6 +25,7 @@ interface NoteExpandedContentProps {
     contentRef?: React.RefObject<HTMLDivElement | null>;
     nodeId?: string;
     onClose?: () => void;
+    onNavigate?: () => void; // Navigate to nested canvas
     selectionIslandPortalId?: string; // Portal target for selection island
 }
 
@@ -35,6 +36,7 @@ export function NoteExpandedContent({
     contentRef,
     nodeId,
     onClose,
+    onNavigate,
     selectionIslandPortalId
 }: NoteExpandedContentProps) {
     // Use data state (persistent) or fallback to true
@@ -269,6 +271,18 @@ export function NoteExpandedContent({
                         >
                             <Eye size={20} />
                         </button>
+                        {onNavigate && (
+                            <button
+                                className={styles.controlBtn}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onNavigate();
+                                }}
+                                title="Open Canvas"
+                            >
+                                <ExternalLink size={20} />
+                            </button>
+                        )}
                         {onClose && (
                             <button
                                 className={styles.controlBtn}
