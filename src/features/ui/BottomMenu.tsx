@@ -9,7 +9,8 @@ import {
     Tag,
     Calendar,
     Flag,
-    CheckCircle
+    CheckCircle,
+    Table2
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useReactFlow } from '@xyflow/react';
@@ -425,6 +426,48 @@ export function BottomMenu() {
 
                     <button className={styles.iconBtn} onClick={() => useStore.getState().setKanbanModalOpen(true)} title="New Kanban Board" style={{ marginLeft: 8 }}>
                         <KanbanSquare size={20} />
+                    </button>
+
+                    <button className={styles.iconBtn} onClick={() => {
+                        const centerX = window.innerWidth / 2;
+                        const centerY = window.innerHeight / 2;
+                        const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
+                        const BOARD_WIDTH = 700;
+                        const BOARD_HEIGHT = 500;
+                        const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT });
+                        // @ts-ignore
+                        addNode('kanban', position, {
+                            label: 'My Table',
+                            columns: [
+                                { id: 'todo', label: 'To Do', statusValue: 'todo', color: '#ef4444' },
+                                { id: 'in-progress', label: 'In Progress', statusValue: 'in-progress', color: '#f59e0b' },
+                                { id: 'done', label: 'Done', statusValue: 'done', color: '#22c55e' },
+                            ],
+                            viewMode: 'table',
+                        }, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, currentParentId || undefined);
+                    }} title="New Table View">
+                        <Table2 size={20} />
+                    </button>
+
+                    <button className={styles.iconBtn} onClick={() => {
+                        const centerX = window.innerWidth / 2;
+                        const centerY = window.innerHeight / 2;
+                        const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
+                        const BOARD_WIDTH = 800;
+                        const BOARD_HEIGHT = 600;
+                        const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT });
+                        // @ts-ignore
+                        addNode('kanban', position, {
+                            label: 'Calendar',
+                            columns: [
+                                { id: 'todo', label: 'To Do', statusValue: 'todo', color: '#ef4444' },
+                                { id: 'in-progress', label: 'In Progress', statusValue: 'in-progress', color: '#f59e0b' },
+                                { id: 'done', label: 'Done', statusValue: 'done', color: '#22c55e' },
+                            ],
+                            viewMode: 'calendar',
+                        }, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, currentParentId || undefined);
+                    }} title="New Calendar View">
+                        <Calendar size={20} />
                     </button>
 
                     <div className={styles.separator} />

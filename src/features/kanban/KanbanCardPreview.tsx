@@ -1,5 +1,6 @@
 import { memo, useState, useCallback } from 'react';
 import { Calendar, Clock, Circle, Loader, CheckCircle, CheckSquare } from 'lucide-react';
+import { BorderBeam } from '../../components/ui/border-beam';
 import type { NoteNode } from '../../types';
 import { useStore } from '../../store/useStore';
 import styles from './KanbanCardPreview.module.css';
@@ -232,6 +233,11 @@ export const KanbanCardPreview = memo(({ node, onClick, onDoubleClick, isDraggin
                     </span>
                 )}
             </div>
+
+            {/* Urgent Priority Highlight */}
+            {data.priority === 'urgent' && (
+                <BorderBeam size={60} duration={4} delay={0} className="opacity-50" />
+            )}
         </div>
     );
 });

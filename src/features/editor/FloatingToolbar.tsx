@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'motion/react';
 import { Bold, Italic, Underline, Strikethrough, Link, FileText } from 'lucide-react';
 import styles from './BlockEditor.module.css';
 
@@ -41,11 +42,15 @@ export function FloatingToolbar({ selectionRect, onFormat }: FloatingToolbarProp
     };
 
     return createPortal(
-        <div
+        <motion.div
             ref={ref}
             className={styles.floatingToolbar}
             style={{ top: position.top, left: position.left }}
             onMouseDown={e => e.preventDefault()} // Prevent focus loss
+            initial={{ opacity: 0, y: 5, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 5, scale: 0.95 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
         >
             <button className={styles.toolbarBtn} onClick={(e) => handleFormat(e, 'bold')} title="Bold (Ctrl+B)">
                 <Bold size={16} />
@@ -66,7 +71,7 @@ export function FloatingToolbar({ selectionRect, onFormat }: FloatingToolbarProp
             <button className={styles.toolbarBtn} onClick={(e) => handleFormat(e, 'createLink')} title="Link">
                 <Link size={16} />
             </button>
-        </div>,
+        </motion.div>,
         document.body
     );
 }

@@ -1,4 +1,5 @@
 import { memo, useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import { KanbanCalendarView } from './KanbanCalendarView';
 import { v4 as uuidv4 } from 'uuid';
 import { Settings } from 'lucide-react';
 import { Handle, Position, type NodeProps, useReactFlow } from '@xyflow/react';
@@ -26,6 +27,7 @@ import type { KanbanNode, NoteNode } from '../../types';
 import { KanbanCardPreview } from './KanbanCardPreview';
 import { KanbanColumn } from './KanbanColumn';
 import { KanbanToolbar } from './KanbanToolbar';
+import { KanbanTableView } from './KanbanTableView';
 import styles from './KanbanNode.module.css';
 import { getStrictSize, ICON_SIZE, snapToGridValue } from '../../config/layout';
 
@@ -85,6 +87,59 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
         setSwimlaneField(field);
         // Persist to node data
         updateNodeData(id, { swimlaneField: field });
+    }, [id, updateNodeData]);
+
+    // --- VIEW MODE STATE ---
+    const [viewMode, setViewMode] = useState<'board' | 'table' | 'calendar'>(data.viewMode || 'board');
+
+    const handleViewModeChange = useCallback((mode: 'board' | 'table' | 'calendar') => {
+        setViewMode(mode);
+        updateNodeData(id, { viewMode: mode });
+        // Hide/show React Flow child note nodes so they don't intercept clicks in table/calendar view
+        setNodes(nds => nds.map(n =>
+            n.parentId === id && n.type === 'note'
+                ? { ...n, hidden: mode !== 'board' }
+                : n
+        ));
+    }, [id, updateNodeData, setNodes]);
+
+    // Also hide child nodes on initial mount if starting in table/calendar mode
+    useEffect(() => {
+        if (viewMode !== 'board') {
+            setNodes(nds => nds.map(n =>
+                n.parentId === id && n.type === 'note'
+                    ? { ...n, hidden: true }
+                    : n
+            ));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // --- TABLE VIEW CALLBACKS ---
+    const handleTableAddCard = useCallback((statusValue: string) => {
+        const children = nodes.filter(n => n.parentId === id && n.type === 'note') as NoteNode[];
+        const existing = children.filter(n => n.data.status === statusValue).length;
+        addNode('note', { x: 0, y: 0 }, {
+            label: 'New Task',
+            status: statusValue,
+            description: '',
+            viewMode: 'icon',
+            order: existing,
+            createdAt: new Date().toISOString(),
+        }, { width: ICON_SIZE, height: ICON_SIZE }, id);
+    }, [addNode, nodes, id]);
+
+    const handleReorderCards = useCallback((orderedIds: string[]) => {
+        orderedIds.forEach((cardId, index) => {
+            updateNodeData(cardId, { order: index });
+        });
+    }, [updateNodeData]);
+
+    const [visibleExtraColumns, setVisibleExtraColumns] = useState<string[]>(data.tableColumns || []);
+
+    const handleTableColumnsChange = useCallback((cols: string[]) => {
+        setVisibleExtraColumns(cols);
+        updateNodeData(id, { tableColumns: cols });
     }, [id, updateNodeData]);
 
     const hasActiveFilters = searchQuery.length > 0 || priorityFilter.length > 0 || assigneeFilter.length > 0;
@@ -573,46 +628,70 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                     onSortChange={handleSortChange}
                     swimlaneField={swimlaneField}
                     onSwimlaneChange={handleSwimlaneChange}
+                    viewMode={viewMode}
+                    onViewModeChange={handleViewModeChange}
                 />
             </div>
 
-            <DndContext
-                sensors={sensors}
-                collisionDetection={customCollisionDetection}
-                onDragStart={handleDragStart}
-                onDragOver={handleDragOver}
-                onDragEnd={handleDragEnd}
-            >
-                <div className={`${styles.columnsContainer} nodrag`}>
-                    {data.columns.map((col) => (
-                        <KanbanColumn
-                            key={col.id}
-                            kanbanId={id}
-                            column={col}
-                            cards={columnsData[col.statusValue] || []}
-                            onAddCard={handleAddCard}
-                            onToggleCollapse={handleToggleColumn}
-                            onCardClick={handleCardClick}
-                        />
-                    ))}
+            {viewMode === 'table' ? (
+                <div className="nodrag">
+                    <KanbanTableView
+                        cards={childNodes}
+                        columns={data.columns}
+                        onCardClick={handleCardClick}
+                        onAddCard={handleTableAddCard}
+                        onReorderCards={handleReorderCards}
+                        onUpdateCard={updateNodeData}
+                        visibleExtraColumns={visibleExtraColumns}
+                        onVisibleExtraColumnsChange={handleTableColumnsChange}
+                    />
                 </div>
-
-                <DragOverlay dropAnimation={dropAnimation} modifiers={[adjustOffset]}>
-                    {activeNode ? (
-                        <div className={styles.dragOverlayCard} data-ejecting={isOutsideBoard || undefined}>
-                            <KanbanCardPreview
-                                node={activeNode}
-                                isDragging={true}
+            ) : viewMode === 'calendar' ? (
+                <div className="nodrag" style={{ height: '100%', overflow: 'hidden' }}>
+                    <KanbanCalendarView
+                        cards={childNodes}
+                        onCardClick={handleCardClick}
+                    />
+                </div>
+            ) : (
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={customCollisionDetection}
+                    onDragStart={handleDragStart}
+                    onDragOver={handleDragOver}
+                    onDragEnd={handleDragEnd}
+                >
+                    <div className={`${styles.columnsContainer} nodrag`}>
+                        {data.columns.map((col) => (
+                            <KanbanColumn
+                                key={col.id}
+                                kanbanId={id}
+                                column={col}
+                                cards={columnsData[col.statusValue] || []}
+                                onAddCard={handleAddCard}
+                                onToggleCollapse={handleToggleColumn}
+                                onCardClick={handleCardClick}
                             />
-                            {isOutsideBoard && (
-                                <div className={styles.ejectBadge}>
-                                    ↗
-                                </div>
-                            )}
-                        </div>
-                    ) : null}
-                </DragOverlay>
-            </DndContext>
+                        ))}
+                    </div>
+
+                    <DragOverlay dropAnimation={dropAnimation} modifiers={[adjustOffset]}>
+                        {activeNode ? (
+                            <div className={styles.dragOverlayCard} data-ejecting={isOutsideBoard || undefined}>
+                                <KanbanCardPreview
+                                    node={activeNode}
+                                    isDragging={true}
+                                />
+                                {isOutsideBoard && (
+                                    <div className={styles.ejectBadge}>
+                                        ↗
+                                    </div>
+                                )}
+                            </div>
+                        ) : null}
+                    </DragOverlay>
+                </DndContext>
+            )}
 
             <Handle type="target" position={Position.Top} className={styles.handle} />
             <Handle type="source" position={Position.Bottom} className={styles.handle} />

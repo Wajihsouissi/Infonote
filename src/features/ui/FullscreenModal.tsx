@@ -6,10 +6,11 @@ import { BlockEditor } from '../editor/BlockEditor';
 
 export function FullscreenModal() {
     // Atomic Selectors
-    const nodes = useStore(s => s.nodes);
     const fullscreenId = useStore(s => s.fullscreenId);
     const setFullscreenId = useStore(s => s.setFullscreenId);
     const updateNodeData = useStore(s => s.updateNodeData);
+    // Only subscribe to the specific node we need, not the entire array
+    const activeNode = useStore(s => fullscreenId ? s.nodes.find(n => n.id === fullscreenId) : undefined);
     const isLocalFullscreen = useRef(false);
 
     // Sync React state -> Native Fullscreen (Backup/Redundancy)
@@ -40,10 +41,7 @@ export function FullscreenModal() {
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, [fullscreenId, setFullscreenId]);
 
-    if (!fullscreenId) return null;
-
-    const activeNode = nodes.find(n => n.id === fullscreenId);
-    if (!activeNode) return null;
+    if (!fullscreenId || !activeNode) return null;
 
     const handleClose = () => {
         if (document.fullscreenElement) {

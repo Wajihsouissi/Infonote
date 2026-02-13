@@ -11,6 +11,7 @@ import styles from './DragGridOverlay.module.css';
 export const DragGridOverlay = memo(() => {
     const interactionState = useStore(s => s.interactionState);
     const nodes = useStore(s => s.nodes);
+    const currentParentId = useStore(s => s.currentParentId);
     const { x: viewportX, y: viewportY, zoom } = useViewport();
 
     const draggedNodeId = interactionState.draggedNodeId;
@@ -47,6 +48,9 @@ export const DragGridOverlay = memo(() => {
         let parentId = draggedNode.parentId;
 
         while (parentId) {
+            // Stop traversing if we hit the current view's parent (local origin)
+            if (parentId === currentParentId) break;
+
             const parent = nodeMap.get(parentId);
             if (!parent) break;
             x += parent.position.x;
@@ -54,7 +58,7 @@ export const DragGridOverlay = memo(() => {
             parentId = parent.parentId;
         }
         return { x, y };
-    }, [draggedNode, nodeMap]);
+    }, [draggedNode, nodeMap, currentParentId]);
 
     const width = draggedNode?.measured?.width ?? (draggedNode?.style?.width as number) ?? 112;
     const height = draggedNode?.measured?.height ?? (draggedNode?.style?.height as number) ?? 112;

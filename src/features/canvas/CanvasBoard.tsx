@@ -9,7 +9,6 @@ import { NoteCard } from '../card/NoteCard';
 import { BlockNode } from '../block/BlockNode';
 import { FusedNoteNode } from '../card/FusedNoteNode';
 import { Breadcrumbs } from '../navigation/Breadcrumbs';
-import { CustomGrid } from './CustomGrid';
 import { BottomMenu } from '../ui/BottomMenu';
 import { SidePanel } from '../ui/SidePanel';
 import { FullscreenModal } from '../ui/FullscreenModal';
@@ -19,6 +18,7 @@ import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { KanbanNodeComponent } from '../kanban/KanbanNode';
 import { CanvasOverlay } from './CanvasOverlay';
 import { DragGridOverlay } from './DragGridOverlay';
+import { CanvasSlashMenu } from './CanvasSlashMenu';
 
 // Hooks
 import {
@@ -125,6 +125,7 @@ export function CanvasBoard() {
         setNodes,
         updateNodeData,
         syncParentContent,
+        selectedCanvasNodeIds,
     });
 
     // Box selection handlers
@@ -224,6 +225,7 @@ export function CanvasBoard() {
                     deleteKeyCode={null}
                 >
                     <DragGridOverlay />
+                    <CanvasSlashMenu />
                     <Controls className={styles.canvasControls} />
                     <MiniMap
                         position="bottom-right"

@@ -7,10 +7,9 @@ interface NoteContentPanelProps {
 }
 
 export function NoteContentPanel({ nodeId }: NoteContentPanelProps) {
-    // Atomic Selectors
-    const nodes = useStore(s => s.nodes);
+    // Targeted selector: only re-render when THIS specific node changes
+    const node = useStore(s => s.nodes.find(n => n.id === nodeId));
     const updateNodeData = useStore(s => s.updateNodeData);
-    const node = nodes.find(n => n.id === nodeId);
 
     if (!node) return null;
 

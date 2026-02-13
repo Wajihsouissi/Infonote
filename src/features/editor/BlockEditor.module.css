@@ -426,20 +426,12 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    animation: fadeIn 0.1s ease-out;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(5px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
+/* Removed manual fadeIn keyframes in favor of Motion */
 
 .menuHeader {
     padding: 8px 12px 4px;
@@ -519,7 +511,7 @@
     align-items: center;
     gap: 2px;
     z-index: 10001;
-    animation: fadeIn 0.15s ease-out;
+    /* animation: fadeIn 0.15s ease-out;  <-- Replaced by Motion */
 }
 
 .toolbarBtn {

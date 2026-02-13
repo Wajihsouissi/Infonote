@@ -12,6 +12,7 @@ interface UseCanvasNodeDragOptions {
     setNodes: (updater: (nodes: AppNode[]) => AppNode[]) => void;
     updateNodeData: (id: string, data: any) => void;
     syncParentContent: (parentId: string) => void;
+    selectedCanvasNodeIds: Set<string>;
 }
 
 /**
@@ -26,6 +27,7 @@ export function useCanvasNodeDrag({
     setNodes,
     updateNodeData,
     syncParentContent,
+    selectedCanvasNodeIds,
 }: UseCanvasNodeDragOptions) {
     const { screenToFlowPosition, getIntersectingNodes, getNode } = useReactFlow();
 
@@ -34,10 +36,16 @@ export function useCanvasNodeDrag({
 
     const onNodeDragStart = useCallback((_event: React.MouseEvent, node: any) => {
         setInteractionState({ draggedNodeId: node.id });
-        // Boost z-index for visual layering
-        setNodes(nds => nds.map(n => n.id === node.id ? {
+
+        // Collect IDs to boost: primary node + any selected nodes
+        const idsToBoost = new Set(selectedCanvasNodeIds);
+        idsToBoost.add(node.id);
+
+        // Boost z-index and remove extent for ALL dragged nodes
+        setNodes(nds => nds.map(n => idsToBoost.has(n.id) ? {
             ...n,
-            zIndex: 10000
+            zIndex: 10000,
+            extent: undefined // Allow dragging out of parent
         } : n));
 
         // Cleanup any previous drop target indicators
@@ -45,7 +53,7 @@ export function useCanvasNodeDrag({
             (el as HTMLElement).removeAttribute('data-external-drop-target');
         });
         document.body.classList.add('infonote-node-dragging');
-    }, [setInteractionState, setNodes]);
+    }, [setInteractionState, setNodes, selectedCanvasNodeIds]);
 
     const onNodeDrag = useCallback((event: React.MouseEvent, node: any) => {
         // Throttle for smoother grid response (approx 30fps)
@@ -154,6 +162,7 @@ export function useCanvasNodeDrag({
 
     const onNodeDragStop = useCallback((event: React.MouseEvent, node: any) => {
         const hoveredColumn = interactionState.hoveredKanbanColumn;
+        const isMultiDrag = selectedCanvasNodeIds.size > 1 && selectedCanvasNodeIds.has(node.id);
 
         // Clear interaction states
         setInteractionState({
@@ -170,32 +179,43 @@ export function useCanvasNodeDrag({
 
         // Snap final position to absolute grid for perfect alignment across nesting levels
         const snapFinalPosition = () => {
+            // Calculate snap delta from the primary node
+            const primaryAbs = node.positionAbsolute || node.position;
+            const snappedPrimaryX = snapToGridValue(primaryAbs.x);
+            const snappedPrimaryY = snapToGridValue(primaryAbs.y);
+            const deltaX = snappedPrimaryX - primaryAbs.x;
+            const deltaY = snappedPrimaryY - primaryAbs.y;
+
+            // Determine which node IDs to snap
+            const idsToSnap = isMultiDrag ? new Set(selectedCanvasNodeIds) : new Set([node.id]);
+
             setNodes(nds => nds.map(n => {
-                if (n.id === node.id) {
-                    const abs = (n as any).positionAbsolute || n.position;
-                    const snappedAbsX = snapToGridValue(abs.x);
-                    const snappedAbsY = snapToGridValue(abs.y);
+                if (!idsToSnap.has(n.id)) return n;
 
-                    // If nested, convert snapped absolute back to relative
-                    let newPos = { x: snappedAbsX, y: snappedAbsY };
-                    if (n.parentId) {
-                        const parent = nds.find(p => p.id === n.parentId);
-                        if (parent) {
-                            const parentAbs = (parent as any).positionAbsolute || parent.position;
-                            newPos = {
-                                x: snappedAbsX - parentAbs.x,
-                                y: snappedAbsY - parentAbs.y
-                            };
-                        }
+                const abs = (n as any).positionAbsolute || n.position;
+                // Apply the same delta to all selected nodes for consistent grid alignment
+                const snappedAbsX = n.id === node.id ? snappedPrimaryX : abs.x + deltaX;
+                const snappedAbsY = n.id === node.id ? snappedPrimaryY : abs.y + deltaY;
+
+                // If nested, convert snapped absolute back to relative
+                let newPos = { x: snappedAbsX, y: snappedAbsY };
+                if (n.parentId && n.parentId !== currentParentId) {
+                    const parent = nds.find(p => p.id === n.parentId);
+                    if (parent) {
+                        const parentAbs = (parent as any).positionAbsolute || parent.position;
+                        newPos = {
+                            x: snappedAbsX - parentAbs.x,
+                            y: snappedAbsY - parentAbs.y
+                        };
                     }
-
-                    return {
-                        ...n,
-                        zIndex: 10,
-                        position: newPos
-                    };
                 }
-                return n;
+
+                return {
+                    ...n,
+                    zIndex: 10,
+                    extent: n.parentId ? 'parent' : undefined,
+                    position: newPos
+                };
             }));
         };
 
@@ -206,6 +226,13 @@ export function useCanvasNodeDrag({
         const isSourceBlock = node.type === 'block';
         const isSourceFused = node.type === 'fused-note';
         const isSourceNote = node.type === 'note';
+
+        // Multi-drag: skip fusion/nesting/kanban — just snap all nodes and return
+        if (isMultiDrag) {
+            restoreNodeZIndex();
+            if (currentParentId) syncParentContent(currentParentId);
+            return;
+        }
 
         const mousePos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
         const mouseRect = { x: mousePos.x - 1, y: mousePos.y - 1, width: 2, height: 2 };
@@ -311,6 +338,12 @@ export function useCanvasNodeDrag({
         }
 
         if (targetNode) {
+            // Guard: If dragging over current parent, ignore to prevent re-nesting/duplication
+            if (targetNode.id === node.parentId) {
+                restoreNodeZIndex();
+                return;
+            }
+
             const isTargetBlock = targetNode.type === 'block';
             const isTargetFused = targetNode.type === 'fused-note';
             const isTargetNote = targetNode.type === 'note';
@@ -344,7 +377,7 @@ export function useCanvasNodeDrag({
             syncParentContent(currentParentId);
         }
     }, [getIntersectingNodes, setNodes, updateNodeData, getNode, nodes, currentParentId,
-        syncParentContent, screenToFlowPosition, interactionState.hoveredKanbanColumn, setInteractionState]);
+        syncParentContent, screenToFlowPosition, interactionState.hoveredKanbanColumn, setInteractionState, selectedCanvasNodeIds]);
 
     return {
         onNodeDragStart,

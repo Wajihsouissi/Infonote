@@ -3,6 +3,8 @@ import { Plus, X, Square, CheckSquare } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './SubtaskProperty.module.css';
 
+import NumberTicker from '../../../components/ui/number-ticker';
+
 interface Subtask {
     id: string;
     text: string;
@@ -60,7 +62,7 @@ export const SubtaskProperty = ({ subtasks, onChange }: SubtaskPropertyProps) =>
                 <span className={styles.label}>Subtasks</span>
                 {totalCount > 0 && (
                     <span className={styles.counter}>
-                        {completedCount}/{totalCount}
+                        <NumberTicker value={completedCount} />/{totalCount}
                     </span>
                 )}
             </div>

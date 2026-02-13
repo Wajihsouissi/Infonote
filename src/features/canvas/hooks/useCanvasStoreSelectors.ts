@@ -14,7 +14,7 @@ export function useCanvasStoreSelectors() {
     const selectedCanvasNodeIds = useStore(useCallback(s => s.selectedCanvasNodeIds, []));
     const rightSidePanelId = useStore(useCallback(s => s.rightSidePanelId, []));
     const leftSidePanelId = useStore(useCallback(s => s.leftSidePanelId, []));
-    const theme = useStore(s => s.theme);
+    const theme = useStore(useCallback(s => s.theme, []));
 
     // Actions (stable references via atomic selectors)
     const onNodesChange = useStore(useCallback(s => s.onNodesChange, []));

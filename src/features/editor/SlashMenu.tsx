@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'motion/react';
 import styles from './BlockEditor.module.css';
 import type { BlockType } from './types';
 import { MENU_ITEMS } from './menuConstants';
@@ -94,10 +95,14 @@ export function SlashMenu({ anchorRect, filter, onSelect, onClose }: SlashMenuPr
     if (filteredItems.length === 0) return null;
 
     return createPortal(
-        <div
+        <motion.div
             className={styles.slashMenu}
             style={{ top: position.top, left: position.left }}
             ref={menuRef}
+            initial={{ opacity: 0, y: 5, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 5, scale: 0.95 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
         >
             <div className={styles.menuHeader}>Basic Blocks</div>
             {filteredItems.map((item, index) => {
@@ -117,7 +122,7 @@ export function SlashMenu({ anchorRect, filter, onSelect, onClose }: SlashMenuPr
                     </div>
                 );
             })}
-        </div>,
+        </motion.div>,
         document.body
     );
 }

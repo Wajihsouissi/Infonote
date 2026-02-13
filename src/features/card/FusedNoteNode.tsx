@@ -6,7 +6,7 @@ import { EditBar } from '../ui/EditBar';
 import { useStore } from '../../store/useStore';
 import type { Node } from '@xyflow/react';
 import styles from './FusedNoteNode.module.css';
-import { snapFusedDimensions, MIN_EXPANDED_SIZE } from '../../config/layout';
+import { snapFusedDimensions, MIN_FUSED_SIZE, MAX_HEIGHT } from '../../config/layout';
 import { toPastelColor, lightenColor } from '../../utils/colorUtils';
 
 export type FusedNoteNodeData = {
@@ -90,8 +90,8 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                         },
                         style: {
                             ...n.style,
-                            width: MIN_EXPANDED_SIZE,
-                            height: MIN_EXPANDED_SIZE,
+                            width: MIN_FUSED_SIZE,
+                            height: MIN_FUSED_SIZE,
                         }
                     } as any;
                 }
@@ -130,7 +130,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 date: new Date().toISOString(),
                 color: fusedNodeColor
             },
-            style: { width: MIN_EXPANDED_SIZE, height: MIN_EXPANDED_SIZE },
+            style: { width: MIN_FUSED_SIZE, height: MIN_FUSED_SIZE },
             zIndex: 10
         };
 
@@ -192,6 +192,71 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
         });
 
     }, [id, data.content]);
+
+    // Smart auto-resize: measures content height on content changes (not resize events)
+    // Uses a temporary height:auto trick to get the natural content height,
+    // then restores height:100% to avoid resize observer loops.
+    const smartResizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        if (activeResize.current) return;
+        if (!contentRef.current || !nodeRef.current) return;
+
+        // Debounce to avoid rapid re-measurement during typing
+        if (smartResizeTimer.current) clearTimeout(smartResizeTimer.current);
+
+        smartResizeTimer.current = setTimeout(() => {
+            if (!contentRef.current || !nodeRef.current) return;
+            if (activeResize.current) return;
+
+            const contentEl = contentRef.current;
+            const nodeEl = nodeRef.current;
+            const currentHeight = nodeEl.offsetHeight;
+            const currentWidth = nodeEl.offsetWidth;
+
+            // Temporarily set content to height:auto to measure natural height
+            const originalHeight = contentEl.style.height;
+            contentEl.style.height = 'auto';
+
+            // Force layout reflow to get accurate measurement
+            const naturalContentHeight = contentEl.scrollHeight;
+
+            // Restore immediately to avoid visual flicker
+            contentEl.style.height = originalHeight || '100%';
+
+            // Calculate chrome height (padding, borders, accent strip, etc.)
+            // We compute this from the difference between node height and content client height
+            const chromeHeight = currentHeight - contentEl.clientHeight;
+            const neededHeight = naturalContentHeight + chromeHeight;
+
+            // Snap to grid steps (56px grid)
+            const targetHeight = Math.ceil((neededHeight + 16) / 56) * 56 - 16;
+
+            // Clamp to bounds
+            const clampedTarget = Math.max(Math.min(targetHeight, MAX_HEIGHT), MIN_FUSED_SIZE);
+
+            // Only resize if the difference is meaningful (> 4px to avoid micro-oscillations)
+            if (Math.abs(currentHeight - clampedTarget) <= 4) return;
+
+            // Growing: content overflows
+            const isGrowing = clampedTarget > currentHeight + 2;
+            // Shrinking: content is significantly smaller than container (at least 1 grid step)
+            const isShrinking = currentHeight - clampedTarget > 56;
+
+            if (isGrowing || isShrinking) {
+                updateNode(id, {
+                    style: {
+                        width: currentWidth,
+                        height: clampedTarget
+                    }
+                });
+            }
+        }, 300); // 300ms debounce
+
+        return () => {
+            if (smartResizeTimer.current) clearTimeout(smartResizeTimer.current);
+        };
+    }, [id, data.content, updateNode]);
 
     const handleResizeStart = (e: React.MouseEvent) => {
         e.stopPropagation();

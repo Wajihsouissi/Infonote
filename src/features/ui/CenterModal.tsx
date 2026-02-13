@@ -5,15 +5,14 @@ import { NoteExpandedContent } from '../card/NoteExpandedContent';
 
 export function CenterModal() {
     // Atomic Selectors
-    const nodes = useStore(s => s.nodes);
     const centerPanelId = useStore(s => s.centerPanelId);
     const setCenterPanelId = useStore(s => s.setCenterPanelId);
     const updateNodeData = useStore(s => s.updateNodeData);
     const navigateToNode = useStore(s => s.navigateToNode);
+    // Only subscribe to the specific node we need, not the entire array
+    const activeNode = useStore(s => centerPanelId ? s.nodes.find(n => n.id === centerPanelId) : undefined);
 
     if (!centerPanelId) return null;
-
-    const activeNode = nodes.find(n => n.id === centerPanelId);
     if (!activeNode) return null;
 
     const handleNavigate = () => {

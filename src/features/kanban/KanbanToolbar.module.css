@@ -6,6 +6,41 @@
     flex-wrap: wrap;
 }
 
+/* View Toggle */
+.viewToggle {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 2px;
+    gap: 2px;
+}
+
+.viewToggleBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.35);
+    cursor: pointer;
+    padding: 5px 8px;
+    border-radius: 6px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.viewToggleBtn:hover {
+    color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.viewToggleActive {
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--color-primary);
+    box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.3);
+}
+
 /* Search */
 .searchContainer {
     display: flex;

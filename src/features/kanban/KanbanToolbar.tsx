@@ -1,5 +1,5 @@
 import { memo, useState, useCallback } from 'react';
-import { Search, X, Filter, ArrowUpDown, ArrowUp, ArrowDown, Rows } from 'lucide-react';
+import { Search, X, Filter, ArrowUpDown, ArrowUp, ArrowDown, Rows, LayoutGrid, Table2, Calendar } from 'lucide-react';
 import styles from './KanbanToolbar.module.css';
 
 type SortField = 'dueDate' | 'priority' | 'createdAt' | 'label' | null;
@@ -20,6 +20,8 @@ interface KanbanToolbarProps {
     onSortChange: (field: SortField, direction: SortDirection) => void;
     swimlaneField: SwimlaneField;
     onSwimlaneChange: (field: SwimlaneField) => void;
+    viewMode: 'board' | 'table' | 'calendar';
+    onViewModeChange: (mode: 'board' | 'table' | 'calendar') => void;
 }
 
 const priorityOptions = [
@@ -55,7 +57,9 @@ export const KanbanToolbar = memo(({
     sortDirection,
     onSortChange,
     swimlaneField,
-    onSwimlaneChange
+    onSwimlaneChange,
+    viewMode,
+    onViewModeChange
 }: KanbanToolbarProps) => {
     const [showPriorityMenu, setShowPriorityMenu] = useState(false);
     const [showSortMenu, setShowSortMenu] = useState(false);
@@ -89,6 +93,31 @@ export const KanbanToolbar = memo(({
 
     return (
         <div className={styles.toolbar}>
+            {/* View Mode Toggle */}
+            <div className={styles.viewToggle}>
+                <button
+                    className={`${styles.viewToggleBtn} ${viewMode === 'board' ? styles.viewToggleActive : ''}`}
+                    onClick={() => onViewModeChange('board')}
+                    title="Board View"
+                >
+                    <LayoutGrid size={14} />
+                </button>
+                <button
+                    className={`${styles.viewToggleBtn} ${viewMode === 'table' ? styles.viewToggleActive : ''}`}
+                    onClick={() => onViewModeChange('table')}
+                    title="Table View"
+                >
+                    <Table2 size={14} />
+                </button>
+                <button
+                    className={`${styles.viewToggleBtn} ${viewMode === 'calendar' ? styles.viewToggleActive : ''}`}
+                    onClick={() => onViewModeChange('calendar')}
+                    title="Calendar View"
+                >
+                    <Calendar size={14} />
+                </button>
+            </div>
+
             {/* Search Input */}
             <div className={styles.searchContainer}>
                 <Search size={14} className={styles.searchIcon} />

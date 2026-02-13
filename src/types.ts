@@ -74,6 +74,8 @@ export type KanbanNodeData = {
     swimlaneField?: 'assignee' | 'category' | 'priority' | null;
     sortBy?: 'dueDate' | 'priority' | 'createdAt' | 'label' | null;
     sortDirection?: 'asc' | 'desc';
+    viewMode?: 'board' | 'table' | 'calendar';
+    tableColumns?: string[]; // Visible metadata columns in table view (e.g. ['tags', 'url', 'progress'])
 };
 
 export type KanbanNode = Node<KanbanNodeData, 'kanban'> & { parentId?: string | null };
