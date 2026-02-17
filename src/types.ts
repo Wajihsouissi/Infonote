@@ -15,6 +15,7 @@ export type NoteData = {
     tags?: string[];
     priority?: 'low' | 'medium' | 'high' | 'urgent';
     status?: 'todo' | 'in-progress' | 'review' | 'done';
+    startDate?: string; // ISO
     dueDate?: string; // ISO
     assignee?: string;
     url?: string;
@@ -74,7 +75,7 @@ export type KanbanNodeData = {
     swimlaneField?: 'assignee' | 'category' | 'priority' | null;
     sortBy?: 'dueDate' | 'priority' | 'createdAt' | 'label' | null;
     sortDirection?: 'asc' | 'desc';
-    viewMode?: 'board' | 'table' | 'calendar';
+    viewMode?: 'board' | 'table' | 'calendar' | 'timeline';
     tableColumns?: string[]; // Visible metadata columns in table view (e.g. ['tags', 'url', 'progress'])
 };
 

@@ -23,14 +23,14 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
 
     toggleTheme: () => {
         const newTheme = get().theme === 'dark' ? 'light' : 'dark';
-        
+
         document.documentElement.classList.add('theme-transitioning');
-        
+
         requestAnimationFrame(() => {
             set({ theme: newTheme });
             document.documentElement.setAttribute('data-theme', newTheme);
             localStorage.setItem('infonote-theme', newTheme);
-            
+
             setTimeout(() => {
                 document.documentElement.classList.remove('theme-transitioning');
             }, 300);
@@ -38,7 +38,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     },
 
     setSelectedCanvasNodeIds: (ids) => set({ selectedCanvasNodeIds: ids }),
-    
+
     toggleCanvasNodeSelection: (id) => set((state) => {
         const newSelection = new Set(state.selectedCanvasNodeIds);
         if (newSelection.has(id)) {

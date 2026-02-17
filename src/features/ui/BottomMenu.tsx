@@ -10,7 +10,8 @@ import {
     Calendar,
     Flag,
     CheckCircle,
-    Table2
+    Table2,
+    Clock
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useReactFlow } from '@xyflow/react';
@@ -424,51 +425,123 @@ export function BottomMenu() {
                         <Plus size={24} />
                     </button>
 
-                    <button className={styles.iconBtn} onClick={() => useStore.getState().setKanbanModalOpen(true)} title="New Kanban Board" style={{ marginLeft: 8 }}>
-                        <KanbanSquare size={20} />
-                    </button>
+                    <div className={styles.blocksWrapper}>
+                        <button className={styles.iconBtn} title="Add View" style={{ marginLeft: 8 }}>
+                            <KanbanSquare size={20} />
+                        </button>
 
-                    <button className={styles.iconBtn} onClick={() => {
-                        const centerX = window.innerWidth / 2;
-                        const centerY = window.innerHeight / 2;
-                        const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
-                        const BOARD_WIDTH = 700;
-                        const BOARD_HEIGHT = 500;
-                        const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT });
-                        // @ts-ignore
-                        addNode('kanban', position, {
-                            label: 'My Table',
-                            columns: [
-                                { id: 'todo', label: 'To Do', statusValue: 'todo', color: '#ef4444' },
-                                { id: 'in-progress', label: 'In Progress', statusValue: 'in-progress', color: '#f59e0b' },
-                                { id: 'done', label: 'Done', statusValue: 'done', color: '#22c55e' },
-                            ],
-                            viewMode: 'table',
-                        }, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, currentParentId || undefined);
-                    }} title="New Table View">
-                        <Table2 size={20} />
-                    </button>
+                        <div className={styles.hoverMenu}>
+                            <h3 className={styles.menuTitle}>Views</h3>
+                            <div className={styles.menuGrid} style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                                {/* Kanban Board */}
+                                <div
+                                    className={styles.draggableItem}
+                                    onClick={() => useStore.getState().setKanbanModalOpen(true)}
+                                >
+                                    <div className={styles.itemIconWrapper}>
+                                        <KanbanSquare size={20} />
+                                    </div>
+                                    <div className={styles.customTooltip}>
+                                        <div className={styles.tooltipLabel}>Board</div>
+                                        <div className={styles.tooltipDesc}>Kanban board view</div>
+                                    </div>
+                                </div>
 
-                    <button className={styles.iconBtn} onClick={() => {
-                        const centerX = window.innerWidth / 2;
-                        const centerY = window.innerHeight / 2;
-                        const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
-                        const BOARD_WIDTH = 800;
-                        const BOARD_HEIGHT = 600;
-                        const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT });
-                        // @ts-ignore
-                        addNode('kanban', position, {
-                            label: 'Calendar',
-                            columns: [
-                                { id: 'todo', label: 'To Do', statusValue: 'todo', color: '#ef4444' },
-                                { id: 'in-progress', label: 'In Progress', statusValue: 'in-progress', color: '#f59e0b' },
-                                { id: 'done', label: 'Done', statusValue: 'done', color: '#22c55e' },
-                            ],
-                            viewMode: 'calendar',
-                        }, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, currentParentId || undefined);
-                    }} title="New Calendar View">
-                        <Calendar size={20} />
-                    </button>
+                                {/* Table View */}
+                                <div
+                                    className={styles.draggableItem}
+                                    onClick={() => {
+                                        const centerX = window.innerWidth / 2;
+                                        const centerY = window.innerHeight / 2;
+                                        const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
+                                        const BOARD_WIDTH = 700;
+                                        const BOARD_HEIGHT = 500;
+                                        const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT });
+                                        // @ts-ignore
+                                        addNode('kanban', position, {
+                                            label: 'My Table',
+                                            columns: [
+                                                { id: 'todo', label: 'To Do', statusValue: 'todo', color: '#ef4444' },
+                                                { id: 'in-progress', label: 'In Progress', statusValue: 'in-progress', color: '#f59e0b' },
+                                                { id: 'done', label: 'Done', statusValue: 'done', color: '#22c55e' },
+                                            ],
+                                            viewMode: 'table',
+                                        }, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, currentParentId || undefined);
+                                    }}
+                                >
+                                    <div className={styles.itemIconWrapper}>
+                                        <Table2 size={20} />
+                                    </div>
+                                    <div className={styles.customTooltip}>
+                                        <div className={styles.tooltipLabel}>Table</div>
+                                        <div className={styles.tooltipDesc}>Data table view</div>
+                                    </div>
+                                </div>
+
+                                {/* Calendar View */}
+                                <div
+                                    className={styles.draggableItem}
+                                    onClick={() => {
+                                        const centerX = window.innerWidth / 2;
+                                        const centerY = window.innerHeight / 2;
+                                        const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
+                                        const BOARD_WIDTH = 800;
+                                        const BOARD_HEIGHT = 600;
+                                        const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT });
+                                        // @ts-ignore
+                                        addNode('kanban', position, {
+                                            label: 'Calendar',
+                                            columns: [
+                                                { id: 'todo', label: 'To Do', statusValue: 'todo', color: '#ef4444' },
+                                                { id: 'in-progress', label: 'In Progress', statusValue: 'in-progress', color: '#f59e0b' },
+                                                { id: 'done', label: 'Done', statusValue: 'done', color: '#22c55e' },
+                                            ],
+                                            viewMode: 'calendar',
+                                        }, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, currentParentId || undefined);
+                                    }}
+                                >
+                                    <div className={styles.itemIconWrapper}>
+                                        <Calendar size={20} />
+                                    </div>
+                                    <div className={styles.customTooltip}>
+                                        <div className={styles.tooltipLabel}>Calendar</div>
+                                        <div className={styles.tooltipDesc}>Calendar view</div>
+                                    </div>
+                                </div>
+
+                                {/* Timeline View */}
+                                <div
+                                    className={styles.draggableItem}
+                                    onClick={() => {
+                                        const centerX = window.innerWidth / 2;
+                                        const centerY = window.innerHeight / 2;
+                                        const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
+                                        const BOARD_WIDTH = 800;
+                                        const BOARD_HEIGHT = 400;
+                                        const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT });
+                                        // @ts-ignore
+                                        addNode('kanban', position, {
+                                            label: 'Timeline',
+                                            columns: [
+                                                { id: 'todo', label: 'To Do', statusValue: 'todo', color: '#ef4444' },
+                                                { id: 'in-progress', label: 'In Progress', statusValue: 'in-progress', color: '#f59e0b' },
+                                                { id: 'done', label: 'Done', statusValue: 'done', color: '#22c55e' },
+                                            ],
+                                            viewMode: 'timeline',
+                                        }, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, currentParentId || undefined);
+                                    }}
+                                >
+                                    <div className={styles.itemIconWrapper}>
+                                        <Clock size={20} />
+                                    </div>
+                                    <div className={styles.customTooltip}>
+                                        <div className={styles.tooltipLabel}>Timeline</div>
+                                        <div className={styles.tooltipDesc}>Timeline view</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <div className={styles.separator} />
 

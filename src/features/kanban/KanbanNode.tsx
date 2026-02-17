@@ -28,6 +28,7 @@ import { KanbanCardPreview } from './KanbanCardPreview';
 import { KanbanColumn } from './KanbanColumn';
 import { KanbanToolbar } from './KanbanToolbar';
 import { KanbanTableView } from './KanbanTableView';
+import { KanbanTimelineView } from './KanbanTimelineView';
 import styles from './KanbanNode.module.css';
 import { getStrictSize, ICON_SIZE, snapToGridValue } from '../../config/layout';
 
@@ -90,9 +91,9 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
     }, [id, updateNodeData]);
 
     // --- VIEW MODE STATE ---
-    const [viewMode, setViewMode] = useState<'board' | 'table' | 'calendar'>(data.viewMode || 'board');
+    const [viewMode, setViewMode] = useState<'board' | 'table' | 'calendar' | 'timeline'>(data.viewMode || 'board');
 
-    const handleViewModeChange = useCallback((mode: 'board' | 'table' | 'calendar') => {
+    const handleViewModeChange = useCallback((mode: 'board' | 'table' | 'calendar' | 'timeline') => {
         setViewMode(mode);
         updateNodeData(id, { viewMode: mode });
         // Hide/show React Flow child note nodes so they don't intercept clicks in table/calendar view
@@ -158,6 +159,8 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
     // --- AUTO RESIZE LOGIC ---
     useEffect(() => {
         if (!boardRef.current) return;
+        // Skip auto-resize for calendar and timeline views as they should fill the container
+        if (viewMode === 'calendar' || viewMode === 'timeline') return;
 
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
@@ -308,6 +311,24 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
         };
         addNode('note', newCard.position, newCard.data, { width: ICON_SIZE, height: ICON_SIZE }, id);
     }, [addNode, childNodes, id]);
+
+    const handleTimelineAddCard = useCallback((startDateOverride?: string) => {
+        const existing = childNodes.length;
+        const now = startDateOverride ? new Date(startDateOverride) : new Date();
+        const nextWeek = new Date(now);
+        nextWeek.setDate(now.getDate() + 3); // Default 3 day duration
+
+        addNode('note', { x: 0, y: 0 }, {
+            label: 'New Timeline Task',
+            status: data.columns[0]?.statusValue || 'todo',
+            description: '',
+            viewMode: 'icon',
+            order: existing,
+            startDate: now.toISOString(),
+            dueDate: nextWeek.toISOString(),
+            createdAt: now.toISOString(),
+        }, { width: ICON_SIZE, height: ICON_SIZE }, id);
+    }, [addNode, childNodes.length, id, data.columns]);
 
 
     // --- Dnd Kit Configuration ---
@@ -583,15 +604,19 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
         });
     }, [id, data.columns, updateNodeData]);
 
+    const isFixedSizeView = viewMode === 'calendar' || viewMode === 'timeline';
+
     return (
         <div
             className={`${styles.board} ${selected ? styles.selected : ''} ${isDraggingBoard ? styles.dragging : ''} ${data.background ? styles[data.background] : ''}`}
             ref={boardRef}
-            style={data.background ? {
-                background: data.background.startsWith('#') || data.background.startsWith('rgba')
+            style={{
+                background: data.background && (data.background.startsWith('#') || data.background.startsWith('rgba'))
                     ? data.background
-                    : undefined
-            } : undefined}
+                    : undefined,
+                height: isFixedSizeView ? '100%' : undefined,
+                width: isFixedSizeView ? '100%' : undefined,
+            }}
         >
             {/* Header */}
             <div className={styles.header}>
@@ -647,10 +672,22 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                     />
                 </div>
             ) : viewMode === 'calendar' ? (
-                <div className="nodrag" style={{ height: '100%', overflow: 'hidden' }}>
+                <div className="nodrag" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
                     <KanbanCalendarView
                         cards={childNodes}
                         onCardClick={handleCardClick}
+                        onUpdateCard={updateNodeData}
+                        onAddCard={handleTimelineAddCard}
+                    />
+                </div>
+            ) : viewMode === 'timeline' ? (
+                <div className="nodrag" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                    <KanbanTimelineView
+                        cards={childNodes}
+                        onCardClick={handleCardClick}
+                        onUpdateCard={updateNodeData}
+                        onAddCard={handleTimelineAddCard}
+                        onReorder={handleReorderCards}
                     />
                 </div>
             ) : (

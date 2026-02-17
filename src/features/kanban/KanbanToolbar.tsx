@@ -1,5 +1,5 @@
 import { memo, useState, useCallback } from 'react';
-import { Search, X, Filter, ArrowUpDown, ArrowUp, ArrowDown, Rows, LayoutGrid, Table2, Calendar } from 'lucide-react';
+import { Search, X, Filter, ArrowUpDown, ArrowUp, ArrowDown, Rows, LayoutGrid, Table2, Calendar, Clock } from 'lucide-react';
 import styles from './KanbanToolbar.module.css';
 
 type SortField = 'dueDate' | 'priority' | 'createdAt' | 'label' | null;
@@ -20,8 +20,8 @@ interface KanbanToolbarProps {
     onSortChange: (field: SortField, direction: SortDirection) => void;
     swimlaneField: SwimlaneField;
     onSwimlaneChange: (field: SwimlaneField) => void;
-    viewMode: 'board' | 'table' | 'calendar';
-    onViewModeChange: (mode: 'board' | 'table' | 'calendar') => void;
+    viewMode: 'board' | 'table' | 'calendar' | 'timeline';
+    onViewModeChange: (mode: 'board' | 'table' | 'calendar' | 'timeline') => void;
 }
 
 const priorityOptions = [
@@ -115,6 +115,13 @@ export const KanbanToolbar = memo(({
                     title="Calendar View"
                 >
                     <Calendar size={14} />
+                </button>
+                <button
+                    className={`${styles.viewToggleBtn} ${viewMode === 'timeline' ? styles.viewToggleActive : ''}`}
+                    onClick={() => onViewModeChange('timeline')}
+                    title="Timeline View"
+                >
+                    <Clock size={14} />
                 </button>
             </div>
 
