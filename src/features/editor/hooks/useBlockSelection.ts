@@ -5,10 +5,11 @@ import { throttle } from '../../../utils/throttle';
 interface SelectionProps {
     editorRef: React.RefObject<HTMLDivElement | null>;
     blocks: Block[];
+    blocksRef: React.MutableRefObject<Block[]>; // Added blocksRef
     blockRefs: React.MutableRefObject<{ [key: string]: HTMLElement | null }>;
 }
 
-export function useBlockSelection({ editorRef, blocks, blockRefs }: SelectionProps) {
+export function useBlockSelection({ editorRef, blocks, blocksRef, blockRefs }: SelectionProps) {
     const [selectedBlockIds, setSelectedBlockIds] = useState<Set<string>>(new Set());
     const [dragSelection, setDragSelection] = useState<{ startX: number, startY: number, currentX: number, currentY: number } | null>(null);
     const [mouseDownBlock, setMouseDownBlock] = useState<{ id: string, startX: number, startY: number, initialRect: DOMRect, isInteractive: boolean } | null>(null);
@@ -246,13 +247,13 @@ export function useBlockSelection({ editorRef, blocks, blockRefs }: SelectionPro
         if (e.shiftKey && selectedBlockIdsRef.current.size > 0) {
             const lastSelectedId = Array.from(selectedBlockIdsRef.current).pop();
             if (lastSelectedId) {
-                const startIdx = blocks.findIndex(b => b.id === lastSelectedId);
-                const endIdx = blocks.findIndex(b => b.id === id);
+                const startIdx = blocksRef.current.findIndex(b => b.id === lastSelectedId);
+                const endIdx = blocksRef.current.findIndex(b => b.id === id);
                 if (startIdx !== -1 && endIdx !== -1) {
                     e.preventDefault();
                     const min = Math.min(startIdx, endIdx);
                     const max = Math.max(startIdx, endIdx);
-                    const rangeIds = blocks.slice(min, max + 1).map(b => b.id);
+                    const rangeIds = blocksRef.current.slice(min, max + 1).map(b => b.id);
                     setSelectedBlockIds(new Set(rangeIds));
                     return;
                 }
@@ -271,7 +272,7 @@ export function useBlockSelection({ editorRef, blocks, blockRefs }: SelectionPro
             });
             e.stopPropagation();
         }
-    }, [blocks]);
+    }, [blocksRef]);
 
     return {
         selectedBlockIds,

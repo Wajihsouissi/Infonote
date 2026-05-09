@@ -170,7 +170,7 @@
     width: 100%;
     height: 80px;
     border: 2px dashed var(--glass-border);
-    border-radius: 8px;
+    border-radius: 12px;
     background: transparent;
     color: var(--color-text-muted);
     display: flex;

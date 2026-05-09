@@ -1081,13 +1081,25 @@
     height: 10px !important;
     background: var(--color-primary) !important;
     border: 2px solid var(--bg-dark) !important;
-    transition: opacity 0.2s, transform 0.2s;
+    transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
     opacity: 0;
+    /* Position at top-right */
+    left: auto !important;
+    right: -6px !important;
+    top: -6px !important;
+    transform: none !important;
+    border-radius: 50%;
+    z-index: 50;
 }
 
 .card:hover .handle,
-.selected .handle {
+.card.selected .handle {
     opacity: 1;
+}
+
+.handle:hover {
+    transform: scale(1.4) !important;
+    box-shadow: 0 0 8px var(--color-primary);
 }
 
 /* Hide handles on expanded view for cleaner look */

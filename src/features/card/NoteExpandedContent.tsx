@@ -39,8 +39,8 @@ export function NoteExpandedContent({
     onNavigate,
     selectionIslandPortalId
 }: NoteExpandedContentProps) {
-    // Use data state (persistent) or fallback to true
-    const showMetadata = data.showMetadata ?? true;
+    // Use data state (persistent) or fallback to false
+    const showMetadata = data.showMetadata ?? false;
 
     const setShowMetadata = useCallback((show: boolean) => {
         onUpdate(id, { showMetadata: show });

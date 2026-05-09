@@ -829,7 +829,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         let startY = BASE_UNIT * 2;
         const startX = BASE_UNIT * 2;
         const gridColumnWidth = BASE_UNIT * 8;  // 448px
-        const gridRowHeight = BASE_UNIT * 11;   // 616px
+        const gridRowHeight = BASE_UNIT * 8;    // 448px (equal gaps)
         const maxColumns = 5;         // Maximum 5 fused notes per row
 
         if (children.length > 0) {

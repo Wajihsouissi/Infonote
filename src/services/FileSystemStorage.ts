@@ -35,7 +35,7 @@ export class FileSystemStorage {
     private readonly DB_NAME = 'infonote-db';
     private readonly STORE_NAME = 'handles';
     private readonly KEY = 'project-dir';
-    
+
     private _isSaving = false;
     private _saveQueue: (() => Promise<void>)[] = [];
     private _lastSavedState: { nodes: AppNode[]; edges: Edge[] } | null = null;
@@ -158,7 +158,7 @@ export class FileSystemStorage {
     async reconnect(): Promise<boolean> {
         // Attempting reconnect
         const handle = await this.getStoredHandle();
-        
+
         if (!handle) {
             console.log('[Storage] No stored handle found');
             return false;
@@ -168,7 +168,7 @@ export class FileSystemStorage {
             // First check current permission
             const currentPermission = await handle.queryPermission({ mode: 'readwrite' });
             // Permission check
-            
+
             if (currentPermission === 'granted') {
                 // Verify the handle is still valid by trying to access it
                 try {
@@ -186,13 +186,13 @@ export class FileSystemStorage {
             // Try to request permission
             console.log('[Storage] Requesting permission...');
             const requestResult = await handle.requestPermission({ mode: 'readwrite' });
-            
+
             if (requestResult === 'granted') {
                 this.directoryHandle = handle;
                 console.log('[Storage] Reconnected with new permission grant');
                 return true;
             }
-            
+
             console.log('[Storage] Permission denied by user');
             return false;
         } catch (error: any) {
@@ -236,7 +236,7 @@ export class FileSystemStorage {
 
     private async _doSave(nodes: AppNode[], edges: Edge[], options?: { skipFolderSync?: boolean }): Promise<void> {
         if (!this.directoryHandle) return;
-        
+
         perfMonitor.startTimer('storage.save', { nodeCount: nodes.length });
         this._isSaving = true;
         const startTime = Date.now();
@@ -245,13 +245,13 @@ export class FileSystemStorage {
         try {
             // 1. Create backup
             await this.createBackup();
-            
+
             // 2. Write temp files
             await Promise.all([
                 this.writeJsonFile(TEMP_NODES_FILE, nodes),
                 this.writeJsonFile(TEMP_EDGES_FILE, edges)
             ]);
-            
+
             // 3. Verify temp files
             try {
                 await this.readJsonFile<AppNode[]>(TEMP_NODES_FILE);
@@ -260,13 +260,13 @@ export class FileSystemStorage {
                 console.error('[Storage] Temp file verification failed');
                 throw new Error('Save verification failed');
             }
-            
+
             // 4. Atomic replace
             await this.atomicReplace(TEMP_NODES_FILE, NODES_FILE);
             await this.atomicReplace(TEMP_EDGES_FILE, EDGES_FILE);
 
             this._lastSavedState = { nodes, edges };
-            
+
             const duration = Date.now() - startTime;
             console.log('[Storage] Saved in', duration, 'ms');
             perfMonitor.endTimer('storage.save', { success: true });
@@ -281,11 +281,11 @@ export class FileSystemStorage {
         } catch (error: any) {
             console.error('[Storage] Save failed:', error);
             perfMonitor.endTimer('storage.save', { success: false, error: error.message });
-            
+
             await this.restoreFromBackup().catch(restoreErr =>
                 console.error('[Storage] Backup restore failed:', restoreErr)
             );
-            
+
             // Check for invalid handle
             if (error.name === 'NotFoundError' || error.name === 'NotAllowedError' ||
                 error.message?.includes('not found') || error.message?.includes('directory')) {
@@ -307,9 +307,9 @@ export class FileSystemStorage {
             console.warn('[Storage] Cannot load - not connected');
             return null;
         }
-        
+
         perfMonitor.startTimer('storage.load');
-        
+
         if (this._isSaving) {
             console.log('[Storage] Load blocked - waiting for save to complete');
             // Wait for queue to empty
@@ -321,7 +321,7 @@ export class FileSystemStorage {
         try {
             // Check if files exist first
             const nodesExist = await this.fileExists(NODES_FILE);
-            
+
             if (!nodesExist) {
                 console.log('[Storage] No existing nodes file found');
                 perfMonitor.endTimer('storage.load', { success: true, empty: true });
@@ -330,7 +330,7 @@ export class FileSystemStorage {
 
             const nodes = await this.readJsonFile<AppNode[]>(NODES_FILE);
             let edges: Edge[] = [];
-            
+
             if (await this.fileExists(EDGES_FILE)) {
                 edges = await this.readJsonFile<Edge[]>(EDGES_FILE);
             }
@@ -347,7 +347,7 @@ export class FileSystemStorage {
         } catch (error: any) {
             console.error('[Storage] Load failed:', error.message || error);
             perfMonitor.endTimer('storage.load', { success: false });
-            
+
             // Check for invalid handle
             if (error.name === 'NotFoundError' || error.name === 'NotAllowedError') {
                 this.directoryHandle = null;
@@ -358,7 +358,7 @@ export class FileSystemStorage {
 
     private async createBackup(): Promise<void> {
         if (!this.directoryHandle) return;
-        
+
         try {
             if (await this.fileExists(NODES_FILE)) {
                 const nodesData = await this.readJsonFile<AppNode[]>(NODES_FILE);
@@ -372,14 +372,14 @@ export class FileSystemStorage {
             console.warn('[Storage] Backup creation failed:', error);
         }
     }
-    
+
     private async restoreFromBackup(): Promise<void> {
         if (!this.directoryHandle) return;
-        
+
         try {
             const backupNodesExist = await this.fileExists(BACKUP_NODES_FILE);
             const backupEdgesExist = await this.fileExists(BACKUP_EDGES_FILE);
-            
+
             if (backupNodesExist && backupEdgesExist) {
                 const nodesData = await this.readJsonFile<AppNode[]>(BACKUP_NODES_FILE);
                 const edgesData = await this.readJsonFile<Edge[]>(BACKUP_EDGES_FILE);
@@ -392,7 +392,7 @@ export class FileSystemStorage {
             throw error;
         }
     }
-    
+
     private async atomicReplace(tempFile: string, targetFile: string): Promise<void> {
         if (!this.directoryHandle) return;
         try {
@@ -404,7 +404,7 @@ export class FileSystemStorage {
             throw error;
         }
     }
-    
+
     private async fileExists(filename: string): Promise<boolean> {
         if (!this.directoryHandle) return false;
         try {
@@ -414,7 +414,7 @@ export class FileSystemStorage {
             return false;
         }
     }
-    
+
     private async deleteFile(filename: string): Promise<void> {
         if (!this.directoryHandle) return;
         try {
@@ -423,14 +423,14 @@ export class FileSystemStorage {
             // Ignore delete errors
         }
     }
-    
+
     private async readRawFile(filename: string): Promise<string> {
         if (!this.directoryHandle) throw new Error('Not connected');
         const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: false });
         const file = await fileHandle.getFile();
         return await file.text();
     }
-    
+
     private async writeRawFile(filename: string, content: string): Promise<void> {
         if (!this.directoryHandle) throw new Error('Not connected');
         const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: true });
@@ -444,9 +444,9 @@ export class FileSystemStorage {
 
         const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: true });
         const writable = await fileHandle.createWritable();
-        
+
         const jsonStr = JSON.stringify(data);
-        
+
         if (USE_COMPRESSION && jsonStr.length > 10000) {
             const compressed = LZString.compressToUTF16(jsonStr);
             // Compressed
@@ -454,30 +454,35 @@ export class FileSystemStorage {
         } else {
             await writable.write(jsonStr);
         }
-        
+
         await writable.close();
     }
 
     private async readJsonFile<T>(filename: string): Promise<T> {
         if (!this.directoryHandle) throw new Error('Not connected');
 
-        const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: false });
-        const file = await fileHandle.getFile();
-        const text = await file.text();
-        
-        // Try decompress
-        if (USE_COMPRESSION && text.length > 0 && !text.startsWith('{') && !text.startsWith('[')) {
-            try {
-                const decompressed = LZString.decompressFromUTF16(text);
-                if (decompressed) {
-                    return JSON.parse(decompressed) as T;
+        try {
+            const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: false });
+            const file = await fileHandle.getFile();
+            const text = await file.text();
+
+            // Try decompress
+            if (USE_COMPRESSION && text.length > 0 && !text.startsWith('{') && !text.startsWith('[')) {
+                try {
+                    const decompressed = LZString.decompressFromUTF16(text);
+                    if (decompressed) {
+                        return JSON.parse(decompressed) as T;
+                    }
+                } catch (decompressError) {
+                    console.warn('[Storage] Decompression failed, trying plain JSON fallback', decompressError);
                 }
-            } catch {
-                // Fall through to plain JSON
             }
+
+            return JSON.parse(text) as T;
+        } catch (error) {
+            console.error(`[Storage] Failed to read/parse ${filename}:`, error);
+            throw error;
         }
-        
-        return JSON.parse(text) as T;
     }
 
     private getFolderName(node: AppNode): string {

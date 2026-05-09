@@ -113,7 +113,9 @@ export const ResizableMediaWrapper = ({
                 ref={wrapperRef}
                 className={styles.resizeWrapper}
                 style={{
-                    width: width ? `${width}px` : '100%',
+                    // On canvas (disableMediaControls), always fill parent (node has fixed px width)
+                    // In editor mode, use stored width or default to 100%
+                    width: disableMediaControls ? '100%' : (width ? `${width}px` : '100%'),
                 }}
             >
                 {children}

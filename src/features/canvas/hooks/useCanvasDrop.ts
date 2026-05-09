@@ -4,7 +4,7 @@ import { useReactFlow } from '@xyflow/react';
 import { useStore } from '../../../store/useStore';
 import type { BlockType } from '../../editor/types';
 import type { AppNode } from '../../../types';
-import { BASE_UNIT, MIN_FUSED_SIZE, ICON_SIZE, snapToGridValue } from '../../../config/layout';
+import { BASE_UNIT, MIN_FUSED_SIZE, ICON_SIZE, snapToGridValue, GRID_GAP } from '../../../config/layout';
 
 interface UseCanvasDropOptions {
     updateNodeData: (id: string, data: any) => void;
@@ -193,8 +193,13 @@ export function useCanvasDrop({
                     return;
                 }
 
-                const BLOCK_WIDTH = MIN_FUSED_SIZE;
-                const BLOCK_HEIGHT = ICON_SIZE;
+                const isFusedLink = blocksToAdd.length > 1;
+                const isSingleMedia = blocksToAdd.length === 1 && 
+                    (blocksToAdd[0].type === 'image' || blocksToAdd[0].type === 'video' || blocksToAdd[0].type === 'file');
+                
+                const BLOCK_WIDTH = isSingleMedia ? ((BASE_UNIT * 4) - GRID_GAP) : MIN_FUSED_SIZE;
+                const BLOCK_HEIGHT = isFusedLink ? MIN_FUSED_SIZE : ICON_SIZE;
+
                 const centeredPosition = {
                     x: snapToGridValue(position.x - (BLOCK_WIDTH / 2)),
                     y: snapToGridValue(position.y - (BLOCK_HEIGHT / 2)),
@@ -218,8 +223,8 @@ export function useCanvasDrop({
                         isStandaloneBlock: true
                     },
                     style: {
-                        width: blocksToAdd.length > 1 ? MIN_FUSED_SIZE : BLOCK_WIDTH,
-                        height: blocksToAdd.length > 1 ? MIN_FUSED_SIZE : BLOCK_HEIGHT
+                        width: BLOCK_WIDTH,
+                        height: BLOCK_HEIGHT
                     },
                     parentId: targetParentId,
                 };

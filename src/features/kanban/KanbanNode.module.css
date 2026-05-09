@@ -292,10 +292,28 @@
 }
 
 .handle {
-    background: transparent;
-    width: 1px;
-    height: 1px;
-    border: none;
+    opacity: 0;
+    width: 10px !important;
+    height: 10px !important;
+    border-radius: 50%;
+    background: var(--color-primary) !important;
+    border: 2px solid var(--bg-dark) !important;
+    transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+    /* Position at top-right */
+    left: auto !important;
+    right: -6px !important;
+    top: -6px !important;
+    transform: none !important;
+    z-index: 50;
+}
+
+.board:hover .handle {
+    opacity: 1;
+}
+
+.handle:hover {
+    transform: scale(1.4) !important;
+    box-shadow: 0 0 8px var(--color-primary);
 }
 
 /* --- Drag & Drop --- */

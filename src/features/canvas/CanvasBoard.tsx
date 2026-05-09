@@ -16,8 +16,6 @@ import { CenterModal } from '../ui/CenterModal';
 import { MetadataMenu } from '../ui/MetadataMenu';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { KanbanNodeComponent } from '../kanban/KanbanNode';
-import { CanvasOverlay } from './CanvasOverlay';
-import { DragGridOverlay } from './DragGridOverlay';
 import { CanvasSlashMenu } from './CanvasSlashMenu';
 
 // Hooks
@@ -26,7 +24,6 @@ import {
     useCanvasViewport,
     useCanvasDrop,
     useCanvasNodeDrag,
-    useCanvasBoxSelection,
 } from './hooks';
 
 // Lazy load KanbanConfigModal
@@ -56,9 +53,6 @@ export function CanvasBoard() {
         setInteractionState,
         extractPageFromBlock,
         syncParentContent,
-        toggleCanvasNodeSelection,
-        setSelectedCanvasNodeIds,
-        clearCanvasSelection,
         rightSidePanelId,
         leftSidePanelId,
         setRightSidePanelId,
@@ -128,23 +122,6 @@ export function CanvasBoard() {
         selectedCanvasNodeIds,
     });
 
-    // Box selection handlers
-    const {
-        isCtrlPressed,
-        nodesUnderSelection,
-        selectionBoxStyle,
-        onNodeClick,
-        handlePaneClick,
-        handleSelectionStart,
-        handleSelectionMove,
-        handleSelectionEnd,
-    } = useCanvasBoxSelection({
-        visibleNodes,
-        selectedCanvasNodeIds,
-        setSelectedCanvasNodeIds,
-        clearCanvasSelection,
-        toggleCanvasNodeSelection,
-    });
 
     // Grid configuration
     const snapGrid: [number, number] = [56, 56];
@@ -157,13 +134,7 @@ export function CanvasBoard() {
     }, []);
 
     return (
-        <div
-            className={`${styles.container} ${isCtrlPressed ? styles.selectMode : ''}`}
-            onMouseDown={handleSelectionStart}
-            onMouseMove={handleSelectionMove}
-            onMouseUp={handleSelectionEnd}
-            onMouseLeave={handleSelectionEnd}
-        >
+        <div className={styles.container}>
             <div className={styles.canvasArea}>
                 <ThemeSwitcher />
                 <div style={{ position: 'absolute', top: 20, left: 30, zIndex: 100 }}>
@@ -173,18 +144,9 @@ export function CanvasBoard() {
                     <MetadataMenu nodeId={activeParentNode.id} />
                 )}
 
-                {/* Selection overlay */}
-                <CanvasOverlay
-                    isCtrlPressed={isCtrlPressed}
-                    selectionBoxStyle={selectionBoxStyle}
-                    nodesUnderSelectionCount={nodesUnderSelection.size}
-                />
 
                 <ReactFlow
-                    nodes={visibleNodes.map(node => ({
-                        ...node,
-                        className: nodesUnderSelection.has(node.id) ? 'box-selection-preview' : '',
-                    }))}
+                    nodes={visibleNodes}
                     edges={visibleEdges}
                     onNodesChange={onNodesChange}
                     onEdgesChange={onEdgesChange}
@@ -201,11 +163,9 @@ export function CanvasBoard() {
                     onNodeDragStart={onNodeDragStart}
                     onNodeDrag={onNodeDrag}
                     onNodeDragStop={onNodeDragStop}
-                    onNodeClick={onNodeClick}
-                    onPaneClick={handlePaneClick}
                     onMove={handleViewportChange}
                     selectionOnDrag={false}
-                    panOnDrag={!isCtrlPressed}
+                    panOnDrag={true}
                     selectionMode={SelectionMode.Partial}
                     // Performance optimizations
                     nodesDraggable={true}
@@ -224,7 +184,6 @@ export function CanvasBoard() {
                     connectOnClick={false}
                     deleteKeyCode={null}
                 >
-                    <DragGridOverlay />
                     <CanvasSlashMenu />
                     <Controls className={styles.canvasControls} />
                     <MiniMap

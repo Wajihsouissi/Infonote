@@ -211,3 +211,8 @@ body {
   cursor: nwse-resize !important;
   transition: none !important;
 }
+
+/* Allow handles positioned outside node boundaries to be visible */
+.react-flow__node {
+  overflow: visible !important;
+}

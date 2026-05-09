@@ -6,7 +6,7 @@ import { EditBar } from '../ui/EditBar';
 import { useStore } from '../../store/useStore';
 import type { Node } from '@xyflow/react';
 import styles from './FusedNoteNode.module.css';
-import { snapFusedDimensions, MIN_FUSED_SIZE, MAX_HEIGHT } from '../../config/layout';
+import { snapFusedDimensions, MIN_FUSED_SIZE, MIN_EXPANDED_SIZE, MAX_HEIGHT } from '../../config/layout';
 import { toPastelColor, lightenColor } from '../../utils/colorUtils';
 
 export type FusedNoteNodeData = {
@@ -90,8 +90,8 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                         },
                         style: {
                             ...n.style,
-                            width: MIN_FUSED_SIZE,
-                            height: MIN_FUSED_SIZE,
+                            width: MIN_EXPANDED_SIZE,
+                            height: MIN_EXPANDED_SIZE,
                         }
                     } as any;
                 }
@@ -130,7 +130,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 date: new Date().toISOString(),
                 color: fusedNodeColor
             },
-            style: { width: MIN_FUSED_SIZE, height: MIN_FUSED_SIZE },
+            style: { width: MIN_EXPANDED_SIZE, height: MIN_EXPANDED_SIZE },
             zIndex: 10
         };
 
@@ -193,70 +193,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
     }, [id, data.content]);
 
-    // Smart auto-resize: measures content height on content changes (not resize events)
-    // Uses a temporary height:auto trick to get the natural content height,
-    // then restores height:100% to avoid resize observer loops.
-    const smartResizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    useEffect(() => {
-        if (activeResize.current) return;
-        if (!contentRef.current || !nodeRef.current) return;
-
-        // Debounce to avoid rapid re-measurement during typing
-        if (smartResizeTimer.current) clearTimeout(smartResizeTimer.current);
-
-        smartResizeTimer.current = setTimeout(() => {
-            if (!contentRef.current || !nodeRef.current) return;
-            if (activeResize.current) return;
-
-            const contentEl = contentRef.current;
-            const nodeEl = nodeRef.current;
-            const currentHeight = nodeEl.offsetHeight;
-            const currentWidth = nodeEl.offsetWidth;
-
-            // Temporarily set content to height:auto to measure natural height
-            const originalHeight = contentEl.style.height;
-            contentEl.style.height = 'auto';
-
-            // Force layout reflow to get accurate measurement
-            const naturalContentHeight = contentEl.scrollHeight;
-
-            // Restore immediately to avoid visual flicker
-            contentEl.style.height = originalHeight || '100%';
-
-            // Calculate chrome height (padding, borders, accent strip, etc.)
-            // We compute this from the difference between node height and content client height
-            const chromeHeight = currentHeight - contentEl.clientHeight;
-            const neededHeight = naturalContentHeight + chromeHeight;
-
-            // Snap to grid steps (56px grid)
-            const targetHeight = Math.ceil((neededHeight + 16) / 56) * 56 - 16;
-
-            // Clamp to bounds
-            const clampedTarget = Math.max(Math.min(targetHeight, MAX_HEIGHT), MIN_FUSED_SIZE);
-
-            // Only resize if the difference is meaningful (> 4px to avoid micro-oscillations)
-            if (Math.abs(currentHeight - clampedTarget) <= 4) return;
-
-            // Growing: content overflows
-            const isGrowing = clampedTarget > currentHeight + 2;
-            // Shrinking: content is significantly smaller than container (at least 1 grid step)
-            const isShrinking = currentHeight - clampedTarget > 56;
-
-            if (isGrowing || isShrinking) {
-                updateNode(id, {
-                    style: {
-                        width: currentWidth,
-                        height: clampedTarget
-                    }
-                });
-            }
-        }, 300); // 300ms debounce
-
-        return () => {
-            if (smartResizeTimer.current) clearTimeout(smartResizeTimer.current);
-        };
-    }, [id, data.content, updateNode]);
+    // Auto-resize logic has been removed so that fused notes default to 8x8 and scroll if content overflows.
 
     const handleResizeStart = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -278,23 +215,12 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
         const onMouseMove = (moveEvent: MouseEvent) => {
             const deltaX = (moveEvent.clientX - startX) / zoom;
             const deltaY = (moveEvent.clientY - startY) / zoom;
-
             const rawW = startW + deltaX;
             const rawH = startH + deltaY;
 
-            // Strict step-based snapping for fused notes (4x4, 6x6, 8x8, 10x10, 12x12)
             const { width, height } = snapFusedDimensions(rawW, rawH);
 
-            // Verify change to check against props/ref
             if (nodeRef.current) {
-
-                // But better to check against stored/prop style if possible to avoid layout thrashing?
-                // The previous code checked `n.style.width` inside setState.
-                // Here we can just dispatch update. Store will dedup if identical?
-                // Actually `updateNode` just sets state.
-                // We can check against `width` prop if we had it, but `FusedNoteNode` uses `NodeProps<Node<...>>`.
-                // `style` is usually not in `data`. It's on the node.
-                // We can just dispatch.
                 updateNode(id, { style: { width, height } });
             }
         };
@@ -408,7 +334,11 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 <StickyNote size={16} />
             </button>
 
-            <div className={`${styles.content} nodrag`} ref={contentRef}>
+            <div 
+                className={`${styles.content} nodrag`} 
+                ref={contentRef}
+                onWheelCapture={(e) => e.stopPropagation()}
+            >
                 <BlockEditor
                     initialContent={data.content}
                     readOnly={false}
@@ -448,8 +378,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 </svg>
             </div>
 
-            <Handle type="target" position={Position.Top} className={styles.handle} />
-            <Handle type="source" position={Position.Bottom} className={styles.handle} />
+            <Handle type="source" position={Position.Top} className={styles.handle} id="connection" />
 
             {/* EditBar Context Menu */}
             {showEditBar && (

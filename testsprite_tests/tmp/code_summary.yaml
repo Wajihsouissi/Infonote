@@ -1,0 +1,39 @@
+version: "2"
+type: frontend
+tech_stack:
+  - TypeScript
+  - React
+  - Vite
+  - Tailwind CSS
+  - Zustand
+  - XYFlow
+routes:
+  - path: /
+    file: src/App.tsx
+    auth_required: false
+    description: Main application page with canvas and block editor
+features:
+  - name: Block Editor
+    description: Rich text block editor feature for typing notes
+    files:
+      - src/features/editor/VirtualBlockList.tsx
+    entry_route: /
+    user_interactions:
+      - Create new block
+      - Type text into block
+      - Delete block
+      - Rearrange blocks
+    api_calls: []
+    auth_required: false
+  - name: Canvas Board
+    description: Infinite canvas board for visual organization
+    files:
+      - src/features/canvas/CanvasBoard.tsx
+    entry_route: /
+    user_interactions:
+      - Add new node
+      - Move nodes around
+      - Zoom in and out
+    api_calls: []
+    auth_required: false
+known_limitations: []
