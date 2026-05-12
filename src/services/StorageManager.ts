@@ -1,12 +1,19 @@
 /**
- * StorageManager - Module-level storage synchronization
- * Optimized for performance with minimal logging and efficient save handling
+ * StorageManager - Module-level storage synchronization.
+ *
+ * Now backend-agnostic: holds a GraphBackend reference (file-system by default,
+ * can be swapped to Supabase at runtime). The subscribe/debounce/immediate-save
+ * logic is unchanged, so existing local-folder behavior is preserved.
  */
 
-import { fileSystemStorage } from './FileSystemStorage';
+import { fileSystemBackend } from './storage/FileSystemBackend';
+import { supabaseBackend } from './storage/SupabaseBackend';
+import type { GraphBackend, BackendKind } from './storage/types';
 
 let isInitialized = false;
 let saveTimeout: number | null = null;
+
+let activeBackend: GraphBackend = fileSystemBackend;
 
 let storeCallbacks: {
     getState: () => { nodes: any[]; edges: any[] };
@@ -28,7 +35,7 @@ export function initStorageManager(
 ): void {
     if (isInitialized) return;
     isInitialized = true;
-    
+
     storeCallbacks = {
         getState,
         loadGraph,
@@ -37,19 +44,20 @@ export function initStorageManager(
         setLastSaved: (time: string | null) => { if (time && callbacks.onSaveEnd) callbacks.onSaveEnd(time); }
     };
 
-    // Auto-reconnect on startup
+    // Auto-reconnect the file-system backend on startup (Supabase cloud mode
+    // requires an explicit sign-in + connect click).
     autoReconnect();
 
-    // Subscribe to store changes for auto-save
+    // Subscribe to store changes for auto-save.
     subscribe(
-        (state: any) => ({ 
-            nodes: state.nodes, 
-            edges: state.edges, 
-            isConnected: state.storage.isConnected 
+        (state: any) => ({
+            nodes: state.nodes,
+            edges: state.edges,
+            isConnected: state.storage.isConnected
         }),
         (curr, prev) => {
             if (!curr.isConnected) return;
-            
+
             const nodesChanged = curr.nodes !== prev.nodes;
             const edgesChanged = curr.edges !== prev.edges;
 
@@ -62,10 +70,10 @@ export function initStorageManager(
                 const nodeCountChanged = curr.nodes.length !== prev.nodes.length;
 
                 if (nodeCountChanged) {
-                    // Immediate save for structural changes
+                    // Immediate save for structural changes.
                     performSave();
                 } else {
-                    // Debounce content changes
+                    // Debounce content changes.
                     saveTimeout = window.setTimeout(performSave, 500);
                 }
             }
@@ -75,84 +83,115 @@ export function initStorageManager(
 
 async function autoReconnect(): Promise<void> {
     if (!storeCallbacks) return;
-    
-    try {
-        const handle = await fileSystemStorage.getStoredHandle();
-        if (!handle) return;
 
-        const connected = await fileSystemStorage.reconnect();
-        if (connected) {
-            const data = await fileSystemStorage.loadData();
-            if (data && data.nodes.length > 0) {
-                storeCallbacks.loadGraph(data.nodes, data.edges);
-            }
-            storeCallbacks.setStorageStatus(true, fileSystemStorage.directoryName || 'Local Folder');
+    // Only attempt file-system auto-reconnect (uses an IndexedDB-stored handle).
+    // Cloud reconnect is an explicit user action because it requires auth.
+    try {
+        const connected = await fileSystemBackend.connect().catch(() => false);
+        if (!connected) return;
+
+        activeBackend = fileSystemBackend;
+
+        const data = await fileSystemBackend.load();
+        if (data && data.nodes.length > 0) {
+            storeCallbacks.loadGraph(data.nodes, data.edges);
         }
+        storeCallbacks.setStorageStatus(true, activeBackend.displayName ?? 'Local Folder');
     } catch {
-        // Silently fail on auto-reconnect
+        // Silently fail on auto-reconnect; user can still connect manually.
     }
 }
 
 async function performSave(): Promise<void> {
-    if (!storeCallbacks || !fileSystemStorage.isConnected) return;
+    if (!storeCallbacks || !activeBackend.isConnected) return;
 
     try {
         const { nodes, edges } = storeCallbacks.getState();
-        await fileSystemStorage.saveData(nodes, edges);
+        await activeBackend.save({ nodes, edges });
         storeCallbacks.setLastSaved(new Date().toLocaleTimeString());
     } catch {
-        // Check if handle was invalidated
-        if (!fileSystemStorage.isConnected) {
+        // If the backend dropped its connection, surface that to the UI.
+        if (!activeBackend.isConnected) {
             storeCallbacks.setStorageStatus(false, null);
         }
     }
 }
 
+/**
+ * Legacy entry point used by <StorageControls /> for the local-folder button.
+ * Kept intact so existing callers do not have to change.
+ */
 export async function connectStorage(
     getState: () => { nodes: any[]; edges: any[] },
     loadGraph: (nodes: any[], edges: any[]) => void,
     setStorageStatus: (connected: boolean, dirName: string | null) => void
 ): Promise<{ success: boolean; error?: string }> {
+    return connectBackend('filesystem', { getState, loadGraph, setStorageStatus });
+}
+
+/**
+ * Generic entry point for any backend kind. Used by the new cloud button.
+ */
+export async function connectBackend(
+    kind: BackendKind,
+    ctx: {
+        getState: () => { nodes: any[]; edges: any[] };
+        loadGraph: (nodes: any[], edges: any[]) => void;
+        setStorageStatus: (connected: boolean, dirName: string | null) => void;
+    }
+): Promise<{ success: boolean; error?: string }> {
+    const backend: GraphBackend = kind === 'supabase' ? supabaseBackend : fileSystemBackend;
+
     try {
-        let connected = await fileSystemStorage.reconnect();
-        
+        const connected = await backend.connect();
         if (!connected) {
-            connected = await fileSystemStorage.selectDirectory();
+            return { success: false, error: kind === 'supabase'
+                ? 'Cloud connection was cancelled or not signed in'
+                : 'Directory selection was cancelled' };
         }
 
-        if (!connected) {
-            return { 
-                success: false, 
-                error: 'Directory selection was cancelled' 
-            };
+        // Disconnect the previously active backend (if it was a different one)
+        // so auto-save does not double-write.
+        if (activeBackend !== backend) {
+            try { await activeBackend.disconnect(); } catch { /* ignore */ }
         }
+        activeBackend = backend;
 
-        const data = await fileSystemStorage.loadData();
+        const data = await backend.load();
         if (data && data.nodes.length > 0) {
-            loadGraph(data.nodes, data.edges);
+            ctx.loadGraph(data.nodes, data.edges);
         } else {
-            const currentState = getState();
+            const currentState = ctx.getState();
             if (currentState.nodes.length > 0) {
-                await fileSystemStorage.saveData(currentState.nodes, currentState.edges);
+                await backend.save({ nodes: currentState.nodes, edges: currentState.edges });
             }
         }
-        
-        const dirName = fileSystemStorage.directoryName || 'Local Folder';
-        setStorageStatus(true, dirName);
-        
+
+        ctx.setStorageStatus(true, backend.displayName ?? (kind === 'supabase' ? 'Cloud' : 'Local Folder'));
         return { success: true };
-        
     } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        setStorageStatus(false, null);
+        ctx.setStorageStatus(false, null);
         return { success: false, error: errorMsg };
     }
 }
 
+export async function disconnectBackend(
+    setStorageStatus: (connected: boolean, dirName: string | null) => void
+): Promise<void> {
+    try { await activeBackend.disconnect(); } catch { /* ignore */ }
+    activeBackend = fileSystemBackend;
+    setStorageStatus(false, null);
+}
+
+export function getActiveBackendKind(): BackendKind {
+    return activeBackend.kind;
+}
+
 export function isStorageConnected(): boolean {
-    return fileSystemStorage.isConnected;
+    return activeBackend.isConnected;
 }
 
 export function getDirectoryName(): string | undefined {
-    return fileSystemStorage.directoryName;
+    return activeBackend.displayName ?? undefined;
 }
