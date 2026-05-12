@@ -63,6 +63,14 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
     }, [onUpdate]);
 
     useEffect(() => {
+        if (Array.isArray(initialContent)) {
+            setBlocks(initialContent);
+        } else if (typeof initialContent === 'string') {
+            setBlocks([{ id: uuidv4(), type: 'text', content: initialContent }]);
+        }
+    }, [initialContent]);
+
+    useEffect(() => {
         return () => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
@@ -85,7 +93,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         wasDraggingRef,
         handleSelectionMouseDown,
         selectedBlockIdsRef
-    } = useBlockSelection({ editorRef, blocks, blockRefs });
+    } = useBlockSelection({ editorRef, blocks, blocksRef, blockRefs });
 
     // 2. Slash Command Hook
     const {
@@ -97,6 +105,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
     } = useSlashCommand({
         editorRef,
         blocks,
+        blocksRef,
         setBlocks,
         debouncedOnUpdate,
         setFocusId,
@@ -122,6 +131,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
     } = useBlockCommands({
         editorRef,
         blocks,
+        blocksRef,
         setBlocks,
         debouncedOnUpdate,
         setFocusId,
@@ -370,11 +380,19 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             const selection = window.getSelection();
             const target = e.target as HTMLElement;
             if (selection && selection.rangeCount > 0 && target) {
-                const range = selection.getRangeAt(0);
-                const preCaretRange = range.cloneRange();
-                preCaretRange.selectNodeContents(target);
-                preCaretRange.setEnd(range.endContainer, range.endOffset);
-                return preCaretRange.toString().length;
+                try {
+                    const range = selection.getRangeAt(0);
+                    // Ensure the selection is actually inside the target to avoid errors
+                    if (!target.contains(range.commonAncestorContainer)) return 0;
+
+                    const preCaretRange = range.cloneRange();
+                    preCaretRange.selectNodeContents(target);
+                    preCaretRange.setEnd(range.endContainer, range.endOffset);
+                    return preCaretRange.toString().length;
+                } catch (err) {
+                    console.warn('Error calculating caret offset:', err);
+                    return 0;
+                }
             }
             return 0;
         };
@@ -728,9 +746,9 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             {slashMenuState && (
                 <SlashMenu
                     anchorRect={slashMenuState.anchorRect}
-                    filter={blocks.find(b => b.id === slashMenuState.blockId)?.content.substring(1) || ''}
-                    onSelect={(type, meta) => convertBlock(undefined, type, meta)}
-                    onClose={() => setSlashMenuState(null)}
+                    filter={blocksRef.current.find(b => b.id === slashMenuState.blockId)?.content.substring(1) || ''}
+                    onSelect={useCallback((type, meta) => convertBlock(undefined, type, meta), [convertBlock])}
+                    onClose={useCallback(() => setSlashMenuState(null), [setSlashMenuState])}
                 />
             )}
 

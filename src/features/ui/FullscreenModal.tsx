@@ -11,6 +11,7 @@ export function FullscreenModal() {
     const updateNodeData = useStore(s => s.updateNodeData);
     // Only subscribe to the specific node we need, not the entire array
     const activeNode = useStore(s => fullscreenId ? s.nodes.find(n => n.id === fullscreenId) : undefined);
+    const navigateToNode = useStore(s => s.navigateToNode);
     const isLocalFullscreen = useRef(false);
 
     // Sync React state -> Native Fullscreen (Backup/Redundancy)
@@ -71,6 +72,10 @@ export function FullscreenModal() {
                             data={activeNode.data as any}
                             onUpdate={updateNodeData}
                             onClose={handleClose}
+                            onNavigate={() => {
+                                handleClose();
+                                navigateToNode(fullscreenId);
+                            }}
                         />
                     ) : (
                         <div className={styles.editorContainer}>

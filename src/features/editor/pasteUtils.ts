@@ -1,13 +1,11 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Block, BlockType } from './types';
 
-export const parseClipboardData = async (e: React.ClipboardEvent): Promise<Block[]> => {
+// 1. Handle Files (Images/Videos) - ASYNC
+export const parseFiles = async (files: FileList): Promise<Block[]> => {
     const blocks: Block[] = [];
-    const clipboardData = e.clipboardData;
-
-    // 1. Handle Files (Images/Videos)
-    if (clipboardData.files && clipboardData.files.length > 0) {
-        const filePromises = Array.from(clipboardData.files).map(file => {
+    if (files && files.length > 0) {
+        const filePromises = Array.from(files).map(file => {
             return new Promise<Block | null>((resolve) => {
                 let type: BlockType = 'file';
                 if (file.type.startsWith('image/')) type = 'image';
@@ -41,10 +39,14 @@ export const parseClipboardData = async (e: React.ClipboardEvent): Promise<Block
         fileBlocks.forEach(b => {
             if (b) blocks.push(b);
         });
-
-        // If files exist, return them.
-        if (blocks.length > 0) return blocks;
     }
+    return blocks;
+};
+
+// 2. Handle Text/HTML - SYNC
+export const parseTextOrHtml = (e: React.ClipboardEvent): Block[] => {
+    const blocks: Block[] = [];
+    const clipboardData = e.clipboardData;
 
     // 2. Handle HTML
     const html = clipboardData.getData('text/html');
@@ -133,6 +135,15 @@ export const parseClipboardData = async (e: React.ClipboardEvent): Promise<Block
     }
 
     return [];
+};
+
+export const parseClipboardData = async (e: React.ClipboardEvent): Promise<Block[]> => {
+    // Legacy support or combined usage
+    const files = e.clipboardData.files;
+    if (files && files.length > 0) {
+        return parseFiles(files);
+    }
+    return parseTextOrHtml(e);
 };
 
 function domNodeToBlock(node: HTMLElement): Block | null {

@@ -1,0 +1,20 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:4173",
+  "loginUser": "wajihsouissi",
+  "loginPassword": "12121245",
+  "executionArgs": {
+    "projectName": "Infonote",
+    "projectPath": "c:\\Users\\Wajih souissi\\Desktop\\Infonote",
+    "testIds": [],
+    "additionalInstruction": "Prioritize the block editor feature so it is perfect.",
+    "serverMode": "production",
+    "envs": {
+      "API_KEY": "sk-user-XcXr9nhFOwQE1v6wT60QIVAODzuAzMAuAMEUSYOWN-nayMp_XVaQ4oXObS5V5G3UNpZlerPpsQr3ywcw_4xvoail2xo57TPqj3LNb5yzwFZWEpmLTf_ml0RVPX2bT6iiX7A"
+    }
+  },
+  "serverPort": 51875,
+  "proxy": "http://a2611380-4ed8-44d3-a48d-a81cef79ffc3:kVqu7EqMo43pWoyiWa7GYbzZkiXIAO6y@tun.testsprite.com:8080"
+}

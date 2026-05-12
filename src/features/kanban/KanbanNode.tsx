@@ -730,8 +730,7 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                 </DndContext>
             )}
 
-            <Handle type="target" position={Position.Top} className={styles.handle} />
-            <Handle type="source" position={Position.Bottom} className={styles.handle} />
+            <Handle type="source" position={Position.Top} className={styles.handle} id="connection" />
         </div>
     );
 });

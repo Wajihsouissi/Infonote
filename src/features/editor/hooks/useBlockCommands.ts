@@ -2,11 +2,12 @@ import { useCallback } from 'react';
 import type { Block, BlockType } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '../../../store/useStore';
-import { parseClipboardData } from '../pasteUtils';
+import { parseFiles, parseTextOrHtml } from '../pasteUtils';
 
 interface BlockCommandsProps {
     editorRef: React.RefObject<HTMLDivElement | null>;
     blocks: Block[];
+    blocksRef: React.MutableRefObject<Block[]>; // Added blocksRef
     setBlocks: React.Dispatch<React.SetStateAction<Block[]>>;
     debouncedOnUpdate: (newBlocks: Block[]) => void;
     setFocusId: (id: string | null) => void;
@@ -19,6 +20,7 @@ interface BlockCommandsProps {
 export function useBlockCommands({
     editorRef,
     blocks,
+    blocksRef, // Added
     setBlocks,
     debouncedOnUpdate,
     setFocusId,
@@ -173,9 +175,29 @@ export function useBlockCommands({
     }, [selectedBlockIds, debouncedOnUpdate, setBlocks, setSelectedBlockIds, checkForSplit]);
 
     const handleBlockPaste = useCallback(async (e: React.ClipboardEvent, blockId: string) => {
-        e.preventDefault();
-        const parsedBlocks = await parseClipboardData(e);
+        // Check for files first (async path)
+        const files = e.clipboardData.files;
+        if (files && files.length > 0) {
+            e.preventDefault();
+            const parsedBlocks = await parseFiles(files);
+            if (parsedBlocks.length > 0) {
+                setBlocks(prev => {
+                    const index = prev.findIndex(b => b.id === blockId);
+                    if (index === -1) return prev;
+                    const newBlocks = [...prev];
+                    newBlocks.splice(index + 1, 0, ...parsedBlocks);
+                    debouncedOnUpdate(newBlocks);
+                    return newBlocks;
+                });
+            }
+            return;
+        }
+
+        // Sync path for Text/HTML to preserve user gesture for execCommand
+        const parsedBlocks = parseTextOrHtml(e);
         if (parsedBlocks.length === 0) return;
+
+        e.preventDefault();
 
         const firstBlock = parsedBlocks[0];
         const remainingBlocks = parsedBlocks.slice(1);
@@ -241,26 +263,26 @@ export function useBlockCommands({
 
     // Focus previous block
     const focusPreviousBlock = useCallback((currentId: string) => {
-        const index = blocks.findIndex(b => b.id === currentId);
+        const index = blocksRef.current.findIndex(b => b.id === currentId);
         if (index > 0) {
-            setFocusId(blocks[index - 1].id);
+            setFocusId(blocksRef.current[index - 1].id);
         }
-    }, [blocks, setFocusId]);
+    }, [blocksRef, setFocusId]);
 
     // Focus next block
     const focusNextBlock = useCallback((currentId: string) => {
-        const index = blocks.findIndex(b => b.id === currentId);
-        if (index < blocks.length - 1) {
-            setFocusId(blocks[index + 1].id);
+        const index = blocksRef.current.findIndex(b => b.id === currentId);
+        if (index < blocksRef.current.length - 1) {
+            setFocusId(blocksRef.current[index + 1].id);
         }
-    }, [blocks, setFocusId]);
+    }, [blocksRef, setFocusId]);
 
     // Add block below current and focus it
     const addBlockBelow = useCallback((id: string) => {
-        const currentBlock = blocks.find(b => b.id === id);
+        const currentBlock = blocksRef.current.find(b => b.id === id);
         const indent = currentBlock?.indent || 0;
         addBlock(id, 'text', indent);
-    }, [blocks, addBlock]);
+    }, [blocksRef, addBlock]);
 
     const deleteSelectedBlocks = useCallback(() => {
         if (selectedBlockIds.size === 0) return;
@@ -296,21 +318,21 @@ export function useBlockCommands({
                 return;
             }
 
-            const lastId = blocks.length > 0 ? blocks[blocks.length - 1].id : null;
+            const lastId = blocksRef.current.length > 0 ? blocksRef.current[blocksRef.current.length - 1].id : null;
             if (lastId) {
-                const lastBlock = blocks[blocks.length - 1];
+                const lastBlock = blocksRef.current[blocksRef.current.length - 1];
                 if (lastBlock.type === 'text' && lastBlock.content === '') {
                     setFocusId(lastId);
                 } else {
                     addBlock(lastId, 'text');
                 }
-            } else if (blocks.length === 0) {
+            } else if (blocksRef.current.length === 0) {
                 const newId = uuidv4();
                 setBlocks([{ id: newId, type: 'text', content: '' }]);
                 setFocusId(newId);
             }
         }
-    }, [editorRef, selectedBlockIds, blocks, setFocusId, addBlock, setBlocks, setSelectedBlockIds]);
+    }, [editorRef, selectedBlockIds, blocksRef, setFocusId, addBlock, setBlocks, setSelectedBlockIds]);
 
     return {
         addBlock,

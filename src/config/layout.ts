@@ -26,7 +26,7 @@ export const snapToGridValue = (val: number) => Math.round(val / BASE_UNIT) * BA
 // We jump in steps of 2 units (112px) for a premium modular feel
 export const MODULE_SNAP_STEP = BASE_UNIT * 2; // 112px
 export const FUSED_GRID_STEPS = [4, 6, 8, 10, 12].map(units => (units * BASE_UNIT) - GRID_GAP);
-export const MIN_FUSED_SIZE = FUSED_GRID_STEPS[0];
+export const MIN_FUSED_SIZE = MIN_EXPANDED_SIZE;
 
 // Canvas generation constants (Grid Aligned)
 export const CANVAS_HORIZONTAL_GAP = 56; // 1 unit
@@ -99,26 +99,25 @@ export const calculateNoteLayout = (rawWidth: number, rawHeight: number) => {
     return { width: targetWidth, height: targetHeight, mode };
 };
 
+// Fused Note Dimensions are now variable.
 /**
  * Snaps fused note dimensions to specific grid steps: 4x4, 6x6, 8x8, 10x10, 12x12 units.
  * Both dimensions are kept equal to maintain a square shape following the user's vision.
  */
 export const snapFusedDimensions = (rawWidth: number, rawHeight: number) => {
-    const size = Math.max(rawWidth, rawHeight);
+    const step = BASE_UNIT;
 
-    // Find the closest step in FUSED_GRID_STEPS
-    let closestSize = FUSED_GRID_STEPS[0];
-    let minDiff = Math.abs(size - closestSize);
+    // Width logic
+    let width = Math.round(rawWidth / step) * step - GRID_GAP;
+    if (width < MIN_EXPANDED_SIZE) width = MIN_EXPANDED_SIZE;
+    if (width > MAX_WIDTH) width = MAX_WIDTH;
 
-    for (let i = 1; i < FUSED_GRID_STEPS.length; i++) {
-        const diff = Math.abs(size - FUSED_GRID_STEPS[i]);
-        if (diff < minDiff) {
-            minDiff = diff;
-            closestSize = FUSED_GRID_STEPS[i];
-        }
-    }
+    // Height logic
+    let height = Math.round(rawHeight / step) * step - GRID_GAP;
+    if (height < MIN_EXPANDED_SIZE) height = MIN_EXPANDED_SIZE;
+    if (height > MAX_HEIGHT) height = MAX_HEIGHT;
 
-    return { width: closestSize, height: closestSize };
+    return { width, height };
 };
 
 /**
@@ -134,4 +133,27 @@ export const snapDimensions = (rawWidth: number, rawHeight: number, minSize = IC
     if (h < minSize) h = minSize;
 
     return { width: w, height: h };
+};
+
+/**
+ * Snaps media block dimensions (image/video/file) to specific grid widths:
+ * 4 units (208px), 8 units (432px), 12 units (656px), 16 units (880px).
+ * Height is unconstrained to preserve aspect ratios natively.
+ */
+export const snapMediaDimensions = (rawWidth: number) => {
+    // 4 units, 8 units, 12 units, 16 units
+    const stepUnits = 4;
+    const stepPixels = stepUnits * BASE_UNIT; // 224px
+    
+    // Nearest step
+    let snappedWidth = Math.round(rawWidth / stepPixels) * stepPixels - GRID_GAP;
+    
+    // Bounds check
+    const minMediaWidth = (4 * BASE_UNIT) - GRID_GAP; // 208px
+    const maxMediaWidth = (16 * BASE_UNIT) - GRID_GAP; // 880px
+
+    if (snappedWidth < minMediaWidth) snappedWidth = minMediaWidth;
+    if (snappedWidth > maxMediaWidth) snappedWidth = maxMediaWidth;
+
+    return snappedWidth;
 };

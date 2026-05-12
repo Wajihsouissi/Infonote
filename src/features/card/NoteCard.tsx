@@ -77,8 +77,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     // Editing state
     const [isEditingMetadata, setIsEditingMetadata] = useState(false);
     const [showCoverPicker, setShowCoverPicker] = useState(false);
-    // Metadata visibility state for Expanded view
-    const [showExpandedMetadata, setShowExpandedMetadata] = useState(false);
+    // Metadata visibility state for Expanded view is now derived from data.showMetadata
 
     // EditBar state for context menu
     const [showEditBar, setShowEditBar] = useState(false);
@@ -257,7 +256,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             observer.disconnect();
             clearTimeout(metadataToggleTimeout);
         };
-    }, [viewMode, id, updateNode, showExpandedMetadata]);
+    }, [viewMode, id, updateNode, data.showMetadata]);
 
     const handleDoubleClick = (e: React.MouseEvent) => {
         e.stopPropagation(); // Prevent ReactFlow from catching it
@@ -477,7 +476,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                 </button>
             </div>
 
-            <Handle type="target" position={Position.Top} className={styles.handle} />
+            <Handle type="source" position={Position.Top} className={styles.handle} id="connection" />
 
             {/* Icon Picker Modal */}
             {showIconPicker && (
@@ -574,8 +573,6 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                             onUpdate={updateNodeData}
                             contentRef={contentRef}
                             nodeId={id}
-                            showMetadata={showExpandedMetadata}
-                            setShowMetadata={setShowExpandedMetadata}
                             selectionIslandPortalId={`selection-island-${id}`}
                         />
                     </ErrorBoundary>
@@ -589,7 +586,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
 
 
-            <Handle type="source" position={Position.Bottom} className={styles.handle} />
+
 
             {/* EditBar Context Menu */}
             {showEditBar && (

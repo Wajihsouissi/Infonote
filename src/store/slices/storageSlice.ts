@@ -39,13 +39,31 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
             const newNode = { ...node };
             if (newNode.type === 'note' || newNode.type === 'fused-note') {
                 // Ensure content is an array
-                if (!Array.isArray((newNode.data as any).content)) {
-                    // Check for legacy string content or undefined
-                    const legacyContent = (newNode.data as any).content;
-                    if (typeof legacyContent === 'string') {
-                        (newNode.data as any).content = [{ id: uuidv4(), type: 'text', content: legacyContent }];
-                    } else {
+                const noteContent = (newNode.data as any).content;
+                if (!Array.isArray(noteContent)) {
+                    console.warn(`[storageSlice] Node ${newNode.id} (${newNode.type}) content is not an array. Type: ${typeof noteContent}`);
+
+                    if (typeof noteContent === 'string') {
+                        console.log(`[storageSlice] Converting legacy string content for node ${newNode.id}`);
+                        (newNode.data as any).content = [{ id: uuidv4(), type: 'text', content: noteContent }];
+                    } else if (!noteContent) {
+                        // null or undefined
                         (newNode.data as any).content = [];
+                    } else {
+                        // It's some other object/truthy value. Keep it but warn? 
+                        // Or wrap it?
+                        // If we wipe it, we lose data. Let's try to wrap it if it looks like a block, or keep as is?
+                        // Safest is to log and initialize empty only if we are sure it's garbage.
+                        // For now, let's assuming it MIGHT be valid but strangely typed, so we default to empty but log heavily.
+                        // Actually, let's try to preserve it in a 'raw' field if we wipe it?
+                        console.error(`[storageSlice] Unknown content format for node ${newNode.id}. Resetting to empty. Original:`, noteContent);
+                        (newNode.data as any)._lostContent = noteContent; // Backup
+                        (newNode.data as any).content = [];
+                    }
+                } else {
+                    // Content is valid array
+                    if ((newNode.data as any).content.length > 0) {
+                        // console.log(`[storageSlice] Node ${newNode.id} loaded with ${(newNode.data as any).content.length} blocks`);
                     }
                 }
             }

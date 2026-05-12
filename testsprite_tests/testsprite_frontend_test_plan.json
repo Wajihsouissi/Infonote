@@ -1,0 +1,388 @@
+[
+  {
+    "id": "TC001",
+    "title": "Create a rich-text block and see it on the canvas",
+    "description": "Verifies a user can create a new block, enter text, finish editing, and the block appears on the canvas as a node/card.",
+    "category": "Block Editor",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Create a new block"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the block text with \"Block A: brainstorm seed\""
+      },
+      {
+        "type": "action",
+        "description": "Finish editing the block"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the new block appears on the canvas"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC002",
+    "title": "Create a node and place it on the canvas",
+    "description": "Verifies a user can add a new node, move it, and it remains positioned where placed on the canvas.",
+    "category": "Canvas Board",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Add a new node"
+      },
+      {
+        "type": "action",
+        "description": "Move the node to a new position on the canvas"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the node remains at the new position after releasing it"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC003",
+    "title": "Delete a block and remove it everywhere",
+    "description": "Verifies a user can delete a block and it is removed from both the block list and the canvas with no leftover representation.",
+    "category": "Block Editor",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Create a new block"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the block text with \"Block to delete\""
+      },
+      {
+        "type": "action",
+        "description": "Finish editing the block"
+      },
+      {
+        "type": "action",
+        "description": "Delete the block"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the deleted block is not present in the block list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the deleted block is not present on the canvas"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC004",
+    "title": "Rearrange blocks and see positions reflected on the canvas",
+    "description": "Verifies a user can create multiple blocks, rearrange them, and the updated order/positions are reflected on the canvas representation.",
+    "category": "Block Editor",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Create a new block"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the block text with \"Block A\""
+      },
+      {
+        "type": "action",
+        "description": "Finish editing the block"
+      },
+      {
+        "type": "action",
+        "description": "Create a new block"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the block text with \"Block B\""
+      },
+      {
+        "type": "action",
+        "description": "Finish editing the block"
+      },
+      {
+        "type": "action",
+        "description": "Rearrange the blocks"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the canvas reflects the updated block order and/or positions"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC005",
+    "title": "Arrange multiple nodes and preserve relative spacing across zoom levels",
+    "description": "Verifies a user can add multiple nodes, arrange them spatially, zoom out and back in, and their relative positions remain stable.",
+    "category": "Canvas Board",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Add a new node"
+      },
+      {
+        "type": "action",
+        "description": "Add a second new node"
+      },
+      {
+        "type": "action",
+        "description": "Move the two nodes into a clear spatial arrangement with separation"
+      },
+      {
+        "type": "action",
+        "description": "Zoom out for an overview"
+      },
+      {
+        "type": "action",
+        "description": "Zoom in for detail"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify both nodes are still present and maintain their relative spacing/arrangement"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC006",
+    "title": "Edit multiple blocks and keep edits through rearranging",
+    "description": "Verifies a user can edit text in multiple blocks and then rearrange blocks without losing the edits during the session.",
+    "category": "Block Editor",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Create a new block"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the block text with \"Block A initial\""
+      },
+      {
+        "type": "action",
+        "description": "Finish editing the block"
+      },
+      {
+        "type": "action",
+        "description": "Create a new block"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the block text with \"Block B initial\""
+      },
+      {
+        "type": "action",
+        "description": "Finish editing the block"
+      },
+      {
+        "type": "action",
+        "description": "Edit the first block"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the block text with \"Block A updated\""
+      },
+      {
+        "type": "action",
+        "description": "Finish editing the block"
+      },
+      {
+        "type": "action",
+        "description": "Edit the second block"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the block text with \"Block B updated\""
+      },
+      {
+        "type": "action",
+        "description": "Finish editing the block"
+      },
+      {
+        "type": "action",
+        "description": "Rearrange the blocks"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the updated block texts are displayed in their blocks"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the canvas shows nodes corresponding to the edited blocks"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC007",
+    "title": "Zoom in and out updates canvas scale without losing node positions",
+    "description": "Verifies zooming changes the canvas scale while keeping existing nodes visible and positioned consistently.",
+    "category": "Canvas Board",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Add a new node"
+      },
+      {
+        "type": "action",
+        "description": "Move the node to a distinctive position on the canvas"
+      },
+      {
+        "type": "action",
+        "description": "Zoom in"
+      },
+      {
+        "type": "action",
+        "description": "Zoom out"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the canvas zoom level changes"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the node remains positioned consistently relative to the canvas after zooming"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC008",
+    "title": "Rapid create-move-zoom interactions keep the board responsive",
+    "description": "Verifies the app remains responsive and visually consistent during a rapid sequence of adding nodes, dragging, and zooming.",
+    "category": "Canvas Board",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Add a new node"
+      },
+      {
+        "type": "action",
+        "description": "Add a second new node"
+      },
+      {
+        "type": "action",
+        "description": "Move the first node to a new position on the canvas"
+      },
+      {
+        "type": "action",
+        "description": "Zoom out"
+      },
+      {
+        "type": "action",
+        "description": "Move the second node to a new position on the canvas"
+      },
+      {
+        "type": "action",
+        "description": "Zoom in"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the canvas remains interactive and nodes remain visible without visual desynchronization"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC009",
+    "title": "Delete a block while it is being edited",
+    "description": "Verifies a user can delete the currently edited block and the UI exits editing without leaving an orphan block or stuck focus.",
+    "category": "Block Editor",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Create a new block"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the block text with \"Draft content\""
+      },
+      {
+        "type": "action",
+        "description": "Delete the block while it is in edit mode"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the block is removed from the block list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no corresponding node remains on the canvas"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC010",
+    "title": "Prevent creating an empty or whitespace-only block",
+    "description": "Verifies the editor prevents creating a meaningful new block with empty or whitespace-only content, keeping the UI consistent.",
+    "category": "Block Editor",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Create a new block"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the block text with \"   \""
+      },
+      {
+        "type": "action",
+        "description": "Finish editing the block"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an input validation or empty-state indication is shown for the block and no usable block content is created"
+      }
+    ],
+    "priority": "Low"
+  }
+]
