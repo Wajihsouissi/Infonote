@@ -17,6 +17,9 @@ if (!url || !key) {
     );
 }
 
-export const supabase = createBrowserClient(url ?? '', key ?? '');
-
 export const isSupabaseConfigured = Boolean(url && key);
+
+// Initialize client only if configured to avoid @supabase/ssr throw
+export const supabase = isSupabaseConfigured 
+    ? createBrowserClient(url!, key!) 
+    : null as any;

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Image as ImageIcon, Link as LinkIcon, Upload as UploadIcon, X } from 'lucide-react';
 import styles from './NoteCard.module.css';

@@ -38,7 +38,6 @@ export class FileSystemStorage {
 
     private _isSaving = false;
     private _saveQueue: (() => Promise<void>)[] = [];
-    private _lastSavedState: { nodes: AppNode[]; edges: Edge[] } | null = null;
     private _pendingResolvers: { resolve: () => void; reject: (e: any) => void }[] = [];
 
     constructor() {
@@ -234,7 +233,7 @@ export class FileSystemStorage {
         await this._doSave(nodes, edges, options);
     }
 
-    private async _doSave(nodes: AppNode[], edges: Edge[], options?: { skipFolderSync?: boolean }): Promise<void> {
+    private async _doSave(nodes: AppNode[], edges: Edge[], _options?: { skipFolderSync?: boolean }): Promise<void> {
         if (!this.directoryHandle) return;
 
         perfMonitor.startTimer('storage.save', { nodeCount: nodes.length });
@@ -264,8 +263,6 @@ export class FileSystemStorage {
             // 4. Atomic replace
             await this.atomicReplace(TEMP_NODES_FILE, NODES_FILE);
             await this.atomicReplace(TEMP_EDGES_FILE, EDGES_FILE);
-
-            this._lastSavedState = { nodes, edges };
 
             const duration = Date.now() - startTime;
             console.log('[Storage] Saved in', duration, 'ms');
@@ -482,57 +479,6 @@ export class FileSystemStorage {
         } catch (error) {
             console.error(`[Storage] Failed to read/parse ${filename}:`, error);
             throw error;
-        }
-    }
-
-    private getFolderName(node: AppNode): string {
-        const label = (node.data as any).label || 'Untitled';
-        const safeName = label.replace(/[^a-z0-9]/gi, '_').toLowerCase().slice(0, 32);
-        return `${safeName}_${node.id.slice(0, 8)}`;
-    }
-
-    private async syncCardsToFolders(nodes: AppNode[]): Promise<void> {
-        if (!this.directoryHandle) return;
-
-        try {
-            const childrenMap = new Map<string, AppNode[]>();
-            const roots: AppNode[] = [];
-
-            for (const node of nodes) {
-                if (node.type !== 'note') continue;
-                if (!node.parentId) {
-                    roots.push(node);
-                } else {
-                    const list = childrenMap.get(node.parentId) || [];
-                    list.push(node);
-                    childrenMap.set(node.parentId, list);
-                }
-            }
-
-            const writeLevel = async (dirHandle: FileSystemDirectoryHandle, nodeList: AppNode[]) => {
-                for (const node of nodeList) {
-                    try {
-                        const folderName = this.getFolderName(node);
-                        const nodeDir = await dirHandle.getDirectoryHandle(folderName, { create: true });
-                        const fileHandle = await nodeDir.getFileHandle('card.json', { create: true });
-                        const writable = await fileHandle.createWritable();
-                        await writable.write(JSON.stringify(node));
-                        await writable.close();
-
-                        const children = childrenMap.get(node.id) || [];
-                        if (children.length > 0) {
-                            await writeLevel(nodeDir, children);
-                        }
-                    } catch (e) {
-                        console.warn('[Storage] Failed to sync folder for node:', node.id);
-                    }
-                }
-            };
-
-            const cardsDir = await this.directoryHandle.getDirectoryHandle('Cards', { create: true });
-            await writeLevel(cardsDir, roots);
-        } catch (error) {
-            console.warn('[Storage] Folder sync failed:', error);
         }
     }
 }

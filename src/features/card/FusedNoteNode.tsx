@@ -6,7 +6,7 @@ import { EditBar } from '../ui/EditBar';
 import { useStore } from '../../store/useStore';
 import type { Node } from '@xyflow/react';
 import styles from './FusedNoteNode.module.css';
-import { snapFusedDimensions, MIN_FUSED_SIZE, MIN_EXPANDED_SIZE, MAX_HEIGHT } from '../../config/layout';
+import { snapFusedDimensions, MIN_EXPANDED_SIZE } from '../../config/layout';
 import { toPastelColor, lightenColor } from '../../utils/colorUtils';
 
 export type FusedNoteNodeData = {
@@ -86,7 +86,8 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                             content: data.content,
                             description: '',
                             date: new Date().toISOString(),
-                            color: fusedNodeColor
+                            color: fusedNodeColor,
+                            showMetadata: false // Default to hidden metadata
                         },
                         style: {
                             ...n.style,
@@ -128,7 +129,8 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 content: myBlocks,
                 viewMode: 'expanded',
                 date: new Date().toISOString(),
-                color: fusedNodeColor
+                color: fusedNodeColor,
+                showMetadata: false // Default to hidden metadata
             },
             style: { width: MIN_EXPANDED_SIZE, height: MIN_EXPANDED_SIZE },
             zIndex: 10

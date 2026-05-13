@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import type { Block, BlockType } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { useStore } from '../../../store/useStore';
 import { parseFiles, parseTextOrHtml } from '../pasteUtils';
 
 interface BlockCommandsProps {
@@ -19,14 +18,12 @@ interface BlockCommandsProps {
 
 export function useBlockCommands({
     editorRef,
-    blocks,
-    blocksRef, // Added
+    blocksRef,
     setBlocks,
     debouncedOnUpdate,
     setFocusId,
     setSelectedBlockIds,
     selectedBlockIds,
-    nodeId,
     checkForSplit
 }: BlockCommandsProps) {
 

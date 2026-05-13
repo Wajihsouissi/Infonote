@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useStore } from '../../store/useStore';
 import styles from './BottomMenu.module.css';
-import { FileText, Cuboid, ChevronRight, Hash, Flag, Clock, Search } from 'lucide-react';
+import { FileText, Cuboid, ChevronRight, Hash, Flag } from 'lucide-react';
 import { highlightMatch, parseSearchQuery } from './searchUtils';
 
 interface SearchResultsProps {

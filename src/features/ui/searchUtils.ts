@@ -1,4 +1,4 @@
-import type { AppNode, BlockNodeData, FusedNoteNodeData, NoteData } from '../../types';
+import type { AppNode } from '../../types';
 
 export interface SearchFilters {
     tags: string[];

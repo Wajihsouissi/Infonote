@@ -43,7 +43,7 @@ export const KanbanColumn = ({ column, cards, onAddCard, onToggleCollapse, onCar
                 ${(isOver || isHoveredFromCanvas) && !isCollapsed ? styles.columnHovered : ''} 
                 ${isCollapsed ? styles.columnCollapsed : ''}
             `}
-            onClick={(e) => {
+            onClick={() => {
                 if (isCollapsed) {
                     onToggleCollapse(column.id);
                 }

@@ -193,17 +193,10 @@ export const ColorBlock = memo(({ block, readOnly, onChange, disableMediaControl
     const rgbaValue = rgbToRgbaString(rgb, 1);
     const hslValue = rgbToHslString(rgb);
 
-    // Auto-name initialization if name is missing but color exists
     useEffect(() => {
-        if (!block.metadata?.name && color) {
-            const autoName = getNearestColorName(color);
-            // We avoid calling onChange directly in effect to prevent loops/stale closures if not careful,
-            // but here it's initializing metadata.
-            // Ideally we do this when color CAUSES the change.
-            // If we do it here, we might trigger an update loop if onChange changes block identity.
-            // So we'll leave it to the user interaction or display time.
-            // Actually, let's just display the auto name if metadata name is missing.
-        }
+        // Auto-name initialization if name is missing but color exists
+        // Ideally we do this when color CAUSES the change.
+        // We avoid calling onChange directly in effect to prevent loops.
     }, []);
 
     useEffect(() => {

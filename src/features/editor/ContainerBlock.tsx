@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import { BlockEditor } from './BlockEditor';
 import type { Block } from './types';
 import styles from './ContainerBlock.module.css';

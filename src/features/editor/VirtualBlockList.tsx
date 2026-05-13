@@ -1,6 +1,5 @@
-import { memo, useRef, useMemo } from 'react';
-import type { CSSProperties } from 'react';
-import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
+import { useRef, useMemo, memo } from 'react';
+import { List } from 'react-window';
 import { BlockItem } from './BlockItem';
 import type { Block } from './types';
 
@@ -32,16 +31,13 @@ interface VirtualBlockListProps {
 const ITEM_HEIGHT = 40; // Approximate height per block
 const OVERSCAN_COUNT = 10; // Render 10 extra items above/below viewport
 
-// Memoized row renderer
-const BlockRow = memo(({ 
+// Row renderer
+const BlockRow = ({ 
     index, 
-    style, 
-    data 
-}: { 
-    index: number; 
-    style: CSSProperties; 
-    data: any;
-}) => {
+    style,
+    ariaAttributes,
+    ...data 
+}: any) => {
     const {
         blocks,
         selectedBlockIds,
@@ -65,7 +61,7 @@ const BlockRow = memo(({
     if (!block) return null;
     
     return (
-        <div style={style}>
+        <div style={style} {...ariaAttributes}>
             <BlockItem
                 block={block}
                 isSelected={selectedBlockIds.has(block.id)}
@@ -86,9 +82,7 @@ const BlockRow = memo(({
             />
         </div>
     );
-});
-
-BlockRow.displayName = 'BlockRow';
+};
 
 export const VirtualBlockList = memo(function VirtualBlockList({
     blocks,
@@ -110,7 +104,7 @@ export const VirtualBlockList = memo(function VirtualBlockList({
     containerHeight,
     containerWidth
 }: VirtualBlockListProps) {
-    const listRef = useRef<List>(null);
+    const listRef = useRef<any>(null);
     
     // Memoize item data to prevent re-renders
     const itemData = useMemo(() => ({
@@ -149,20 +143,15 @@ export const VirtualBlockList = memo(function VirtualBlockList({
         onRegisterRef
     ]);
     
-    // Auto-scroll to focused block when needed
-    // Could be enhanced with a focusedBlockId prop
-    
     return (
         <List
-            ref={listRef}
-            height={containerHeight}
-            width={containerWidth}
-            itemCount={blocks.length}
-            itemSize={ITEM_HEIGHT}
-            itemData={itemData}
+            listRef={listRef}
+            style={{ height: containerHeight, width: containerWidth }}
+            rowCount={blocks.length}
+            rowHeight={ITEM_HEIGHT}
+            rowProps={itemData}
+            rowComponent={BlockRow}
             overscanCount={OVERSCAN_COUNT}
-        >
-            {BlockRow}
-        </List>
+        />
     );
 });

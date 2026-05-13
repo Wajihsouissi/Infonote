@@ -4,6 +4,7 @@ import {
     Controls,
     MiniMap,
     SelectionMode,
+    useReactFlow,
 } from '@xyflow/react';
 import { NoteCard } from '../card/NoteCard';
 import { BlockNode } from '../block/BlockNode';
@@ -80,6 +81,18 @@ export function CanvasBoard() {
             })));
         }
     }, [currentParentId, visibleNodes, nodes]);
+
+    // Focus viewport when parent changes
+    const { fitView } = useReactFlow();
+    useEffect(() => {
+        if (visibleNodes.length > 0) {
+            // Wait a frame for ReactFlow to finish rendering nodes
+            const timer = setTimeout(() => {
+                fitView({ duration: 400, padding: 0.2, minZoom: 0.5, maxZoom: 1 });
+            }, 50);
+            return () => clearTimeout(timer);
+        }
+    }, [currentParentId, fitView, visibleNodes.length]);
 
     // Visible edges (filtered to visible nodes)
     const visibleEdges = useMemo(() => {

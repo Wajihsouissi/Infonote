@@ -11,7 +11,7 @@ export function throttle<T extends (...args: any[]) => any>(
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let lastExecTime = 0;
 
-  return function (...args: Parameters<T>) {
+  return function (this: any, ...args: Parameters<T>) {
     const currentTime = Date.now();
 
     if (currentTime - lastExecTime > delay) {

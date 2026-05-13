@@ -76,9 +76,6 @@ export const KanbanCalendarView = ({ cards, onCardClick, onUpdateCard, onAddCard
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
 
-    // Helper: get number of days in a month
-    const getDaysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
-
     // Group cards by date string "YYYY-MM-DD"
     const cardsByDate = useMemo(() => {
         const map: Record<string, NoteNode[]> = {};

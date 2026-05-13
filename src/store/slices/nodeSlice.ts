@@ -574,7 +574,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
     },
 
     bulkDuplicateNodes: (nodeIds: string[]) => {
-        const { nodes, currentParentId } = get();
+        const { nodes } = get();
         const nodesToDuplicate = nodes.filter(n => nodeIds.includes(n.id));
 
         if (DEBUG) {
@@ -826,17 +826,20 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         }
 
         // Calculate base position: below existing children or default
-        let startY = BASE_UNIT * 2;
-        const startX = BASE_UNIT * 2;
-        const gridColumnWidth = BASE_UNIT * 8;  // 448px
-        const gridRowHeight = BASE_UNIT * 8;    // 448px (equal gaps)
-        const maxColumns = 5;         // Maximum 5 fused notes per row
+        const margin = BASE_UNIT;
+        let startY = margin;
+        const startX = margin;
+        
+        // Use a more generous grid for fused nodes
+        const gridColumnWidth = BASE_UNIT * 10;  // 560px (allows for gap between 432px cards)
+        const gridRowHeight = BASE_UNIT * 10;    // 560px
+        const maxColumns = 4;         // Max 4 per row for better visibility
 
         if (children.length > 0) {
             const maxY = Math.max(
-                ...children.map(c => c.position.y + ((c.style?.height as number) || 100))
+                ...children.map(c => c.position.y + ((c.style?.height as number) || MIN_FUSED_SIZE))
             );
-            startY = snapToGridValue(maxY + BASE_UNIT);
+            startY = snapToGridValue(maxY + BASE_UNIT * 2);
         }
 
         const newNodes: AppNode[] = sections.map((sectionBlocks, index) => {

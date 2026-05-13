@@ -6,7 +6,7 @@
  * method that does not require extra provider setup.
  */
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import type { User } from '@supabase/supabase-js';
+import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
 
 type AuthContextValue = {
@@ -35,7 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         let cancelled = false;
 
-        supabase.auth.getUser().then(({ data }) => {
+        supabase.auth.getUser().then(({ data }: { data: { user: User | null } }) => {
             if (cancelled) return;
             setUser(data.user ?? null);
             setLoading(false);
@@ -43,7 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!cancelled) setLoading(false);
         });
 
-        const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: sub } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
             setUser(session?.user ?? null);
         });
 

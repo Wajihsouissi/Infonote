@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import type { Block, BlockType } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { useStore } from '../../../store/useStore';
 
 interface SlashCommandProps {
     editorRef: React.RefObject<HTMLDivElement | null>;
@@ -15,8 +14,7 @@ interface SlashCommandProps {
 
 export function useSlashCommand({
     editorRef,
-    blocks,
-    blocksRef, // Added
+    blocksRef,
     setBlocks,
     debouncedOnUpdate,
     setFocusId,
@@ -49,15 +47,15 @@ export function useSlashCommand({
             return newBlocks;
         });
 
-        if (['heading1', 'heading2', 'heading3', 'toggle', 'divider'].includes(type)) {
-            if (nodeId) {
-                // Use blocksRef.current instead of blocks dependency
-                const index = blocksRef.current.findIndex(b => b.id === targetId);
-                if (index > 0) {
-                    useStore.getState().splitNode(nodeId, targetId, blocksRef.current);
-                }
-            }
-        }
+        // Auto-split logic removed per user request for better document formatting
+        // if (['heading1', 'heading2', 'heading3', 'toggle', 'divider'].includes(type)) {
+        //     if (nodeId) {
+        //         const index = blocksRef.current.findIndex(b => b.id === targetId);
+        //         if (index > 0) {
+        //             useStore.getState().splitNode(nodeId, targetId, blocksRef.current);
+        //         }
+        //     }
+        // }
 
         setFocusId(targetId);
         setSlashMenuState(null);
