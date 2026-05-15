@@ -403,6 +403,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
             const currentBlock = blocksRef.current.find(b => b.id === id);
 
+            // Special handling for empty list items
             if (currentBlock && ['bullet', 'numbered', 'todo', 'toggle'].includes(currentBlock.type) && content === '') {
                 if ((currentBlock.indent || 0) > 0) {
                     handleOutdent(id);
@@ -411,6 +412,64 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 }
                 return;
             }
+
+            // Intercept for Fused Node Conversion
+            if (nodeId && blocksRef.current.length >= 2) {
+                const store = useStore.getState();
+                const node = store.nodes.find(n => n.id === nodeId);
+                if (node && node.type === 'block') {
+                    // We manually split the block here so we can update the store synchronously
+                    // before ReactFlow unmounts this BlockEditor.
+                    const caretOffset = getCaretOffset();
+                    const textBefore = content.substring(0, caretOffset);
+                    const textAfter = content.substring(caretOffset);
+
+                    const typeToCreate = currentBlock && ['bullet', 'numbered', 'todo', 'toggle'].includes(currentBlock.type)
+                        ? currentBlock.type
+                        : 'text';
+                    const indent = currentBlock?.indent || 0;
+
+                    const newId = uuidv4();
+                    const newBlock: Block = {
+                        id: newId,
+                        type: typeToCreate,
+                        content: textAfter,
+                        indent: indent
+                    };
+
+                    const index = blocksRef.current.findIndex(b => b.id === id);
+                    const newBlocks = [...blocksRef.current];
+                    if (index !== -1) {
+                        newBlocks[index] = { ...newBlocks[index], content: textBefore };
+                        newBlocks.splice(index + 1, 0, newBlock);
+                    } else {
+                        newBlocks.push(newBlock);
+                    }
+
+                    // 1. Update data synchronously
+                    store.updateNodeData(nodeId, {
+                        content: newBlocks,
+                        lastFusedAt: Date.now(),
+                        isStandaloneBlock: true
+                    });
+
+                    // 2. Update type
+                    store.updateNode(nodeId, { 
+                        type: 'fused-note',
+                        style: {
+                            ...node.style,
+                            width: 432,
+                            height: 432
+                        }
+                    });
+
+                    // Focus the new block after render
+                    setTimeout(() => store.nodes.find(n => n.id === nodeId) && document.getElementById(newId)?.focus(), 50);
+
+                    return; // Skip default addition
+                }
+            }
+
 
             if (currentBlock) {
                 const caretOffset = getCaretOffset();

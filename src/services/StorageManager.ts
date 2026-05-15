@@ -4,9 +4,11 @@
  */
 
 import { fileSystemStorage } from './FileSystemStorage';
+import { shallow } from 'zustand/shallow';
 
 let isInitialized = false;
 let saveTimeout: number | null = null;
+let isRestoring = false;
 
 let storeCallbacks: {
     getState: () => { nodes: any[]; edges: any[] };
@@ -18,7 +20,7 @@ let storeCallbacks: {
 
 export function initStorageManager(
     getState: () => { nodes: any[]; edges: any[] },
-    subscribe: <T>(selector: (state: any) => T, listener: (curr: T, prev: T) => void) => () => void,
+    subscribe: <T>(selector: (state: any) => T, listener: (curr: T, prev: T) => void, options?: { equalityFn?: (a: T, b: T) => boolean }) => () => void,
     loadGraph: (nodes: any[], edges: any[]) => void,
     callbacks: {
         onStatusChange?: (connected: boolean, dirName: string | null) => void;
@@ -48,7 +50,7 @@ export function initStorageManager(
             isConnected: state.storage.isConnected 
         }),
         (curr, prev) => {
-            if (!curr.isConnected) return;
+            if (!curr.isConnected || isRestoring) return;
             
             const nodesChanged = curr.nodes !== prev.nodes;
             const edgesChanged = curr.edges !== prev.edges;
@@ -69,7 +71,8 @@ export function initStorageManager(
                     saveTimeout = window.setTimeout(performSave, 500);
                 }
             }
-        }
+        },
+        { equalityFn: shallow }
     );
 }
 
@@ -84,7 +87,9 @@ async function autoReconnect(): Promise<void> {
         if (connected) {
             const data = await fileSystemStorage.loadData();
             if (data && data.nodes.length > 0) {
+                isRestoring = true;
                 storeCallbacks.loadGraph(data.nodes, data.edges);
+                isRestoring = false;
             }
             storeCallbacks.setStorageStatus(true, fileSystemStorage.directoryName || 'Local Folder');
         }
@@ -129,7 +134,9 @@ export async function connectStorage(
 
         const data = await fileSystemStorage.loadData();
         if (data && data.nodes.length > 0) {
+            isRestoring = true;
             loadGraph(data.nodes, data.edges);
+            isRestoring = false;
         } else {
             const currentState = getState();
             if (currentState.nodes.length > 0) {
