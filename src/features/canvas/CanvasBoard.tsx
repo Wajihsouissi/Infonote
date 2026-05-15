@@ -15,6 +15,7 @@ import { FullscreenModal } from '../ui/FullscreenModal';
 import { CenterModal } from '../ui/CenterModal';
 import { MetadataMenu } from '../ui/MetadataMenu';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
+import { HomeButton } from '../ui/HomeButton';
 import { KanbanNodeComponent } from '../kanban/KanbanNode';
 import { CanvasSlashMenu } from './CanvasSlashMenu';
 
@@ -57,6 +58,7 @@ export function CanvasBoard() {
         leftSidePanelId,
         setRightSidePanelId,
         setLeftSidePanelId,
+        setSelectedCanvasNodeIds,
     } = useCanvasStoreSelectors();
 
     // Throttling Ref for drag cleanup
@@ -137,7 +139,8 @@ export function CanvasBoard() {
         <div className={styles.container}>
             <div className={styles.canvasArea}>
                 <ThemeSwitcher />
-                <div style={{ position: 'absolute', top: 20, left: 30, zIndex: 100 }}>
+                <HomeButton />
+                <div style={{ position: 'absolute', top: 20, left: 80, zIndex: 100 }}>
                     <Breadcrumbs />
                 </div>
                 {activeParentNode && (
@@ -164,8 +167,17 @@ export function CanvasBoard() {
                     onNodeDrag={onNodeDrag}
                     onNodeDragStop={onNodeDragStop}
                     onMove={handleViewportChange}
+                    onSelectionChange={({ nodes: selectedNodes }) => {
+                        const newIds = selectedNodes.map(n => n.id);
+                        const isSame = newIds.length === selectedCanvasNodeIds.size && newIds.every(id => selectedCanvasNodeIds.has(id));
+                        if (!isSame) {
+                            setSelectedCanvasNodeIds(new Set(newIds));
+                        }
+                    }}
                     selectionOnDrag={false}
                     panOnDrag={true}
+                    selectionKeyCode="Control"
+                    multiSelectionKeyCode="Control"
                     selectionMode={SelectionMode.Partial}
                     // Performance optimizations
                     nodesDraggable={true}
@@ -185,7 +197,7 @@ export function CanvasBoard() {
                     deleteKeyCode={null}
                 >
                     <CanvasSlashMenu />
-                    <Controls className={styles.canvasControls} />
+                    <Controls position="bottom-right" className={styles.canvasControls} />
                     <MiniMap
                         position="bottom-right"
                         nodeColor="var(--color-primary)"

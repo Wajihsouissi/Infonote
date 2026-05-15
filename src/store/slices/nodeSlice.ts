@@ -85,10 +85,7 @@ const getInitialNodes = (): AppNode[] => {
     ];
 };
 
-const initialEdges: Edge[] = [
-    { id: 'e1-2', source: '1', target: '2', animated: true, data: { parentId: undefined } },
-    { id: 'e2-3', source: '2', target: '3', data: { parentId: undefined } },
-];
+const initialEdges: Edge[] = [];
 
 export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, get) => ({
     nodes: getInitialNodes(),

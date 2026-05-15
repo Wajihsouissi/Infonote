@@ -747,8 +747,8 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 <SlashMenu
                     anchorRect={slashMenuState.anchorRect}
                     filter={blocksRef.current.find(b => b.id === slashMenuState.blockId)?.content.substring(1) || ''}
-                    onSelect={useCallback((type, meta) => convertBlock(undefined, type, meta), [convertBlock])}
-                    onClose={useCallback(() => setSlashMenuState(null), [setSlashMenuState])}
+                    onSelect={(type, meta) => convertBlock(undefined, type, meta)}
+                    onClose={() => setSlashMenuState(null)}
                 />
             )}
 

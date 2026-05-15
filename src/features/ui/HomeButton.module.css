@@ -1,0 +1,37 @@
+.homeButton {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+
+    width: 44px;
+    height: 44px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+    transition: all var(--transition-fast);
+
+    box-shadow: var(--glass-shadow);
+    color: var(--color-text-main);
+}
+
+.homeButton:hover {
+    background: var(--glass-bg-hover);
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.2);
+    color: var(--color-primary);
+}
+
+.homeButton:active {
+    transform: translateY(0);
+}
