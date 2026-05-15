@@ -1,6 +1,5 @@
 import { ChevronRight, Home } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { HistoryControls } from '../ui/HistoryControls';
 import styles from './Breadcrumbs.module.css';
 
 export function Breadcrumbs() {
@@ -9,10 +8,6 @@ export function Breadcrumbs() {
 
     return (
         <div className={styles.container}>
-            <div className={styles.controlsWrapper}>
-                <HistoryControls />
-            </div>
-            <div className={styles.divider} />
 
             {breadcrumbs.map((crumb, index) => {
                 const isLast = index === breadcrumbs.length - 1;

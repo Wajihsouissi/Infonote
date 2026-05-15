@@ -9,7 +9,9 @@ import {
   Settings, 
   Clock, 
   Star, 
-  Rocket
+  Rocket,
+  Sun,
+  Moon
 } from 'lucide-react';
 import styles from './DashboardLayout.module.css';
 
@@ -21,6 +23,8 @@ interface DashboardLayoutProps {
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) => {
   const setCurrentView = useStore((state) => state.setCurrentView);
   const currentView = useStore((state) => state.currentView);
+  const theme = useStore((state) => state.theme);
+  const toggleTheme = useStore((state) => state.toggleTheme);
 
   return (
     <div className={styles.container}>
@@ -77,6 +81,18 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, titl
         </nav>
 
         <div className={styles.sidebarFooter}>
+          <div className={styles.themeToggleContainer} onClick={toggleTheme}>
+            <div className={`${styles.themeToggleBg} ${theme === 'dark' ? styles.themeDark : styles.themeLight}`} />
+            <div className={`${styles.themeOption} ${theme === 'light' ? styles.activeTheme : ''}`}>
+              <Sun size={14} />
+              <span>Light</span>
+            </div>
+            <div className={`${styles.themeOption} ${theme === 'dark' ? styles.activeTheme : ''}`}>
+              <Moon size={14} />
+              <span>Dark</span>
+            </div>
+          </div>
+
           <button className={styles.settingsButton}>
             <Settings size={18} />
             <span>Settings</span>

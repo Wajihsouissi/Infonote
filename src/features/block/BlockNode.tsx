@@ -167,6 +167,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     readOnly={false}
                     minimal={true}
                     onUpdate={handleUpdate}
+                    nodeId={id}
                     mode="atomic"
                     hideBlockHandles={false}
                     disableMediaControls={true}

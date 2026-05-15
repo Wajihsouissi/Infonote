@@ -4,6 +4,7 @@ import {
     Controls,
     MiniMap,
     SelectionMode,
+    Panel,
 } from '@xyflow/react';
 import { NoteCard } from '../card/NoteCard';
 import { BlockNode } from '../block/BlockNode';
@@ -16,6 +17,7 @@ import { CenterModal } from '../ui/CenterModal';
 import { MetadataMenu } from '../ui/MetadataMenu';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { HomeButton } from '../ui/HomeButton';
+import { HistoryControls } from '../ui/HistoryControls';
 import { KanbanNodeComponent } from '../kanban/KanbanNode';
 import { CanvasSlashMenu } from './CanvasSlashMenu';
 
@@ -139,8 +141,9 @@ export function CanvasBoard() {
         <div className={styles.container}>
             <div className={styles.canvasArea}>
                 <ThemeSwitcher />
-                <HomeButton />
-                <div style={{ position: 'absolute', top: 20, left: 80, zIndex: 100 }}>
+                <div className={styles.topLeftToolbar}>
+                    <HomeButton />
+                    <HistoryControls />
                     <Breadcrumbs />
                 </div>
                 {activeParentNode && (
@@ -197,13 +200,15 @@ export function CanvasBoard() {
                     deleteKeyCode={null}
                 >
                     <CanvasSlashMenu />
-                    <Controls position="bottom-right" className={styles.canvasControls} />
-                    <MiniMap
-                        position="bottom-right"
-                        nodeColor="var(--color-primary)"
-                        maskColor="var(--glass-bg)"
-                        className={styles.canvasMiniMap}
-                    />
+                    <Panel position="bottom-right" className={styles.bottomRightControls}>
+                        <MiniMap
+                            nodeColor="var(--color-primary)"
+                            maskColor="var(--glass-bg)"
+                            className={styles.canvasMiniMap}
+                            style={{ width: 160, height: 116 }}
+                        />
+                        <Controls className={styles.canvasControls} />
+                    </Panel>
                 </ReactFlow>
             </div>
 

@@ -21,6 +21,16 @@
     /* Below SidePanels (50) but above everything else */
 }
 
+/* Top Left Toolbar */
+.topLeftToolbar {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
 
 /* Canvas Area */
 .canvasArea {
@@ -43,9 +53,78 @@
 }
 
 
-/* DEPRECATED: Old Parent Header styles - Keeping just in case user wants revert or reference, 
-   but for "refactor" we usually delete. I'll leave them commented out or deleted.
-*/
-/* 
-.parentHeader { ... } 
-*/
+/* Unified Bottom Right Controls */
+.bottomRightControls {
+    display: flex;
+    align-items: flex-end;
+    gap: 0;
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    padding: 0;
+    margin: 15px;
+    height: 116px;
+}
+
+.canvasMiniMap {
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    height: 116px !important;
+    width: 160px !important;
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
+    bottom: auto !important;
+    right: auto !important;
+}
+
+.canvasMiniMap svg {
+    width: 100% !important;
+    height: 100% !important;
+    display: block !important;
+}
+
+.canvasControls {
+    margin: 0 !important;
+    border: none !important;
+    border-left: 1px solid var(--glass-border) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    height: 116px !important;
+    overflow: hidden !important;
+    position: relative !important;
+    bottom: auto !important;
+    right: auto !important;
+}
+
+.canvasControls button {
+    border: none !important;
+    border-bottom: 1px solid var(--glass-border) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: var(--color-text-main) !important;
+    width: 28px !important;
+    height: 29px !important; /* 116 / 4 = 29px */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.canvasControls button:last-child {
+    border-bottom: none !important;
+}
+
+.canvasControls button:hover {
+    background: var(--glass-bg-hover) !important;
+}

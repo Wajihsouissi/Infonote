@@ -10,13 +10,17 @@ import {
   Clock,
   Star,
   MoreHorizontal,
-  Rocket
+  Rocket,
+  Sun,
+  Moon
 } from 'lucide-react';
 import styles from './LandingPage.module.css';
 
 export const LandingPage: React.FC = () => {
   const setCurrentView = useStore((state) => state.setCurrentView);
   const currentView = useStore((state) => state.currentView);
+  const theme = useStore((state) => state.theme);
+  const toggleTheme = useStore((state) => state.toggleTheme);
 
   return (
     <div className={styles.container}>
@@ -73,6 +77,14 @@ export const LandingPage: React.FC = () => {
         </nav>
 
         <div className={styles.sidebarFooter}>
+          <button className={styles.settingsButton} onClick={toggleTheme}>
+            <div className={styles.pillSwitch}>
+              <div className={`${styles.pillThumb} ${theme === 'light' ? styles.thumbLight : styles.thumbDark}`} />
+              <Moon size={12} className={`${styles.pillIcon} ${theme === 'dark' ? styles.iconActive : styles.iconInactive}`} />
+              <Sun size={12} className={`${styles.pillIcon} ${theme === 'light' ? styles.iconActive : styles.iconInactive}`} />
+            </div>
+            <span>{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
+          </button>
           <button className={styles.settingsButton}>
             <Settings size={18} />
             <span>Settings</span>

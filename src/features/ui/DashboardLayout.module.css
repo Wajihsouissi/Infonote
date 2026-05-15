@@ -18,8 +18,12 @@
 }
 
 .logoSection {
-  padding: 20px;
+  height: 60px;
+  padding: 0 20px;
   border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
 }
 
 .logo {
@@ -101,6 +105,58 @@
 .sidebarFooter {
   padding: 16px 8px;
   border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.themeToggleContainer {
+  display: flex;
+  position: relative;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.themeToggleBg {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: calc(50% - 4px);
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.themeLight {
+  transform: translateX(0);
+}
+
+.themeDark {
+  transform: translateX(100%);
+}
+
+.themeOption {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  z-index: 1;
+  transition: color 0.3s;
+}
+
+.activeTheme {
+  color: var(--color-text-main);
 }
 
 .settingsButton {
