@@ -400,7 +400,102 @@
     background: rgba(255, 255, 255, 0.15);
 }
 
+/* Table Block */
+.tableWrapper {
+    width: 100%;
+    margin: 8px 0;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+    background: var(--color-bg-card, rgba(255, 255, 255, 0.03));
+}
 
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+}
+
+.tableHeader {
+    background: rgba(255, 255, 255, 0.06);
+    border-bottom: 2px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+    padding: 0;
+}
+
+.tableData {
+    border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.06));
+    padding: 0;
+}
+
+.tableData:not(:last-child),
+.tableHeader:not(:last-child) {
+    border-right: 1px solid var(--glass-border, rgba(255, 255, 255, 0.06));
+}
+
+.table tr:last-child .tableData {
+    border-bottom: none;
+}
+
+.table tr:hover .tableData {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.tableCell {
+    width: 100%;
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--color-text-main);
+    font-family: inherit;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.tableCell:focus {
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: inset 0 0 0 2px var(--color-primary, rgba(139, 92, 246, 0.3));
+}
+
+.tableHeader .tableCell {
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: none;
+    letter-spacing: 0.01em;
+    color: var(--color-text-main);
+}
+
+.tableControls {
+    display: flex;
+    gap: 4px;
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.06));
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.tableWrapper:hover .tableControls {
+    opacity: 1;
+}
+
+.tableControlBtn {
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    background: transparent;
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.tableControlBtn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--color-text-main);
+    border-color: var(--color-primary, rgba(139, 92, 246, 0.4));
+}
 
 /* Divider */
 .divider {
@@ -643,7 +738,8 @@
 .sortableWrapper[data-block-type="image"],
 .sortableWrapper[data-block-type="video"],
 .sortableWrapper[data-block-type="file"],
-.sortableWrapper[data-block-type="color"] {
+.sortableWrapper[data-block-type="color"],
+.sortableWrapper[data-block-type="table"] {
     display: block !important;
     gap: 0 !important;
     padding: 0 !important;
@@ -655,7 +751,8 @@
 .sortableWrapper[data-block-type="image"] .dragHandle,
 .sortableWrapper[data-block-type="video"] .dragHandle,
 .sortableWrapper[data-block-type="file"] .dragHandle,
-.sortableWrapper[data-block-type="color"] .dragHandle {
+.sortableWrapper[data-block-type="color"] .dragHandle,
+.sortableWrapper[data-block-type="table"] .dragHandle {
     display: none !important;
     opacity: 0 !important;
     visibility: hidden !important;
@@ -665,14 +762,16 @@
 .sortableWrapper[data-block-type="image"] .blockContent,
 .sortableWrapper[data-block-type="video"] .blockContent,
 .sortableWrapper[data-block-type="file"] .blockContent,
-.sortableWrapper[data-block-type="color"] .blockContent {
+.sortableWrapper[data-block-type="color"] .blockContent,
+.sortableWrapper[data-block-type="table"] .blockContent {
     cursor: grab !important;
 }
 
 .sortableWrapper[data-block-type="image"]:active .blockContent,
 .sortableWrapper[data-block-type="video"]:active .blockContent,
 .sortableWrapper[data-block-type="file"]:active .blockContent,
-.sortableWrapper[data-block-type="color"]:active .blockContent {
+.sortableWrapper[data-block-type="color"]:active .blockContent,
+.sortableWrapper[data-block-type="table"]:active .blockContent {
     cursor: grabbing !important;
 }
 
