@@ -179,7 +179,17 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 />
             </div>
 
-            <Handle type="source" position={Position.Top} className={styles.handle} id="connection" />
+            <Handle 
+                type="target" 
+                position={Position.Top} 
+                style={{ top: '50%', left: '50%', width: '100%', height: '100%', border: 'none', background: 'transparent', transform: 'translate(-50%, -50%)', zIndex: -1 }} 
+            />
+            <Handle 
+                type="source" 
+                position={Position.Right} 
+                className={styles.topRightHandle} 
+                id="out" 
+            />
 
             {/* Resize Handle for Media Blocks */}
             {isSingleMedia && selected && (

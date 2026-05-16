@@ -159,9 +159,6 @@ export function CanvasBoard() {
     });
 
 
-    // Grid configuration
-    const snapGrid: [number, number] = [56, 56];
-
     // Cleanup ref on unmount
     useEffect(() => {
         return () => {
@@ -194,8 +191,7 @@ export function CanvasBoard() {
                     colorMode={theme}
                     minZoom={0.05}
                     maxZoom={2}
-                    snapToGrid={true}
-                    snapGrid={snapGrid}
+                    snapToGrid={false}
                     onDragOver={onDragOver}
                     onDrop={onDrop}
                     onNodeDragStart={onNodeDragStart}
