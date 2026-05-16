@@ -287,6 +287,82 @@ export const CodeBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
     );
 });
 
+export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
+    const rows: string[][] = block.metadata?.rows || [];
+
+    const handleCellChange = (rowIndex: number, cellIndex: number, value: string) => {
+        const newRows = rows.map((row, ri) =>
+            ri === rowIndex
+                ? row.map((cell, ci) => (ci === cellIndex ? value : cell))
+                : [...row]
+        );
+        onChange(block.content, { ...block.metadata, rows: newRows });
+    };
+
+    const addRow = () => {
+        const colCount = rows.length > 0 ? rows[0].length : 2;
+        const newRow = Array(colCount).fill('');
+        onChange(block.content, { ...block.metadata, rows: [...rows, newRow] });
+    };
+
+    const addColumn = () => {
+        const newRows = rows.map(row => [...row, '']);
+        onChange(block.content, { ...block.metadata, rows: newRows });
+    };
+
+    if (rows.length === 0) {
+        // Empty table placeholder: create a 2x2 table
+        const defaultRows = [['Header 1', 'Header 2'], ['', '']];
+        onChange(block.content, { ...block.metadata, rows: defaultRows });
+        return null;
+    }
+
+    return (
+        <div className={styles.tableWrapper} contentEditable={false}>
+            <table className={styles.table}>
+                <thead>
+                    <tr>
+                        {rows[0]?.map((cell, ci) => (
+                            <th key={ci} className={styles.tableHeader}>
+                                <input
+                                    className={styles.tableCell}
+                                    value={cell}
+                                    readOnly={readOnly}
+                                    onChange={(e) => handleCellChange(0, ci, e.target.value)}
+                                    placeholder="Header"
+                                />
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.slice(1).map((row, ri) => (
+                        <tr key={ri + 1}>
+                            {row.map((cell, ci) => (
+                                <td key={ci} className={styles.tableData}>
+                                    <input
+                                        className={styles.tableCell}
+                                        value={cell}
+                                        readOnly={readOnly}
+                                        onChange={(e) => handleCellChange(ri + 1, ci, e.target.value)}
+                                        placeholder=""
+                                    />
+                                </td>
+                            ))}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+            {!readOnly && (
+                <div className={styles.tableControls}>
+                    <button className={styles.tableControlBtn} onClick={addRow} title="Add Row">+ Row</button>
+                    <button className={styles.tableControlBtn} onClick={addColumn} title="Add Column">+ Column</button>
+                </div>
+            )}
+        </div>
+    );
+});
+
 export const DividerBlock = memo(() => {
     return (
         <div className={styles.divider} contentEditable={false}></div>

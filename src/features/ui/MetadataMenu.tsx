@@ -147,7 +147,7 @@ export function MetadataMenu({ nodeId }: MetadataMenuProps) {
                 onClick={() => setIsOpen(!isOpen)}
                 title={isOpen ? "Close Metadata" : "Open Metadata"}
             >
-                {isOpen ? <X size={20} /> : <Settings size={20} />}
+                {isOpen ? <X size={18} /> : <Settings size={18} />}
             </button>
 
             {/* Metadata Panel - Portal */}

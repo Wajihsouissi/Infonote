@@ -261,6 +261,11 @@ export function useBlockSelection({ editorRef, blocks, blocksRef, blockRefs }: S
         }
 
         if (e.button === 0) {
+            if (e.ctrlKey) {
+                // Allow event to bubble up to BlockEditor to initiate bulk selection
+                return;
+            }
+            
             const target = e.currentTarget as HTMLElement;
             const rect = target.getBoundingClientRect();
             setMouseDownBlock({

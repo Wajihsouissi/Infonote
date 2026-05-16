@@ -11,6 +11,7 @@ import { FloatingToolbar } from './FloatingToolbar';
 
 import { BlockItem } from './BlockItem';
 import { useStore } from '../../store/useStore';
+import { MIN_FUSED_SIZE } from '../../config/layout';
 
 // Hooks
 import { useBlockSelection } from './hooks/useBlockSelection';
@@ -403,6 +404,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
             const currentBlock = blocksRef.current.find(b => b.id === id);
 
+            // Special handling for empty list items
             if (currentBlock && ['bullet', 'numbered', 'todo', 'toggle'].includes(currentBlock.type) && content === '') {
                 if ((currentBlock.indent || 0) > 0) {
                     handleOutdent(id);
@@ -411,6 +413,68 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 }
                 return;
             }
+
+            // Intercept for Fused Node Conversion
+            if (nodeId && blocksRef.current.length >= 2) {
+                const store = useStore.getState();
+                const node = store.nodes.find(n => n.id === nodeId);
+                if (node && node.type === 'block') {
+                    // We manually split the block here so we can update the store synchronously
+                    // before ReactFlow unmounts this BlockEditor.
+                    const caretOffset = getCaretOffset();
+                    const textBefore = content.substring(0, caretOffset);
+                    const textAfter = content.substring(caretOffset);
+
+                    const typeToCreate = currentBlock && ['bullet', 'numbered', 'todo', 'toggle'].includes(currentBlock.type)
+                        ? currentBlock.type
+                        : 'text';
+                    const indent = currentBlock?.indent || 0;
+
+                    const newId = uuidv4();
+                    const newBlock: Block = {
+                        id: newId,
+                        type: typeToCreate,
+                        content: textAfter,
+                        indent: indent
+                    };
+
+                    const index = blocksRef.current.findIndex(b => b.id === id);
+                    const newBlocks = [...blocksRef.current];
+                    if (index !== -1) {
+                        newBlocks[index] = { ...newBlocks[index], content: textBefore };
+                        newBlocks.splice(index + 1, 0, newBlock);
+                    } else {
+                        newBlocks.push(newBlock);
+                    }
+
+                    // Atomic update: change data + type + style in a single set() call
+                    // to prevent the intermediate state where type='block' but content has 2+ blocks
+                    store.setNodes((prev: any[]) => prev.map((n: any) => {
+                        if (n.id !== nodeId) return n;
+                        return {
+                            ...n,
+                            type: 'fused-note',
+                            data: {
+                                ...n.data,
+                                content: newBlocks,
+                                lastFusedAt: Date.now(),
+                                isStandaloneBlock: true
+                            },
+                            style: {
+                                ...n.style,
+                                width: MIN_FUSED_SIZE,
+                                height: MIN_FUSED_SIZE
+                            }
+                        };
+                    }));
+
+                    // Focus the new block after render
+                    setTimeout(() => store.nodes.find(n => n.id === nodeId) && document.getElementById(newId)?.focus(), 50);
+
+                    return; // Skip default addition
+                }
+            }
+
 
             if (currentBlock) {
                 const caretOffset = getCaretOffset();
@@ -747,8 +811,8 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 <SlashMenu
                     anchorRect={slashMenuState.anchorRect}
                     filter={blocksRef.current.find(b => b.id === slashMenuState.blockId)?.content.substring(1) || ''}
-                    onSelect={useCallback((type, meta) => convertBlock(undefined, type, meta), [convertBlock])}
-                    onClose={useCallback(() => setSlashMenuState(null), [setSlashMenuState])}
+                    onSelect={(type, meta) => convertBlock(undefined, type, meta, '')}
+                    onClose={() => setSlashMenuState(null)}
                 />
             )}
 

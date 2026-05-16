@@ -9,9 +9,11 @@
 import { fileSystemBackend } from './storage/FileSystemBackend';
 import { supabaseBackend } from './storage/SupabaseBackend';
 import type { GraphBackend, BackendKind } from './storage/types';
+import { shallow } from 'zustand/shallow';
 
 let isInitialized = false;
 let saveTimeout: number | null = null;
+let isRestoring = false;
 
 let activeBackend: GraphBackend = fileSystemBackend;
 
@@ -25,7 +27,7 @@ let storeCallbacks: {
 
 export function initStorageManager(
     getState: () => { nodes: any[]; edges: any[] },
-    subscribe: <T>(selector: (state: any) => T, listener: (curr: T, prev: T) => void) => () => void,
+    subscribe: <T>(selector: (state: any) => T, listener: (curr: T, prev: T) => void, options?: { equalityFn?: (a: T, b: T) => boolean }) => () => void,
     loadGraph: (nodes: any[], edges: any[]) => void,
     callbacks: {
         onStatusChange?: (connected: boolean, dirName: string | null) => void;
@@ -56,8 +58,7 @@ export function initStorageManager(
             isConnected: state.storage.isConnected
         }),
         (curr, prev) => {
-            if (!curr.isConnected) return;
-
+            if (!curr.isConnected || isRestoring) return;
             const nodesChanged = curr.nodes !== prev.nodes;
             const edgesChanged = curr.edges !== prev.edges;
 
@@ -77,7 +78,8 @@ export function initStorageManager(
                     saveTimeout = window.setTimeout(performSave, 500);
                 }
             }
-        }
+        },
+        { equalityFn: shallow }
     );
 }
 
@@ -94,7 +96,9 @@ async function autoReconnect(): Promise<void> {
 
         const data = await fileSystemBackend.load();
         if (data && data.nodes.length > 0) {
+            isRestoring = true;
             storeCallbacks.loadGraph(data.nodes, data.edges);
+            isRestoring = false;
         }
         storeCallbacks.setStorageStatus(true, activeBackend.displayName ?? 'Local Folder');
     } catch {
@@ -159,7 +163,9 @@ export async function connectBackend(
 
         const data = await backend.load();
         if (data && data.nodes.length > 0) {
+            isRestoring = true;
             ctx.loadGraph(data.nodes, data.edges);
+            isRestoring = false;
         } else {
             const currentState = ctx.getState();
             if (currentState.nodes.length > 0) {

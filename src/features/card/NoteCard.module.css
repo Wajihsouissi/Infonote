@@ -1192,54 +1192,79 @@
 /* Unified Top Controls Group (Flex Item) */
 .controlsGroup {
     display: flex;
-    gap: 8px;
     align-items: center;
     pointer-events: auto;
-    /* Re-enable clicks */
-}
-
-.controlBtn {
-    width: 32px;
-    /* Slightly smaller for integrated feel */
-    height: 32px;
-    border-radius: 50%;
-
-    /* Glassy Style - use CSS variables for customization */
     background: var(--control-btn-bg, var(--glass-bg));
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--control-btn-border, var(--glass-border));
     box-shadow: var(--control-btn-shadow, 0 4px 12px rgba(0, 0, 0, 0.1));
+    border-radius: 99px;
+    padding: 4px;
+    gap: 2px;
+    /* Always visible — individual contexts may override opacity */
+    opacity: 1;
+    transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, opacity 0.2s ease;
+}
 
+/* In the cover overlay, start hidden and reveal on card hover */
+.coverMetadataOverlay .controlsGroup {
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.expandedView:hover .coverMetadataOverlay .controlsGroup,
+.coverImage:hover .controlsGroup {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* In the minimalHeader, always show the pill */
+.minimalHeader .controlsGroup {
+    opacity: 1 !important;
+    transform: none !important;
+}
+
+.controlBtn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    box-shadow: none;
     color: var(--color-text-main);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-
-    /* No initial opacity - always visible in header */
-    opacity: 0;
-    transform: scale(0.9);
-    transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-
-.expandedView:hover .controlBtn {
-    opacity: 1;
+    opacity: 0.75;
     transform: scale(1);
+    transition: all 0.18s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .controlBtn:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: var(--control-btn-hover-border, var(--color-primary));
-    transform: scale(1.05);
+    background: rgba(0, 0, 0, 0.07);
+    opacity: 1;
+    transform: scale(1.08);
     color: var(--control-btn-hover-color, var(--color-text-main));
 }
 
-.controlBtn.active {
-    background: var(--control-btn-active-bg, rgba(139, 92, 246, 0.2));
-    border-color: var(--control-btn-active-border, rgba(139, 92, 246, 0.6));
-    color: var(--control-btn-active-color, #a78bfa);
+:global(.dark) .controlBtn:hover {
+    background: rgba(255, 255, 255, 0.12);
 }
+
+.controlBtn.active {
+    background: var(--control-btn-active-bg, rgba(139, 92, 246, 0.15));
+    border-color: transparent;
+    color: var(--control-btn-active-color, var(--color-primary));
+    opacity: 1;
+}
+
+:global(.dark) .controlBtn.active {
+    background: var(--control-btn-active-bg, rgba(139, 92, 246, 0.25));
+}
+
 
 /* Minimal Header Mode */
 .minimalHeader {

@@ -62,10 +62,13 @@ export interface StorageSlice {
     loadGraph: (nodes: AppNode[], edges: Edge[]) => void;
 }
 
+export type AppView = 'landing' | 'canvas' | 'marketplace' | 'login' | 'signup';
+
 export interface UISlice {
     activeIconMenuId: string | null;
     isKanbanModalOpen: boolean;
     theme: 'light' | 'dark';
+    currentView: AppView;
     interactionState: {
         draggingKanbanNodeId: string | null;
         hoveredKanbanColumn: { kanbanId: string; columnId: string } | null;
@@ -85,6 +88,7 @@ export interface UISlice {
     setSelectedCanvasNodeIds: (ids: Set<string>) => void;
     toggleCanvasNodeSelection: (id: string) => void;
     clearCanvasSelection: () => void;
+    setCurrentView: (view: AppView) => void;
 }
 
 export type AppState = NodeSlice & NavigationSlice & StorageSlice & UISlice;

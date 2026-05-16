@@ -43,6 +43,95 @@ export const parseFiles = async (files: FileList): Promise<Block[]> => {
     return blocks;
 };
 
+/**
+ * LaTeX command → Unicode mapping for ChatGPT math content.
+ */
+const LATEX_MAP: Record<string, string> = {
+    '\\rightarrow': '→', '\\Rightarrow': '⇒', '\\longrightarrow': '→',
+    '\\leftarrow': '←', '\\Leftarrow': '⇐', '\\longleftarrow': '←',
+    '\\leftrightarrow': '↔', '\\Leftrightarrow': '⇔',
+    '\\uparrow': '↑', '\\downarrow': '↓',
+    '\\mapsto': '↦', '\\hookrightarrow': '↪',
+    '\\times': '×', '\\div': '÷', '\\cdot': '·', '\\bullet': '•',
+    '\\neq': '≠', '\\leq': '≤', '\\geq': '≥', '\\approx': '≈',
+    '\\equiv': '≡', '\\sim': '∼', '\\pm': '±', '\\mp': '∓',
+    '\\infty': '∞', '\\sum': '∑', '\\prod': '∏', '\\int': '∫',
+    '\\partial': '∂', '\\nabla': '∇', '\\forall': '∀', '\\exists': '∃',
+    '\\in': '∈', '\\notin': '∉', '\\subset': '⊂', '\\supset': '⊃',
+    '\\subseteq': '⊆', '\\supseteq': '⊇', '\\cup': '∪', '\\cap': '∩',
+    '\\emptyset': '∅', '\\neg': '¬', '\\land': '∧', '\\lor': '∨',
+    '\\oplus': '⊕', '\\otimes': '⊗',
+    '\\alpha': 'α', '\\beta': 'β', '\\gamma': 'γ', '\\delta': 'δ',
+    '\\epsilon': 'ε', '\\zeta': 'ζ', '\\eta': 'η', '\\theta': 'θ',
+    '\\iota': 'ι', '\\kappa': 'κ', '\\lambda': 'λ', '\\mu': 'μ',
+    '\\nu': 'ν', '\\xi': 'ξ', '\\pi': 'π', '\\rho': 'ρ',
+    '\\sigma': 'σ', '\\tau': 'τ', '\\upsilon': 'υ', '\\phi': 'φ',
+    '\\chi': 'χ', '\\psi': 'ψ', '\\omega': 'ω',
+    '\\Delta': 'Δ', '\\Gamma': 'Γ', '\\Lambda': 'Λ', '\\Sigma': 'Σ',
+    '\\Omega': 'Ω', '\\Pi': 'Π', '\\Phi': 'Φ', '\\Psi': 'Ψ',
+    '\\ldots': '…', '\\cdots': '⋯', '\\vdots': '⋮', '\\ddots': '⋱',
+    '\\quad': '  ', '\\qquad': '    ', '\\;': ' ', '\\,': ' ',
+    '\\star': '⋆', '\\circ': '∘', '\\degree': '°',
+    '\\checkmark': '✓', '\\sqrt': '√',
+};
+
+/**
+ * Convert LaTeX commands to Unicode and clean up LaTeX environment syntax.
+ * Handles ChatGPT math content like \rightarrow, \begin{aligned}, etc.
+ */
+function cleanLatex(text: string): string {
+    let result = text;
+
+    // Remove LaTeX environment wrappers
+    result = result.replace(/\\begin\{[^}]+\}/g, '');
+    result = result.replace(/\\end\{[^}]+\}/g, '');
+
+    // Replace \text{...} with just the content
+    result = result.replace(/\\text\{([^}]*)\}/g, '$1');
+    result = result.replace(/\\textbf\{([^}]*)\}/g, '$1');
+    result = result.replace(/\\textit\{([^}]*)\}/g, '$1');
+    result = result.replace(/\\mathrm\{([^}]*)\}/g, '$1');
+    result = result.replace(/\\mathbf\{([^}]*)\}/g, '$1');
+
+    // Simple \frac{a}{b} → a/b
+    result = result.replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, '$1/$2');
+
+    // Replace all known LaTeX commands (sort by length desc to match longer ones first)
+    const sortedKeys = Object.keys(LATEX_MAP).sort((a, b) => b.length - a.length);
+    for (const cmd of sortedKeys) {
+        // Use word boundary after command to avoid partial matches
+        const escaped = cmd.replace(/\\/g, '\\\\');
+        const regex = new RegExp(escaped + '(?![a-zA-Z])', 'g');
+        result = result.replace(regex, LATEX_MAP[cmd]);
+    }
+
+    // Clean up LaTeX alignment characters
+    result = result.replace(/&/g, ' ');  // alignment markers
+    result = result.replace(/\\\\/g, '\n'); // \\ line breaks → newlines
+
+    // Clean up remaining curly braces from LaTeX (e.g. ^{2} → 2)
+    result = result.replace(/\^\{([^}]*)\}/g, '$1');
+    result = result.replace(/_\{([^}]*)\}/g, '$1');
+    result = result.replace(/[{}]/g, '');
+
+    // Clean up excess whitespace
+    result = result.replace(/[ \t]+/g, ' ');
+    result = result.split('\n').map(l => l.trim()).filter((l, i, arr) => {
+        // Remove consecutive empty lines
+        if (l === '' && i > 0 && arr[i - 1] === '') return false;
+        return true;
+    }).join('\n');
+
+    return result.trim();
+}
+
+/**
+ * Detect if text contains LaTeX commands.
+ */
+function hasLatex(text: string): boolean {
+    return /\\(rightarrow|leftarrow|begin|end|frac|text|alpha|beta|gamma|times|div|neq|leq|geq|quad|sum|int|infty|sqrt|cdot)/i.test(text);
+}
+
 // 2. Handle Text/HTML - SYNC
 export const parseTextOrHtml = (e: React.ClipboardEvent): Block[] => {
     const blocks: Block[] = [];
@@ -54,88 +143,408 @@ export const parseTextOrHtml = (e: React.ClipboardEvent): Block[] => {
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
 
-        // Helper to flatten nodes
-        const processNodes = (nodes: NodeListOf<ChildNode> | HTMLElement[]) => {
-            Array.from(nodes).forEach(node => {
-                if (node.nodeType !== Node.ELEMENT_NODE) return;
-
-                const el = node as HTMLElement;
-                const tagName = el.tagName.toLowerCase();
-
-                if (tagName === 'ul' || tagName === 'ol') {
-                    // Iterate children LIs
-                    Array.from(el.children).forEach(li => {
-                        if (li.tagName.toLowerCase() === 'li') {
-                            blocks.push({
-                                id: uuidv4(),
-                                type: tagName === 'ul' ? 'bullet' : 'numbered',
-                                content: li.textContent?.trim() || ''
-                            });
-                        }
-                    });
-                } else {
-                    const block = domNodeToBlock(el);
-                    if (block) blocks.push(block);
-                }
-            });
-        };
-
         if (doc.body.children.length > 0) {
-            processNodes(Array.from(doc.body.children) as HTMLElement[]);
+            processNodes(Array.from(doc.body.childNodes), blocks);
             if (blocks.length > 0) return blocks;
         }
     }
 
-    // 3. Fallback: Handle Plain Text
+    // 3. Fallback: Handle Plain Text (including Markdown/LaTeX from ChatGPT)
     const text = clipboardData.getData('text/plain');
     if (text) {
-        const lines = text.split(/\r\n|\r|\n/);
-        lines.forEach(line => {
-            const trimmed = line.trim();
-            // Markdown list detection
-            if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-                blocks.push({
-                    id: uuidv4(),
-                    type: 'bullet',
-                    content: trimmed.substring(2)
-                });
-            } else if (/^\d+\.\s/.test(trimmed)) {
-                blocks.push({
-                    id: uuidv4(),
-                    type: 'numbered',
-                    content: trimmed.replace(/^\d+\.\s/, '')
-                });
-            } else if (trimmed.startsWith('[] ') || trimmed.startsWith('[ ] ')) {
-                blocks.push({
-                    id: uuidv4(),
-                    type: 'todo',
-                    content: trimmed.replace(/^\[ ?\]\s/, '')
-                });
-            } else if ((trimmed.startsWith('> '))) {
-                blocks.push({
-                    id: uuidv4(),
-                    type: 'quote',
-                    content: trimmed.substring(2)
-                });
-            } else if (trimmed.length === 0) {
-                blocks.push({
-                    id: uuidv4(),
-                    type: 'text',
-                    content: ''
-                });
-            } else {
-                blocks.push({
-                    id: uuidv4(),
-                    type: 'text',
-                    content: line
-                });
-            }
-        });
-        return blocks;
+        // If text contains LaTeX, clean it first then parse
+        const cleaned = hasLatex(text) ? cleanLatex(text) : text;
+        return parsePlainText(cleaned);
     }
 
     return [];
 };
+
+/**
+ * Parse plain text content, with Markdown detection for ChatGPT-style output.
+ * Handles headings, lists, code fences, tables, blockquotes, dividers, etc.
+ */
+function parsePlainText(text: string): Block[] {
+    const blocks: Block[] = [];
+    const lines = text.split(/\r\n|\r|\n/);
+
+    let i = 0;
+    while (i < lines.length) {
+        const line = lines[i];
+        const trimmed = line.trim();
+
+        // --- Fenced Code Block (``` ... ```) ---
+        if (trimmed.startsWith('```')) {
+            const codeLines: string[] = [];
+            i++; // skip opening fence
+            while (i < lines.length && !lines[i].trim().startsWith('```')) {
+                codeLines.push(lines[i]);
+                i++;
+            }
+            if (i < lines.length) i++; // skip closing fence
+            blocks.push({
+                id: uuidv4(),
+                type: 'code',
+                content: codeLines.join('\n')
+            });
+            continue;
+        }
+
+        // --- Markdown Table (lines starting with |) ---
+        if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+            const tableRows: string[][] = [];
+            while (i < lines.length) {
+                const tline = lines[i].trim();
+                if (!tline.startsWith('|')) break;
+
+                // Skip separator rows like |---|---|
+                if (/^\|[\s\-:|\u2014]+\|$/.test(tline)) {
+                    i++;
+                    continue;
+                }
+
+                // Parse cells
+                const cells = tline
+                    .replace(/^\|/, '')
+                    .replace(/\|$/, '')
+                    .split('|')
+                    .map(c => c.trim());
+                tableRows.push(cells);
+                i++;
+            }
+
+            if (tableRows.length > 0) {
+                blocks.push({
+                    id: uuidv4(),
+                    type: 'table',
+                    content: '',
+                    metadata: {
+                        rows: tableRows
+                    }
+                });
+            }
+            continue;
+        }
+
+        // --- Markdown Headings ---
+        if (trimmed.startsWith('### ')) {
+            blocks.push({ id: uuidv4(), type: 'heading3', content: trimmed.substring(4) });
+            i++;
+            continue;
+        }
+        if (trimmed.startsWith('## ')) {
+            blocks.push({ id: uuidv4(), type: 'heading2', content: trimmed.substring(3) });
+            i++;
+            continue;
+        }
+        if (trimmed.startsWith('# ')) {
+            blocks.push({ id: uuidv4(), type: 'heading1', content: trimmed.substring(2) });
+            i++;
+            continue;
+        }
+
+        // --- Horizontal Rule / Divider ---
+        if (/^[-*_]{3,}$/.test(trimmed)) {
+            blocks.push({ id: uuidv4(), type: 'divider', content: '' });
+            i++;
+            continue;
+        }
+
+        // --- Bullet List ---
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ') || trimmed.startsWith('• ')) {
+            const prefixLen = trimmed.startsWith('• ') ? 2 : 2;
+            blocks.push({
+                id: uuidv4(),
+                type: 'bullet',
+                content: trimmed.substring(prefixLen)
+            });
+            i++;
+            continue;
+        }
+
+        // --- Numbered List ---
+        if (/^\d+\.\s/.test(trimmed)) {
+            blocks.push({
+                id: uuidv4(),
+                type: 'numbered',
+                content: trimmed.replace(/^\d+\.\s/, '')
+            });
+            i++;
+            continue;
+        }
+
+        // --- Todo / Checkbox ---
+        if (trimmed.startsWith('[] ') || trimmed.startsWith('[ ] ')) {
+            blocks.push({
+                id: uuidv4(),
+                type: 'todo',
+                content: trimmed.replace(/^\[ ?\]\s/, '')
+            });
+            i++;
+            continue;
+        }
+        if (trimmed.startsWith('[x] ') || trimmed.startsWith('[X] ')) {
+            blocks.push({
+                id: uuidv4(),
+                type: 'todo',
+                content: trimmed.substring(4),
+                metadata: { checked: true }
+            });
+            i++;
+            continue;
+        }
+
+        // --- Blockquote ---
+        if (trimmed.startsWith('> ')) {
+            blocks.push({
+                id: uuidv4(),
+                type: 'quote',
+                content: trimmed.substring(2)
+            });
+            i++;
+            continue;
+        }
+
+        // --- Empty Line ---
+        if (trimmed.length === 0) {
+            // Only add empty text blocks if there's content before and after
+            // to avoid excessive empty blocks
+            if (blocks.length > 0 && i < lines.length - 1 && lines[i + 1]?.trim()) {
+                blocks.push({ id: uuidv4(), type: 'text', content: '' });
+            }
+            i++;
+            continue;
+        }
+
+        // --- Default: Plain Text ---
+        blocks.push({
+            id: uuidv4(),
+            type: 'text',
+            content: line
+        });
+        i++;
+    }
+
+    return blocks;
+}
+
+/**
+ * Recursively process DOM nodes from pasted HTML into Block[].
+ * Handles tables, code blocks, lists, headings, blockquotes, horizontal rules, etc.
+ */
+function processNodes(nodes: ChildNode[], blocks: Block[]) {
+    for (const node of nodes) {
+        // Handle text nodes directly (bare text between elements)
+        if (node.nodeType === Node.TEXT_NODE) {
+            const text = node.textContent?.trim() || '';
+            if (text) {
+                const cleaned = hasLatex(text) ? cleanLatex(text) : text;
+                if (cleaned) blocks.push({ id: uuidv4(), type: 'text', content: cleaned });
+            }
+            continue;
+        }
+
+        if (node.nodeType !== Node.ELEMENT_NODE) continue;
+
+        const el = node as HTMLElement;
+        const tagName = el.tagName.toLowerCase();
+
+        // --- KaTeX / MathJax math elements (ChatGPT) ---
+        if (el.classList?.contains('katex') || el.classList?.contains('katex-display') ||
+            el.classList?.contains('math') || el.classList?.contains('MathJax') ||
+            el.querySelector('.katex') || el.querySelector('.MathJax')) {
+            // Extract rendered text from math elements
+            const mathText = getCleanText(el);
+            if (mathText) {
+                blocks.push({ id: uuidv4(), type: 'text', content: mathText });
+            }
+            continue;
+        }
+
+        // --- Tables ---
+        if (tagName === 'table') {
+            const rows: string[][] = [];
+            const trs = el.querySelectorAll('tr');
+            trs.forEach(tr => {
+                const cells: string[] = [];
+                tr.querySelectorAll('th, td').forEach(cell => {
+                    cells.push(cell.textContent?.trim() || '');
+                });
+                if (cells.length > 0) {
+                    rows.push(cells);
+                }
+            });
+            if (rows.length > 0) {
+                blocks.push({
+                    id: uuidv4(),
+                    type: 'table',
+                    content: '',
+                    metadata: { rows }
+                });
+            }
+            continue;
+        }
+
+        // --- Lists (ul/ol) ---
+        if (tagName === 'ul' || tagName === 'ol') {
+            processListItems(el, blocks, tagName === 'ul' ? 'bullet' : 'numbered', 0);
+            continue;
+        }
+
+        // --- Code blocks (pre, pre > code) ---
+        if (tagName === 'pre') {
+            const codeEl = el.querySelector('code');
+            const codeContent = codeEl ? codeEl.textContent || '' : el.textContent || '';
+            blocks.push({
+                id: uuidv4(),
+                type: 'code',
+                content: codeContent.replace(/\n$/, '') // trim trailing newline
+            });
+            continue;
+        }
+
+        // --- Horizontal rules ---
+        if (tagName === 'hr') {
+            blocks.push({ id: uuidv4(), type: 'divider', content: '' });
+            continue;
+        }
+
+        // --- Headings ---
+        if (tagName === 'h1') {
+            blocks.push({ id: uuidv4(), type: 'heading1', content: getCleanText(el) });
+            continue;
+        }
+        if (tagName === 'h2') {
+            blocks.push({ id: uuidv4(), type: 'heading2', content: getCleanText(el) });
+            continue;
+        }
+        if (tagName === 'h3' || tagName === 'h4' || tagName === 'h5' || tagName === 'h6') {
+            blocks.push({ id: uuidv4(), type: 'heading3', content: getCleanText(el) });
+            continue;
+        }
+
+        // --- Blockquote ---
+        if (tagName === 'blockquote') {
+            // A blockquote may contain multiple paragraphs
+            const innerText = getCleanText(el);
+            blocks.push({ id: uuidv4(), type: 'quote', content: innerText });
+            continue;
+        }
+
+        // --- Paragraphs and divs ---
+        if (tagName === 'p' || tagName === 'div') {
+            // Check for embedded images
+            const img = el.querySelector('img');
+            if (img && img.src) {
+                blocks.push({ id: uuidv4(), type: 'image', content: img.src });
+                // Also capture any text alongside the image
+                const textContent = getCleanText(el);
+                if (textContent && textContent !== img.alt) {
+                    blocks.push({ id: uuidv4(), type: 'text', content: textContent });
+                }
+                continue;
+            }
+
+            // Check if it's a code block styled with monospace
+            const codeChild = el.querySelector('code');
+            if (codeChild && el.children.length === 1 && el.children[0] === codeChild) {
+                blocks.push({ id: uuidv4(), type: 'code', content: codeChild.textContent || '' });
+                continue;
+            }
+
+            const text = getCleanText(el);
+            if (text) {
+                blocks.push({ id: uuidv4(), type: 'text', content: text });
+            }
+            continue;
+        }
+
+        // --- Standalone image ---
+        if (tagName === 'img') {
+            const src = (el as HTMLImageElement).src;
+            if (src) {
+                blocks.push({ id: uuidv4(), type: 'image', content: src });
+            }
+            continue;
+        }
+
+        // --- Line break ---
+        if (tagName === 'br') {
+            // Usually within text; skip standalone BRs
+            continue;
+        }
+
+        // --- Inline elements (span, strong, em, a, code, etc.) ---
+        // These shouldn't normally be top-level, but ChatGPT sometimes wraps content oddly
+        if (['span', 'strong', 'em', 'b', 'i', 'a', 'code', 'mark', 'u', 's', 'del', 'sub', 'sup'].includes(tagName)) {
+            const text = getCleanText(el);
+            if (text) {
+                blocks.push({ id: uuidv4(), type: 'text', content: text });
+            }
+            continue;
+        }
+
+        // --- Sections, articles, mains, headers, footers: recurse into children ---
+        if (['section', 'article', 'main', 'header', 'footer', 'aside', 'nav', 'details', 'summary', 'figure', 'figcaption'].includes(tagName)) {
+            processNodes(Array.from(el.childNodes), blocks);
+            continue;
+        }
+
+        // --- Fallback: Extract text content ---
+        const fallbackText = getCleanText(el);
+        if (fallbackText) {
+            blocks.push({ id: uuidv4(), type: 'text', content: fallbackText });
+        }
+    }
+}
+
+/**
+ * Recursively process list items, supporting nested lists with indentation.
+ */
+function processListItems(listEl: HTMLElement, blocks: Block[], listType: 'bullet' | 'numbered', indent: number) {
+    const children = Array.from(listEl.children);
+    for (const child of children) {
+        if (child.tagName.toLowerCase() !== 'li') continue;
+
+        // Get direct text content (excluding nested lists)
+        let textContent = '';
+        const nestedLists: HTMLElement[] = [];
+
+        for (const liChild of Array.from(child.childNodes)) {
+            if (liChild.nodeType === Node.ELEMENT_NODE) {
+                const childTag = (liChild as HTMLElement).tagName.toLowerCase();
+                if (childTag === 'ul' || childTag === 'ol') {
+                    nestedLists.push(liChild as HTMLElement);
+                } else {
+                    textContent += (liChild as HTMLElement).textContent || '';
+                }
+            } else if (liChild.nodeType === Node.TEXT_NODE) {
+                textContent += liChild.textContent || '';
+            }
+        }
+
+        blocks.push({
+            id: uuidv4(),
+            type: listType,
+            content: textContent.trim(),
+            indent
+        });
+
+        // Process nested lists with increased indent
+        for (const nestedList of nestedLists) {
+            const nestedType = nestedList.tagName.toLowerCase() === 'ul' ? 'bullet' : 'numbered';
+            processListItems(nestedList, blocks, nestedType as 'bullet' | 'numbered', indent + 1);
+        }
+    }
+}
+
+/**
+ * Extract clean text content from an element, preserving meaningful whitespace.
+ */
+function getCleanText(el: HTMLElement): string {
+    const raw = (el.innerText || el.textContent || '').trim();
+    return hasLatex(raw) ? cleanLatex(raw) : raw;
+}
 
 export const parseClipboardData = async (e: React.ClipboardEvent): Promise<Block[]> => {
     // Legacy support or combined usage
@@ -145,36 +554,3 @@ export const parseClipboardData = async (e: React.ClipboardEvent): Promise<Block
     }
     return parseTextOrHtml(e);
 };
-
-function domNodeToBlock(node: HTMLElement): Block | null {
-    const id = uuidv4();
-    const cleanContent = node.innerText?.trim() || node.textContent?.trim() || '';
-
-    // Ignore empty non-media tags?
-    if (!cleanContent && !node.querySelector('img')) return null;
-
-    switch (node.tagName.toLowerCase()) {
-        case 'h1':
-            return { id, type: 'heading1', content: cleanContent };
-        case 'h2':
-            return { id, type: 'heading2', content: cleanContent };
-        case 'h3':
-            return { id, type: 'heading3', content: cleanContent };
-        case 'p':
-        case 'div':
-            // Logic: Check for images inside
-            const img = node.querySelector('img');
-            if (img && img.src) {
-                return { id, type: 'image', content: img.src };
-            }
-            return { id, type: 'text', content: cleanContent };
-        case 'blockquote':
-            return { id, type: 'quote', content: cleanContent };
-        case 'img':
-            return { id, type: 'image', content: (node as HTMLImageElement).src };
-        case 'pre':
-            return { id, type: 'text', content: cleanContent };
-        default:
-            return { id, type: 'text', content: cleanContent };
-    }
-}

@@ -2,7 +2,8 @@ import React, { memo, useCallback } from 'react';
 import { SortableBlockWrapper } from './SortableBlockWrapper';
 import {
     TextBlock, HeadingBlock, TodoBlock, QuoteBlock, ImageBlock, ListBlock, CalloutBlock,
-    DividerBlock, PageBlock, ContainerBlock, VideoBlock, FileBlock, ColumnsBlock, CodeBlock
+    DividerBlock, PageBlock, ContainerBlock, VideoBlock, FileBlock, ColumnsBlock, CodeBlock,
+    TableBlock
 } from './BlockComponents';
 import { ColorBlock } from './ColorBlock';
 import type { Block } from './types';
@@ -103,6 +104,7 @@ export const BlockItem = memo(function BlockItem({
             case 'page': return <PageBlock {...props} />;
             case 'container': return <ContainerBlock block={block} onUpdate={(data: Partial<Block>) => onUpdateBlock(block.id, data as any)} readOnly={readOnly} />;
             case 'columns': return <ColumnsBlock block={block} onUpdate={(data: Partial<Block>) => onUpdateBlock(block.id, data as any)} readOnly={readOnly} nodeId={nodeId} />;
+            case 'table': return <TableBlock {...props} />;
             case 'divider': return <DividerBlock />;
             case 'file': return <FileBlock {...props} />;
             case 'code': return <CodeBlock {...props} />;

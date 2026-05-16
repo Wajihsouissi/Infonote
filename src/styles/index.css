@@ -117,7 +117,6 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
-  /* Canvas app */
   cursor: auto;
 }
 
@@ -161,43 +160,58 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
-/* React Flow Controls Customization */
+/* Integrated MiniMap and Controls in Bottom Right */
 .react-flow__controls {
   display: flex;
   flex-direction: column;
-  background: var(--rf-controls-bg);
+  background: #111111 !important;
   backdrop-filter: blur(var(--backdrop-blur));
   -webkit-backdrop-filter: blur(var(--backdrop-blur));
-  border: 1px solid var(--rf-controls-border);
-  border-radius: 8px;
-  padding: 2px;
-  box-shadow: var(--glass-shadow);
-  overflow: hidden;
-  gap: 1px;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 12px !important;
+  padding: 4px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6) !important;
+  gap: 4px !important;
+  margin: 15px !important; /* Move to the absolute corner */
 }
 
 .react-flow__controls-button {
-  background: transparent;
+  background: #222222 !important;
   border: none !important;
-  border-radius: 4px !important;
-  width: 28px;
-  height: 28px;
+  border-radius: 8px !important;
+  width: 34px !important;
+  height: 34px !important;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-text-main);
-  transition: background 0.2s;
-  margin: 1px;
+  color: #ffffff !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  margin: 0 !important;
 }
 
 .react-flow__controls-button:hover {
-  background: var(--glass-bg-hover) !important;
+  background: #333333 !important;
+  transform: scale(1.05);
 }
 
 .react-flow__controls-button svg {
-  fill: var(--rf-controls-text) !important;
-  width: 14px;
-  height: 14px;
+  fill: #ffffff !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* Position MiniMap to the left of the Controls with a minimal gap */
+.react-flow__minimap {
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: #111111 !important;
+  margin: 15px 64px 15px 15px !important; /* Minimal gap (15 margin + 44 controls + 5 gap) */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Hide React Flow Attribution Badge */
+.react-flow__attribution {
+  display: none !important;
 }
 
 /* Global override for dragging nodes (CanvasBoard) */

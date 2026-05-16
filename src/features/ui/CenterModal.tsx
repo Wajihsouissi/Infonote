@@ -24,6 +24,7 @@ export function CenterModal() {
     return (
         <div
             className={styles.overlay}
+            onClick={() => setCenterPanelId(null)}
             onDragOver={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -34,7 +35,7 @@ export function CenterModal() {
                 e.stopPropagation();
             }}
         >
-            <div className={`${styles.modal} ${styles.centerModalOverride}`}>
+            <div className={`${styles.modal} ${styles.centerModalOverride}`} onClick={(e) => e.stopPropagation()}>
                 <div style={{ height: '100%', width: '100%', overflow: 'hidden' }}>
                     {activeNode.type === 'note' ? (
                         <NoteExpandedContent

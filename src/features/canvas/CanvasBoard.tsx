@@ -5,6 +5,7 @@ import {
     MiniMap,
     SelectionMode,
     useReactFlow,
+    Panel,
 } from '@xyflow/react';
 import { NoteCard } from '../card/NoteCard';
 import { BlockNode } from '../block/BlockNode';
@@ -16,6 +17,8 @@ import { FullscreenModal } from '../ui/FullscreenModal';
 import { CenterModal } from '../ui/CenterModal';
 import { MetadataMenu } from '../ui/MetadataMenu';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
+import { HomeButton } from '../ui/HomeButton';
+import { HistoryControls } from '../ui/HistoryControls';
 import { KanbanNodeComponent } from '../kanban/KanbanNode';
 import { CanvasSlashMenu } from './CanvasSlashMenu';
 
@@ -58,6 +61,7 @@ export function CanvasBoard() {
         leftSidePanelId,
         setRightSidePanelId,
         setLeftSidePanelId,
+        setSelectedCanvasNodeIds,
     } = useCanvasStoreSelectors();
 
     // Throttling Ref for drag cleanup
@@ -150,7 +154,9 @@ export function CanvasBoard() {
         <div className={styles.container}>
             <div className={styles.canvasArea}>
                 <ThemeSwitcher />
-                <div style={{ position: 'absolute', top: 20, left: 30, zIndex: 100 }}>
+                <div className={styles.topLeftToolbar}>
+                    <HomeButton />
+                    <HistoryControls />
                     <Breadcrumbs />
                 </div>
                 {activeParentNode && (
@@ -177,13 +183,22 @@ export function CanvasBoard() {
                     onNodeDrag={onNodeDrag}
                     onNodeDragStop={onNodeDragStop}
                     onMove={handleViewportChange}
+                    onSelectionChange={({ nodes: selectedNodes }) => {
+                        const newIds = selectedNodes.map(n => n.id);
+                        const isSame = newIds.length === selectedCanvasNodeIds.size && newIds.every(id => selectedCanvasNodeIds.has(id));
+                        if (!isSame) {
+                            setSelectedCanvasNodeIds(new Set(newIds));
+                        }
+                    }}
                     selectionOnDrag={false}
                     panOnDrag={true}
+                    selectionKeyCode="Control"
+                    multiSelectionKeyCode="Control"
                     selectionMode={SelectionMode.Partial}
                     // Performance optimizations
                     nodesDraggable={true}
                     nodesConnectable={true}
-                    nodesFocusable={true}
+                    nodesFocusable={false}
                     edgesFocusable={false}
                     elementsSelectable={true}
                     selectNodesOnDrag={false}
@@ -198,13 +213,15 @@ export function CanvasBoard() {
                     deleteKeyCode={null}
                 >
                     <CanvasSlashMenu />
-                    <Controls className={styles.canvasControls} />
-                    <MiniMap
-                        position="bottom-right"
-                        nodeColor="var(--color-primary)"
-                        maskColor="var(--glass-bg)"
-                        className={styles.canvasMiniMap}
-                    />
+                    <Panel position="bottom-right" className={styles.bottomRightControls}>
+                        <MiniMap
+                            nodeColor="var(--color-primary)"
+                            maskColor="var(--glass-bg)"
+                            className={styles.canvasMiniMap}
+                            style={{ width: 160, height: 116 }}
+                        />
+                        <Controls className={styles.canvasControls} />
+                    </Panel>
                 </ReactFlow>
             </div>
 

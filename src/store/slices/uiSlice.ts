@@ -12,6 +12,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
         dropTarget: null
     },
     theme: (localStorage.getItem('infonote-theme') as 'light' | 'dark') || 'dark',
+    currentView: 'landing',
     selectedCanvasNodeIds: new Set<string>(),
 
     setActiveIconMenuId: (id) => set({ activeIconMenuId: id }),
@@ -50,4 +51,6 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     }),
 
     clearCanvasSelection: () => set({ selectedCanvasNodeIds: new Set<string>() }),
+
+    setCurrentView: (view) => set({ currentView: view }),
 });
