@@ -29,6 +29,7 @@ import {
     useCanvasDrop,
     useCanvasNodeDrag,
 } from './hooks';
+import { useRecentlyViewed } from '../landing/hooks/useDashboardData';
 
 // Lazy load KanbanConfigModal
 const KanbanConfigModal = lazy(() =>
@@ -119,6 +120,24 @@ export function CanvasBoard() {
         currentParentId ? nodes.find(n => n.id === currentParentId) : null,
         [nodes, currentParentId]
     );
+
+    // Recently viewed tracking
+    const activeWorkspaceId = typeof window !== 'undefined' 
+        ? localStorage.getItem('infonote.activeWorkspaceId') || '' 
+        : '';
+    const { trackNoteView } = useRecentlyViewed(activeWorkspaceId);
+
+    useEffect(() => {
+        if (currentParentId && activeParentNode && activeWorkspaceId) {
+            const data = activeParentNode.data as Record<string, any>;
+            trackNoteView(
+                activeParentNode.id, 
+                (data?.title as string) || 'Untitled', 
+                activeParentNode.type || 'unknown', 
+                activeWorkspaceId
+            );
+        }
+    }, [currentParentId, activeParentNode, activeWorkspaceId, trackNoteView]);
 
     // Drop handlers
     const { onDragOver, onDrop } = useCanvasDrop({

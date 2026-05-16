@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
+import { useAuth } from '../auth/AuthProvider';
+import { useRecentlyViewed, useGlobalSearch } from './hooks/useDashboardData';
 import {
   Layout,
   ShoppingBag,
@@ -21,6 +23,23 @@ export const LandingPage: React.FC = () => {
   const currentView = useStore((state) => state.currentView);
   const theme = useStore((state) => state.theme);
   const toggleTheme = useStore((state) => state.toggleTheme);
+
+  const { user, signOut } = useAuth();
+  
+  // Try to grab the last active workspace ID from local storage
+  const activeWorkspaceId = typeof window !== 'undefined' 
+    ? localStorage.getItem('infonote.activeWorkspaceId') || undefined 
+    : undefined;
+
+  const { recentNotes } = useRecentlyViewed(activeWorkspaceId);
+  const { search, results, isSearching } = useGlobalSearch(activeWorkspaceId);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => search(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, search]);
 
   return (
     <div className={styles.container}>
@@ -90,14 +109,16 @@ export const LandingPage: React.FC = () => {
 
           <div className={styles.navGroup}>
             <div className={styles.navLabel}>Recently viewed</div>
-            <button className={styles.navItemSecondary}>
-              <Clock size={16} />
-              <span>Project Roadmap</span>
-            </button>
-            <button className={styles.navItemSecondary}>
-              <Clock size={16} />
-              <span>Meeting Notes</span>
-            </button>
+            {recentNotes.length === 0 ? (
+              <div style={{ padding: '4px 12px', fontSize: '12px', opacity: 0.5 }}>No recent notes</div>
+            ) : (
+              recentNotes.map((note) => (
+                <button key={note.id} className={styles.navItemSecondary} onClick={() => setCurrentView('canvas')}>
+                  <Clock size={16} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{note.node_title}</span>
+                </button>
+              ))
+            )}
           </div>
 
           <div className={styles.navDivider} />
@@ -130,21 +151,58 @@ export const LandingPage: React.FC = () => {
       {/* Main Content Area */}
       <div className={styles.mainArea}>
         <header className={styles.topBar}>
-          <div className={styles.searchSection}>
+          <div className={styles.searchSection} style={{ position: 'relative' }}>
             <div className={styles.searchBar}>
               <Search size={16} />
-              <input type="text" placeholder="Search files, teams, and more..." />
+              <input 
+                type="text" 
+                placeholder="Search notes and content..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
+            {searchQuery && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--glass-bg, #ffffff)', border: '1px solid var(--color-border)', borderRadius: '8px', marginTop: '8px', padding: '8px', zIndex: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                {isSearching ? (
+                  <div style={{ padding: '8px', fontSize: '13px', opacity: 0.7 }}>Searching...</div>
+                ) : results.length > 0 ? (
+                  results.map((res) => (
+                    <div key={res.node_id} style={{ padding: '8px', cursor: 'pointer', borderRadius: '4px' }} onClick={() => setCurrentView('canvas')}>
+                      <div style={{ fontSize: '13px', fontWeight: 600 }}>{res.node_title}</div>
+                      <div style={{ fontSize: '11px', opacity: 0.7, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{res.content_snippet}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ padding: '8px', fontSize: '13px', opacity: 0.7 }}>No results found</div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className={styles.userSection}>
-            <button className={styles.loginButton} onClick={() => setCurrentView('login')}>
-              <LogIn size={15} />
-              <span>Log in</span>
-            </button>
-            <button className={styles.signupButton} onClick={() => setCurrentView('signup')}>
-              <span>Sign up free</span>
-            </button>
+            {user ? (
+              <>
+                <span style={{ fontSize: '13px', marginRight: '12px', opacity: 0.8 }}>
+                  {user.user_metadata?.display_name || user.email}
+                </span>
+                <button className={styles.signupButton} onClick={() => setCurrentView('canvas')}>
+                  <span>Go to Canvas</span>
+                </button>
+                <button className={styles.loginButton} onClick={signOut} style={{ marginLeft: '8px' }}>
+                  <span>Sign out</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button className={styles.loginButton} onClick={() => setCurrentView('login')}>
+                  <LogIn size={15} />
+                  <span>Log in</span>
+                </button>
+                <button className={styles.signupButton} onClick={() => setCurrentView('signup')}>
+                  <span>Sign up free</span>
+                </button>
+              </>
+            )}
           </div>
         </header>
 
