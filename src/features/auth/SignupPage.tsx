@@ -1,12 +1,62 @@
 import React, { useState } from 'react';
-import { Rocket, Mail, Lock, Eye, EyeOff, User, ArrowLeft, UserPlus, Zap, GitBranch, Layers } from 'lucide-react';
+import { Rocket, Mail, Lock, Eye, EyeOff, User, ArrowLeft, UserPlus, Zap, GitBranch, Layers, Loader2, AlertCircle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import { supabase } from '../../services/supabase/client';
 import styles from './AuthPage.module.css';
 
 export const SignupPage: React.FC = () => {
   const setCurrentView = useStore((state) => state.setCurrentView);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm]   = useState(false);
+
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password || !firstName || !lastName) return;
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            display_name: `${firstName} ${lastName}`.trim(),
+          }
+        }
+      });
+      if (signUpError) throw signUpError;
+      setCurrentView('canvas');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOAuth = async (provider: 'google' | 'facebook') => {
+    try {
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({ provider });
+      if (oauthError) throw oauthError;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
 
   return (
     <div className={styles.shell}>
@@ -81,7 +131,7 @@ export const SignupPage: React.FC = () => {
 
           {/* Social signup */}
           <div className={styles.socialGroup}>
-            <button className={styles.socialButton}>
+            <button className={styles.socialButton} type="button" onClick={() => handleOAuth('google')}>
               <svg className={styles.socialIcon} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -90,7 +140,7 @@ export const SignupPage: React.FC = () => {
               </svg>
               Google
             </button>
-            <button className={styles.socialButton}>
+            <button className={styles.socialButton} type="button" onClick={() => handleOAuth('facebook')}>
               <svg className={styles.socialIcon} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" fill="#1877F2"/>
               </svg>
@@ -101,8 +151,16 @@ export const SignupPage: React.FC = () => {
           {/* Divider */}
           <div className={styles.divider}>or sign up with email</div>
 
+          {/* Error display */}
+          {error && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '8px', fontSize: '13px', marginBottom: '16px' }}>
+              <AlertCircle size={16} />
+              <span>{error}</span>
+            </div>
+          )}
+
           {/* Form */}
-          <form className={styles.form} onSubmit={(e) => e.preventDefault()}>
+          <form className={styles.form} onSubmit={handleSignup}>
             {/* First / Last name row */}
             <div className={styles.nameRow}>
               <div className={styles.fieldGroup}>
@@ -115,6 +173,10 @@ export const SignupPage: React.FC = () => {
                     className={styles.input}
                     placeholder="Jane"
                     autoComplete="given-name"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    disabled={loading}
+                    required
                   />
                 </div>
               </div>
@@ -128,6 +190,10 @@ export const SignupPage: React.FC = () => {
                     className={styles.input}
                     placeholder="Doe"
                     autoComplete="family-name"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    disabled={loading}
+                    required
                   />
                 </div>
               </div>
@@ -144,6 +210,10 @@ export const SignupPage: React.FC = () => {
                   className={styles.input}
                   placeholder="you@example.com"
                   autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
+                  required
                 />
               </div>
             </div>
@@ -157,8 +227,13 @@ export const SignupPage: React.FC = () => {
                   id="signup-password"
                   type={showPassword ? 'text' : 'password'}
                   className={styles.input}
-                  placeholder="Min. 8 characters"
+                  placeholder="Min. 6 characters"
                   autoComplete="new-password"
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                  required
                 />
                 <button
                   type="button"
@@ -182,6 +257,11 @@ export const SignupPage: React.FC = () => {
                   className={styles.input}
                   placeholder="••••••••"
                   autoComplete="new-password"
+                  minLength={6}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  disabled={loading}
+                  required
                 />
                 <button
                   type="button"
@@ -195,8 +275,8 @@ export const SignupPage: React.FC = () => {
             </div>
 
             {/* Submit */}
-            <button type="submit" className={styles.submitButton}>
-              <UserPlus size={15} />
+            <button type="submit" className={styles.submitButton} disabled={loading || !email || !password || !firstName || !lastName || !confirmPassword}>
+              {loading ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />}
               Create account
             </button>
 
