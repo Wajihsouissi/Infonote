@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Mail, LogOut, Loader2 } from 'lucide-react';
+import { Mail, LogOut, Loader2, Lock } from 'lucide-react';
 import { supabase } from '../../services/supabase/client';
 import { useAuth } from './AuthProvider';
 
@@ -9,13 +9,15 @@ type Props = {
 };
 
 /**
- * Minimal email-magic-link sign in panel. Renders a compact "signed in as"
- * row when a user session exists, or an email form otherwise.
+ * Authentication panel supporting Email & Password.
+ * Toggles between Sign In and Sign Up modes.
  */
 export const SignInPanel: React.FC<Props> = ({ onSignedIn, compact }) => {
     const { user, configured, signOut } = useAuth();
+    const [mode, setMode] = useState<'signin' | 'signup'>('signin');
     const [email, setEmail] = useState('');
-    const [sending, setSending] = useState(false);
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -25,33 +27,41 @@ export const SignInPanel: React.FC<Props> = ({ onSignedIn, compact }) => {
             setError('Supabase is not configured. Set VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY.');
             return;
         }
-        setSending(true);
+        setLoading(true);
         setMessage(null);
         setError(null);
 
         try {
-            const { error } = await supabase.auth.signInWithOtp({
-                email,
-                options: {
-                    emailRedirectTo: window.location.origin,
-                },
-            });
-            if (error) throw error;
-            setMessage('Check your inbox for the sign-in link.');
-            onSignedIn?.();
+            if (mode === 'signup') {
+                const { error: signUpError } = await supabase.auth.signUp({
+                    email,
+                    password,
+                });
+                if (signUpError) throw signUpError;
+                setMessage('Account created! You are now signed in.');
+                onSignedIn?.();
+            } else {
+                const { error: signInError } = await supabase.auth.signInWithPassword({
+                    email,
+                    password,
+                });
+                if (signInError) throw signInError;
+                setMessage('Successfully signed in.');
+                onSignedIn?.();
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : String(err));
         } finally {
-            setSending(false);
+            setLoading(false);
         }
-    }, [email, configured, onSignedIn]);
+    }, [email, password, mode, configured, onSignedIn]);
 
     const containerStyle: React.CSSProperties = {
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
         padding: compact ? 8 : 16,
-        minWidth: compact ? 220 : 280,
+        minWidth: compact ? 240 : 280,
     };
 
     if (user) {
@@ -75,38 +85,77 @@ export const SignInPanel: React.FC<Props> = ({ onSignedIn, compact }) => {
     }
 
     return (
-        <form onSubmit={handleSubmit} style={containerStyle}>
-            <div style={{ fontSize: 12, opacity: 0.75 }}>Sign in with email</div>
-            <div style={{ display: 'flex', gap: 6 }}>
-                <input
-                    type="email"
-                    required
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    style={{
-                        flex: 1, padding: '6px 10px', borderRadius: 6,
-                        border: '1px solid var(--color-border, #e5e7eb)',
-                        background: 'transparent', fontSize: 13
+        <div style={containerStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: 12, opacity: 0.75 }}>
+                    {mode === 'signin' ? 'Sign in with email' : 'Create an account'}
+                </div>
+                <button
+                    type="button"
+                    onClick={() => {
+                        setMode(mode === 'signin' ? 'signup' : 'signin');
+                        setError(null);
+                        setMessage(null);
                     }}
-                />
+                    style={{
+                        background: 'none', border: 'none', color: 'var(--color-primary, #3b82f6)',
+                        cursor: 'pointer', fontSize: 12, textDecoration: 'underline', padding: 0
+                    }}
+                >
+                    {mode === 'signin' ? 'Need an account?' : 'Already have one?'}
+                </button>
+            </div>
+
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', background: 'transparent', border: '1px solid var(--color-border, #e5e7eb)', borderRadius: 6, padding: '0 8px' }}>
+                    <Mail size={14} style={{ opacity: 0.5, marginRight: 6 }} />
+                    <input
+                        type="email"
+                        required
+                        placeholder="you@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        style={{
+                            flex: 1, padding: '6px 0', border: 'none',
+                            background: 'transparent', fontSize: 13, outline: 'none'
+                        }}
+                    />
+                </div>
+                
+                <div style={{ display: 'flex', alignItems: 'center', background: 'transparent', border: '1px solid var(--color-border, #e5e7eb)', borderRadius: 6, padding: '0 8px' }}>
+                    <Lock size={14} style={{ opacity: 0.5, marginRight: 6 }} />
+                    <input
+                        type="password"
+                        required
+                        placeholder="Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        minLength={6}
+                        style={{
+                            flex: 1, padding: '6px 0', border: 'none',
+                            background: 'transparent', fontSize: 13, outline: 'none'
+                        }}
+                    />
+                </div>
+
                 <button
                     type="submit"
-                    disabled={sending || !email}
+                    disabled={loading || !email || !password}
                     style={{
-                        display: 'flex', alignItems: 'center', gap: 6,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                         padding: '6px 10px', borderRadius: 6,
                         border: '1px solid var(--color-primary, #3b82f6)',
                         background: 'var(--color-primary, #3b82f6)', color: 'white',
-                        cursor: sending ? 'not-allowed' : 'pointer', fontSize: 13
+                        cursor: loading ? 'not-allowed' : 'pointer', fontSize: 13, marginTop: 4
                     }}
                 >
-                    {sending ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
-                    Send link
+                    {loading ? <Loader2 size={14} className="animate-spin" /> : null}
+                    {mode === 'signin' ? 'Sign In' : 'Sign Up'}
                 </button>
-            </div>
-            {message && <div style={{ fontSize: 12, color: 'var(--color-success, #059669)' }}>{message}</div>}
-            {error && <div style={{ fontSize: 12, color: 'var(--color-error, #dc2626)' }}>{error}</div>}
-        </form>
+
+                {message && <div style={{ fontSize: 12, color: 'var(--color-success, #059669)' }}>{message}</div>}
+                {error && <div style={{ fontSize: 12, color: 'var(--color-error, #dc2626)' }}>{error}</div>}
+            </form>
+        </div>
     );
 };
