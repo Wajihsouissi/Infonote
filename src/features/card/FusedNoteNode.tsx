@@ -338,6 +338,8 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 className={`${styles.content} nodrag`} 
                 ref={contentRef}
                 onWheelCapture={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
             >
                 <BlockEditor
                     initialContent={data.content}

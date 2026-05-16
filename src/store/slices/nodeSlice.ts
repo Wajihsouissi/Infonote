@@ -334,13 +334,17 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         }));
     },
 
-    splitNode: (nodeId, splitBlockId) => {
+    splitNode: (nodeId, splitBlockId, currentBlocks) => {
         const { nodes, edges } = get();
         const sourceNode = nodes.find(n => n.id === nodeId);
 
         if (!sourceNode || !('content' in sourceNode.data) || !Array.isArray((sourceNode.data as any).content)) return;
 
-        const blocks = (sourceNode.data as any).content as any[];
+        // Use caller-provided blocks if available (avoids stale store state from debounce),
+        // otherwise fall back to store data
+        const blocks = (currentBlocks && currentBlocks.length > 0)
+            ? currentBlocks
+            : (sourceNode.data as any).content as any[];
         const splitIndex = blocks.findIndex(b => b.id === splitBlockId);
 
         if (splitIndex === -1 || splitIndex === 0) return;

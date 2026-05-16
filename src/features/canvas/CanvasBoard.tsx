@@ -185,7 +185,7 @@ export function CanvasBoard() {
                     // Performance optimizations
                     nodesDraggable={true}
                     nodesConnectable={true}
-                    nodesFocusable={true}
+                    nodesFocusable={false}
                     edgesFocusable={false}
                     elementsSelectable={true}
                     selectNodesOnDrag={false}

@@ -54,6 +54,7 @@ export function FullscreenModal() {
     return (
         <div
             className={styles.overlay}
+            onClick={handleClose}
             onDragOver={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -64,7 +65,7 @@ export function FullscreenModal() {
                 e.stopPropagation();
             }}
         >
-            <div className={styles.modal}>
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
                 <div style={{ height: '100%', width: '100%', overflow: 'hidden' }}>
                     {activeNode.type === 'note' ? (
                         <NoteExpandedContent

@@ -161,7 +161,11 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 backgroundColor: displayColor || undefined,
             }}
         >
-            <div className={`${styles.content}`}>
+            <div 
+                className={`${styles.content} nodrag`}
+                onPointerDown={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+            >
                 <BlockEditor
                     initialContent={data.content}
                     readOnly={false}

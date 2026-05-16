@@ -11,6 +11,7 @@ import { FloatingToolbar } from './FloatingToolbar';
 
 import { BlockItem } from './BlockItem';
 import { useStore } from '../../store/useStore';
+import { MIN_FUSED_SIZE } from '../../config/layout';
 
 // Hooks
 import { useBlockSelection } from './hooks/useBlockSelection';
@@ -446,22 +447,26 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         newBlocks.push(newBlock);
                     }
 
-                    // 1. Update data synchronously
-                    store.updateNodeData(nodeId, {
-                        content: newBlocks,
-                        lastFusedAt: Date.now(),
-                        isStandaloneBlock: true
-                    });
-
-                    // 2. Update type
-                    store.updateNode(nodeId, { 
-                        type: 'fused-note',
-                        style: {
-                            ...node.style,
-                            width: 432,
-                            height: 432
-                        }
-                    });
+                    // Atomic update: change data + type + style in a single set() call
+                    // to prevent the intermediate state where type='block' but content has 2+ blocks
+                    store.setNodes((prev: any[]) => prev.map((n: any) => {
+                        if (n.id !== nodeId) return n;
+                        return {
+                            ...n,
+                            type: 'fused-note',
+                            data: {
+                                ...n.data,
+                                content: newBlocks,
+                                lastFusedAt: Date.now(),
+                                isStandaloneBlock: true
+                            },
+                            style: {
+                                ...n.style,
+                                width: MIN_FUSED_SIZE,
+                                height: MIN_FUSED_SIZE
+                            }
+                        };
+                    }));
 
                     // Focus the new block after render
                     setTimeout(() => store.nodes.find(n => n.id === nodeId) && document.getElementById(newId)?.focus(), 50);

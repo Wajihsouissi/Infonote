@@ -24,7 +24,42 @@ export const LandingPage: React.FC = () => {
 
   return (
     <div className={styles.container}>
+
+      {/* ── Decorative ambient layer ── */}
+      <div className={styles.orbPrimary} />
+      <div className={styles.orbSecondary} />
+      <div className={styles.orbAccent} />
+
+      {/* Floating micro-particles */}
+      <div className={styles.particles} aria-hidden="true">
+        {([
+          { size: 3, top: '12%',  left: '18%',  dur: '7s',  delay: '0s',   opacity: 0.45 },
+          { size: 2, top: '34%',  left: '8%',   dur: '9s',  delay: '1.2s', opacity: 0.3  },
+          { size: 4, top: '58%',  left: '22%',  dur: '6s',  delay: '2.5s', opacity: 0.4  },
+          { size: 2, top: '78%',  left: '12%',  dur: '11s', delay: '0.8s', opacity: 0.25 },
+          { size: 3, top: '20%',  left: '72%',  dur: '8s',  delay: '3.1s', opacity: 0.35 },
+          { size: 2, top: '45%',  left: '88%',  dur: '10s', delay: '1.7s', opacity: 0.3  },
+          { size: 3, top: '70%',  left: '65%',  dur: '7s',  delay: '4.2s', opacity: 0.4  },
+          { size: 2, top: '88%',  left: '80%',  dur: '12s', delay: '2s',   opacity: 0.2  },
+        ] as const).map((p, i) => (
+          <div
+            key={i}
+            className={styles.particle}
+            style={{
+              width: p.size,
+              height: p.size,
+              top: p.top,
+              left: p.left,
+              opacity: p.opacity,
+              '--dur': p.dur,
+              '--delay': p.delay,
+            } as React.CSSProperties}
+          />
+        ))}
+      </div>
+
       {/* Sidebar */}
+
       <aside className={styles.sidebar}>
         <div className={styles.logoSection}>
           <div className={styles.logo}>
