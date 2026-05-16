@@ -1,4 +1,3 @@
-import React from 'react';
 import { LayoutGrid } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import styles from './HomeButton.module.css';
