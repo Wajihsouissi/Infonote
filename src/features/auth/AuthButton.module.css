@@ -1,0 +1,68 @@
+/* AuthButton — sits directly under the ThemeSwitcher (which is at top:20px,
+   right:20px, 44x44px). We anchor at top: 76px (= 20 + 44 + 12 gap). */
+
+.authButton {
+    position: fixed;
+    top: 76px;
+    right: 20px;
+    z-index: 1000;
+
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+
+    width: 44px;
+    height: 44px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+    transition: all var(--transition-fast);
+
+    box-shadow: var(--glass-shadow);
+}
+
+.authButton:hover {
+    background: var(--glass-bg-hover);
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.2);
+}
+
+.authButton:active {
+    transform: translateY(0);
+}
+
+.authed {
+    border-color: var(--color-primary);
+    background: rgba(139, 92, 246, 0.08);
+}
+
+.iconWrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-main);
+    transition: all var(--transition-fast);
+}
+
+.authButton:hover .iconWrapper {
+    color: var(--color-primary);
+    transform: scale(1.05);
+}
+
+.dot {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    border: 2px solid var(--color-bg-base);
+    box-shadow: 0 0 0 1px var(--glass-border);
+}

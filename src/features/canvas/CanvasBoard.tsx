@@ -21,6 +21,9 @@ import { HomeButton } from '../ui/HomeButton';
 import { HistoryControls } from '../ui/HistoryControls';
 import { KanbanNodeComponent } from '../kanban/KanbanNode';
 import { CanvasSlashMenu } from './CanvasSlashMenu';
+import { CloudSyncControls } from './CloudSyncControls';
+import { AuthButton } from '../auth/AuthButton';
+import { AuthModal } from '../auth/AuthModal';
 
 // Hooks
 import {
@@ -170,6 +173,7 @@ export function CanvasBoard() {
         <div className={styles.container}>
             <div className={styles.canvasArea}>
                 <ThemeSwitcher />
+                <AuthButton />
                 <div className={styles.topLeftToolbar}>
                     <HomeButton />
                     <HistoryControls />
@@ -228,6 +232,9 @@ export function CanvasBoard() {
                     deleteKeyCode={null}
                 >
                     <CanvasSlashMenu />
+                    <Panel position="top-center">
+                        <CloudSyncControls />
+                    </Panel>
                     <Panel position="bottom-right" className={styles.bottomRightControls}>
                         <MiniMap
                             nodeColor="var(--color-primary)"
@@ -258,6 +265,7 @@ export function CanvasBoard() {
             />
             <FullscreenModal />
             <CenterModal />
+            <AuthModal />
             <Suspense fallback={null}>
                 <KanbanConfigModal />
             </Suspense>

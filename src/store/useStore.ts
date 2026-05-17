@@ -5,6 +5,7 @@ import { createNodeSlice } from './slices/nodeSlice';
 import { createNavigationSlice } from './slices/navigationSlice';
 import { createStorageSlice } from './slices/storageSlice';
 import { createUISlice } from './slices/uiSlice';
+import { createAuthSlice } from './slices/authSlice';
 import type { AppState } from './types';
 import { initStorageManager } from '../services/StorageManager';
 
@@ -16,6 +17,7 @@ export const useStore = create<AppState>()(
                 ...createNavigationSlice(...a),
                 ...createStorageSlice(...a),
                 ...createUISlice(...a),
+                ...createAuthSlice(...a),
             }),
             {
                 limit: 50,

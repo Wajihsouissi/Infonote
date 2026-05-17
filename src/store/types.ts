@@ -64,6 +64,26 @@ export interface StorageSlice {
 
 export type AppView = 'landing' | 'canvas' | 'marketplace' | 'login' | 'signup';
 
+export interface AuthUser {
+    id: string;
+    email: string | null;
+}
+
+export interface AuthState {
+    userId: string | null;
+    email: string | null;
+    isAuthenticated: boolean;
+    isAuthLoading: boolean;
+}
+
+export interface AuthSlice {
+    auth: AuthState;
+    isAuthModalOpen: boolean;
+    setAuthUser: (user: AuthUser | null) => void;
+    setAuthLoading: (isLoading: boolean) => void;
+    setAuthModalOpen: (isOpen: boolean) => void;
+}
+
 export interface UISlice {
     activeIconMenuId: string | null;
     isKanbanModalOpen: boolean;
@@ -91,4 +111,4 @@ export interface UISlice {
     setCurrentView: (view: AppView) => void;
 }
 
-export type AppState = NodeSlice & NavigationSlice & StorageSlice & UISlice;
+export type AppState = NodeSlice & NavigationSlice & StorageSlice & UISlice & AuthSlice;

@@ -1,13 +1,11 @@
 /**
- * StorageManager - Module-level storage synchronization.
- *
- * Now backend-agnostic: holds a GraphBackend reference (file-system by default,
- * can be swapped to Supabase at runtime). The subscribe/debounce/immediate-save
- * logic is unchanged, so existing local-folder behavior is preserved.
+ * StorageManager - Module-level storage synchronization for the local
+ * filesystem backend. Cloud (Supabase) sync is handled explicitly via
+ * src/services/cloudSync.ts and the canvas overlay buttons, so it intentionally
+ * lives outside of this auto-save loop.
  */
 
 import { fileSystemBackend } from './storage/FileSystemBackend';
-import { supabaseBackend } from './storage/SupabaseBackend';
 import type { GraphBackend, BackendKind } from './storage/types';
 import { shallow } from 'zustand/shallow';
 
@@ -144,14 +142,15 @@ export async function connectBackend(
         setStorageStatus: (connected: boolean, dirName: string | null) => void;
     }
 ): Promise<{ success: boolean; error?: string }> {
-    const backend: GraphBackend = kind === 'supabase' ? supabaseBackend : fileSystemBackend;
+    if (kind !== 'filesystem') {
+        return { success: false, error: 'Cloud backend is now handled by the explicit Save/Reload buttons.' };
+    }
+    const backend: GraphBackend = fileSystemBackend;
 
     try {
         const connected = await backend.connect();
         if (!connected) {
-            return { success: false, error: kind === 'supabase'
-                ? 'Cloud connection was cancelled or not signed in'
-                : 'Directory selection was cancelled' };
+            return { success: false, error: 'Directory selection was cancelled' };
         }
 
         // Disconnect the previously active backend (if it was a different one)
@@ -173,7 +172,7 @@ export async function connectBackend(
             }
         }
 
-        ctx.setStorageStatus(true, backend.displayName ?? (kind === 'supabase' ? 'Cloud' : 'Local Folder'));
+        ctx.setStorageStatus(true, backend.displayName ?? 'Local Folder');
         return { success: true };
     } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
