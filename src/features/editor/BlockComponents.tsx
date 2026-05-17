@@ -1,6 +1,7 @@
 import React, { useRef, useLayoutEffect, memo, useCallback } from 'react';
 import { FileText, Trash2 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import { renderContentWithLinks } from './pasteUtils';
 import pageStyles from './PageBlock.module.css'; // Import page styles
 import { ContainerBlock } from './ContainerBlock'; // Import ContainerBlock
 import { ColumnsBlock } from './ColumnsBlock'; // Import ColumnsBlock
@@ -67,6 +68,20 @@ const useContentEditable = (content: string, domRef?: React.Ref<HTMLDivElement>)
 
 export const TextBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
     const { ref, handlers } = useContentEditable(block.content, domRef);
+    
+    if (readOnly) {
+        return (
+            <div
+                className={`${styles.block} ${styles.text}`}
+                style={{
+                    color: block.metadata?.textColor,
+                    backgroundColor: block.metadata?.backgroundColor
+                }}
+                dangerouslySetInnerHTML={{ __html: renderContentWithLinks(block.content) }}
+            />
+        );
+    }
+
     return (
         <div
             ref={ref}
@@ -88,6 +103,20 @@ export const TextBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
 
 export const HeadingBlock = memo(({ block, level, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps & { level: 1 | 2 | 3 }) => {
     const { ref, handlers } = useContentEditable(block.content, domRef);
+    
+    if (readOnly) {
+        return (
+            <div
+                className={`${styles.block} ${styles[`heading${level}`]}`}
+                style={{
+                    color: block.metadata?.textColor,
+                    backgroundColor: block.metadata?.backgroundColor
+                }}
+                dangerouslySetInnerHTML={{ __html: renderContentWithLinks(block.content) }}
+            />
+        );
+    }
+
     return (
         <div
             ref={ref}
@@ -109,9 +138,26 @@ export const HeadingBlock = memo(({ block, level, readOnly, onChange, onKeyDown,
 
 export const TodoBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
     const { ref, handlers } = useContentEditable(block.content, domRef);
+    
+    if (readOnly) {
+        return (
+            <div className={styles.todoWrapper}>
+                <input type="checkbox" disabled className={styles.todoCheckbox} checked={block.metadata?.checked || false} />
+                <div
+                    className={`${styles.block} ${styles.todo}`}
+                    style={{
+                        color: block.metadata?.textColor,
+                        backgroundColor: block.metadata?.backgroundColor
+                    }}
+                    dangerouslySetInnerHTML={{ __html: renderContentWithLinks(block.content) }}
+                />
+            </div>
+        );
+    }
+
     return (
         <div className={styles.todoWrapper}>
-            <input type="checkbox" disabled={readOnly} className={styles.todoCheckbox} />
+            <input type="checkbox" disabled={readOnly} className={styles.todoCheckbox} checked={block.metadata?.checked || false} onChange={(e) => onChange(block.content, { ...block.metadata, checked: e.target.checked })} />
             <div
                 ref={ref}
                 className={`${styles.block} ${styles.todo}`}
@@ -133,6 +179,22 @@ export const TodoBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
 
 export const QuoteBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
     const { ref, handlers } = useContentEditable(block.content, domRef);
+    
+    if (readOnly) {
+        return (
+            <div className={styles.quoteWrapper}>
+                <div
+                    className={`${styles.block} ${styles.quote}`}
+                    style={{
+                        color: block.metadata?.textColor,
+                        backgroundColor: block.metadata?.backgroundColor
+                    }}
+                    dangerouslySetInnerHTML={{ __html: renderContentWithLinks(block.content) }}
+                />
+            </div>
+        );
+    }
+
     return (
         <div className={styles.quoteWrapper}>
             <div
@@ -227,6 +289,22 @@ export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
         );
     }
 
+    if (readOnly) {
+        return (
+            <div className={wrapperClass}>
+                {prefix}
+                <div
+                    className={`${styles.block} ${styles.text}`}
+                    style={{
+                        color: block.metadata?.textColor,
+                        backgroundColor: block.metadata?.backgroundColor
+                    }}
+                    dangerouslySetInnerHTML={{ __html: renderContentWithLinks(block.content) }}
+                />
+            </div>
+        );
+    }
+
     return (
         <div className={wrapperClass}>
             {prefix}
@@ -263,6 +341,24 @@ export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPast
         onChange(block.content, newMetadata);
         setShowIconPicker(false);
     };
+
+    if (readOnly) {
+        return (
+            <div
+                className={styles.calloutWrapper}
+                style={{ backgroundColor: block.metadata?.backgroundColor || 'var(--color-bg-secondary)' }}
+            >
+                <div className={styles.calloutIconWrapper}>
+                    <Icon size={24} className={styles.calloutIconSvg} />
+                </div>
+                <div
+                    className={`${styles.block} ${styles.text}`}
+                    style={{ color: block.metadata?.textColor }}
+                    dangerouslySetInnerHTML={{ __html: renderContentWithLinks(block.content) }}
+                />
+            </div>
+        );
+    }
 
     return (
         <div

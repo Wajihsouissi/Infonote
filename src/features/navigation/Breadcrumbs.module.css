@@ -51,3 +51,41 @@
     font-weight: 600;
     background: rgba(139, 92, 246, 0.1);
 }
+
+.levelBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    font-size: 9px;
+    font-weight: 500;
+    line-height: 1;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-text-muted, rgba(255, 255, 255, 0.5));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    margin-left: 2px;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    padding-top: 1px;
+    /* Optical vertical centering adjustment for Poppins numbers (pushes text down) */
+}
+
+:global(.light-theme) .levelBadge {
+    background: rgba(0, 0, 0, 0.04);
+    color: rgba(0, 0, 0, 0.4);
+    border-color: rgba(0, 0, 0, 0.06);
+}
+
+.crumb.active .levelBadge {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--color-text-muted, rgba(255, 255, 255, 0.6));
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+:global(.light-theme) .crumb.active .levelBadge {
+    background: rgba(0, 0, 0, 0.08);
+    color: rgba(0, 0, 0, 0.7);
+    border-color: rgba(0, 0, 0, 0.12);
+}

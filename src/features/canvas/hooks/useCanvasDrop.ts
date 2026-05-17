@@ -21,7 +21,7 @@ export function useCanvasDrop({
     setNodes,
     extractPageFromBlock,
 }: UseCanvasDropOptions) {
-    const { screenToFlowPosition, getIntersectingNodes, deleteElements } = useReactFlow();
+    const { screenToFlowPosition, getIntersectingNodes, deleteElements, getViewport } = useReactFlow();
 
     const onDragOver = useCallback((event: React.DragEvent) => {
         const { centerPanelId, fullscreenId } = useStore.getState();
@@ -59,16 +59,20 @@ export function useCanvasDrop({
                 }
             }
 
+            const { zoom } = getViewport();
+            // Constant 20px screen-space hover checking size, scaled to flow space
+            const checkSize = Math.max(10, 20 / zoom);
+
             // Check if drop position intersects with a node (early check)
             const earlyPosition = screenToFlowPosition({
                 x: event.clientX,
                 y: event.clientY,
             });
             const earlyDropRect = {
-                x: earlyPosition.x - 10,
-                y: earlyPosition.y - 10,
-                width: 20,
-                height: 20
+                x: earlyPosition.x - checkSize / 2,
+                y: earlyPosition.y - checkSize / 2,
+                width: checkSize,
+                height: checkSize
             };
             const earlyIntersections = getIntersectingNodes(earlyDropRect as any);
             const earlyTargetNode = earlyIntersections.find(n =>
@@ -131,10 +135,10 @@ export function useCanvasDrop({
             }
 
             const dropRect = {
-                x: position.x - 10,
-                y: position.y - 10,
-                width: 20,
-                height: 20
+                x: position.x - checkSize / 2,
+                y: position.y - checkSize / 2,
+                width: checkSize,
+                height: checkSize
             };
 
             const intersections = getIntersectingNodes(dropRect as any);
@@ -253,7 +257,7 @@ export function useCanvasDrop({
             }
             window.dispatchEvent(new CustomEvent('infonote-clear-selection'));
         },
-        [screenToFlowPosition, updateNodeData, getIntersectingNodes, deleteElements, setNodes, extractPageFromBlock],
+        [screenToFlowPosition, updateNodeData, getIntersectingNodes, deleteElements, setNodes, extractPageFromBlock, getViewport],
     );
 
     return {

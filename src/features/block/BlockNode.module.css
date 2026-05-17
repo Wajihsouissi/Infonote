@@ -199,3 +199,11 @@
     opacity: 1;
     background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1));
 }
+
+.blockNode.mediaBlockNode.linkBlockNode {
+    overflow: visible !important;
+}
+
+.linkBlockNode .content {
+    overflow: visible !important;
+}

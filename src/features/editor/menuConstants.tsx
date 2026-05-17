@@ -18,7 +18,8 @@ import {
     Columns3,
     LayoutGrid,
     Code,
-    Palette
+    Palette,
+    Link
 } from 'lucide-react';
 import type { BlockType } from './types';
 
@@ -50,6 +51,7 @@ export const MENU_ITEMS: MenuItem[] = [
     { label: 'Quote', description: 'Capture a quote', type: 'quote', icon: Quote, keywords: ['blockquote', 'citation'] },
     { label: 'Divider', description: 'Visual separator', type: 'divider', icon: Minus, keywords: ['line', 'hr', 'separator'] },
     { label: 'Table', description: 'Tabular data', type: 'table', icon: Table, keywords: ['grid', 'rows', 'columns'] },
+    { label: 'Smart Link', description: 'Embed a smart bookmark or iframe link', type: 'link', icon: Link, keywords: ['link', 'bookmark', 'embed', 'youtube', 'figma', 'spotify'] },
 
     // Media
     { label: 'Image', description: 'Upload or embed image', type: 'image', icon: Image, keywords: ['picture', 'photo', 'upload'] },

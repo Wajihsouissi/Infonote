@@ -4,7 +4,7 @@ import { useStore } from '../../store/useStore';
 import { connectBackend, disconnectBackend, getActiveBackendKind } from '../../services/StorageManager';
 import { useAuth } from '../auth/AuthProvider';
 import { SignInPanel } from '../auth/SignInPanel';
-import styles from './BottomMenu.module.css';
+import styles from './StorageControls.module.css';
 
 /**
  * Storage controls: two buttons now - local folder (existing) and cloud
@@ -82,19 +82,19 @@ export const StorageControls: React.FC = () => {
 
     // Local folder button
     const localConnected = storage.isConnected && activeKind === 'filesystem';
-    const localIcon = isConnecting && !showAuthPopover ? <Loader2 size={20} className="animate-spin" />
-        : errorMessage && !localConnected ? <AlertCircle size={20} />
-        : localConnected ? <Check size={20} />
-        : <FolderOpen size={20} />;
+    const localIcon = isConnecting && !showAuthPopover ? <Loader2 size={18} className="animate-spin" />
+        : errorMessage && !localConnected ? <AlertCircle size={18} />
+        : localConnected ? <Check size={18} />
+        : <FolderOpen size={18} />;
     const localTitle = isConnecting ? 'Connecting...'
         : localConnected ? `Connected: ${storage.directoryName}${storage.lastSaved ? ' - Last saved: ' + storage.lastSaved : ''}`
         : 'Connect local folder';
 
     // Cloud button
     const cloudConnected = storage.isConnected && activeKind === 'supabase';
-    const cloudIcon = authLoading ? <Loader2 size={20} className="animate-spin" />
-        : cloudConnected ? <Check size={20} />
-        : <Cloud size={20} />;
+    const cloudIcon = authLoading ? <Loader2 size={18} className="animate-spin" />
+        : cloudConnected ? <Check size={18} />
+        : <Cloud size={18} />;
     const cloudTitle = !configured ? 'Cloud disabled (env not configured)'
         : !user ? 'Sign in to connect cloud'
         : cloudConnected ? `Connected: ${storage.directoryName}${storage.lastSaved ? ' - Last saved: ' + storage.lastSaved : ''}`
@@ -137,7 +137,7 @@ export const StorageControls: React.FC = () => {
                     ref={popoverRef}
                     style={{
                         position: 'absolute',
-                        bottom: 'calc(100% + 8px)',
+                        top: 'calc(100% + 8px)',
                         right: 0,
                         background: 'var(--color-surface, #fff)',
                         border: '1px solid var(--color-border, #e5e7eb)',

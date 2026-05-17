@@ -26,25 +26,27 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const [editBarPosition, setEditBarPosition] = useState({ x: 0, y: 0 });
 
     const isSingleMedia = Array.isArray(data.content) && data.content.length === 1 && (data.content[0].type === 'image' || data.content[0].type === 'video' || data.content[0].type === 'file');
+    const isSingleLink = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'link';
     const isSingleColor = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'color';
     const isColumns = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'columns';
+    const isResizable = isSingleMedia || isSingleLink;
 
     useLayoutEffect(() => {
         setNodes(nodes => nodes.map(n => {
             if (n.id === id) {
                 const needsHeightAuto = n.style?.height !== 'auto';
-                const needsWidthAuto = !isSingleMedia && !isColumns && n.style?.width !== 'auto';
-                const needsMediaWidthInit = isSingleMedia && (n.style?.width === 'auto' || n.style?.width === undefined);
+                const needsWidthAuto = !isResizable && !isColumns && n.style?.width !== 'auto';
+                const needsResizableWidthInit = isResizable && (n.style?.width === 'auto' || n.style?.width === undefined);
                 const needsColumnsWidthInit = isColumns && (n.style?.width === 'auto' || n.style?.width === undefined);
                 
-                if (needsHeightAuto || needsWidthAuto || needsMediaWidthInit || needsColumnsWidthInit) {
+                if (needsHeightAuto || needsWidthAuto || needsResizableWidthInit || needsColumnsWidthInit) {
                     return { 
                         ...n, 
                         style: { 
                             ...n.style, 
                             height: 'auto', 
                             ...(needsWidthAuto ? { width: 'auto' } : {}),
-                            ...(needsMediaWidthInit ? { width: 208 } : {}),
+                            ...(needsResizableWidthInit ? { width: isSingleLink ? 320 : 208 } : {}),
                             ...(needsColumnsWidthInit ? { width: 550 } : {})
                         } 
                     };
@@ -52,7 +54,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             }
             return n;
         }));
-    }, [id, setNodes, isSingleMedia, isColumns]);
+    }, [id, setNodes, isResizable, isColumns, isSingleLink]);
 
     // EditBar handlers
     const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -149,7 +151,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     return (
         <div
             ref={nodeRef}
-            className={`${baseClassName} ${isSingleMedia ? styles.mediaBlockNode : ''} ${selected ? styles.selected : ''} ${isMultiSelected ? styles.multiSelected : ''}`}
+            className={`${baseClassName} ${(isSingleMedia || isSingleLink) ? styles.mediaBlockNode : ''} ${isSingleLink ? styles.linkBlockNode : ''} ${selected ? styles.selected : ''} ${isMultiSelected ? styles.multiSelected : ''}`}
             onContextMenu={handleContextMenu}
             onDragOver={(e) => {
                 e.preventDefault();
@@ -184,8 +186,8 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
 
             <Handle type="source" position={Position.Top} className={styles.handle} id="connection" />
 
-            {/* Resize Handle for Media or Column Blocks */}
-            {(isSingleMedia || isColumns) && selected && (
+            {/* Resize Handle for Resizable or Column Blocks */}
+            {(isResizable || isColumns) && selected && (
                 <div
                     className={styles.resizeHandle}
                     onMouseDown={handleResizeStart}

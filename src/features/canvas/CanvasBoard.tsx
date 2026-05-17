@@ -15,12 +15,17 @@ import { BottomMenu } from '../ui/BottomMenu';
 import { SidePanel } from '../ui/SidePanel';
 import { FullscreenModal } from '../ui/FullscreenModal';
 import { CenterModal } from '../ui/CenterModal';
-import { MetadataMenu } from '../ui/MetadataMenu';
+import { MetadataPanel } from '../ui/MetadataPanel';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
+import { StorageControls } from '../ui/StorageControls';
+import { SlidersHorizontal } from 'lucide-react';
 import { HomeButton } from '../ui/HomeButton';
 import { HistoryControls } from '../ui/HistoryControls';
 import { KanbanNodeComponent } from '../kanban/KanbanNode';
 import { CanvasSlashMenu } from './CanvasSlashMenu';
+import { useStore } from '../../store/useStore';
+import { v4 as uuidv4 } from 'uuid';
+import { isUrl } from '../editor/pasteUtils';
 
 // Hooks
 import {
@@ -46,7 +51,6 @@ export function CanvasBoard() {
         nodes,
         edges,
         currentParentId,
-        interactionState,
         selectedCanvasNodeIds,
         theme,
         onNodesChange,
@@ -67,6 +71,11 @@ export function CanvasBoard() {
     // Throttling Ref for drag cleanup
     const lastDragCheck = useRef(0);
 
+    // Metadata Panel UI State
+    const isMetadataOpen = useStore(s => s.isMetadataOpen);
+    const setMetadataOpen = useStore(s => s.setMetadataOpen);
+    const metadataBtnRef = useRef<HTMLButtonElement | null>(null);
+
     // Viewport culling and visible nodes
     const { visibleNodes, handleViewportChange } = useCanvasViewport({
         nodes,
@@ -86,8 +95,83 @@ export function CanvasBoard() {
         }
     }, [currentParentId, visibleNodes, nodes]);
 
+    const addNode = useStore(s => s.addNode);
+
     // Focus viewport when parent changes
-    const { fitView } = useReactFlow();
+    const { fitView, screenToFlowPosition } = useReactFlow();
+
+    // Canvas-Level Direct URL Pasting
+    const handleCanvasPaste = (e: React.ClipboardEvent) => {
+        // Intercept paste only when not typing inside text inputs, textareas, contenteditables or code blocks
+        const target = e.target as HTMLElement;
+        const isEditable = target.tagName === 'INPUT' ||
+            target.tagName === 'TEXTAREA' ||
+            target.isContentEditable ||
+            target.closest('[contenteditable]') ||
+            target.closest('[class*="BlockEditor"]') ||
+            target.closest('[class*="editor"]');
+
+        if (isEditable) return;
+
+        const text = e.clipboardData.getData('text/plain')?.trim();
+        if (!text) return;
+
+        // If the pasted text is a single URL
+        if (isUrl(text)) {
+            e.preventDefault();
+            const flowPos = screenToFlowPosition({
+                x: window.innerWidth / 2,
+                y: window.innerHeight / 2
+            });
+
+            const newBlock = {
+                id: uuidv4(),
+                type: 'link' as const,
+                content: text.startsWith('http') ? text : 'https://' + text,
+                metadata: {
+                    displayMode: 'bookmark',
+                    isLoading: true
+                }
+            };
+
+            addNode('block', flowPos, { 
+                content: [newBlock], 
+                isStandaloneBlock: true 
+            }, { width: 320, height: 120 }, currentParentId || undefined);
+            return;
+        }
+
+        // If pasting multiple URLs (one per line)
+        if (text.includes('\n')) {
+            const lines = text.split(/\r\n|\r|\n/).map(l => l.trim()).filter(Boolean);
+            const allUrls = lines.every(l => isUrl(l));
+            if (allUrls) {
+                e.preventDefault();
+                lines.forEach((line, index) => {
+                    const flowPos = screenToFlowPosition({
+                        x: window.innerWidth / 2 + index * 40,
+                        y: window.innerHeight / 2 + index * 40
+                    });
+
+                    const newBlock = {
+                        id: uuidv4(),
+                        type: 'link' as const,
+                        content: line.startsWith('http') ? line : 'https://' + line,
+                        metadata: {
+                            displayMode: 'bookmark',
+                            isLoading: true
+                        }
+                    };
+
+                    addNode('block', flowPos, { 
+                        content: [newBlock], 
+                        isStandaloneBlock: true 
+                    }, { width: 320, height: 120 }, currentParentId || undefined);
+                });
+            }
+        }
+    };
+
     useEffect(() => {
         if (visibleNodes.length > 0) {
             // Wait a frame for ReactFlow to finish rendering nodes
@@ -131,7 +215,6 @@ export function CanvasBoard() {
     const { onNodeDragStart, onNodeDrag, onNodeDragStop } = useCanvasNodeDrag({
         nodes,
         currentParentId,
-        interactionState,
         setInteractionState,
         setNodes,
         updateNodeData,
@@ -151,17 +234,29 @@ export function CanvasBoard() {
     }, []);
 
     return (
-        <div className={styles.container}>
+        <div className={styles.container} onPaste={handleCanvasPaste}>
             <div className={styles.canvasArea}>
-                <ThemeSwitcher />
+                <div className={styles.topRightToolbar}>
+                    <StorageControls />
+                    <div className={styles.topRightSeparator} />
+                    <ThemeSwitcher />
+                    {activeParentNode && (
+                        <button
+                            ref={metadataBtnRef}
+                            className={`${styles.toolbarBtn} ${isMetadataOpen ? styles.toolbarBtnActive : ''}`}
+                            onClick={() => setMetadataOpen(!isMetadataOpen)}
+                            title={isMetadataOpen ? "Close Metadata" : "Open Metadata"}
+                            style={{ marginLeft: 6 }}
+                        >
+                            <SlidersHorizontal size={18} />
+                        </button>
+                    )}
+                </div>
                 <div className={styles.topLeftToolbar}>
                     <HomeButton />
                     <HistoryControls />
                     <Breadcrumbs />
                 </div>
-                {activeParentNode && (
-                    <MetadataMenu nodeId={activeParentNode.id} />
-                )}
 
 
                 <ReactFlow
@@ -224,6 +319,13 @@ export function CanvasBoard() {
                     </Panel>
                 </ReactFlow>
             </div>
+
+            <MetadataPanel
+                nodeId={activeParentNode?.id}
+                isOpen={isMetadataOpen}
+                onClose={() => setMetadataOpen(false)}
+                buttonRef={metadataBtnRef}
+            />
 
             {/* Dual Panel Backdrop (only when both sides are open) */}
             {rightSidePanelId && leftSidePanelId && (

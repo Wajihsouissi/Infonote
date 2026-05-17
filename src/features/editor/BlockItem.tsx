@@ -6,6 +6,7 @@ import {
     TableBlock
 } from './BlockComponents';
 import { ColorBlock } from './ColorBlock';
+import { LinkBlock } from './LinkBlock';
 import type { Block } from './types';
 
 interface BlockItemProps {
@@ -127,6 +128,7 @@ export const BlockItem = memo(function BlockItem({
             case 'file': return <FileBlock {...props} />;
             case 'code': return <CodeBlock {...props} />;
             case 'color': return <ColorBlock {...props} />;
+            case 'link': return <LinkBlock {...props} />;
             default: return <TextBlock {...props} />;
         }
     };

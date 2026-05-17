@@ -1488,3 +1488,16 @@
     width: 100%;
     margin-top: 6px;
 }
+
+/* Expand drop hit-test zone during dragging with zero layout shift */
+:global(body.infonote-block-dragging) .sortableWrapper::before,
+:global(body.infonote-node-dragging) .sortableWrapper::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    bottom: -8px;
+    left: 0;
+    right: 0;
+    z-index: 1; /* High enough to capture, but doesn't block text cursor when not dragging since it only exists during dragging */
+    pointer-events: auto;
+}

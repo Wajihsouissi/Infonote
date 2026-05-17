@@ -14,10 +14,12 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     theme: (localStorage.getItem('infonote-theme') as 'light' | 'dark') || 'dark',
     currentView: 'landing',
     selectedCanvasNodeIds: new Set<string>(),
+    isMetadataOpen: false,
 
     setActiveIconMenuId: (id) => set({ activeIconMenuId: id }),
     setKanbanModalOpen: (isOpen) => set({ isKanbanModalOpen: isOpen, editingKanbanId: isOpen ? get().editingKanbanId : null }),
     setEditingKanbanId: (id) => set({ editingKanbanId: id }),
+    setMetadataOpen: (isOpen) => set({ isMetadataOpen: isOpen }),
     setInteractionState: (newState) => set((state) => ({
         interactionState: { ...state.interactionState, ...newState }
     })),

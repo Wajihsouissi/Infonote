@@ -132,10 +132,55 @@ function hasLatex(text: string): boolean {
     return /\\(rightarrow|leftarrow|begin|end|frac|text|alpha|beta|gamma|times|div|neq|leq|geq|quad|sum|int|infty|sqrt|cdot)/i.test(text);
 }
 
+export function isUrl(str: string): boolean {
+    const trimmed = str.trim();
+    // Match standard HTTP/HTTPS URLs or raw www. domains or valid domain patterns
+    const urlPattern = /^(https?:\/\/)?(www\.)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(:\d+)?(\/[^\s]*)?$/i;
+    return urlPattern.test(trimmed);
+}
+
+export function renderContentWithLinks(content: string): string {
+    if (!content) return '';
+    // Match URLs in text and turn them into styled clickable links
+    const urlPattern = /(https?:\/\/[^\s$.?#].[^\s]*)/g;
+    return content.replace(urlPattern, '<a href="$1" target="_blank" rel="noopener noreferrer" class="editor-inline-link" style="color: var(--color-primary, #6366f1); text-decoration: underline; font-weight: 500;">$1</a>');
+}
+
 // 2. Handle Text/HTML - SYNC
 export const parseTextOrHtml = (e: React.ClipboardEvent): Block[] => {
     const blocks: Block[] = [];
     const clipboardData = e.clipboardData;
+    const text = clipboardData.getData('text/plain')?.trim();
+
+    // Smart Interceptor: If pasting a single direct URL
+    if (text && isUrl(text)) {
+        return [{
+            id: uuidv4(),
+            type: 'link',
+            content: text.startsWith('http') ? text : 'https://' + text,
+            metadata: {
+                displayMode: 'bookmark',
+                isLoading: true
+            }
+        }];
+    }
+
+    // Smart Interceptor: If pasting multiple URLs (one per line)
+    if (text && text.includes('\n')) {
+        const lines = text.split(/\r\n|\r|\n/).map(l => l.trim()).filter(Boolean);
+        const allUrls = lines.every(l => isUrl(l));
+        if (allUrls) {
+            return lines.map(line => ({
+                id: uuidv4(),
+                type: 'link',
+                content: line.startsWith('http') ? line : 'https://' + line,
+                metadata: {
+                    displayMode: 'bookmark',
+                    isLoading: true
+                }
+            }));
+        }
+    }
 
     // 2. Handle HTML
     const html = clipboardData.getData('text/html');
@@ -150,7 +195,6 @@ export const parseTextOrHtml = (e: React.ClipboardEvent): Block[] => {
     }
 
     // 3. Fallback: Handle Plain Text (including Markdown/LaTeX from ChatGPT)
-    const text = clipboardData.getData('text/plain');
     if (text) {
         // If text contains LaTeX, clean it first then parse
         const cleaned = hasLatex(text) ? cleanLatex(text) : text;
@@ -172,6 +216,21 @@ function parsePlainText(text: string): Block[] {
     while (i < lines.length) {
         const line = lines[i];
         const trimmed = line.trim();
+
+        // --- Single Line URL Upgrade ---
+        if (isUrl(trimmed)) {
+            blocks.push({
+                id: uuidv4(),
+                type: 'link',
+                content: trimmed.startsWith('http') ? trimmed : 'https://' + trimmed,
+                metadata: {
+                    displayMode: 'bookmark',
+                    isLoading: true
+                }
+            });
+            i++;
+            continue;
+        }
 
         // --- Fenced Code Block (``` ... ```) ---
         if (trimmed.startsWith('```')) {

@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Trash2, Copy, Type, Palette, ArrowRight, Heading1, Heading2, Heading3, CheckSquare, Quote, List, ListOrdered, Code } from 'lucide-react';
+import { Trash2, Copy, Type, Palette, ArrowRight, Heading1, Heading2, Heading3, CheckSquare, Quote, List, ListOrdered, Code, Link } from 'lucide-react';
 import styles from './BlockEditor.module.css';
 import type { BlockType } from './types';
 
@@ -23,6 +23,7 @@ const TURN_INTO_ITEMS: { label: string; type: BlockType; icon: React.ReactNode }
     { label: 'To-do', type: 'todo', icon: <CheckSquare size={16} /> },
     { label: 'Quote', type: 'quote', icon: <Quote size={16} /> },
     { label: 'Code', type: 'code', icon: <Code size={16} /> },
+    { label: 'Smart Link', type: 'link', icon: <Link size={16} /> },
     { label: 'Color Block', type: 'color', icon: <Palette size={16} /> },
 ];
 

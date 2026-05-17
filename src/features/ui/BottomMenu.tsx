@@ -19,7 +19,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '../../store/useStore';
 import styles from './BottomMenu.module.css';
 import { MENU_ITEMS } from '../editor/menuConstants';
-import { StorageControls } from './StorageControls';
 import { parseSearchQuery } from './searchUtils';
 import { MultiSelectionToolbar } from './MultiSelectionToolbar';
 
@@ -407,10 +406,6 @@ export function BottomMenu() {
                 </div>
             ) : (
                 <>
-                    <StorageControls />
-
-                    <div className={styles.separator} />
-
                     <button
                         className={styles.iconBtn}
                         onClick={() => setIsSearchMode(true)}

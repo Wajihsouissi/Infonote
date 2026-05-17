@@ -16,6 +16,7 @@ interface IconPickerProps {
     currentIcon: string;
     onSelect: (icon: string) => void;
     onClose: () => void;
+    isAbsolute?: boolean;
 }
 
 const iconOptions: { icon: LucideIcon; name: string; iconName: string }[] = [
@@ -65,7 +66,7 @@ const iconOptions: { icon: LucideIcon; name: string; iconName: string }[] = [
     { icon: Video, name: 'Video', iconName: 'Video' },
 ];
 
-export function IconPicker({ currentIcon, onSelect, onClose }: IconPickerProps) {
+export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconPickerProps) {
     const [searchTerm, setSearchTerm] = useState('');
 
     const filteredIcons = iconOptions.filter(({ name }) =>
@@ -73,17 +74,17 @@ export function IconPicker({ currentIcon, onSelect, onClose }: IconPickerProps) 
     );
 
     return (
-        <div className={styles.overlay} onClick={onClose}>
-            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div className={`${styles.overlay} ${isAbsolute ? styles.overlayAbsolute : ''}`} onClick={onClose}>
+            <div className={`${styles.modal} ${isAbsolute ? styles.modalAbsolute : ''}`} onClick={(e) => e.stopPropagation()}>
                 <div className={styles.header}>
                     <h3>Choose an Icon</h3>
                     <button className={styles.closeBtn} onClick={onClose}>
-                        <XCircle size={20} />
+                        <XCircle size={18} />
                     </button>
                 </div>
 
                 <div className={styles.searchBox}>
-                    <Search size={16} />
+                    <Search size={14} />
                     <input
                         type="text"
                         placeholder="Search icons..."
@@ -104,7 +105,7 @@ export function IconPicker({ currentIcon, onSelect, onClose }: IconPickerProps) 
                             }}
                             title={name}
                         >
-                            <Icon size={24} />
+                            <Icon size={20} />
                         </button>
                     ))}
                 </div>
