@@ -195,7 +195,7 @@ body {
 }
 
 .react-flow__controls-button svg {
-  fill: #ffffff !important;
+  fill: currentColor !important;
   width: 16px !important;
   height: 16px !important;
 }

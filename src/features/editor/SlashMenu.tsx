@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
+import { Search } from 'lucide-react';
 import styles from './BlockEditor.module.css';
 import type { BlockType } from './types';
 import { MENU_ITEMS } from './menuConstants';
@@ -15,18 +16,46 @@ interface SlashMenuProps {
 export function SlashMenu({ anchorRect, filter, onSelect, onClose }: SlashMenuProps) {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const menuRef = useRef<HTMLDivElement>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
+    const [searchQuery, setSearchQuery] = useState(filter || '');
     const [position, setPosition] = useState<{ top: number; left: number; height?: number }>({
         top: anchorRect.bottom + 5,
         left: anchorRect.left
     });
 
+    // Sync filter prop if it changes
+    useEffect(() => {
+        if (filter) {
+            setSearchQuery(filter);
+        }
+    }, [filter]);
+
+    // Focus input and move cursor to the end
+    useEffect(() => {
+        const focusInput = () => {
+            if (searchInputRef.current) {
+                searchInputRef.current.focus();
+                const length = searchInputRef.current.value.length;
+                searchInputRef.current.setSelectionRange(length, length);
+            }
+        };
+
+        const rafId = requestAnimationFrame(focusInput);
+        const timerId = setTimeout(focusInput, 50);
+
+        return () => {
+            cancelAnimationFrame(rafId);
+            clearTimeout(timerId);
+        };
+    }, []);
+
     const filteredItems = useMemo(() => {
-        const lowerFilter = filter.toLowerCase();
+        const lowerFilter = searchQuery.toLowerCase();
         return MENU_ITEMS.filter(item =>
             item.label.toLowerCase().includes(lowerFilter) ||
             item.keywords?.some(k => k.includes(lowerFilter))
         );
-    }, [filter]);
+    }, [searchQuery]);
 
     useEffect(() => {
         setSelectedIndex(0);
@@ -59,6 +88,12 @@ export function SlashMenu({ anchorRect, filter, onSelect, onClose }: SlashMenuPr
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Backspace' && searchQuery === '') {
+                e.preventDefault();
+                onClose();
+                return;
+            }
+
             if (filteredItems.length === 0) return;
 
             if (e.key === 'ArrowDown') {
@@ -79,7 +114,7 @@ export function SlashMenu({ anchorRect, filter, onSelect, onClose }: SlashMenuPr
 
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [selectedIndex, filteredItems, onSelect, onClose]);
+    }, [selectedIndex, filteredItems, searchQuery, onSelect, onClose]);
 
     // Close on click outside
     useEffect(() => {
@@ -92,8 +127,6 @@ export function SlashMenu({ anchorRect, filter, onSelect, onClose }: SlashMenuPr
         return () => document.removeEventListener('mousedown', handleClickOutside, { capture: true });
     }, [onClose]);
 
-    if (filteredItems.length === 0) return null;
-
     return createPortal(
         <motion.div
             className={styles.slashMenu}
@@ -104,24 +137,40 @@ export function SlashMenu({ anchorRect, filter, onSelect, onClose }: SlashMenuPr
             exit={{ opacity: 0, y: 5, scale: 0.95 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
         >
+            <div className={styles.slashMenuSearchWrapper}>
+                <Search size={13} className={styles.slashSearchIcon} />
+                <input
+                    ref={searchInputRef}
+                    className={styles.slashMenuInput}
+                    placeholder="Search blocks..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
+            </div>
             <div className={styles.menuHeader}>Basic Blocks</div>
-            {filteredItems.map((item, index) => {
-                const Icon = item.icon;
-                return (
-                    <div
-                        key={item.label}
-                        className={`${styles.slashMenuItem} ${index === selectedIndex ? styles.selected : ''}`}
-                        onClick={() => {
-                            onSelect(item.type, item.meta);
-                            onClose();
-                        }}
-                        onMouseEnter={() => setSelectedIndex(index)}
-                    >
-                        <span className={styles.slashIcon}><Icon size={16} /></span>
-                        <span className={styles.slashLabel}>{item.label}</span>
-                    </div>
-                );
-            })}
+            <div className={styles.slashMenuItemsList}>
+                {filteredItems.length === 0 ? (
+                    <div className={styles.slashMenuEmpty}>No matching blocks</div>
+                ) : (
+                    filteredItems.map((item, index) => {
+                        const Icon = item.icon;
+                        return (
+                            <div
+                                key={item.label}
+                                className={`${styles.slashMenuItem} ${index === selectedIndex ? styles.selected : ''}`}
+                                onClick={() => {
+                                    onSelect(item.type, item.meta);
+                                    onClose();
+                                }}
+                                onMouseEnter={() => setSelectedIndex(index)}
+                            >
+                                <span className={styles.slashIcon}><Icon size={16} /></span>
+                                <span className={styles.slashLabel}>{item.label}</span>
+                            </div>
+                        );
+                    })
+                )}
+            </div>
         </motion.div>,
         document.body
     );

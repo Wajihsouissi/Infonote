@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useLayoutEffect, memo } from 'react';
-import { FileText } from 'lucide-react';
+import React, { useRef, useLayoutEffect, memo, useCallback } from 'react';
+import { FileText, Trash2 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import pageStyles from './PageBlock.module.css'; // Import page styles
 import { ContainerBlock } from './ContainerBlock'; // Import ContainerBlock
@@ -20,14 +20,17 @@ interface BlockProps {
     onPaste?: (e: React.ClipboardEvent) => void;
     domRef?: React.Ref<HTMLDivElement>;
     disableMediaControls?: boolean;
+    hasChildren?: boolean;
 }
 
-// Hook to safely handle contentEditable without cursor jumps
+// Hook to safely handle contentEditable without cursor jumps and IME breaks
 const useContentEditable = (content: string, domRef?: React.Ref<HTMLDivElement>) => {
     const internalRef = useRef<HTMLDivElement>(null);
+    const isFocused = useRef(false);
+    const isComposing = useRef(false);
 
-    // Sync internal ref with parent ref
-    useEffect(() => {
+    // Sync internal ref with parent ref (useLayoutEffect ensures refs are available before focus effects)
+    useLayoutEffect(() => {
         if (!domRef) return;
 
         if (typeof domRef === 'function') {
@@ -37,18 +40,33 @@ const useContentEditable = (content: string, domRef?: React.Ref<HTMLDivElement>)
         }
     }, [domRef]);
 
-    // Only update DOM if content truly differs, preserving cursor
+    // Only update DOM if content truly differs AND we are not actively typing
     useLayoutEffect(() => {
-        if (internalRef.current && internalRef.current.innerText !== content) {
-            internalRef.current.innerText = content;
+        if (!internalRef.current) return;
+        
+        const currentText = internalRef.current.innerText.replace(/[\n\u200B]$/, '');
+        const targetContent = content.replace(/[\n\u200B]$/, '');
+
+        if (currentText !== targetContent) {
+            // Only force update if not currently typing to avoid cursor jumps/IME breaks
+            if (!isFocused.current && !isComposing.current) {
+                internalRef.current.innerText = content;
+            }
         }
     }, [content]);
 
-    return internalRef;
+    const handlers = {
+        onFocus: () => { isFocused.current = true; },
+        onBlur: () => { isFocused.current = false; },
+        onCompositionStart: () => { isComposing.current = true; },
+        onCompositionEnd: () => { isComposing.current = false; }
+    };
+
+    return { ref: internalRef, handlers, isComposing };
 };
 
 export const TextBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
-    const ref = useContentEditable(block.content, domRef);
+    const { ref, handlers } = useContentEditable(block.content, domRef);
     return (
         <div
             ref={ref}
@@ -63,12 +81,13 @@ export const TextBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             data-placeholder="Type '/' for commands"
+            {...handlers}
         />
     );
 });
 
 export const HeadingBlock = memo(({ block, level, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps & { level: 1 | 2 | 3 }) => {
-    const ref = useContentEditable(block.content, domRef);
+    const { ref, handlers } = useContentEditable(block.content, domRef);
     return (
         <div
             ref={ref}
@@ -83,12 +102,13 @@ export const HeadingBlock = memo(({ block, level, readOnly, onChange, onKeyDown,
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             data-placeholder={`Heading ${level}...`}
+            {...handlers}
         />
     );
 });
 
 export const TodoBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
-    const ref = useContentEditable(block.content, domRef);
+    const { ref, handlers } = useContentEditable(block.content, domRef);
     return (
         <div className={styles.todoWrapper}>
             <input type="checkbox" disabled={readOnly} className={styles.todoCheckbox} />
@@ -105,13 +125,14 @@ export const TodoBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
                 data-placeholder="To-do item"
+                {...handlers}
             />
         </div>
     );
 });
 
 export const QuoteBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
-    const ref = useContentEditable(block.content, domRef);
+    const { ref, handlers } = useContentEditable(block.content, domRef);
     return (
         <div className={styles.quoteWrapper}>
             <div
@@ -127,6 +148,7 @@ export const QuoteBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste,
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
                 data-placeholder="Empty quote"
+                {...handlers}
             />
         </div>
     );
@@ -172,11 +194,18 @@ export const ImageBlock = memo(({ block, readOnly, onChange, disableMediaControl
     );
 });
 
-export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef, ...rest }: BlockProps & { index?: number }) => {
-    const ref = useContentEditable(block.content, domRef);
+export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef, hasChildren, ...rest }: BlockProps & { index?: number, hasChildren?: boolean }) => {
+    const { ref, handlers } = useContentEditable(block.content, domRef);
 
     let prefix = null;
     let wrapperClass = styles.listWrapper;
+
+    const isCollapsed = block.metadata?.isCollapsed;
+
+    const toggleCollapse = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        onChange(block.content, { ...block.metadata, isCollapsed: !isCollapsed });
+    }, [block.content, block.metadata, isCollapsed, onChange]);
 
     if (block.type === 'bullet') {
         prefix = <span className={styles.listBullet}>•</span>;
@@ -186,7 +215,16 @@ export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
         prefix = <span className={styles.listNumber}>{idx}.</span>;
     } else if (block.type === 'toggle') {
         wrapperClass = styles.toggleWrapper;
-        prefix = <div className={styles.toggleTriangle} />;
+        prefix = (
+            <div 
+                className={`
+                    ${styles.toggleTriangle} 
+                    ${!isCollapsed ? styles.expanded : ''} 
+                    ${(isCollapsed && hasChildren) ? styles.hasContent : ''}
+                `} 
+                onClick={!readOnly ? toggleCollapse : undefined}
+            />
+        );
     }
 
     return (
@@ -205,13 +243,14 @@ export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
                 data-placeholder={block.type === 'toggle' ? "Toggle list item" : "List item"}
+                {...handlers}
             />
         </div>
     );
 });
 
 export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
-    const ref = useContentEditable(block.content, domRef);
+    const { ref, handlers } = useContentEditable(block.content, domRef);
     const [showIconPicker, setShowIconPicker] = React.useState(false);
 
     // Default to 'Lightbulb' if no icon is set
@@ -221,9 +260,6 @@ export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPast
     const handleIconSelect = (newIcon: string) => {
         // Create new metadata object preserving other existing metadata
         const newMetadata = { ...block.metadata, icon: newIcon };
-        // We need to trigger an update. Since onChange typically takes (content, metadata),
-        // we'll pass the current content and the new metadata.
-        // NOTE: The current onChange signature in BlockProps is (content: string, metadata?: any) => void
         onChange(block.content, newMetadata);
         setShowIconPicker(false);
     };
@@ -260,6 +296,7 @@ export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPast
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
                 data-placeholder="Callout text..."
+                {...handlers}
             />
         </div>
     );
@@ -268,7 +305,7 @@ export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPast
 
 
 export const CodeBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
-    const ref = useContentEditable(block.content, domRef);
+    const { ref, handlers } = useContentEditable(block.content, domRef);
 
     return (
         <div className={styles.codeBlockWrapper}>
@@ -282,6 +319,7 @@ export const CodeBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
                 onPaste={onPaste}
                 spellCheck={false}
                 data-placeholder="Code snippet..."
+                {...handlers}
             />
         </div>
     );
@@ -310,6 +348,18 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
         onChange(block.content, { ...block.metadata, rows: newRows });
     };
 
+    const deleteRow = (rowIndex: number) => {
+        if (rows.length <= 1) return;
+        const newRows = rows.filter((_, ri) => ri !== rowIndex);
+        onChange(block.content, { ...block.metadata, rows: newRows });
+    };
+
+    const deleteColumn = (colIndex: number) => {
+        if (rows[0].length <= 1) return;
+        const newRows = rows.map(row => row.filter((_, ci) => ci !== colIndex));
+        onChange(block.content, { ...block.metadata, rows: newRows });
+    };
+
     if (rows.length === 0) {
         // Empty table placeholder: create a 2x2 table
         const defaultRows = [['Header 1', 'Header 2'], ['', '']];
@@ -324,15 +374,27 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
                     <tr>
                         {rows[0]?.map((cell, ci) => (
                             <th key={ci} className={styles.tableHeader}>
-                                <input
-                                    className={styles.tableCell}
-                                    value={cell}
-                                    readOnly={readOnly}
-                                    onChange={(e) => handleCellChange(0, ci, e.target.value)}
-                                    placeholder="Header"
-                                />
+                                <div className={styles.tableHeaderCellWrapper}>
+                                    <input
+                                        className={styles.tableCell}
+                                        value={cell}
+                                        readOnly={readOnly}
+                                        onChange={(e) => handleCellChange(0, ci, e.target.value)}
+                                        placeholder="Header"
+                                    />
+                                    {!readOnly && rows[0].length > 1 && (
+                                        <button
+                                            className={styles.deleteColumnBtn}
+                                            onClick={() => deleteColumn(ci)}
+                                            title="Delete Column"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
+                                    )}
+                                </div>
                             </th>
                         ))}
+                        {!readOnly && <th className={styles.tableHeaderActionCell} />}
                     </tr>
                 </thead>
                 <tbody>
@@ -349,6 +411,19 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
                                     />
                                 </td>
                             ))}
+                            {!readOnly && (
+                                <td className={styles.tableActionCell}>
+                                    {rows.length > 1 && (
+                                        <button
+                                            className={styles.deleteRowBtn}
+                                            onClick={() => deleteRow(ri + 1)}
+                                            title="Delete Row"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
+                                    )}
+                                </td>
+                            )}
                         </tr>
                     ))}
                 </tbody>

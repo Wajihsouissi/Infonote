@@ -40,7 +40,10 @@ export function useBlockCommands({
             const count = initialMetadata?.count || 2;
             newBlock.metadata = {
                 ...initialMetadata,
-                columns: Array.from({ length: count }).map(() => ({ id: uuidv4(), content: [] }))
+                columns: Array.from({ length: count }).map(() => ({ 
+                    id: uuidv4(), 
+                    content: [{ id: uuidv4(), type: 'text', content: '' }] 
+                }))
             };
         }
 

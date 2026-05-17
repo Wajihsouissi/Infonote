@@ -8,9 +8,20 @@ interface ColumnsBlockProps {
     onUpdate: (data: Partial<Block>) => void;
     readOnly?: boolean;
     nodeId?: string;
+    hideBlockHandles?: boolean;
+    promoteBlockHandles?: boolean;
+    disableMediaControls?: boolean;
 }
 
-export const ColumnsBlock = ({ block, onUpdate, readOnly, nodeId }: ColumnsBlockProps) => {
+export const ColumnsBlock = ({ 
+    block, 
+    onUpdate, 
+    readOnly, 
+    nodeId,
+    hideBlockHandles,
+    promoteBlockHandles,
+    disableMediaControls
+}: ColumnsBlockProps) => {
     const columns = block.metadata?.columns || []; // Array of { id: string, content: Block[] }
     const columnCount = columns.length;
 
@@ -39,6 +50,11 @@ export const ColumnsBlock = ({ block, onUpdate, readOnly, nodeId }: ColumnsBlock
                             readOnly={readOnly}
                             minimal={false} // Allow full editing features in columns
                             nodeId={nodeId}
+                            hideBlockHandles={hideBlockHandles}
+                            promoteBlockHandles={promoteBlockHandles}
+                            disableMediaControls={disableMediaControls}
+                            syncUpdate={true}
+                            editorId={col.id}
                         />
                     </div>
                 ))}

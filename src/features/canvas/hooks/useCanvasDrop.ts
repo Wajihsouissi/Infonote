@@ -176,7 +176,7 @@ export function useCanvasDrop({
                         let newContent = (sourceNode.data as any).content.filter((b: any) => !draggedBlockIds.includes(b.id));
                         console.log("[useCanvasDrop] Source cleanup - removing blocks:", draggedBlockIds);
                         updateNodeData(sourceNodeId, { content: newContent });
-                        if (newContent.length === 0 && sourceNode.type === 'fused-note') {
+                        if (newContent.length === 0 && (sourceNode.type === 'fused-note' || sourceNode.type === 'block')) {
                             setTimeout(() => deleteElements({ nodes: [{ id: sourceNodeId! }] }), 0);
                         }
                     }
@@ -240,7 +240,7 @@ export function useCanvasDrop({
                         let newContent = (sourceNode.data as any).content.filter((b: any) => !draggedBlockIds.includes(b.id));
                         console.log("[useCanvasDrop] Source cleanup:", draggedBlockIds.length, "blocks");
                         updateNodeData(sourceNodeId, { content: newContent });
-                        if (newContent.length === 0 && sourceNode.type === 'fused-note') {
+                        if (newContent.length === 0 && (sourceNode.type === 'fused-note' || sourceNode.type === 'block')) {
                             setTimeout(() => deleteElements({ nodes: [{ id: sourceNodeId! }] }), 0);
                         }
                     }

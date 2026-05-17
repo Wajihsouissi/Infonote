@@ -31,20 +31,36 @@ export function useSlashCommand({
         if (!targetId) return;
 
         setBlocks(prev => {
-            const newBlocks = prev.map(b =>
-                b.id === targetId
-                    ? {
-                        ...b,
-                        type,
-                        content: content !== undefined ? content : b.content,
-                        metadata: type === 'columns' ? {
-                            columns: Array.from({ length: metadata?.count || 2 }).map(() => ({ id: uuidv4(), content: [] }))
-                        } : b.metadata
-                    }
-                    : b
-            );
-            debouncedOnUpdate(newBlocks);
-            return newBlocks;
+            const index = prev.findIndex(b => b.id === targetId);
+            if (index === -1) return prev;
+
+            const updated = [...prev];
+            const currentBlock = updated[index];
+
+            let finalContent = content;
+            if (content === '') {
+                // Parse out the text following the first slash command word
+                // e.g. "/h1 Introduction" -> matches "/h1" + spaces, captures "Introduction"
+                const match = currentBlock.content.match(/^\/[a-zA-Z0-9]*\s*(.*)/);
+                finalContent = match ? match[1] : '';
+            } else if (content === undefined) {
+                finalContent = currentBlock.content;
+            }
+
+            updated[index] = {
+                ...currentBlock,
+                type,
+                content: finalContent || '',
+                metadata: type === 'columns' ? {
+                    columns: Array.from({ length: metadata?.count || 2 }).map(() => ({ 
+                        id: uuidv4(), 
+                        content: [{ id: uuidv4(), type: 'text', content: '' }] 
+                    }))
+                } : (metadata !== undefined ? { ...currentBlock.metadata, ...metadata } : currentBlock.metadata)
+            };
+            
+            debouncedOnUpdate(updated);
+            return updated;
         });
 
         // Auto-split logic removed per user request for better document formatting

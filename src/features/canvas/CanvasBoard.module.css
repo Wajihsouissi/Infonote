@@ -128,3 +128,7 @@
 .canvasControls button:hover {
     background: var(--glass-bg-hover) !important;
 }
+
+.canvasControls button svg {
+    fill: var(--color-text-main) !important;
+}
