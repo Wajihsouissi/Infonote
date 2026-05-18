@@ -1,7 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useReactFlow } from '@xyflow/react';
-import { BASE_UNIT, snapToGridValue } from '../../../config/layout';
 import type { AppNode } from '../../../types';
 
 interface UseCanvasNodeDragOptions {
@@ -177,50 +176,19 @@ export function useCanvasNodeDrag({
         });
         document.body.classList.remove('infonote-node-dragging');
 
-        // Snap final position to absolute grid for perfect alignment across nesting levels
-        const snapFinalPosition = () => {
-            // Calculate snap delta from the primary node
-            const primaryAbs = node.positionAbsolute || node.position;
-            const snappedPrimaryX = snapToGridValue(primaryAbs.x);
-            const snappedPrimaryY = snapToGridValue(primaryAbs.y);
-            const deltaX = snappedPrimaryX - primaryAbs.x;
-            const deltaY = snappedPrimaryY - primaryAbs.y;
-
-            // Determine which node IDs to snap
-            const idsToSnap = isMultiDrag ? new Set(selectedCanvasNodeIds) : new Set([node.id]);
+        // FREE-FORM POSITIONING: preserve raw decimal coordinates produced by React Flow.
+        // No grid snapping is applied — nodes float exactly where the cursor releases them.
+        const restoreNodeZIndex = () => {
+            const idsToRestore = isMultiDrag ? new Set(selectedCanvasNodeIds) : new Set([node.id]);
 
             setNodes(nds => nds.map(n => {
-                if (!idsToSnap.has(n.id)) return n;
-
-                const abs = (n as any).positionAbsolute || n.position;
-                // Apply the same delta to all selected nodes for consistent grid alignment
-                const snappedAbsX = n.id === node.id ? snappedPrimaryX : abs.x + deltaX;
-                const snappedAbsY = n.id === node.id ? snappedPrimaryY : abs.y + deltaY;
-
-                // If nested, convert snapped absolute back to relative
-                let newPos = { x: snappedAbsX, y: snappedAbsY };
-                if (n.parentId && n.parentId !== currentParentId) {
-                    const parent = nds.find(p => p.id === n.parentId);
-                    if (parent) {
-                        const parentAbs = (parent as any).positionAbsolute || parent.position;
-                        newPos = {
-                            x: snappedAbsX - parentAbs.x,
-                            y: snappedAbsY - parentAbs.y
-                        };
-                    }
-                }
-
+                if (!idsToRestore.has(n.id)) return n;
                 return {
                     ...n,
                     zIndex: 10,
                     extent: n.parentId ? 'parent' : undefined,
-                    position: newPos
                 };
             }));
-        };
-
-        const restoreNodeZIndex = () => {
-            snapFinalPosition();
         };
 
         const isSourceBlock = node.type === 'block';
@@ -239,18 +207,15 @@ export function useCanvasNodeDrag({
         const intersections = getIntersectingNodes(mouseRect as any);
         const targetNode = intersections.find(n => n.id !== node.id && n.id !== currentParentId);
 
-        // CASE 0: Drag Out - Un-nesting
+        // CASE 0: Drag Out - Un-nesting (free-form, no grid snap)
         if (!targetNode && node.parentId) {
             const parentNode = getNode(node.parentId);
 
             if (parentNode) {
-                // Calculate absolute position and snap to grid
-                const rawX = parentNode.position.x + node.position.x;
-                const rawY = parentNode.position.y + node.position.y;
-
+                // Preserve raw decimal coordinates; child relative -> absolute
                 const absPos = {
-                    x: Math.round(rawX / BASE_UNIT) * BASE_UNIT,
-                    y: Math.round(rawY / BASE_UNIT) * BASE_UNIT
+                    x: parentNode.position.x + node.position.x,
+                    y: parentNode.position.y + node.position.y
                 };
 
                 setNodes(nds => nds.map(n => {
@@ -442,13 +407,13 @@ function handleKanbanDrop(targetNode: any, node: any, nodes: AppNode[], setNodes
     }
 
     const colXOffset = 24 + (colIndex * (visualColWidth + 20));
-    // Grid alignment for kanban items
-    const centeredX = snapToGridValue(colXOffset + (visualColWidth - targetWidth) / 2);
+    // Free-form: keep raw kanban column placement (no grid snap)
+    const centeredX = colXOffset + (visualColWidth - targetWidth) / 2;
 
     let nextY = HEADER_OFFSET;
     if (lastSibling) {
         const lastSiblingH = (lastSibling.style?.height as number) || 112;
-        nextY = snapToGridValue(lastSibling.position.y + lastSiblingH + GAP);
+        nextY = lastSibling.position.y + lastSiblingH + GAP;
     }
 
     setNodes((nds: AppNode[]) => nds.map((n: AppNode) => {

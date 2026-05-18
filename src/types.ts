@@ -1,5 +1,14 @@
 import type { Node } from '@xyflow/react';
 
+/**
+ * Strongly-typed payload carried on every canvas edge.
+ * `parentId` mirrors the navigation context in which the edge was created
+ * so we can scope visibility to the active drilled-down canvas.
+ */
+export type CanvasEdgeData = {
+    parentId: string | null;
+};
+
 export type NoteData = {
     label: string;
     type?: 'text' | 'image' | 'task';

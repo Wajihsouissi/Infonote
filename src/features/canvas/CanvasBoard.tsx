@@ -22,6 +22,7 @@ import { HistoryControls } from '../ui/HistoryControls';
 import { KanbanNodeComponent } from '../kanban/KanbanNode';
 import { CanvasSlashMenu } from './CanvasSlashMenu';
 import { CloudSyncControls } from './CloudSyncControls';
+import { CenteredEdge } from './CenteredEdge';
 import { AuthButton } from '../auth/AuthButton';
 import { AuthModal } from '../auth/AuthModal';
 
@@ -102,13 +103,19 @@ export function CanvasBoard() {
         }
     }, [currentParentId, fitView, visibleNodes.length]);
 
-    // Visible edges (filtered to visible nodes)
+    // Visible edges:
+    //  1. Endpoints must be in the visible (current parent context) node set.
+    //  2. Edge.data.parentId must match the active currentParentId so connections
+    //     made inside a drilled-down canvas don't bleed into the root view.
     const visibleEdges = useMemo(() => {
         const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
-        return edges.filter(e =>
-            visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target)
-        );
-    }, [edges, visibleNodes]);
+        const activeParent = currentParentId ?? null;
+        return edges.filter(e => {
+            if (!visibleNodeIds.has(e.source) || !visibleNodeIds.has(e.target)) return false;
+            const edgeParent = (e.data as { parentId?: string | null } | undefined)?.parentId ?? null;
+            return edgeParent === activeParent;
+        });
+    }, [edges, visibleNodes, currentParentId]);
 
     // Node types registration
     const nodeTypes = useMemo(() => ({
@@ -116,6 +123,22 @@ export function CanvasBoard() {
         block: BlockNode,
         'fused-note': FusedNoteNode,
         kanban: KanbanNodeComponent
+    }), []);
+
+    // Custom edge types — register both `centered` and `default` so legacy or
+    // imported edges that omit a `type` field still render with center anchoring.
+    const edgeTypes = useMemo(() => ({
+        centered: CenteredEdge,
+        default: CenteredEdge,
+    }), []);
+
+    // Default edge options: every new connection uses our centered renderer
+    // and is fully selectable/deletable.
+    const defaultEdgeOptions = useMemo(() => ({
+        type: 'centered',
+        focusable: true,
+        selectable: true,
+        deletable: true,
     }), []);
 
     // Active parent node for metadata display
@@ -191,6 +214,8 @@ export function CanvasBoard() {
                     onEdgesChange={onEdgesChange}
                     onConnect={onConnect}
                     nodeTypes={nodeTypes}
+                    edgeTypes={edgeTypes}
+                    defaultEdgeOptions={defaultEdgeOptions}
                     fitView={!currentParentId}
                     colorMode={theme}
                     minZoom={0.05}
@@ -218,7 +243,7 @@ export function CanvasBoard() {
                     nodesDraggable={true}
                     nodesConnectable={true}
                     nodesFocusable={false}
-                    edgesFocusable={false}
+                    edgesFocusable={true}
                     elementsSelectable={true}
                     selectNodesOnDrag={false}
                     panOnScroll={true}
@@ -229,7 +254,7 @@ export function CanvasBoard() {
                     autoPanOnConnect={false}
                     autoPanOnNodeDrag={false}
                     connectOnClick={false}
-                    deleteKeyCode={null}
+                    deleteKeyCode={['Delete', 'Backspace']}
                 >
                     <CanvasSlashMenu />
                     <Panel position="top-center">

@@ -180,9 +180,17 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
     onConnect: (connection) => {
         const { currentParentId } = get();
-        const parentIdData = currentParentId === null ? undefined : currentParentId;
+        // Capture the active context from navigationSlice so edges only render
+        // inside the canvas where they were created (parent-scoped visibility).
+        const parentIdForEdge = currentParentId ?? null;
 
-        const newEdge = { ...connection, data: { parentId: parentIdData }, id: uuidv4() } as Edge;
+        const newEdge: Edge = {
+            ...connection,
+            id: uuidv4(),
+            type: 'centered',
+            data: { parentId: parentIdForEdge },
+        } as Edge;
+
         set({
             edges: addEdge(newEdge, get().edges),
         });
@@ -384,7 +392,8 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             id: `e-${nodeId}-${newNodeId}`,
             source: nodeId,
             target: newNodeId,
-            data: { parentId: sourceNode.parentId }
+            type: 'centered',
+            data: { parentId: sourceNode.parentId ?? null }
         };
 
         set({

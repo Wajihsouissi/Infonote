@@ -40,6 +40,30 @@
     transition: background-color 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
+/* ---------------------------------------------------------------
+   Edge layering: ensure connection paths always render BEHIND nodes.
+   React Flow renders nodes and edges in separate stacking contexts;
+   we explicitly pin edges below nodes so cards sit on top of lines.
+   --------------------------------------------------------------- */
+.canvasArea :global(.react-flow__edges) {
+    z-index: 0 !important;
+}
+.canvasArea :global(.react-flow__edge) {
+    pointer-events: stroke;
+}
+.canvasArea :global(.react-flow__edge-path) {
+    transition: stroke 0.18s ease, stroke-width 0.18s ease;
+}
+.canvasArea :global(.react-flow__edge.selected .react-flow__edge-path),
+.canvasArea :global(.react-flow__edge:focus .react-flow__edge-path),
+.canvasArea :global(.react-flow__edge:focus-visible .react-flow__edge-path) {
+    stroke: var(--color-primary) !important;
+    stroke-width: 2.5 !important;
+}
+.canvasArea :global(.react-flow__nodes) {
+    z-index: 1;
+}
+
 .canvasWithSidebar {
     /* When Sidebar is active, we might want to shift the canvas or just let it resize. 
        Flexbox handles the resize automatically (flex: 1).
