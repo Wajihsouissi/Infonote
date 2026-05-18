@@ -72,25 +72,16 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         }, 300); // 300ms debounce for store sync
     }, [onUpdate, syncUpdate]);
 
-    useEffect(() => {
-        if (Array.isArray(initialContent)) {
-            const nextContent: Block[] = initialContent.length > 0 ? initialContent : [{ id: uuidv4(), type: 'text' as const, content: '' }];
-            setBlocks(prev => {
-                if (JSON.stringify(prev) === JSON.stringify(nextContent)) {
-                    return prev;
-                }
-                return nextContent;
-            });
-        } else if (typeof initialContent === 'string') {
-            setBlocks([{ id: uuidv4(), type: 'text' as const, content: initialContent }]);
-        }
-    }, [initialContent]);
+    // Sync external content and block-level updates
 
     useEffect(() => {
         return () => {
-            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+                onUpdate?.(blocksRef.current);
+            }
         };
-    }, []);
+    }, [onUpdate]);
 
     // Sync changes to refs for stable handlers
     const blocksRef = useRef(blocks);
@@ -177,6 +168,15 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         editorId: editorInstanceId.current
     });
 
+    const handleDragStartWrapped = useCallback((e: React.DragEvent, block: Block) => {
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            onUpdate?.(blocksRef.current);
+            timeoutRef.current = null;
+        }
+        handleBlockDragStart(e, block);
+    }, [handleBlockDragStart, onUpdate]);
+
     // Escape key handler for clearing selection
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -262,18 +262,56 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         }
     }, []); // Run once on mount
 
-    // Sync with external content updates (e.g. Fusion)
+    // Sync with external content updates (e.g. Fusion / collab)
     useEffect(() => {
-        // If we have pending local changes (debounce active), we assume we are the source of truth
-        // and ignore incoming props to prevent overwriting typing.
-        if (timeoutRef.current) return;
-
         if (initialContent) {
-            const nextContent = Array.isArray(initialContent) ? initialContent : [{ id: uuidv4(), type: 'text' as const, content: typeof initialContent === 'string' ? initialContent : '' }];
+            const nextContent = Array.isArray(initialContent)
+                ? (initialContent.length > 0 ? initialContent : [{ id: uuidv4(), type: 'text' as const, content: '' }])
+                : [{ id: uuidv4(), type: 'text' as const, content: typeof initialContent === 'string' ? initialContent : '' }];
+
+            if (timeoutRef.current) {
+                // If actively typing, merge all other blocks but keep the editing block local
+                const activeEl = document.activeElement;
+                let activeBlockId: string | null = null;
+                if (activeEl) {
+                    for (const [id, el] of Object.entries(blockRefs.current)) {
+                        if (el === activeEl || el?.contains(activeEl)) {
+                            activeBlockId = id;
+                            break;
+                        }
+                    }
+                }
+
+                setBlocks(prev => {
+                    const localMap = new Map(prev.map(b => [b.id, b]));
+                    const merged = nextContent.map(externalBlock => {
+                        const localBlock = localMap.get(externalBlock.id);
+                        if (localBlock) {
+                            // If this block is actively focused and edited, preserve local state
+                            if (externalBlock.id === activeBlockId) {
+                                return localBlock;
+                            }
+                            return externalBlock;
+                        }
+                        return externalBlock;
+                    });
+
+                    // Keep local-only blocks that haven't synced yet
+                    const externalIds = new Set(nextContent.map(b => b.id));
+                    const localOnly = prev.filter(b => !externalIds.has(b.id));
+                    if (localOnly.length > 0) {
+                        merged.push(...localOnly);
+                    }
+
+                    if (JSON.stringify(prev) === JSON.stringify(merged)) {
+                        return prev;
+                    }
+                    return merged;
+                });
+                return;
+            }
 
             setBlocks(prev => {
-                // Deep comparison to allow text updates from outside
-                // If the content is identical, skip update preventing re-renders
                 if (JSON.stringify(prev) === JSON.stringify(nextContent)) {
                     return prev;
                 }
@@ -594,8 +632,26 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     }));
 
                     // Focus the new block after render
-                    setTimeout(() => store.nodes.find(n => n.id === nodeId) && document.getElementById(newId)?.focus(), 50);
-
+                    setTimeout(() => {
+                        const node = store.nodes.find(n => n.id === nodeId);
+                        if (node) {
+                            const el = document.getElementById('block-' + newId)?.querySelector('[contenteditable="true"]');
+                            if (el instanceof HTMLElement) {
+                                el.focus();
+                                try {
+                                    const selection = window.getSelection();
+                                    const range = document.createRange();
+                                    range.selectNodeContents(el);
+                                    range.collapse(false);
+                                    selection?.removeAllRanges();
+                                    selection?.addRange(range);
+                                } catch (e) {
+                                    console.warn("Error focusing new block after fusion swap:", e);
+                                }
+                            }
+                        }
+                    }, 100);
+ 
                     return; // Skip default addition
                 }
             }
@@ -673,14 +729,27 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     handleOutdent(id);
                     return;
                 }
-
-                const index = blocksRef.current.findIndex(b => b.id === id);
+                             const index = blocksRef.current.findIndex(b => b.id === id);
                 if (index > 0) {
                     e.preventDefault();
                     
                     const prevBlock = blocksRef.current[index - 1];
-                    const prevLength = prevBlock.content.length;
 
+                    // Check if previous block is non-textual
+                    const nonTextTypes = ['image', 'video', 'file', 'divider', 'columns', 'table', 'page'];
+                    if (nonTextTypes.includes(prevBlock.type)) {
+                        // If current block is empty or contains only whitespace, delete it and focus previous block
+                        const isEmptyBlock = !content || content.trim().replace(/[\n\u200B\u00A0\u200C\uFEFF]/g, '').length === 0;
+                        if (isEmptyBlock) {
+                            removeBlock(id);
+                        } else {
+                            // Focus previous block (outline/container)
+                            setFocusId(prevBlock.id);
+                        }
+                        return;
+                    }
+
+                    const prevLength = prevBlock.content.length;
                     setBlocks(prev => {
                         const newBlocks = [...prev];
                         newBlocks.splice(index, 1);
@@ -693,18 +762,28 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     });
                     caretPositionRef.current = prevLength;
                     setFocusId(prevBlock.id);
-                }
-            }
-
-        } else if (e.key === 'Delete') {
+                }     }
+                 } else if (e.key === 'Delete') {
             // End of Block -> Merge Down
             if (getCaretOffset() === content.length) {
                 const index = blocksRef.current.findIndex(b => b.id === id);
                 if (index < blocksRef.current.length - 1) {
                     e.preventDefault();
                     const nextBlock = blocksRef.current[index + 1];
-                    const currentLength = content.length;
 
+                    // Check if next block is non-textual
+                    const nonTextTypes = ['image', 'video', 'file', 'divider', 'columns', 'table', 'page'];
+                    if (nonTextTypes.includes(nextBlock.type)) {
+                        // If next block is a media or container, just focus it or delete it if it is a divider
+                        if (nextBlock.type === 'divider') {
+                            removeBlock(nextBlock.id);
+                        } else {
+                            setFocusId(nextBlock.id);
+                        }
+                        return;
+                    }
+
+                    const currentLength = content.length;
                     setBlocks(prev => {
                         const newBlocks = [...prev];
                         newBlocks.splice(index + 1, 1);
@@ -1030,7 +1109,8 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     return root;
                 };
 
-                const renderNode = (node: RenderNode, parentToggleIndent?: number): React.ReactNode => {
+                const renderNode = (node: RenderNode, parentToggleIndent?: number, forceReadOnly?: boolean): React.ReactNode => {
+                    const currentReadOnly = readOnly || forceReadOnly;
                     if (node.type === 'block') {
                         return (
                             <BlockItem
@@ -1039,7 +1119,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                 index={node.listIndex}
                                 hasChildren={node.hasChildren}
                                 isSelected={selectedBlockIds.size > 1 && selectedBlockIds.has(node.block.id)}
-                                readOnly={readOnly}
+                                readOnly={currentReadOnly}
                                 nodeId={nodeId}
                                 hideBlockHandles={hideBlockHandles}
                                 promoteBlockHandles={promoteBlockHandles}
@@ -1050,7 +1130,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                 onKeyDown={handleKeyDown}
                                 onPaste={handleBlockPaste}
                                 onMoveBlock={handleMoveBlock}
-                                onDragStart={handleBlockDragStart}
+                                onDragStart={handleDragStartWrapped}
                                 onMenuOpen={handleBlockMenuOpen}
                                 onSelectionClick={() => { }}
                                 onSelectionMouseDown={handleSelectionMouseDown}
@@ -1073,7 +1153,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                     index={node.listIndex}
                                     hasChildren={node.hasChildren}
                                     isSelected={selectedBlockIds.size > 1 && selectedBlockIds.has(node.block.id)}
-                                    readOnly={readOnly}
+                                    readOnly={currentReadOnly}
                                     nodeId={nodeId}
                                     hideBlockHandles={hideBlockHandles}
                                     promoteBlockHandles={promoteBlockHandles}
@@ -1084,7 +1164,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                     onKeyDown={handleKeyDown}
                                     onPaste={handleBlockPaste}
                                     onMoveBlock={handleMoveBlock}
-                                    onDragStart={handleBlockDragStart}
+                                    onDragStart={handleDragStartWrapped}
                                     onMenuOpen={handleBlockMenuOpen}
                                     onSelectionClick={() => { }}
                                     onSelectionMouseDown={handleSelectionMouseDown}
@@ -1101,7 +1181,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                         transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
                                         style={{ overflow: 'hidden' }}
                                     >
-                                        {node.children.map(child => renderNode(child, node.block.indent || 0))}
+                                        {node.children.map(child => renderNode(child, node.block.indent || 0, currentReadOnly || isCollapsed))}
                                     </motion.div>
                                 )}
                             </div>
@@ -1121,24 +1201,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     onClose={() => {
                         const targetId = slashMenuState.blockId;
                         setSlashMenuState(null);
-                        
-                        setTimeout(() => {
-                            const el = blockRefs.current[targetId];
-                            if (el) {
-                                el.focus();
-                                
-                                try {
-                                    const selection = window.getSelection();
-                                    const range = document.createRange();
-                                    range.selectNodeContents(el);
-                                    range.collapse(false);
-                                    selection?.removeAllRanges();
-                                    selection?.addRange(range);
-                                } catch (err) {
-                                    console.warn('Error restoring selection:', err);
-                                }
-                            }
-                        }, 50);
+                        setFocusId(targetId);
                     }}
                 />
             )}

@@ -21,6 +21,7 @@ import styles from './BottomMenu.module.css';
 import { MENU_ITEMS } from '../editor/menuConstants';
 import { parseSearchQuery } from './searchUtils';
 import { MultiSelectionToolbar } from './MultiSelectionToolbar';
+import { EdgeEditingToolbar } from './EdgeEditingToolbar';
 
 export function BottomMenu() {
     // Atomic Selectors
@@ -31,6 +32,9 @@ export function BottomMenu() {
     const currentParentId = useStore(s => s.currentParentId);
     const updateNodeData = useStore(s => s.updateNodeData);
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
+    const selectedEdgeId = useStore(s => s.selectedEdgeId);
+    const selectedEdgeIds = useStore(s => s.selectedEdgeIds);
+    const hasSelectedEdges = selectedEdgeId || (selectedEdgeIds && selectedEdgeIds.size > 0);
 
     const { screenToFlowPosition } = useReactFlow();
     const [isSearchMode, setIsSearchMode] = useState(false);
@@ -383,6 +387,8 @@ export function BottomMenu() {
             <div ref={menuRef} className={styles.bottomMenu}>
                 {selectedCanvasNodeIds.size > 0 ? (
                     <MultiSelectionToolbar />
+                ) : hasSelectedEdges ? (
+                    <EdgeEditingToolbar />
                 ) : isSearchMode ? (
                     <div className={styles.searchContainer}>
                         <SearchResults

@@ -61,10 +61,32 @@ export function useBlockCommands({
         setBlocks(prev => {
             if (prev.length <= 1) return prev;
             const index = prev.findIndex(b => b.id === id);
-            const newBlocks = prev.filter(b => b.id !== id);
+            if (index === -1) return prev;
+
+            const targetBlock = prev[index];
+            const targetIndent = targetBlock.indent || 0;
+
+            // Remove the block
+            const newBlocks = [...prev];
+            newBlocks.splice(index, 1);
+
+            // Shift all subsequent descendant blocks out by 1 level
+            let i = index; // Since we spliced, index now points to the next block
+            while (i < newBlocks.length) {
+                const nextBlock = newBlocks[i];
+                const nextIndent = nextBlock.indent || 0;
+                if (nextIndent > targetIndent) {
+                    newBlocks[i] = { ...nextBlock, indent: Math.max(0, nextIndent - 1) };
+                } else {
+                    break;
+                }
+                i++;
+            }
 
             if (index > 0) {
                 setFocusId(prev[index - 1].id);
+            } else if (newBlocks.length > 0) {
+                setFocusId(newBlocks[0].id);
             }
             debouncedOnUpdate(newBlocks);
             return newBlocks;
@@ -95,12 +117,29 @@ export function useBlockCommands({
         setBlocks(prev => {
             const index = prev.findIndex(b => b.id === id);
             if (index === -1) return prev;
-
+ 
             const currentIndent = prev[index].indent || 0;
             if (currentIndent <= 0) return prev;
-
+ 
             const newBlocks = [...prev];
-            newBlocks[index] = { ...newBlocks[index], indent: currentIndent - 1 };
+            const newIndent = currentIndent - 1;
+            newBlocks[index] = { ...newBlocks[index], indent: newIndent };
+            
+            // Shift subsequent dependent blocks
+            let i = index + 1;
+            while (i < newBlocks.length) {
+                const nextBlock = newBlocks[i];
+                const nextIndent = nextBlock.indent || 0;
+                if (nextIndent > currentIndent) {
+                    newBlocks[i] = { ...nextBlock, indent: nextIndent - 1 };
+                } else if (nextIndent === currentIndent) {
+                    break;
+                } else {
+                    break;
+                }
+                i++;
+            }
+
             debouncedOnUpdate(newBlocks);
             return newBlocks;
         });
@@ -199,14 +238,12 @@ export function useBlockCommands({
 
         e.preventDefault();
 
-        const firstBlock = parsedBlocks[0];
-        const remainingBlocks = parsedBlocks.slice(1);
-
-        // Check if the current block where paste happened is empty
         const currentBlock = blocksRef.current.find(b => b.id === blockId);
         const isCurrentBlockEmpty = currentBlock && currentBlock.type === 'text' && !currentBlock.content.trim();
 
-        // Empty Block URL Upgrade: replace empty block with first link block
+        // 1. Empty Block URL Upgrade: replace empty block with first link block
+        const firstBlock = parsedBlocks[0];
+        const remainingBlocks = parsedBlocks.slice(1);
         if (firstBlock.type === 'link' && isCurrentBlockEmpty) {
             setBlocks(prev => {
                 const index = prev.findIndex(b => b.id === blockId);
@@ -223,21 +260,82 @@ export function useBlockCommands({
             return;
         }
 
-        if (firstBlock.type === 'text') {
-            if (firstBlock.content) document.execCommand('insertText', false, firstBlock.content);
-        } else {
-            remainingBlocks.unshift(firstBlock);
+        // 2. Determine caret offset for splitting
+        const selection = window.getSelection();
+        let caretOffset = 0;
+        let textBefore = '';
+        let textAfter = '';
+        let wasSplit = false;
+
+        if (selection && selection.rangeCount > 0 && currentBlock) {
+            const range = selection.getRangeAt(0);
+            const preCaretRange = range.cloneRange();
+            let container: Node | null = range.startContainer;
+            while (container && container.nodeType !== Node.ELEMENT_NODE) {
+                container = container.parentNode;
+            }
+            if (container && (container as HTMLElement).isContentEditable) {
+                preCaretRange.selectNodeContents(container);
+                preCaretRange.setEnd(range.startContainer, range.startOffset);
+                caretOffset = preCaretRange.toString().length;
+                
+                const fullText = currentBlock.content || '';
+                textBefore = fullText.substring(0, caretOffset);
+                textAfter = fullText.substring(caretOffset);
+                wasSplit = true;
+            }
         }
 
-        if (remainingBlocks.length > 0) {
+        // 3. If it's a simple, single text block paste, use the native execCommand to insert text inline
+        if (parsedBlocks.length === 1 && firstBlock.type === 'text') {
+            if (firstBlock.content) {
+                document.execCommand('insertText', false, firstBlock.content);
+            }
+            return;
+        }
+
+        // 4. Multi-block or non-text block paste: Split the block!
+        if (wasSplit && currentBlock) {
+            const trailingBlockId = uuidv4();
+            const trailingBlock = {
+                id: trailingBlockId,
+                type: 'text' as const,
+                content: textAfter || '',
+                indent: currentBlock.indent || 0
+            };
+
+            setBlocks(prev => {
+                const index = prev.findIndex(b => b.id === blockId);
+                if (index === -1) return prev;
+
+                const newBlocks = [...prev];
+                // Update the current block to contain only textBefore
+                newBlocks[index] = {
+                    ...currentBlock,
+                    content: textBefore
+                };
+
+                // Insert pasted blocks and the trailing block
+                newBlocks.splice(index + 1, 0, ...parsedBlocks, trailingBlock);
+                debouncedOnUpdate(newBlocks);
+                return newBlocks;
+            });
+
+            // Focus the trailing block at the start
+            setFocusId(trailingBlockId);
+        } else {
+            // Fallback if split failed
             setBlocks(prev => {
                 const index = prev.findIndex(b => b.id === blockId);
                 if (index === -1) return prev;
                 const newBlocks = [...prev];
-                newBlocks.splice(index + 1, 0, ...remainingBlocks);
+                newBlocks.splice(index + 1, 0, ...parsedBlocks);
                 debouncedOnUpdate(newBlocks);
                 return newBlocks;
             });
+            if (parsedBlocks.length > 0) {
+                setFocusId(parsedBlocks[parsedBlocks.length - 1].id);
+            }
         }
     }, [debouncedOnUpdate, setBlocks, blocksRef, setFocusId]);
 
@@ -318,11 +416,37 @@ export function useBlockCommands({
 
     const convertSelectedBlocks = useCallback((newType: BlockType) => {
         if (selectedBlockIds.size === 0) return;
-
+ 
         setBlocks(prev => {
-            const newBlocks = prev.map(b =>
-                selectedBlockIds.has(b.id) ? { ...b, type: newType } : b
-            );
+            const newBlocks = [...prev];
+            
+            // First, find all toggle blocks that are being converted to a non-toggle type
+            const isTargetTypeToggle = newType === 'toggle';
+            
+            for (let i = 0; i < newBlocks.length; i++) {
+                const block = newBlocks[i];
+                if (selectedBlockIds.has(block.id)) {
+                    const oldType = block.type;
+                    newBlocks[i] = { ...block, type: newType };
+                    
+                    // If converting a toggle to a non-toggle, outdent its nested children by 1
+                    if (oldType === 'toggle' && !isTargetTypeToggle) {
+                        const targetIndent = block.indent || 0;
+                        let j = i + 1;
+                        while (j < newBlocks.length) {
+                            const nextBlock = newBlocks[j];
+                            const nextIndent = nextBlock.indent || 0;
+                            if (nextIndent > targetIndent) {
+                                newBlocks[j] = { ...nextBlock, indent: Math.max(0, nextIndent - 1) };
+                                j++;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
             debouncedOnUpdate(newBlocks);
             return newBlocks;
         });

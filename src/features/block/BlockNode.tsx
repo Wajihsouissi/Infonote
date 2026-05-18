@@ -1,5 +1,5 @@
 import { memo, useLayoutEffect, useState, useCallback, useRef } from 'react';
-import { Handle, Position, type NodeProps, useReactFlow } from '@xyflow/react';
+import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
 import { BlockEditor } from '../editor/BlockEditor';
 import { EditBar } from '../ui/EditBar';
 import { useStore } from '../../store/useStore';
@@ -12,6 +12,8 @@ import { snapMediaDimensions } from '../../config/layout';
 // BlockNode is a "headless" or "chromeless" text unit.
 export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const { setNodes, deleteElements } = useReactFlow();
+    const connection = useConnection();
+    const isConnecting = connection.inProgress;
     const updateNodeData = useStore(s => s.updateNodeData);
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
     const theme = useStore(s => s.theme);
@@ -178,14 +180,18 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             <Handle 
                 type="target" 
                 position={Position.Top} 
+                isConnectableStart={false}
                 style={{ top: '50%', left: '50%', width: '100%', height: '100%', border: 'none', background: 'transparent', transform: 'translate(-50%, -50%)', zIndex: -1 }} 
             />
-            <Handle 
-                type="source" 
-                position={Position.Right} 
-                className={styles.topRightHandle} 
-                id="out" 
-            />
+            {!isConnecting && (
+                <Handle 
+                    type="source" 
+                    position={Position.Right} 
+                    className={styles.topRightHandle} 
+                    isConnectableEnd={false}
+                    id="out" 
+                />
+            )}
 
             {/* Resize Handle for Resizable or Column Blocks */}
             {(isResizable || isColumns) && selected && (

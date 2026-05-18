@@ -179,6 +179,9 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
     },
 
     onConnect: (connection) => {
+        // Prevent self-connections: a node cannot connect to itself
+        if (connection.source === connection.target) return;
+
         const { currentParentId } = get();
         // Capture the active context from navigationSlice so edges only render
         // inside the canvas where they were created (parent-scoped visibility).
@@ -978,5 +981,40 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         }));
 
         if (DEBUG) console.log("[hydrateCanvas] Created fused nodes for sections:", newNodes.map(n => n.id));
+    },
+
+    updateEdge: (id, updates) => {
+        set((state) => ({
+            edges: state.edges.map((e) => (e.id === id ? { ...e, ...updates } : e)),
+        }));
+    },
+
+    deleteEdge: (id) => {
+        set((state) => ({
+            edges: state.edges.filter((e) => e.id !== id),
+        }));
+    },
+
+    duplicateEdge: (id) => {
+        const edge = get().edges.find((e) => e.id === id);
+        if (edge) {
+            const newEdge = {
+                ...edge,
+                id: `edge-${uuidv4()}`,
+            };
+            set((state) => ({
+                edges: [...state.edges, newEdge],
+            }));
+        }
+    },
+
+    bringEdgeToFront: (id) => {
+        const edges = get().edges;
+        const edge = edges.find((e) => e.id === id);
+        if (edge) {
+            set({
+                edges: [...edges.filter((e) => e.id !== id), edge],
+            });
+        }
     }
 });

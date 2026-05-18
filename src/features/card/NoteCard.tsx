@@ -1,5 +1,5 @@
 import { memo, useCallback, useRef, useEffect, useState, useMemo } from 'react';
-import { Handle, Position, type NodeProps, useReactFlow } from '@xyflow/react';
+import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
 import { Scan, PanelRight, PanelLeft, Monitor } from 'lucide-react';
 import styles from './NoteCard.module.css';
 import type { NoteNode } from '../../types';
@@ -15,6 +15,8 @@ import { toPastelColor, darkenColor } from '../../utils/colorUtils';
 
 export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<NoteNode>) => {
     const { setNodes, getViewport, deleteElements } = useReactFlow();
+    const connection = useConnection();
+    const isConnecting = connection.inProgress;
 
     // Use atomic selectors to prevent unnecessary re-renders when other parts of the store change
     const navigateToNode = useStore(s => s.navigateToNode);
@@ -465,14 +467,18 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             <Handle 
                 type="target" 
                 position={Position.Top} 
+                isConnectableStart={false}
                 style={{ top: '50%', left: '50%', width: '100%', height: '100%', border: 'none', background: 'transparent', transform: 'translate(-50%, -50%)', zIndex: -1 }} 
             />
-            <Handle 
-                type="source" 
-                position={Position.Right} 
-                className={styles.topRightHandle} 
-                id="out" 
-            />
+            {!isConnecting && (
+                <Handle 
+                    type="source" 
+                    position={Position.Right} 
+                    className={styles.topRightHandle} 
+                    isConnectableEnd={false}
+                    id="out" 
+                />
+            )}
 
             {/* Icon Picker Modal */}
             {showIconPicker && (

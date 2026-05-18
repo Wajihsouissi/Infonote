@@ -1,0 +1,349 @@
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 24px;
+    height: 100%;
+    width: 100%;
+}
+
+.selectionInfo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    user-select: none;
+    letter-spacing: -0.01em;
+}
+
+.glowDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    box-shadow: 0 0 10px currentColor;
+    animation: pulseGlow 2s infinite ease-in-out;
+}
+
+@keyframes pulseGlow {
+    0%, 100% {
+        opacity: 0.6;
+        transform: scale(0.9);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
+        box-shadow: 0 0 12px currentColor;
+    }
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.actionBtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--glass-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+}
+
+.actionBtn:hover {
+    background: var(--glass-bg-hover);
+    border-color: var(--border-hover);
+    transform: translateY(-1px);
+}
+
+.actionBtn:active {
+    transform: translateY(0);
+}
+
+/* Colors and Custom Border Colors */
+.coloredBorder {
+    border-width: 1.5px !important;
+}
+
+.colorIndicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.actionBtn.delete {
+    color: var(--color-danger);
+    border-color: var(--color-danger-muted);
+}
+
+.actionBtn.delete:hover {
+    background: var(--color-danger-muted);
+    border-color: var(--color-danger);
+}
+
+.animationActive {
+    background: var(--color-primary-muted, rgba(139, 92, 246, 0.15)) !important;
+    border-color: var(--color-primary) !important;
+    color: var(--color-primary) !important;
+    box-shadow: 0 0 12px var(--color-primary-glow);
+}
+
+.pulsingIcon {
+    animation: pulseIcon 1.5s infinite alternate ease-in-out;
+}
+
+@keyframes pulseIcon {
+    from {
+        transform: scale(1);
+        filter: drop-shadow(0 0 1px currentColor);
+    }
+    to {
+        transform: scale(1.2);
+        filter: drop-shadow(0 0 4px currentColor);
+    }
+}
+
+/* Segment Selectors */
+.segmentControl {
+    display: flex;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px;
+    gap: 2px;
+}
+
+.segmentBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 26px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.segmentBtn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+}
+
+.segmentBtn.active {
+    background: var(--color-primary);
+    color: white !important;
+    box-shadow: 0 2px 6px var(--color-primary-glow);
+}
+
+/* Indicators inside Segment controls */
+.lineIndicatorSolid {
+    width: 14px;
+    height: 2px;
+    background: currentColor;
+    display: block;
+}
+
+.lineIndicatorDashed {
+    width: 14px;
+    height: 2px;
+    border-bottom: 2px dashed currentColor;
+    display: block;
+}
+
+.lineIndicatorDotted {
+    width: 14px;
+    height: 2px;
+    border-bottom: 2px dotted currentColor;
+    display: block;
+}
+
+.widthIndicatorThin {
+    width: 12px;
+    height: 1.5px;
+    background: currentColor;
+    display: block;
+}
+
+.widthIndicatorMedium {
+    width: 12px;
+    height: 3px;
+    background: currentColor;
+    display: block;
+}
+
+.widthIndicatorThick {
+    width: 12px;
+    height: 5px;
+    background: currentColor;
+    display: block;
+}
+
+.markerNone {
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.markerArrow {
+    font-size: 11px;
+}
+
+.markerCircle {
+    font-size: 8px;
+}
+
+/* Custom Text Label Input */
+.inputWrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    height: 32px;
+    min-width: 140px;
+    max-width: 200px;
+    transition: all 0.2s ease;
+}
+
+.inputWrapper:focus-within {
+    border-color: var(--color-primary);
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: 0 0 0 1px var(--color-primary-glow);
+}
+
+.inputIcon {
+    color: var(--text-secondary);
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.labelInput {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-family: inherit;
+    width: 100%;
+}
+
+.labelInput::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.5;
+}
+
+.separator {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    margin: 0 4px;
+}
+
+.closeBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.closeBtn:hover {
+    background: var(--glass-bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+}
+
+/* Color Picker Popover */
+.colorPickerTrigger {
+    position: relative;
+}
+
+.colorPopover {
+    position: absolute;
+    bottom: calc(100% + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface-elevated, #1a1a1c);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    z-index: 10000;
+    min-width: 160px;
+    backdrop-filter: blur(8px);
+}
+
+.colorGrid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+}
+
+.colorOption {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.colorOption:hover {
+    transform: scale(1.15);
+    border-color: white;
+    box-shadow: 0 2px 8px rgba(255, 255, 255, 0.2);
+}
+
+.selectedColor {
+    border-color: white !important;
+    box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.colorLabel {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+/* Confirmation UI */
+.confirmContainer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex: 1;
+}
+
+.confirmText {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.confirmActions {
+    display: flex;
+    gap: 8px;
+}

@@ -1,4 +1,4 @@
-import { useMemo, useEffect, Suspense, lazy, useRef } from 'react';
+import { useMemo, useEffect, Suspense, lazy, useRef, useCallback } from 'react';
 import {
     ReactFlow,
     Controls,
@@ -26,6 +26,7 @@ import { KanbanNodeComponent } from '../kanban/KanbanNode';
 import { CanvasSlashMenu } from './CanvasSlashMenu';
 import { CloudSyncControls } from './CloudSyncControls';
 import { CenteredEdge } from './CenteredEdge';
+import { CustomConnectionLine } from './CustomConnectionLine';
 import { AuthButton } from '../auth/AuthButton';
 import { AuthModal } from '../auth/AuthModal';
 import { useStore } from '../../store/useStore';
@@ -86,6 +87,7 @@ export function CanvasBoard() {
     const isTOCOpen = useStore(s => s.isTOCOpen);
     const setTOCOpen = useStore(s => s.setTOCOpen);
     const tocBtnRef = useRef<HTMLButtonElement | null>(null);
+    const setSelectedEdgeId = useStore(s => s.setSelectedEdgeId);
 
     // Viewport culling and visible nodes
     const { visibleNodes, handleViewportChange } = useCanvasViewport({
@@ -110,6 +112,69 @@ export function CanvasBoard() {
 
     // Focus viewport when parent changes
     const { fitView, screenToFlowPosition } = useReactFlow();
+
+    // Track mouse coordinates on window
+    const mousePosRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            mousePosRef.current = { x: e.clientX, y: e.clientY };
+        };
+        window.addEventListener('mousemove', handleMouseMove);
+        return () => window.removeEventListener('mousemove', handleMouseMove);
+    }, []);
+
+    // Create Text Block on pressing Enter on canvas
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key !== 'Enter') return;
+
+            const target = e.target as HTMLElement;
+            const isEditable = target.tagName === 'INPUT' ||
+                target.tagName === 'TEXTAREA' ||
+                target.isContentEditable ||
+                target.closest('[contenteditable]') ||
+                target.closest('[class*="BlockEditor"]') ||
+                target.closest('[class*="editor"]');
+
+            if (isEditable) return;
+
+            // Prevent creation if typing in active overlays/modals
+            const isModal = target.closest('[class*="modal"]') || target.closest('[class*="Modal"]');
+            if (isModal) return;
+
+            e.preventDefault();
+
+            // Transform coordinates to canvas space
+            const flowPos = screenToFlowPosition({
+                x: mousePosRef.current.x,
+                y: mousePosRef.current.y
+            });
+
+            // Create new Text Block
+            const nodeId = uuidv4();
+            const newBlock = {
+                id: uuidv4(),
+                type: 'text' as const,
+                content: ''
+            };
+
+            addNode(
+                'block',
+                flowPos,
+                { content: [newBlock], isStandaloneBlock: true },
+                { width: 300, height: 100 },
+                currentParentId || undefined,
+                nodeId
+            );
+
+            // Automatically highlight and select the newly created text block node
+            setSelectedCanvasNodeIds(new Set([nodeId]));
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [addNode, currentParentId, screenToFlowPosition, setSelectedCanvasNodeIds]);
 
     // Canvas-Level Direct URL Pasting
     const handleCanvasPaste = (e: React.ClipboardEvent) => {
@@ -231,6 +296,11 @@ export function CanvasBoard() {
         deletable: true,
     }), []);
 
+    // Prevent self-loop connections (a node cannot connect to itself)
+    const isValidConnection = useCallback((connection: any) => {
+        return connection.source !== connection.target;
+    }, []);
+
     // Active parent node for metadata display
     const activeParentNode = useMemo(() =>
         currentParentId ? nodes.find(n => n.id === currentParentId) : null,
@@ -323,9 +393,23 @@ export function CanvasBoard() {
                     onNodesChange={onNodesChange}
                     onEdgesChange={onEdgesChange}
                     onConnect={onConnect}
+                    isValidConnection={isValidConnection}
                     nodeTypes={nodeTypes}
                     edgeTypes={edgeTypes}
                     defaultEdgeOptions={defaultEdgeOptions}
+                    connectionLineComponent={CustomConnectionLine}
+                    connectionRadius={150}
+                    onPaneClick={() => {
+                        setSelectedEdgeId(null);
+                    }}
+                    onEdgeClick={(e, edge) => {
+                        e.stopPropagation();
+                        if (e.shiftKey) {
+                            useStore.getState().toggleCanvasEdgeSelection(edge.id);
+                        } else {
+                            setSelectedEdgeId(edge.id);
+                        }
+                    }}
                     fitView={!currentParentId}
                     colorMode={theme}
                     minZoom={0.05}

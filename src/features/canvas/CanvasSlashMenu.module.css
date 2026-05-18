@@ -61,6 +61,7 @@
 .items {
     padding: 6px;
     overflow-y: auto;
+    overflow-x: hidden;
     max-height: 260px;
     display: flex;
     flex-direction: column;

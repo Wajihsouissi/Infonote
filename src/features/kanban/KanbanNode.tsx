@@ -2,7 +2,7 @@ import { memo, useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { KanbanCalendarView } from './KanbanCalendarView';
 import { v4 as uuidv4 } from 'uuid';
 import { Settings } from 'lucide-react';
-import { Handle, Position, type NodeProps, useReactFlow } from '@xyflow/react';
+import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
 import {
     DndContext,
     closestCorners,
@@ -57,6 +57,8 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
     const interactionState = useStore(s => s.interactionState);
 
     const { setNodes, screenToFlowPosition, getIntersectingNodes } = useReactFlow();
+    const connection = useConnection();
+    const isConnecting = connection.inProgress;
 
     const isDraggingBoard = interactionState.draggedNodeId === id;
 
@@ -734,11 +736,14 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                         <Handle
                             type="target"
                             position={Position.Top}
+                            isConnectableStart={false}
                             id="in"
                             style={{ top: '50%', left: '50%', width: '100%', height: '100%', border: 'none', background: 'transparent', transform: 'translate(-50%, -50%)', zIndex: -1 }}
                         />
                         {/* Visible top-right source handle (drag connections out from here) */}
-                        <Handle type="source" position={Position.Top} className={styles.handle} id="out" />
+                        {!isConnecting && (
+                            <Handle type="source" position={Position.Top} className={styles.handle} isConnectableEnd={false} id="out" />
+                        )}
         </div>
     );
 });

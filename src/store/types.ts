@@ -31,6 +31,10 @@ export interface NodeSlice {
     bulkApplyColor: (nodeIds: string[], color: string) => void;
     fuseNodes: (nodeIds: string[]) => void;
     hydrateCanvasFromContent: (nodeId: string) => void;
+    updateEdge: (id: string, updates: Partial<Edge>) => void;
+    deleteEdge: (id: string) => void;
+    duplicateEdge: (id: string) => void;
+    bringEdgeToFront: (id: string) => void;
 }
 
 export interface NavigationSlice {
@@ -117,6 +121,11 @@ export interface UISlice {
     toggleCanvasNodeSelection: (id: string) => void;
     clearCanvasSelection: () => void;
     setCurrentView: (view: AppView) => void;
+    selectedEdgeId: string | null;
+    setSelectedEdgeId: (id: string | null) => void;
+    selectedEdgeIds: Set<string>;
+    setSelectedEdgeIds: (ids: Set<string>) => void;
+    toggleCanvasEdgeSelection: (id: string) => void;
 }
 
 export type AppState = NodeSlice & NavigationSlice & StorageSlice & UISlice & AuthSlice;
