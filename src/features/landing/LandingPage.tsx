@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { ProfileMenu } from '../auth/ProfileMenu';
-import { useAuth } from '../auth/AuthProvider';
 import { useRecentlyViewed, useGlobalSearch } from './hooks/useDashboardData';
 import {
   Layout,
@@ -17,15 +16,13 @@ import {
   Sun,
   Moon,
   Menu,
-  X,
-  LogOut
+  X
 } from 'lucide-react';
 import styles from './LandingPage.module.css';
 
 export const LandingPage: React.FC = () => {
   const setCurrentView = useStore((state) => state.setCurrentView);
   const currentView = useStore((state) => state.currentView);
-  const { signOut } = useAuth();
   const theme = useStore((state) => state.theme);
   const toggleTheme = useStore((state) => state.toggleTheme);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);

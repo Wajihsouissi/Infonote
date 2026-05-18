@@ -107,7 +107,20 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
                         <span>Profile</span>
                     </button>
 
-
+                    {onOpenCanvas && (
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className={styles.menuItem}
+                            onClick={() => {
+                                setOpen(false);
+                                onOpenCanvas();
+                            }}
+                        >
+                            <Layout size={15} />
+                            <span>Open Canvas</span>
+                        </button>
+                    )}
 
                     <button
                         type="button"

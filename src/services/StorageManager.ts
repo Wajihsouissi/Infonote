@@ -101,10 +101,15 @@ async function autoReconnect(): Promise<void> {
         activeBackend = fileSystemBackend;
 
         const data = await fileSystemBackend.load();
+        const timeStr = new Date().toLocaleTimeString();
+        const state = useStore.getState();
         if (data && data.nodes.length > 0) {
             isRestoring = true;
             storeCallbacks.loadGraph(data.nodes, data.edges);
             isRestoring = false;
+            if (state.setLocalLastSaved) state.setLocalLastSaved(timeStr);
+            if (state.setLocalDirty) state.setLocalDirty(false);
+            if (state.setLocalError) state.setLocalError(null);
         }
         storeCallbacks.setStorageStatus(true, activeBackend.displayName ?? 'Local Folder');
     } catch {
@@ -181,14 +186,23 @@ export async function connectBackend(
         activeBackend = backend;
 
         const data = await backend.load();
+        const timeStr = new Date().toLocaleTimeString();
+        const state = useStore.getState();
+
         if (data && data.nodes.length > 0) {
             isRestoring = true;
             ctx.loadGraph(data.nodes, data.edges);
             isRestoring = false;
+            if (state.setLocalLastSaved) state.setLocalLastSaved(timeStr);
+            if (state.setLocalDirty) state.setLocalDirty(false);
+            if (state.setLocalError) state.setLocalError(null);
         } else {
             const currentState = ctx.getState();
             if (currentState.nodes.length > 0) {
                 await backend.save({ nodes: currentState.nodes, edges: currentState.edges });
+                if (state.setLocalLastSaved) state.setLocalLastSaved(timeStr);
+                if (state.setLocalDirty) state.setLocalDirty(false);
+                if (state.setLocalError) state.setLocalError(null);
             }
         }
 
@@ -207,6 +221,11 @@ export async function disconnectBackend(
     try { await activeBackend.disconnect(); } catch { /* ignore */ }
     activeBackend = fileSystemBackend;
     setStorageStatus(false, null);
+
+    const state = useStore.getState();
+    if (state.setLocalLastSaved) state.setLocalLastSaved(null);
+    if (state.setLocalDirty) state.setLocalDirty(false);
+    if (state.setLocalError) state.setLocalError(null);
 }
 
 export function getActiveBackendKind(): BackendKind {

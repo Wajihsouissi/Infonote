@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { FolderOpen, Check, Loader2, AlertCircle, Cloud } from 'lucide-react';
+import { Folder, FolderOpen, FolderCheck, FolderX, FolderSync, Cloud, CloudCheck, CloudAlert, CloudSync, CloudUpload } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { connectBackend, disconnectBackend, getActiveBackendKind } from '../../services/StorageManager';
 import { saveCanvasToCloud } from '../../services/cloudSync';
@@ -19,9 +19,7 @@ export const StorageControls: React.FC = () => {
     const { user, configured, loading: authLoading } = useAuth();
 
     // Store setters for dynamic status
-    const setLocalLastSaved = useStore(s => s.setLocalLastSaved);
     const setCloudLastSaved = useStore(s => s.setCloudLastSaved);
-    const setLocalDirty = useStore(s => s.setLocalDirty);
     const setCloudDirty = useStore(s => s.setCloudDirty);
     const setLocalError = useStore(s => s.setLocalError);
     const setCloudError = useStore(s => s.setCloudError);
@@ -109,16 +107,16 @@ export const StorageControls: React.FC = () => {
     }, [configured, user, setCloudLastSaved, setCloudDirty, setCloudError]);
 
     // Local folder button state
-    const localConnected = storage.isConnected && activeKind === 'filesystem';
     const localStatus = 
         storage.localError ? 'error' :
         (!storage.isConnected || !storage.localLastSaved) ? 'never-saved' :
         storage.isLocalDirty ? 'not-synced' : 'synced';
 
-    const localIcon = isConnecting ? <Loader2 size={18} className="animate-spin" />
-        : localStatus === 'error' ? <AlertCircle size={18} />
-        : localStatus === 'synced' ? <Check size={18} />
-        : <FolderOpen size={18} />;
+    const localIcon = isConnecting ? <FolderSync size={18} className="animate-spin" />
+        : localStatus === 'error' ? <FolderX size={18} />
+        : localStatus === 'synced' ? <FolderCheck size={18} />
+        : localStatus === 'not-synced' ? <FolderOpen size={18} />
+        : <Folder size={18} />;
 
     const localTitle = isConnecting ? 'Connecting...'
         : localStatus === 'error' ? `Local Save Error: ${storage.localError}`
@@ -132,9 +130,10 @@ export const StorageControls: React.FC = () => {
         (!user || !storage.cloudLastSaved) ? 'never-saved' :
         storage.isCloudDirty ? 'not-synced' : 'synced';
 
-    const cloudIcon = (authLoading || isSavingCloud) ? <Loader2 size={18} className="animate-spin" />
-        : cloudStatus === 'error' ? <AlertCircle size={18} />
-        : cloudStatus === 'synced' ? <Check size={18} />
+    const cloudIcon = (authLoading || isSavingCloud) ? <CloudSync size={18} className="animate-spin" />
+        : cloudStatus === 'error' ? <CloudAlert size={18} />
+        : cloudStatus === 'synced' ? <CloudCheck size={18} />
+        : cloudStatus === 'not-synced' ? <CloudUpload size={18} />
         : <Cloud size={18} />;
 
     const cloudTitle = !configured ? 'Cloud disabled (env not configured)'
