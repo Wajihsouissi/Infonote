@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { createPortal } from 'react-dom';
+import { motion } from 'motion/react';
 
 import type { Block } from './types';
 import styles from './BlockEditor.module.css';
@@ -34,15 +35,18 @@ interface BlockEditorProps {
     disableMediaControls?: boolean;
     promoteBlockHandles?: boolean;
     selectionIslandPortalId?: string; // Portal target for selection island
+    syncUpdate?: boolean; // Instantly push updates to parent without debouncing
+    editorId?: string; // Stable identifier for drag-and-drop tracking
 }
 
 import { memo } from 'react';
 
-export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles, disableMediaControls, promoteBlockHandles, selectionIslandPortalId }: BlockEditorProps) {
+export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles, disableMediaControls, promoteBlockHandles, selectionIslandPortalId, syncUpdate, editorId }: BlockEditorProps) {
     const editorRef = useRef<HTMLDivElement>(null);
+    const editorInstanceId = useRef(editorId || `editor-${uuidv4()}`);
     const [blocks, setBlocks] = useState<Block[]>(() => {
-        if (Array.isArray(initialContent)) return initialContent;
-        // Migration for legacy string content
+        if (Array.isArray(initialContent) && initialContent.length > 0) return initialContent;
+        // Migration for legacy string content or empty array
         return [{ id: uuidv4(), type: 'text', content: typeof initialContent === 'string' ? initialContent : '' }];
     });
 
@@ -51,23 +55,34 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
     // Focus State
     const [focusId, setFocusId] = useState<string | null>(null);
+    const caretPositionRef = useRef<'start' | 'end' | number | null>(null);
     const blockRefs = useRef<{ [key: string]: HTMLElement | null }>({});
 
     // Create a stable debounced update function
     const timeoutRef = useRef<any>(null);
     const debouncedOnUpdate = useCallback((newBlocks: Block[]) => {
+        if (syncUpdate) {
+            onUpdate?.(newBlocks);
+            return;
+        }
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         timeoutRef.current = setTimeout(() => {
             onUpdate?.(newBlocks);
             timeoutRef.current = null;
         }, 300); // 300ms debounce for store sync
-    }, [onUpdate]);
+    }, [onUpdate, syncUpdate]);
 
     useEffect(() => {
         if (Array.isArray(initialContent)) {
-            setBlocks(initialContent);
+            const nextContent: Block[] = initialContent.length > 0 ? initialContent : [{ id: uuidv4(), type: 'text' as const, content: '' }];
+            setBlocks(prev => {
+                if (JSON.stringify(prev) === JSON.stringify(nextContent)) {
+                    return prev;
+                }
+                return nextContent;
+            });
         } else if (typeof initialContent === 'string') {
-            setBlocks([{ id: uuidv4(), type: 'text', content: initialContent }]);
+            setBlocks([{ id: uuidv4(), type: 'text' as const, content: initialContent }]);
         }
     }, [initialContent]);
 
@@ -126,8 +141,6 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         moveBlockUp,
         moveBlockDown,
         duplicateBlock,
-        focusPreviousBlock,
-        focusNextBlock,
         addBlockBelow
     } = useBlockCommands({
         editorRef,
@@ -160,7 +173,8 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         debouncedOnUpdate,
         selectedBlockIds,
         nodeId,
-        addBlock
+        addBlock,
+        editorId: editorInstanceId.current
     });
 
     // Escape key handler for clearing selection
@@ -268,11 +282,78 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         }
     }, [initialContent]);
 
+    // Force external synchronization when TOC rearranges blocks
     useEffect(() => {
-        if (focusId && blockRefs.current[focusId]) {
-            blockRefs.current[focusId]?.focus();
-            setFocusId(null);
+        const handleForceSync = () => {
+            if (initialContent) {
+                const nextContent = Array.isArray(initialContent) ? initialContent : [{ id: uuidv4(), type: 'text' as const, content: typeof initialContent === 'string' ? initialContent : '' }];
+                setBlocks(nextContent);
+            }
+        };
+        window.addEventListener('infonote-force-editor-sync', handleForceSync);
+        return () => window.removeEventListener('infonote-force-editor-sync', handleForceSync);
+    }, [initialContent]);
+
+    useEffect(() => {
+        if (!focusId) return;
+
+        const el = blockRefs.current[focusId];
+        if (!el) {
+            // Element not in DOM yet — leave focusId set so we retry on next render
+            return;
         }
+
+        el.focus();
+
+        const pos = caretPositionRef.current;
+
+        try {
+            const selection = window.getSelection();
+            const range = document.createRange();
+
+            if (pos === 'start') {
+                range.selectNodeContents(el);
+                range.collapse(true);
+            } else if (pos === 'end') {
+                range.selectNodeContents(el);
+                range.collapse(false);
+            } else if (typeof pos === 'number') {
+                // Walk text nodes to find the correct offset position
+                const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+                let textNode = walker.nextNode();
+                let currentOffset = 0;
+                let found = false;
+
+                while (textNode) {
+                    const nodeLength = textNode.textContent?.length || 0;
+                    if (currentOffset + nodeLength >= pos) {
+                        range.setStart(textNode, pos - currentOffset);
+                        range.collapse(true);
+                        found = true;
+                        break;
+                    }
+                    currentOffset += nodeLength;
+                    textNode = walker.nextNode();
+                }
+
+                if (!found) {
+                    range.selectNodeContents(el);
+                    range.collapse(false);
+                }
+            } else {
+                // default to end
+                range.selectNodeContents(el);
+                range.collapse(false);
+            }
+
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+        } catch (e) {
+            console.warn('Failed to set caret position', e);
+        }
+
+        caretPositionRef.current = null;
+        setFocusId(null);
     }, [focusId, blocks]);
 
     const updateBlock = useCallback((id: string, contentOrPatch: string | Partial<Block>, metadata?: any) => {
@@ -313,8 +394,8 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             if (content === '* ') { convertBlock(id, 'bullet', undefined, ''); return; } // Bullet list
             if (content === '``` ') { convertBlock(id, 'code', undefined, ''); return; }
 
-            // Slash menu
-            if (content.startsWith('/')) {
+            // Slash menu: Only trigger if content starts with '/' and isn't followed immediately by whitespace
+            if (content.startsWith('/') && !content.match(/^\/\s/)) {
                 if (!slashMenuStateRef.current || slashMenuStateRef.current.blockId !== id) {
                     handleSlashOpen(id);
                 }
@@ -324,8 +405,62 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         }
     }, [debouncedOnUpdate, convertBlock, handleSlashOpen, slashMenuStateRef, setSlashMenuState]);
 
+    const checkCaretFirstLine = useCallback((): boolean => {
+        try {
+            const selection = window.getSelection();
+            if (!selection || selection.rangeCount === 0) return true;
+            const range = selection.getRangeAt(0).cloneRange();
+            const rects = range.getClientRects();
+            if (rects.length === 0) return true;
+            
+            const activeEl = document.activeElement as HTMLElement;
+            if (!activeEl) return true;
+            
+            const caretTop = rects[0].top;
+            const blockRect = activeEl.getBoundingClientRect();
+            const style = window.getComputedStyle(activeEl);
+            const paddingTop = parseFloat(style.paddingTop || '0');
+            const borderTop = parseFloat(style.borderTopWidth || '0');
+            
+            const contentTop = blockRect.top + paddingTop + borderTop;
+            const lineHeight = parseFloat(style.lineHeight) || 24;
+            
+            return (caretTop - contentTop) < (lineHeight * 1.2);
+        } catch (err) {
+            return true;
+        }
+    }, []);
 
-    const handleKeyDown = useCallback((e: React.KeyboardEvent, id: string, content: string) => {
+    const checkCaretLastLine = useCallback((): boolean => {
+        try {
+            const selection = window.getSelection();
+            if (!selection || selection.rangeCount === 0) return true;
+            const range = selection.getRangeAt(0).cloneRange();
+            const rects = range.getClientRects();
+            if (rects.length === 0) return true;
+            
+            const activeEl = document.activeElement as HTMLElement;
+            if (!activeEl) return true;
+            
+            const caretBottom = rects[0].bottom;
+            const blockRect = activeEl.getBoundingClientRect();
+            const style = window.getComputedStyle(activeEl);
+            const paddingBottom = parseFloat(style.paddingBottom || '0');
+            const borderBottom = parseFloat(style.borderBottomWidth || '0');
+            
+            const contentBottom = blockRect.bottom - paddingBottom - borderBottom;
+            const lineHeight = parseFloat(style.lineHeight) || 24;
+            
+            return (contentBottom - caretBottom) < (lineHeight * 1.2);
+        } catch (err) {
+            return true;
+        }
+    }, []);
+
+
+    const handleKeyDown = useCallback((e: React.KeyboardEvent, id: string, rawContent: string) => {
+        // Normalize: browsers inject trailing \n and \u200B in contentEditable
+        const content = rawContent.replace(/[\n\u200B]+$/, '');
         const isCtrl = e.ctrlKey || e.metaKey;
 
         // Ctrl+Shift+↑ - Move block up
@@ -404,16 +539,6 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
             const currentBlock = blocksRef.current.find(b => b.id === id);
 
-            // Special handling for empty list items
-            if (currentBlock && ['bullet', 'numbered', 'todo', 'toggle'].includes(currentBlock.type) && content === '') {
-                if ((currentBlock.indent || 0) > 0) {
-                    handleOutdent(id);
-                } else {
-                    convertBlock(id, 'text');
-                }
-                return;
-            }
-
             // Intercept for Fused Node Conversion
             if (nodeId && blocksRef.current.length >= 2) {
                 const store = useStore.getState();
@@ -481,17 +606,25 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 const textBefore = content.substring(0, caretOffset);
                 const textAfter = content.substring(caretOffset);
 
-                const typeToCreate = ['bullet', 'numbered', 'todo', 'toggle'].includes(currentBlock.type)
+                let typeToCreate = ['bullet', 'numbered', 'todo', 'toggle'].includes(currentBlock.type)
                     ? currentBlock.type
                     : 'text';
 
-                const indent = currentBlock.indent || 0;
+                let indent = currentBlock.indent || 0;
+                
+                // Notion-like behavior: If we press Enter on an expanded toggle, 
+                // the new block should be indented inside it.
+                if (currentBlock.type === 'toggle' && !currentBlock.metadata?.isCollapsed && caretOffset === content.length) {
+                    typeToCreate = 'text'; // Usually starts with text inside
+                    indent = indent + 1;
+                }
+
+                const newId = uuidv4();
 
                 setBlocks(prev => {
                     const index = prev.findIndex(b => b.id === id);
                     if (index === -1) return prev;
 
-                    const newId = uuidv4();
                     const newBlock: Block = {
                         id: newId,
                         type: typeToCreate,
@@ -504,9 +637,10 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     newBlocks.splice(index + 1, 0, newBlock);
 
                     debouncedOnUpdate(newBlocks);
-                    setTimeout(() => setFocusId(newId), 0);
                     return newBlocks;
                 });
+                caretPositionRef.current = 'start';
+                setTimeout(() => setFocusId(newId), 0);
                 return;
             }
 
@@ -516,22 +650,36 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             const currentBlock = blocksRef.current.find(b => b.id === id);
             if (!currentBlock) return;
 
-            if (content === '') {
+            const isEmpty = !content || content.trim().replace(/[\n\u200B\u00A0\u200C\uFEFF]/g, '').length === 0;
+
+            if (isEmpty) {
                 e.preventDefault();
                 if ((currentBlock.indent || 0) > 0) {
                     handleOutdent(id);
+                } else if (['bullet', 'numbered', 'todo', 'toggle', 'heading1', 'heading2', 'heading3', 'quote', 'callout', 'code'].includes(currentBlock.type)) {
+                    convertBlock(id, 'text');
                 } else {
+                    caretPositionRef.current = 'end';
                     removeBlock(id);
                 }
                 return;
             }
 
-            // Start of Block -> Merge Up
+            // Start of Block -> Outdent if indented, else Merge Up
             if (getCaretOffset() === 0) {
+                const currentIndent = currentBlock.indent || 0;
+                if (currentIndent > 0) {
+                    e.preventDefault();
+                    handleOutdent(id);
+                    return;
+                }
+
                 const index = blocksRef.current.findIndex(b => b.id === id);
                 if (index > 0) {
                     e.preventDefault();
+                    
                     const prevBlock = blocksRef.current[index - 1];
+                    const prevLength = prevBlock.content.length;
 
                     setBlocks(prev => {
                         const newBlocks = [...prev];
@@ -541,9 +689,10 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                             content: prevBlock.content + content
                         };
                         debouncedOnUpdate(newBlocks);
-                        setTimeout(() => setFocusId(prevBlock.id), 0);
                         return newBlocks;
                     });
+                    caretPositionRef.current = prevLength;
+                    setFocusId(prevBlock.id);
                 }
             }
 
@@ -554,6 +703,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 if (index < blocksRef.current.length - 1) {
                     e.preventDefault();
                     const nextBlock = blocksRef.current[index + 1];
+                    const currentLength = content.length;
 
                     setBlocks(prev => {
                         const newBlocks = [...prev];
@@ -565,6 +715,8 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         debouncedOnUpdate(newBlocks);
                         return newBlocks;
                     });
+                    caretPositionRef.current = currentLength;
+                    setFocusId(id);
                 }
             }
         } else if (e.key === 'ArrowUp') {
@@ -586,12 +738,33 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     }
                 }
             } else {
-                // Block navigation: Arrow Up at start or empty block -> focus previous
-                if (content === '' || getCaretOffset() === 0) {
+                // Block navigation: Arrow Up at first line or empty block -> focus previous
+                if (content === '' || checkCaretFirstLine()) {
                     const currentIndex = blocksRef.current.findIndex(b => b.id === id);
                     if (currentIndex > 0) {
                         e.preventDefault();
-                        focusPreviousBlock(id);
+                        
+                        // Find previous VISIBLE block
+                        let prevVisibleIndex = currentIndex - 1;
+                        while (prevVisibleIndex >= 0) {
+                            const b = blocksRef.current[prevVisibleIndex];
+                            // Check if this block is hidden by some parent toggle
+                            let isHidden = false;
+                            for (let i = 0; i < prevVisibleIndex; i++) {
+                                const parent = blocksRef.current[i];
+                                if (parent.type === 'toggle' && parent.metadata?.isCollapsed && (b.indent || 0) > (parent.indent || 0)) {
+                                    isHidden = true;
+                                    break;
+                                }
+                            }
+                            if (!isHidden) break;
+                            prevVisibleIndex--;
+                        }
+
+                        if (prevVisibleIndex >= 0) {
+                            caretPositionRef.current = 'end';
+                            setFocusId(blocksRef.current[prevVisibleIndex].id);
+                        }
                     }
                 }
             }
@@ -611,12 +784,33 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     }
                 }
             } else {
-                // Block navigation: Arrow Down at end of block -> focus next
-                if (getCaretOffset() === content.length) {
+                // Block navigation: Arrow Down at last line of block -> focus next
+                if (content === '' || checkCaretLastLine()) {
                     const currentIndex = blocksRef.current.findIndex(b => b.id === id);
                     if (currentIndex < blocksRef.current.length - 1) {
                         e.preventDefault();
-                        focusNextBlock(id);
+
+                        // Find next VISIBLE block
+                        let nextVisibleIndex = currentIndex + 1;
+                        while (nextVisibleIndex < blocksRef.current.length) {
+                            const b = blocksRef.current[nextVisibleIndex];
+                            // Check if this block is hidden by some parent toggle (including the current block if it just collapsed)
+                            let isHidden = false;
+                            for (let i = 0; i < nextVisibleIndex; i++) {
+                                const parent = blocksRef.current[i];
+                                if (parent.type === 'toggle' && parent.metadata?.isCollapsed && (b.indent || 0) > (parent.indent || 0)) {
+                                    isHidden = true;
+                                    break;
+                                }
+                            }
+                            if (!isHidden) break;
+                            nextVisibleIndex++;
+                        }
+
+                        if (nextVisibleIndex < blocksRef.current.length) {
+                            caretPositionRef.current = 'start';
+                            setFocusId(blocksRef.current[nextVisibleIndex].id);
+                        }
                     }
                 }
             }
@@ -764,55 +958,188 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 }
             }}
         >
-            {blocks.map((block, index) => {
-                // Calculate List Index
-                let listIndex = undefined;
-                if (block.type === 'numbered') {
-                    // Look backwards to count consecutive numbered blocks (ignoring indentation children for now? or simplified sequence)
-                    // Simplified: Count how many numbered blocks are immediately preceding this one (ignoring pure indentation logic for now, or just monotonic increase)
-                    // Actually, simple sequential logic:
-                    let count = 1;
-                    for (let i = index - 1; i >= 0; i--) {
-                        if (blocks[i].type === 'numbered') {
-                            count++;
-                        } else {
-                            break;
+            {(() => {
+                const visibleBlocks: { block: Block, listIndex?: number, hasChildren?: boolean }[] = [];
+
+                blocks.forEach((block, index) => {
+                    // Calculate List Index for numbered blocks
+                    let listIndex = undefined;
+                    if (block.type === 'numbered') {
+                        let count = 1;
+                        for (let i = index - 1; i >= 0; i--) {
+                            if (blocks[i].type === 'numbered' && (blocks[i].indent || 0) === (block.indent || 0)) {
+                                count++;
+                            } else if ((blocks[i].indent || 0) < (block.indent || 0)) {
+                                break;
+                            }
+                        }
+                        listIndex = count;
+                    }
+
+                    // If this block is a toggle, calculate hasChildren
+                    let hasChildren = false;
+                    if (block.type === 'toggle') {
+                        // Check if the next block in the flat list is indented relative to this one
+                        if (index < blocks.length - 1 && (blocks[index + 1].indent || 0) > (block.indent || 0)) {
+                            hasChildren = true;
                         }
                     }
-                    listIndex = count;
+
+                    visibleBlocks.push({ block, listIndex, hasChildren });
+                });
+
+                interface RenderNode {
+                    type: 'block' | 'toggle-group';
+                    block: Block;
+                    listIndex?: number;
+                    hasChildren?: boolean;
+                    children: RenderNode[];
                 }
 
-                return (
-                    <BlockItem
-                        key={block.id}
-                        block={block}
-                        index={listIndex} // Pass calculated index
-                        isSelected={selectedBlockIds.size > 1 && selectedBlockIds.has(block.id)}
-                        readOnly={readOnly}
-                        nodeId={nodeId}
-                        hideBlockHandles={hideBlockHandles}
-                        promoteBlockHandles={promoteBlockHandles}
-                        disableMediaControls={disableMediaControls}
+                const buildRenderTree = (blocksList: typeof visibleBlocks): RenderNode[] => {
+                    const root: RenderNode[] = [];
+                    const stack: { node: RenderNode; indent: number }[] = [];
 
-                        onUpdateBlock={updateBlock}
-                        onKeyDown={handleKeyDown}
-                        onPaste={handleBlockPaste}
-                        onMoveBlock={handleMoveBlock}
-                        onDragStart={handleBlockDragStart}
-                        onMenuOpen={handleBlockMenuOpen}
-                        onSelectionClick={() => { }}
-                        onSelectionMouseDown={handleSelectionMouseDown}
-                        onRegisterRef={handleRegisterRef}
-                    />
-                );
-            })}
+                    blocksList.forEach(item => {
+                        const indent = item.block.indent || 0;
+
+                        // Find the correct parent in the stack
+                        while (stack.length > 0 && stack[stack.length - 1].indent >= indent) {
+                            stack.pop();
+                        }
+
+                        const currentNode: RenderNode = {
+                            type: item.block.type === 'toggle' ? 'toggle-group' : 'block',
+                            block: item.block,
+                            listIndex: item.listIndex,
+                            hasChildren: item.hasChildren,
+                            children: []
+                        };
+
+                        if (stack.length > 0) {
+                            stack[stack.length - 1].node.children.push(currentNode);
+                        } else {
+                            root.push(currentNode);
+                        }
+
+                        if (item.block.type === 'toggle') {
+                            stack.push({ node: currentNode, indent });
+                        }
+                    });
+
+                    return root;
+                };
+
+                const renderNode = (node: RenderNode, parentToggleIndent?: number): React.ReactNode => {
+                    if (node.type === 'block') {
+                        return (
+                            <BlockItem
+                                key={node.block.id}
+                                block={node.block}
+                                index={node.listIndex}
+                                hasChildren={node.hasChildren}
+                                isSelected={selectedBlockIds.size > 1 && selectedBlockIds.has(node.block.id)}
+                                readOnly={readOnly}
+                                nodeId={nodeId}
+                                hideBlockHandles={hideBlockHandles}
+                                promoteBlockHandles={promoteBlockHandles}
+                                disableMediaControls={disableMediaControls}
+                                parentToggleIndent={parentToggleIndent}
+                                minimal={minimal}
+                                onUpdateBlock={updateBlock}
+                                onKeyDown={handleKeyDown}
+                                onPaste={handleBlockPaste}
+                                onMoveBlock={handleMoveBlock}
+                                onDragStart={handleBlockDragStart}
+                                onMenuOpen={handleBlockMenuOpen}
+                                onSelectionClick={() => { }}
+                                onSelectionMouseDown={handleSelectionMouseDown}
+                                onRegisterRef={handleRegisterRef}
+                            />
+                        );
+                    } else {
+                        const showChildren = node.children && node.children.length > 0;
+                        const relativeIndent = Math.max(0, (node.block.indent || 0) - (parentToggleIndent || 0));
+                        const isCollapsed = node.block.metadata?.isCollapsed;
+                        return (
+                            <div 
+                                key={node.block.id} 
+                                className={styles.toggleGroupContainer}
+                                style={{ marginLeft: `${relativeIndent * 24}px` }}
+                            >
+                                <BlockItem
+                                    key={node.block.id}
+                                    block={node.block}
+                                    index={node.listIndex}
+                                    hasChildren={node.hasChildren}
+                                    isSelected={selectedBlockIds.size > 1 && selectedBlockIds.has(node.block.id)}
+                                    readOnly={readOnly}
+                                    nodeId={nodeId}
+                                    hideBlockHandles={hideBlockHandles}
+                                    promoteBlockHandles={promoteBlockHandles}
+                                    disableMediaControls={disableMediaControls}
+                                    parentToggleIndent={node.block.indent || 0}
+                                    minimal={minimal}
+                                    onUpdateBlock={updateBlock}
+                                    onKeyDown={handleKeyDown}
+                                    onPaste={handleBlockPaste}
+                                    onMoveBlock={handleMoveBlock}
+                                    onDragStart={handleBlockDragStart}
+                                    onMenuOpen={handleBlockMenuOpen}
+                                    onSelectionClick={() => { }}
+                                    onSelectionMouseDown={handleSelectionMouseDown}
+                                    onRegisterRef={handleRegisterRef}
+                                />
+                                {showChildren && (
+                                    <motion.div 
+                                        className={styles.toggleChildrenContainer}
+                                        initial={{ height: isCollapsed ? 0 : 'auto', opacity: isCollapsed ? 0 : 1 }}
+                                        animate={{ 
+                                            height: isCollapsed ? 0 : 'auto', 
+                                            opacity: isCollapsed ? 0 : 1 
+                                        }}
+                                        transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                                        style={{ overflow: 'hidden' }}
+                                    >
+                                        {node.children.map(child => renderNode(child, node.block.indent || 0))}
+                                    </motion.div>
+                                )}
+                            </div>
+                        );
+                    }
+                };
+
+                const renderTree = buildRenderTree(visibleBlocks);
+                return renderTree.map(node => renderNode(node));
+            })()}
 
             {slashMenuState && (
                 <SlashMenu
                     anchorRect={slashMenuState.anchorRect}
                     filter={blocksRef.current.find(b => b.id === slashMenuState.blockId)?.content.substring(1) || ''}
                     onSelect={(type, meta) => convertBlock(undefined, type, meta, '')}
-                    onClose={() => setSlashMenuState(null)}
+                    onClose={() => {
+                        const targetId = slashMenuState.blockId;
+                        setSlashMenuState(null);
+                        
+                        setTimeout(() => {
+                            const el = blockRefs.current[targetId];
+                            if (el) {
+                                el.focus();
+                                
+                                try {
+                                    const selection = window.getSelection();
+                                    const range = document.createRange();
+                                    range.selectNodeContents(el);
+                                    range.collapse(false);
+                                    selection?.removeAllRanges();
+                                    selection?.addRange(range);
+                                } catch (err) {
+                                    console.warn('Error restoring selection:', err);
+                                }
+                            }
+                        }, 50);
+                    }}
                 />
             )}
 

@@ -1,0 +1,640 @@
+.container {
+    position: relative;
+    width: 100%;
+    margin: 8px 0;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+}
+
+/* Bookmark Mode */
+.bookmarkCard {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    min-height: 112px;
+    max-height: 140px;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    user-select: none;
+    text-decoration: none;
+}
+
+:global(.light-theme) .bookmarkCard {
+    background: rgba(0, 0, 0, 0.02);
+    border-color: rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.bookmarkCard:hover {
+    transform: translateY(-2px);
+    border-color: var(--color-primary, #6366f1);
+    box-shadow: 0 6px 24px rgba(99, 102, 241, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+:global(.light-theme) .bookmarkCard:hover {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.bookmarkCard:active {
+    transform: translateY(0) scale(0.995);
+}
+
+.bookmarkInfo {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: 16px;
+    min-width: 0; /* Ensures text truncates properly */
+    justify-content: space-between;
+}
+
+.bookmarkTitle {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text, #ffffff);
+    margin: 0 0 6px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+    transition: color 0.15s ease;
+}
+
+:global(.light-theme) .bookmarkTitle {
+    color: #111827;
+}
+
+.bookmarkDesc {
+    font-size: 12px;
+    color: var(--color-text-secondary, #9ca3af);
+    margin: 0 0 10px 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.5;
+}
+
+:global(.light-theme) .bookmarkDesc {
+    color: #4b5563;
+}
+
+.bookmarkMeta {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    margin-top: auto;
+}
+
+.bookmarkFavicon {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    object-fit: contain;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 1px;
+}
+
+:global(.light-theme) .bookmarkFavicon {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.bookmarkDomain {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-text-secondary, #9ca3af);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bookmarkImageContainer {
+    width: 200px;
+    min-width: 140px;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    position: relative;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+:global(.light-theme) .bookmarkImageContainer {
+    border-left-color: rgba(0, 0, 0, 0.08);
+    background: rgba(0, 0, 0, 0.01);
+}
+
+.bookmarkImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.bookmarkCard:hover .bookmarkImage {
+    transform: scale(1.05);
+}
+
+@media (max-width: 480px) {
+    .bookmarkImageContainer {
+        display: none;
+    }
+}
+
+/* Skeleton Loading State */
+.skeletonCard {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    height: 116px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+:global(.light-theme) .skeletonCard {
+    background: rgba(0, 0, 0, 0.01);
+    border-color: rgba(0, 0, 0, 0.06);
+}
+
+.skeletonInfo {
+    flex: 1;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.shimmer {
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.05) 50%,
+        rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer-anim 1.5s infinite;
+}
+
+:global(.light-theme) .shimmer {
+    background: linear-gradient(
+        90deg,
+        rgba(0, 0, 0, 0) 0%,
+        rgba(0, 0, 0, 0.03) 50%,
+        rgba(0, 0, 0, 0) 100%
+    );
+    background-size: 200% 100%;
+}
+
+@keyframes shimmer-anim {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeletonTitle {
+    height: 16px;
+    width: 60%;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+:global(.light-theme) .skeletonTitle {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.skeletonDesc {
+    height: 12px;
+    width: 85%;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+:global(.light-theme) .skeletonDesc {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.skeletonDesc2 {
+    height: 12px;
+    width: 45%;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+:global(.light-theme) .skeletonDesc2 {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.skeletonMeta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.skeletonFavicon {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+:global(.light-theme) .skeletonFavicon {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.skeletonDomain {
+    height: 10px;
+    width: 80px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+:global(.light-theme) .skeletonDomain {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.skeletonImage {
+    width: 160px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+:global(.light-theme) .skeletonImage {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+
+/* Embed Mode */
+.embedContainer {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+}
+
+:global(.light-theme) .embedContainer {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+.embedHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+:global(.light-theme) .embedHeader {
+    background: rgba(0, 0, 0, 0.01);
+    border-bottom-color: rgba(0, 0, 0, 0.05);
+}
+
+.embedTitle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-secondary, #9ca3af);
+    letter-spacing: 0.05em;
+}
+
+.embedContent {
+    position: relative;
+    width: 100%;
+    height: 0;
+    padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+}
+
+/* PDF embeds should have a different ratio */
+.pdfContent {
+    padding-bottom: 75% !important; /* 4:3 Aspect Ratio for PDFs */
+}
+
+.embedIframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #000;
+    color-scheme: dark;
+}
+
+:global(.light-theme) .embedIframe {
+    background: #fff;
+    color-scheme: light;
+}
+
+/* Fallback embed style */
+.embedFallback {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    text-align: center;
+    background: rgba(239, 68, 68, 0.05);
+    border: 1px dashed rgba(239, 68, 68, 0.2);
+    border-radius: 12px;
+}
+
+.embedFallbackTitle {
+    font-weight: 600;
+    color: #ef4444;
+    font-size: 14px;
+}
+
+.embedFallbackText {
+    font-size: 12px;
+    color: var(--color-text-secondary, #9ca3af);
+    max-width: 280px;
+}
+
+
+/* Text Link Mode */
+.textLinkWrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    color: var(--color-primary, #6366f1);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.textLinkWrapper:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+}
+
+.textLinkLabel {
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    padding: 0;
+    margin: 0;
+    outline: none;
+    cursor: pointer;
+    min-width: 40px;
+}
+
+.textLinkIcon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+
+/* Floating Action Menu Controls */
+.floatingControls {
+    position: absolute;
+    top: -16px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(4px);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 50;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+:global(.light-theme) .floatingControls {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.floatingControls::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    height: 24px; /* Bridges the hover gap perfectly! */
+    background: transparent;
+    pointer-events: auto;
+}
+
+.container:hover .floatingControls {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+/* Also show controls if any dropdown/menu is active */
+.containerHasActiveMenu .floatingControls {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: translateY(0) !important;
+}
+
+.controlBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: #9ca3af;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.controlBtn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--color-text, #ffffff);
+}
+
+:global(.light-theme) .controlBtn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: #111827;
+}
+
+.controlBtnActive {
+    color: var(--color-primary, #6366f1) !important;
+    background: rgba(99, 102, 241, 0.1) !important;
+}
+
+
+/* Dropdown Menu styling */
+.dropdownMenu {
+    position: absolute;
+    top: 24px;
+    right: 8px;
+    width: 160px;
+    background: rgba(15, 23, 42, 0.9);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+    z-index: 60;
+    animation: menu-pop 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform-origin: top right;
+}
+
+:global(.light-theme) .dropdownMenu {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(0, 0, 0, 0.08);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes menu-pop {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.dropdownItem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #9ca3af;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.12s ease;
+}
+
+.dropdownItem:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--color-text, #ffffff);
+}
+
+:global(.light-theme) .dropdownItem:hover {
+    background: rgba(0, 0, 0, 0.03);
+    color: #111827;
+}
+
+.dropdownItemActive {
+    color: var(--color-primary, #6366f1) !important;
+    background: rgba(99, 102, 241, 0.06) !important;
+}
+
+.dropdownSeparator {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.06);
+    margin: 4px 0;
+}
+
+:global(.light-theme) .dropdownSeparator {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Empty Input State Styling */
+.inputContainer {
+    width: 100%;
+    margin: 8px 0;
+}
+
+.inputWrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(12px);
+    border: 1.5px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+
+:global(.light-theme) .inputWrapper {
+    background: rgba(0, 0, 0, 0.01);
+    border-color: rgba(0, 0, 0, 0.15);
+}
+
+.inputWrapper:focus-within {
+    border-style: solid;
+    border-color: var(--color-primary, #6366f1);
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+:global(.light-theme) .inputWrapper:focus-within {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.inputIcon {
+    color: #9ca3af;
+    flex-shrink: 0;
+}
+
+.inputField {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--color-text, #ffffff);
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+}
+
+:global(.light-theme) .inputField {
+    color: #111827;
+}
+
+.inputField::placeholder {
+    color: rgba(255, 255, 255, 0.35);
+}
+
+:global(.light-theme) .inputField::placeholder {
+    color: rgba(0, 0, 0, 0.4);
+}
+

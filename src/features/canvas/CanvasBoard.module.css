@@ -32,6 +32,34 @@
     gap: 12px;
 }
 
+/* Top Right Toolbar */
+.topRightToolbar {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: var(--glass-shadow);
+
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.topRightSeparator {
+    width: 1px;
+    height: 20px;
+    background: var(--color-border);
+    opacity: 0.4;
+    margin: 0 2px;
+}
+
 /* Canvas Area */
 .canvasArea {
     flex: 1;
@@ -151,4 +179,39 @@
 
 .canvasControls button:hover {
     background: var(--glass-bg-hover) !important;
+}
+
+.canvasControls button svg {
+    fill: var(--color-text-main) !important;
+}
+
+/* Toolbar Button */
+.toolbarBtn {
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    color: var(--color-text-main);
+}
+
+.toolbarBtn:hover {
+    background: var(--glass-bg-hover);
+    color: var(--color-primary);
+    transform: translateY(-1px);
+}
+
+.toolbarBtnActive {
+    background: var(--color-primary-glow) !important;
+    color: var(--color-primary) !important;
+    border: 1px solid rgba(139, 92, 246, 0.2) !important;
+}
+
+.toolbarBtn:active {
+    transform: translateY(0);
 }

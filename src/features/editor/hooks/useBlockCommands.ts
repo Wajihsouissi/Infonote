@@ -40,7 +40,10 @@ export function useBlockCommands({
             const count = initialMetadata?.count || 2;
             newBlock.metadata = {
                 ...initialMetadata,
-                columns: Array.from({ length: count }).map(() => ({ id: uuidv4(), content: [] }))
+                columns: Array.from({ length: count }).map(() => ({ 
+                    id: uuidv4(), 
+                    content: [{ id: uuidv4(), type: 'text', content: '' }] 
+                }))
             };
         }
 
@@ -199,6 +202,27 @@ export function useBlockCommands({
         const firstBlock = parsedBlocks[0];
         const remainingBlocks = parsedBlocks.slice(1);
 
+        // Check if the current block where paste happened is empty
+        const currentBlock = blocksRef.current.find(b => b.id === blockId);
+        const isCurrentBlockEmpty = currentBlock && currentBlock.type === 'text' && !currentBlock.content.trim();
+
+        // Empty Block URL Upgrade: replace empty block with first link block
+        if (firstBlock.type === 'link' && isCurrentBlockEmpty) {
+            setBlocks(prev => {
+                const index = prev.findIndex(b => b.id === blockId);
+                if (index === -1) return prev;
+                const newBlocks = [...prev];
+                newBlocks[index] = firstBlock;
+                if (remainingBlocks.length > 0) {
+                    newBlocks.splice(index + 1, 0, ...remainingBlocks);
+                }
+                debouncedOnUpdate(newBlocks);
+                return newBlocks;
+            });
+            setFocusId(firstBlock.id);
+            return;
+        }
+
         if (firstBlock.type === 'text') {
             if (firstBlock.content) document.execCommand('insertText', false, firstBlock.content);
         } else {
@@ -215,7 +239,7 @@ export function useBlockCommands({
                 return newBlocks;
             });
         }
-    }, [debouncedOnUpdate, setBlocks]);
+    }, [debouncedOnUpdate, setBlocks, blocksRef, setFocusId]);
 
     // Batch operations
 

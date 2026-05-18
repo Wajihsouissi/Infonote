@@ -796,38 +796,136 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         if (DEBUG) console.log("[hydrateCanvas] Found orphans:", orphanBlocks.length);
 
-        // Build sections from orphans, split by headings and dividers
+        // Build sections from orphans using a smart semantic hierarchical system.
+        // H1 and explicit splits create new documents/cards.
+        // H2, H3, paragraphs, separators, lists, quotes, tables, etc., are owned by and grouped under their preceding H1/heading.
         const orphanIdSet = new Set(orphanBlocks.map(b => b.id));
-        const isSectionBoundary = (b: any) =>
-            b.type === 'heading1' ||
-            b.type === 'heading2' ||
-            b.type === 'heading3' ||
-            b.type === 'divider';
+        const orphanBlocksOrdered = parentContent.filter(b => orphanIdSet.has(b.id));
 
-        const sections: any[][] = [];
-        let currentSection: any[] = [];
+        interface TreeNode {
+            type: 'document' | 'section' | 'block';
+            block?: any;
+            level?: number;
+            title?: string;
+            children: TreeNode[];
+        }
 
-        parentContent.forEach((block: any) => {
-            if (!orphanIdSet.has(block.id)) {
-                return;
-            }
+        const buildHierarchy = (blocksList: any[]): TreeNode => {
+            const rootNode: TreeNode = { type: 'document', children: [] };
+            const stackNode: TreeNode[] = [rootNode];
 
-            if (isSectionBoundary(block)) {
-                if (currentSection.length > 0) {
-                    sections.push(currentSection);
-                }
-                currentSection = [block];
-            } else {
-                if (currentSection.length === 0) {
-                    currentSection = [block];
+            blocksList.forEach(block => {
+                let level = 0;
+                if (block.type === 'heading1') level = 1;
+                else if (block.type === 'heading2') level = 2;
+                else if (block.type === 'heading3') level = 3;
+
+                if (level > 0) {
+                    const newSection: TreeNode = {
+                        type: 'section',
+                        level,
+                        title: block.content,
+                        block,
+                        children: []
+                    };
+
+                    while (stackNode.length > 1) {
+                        const top = stackNode[stackNode.length - 1];
+                        if (top.type === 'section' && top.level! < level) {
+                            break;
+                        }
+                        stackNode.pop();
+                    }
+
+                    stackNode[stackNode.length - 1].children.push(newSection);
+                    stackNode.push(newSection);
                 } else {
-                    currentSection.push(block);
+                    const newBlock: TreeNode = {
+                        type: 'block',
+                        block,
+                        children: []
+                    };
+                    stackNode[stackNode.length - 1].children.push(newBlock);
                 }
+            });
+
+            return rootNode;
+        };
+
+        const getFlatBlocks = (node: TreeNode, targetList: any[]) => {
+            if (node.block) {
+                targetList.push(node.block);
+            }
+            node.children.forEach(child => getFlatBlocks(child, targetList));
+        };
+
+        const hierarchyRoot = buildHierarchy(orphanBlocksOrdered);
+        const sections: any[][] = [];
+        let currentCardBlocks: any[] = [];
+
+        hierarchyRoot.children.forEach(child => {
+            if (child.type === 'block') {
+                const isDividerSplit = 
+                    child.block.type === 'divider' && 
+                    (child.block.metadata?.split === true || 
+                     child.block.metadata?.forceSplit === true || 
+                     child.block.metadata?.semantic === 'split');
+                     
+                if (isDividerSplit) {
+                    if (currentCardBlocks.length > 0) {
+                        sections.push(currentCardBlocks);
+                    }
+                    currentCardBlocks = [child.block];
+                } else {
+                    currentCardBlocks.push(child.block);
+                }
+            } else {
+                if (currentCardBlocks.length > 0) {
+                    sections.push(currentCardBlocks);
+                    currentCardBlocks = [];
+                }
+
+                const sectionBlocks: any[] = [];
+                getFlatBlocks(child, sectionBlocks);
+
+                let subSections: any[][] = [];
+                let currentSubSection: any[] = [];
+
+                sectionBlocks.forEach(block => {
+                    let splitHere = false;
+
+                    if (block.type === 'divider') {
+                        const hasExplicitSplit = 
+                            block.metadata?.split === true || 
+                            block.metadata?.forceSplit === true || 
+                            block.metadata?.semantic === 'split';
+                        if (hasExplicitSplit) {
+                            splitHere = true;
+                        }
+                    } else if ((block.type === 'heading2' || block.type === 'heading3') && currentSubSection.length >= 20) {
+                        splitHere = true;
+                    }
+
+                    if (splitHere) {
+                        if (currentSubSection.length > 0) {
+                            subSections.push(currentSubSection);
+                        }
+                        currentSubSection = [block];
+                    } else {
+                        currentSubSection.push(block);
+                    }
+                });
+
+                if (currentSubSection.length > 0) {
+                    subSections.push(currentSubSection);
+                }
+
+                sections.push(...subSections);
             }
         });
 
-        if (currentSection.length > 0) {
-            sections.push(currentSection);
+        if (currentCardBlocks.length > 0) {
+            sections.push(currentCardBlocks);
         }
 
         if (sections.length === 0) {

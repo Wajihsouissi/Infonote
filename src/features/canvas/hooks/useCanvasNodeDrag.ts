@@ -6,7 +6,6 @@ import type { AppNode } from '../../../types';
 interface UseCanvasNodeDragOptions {
     nodes: AppNode[];
     currentParentId: string | null;
-    interactionState: any;
     setInteractionState: (state: any) => void;
     setNodes: (updater: (nodes: AppNode[]) => AppNode[]) => void;
     updateNodeData: (id: string, data: any) => void;
@@ -21,20 +20,28 @@ interface UseCanvasNodeDragOptions {
 export function useCanvasNodeDrag({
     nodes,
     currentParentId,
-    interactionState,
     setInteractionState,
     setNodes,
     updateNodeData,
     syncParentContent,
     selectedCanvasNodeIds,
 }: UseCanvasNodeDragOptions) {
-    const { screenToFlowPosition, getIntersectingNodes, getNode } = useReactFlow();
+    const { screenToFlowPosition, getIntersectingNodes, getNode, getViewport } = useReactFlow();
 
-    // Throttling Ref
+    // Throttling and state Refs
     const lastDragCheck = useRef(0);
+    const lastHighlightedBlockRef = useRef<HTMLElement | null>(null);
+    const activeDropTargetRef = useRef<any>(null);
+    const activeKanbanColumnRef = useRef<any>(null);
 
     const onNodeDragStart = useCallback((_event: React.MouseEvent, node: any) => {
         setInteractionState({ draggedNodeId: node.id });
+        activeDropTargetRef.current = null;
+        activeKanbanColumnRef.current = null;
+        if (lastHighlightedBlockRef.current) {
+            lastHighlightedBlockRef.current.removeAttribute('data-external-drop-target');
+            lastHighlightedBlockRef.current = null;
+        }
 
         // Collect IDs to boost: primary node + any selected nodes
         const idsToBoost = new Set(selectedCanvasNodeIds);
@@ -62,8 +69,17 @@ export function useCanvasNodeDrag({
         }
         lastDragCheck.current = now;
 
+        const { zoom } = getViewport();
+        // Constant 16px screen-space hover checking size, scaled to flow space
+        const checkSize = Math.max(2, 16 / zoom);
+
         const mousePos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-        const mouseRect = { x: mousePos.x - 1, y: mousePos.y - 1, width: 2, height: 2 };
+        const mouseRect = { 
+            x: mousePos.x - checkSize / 2, 
+            y: mousePos.y - checkSize / 2, 
+            width: checkSize, 
+            height: checkSize 
+        };
         const intersections = getIntersectingNodes(mouseRect as any);
 
         const targetKanban = intersections.find(n => n.type === 'kanban');
@@ -97,15 +113,20 @@ export function useCanvasNodeDrag({
                     type: 'kanban-column'
                 };
 
+                const lastKanbanCol = activeKanbanColumnRef.current;
                 if (
-                    interactionState.hoveredKanbanColumn?.kanbanId !== targetKanban.id ||
-                    interactionState.hoveredKanbanColumn?.columnId !== targetCol.statusValue
+                    lastKanbanCol?.kanbanId !== targetKanban.id ||
+                    lastKanbanCol?.columnId !== targetCol.statusValue
                 ) {
+                    const nextKanbanCol = {
+                        kanbanId: targetKanban.id,
+                        columnId: targetCol.statusValue
+                    };
+                    activeKanbanColumnRef.current = nextKanbanCol;
+                    activeDropTargetRef.current = newDropTarget;
+
                     setInteractionState({
-                        hoveredKanbanColumn: {
-                            kanbanId: targetKanban.id,
-                            columnId: targetCol.statusValue
-                        },
+                        hoveredKanbanColumn: nextKanbanCol,
                         dropTarget: newDropTarget
                     });
                 }
@@ -114,7 +135,8 @@ export function useCanvasNodeDrag({
         }
 
         // Clear Kanban hover if not hovering kanban anymore
-        if (!targetKanban && interactionState.hoveredKanbanColumn) {
+        if (!targetKanban && activeKanbanColumnRef.current) {
+            activeKanbanColumnRef.current = null;
             setInteractionState({ hoveredKanbanColumn: null });
         }
 
@@ -135,32 +157,44 @@ export function useCanvasNodeDrag({
             }
 
             // Visual indicator logic
-            document.querySelectorAll('[data-external-drop-target]').forEach(el => {
-                (el as HTMLElement).removeAttribute('data-external-drop-target');
-            });
-
             if (newDropTarget && (newDropTarget.type === 'fusion' || newDropTarget.type === 'nesting')) {
                 const elementsUnderCursor = document.elementsFromPoint(event.clientX, event.clientY);
-                const blockElement = elementsUnderCursor.find(el => el.id && el.id.startsWith('block-'));
+                const blockElement = elementsUnderCursor.find(el => el.id && el.id.startsWith('block-')) as HTMLElement | undefined;
 
                 if (blockElement) {
                     const rect = blockElement.getBoundingClientRect();
                     const midY = rect.top + (rect.height / 2);
                     const position = event.clientY < midY ? 'top' : 'bottom';
+                    
+                    if (lastHighlightedBlockRef.current && lastHighlightedBlockRef.current !== blockElement) {
+                        lastHighlightedBlockRef.current.removeAttribute('data-external-drop-target');
+                    }
+                    
                     blockElement.setAttribute('data-external-drop-target', position);
+                    lastHighlightedBlockRef.current = blockElement;
+                } else if (lastHighlightedBlockRef.current) {
+                    lastHighlightedBlockRef.current.removeAttribute('data-external-drop-target');
+                    lastHighlightedBlockRef.current = null;
                 }
+            } else if (lastHighlightedBlockRef.current) {
+                lastHighlightedBlockRef.current.removeAttribute('data-external-drop-target');
+                lastHighlightedBlockRef.current = null;
             }
+        } else if (lastHighlightedBlockRef.current) {
+            lastHighlightedBlockRef.current.removeAttribute('data-external-drop-target');
+            lastHighlightedBlockRef.current = null;
         }
 
-        if (interactionState.dropTarget?.id !== newDropTarget?.id ||
-            interactionState.dropTarget?.type !== newDropTarget?.type) {
+        const lastDropTarget = activeDropTargetRef.current;
+        if (lastDropTarget?.id !== newDropTarget?.id ||
+            lastDropTarget?.type !== newDropTarget?.type) {
+            activeDropTargetRef.current = newDropTarget;
             setInteractionState({ dropTarget: newDropTarget });
         }
-    }, [getIntersectingNodes, interactionState.hoveredKanbanColumn, interactionState.dropTarget,
-        setInteractionState, screenToFlowPosition]);
+    }, [getIntersectingNodes, setInteractionState, screenToFlowPosition, getViewport]);
 
     const onNodeDragStop = useCallback((event: React.MouseEvent, node: any) => {
-        const hoveredColumn = interactionState.hoveredKanbanColumn;
+        const hoveredColumn = activeKanbanColumnRef.current;
         const isMultiDrag = selectedCanvasNodeIds.size > 1 && selectedCanvasNodeIds.has(node.id);
 
         // Clear interaction states
@@ -170,7 +204,14 @@ export function useCanvasNodeDrag({
             dropTarget: null
         });
 
+        activeDropTargetRef.current = null;
+        activeKanbanColumnRef.current = null;
+
         // Cleanup visual indicators
+        if (lastHighlightedBlockRef.current) {
+            lastHighlightedBlockRef.current.removeAttribute('data-external-drop-target');
+            lastHighlightedBlockRef.current = null;
+        }
         document.querySelectorAll('[data-external-drop-target]').forEach(el => {
             (el as HTMLElement).removeAttribute('data-external-drop-target');
         });
@@ -202,8 +243,17 @@ export function useCanvasNodeDrag({
             return;
         }
 
+        const { zoom } = getViewport();
+        // Constant 16px screen-space hover checking size, scaled to flow space
+        const checkSize = Math.max(2, 16 / zoom);
+
         const mousePos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-        const mouseRect = { x: mousePos.x - 1, y: mousePos.y - 1, width: 2, height: 2 };
+        const mouseRect = { 
+            x: mousePos.x - checkSize / 2, 
+            y: mousePos.y - checkSize / 2, 
+            width: checkSize, 
+            height: checkSize 
+        };
         const intersections = getIntersectingNodes(mouseRect as any);
         const targetNode = intersections.find(n => n.id !== node.id && n.id !== currentParentId);
 
@@ -214,8 +264,8 @@ export function useCanvasNodeDrag({
             if (parentNode) {
                 // Preserve raw decimal coordinates; child relative -> absolute
                 const absPos = {
-                    x: parentNode.position.x + node.position.x,
-                    y: parentNode.position.y + node.position.y
+                    x: node.positionAbsolute?.x ?? (parentNode.position.x + node.position.x),
+                    y: node.positionAbsolute?.y ?? (parentNode.position.y + node.position.y)
                 };
 
                 setNodes(nds => nds.map(n => {
@@ -342,7 +392,7 @@ export function useCanvasNodeDrag({
             syncParentContent(currentParentId);
         }
     }, [getIntersectingNodes, setNodes, updateNodeData, getNode, nodes, currentParentId,
-        syncParentContent, screenToFlowPosition, interactionState.hoveredKanbanColumn, setInteractionState, selectedCanvasNodeIds]);
+        syncParentContent, screenToFlowPosition, setInteractionState, selectedCanvasNodeIds, getViewport]);
 
     return {
         onNodeDragStart,

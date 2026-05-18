@@ -6,6 +6,7 @@ import {
     TableBlock
 } from './BlockComponents';
 import { ColorBlock } from './ColorBlock';
+import { LinkBlock } from './LinkBlock';
 import type { Block } from './types';
 
 interface BlockItemProps {
@@ -16,6 +17,7 @@ interface BlockItemProps {
     hideBlockHandles?: boolean;
     promoteBlockHandles?: boolean;
     disableMediaControls?: boolean;
+    parentToggleIndent?: number;
 
     // Stable Handlers
     onUpdateBlock: (id: string, content: string, metadata?: any) => void;
@@ -33,6 +35,8 @@ interface BlockItemProps {
 
     // Ref Registration
     onRegisterRef: (id: string, el: HTMLDivElement | null) => void;
+    hasChildren?: boolean;
+    minimal?: boolean;
 }
 
 export const BlockItem = memo(function BlockItem({
@@ -43,6 +47,7 @@ export const BlockItem = memo(function BlockItem({
     hideBlockHandles,
     promoteBlockHandles,
     disableMediaControls,
+    parentToggleIndent,
     onUpdateBlock,
     onKeyDown,
     onPaste,
@@ -52,7 +57,9 @@ export const BlockItem = memo(function BlockItem({
     // onSelectionClick, // not used in implementation
     onSelectionMouseDown,
     onRegisterRef,
-    index // New Prop
+    index, // New Prop
+    hasChildren,
+    minimal
 }: BlockItemProps & { index?: number }) {
 
     // Memoized wrapper handlers
@@ -66,7 +73,10 @@ export const BlockItem = memo(function BlockItem({
     }, [block.id, onUpdateBlock]);
 
     const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-        onKeyDown(e, block.id, block.content);
+        // Read live DOM text instead of potentially stale React state
+        const target = e.target as HTMLElement;
+        const liveContent = target.isContentEditable ? target.innerText : block.content;
+        onKeyDown(e, block.id, liveContent);
     }, [block.id, block.content, onKeyDown]);
 
     const handlePaste = useCallback((e: React.ClipboardEvent) => {
@@ -86,7 +96,9 @@ export const BlockItem = memo(function BlockItem({
             onPaste: handlePaste,
             disableMediaControls,
             domRef: handleRegisterRef,
-            index // Pass to children (ListBlock needs it)
+            index, // Pass to children (ListBlock needs it)
+            hasChildren, // Pass to children
+            minimal
         };
 
         switch (block.type) {
@@ -103,12 +115,23 @@ export const BlockItem = memo(function BlockItem({
             case 'callout': return <CalloutBlock {...props} />;
             case 'page': return <PageBlock {...props} />;
             case 'container': return <ContainerBlock block={block} onUpdate={(data: Partial<Block>) => onUpdateBlock(block.id, data as any)} readOnly={readOnly} />;
-            case 'columns': return <ColumnsBlock block={block} onUpdate={(data: Partial<Block>) => onUpdateBlock(block.id, data as any)} readOnly={readOnly} nodeId={nodeId} />;
+            case 'columns': return (
+                <ColumnsBlock 
+                    block={block} 
+                    onUpdate={(data: Partial<Block>) => onUpdateBlock(block.id, data as any)} 
+                    readOnly={readOnly} 
+                    nodeId={nodeId} 
+                    hideBlockHandles={hideBlockHandles}
+                    promoteBlockHandles={promoteBlockHandles}
+                    disableMediaControls={disableMediaControls}
+                />
+            );
             case 'table': return <TableBlock {...props} />;
             case 'divider': return <DividerBlock />;
             case 'file': return <FileBlock {...props} />;
             case 'code': return <CodeBlock {...props} />;
             case 'color': return <ColorBlock {...props} />;
+            case 'link': return <LinkBlock {...props} />;
             default: return <TextBlock {...props} />;
         }
     };
@@ -124,7 +147,7 @@ export const BlockItem = memo(function BlockItem({
             onDragStart={onDragStart}
             onMenuOpen={onMenuOpen}
             onMouseDown={handleWrapperMouseDown}
-            style={{ paddingLeft: `${(block.indent || 0) * 24}px` }}
+            style={{ paddingLeft: `${Math.max(0, ((block.indent || 0) - (parentToggleIndent || 0)) * 24)}px` }}
             hideHandle={hideBlockHandles}
             promoteBlockHandles={promoteBlockHandles}
         >

@@ -77,21 +77,24 @@
     border-radius: 10px;
     cursor: pointer;
     text-align: left;
-    transition: background-color 0.15s, transform 0.15s;
+    transition: background-color 0.15s ease, transform 0.15s ease, border-left-color 0.15s ease;
     width: 100%;
+    border-left: 3px solid transparent;
 }
 
-.menuItem:hover,
-.menuItem.selected {
-    background: rgba(255, 255, 255, 0.08);
+.menuItem:hover {
+    background: rgba(255, 255, 255, 0.04);
+    transform: translateX(2px);
 }
 
 .menuItem.selected {
     background: rgba(139, 92, 246, 0.12);
+    border-left-color: var(--color-primary);
+    transform: translateX(4px);
 }
 
 .menuItem:active {
-    transform: scale(0.97);
+    transform: scale(0.97) translateX(4px);
 }
 
 .itemIcon {

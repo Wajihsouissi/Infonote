@@ -20,7 +20,14 @@ export function Breadcrumbs() {
                             onClick={() => !isLast && navigateToNode(crumb.id)}
                             disabled={isLast}
                         >
-                            {index === 0 ? <Home size={14} /> : crumb.label}
+                            {index === 0 ? (
+                                <Home size={14} />
+                            ) : (
+                                <>
+                                    <span>{crumb.label}</span>
+                                    <span className={styles.levelBadge}>{index + 1}</span>
+                                </>
+                            )}
                         </button>
                     </div>
                 );

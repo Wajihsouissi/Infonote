@@ -356,3 +356,118 @@
   font-size: 14.5px;
   line-height: 1.6;
 }
+
+/* =====================================================
+   RESPONSIVE DESIGN — MARKETPLACE
+   ===================================================== */
+@media (max-width: 768px) {
+  .header {
+    padding: 0 16px;
+  }
+
+  .headerLeft {
+    gap: 12px;
+  }
+
+  .backButton {
+    padding: 6px 10px;
+  }
+
+  .backButton span {
+    display: none; /* Hide the text "Dashboard" on mobile to save space */
+  }
+
+  .title h1 {
+    font-size: 18px;
+  }
+
+  .searchBar {
+    width: 140px; /* shrink search bar on mobile */
+    padding: 6px 10px;
+  }
+
+  .searchBar input {
+    font-size: 12.5px;
+  }
+
+  /* ── Content Layout ── */
+  .content {
+    flex-direction: column;
+    padding: 16px;
+    gap: 20px;
+    overflow-y: auto;
+  }
+
+  /* Horizontal Category List for Mobile */
+  .sidebar {
+    width: 100%;
+    gap: 16px;
+  }
+
+  .sidebarSection h3 {
+    padding: 0;
+    font-size: 10px;
+  }
+
+  .sidebarSection ul {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 8px;
+    padding-bottom: 8px;
+    -ms-overflow-style: none; /* IE/Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .sidebarSection ul::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+
+  .sidebar li {
+    white-space: nowrap;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  /* Hide filter section on mobile to declutter */
+  .sidebarSection:last-child {
+    display: none;
+  }
+
+  .mainGrid {
+    padding-right: 0;
+    gap: 16px;
+  }
+
+  .toolbar {
+    padding-bottom: 12px;
+  }
+
+  .toolbar span {
+    font-size: 11px;
+  }
+
+  .placeholder {
+    padding: 40px 20px;
+    min-height: 280px;
+  }
+
+  .placeholderIcon {
+    width: 72px;
+    height: 72px;
+    margin-bottom: 16px;
+  }
+
+  .placeholderIcon svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  .placeholder h2 {
+    font-size: 20px;
+  }
+
+  .placeholder p {
+    font-size: 13px;
+    max-width: 300px;
+  }
+}

@@ -66,14 +66,8 @@
     cursor: grab;
     color: var(--color-text-muted);
     opacity: 0;
-    /* By default hidden, revealed on wrapper hover. 
-       If user wants them to be seen, we rely on the wrapper hover. 
-       Let's ensure the wrapper hover works. 
-       
-       Wait, if the user said "i cant see", maybe they want them always visible?
-       Let's try keeping them hidden by default but ensure the hover works perfect.
-    */
-    transition: opacity 0.2s ease, background 0.2s;
+    transform: scale(0.85);
+    transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s;
     border-radius: 4px;
 
     display: flex;
@@ -81,10 +75,10 @@
     justify-content: center;
 }
 
-/* Force visible on hover of wrapper */
+/* Force visible and scale to 1 on hover of wrapper */
 .sortableWrapper:hover .dragHandle {
-    opacity: 1 !important;
-    /* Make it fully opaque on hover */
+    opacity: 0.65 !important;
+    transform: scale(1) !important;
 }
 
 /* Hide internal handles in minimal mode to prevent clutter with node handles */
@@ -108,14 +102,9 @@
     /* Slight offset compensation if needed, but inset shadow doesn't take space */
 }
 
-.sortableWrapper:hover .dragHandle {
-    opacity: 0.5;
-}
-
 .dragHandle:hover {
     opacity: 1 !important;
-    background: rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.1) !important;
     border-radius: 4px;
 }
 
@@ -159,19 +148,32 @@
 .block:empty:before {
     content: attr(data-placeholder);
     color: var(--color-text-muted);
-    opacity: 0.5;
+    opacity: 0;
     pointer-events: none;
-    /* Ensure placeholder is vertically centered in the new flex layout if needed */
     display: block;
+    transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ... */
+/* Smart Placeholder: Keep all empty placeholders completely hidden by default */
+.block:empty:not(:focus):before {
+    opacity: 0 !important;
+}
+
+/* Standalone blocks on the canvas (inside minimal editors) should always show their empty placeholder, even when unfocused! */
+.minimal .block:empty:not(:focus):before {
+    opacity: 0.35 !important;
+}
+
+/* Always show placeholder only when the block is actively focused */
+.block:empty:focus:before {
+    opacity: 0.35 !important;
+}
 
 .text {
     font-size: 0.95rem;
-    line-height: 1.7;
-    /* Increased line height for better readability */
-    min-height: 28px;
+    line-height: 1.55;
+    /* Balanced line height for density and readability */
+    min-height: 24px;
     display: flex;
     align-items: center;
     flex-grow: 1;
@@ -179,28 +181,31 @@
 }
 
 .heading1 {
-    font-size: 1.8rem;
+    font-size: 1.85rem;
     font-weight: 700;
-    margin-top: 1.5rem;
-    margin-bottom: 0.5rem;
+    margin-top: 1.1rem;
+    margin-bottom: 0.3rem;
     color: var(--color-text-main);
     letter-spacing: -0.02em;
+    line-height: 1.3;
 }
 
 .heading2 {
-    font-size: 1.4rem;
+    font-size: 1.45rem;
     font-weight: 600;
-    margin-top: 1.2rem;
-    margin-bottom: 0.4rem;
+    margin-top: 0.9rem;
+    margin-bottom: 0.2rem;
     color: var(--color-text-main);
+    line-height: 1.3;
 }
 
 .heading3 {
-    font-size: 1.15rem;
+    font-size: 1.2rem;
     font-weight: 600;
-    margin-top: 1rem;
-    margin-bottom: 0.3rem;
+    margin-top: 0.7rem;
+    margin-bottom: 0.15rem;
     color: var(--color-text-main);
+    line-height: 1.3;
 }
 
 .todoWrapper,
@@ -218,7 +223,7 @@
 .todo {
     flex-grow: 1;
     font-size: 0.95rem;
-    line-height: 1.7;
+    line-height: 1.5;
 }
 
 .quoteWrapper {
@@ -366,7 +371,21 @@
     border-bottom: 5px solid transparent;
     border-left: 8px solid var(--color-text-muted);
     cursor: pointer;
-    transition: transform 0.2s;
+    transition: transform 0.2s ease, border-left-color 0.2s;
+    flex-shrink: 0;
+}
+
+.toggleTriangle:hover {
+    border-left-color: var(--color-text-main);
+}
+
+.toggleTriangle.expanded {
+    transform: rotate(90deg);
+}
+
+.toggleTriangle.hasContent {
+    border-left-color: var(--color-primary);
+    filter: drop-shadow(0 0 2px var(--color-primary-glow));
 }
 
 /* Callout */
@@ -472,6 +491,82 @@
     text-transform: none;
     letter-spacing: 0.01em;
     color: var(--color-text-main);
+    padding-right: 28px;
+}
+
+.tableHeaderCellWrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.deleteColumnBtn {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    color: var(--color-text-muted);
+    background: rgba(15, 23, 42, 0.6);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, background-color 0.15s, color 0.15s;
+    z-index: 2;
+}
+
+.tableHeader:hover .deleteColumnBtn {
+    opacity: 0.65;
+}
+
+.deleteColumnBtn:hover {
+    opacity: 1 !important;
+    color: #f87171 !important; /* Soft premium red */
+    background: rgba(239, 68, 68, 0.15) !important;
+}
+
+.tableHeaderActionCell {
+    width: 36px;
+    background: rgba(255, 255, 255, 0.06);
+    border-bottom: 2px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+}
+
+.tableActionCell {
+    width: 36px;
+    text-align: center;
+    border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.06));
+    vertical-align: middle;
+}
+
+.deleteRowBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    color: var(--color-text-muted);
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, background-color 0.15s, color 0.15s;
+}
+
+.table tr:hover .deleteRowBtn {
+    opacity: 0.5;
+}
+
+.table tr:hover .deleteRowBtn:hover {
+    opacity: 1;
+    color: #f87171;
+    background: rgba(239, 68, 68, 0.12);
 }
 
 .tableControls {
@@ -519,50 +614,111 @@
     position: fixed;
     /* Must be fixed to float over everything */
     background: var(--glass-bg);
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--glass-border);
-    border-radius: 12px;
-    padding: 6px;
-    width: 260px;
-    max-height: 500px;
-    overflow-y: auto;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--glass-border);
+    border-radius: 14px;
+    padding: 8px;
+    width: 270px;
+    max-height: 380px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25), 0 0 0 1px var(--glass-border);
     z-index: 10000;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
+    overflow: hidden;
+}
+
+/* Scrollable items wrapper to keep search bar fixed */
+.slashMenuItemsList {
+    flex: 1;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 2px;
+    padding-right: 2px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
-/* Removed manual fadeIn keyframes in favor of Motion */
+/* Persistent Search Bar in Slash Menu */
+.slashMenuSearchWrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 2px 4px 6px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.slashSearchIcon {
+    position: absolute;
+    left: 12px;
+    color: var(--color-text-muted);
+    pointer-events: none;
+    opacity: 0.65;
+}
+
+.slashMenuInput {
+    width: 100%;
+    padding: 6px 10px 6px 26px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    outline: none;
+    color: var(--color-text-main);
+    font-size: 0.8rem;
+    font-family: inherit;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.slashMenuInput:focus {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.15);
+}
+
+.slashMenuEmpty {
+    padding: 16px;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    text-align: center;
+    font-style: italic;
+}
 
 .menuHeader {
-    padding: 8px 12px 4px;
-    font-size: 0.75rem;
+    padding: 4px 10px 6px;
+    font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--color-text-muted);
     font-weight: 600;
+    opacity: 0.8;
 }
 
 .slashMenuItem {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: var(--color-text-main);
-    transition: background-color 0.1s ease, color 0.1s ease;
+    transition: background-color 0.15s ease, transform 0.15s ease, color 0.15s ease, border-left-color 0.15s ease;
+    border-left: 3px solid transparent;
 }
 
-.slashMenuItem:hover,
+.slashMenuItem:hover {
+    background: rgba(255, 255, 255, 0.04);
+    transform: translateX(2px);
+}
+
 .slashMenuItem.selected {
-    background: var(--glass-bg-hover);
+    background: rgba(139, 92, 246, 0.12); /* Beautiful tinted light purple */
+    border-left-color: var(--color-primary);
     color: var(--color-text-main);
+    transform: translateX(4px);
 }
 
 .slashIcon {
@@ -571,15 +727,23 @@
     justify-content: center;
     width: 24px;
     height: 24px;
-    border-radius: 4px;
+    border-radius: 6px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--color-text-muted);
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.slashMenuItem:hover .slashIcon,
+.slashMenuItem:hover .slashIcon {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--color-text-main);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
 .slashMenuItem.selected .slashIcon {
-    background: var(--color-text-main);
-    color: var(--color-bg-base);
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--color-primary);
+    border-color: rgba(139, 92, 246, 0.35);
 }
 
 .dangerItem {
@@ -1290,4 +1454,55 @@
     background: var(--color-primary);
     color: white;
     border-color: var(--color-primary);
+}
+
+/* Toggle Group Container & Nested Children styling */
+.toggleGroupContainer {
+    display: flex;
+    flex-direction: column;
+    width: auto;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    padding: 8px 12px 8px 12px;
+    border-radius: 12px;
+    background: rgba(139, 92, 246, 0.03); /* Soft purple background aligned with theme */
+    border-left: 2.5px solid rgba(139, 92, 246, 0.18); /* Soft left border matching theme */
+    transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggleGroupContainer:hover {
+    background: rgba(139, 92, 246, 0.05);
+    border-left-color: rgba(139, 92, 246, 0.4);
+}
+
+/* Light mode overrides for toggle children background */
+:global([data-theme="light"]) .toggleGroupContainer {
+    background: rgba(124, 58, 237, 0.02);
+    border-left-color: rgba(124, 58, 237, 0.12);
+}
+
+:global([data-theme="light"]) .toggleGroupContainer:hover {
+    background: rgba(124, 58, 237, 0.04);
+    border-left-color: rgba(124, 58, 237, 0.3);
+}
+
+.toggleChildrenContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    margin-top: 6px;
+}
+
+/* Expand drop hit-test zone during dragging with zero layout shift */
+:global(body.infonote-block-dragging) .sortableWrapper::before,
+:global(body.infonote-node-dragging) .sortableWrapper::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    bottom: -8px;
+    left: 0;
+    right: 0;
+    z-index: 1; /* High enough to capture, but doesn't block text cursor when not dragging since it only exists during dragging */
+    pointer-events: auto;
 }

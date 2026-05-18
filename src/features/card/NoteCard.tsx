@@ -339,20 +339,6 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
       `}
             onDoubleClick={handleDoubleClick}
             onContextMenu={handleContextMenu}
-            onDragOver={(e) => {
-                // Only intercept in expanded mode where we have content to drop into
-                if (viewMode === 'expanded') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
-            }}
-            onDrop={(e) => {
-                // Only intercept in expanded mode
-                // The NoteExpandedContent/BlockEditor inside will handle its own drops
-                if (viewMode === 'expanded') {
-                    e.stopPropagation();
-                }
-            }}
             ref={cardRef}
             style={{
                 width: '100%',

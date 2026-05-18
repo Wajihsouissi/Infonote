@@ -10,6 +10,7 @@ interface DragAndDropProps {
     selectedBlockIds: Set<string>;
     nodeId?: string;
     addBlock: (afterId: string, type: BlockType, indent?: number, metadata?: any) => void;
+    editorId: string; // Unique ID for this editor instance
 }
 
 export function useBlockDragAndDrop({
@@ -18,7 +19,8 @@ export function useBlockDragAndDrop({
     debouncedOnUpdate,
     selectedBlockIds,
     nodeId,
-    addBlock
+    addBlock,
+    editorId
 }: DragAndDropProps) {
 
     // Helper: Remove blocks from source node (if different from current)
@@ -71,8 +73,16 @@ export function useBlockDragAndDrop({
     const handleMoveBlock = useCallback((sourceId: string, targetId: string, position: 'top' | 'bottom', dataTransfer?: DataTransfer) => {
         console.log("[useBlockDragAndDrop] handleMoveBlock", { sourceId, targetId, position });
 
-        // Check for cross-node move via DataTransfer
+        // Check for cross-editor or cross-node move via DataTransfer
+        let isCrossEditor = false;
         if (dataTransfer) {
+            const sourceEditorId = dataTransfer.getData('application/infonote-editor-id');
+            if (sourceEditorId && sourceEditorId !== editorId) {
+                isCrossEditor = true;
+            }
+        }
+
+        if (dataTransfer && !isCrossEditor) {
             try {
                 const rawData = dataTransfer.getData('application/infonote-block-data');
                 if (rawData) {
@@ -128,18 +138,8 @@ export function useBlockDragAndDrop({
             }
 
             // SAFETY: Force include the primary sourceId if it's not in the list
-            // This prevents duplication if dataTransfer is somehow out of sync with sourceI 
             if (sourceId && !sourceIds.includes(sourceId)) {
-                console.warn("[useBlockDragAndDrop] SourceID missing from DataTransfer content, forcing inclusion for removal", sourceId);
                 sourceIds.push(sourceId);
-                // Also ensures we are moving *something* corresponding to the sourceId if blocksToMove is empty (handled by fallback above),
-                // but if blocksToMove IS populated but missing sourceId, we rely on blocksToMove for insertion.
-                // If we remove sourceId but don't insert it, we lose the block.
-                // So we should also check if we need to add it to blocksToMove?
-                // Usually if blocksToMove is populated, it implies a specific set.
-                // If the user dragged Block A (sourceId), but dataTransfer has Block B, that's weird.
-                // Assuming multi-select logic handles consistency.
-                // For valid single-block drag, sourceId should match.
             }
 
             if (blocksToMove.length === 0) return prev;
@@ -162,21 +162,52 @@ export function useBlockDragAndDrop({
                 ? newBlocks.length
                 : position === 'top' ? targetIndex : targetIndex + 1;
 
-            newBlocks.splice(insertIndex, 0, ...blocksToMove);
+            const targetBlock = targetIndex !== -1 ? newBlocks[targetIndex] : null;
+
+            // Notion-like behavior: If dropping on the bottom of an expanded toggle, 
+            // make the moved blocks children of that toggle.
+            const updatedBlocksToMove = blocksToMove.map(b => {
+                if (targetBlock && targetBlock.type === 'toggle' && !targetBlock.metadata?.isCollapsed && position === 'bottom') {
+                    // Calculate relative indent: if moving multiple blocks, maintain their relative indentation
+                    const baseIndent = blocksToMove[0].indent || 0;
+                    const relativeIndent = (b.indent || 0) - baseIndent;
+                    return { ...b, indent: (targetBlock.indent || 0) + 1 + relativeIndent };
+                }
+                return b;
+            });
+
+            newBlocks.splice(insertIndex, 0, ...updatedBlocksToMove);
             debouncedOnUpdate(newBlocks);
+
+            // If it is a cross-editor drop, trigger source removal callback
+            if (isCrossEditor && typeof (window as any).infonoteRemoveDraggedBlocks === 'function') {
+                (window as any).infonoteRemoveDraggedBlocks(sourceIds);
+                (window as any).infonoteRemoveDraggedBlocks = null;
+            }
+
             return newBlocks;
         });
-    }, [debouncedOnUpdate, setBlocks, removeBlocksFromSource, nodeId]);
+    }, [debouncedOnUpdate, setBlocks, removeBlocksFromSource, nodeId, editorId]);
 
     const handleBlockDragStart = useCallback((e: React.DragEvent, block: Block) => {
         const isMulti = selectedBlockIds.has(block.id) && selectedBlockIds.size > 1;
         e.dataTransfer.effectAllowed = 'copyMove';
         e.dataTransfer.setData('application/infonote-block-id', block.id);
         e.dataTransfer.setData('application/reactflow-block-type', block.type);
+        e.dataTransfer.setData('application/infonote-editor-id', editorId);
 
         const blocksToDrag = isMulti
             ? blocks.filter(b => selectedBlockIds.has(b.id))
             : [block];
+
+        (window as any).infonoteRemoveDraggedBlocks = (ids: string[]) => {
+            console.log("[infonoteRemoveDraggedBlocks] Removing blocks from source:", ids);
+            setBlocks(prev => {
+                const newBlocks = prev.filter(b => !ids.includes(b.id));
+                debouncedOnUpdate(newBlocks);
+                return newBlocks;
+            });
+        };
 
         if (nodeId) {
             e.dataTransfer.setData('application/infonote-block-data', JSON.stringify({
@@ -198,7 +229,7 @@ export function useBlockDragAndDrop({
                 window.dispatchEvent(event2);
             };
         }
-    }, [selectedBlockIds, blocks, nodeId]);
+    }, [selectedBlockIds, blocks, nodeId, editorId, debouncedOnUpdate, setBlocks]);
 
     const handleDrop = useCallback((e: React.DragEvent) => {
         console.log("[BlockEditor.handleDrop] START - Event triggered, nodeId:", nodeId);
@@ -278,8 +309,14 @@ export function useBlockDragAndDrop({
                         setBlocks(blocksFromData);
                         debouncedOnUpdate(blocksFromData);
 
-                        // Remove from source node if cross-node drop
-                        removeBlocksFromSource(blocksFromData.map(b => b.id), sourceNodeId);
+                        const sourceEditorId = e.dataTransfer.getData('application/infonote-editor-id');
+                        if (sourceEditorId && sourceEditorId !== editorId && typeof (window as any).infonoteRemoveDraggedBlocks === 'function') {
+                            (window as any).infonoteRemoveDraggedBlocks(blocksFromData.map(b => b.id));
+                            (window as any).infonoteRemoveDraggedBlocks = null;
+                        } else {
+                            // Remove from source node if cross-node drop
+                            removeBlocksFromSource(blocksFromData.map(b => b.id), sourceNodeId);
+                        }
                     }
                     return;
                 }
@@ -333,7 +370,7 @@ export function useBlockDragAndDrop({
         } else {
             console.log("[BlockEditor.handleDrop] No type in dataTransfer - ignoring");
         }
-    }, [blocks, addBlock, handleMoveBlock, debouncedOnUpdate, setBlocks, nodeId, removeBlocksFromSource]);
+    }, [blocks, addBlock, handleMoveBlock, debouncedOnUpdate, setBlocks, nodeId, removeBlocksFromSource, editorId]);
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
