@@ -16,9 +16,10 @@ import { SidePanel } from '../ui/SidePanel';
 import { FullscreenModal } from '../ui/FullscreenModal';
 import { CenterModal } from '../ui/CenterModal';
 import { MetadataPanel } from '../ui/MetadataPanel';
+import { TableOfContentsPanel } from '../ui/TableOfContentsPanel';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { StorageControls } from '../ui/StorageControls';
-import { SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal, ListCollapse } from 'lucide-react';
 import { HomeButton } from '../ui/HomeButton';
 import { HistoryControls } from '../ui/HistoryControls';
 import { KanbanNodeComponent } from '../kanban/KanbanNode';
@@ -75,6 +76,11 @@ export function CanvasBoard() {
     const isMetadataOpen = useStore(s => s.isMetadataOpen);
     const setMetadataOpen = useStore(s => s.setMetadataOpen);
     const metadataBtnRef = useRef<HTMLButtonElement | null>(null);
+
+    // TOC Panel UI State
+    const isTOCOpen = useStore(s => s.isTOCOpen);
+    const setTOCOpen = useStore(s => s.setTOCOpen);
+    const tocBtnRef = useRef<HTMLButtonElement | null>(null);
 
     // Viewport culling and visible nodes
     const { visibleNodes, handleViewportChange } = useCanvasViewport({
@@ -240,6 +246,15 @@ export function CanvasBoard() {
                     <StorageControls />
                     <div className={styles.topRightSeparator} />
                     <ThemeSwitcher />
+                    <button
+                        ref={tocBtnRef}
+                        className={`${styles.toolbarBtn} ${isTOCOpen ? styles.toolbarBtnActive : ''}`}
+                        onClick={() => setTOCOpen(!isTOCOpen)}
+                        title={isTOCOpen ? "Close Outline" : "Open Outline"}
+                        style={{ marginLeft: 6 }}
+                    >
+                        <ListCollapse size={18} />
+                    </button>
                     {activeParentNode && (
                         <button
                             ref={metadataBtnRef}
@@ -288,7 +303,7 @@ export function CanvasBoard() {
                     selectionOnDrag={false}
                     panOnDrag={true}
                     selectionKeyCode="Control"
-                    multiSelectionKeyCode="Control"
+                    multiSelectionKeyCode="Shift"
                     selectionMode={SelectionMode.Partial}
                     // Performance optimizations
                     nodesDraggable={true}
@@ -296,7 +311,7 @@ export function CanvasBoard() {
                     nodesFocusable={false}
                     edgesFocusable={false}
                     elementsSelectable={true}
-                    selectNodesOnDrag={false}
+                    selectNodesOnDrag={true}
                     panOnScroll={true}
                     zoomOnScroll={true}
                     zoomOnPinch={true}
@@ -325,6 +340,12 @@ export function CanvasBoard() {
                 isOpen={isMetadataOpen}
                 onClose={() => setMetadataOpen(false)}
                 buttonRef={metadataBtnRef}
+            />
+
+            <TableOfContentsPanel
+                isOpen={isTOCOpen}
+                onClose={() => setTOCOpen(false)}
+                buttonRef={tocBtnRef}
             />
 
             {/* Dual Panel Backdrop (only when both sides are open) */}

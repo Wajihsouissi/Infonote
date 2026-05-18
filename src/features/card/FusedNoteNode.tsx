@@ -294,15 +294,6 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             `}
             ref={nodeRef}
             onContextMenu={handleContextMenu}
-            onDragOver={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-            }}
-            onDrop={(e) => {
-                // Stop propagation to prevent ReactFlow's onDrop from catching it
-                // The BlockEditor inside handles its own drops
-                e.stopPropagation();
-            }}
             style={{
                 backgroundColor: displayColor || undefined,
                 // Force dark text contrast when a custom color is active (pastel background)

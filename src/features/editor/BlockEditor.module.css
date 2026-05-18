@@ -159,6 +159,11 @@
     opacity: 0 !important;
 }
 
+/* Standalone blocks on the canvas (inside minimal editors) should always show their empty placeholder, even when unfocused! */
+.minimal .block:empty:not(:focus):before {
+    opacity: 0.35 !important;
+}
+
 /* Always show placeholder only when the block is actively focused */
 .block:empty:focus:before {
     opacity: 0.35 !important;

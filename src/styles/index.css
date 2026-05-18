@@ -230,3 +230,29 @@ body {
 .react-flow__node {
   overflow: visible !important;
 }
+
+/* Premium Highlight Flash Animation for Outline/TOC Navigation */
+@keyframes infonoteHighlightFlash {
+  0% {
+    background-color: var(--color-primary-glow);
+    box-shadow: 0 0 0 2px var(--color-primary), 0 0 16px var(--color-primary-glow);
+    transform: scale(1.015);
+  }
+  30% {
+    background-color: var(--color-primary-glow);
+    box-shadow: 0 0 0 2px var(--color-primary), 0 0 16px var(--color-primary-glow);
+    transform: scale(1.015);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+    transform: scale(1);
+  }
+}
+
+.infonote-highlight-flash {
+  animation: infonoteHighlightFlash 1.6s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  border-radius: 6px;
+  position: relative;
+  z-index: 10;
+}

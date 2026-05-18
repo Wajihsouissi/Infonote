@@ -22,13 +22,20 @@ interface BlockProps {
     domRef?: React.Ref<HTMLDivElement>;
     disableMediaControls?: boolean;
     hasChildren?: boolean;
+    minimal?: boolean;
 }
 
 // Hook to safely handle contentEditable without cursor jumps and IME breaks
-const useContentEditable = (content: string, domRef?: React.Ref<HTMLDivElement>) => {
+const useContentEditable = (content: string, domRef?: React.Ref<HTMLDivElement>, renderLinks = true) => {
     const internalRef = useRef<HTMLDivElement>(null);
     const isFocused = useRef(false);
     const isComposing = useRef(false);
+    const contentRef = useRef(content);
+
+    // Sync contentRef to avoid stale closures in callbacks
+    useLayoutEffect(() => {
+        contentRef.current = content;
+    });
 
     // Sync internal ref with parent ref (useLayoutEffect ensures refs are available before focus effects)
     useLayoutEffect(() => {
@@ -48,25 +55,55 @@ const useContentEditable = (content: string, domRef?: React.Ref<HTMLDivElement>)
         const currentText = internalRef.current.innerText.replace(/[\n\u200B]$/, '');
         const targetContent = content.replace(/[\n\u200B]$/, '');
 
-        if (currentText !== targetContent) {
-            // Only force update if not currently typing to avoid cursor jumps/IME breaks
-            if (!isFocused.current && !isComposing.current) {
+        if (!isFocused.current && !isComposing.current) {
+            if (renderLinks) {
+                const expectedHTML = renderContentWithLinks(content);
+                if (internalRef.current.innerHTML !== expectedHTML) {
+                    internalRef.current.innerHTML = expectedHTML;
+                }
+            } else if (currentText !== targetContent) {
                 internalRef.current.innerText = content;
             }
         }
-    }, [content]);
+    }, [content, renderLinks]);
 
     const handlers = {
         onFocus: () => { isFocused.current = true; },
-        onBlur: () => { isFocused.current = false; },
+        onBlur: () => { 
+            isFocused.current = false; 
+            if (internalRef.current) {
+                const currentContent = contentRef.current;
+                if (renderLinks) {
+                    const expectedHTML = renderContentWithLinks(currentContent);
+                    if (internalRef.current.innerHTML !== expectedHTML) {
+                        internalRef.current.innerHTML = expectedHTML;
+                    }
+                } else {
+                    const currentText = internalRef.current.innerText.replace(/[\n\u200B]$/, '');
+                    const targetContent = currentContent.replace(/[\n\u200B]$/, '');
+                    if (currentText !== targetContent) {
+                        internalRef.current.innerText = currentContent;
+                    }
+                }
+            }
+        },
         onCompositionStart: () => { isComposing.current = true; },
-        onCompositionEnd: () => { isComposing.current = false; }
+        onCompositionEnd: () => { isComposing.current = false; },
+        onClick: (e: React.MouseEvent) => {
+            if (!renderLinks) return;
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'A' && target.getAttribute('href')) {
+                window.open(target.getAttribute('href')!, '_blank', 'noopener,noreferrer');
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }
     };
 
     return { ref: internalRef, handlers, isComposing };
 };
 
-export const TextBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
+export const TextBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef, minimal }: BlockProps) => {
     const { ref, handlers } = useContentEditable(block.content, domRef);
     
     if (readOnly) {
@@ -95,7 +132,7 @@ export const TextBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
             onInput={(e) => onChange(e.currentTarget.innerText)}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
-            data-placeholder="Type '/' for commands"
+            data-placeholder={minimal ? "Text..." : "Type '/' for commands"}
             {...handlers}
         />
     );
@@ -401,7 +438,7 @@ export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPast
 
 
 export const CodeBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
-    const { ref, handlers } = useContentEditable(block.content, domRef);
+    const { ref, handlers } = useContentEditable(block.content, domRef, false);
 
     return (
         <div className={styles.codeBlockWrapper}>

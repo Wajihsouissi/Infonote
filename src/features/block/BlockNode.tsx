@@ -153,15 +153,6 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             ref={nodeRef}
             className={`${baseClassName} ${(isSingleMedia || isSingleLink) ? styles.mediaBlockNode : ''} ${isSingleLink ? styles.linkBlockNode : ''} ${selected ? styles.selected : ''} ${isMultiSelected ? styles.multiSelected : ''}`}
             onContextMenu={handleContextMenu}
-            onDragOver={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-            }}
-            onDrop={(e) => {
-                // Stop propagation to prevent ReactFlow's onDrop from catching it
-                // The BlockEditor inside handles its own drops
-                e.stopPropagation();
-            }}
             style={{
                 backgroundColor: displayColor || undefined,
             }}

@@ -36,6 +36,7 @@ interface BlockItemProps {
     // Ref Registration
     onRegisterRef: (id: string, el: HTMLDivElement | null) => void;
     hasChildren?: boolean;
+    minimal?: boolean;
 }
 
 export const BlockItem = memo(function BlockItem({
@@ -57,7 +58,8 @@ export const BlockItem = memo(function BlockItem({
     onSelectionMouseDown,
     onRegisterRef,
     index, // New Prop
-    hasChildren
+    hasChildren,
+    minimal
 }: BlockItemProps & { index?: number }) {
 
     // Memoized wrapper handlers
@@ -95,7 +97,8 @@ export const BlockItem = memo(function BlockItem({
             disableMediaControls,
             domRef: handleRegisterRef,
             index, // Pass to children (ListBlock needs it)
-            hasChildren // Pass to children
+            hasChildren, // Pass to children
+            minimal
         };
 
         switch (block.type) {

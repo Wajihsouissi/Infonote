@@ -240,19 +240,28 @@
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: transparent;
+    background: rgba(139, 92, 246, 0.02);
     border: 1px solid var(--glass-border);
-    color: var(--color-text-main);
+    color: var(--color-text-muted);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color 0.2s, color 0.2s, transform 0.2s;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .iconBtn:hover {
-    background: var(--glass-bg-hover);
+    background: rgba(139, 92, 246, 0.08); /* Premium purple tint */
     border-color: var(--color-primary);
+    color: var(--color-primary);
+    transform: translateY(-2px) scale(1.08);
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.15);
+}
+
+.iconBtn:active {
+    transform: scale(0.95);
 }
 
 .saving {
@@ -290,7 +299,7 @@
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid var(--glass-border);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--glass-border);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--glass-border);
     border-radius: 16px;
     padding: 12px;
     width: auto;
@@ -302,35 +311,65 @@
     flex-direction: column;
     gap: 8px;
     align-items: center;
+    z-index: 50;
 }
 
-/* Invisible Bridge */
-.blocksWrapper::after {
-    content: '';
-    position: absolute;
-    top: -30px;
-    left: -40px;
-    right: -40px;
-    bottom: 0px;
-    z-index: -1;
+/* Show Menu through Class Toggling */
+.menuVisible {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: translateX(-50%) translateY(0) !important;
 }
 
-/* Show on Hover */
-.blocksWrapper:hover .hoverMenu {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateX(-50%) translateY(0);
+/* Click-away Backdrop */
+.menuBackdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: transparent;
+    z-index: 30;
+}
+
+/* Menu Header Styling */
+.menuHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 6px;
+    padding: 0 4px;
+}
+
+/* Close Icon Button in Popup */
+.menuCloseBtn {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.menuCloseBtn:hover {
+    background: var(--glass-bg-hover);
+    color: var(--color-text-main);
+    transform: scale(1.05);
 }
 
 .menuTitle {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--color-text-muted);
-    font-weight: 600;
-    margin-bottom: 4px;
-    width: 100%;
-    text-align: center;
+    font-weight: 700;
+    margin: 0;
 }
 
 .menuGrid {
@@ -355,20 +394,18 @@
     cursor: grabbing;
 }
 
+/* Theme-Aware Item Icon Wrapper - Resolves Light Mode Visibility */
 .itemIconWrapper {
     width: 40px;
     height: 40px;
-    border-radius: 12px;
-    /* Soft squircle */
-    background: rgba(255, 255, 255, 0.03);
-    /* Subtle surface */
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    /* Subtle border */
+    border-radius: 12px; /* Soft squircle */
+    background: rgba(139, 92, 246, 0.04); /* Subtle purple surface tint */
+    border: 1px solid var(--color-border);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: rgba(255, 255, 255, 0.6);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    color: var(--color-text-muted); /* Theme-aware text/icon color */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     transition: all 0.25s cubic-bezier(0.3, 0.6, 0.3, 1);
 }
 
@@ -376,17 +413,36 @@
     z-index: 10;
 }
 
+/* High Fidelity Hover Accent States */
 .draggableItem:hover .itemIconWrapper {
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.25);
-    color: white;
+    background: rgba(139, 92, 246, 0.12); /* Vibrant theme purple tint */
+    border-color: var(--color-primary);
+    color: var(--color-primary);
     transform: translateY(-4px) scale(1.1);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.2);
 }
 
 .draggableItem:active .itemIconWrapper {
     transform: scale(0.92);
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(139, 92, 246, 0.08);
+}
+
+/* Active Bottom Menu Button Highlight */
+.iconBtnActive {
+    background: rgba(139, 92, 246, 0.12) !important;
+    border-color: var(--color-primary) !important;
+    color: var(--color-primary) !important;
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.25);
+    transform: scale(1.05);
+}
+
+/* Keyboard Selection Highlight State */
+.draggableItemHighlighted .itemIconWrapper {
+    background: rgba(139, 92, 246, 0.12) !important;
+    border-color: var(--color-primary) !important;
+    color: var(--color-primary) !important;
+    transform: translateY(-4px) scale(1.1) !important;
+    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.2) !important;
 }
 
 /* Custom Tooltip */

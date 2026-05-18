@@ -1,0 +1,644 @@
+/* Shifting Grain/Noise Animation */
+@keyframes grainShift {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-2px, 2px); }
+    40% { transform: translate(2px, -2px); }
+    60% { transform: translate(-1px, -2px); }
+    80% { transform: translate(1px, 1px); }
+}
+
+.panel {
+    width: 310px;
+    height: 100%;
+    background: var(--color-bg-base);
+    border-left: 1px solid var(--glass-border);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.2);
+    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-left-color 0.3s ease;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.panelOpen {
+    width: 310px;
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.panelClosed {
+    width: 0 !important;
+    opacity: 0;
+    transform: translateX(15px);
+    border-left-color: transparent !important;
+    pointer-events: none;
+    box-shadow: none;
+}
+
+/* Premium Soft Gradient Wash (Theme Inspired) */
+.panel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 160% 40% at 50% 0%, rgba(139, 92, 246, 0.12) 0%, transparent 65%),
+                radial-gradient(ellipse 120% 30% at 50% 100%, rgba(6, 182, 212, 0.06) 0%, transparent 65%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Premium Shifting Grain Overlay */
+.panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 180px 180px;
+    animation: grainShift 0.12s steps(1) infinite;
+}
+
+.panel > * {
+    position: relative;
+    z-index: 2;
+}
+
+/* Sticky Header */
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--glass-border);
+    background: var(--color-bg-base);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex-shrink: 0;
+}
+
+.headerLeft {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.headerTitle {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.85;
+}
+
+.closeBtn {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.closeBtn:hover {
+    background: var(--glass-bg-hover);
+    color: var(--color-text-main);
+}
+
+/* Scrollable Outline Container */
+.scrollContent {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.emptyState {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    text-align: center;
+    gap: 12px;
+    opacity: 0.7;
+    height: 100%;
+}
+
+.emptyIcon {
+    opacity: 0.5;
+}
+
+/* TOC Outline Tree Items */
+.tree {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.itemWrapper {
+    display: flex;
+    flex-direction: column;
+}
+
+.itemRow {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    user-select: none;
+    gap: 6px;
+}
+
+.itemRow:hover {
+    background: var(--glass-bg-hover);
+    color: var(--color-text-main);
+    padding-left: 10px; /* Micro-scale shift hover */
+}
+
+/* Depth Guide Lines - notion-style hierarchy lines */
+.itemRow::before {
+    content: '';
+    position: absolute;
+    left: var(--indent-line-left);
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--glass-border);
+    opacity: 0.5;
+    pointer-events: none;
+    display: var(--indent-line-display, block);
+}
+
+/* Indent Spacing classes */
+.indent-0 { padding-left: 8px; }
+.indent-1 { padding-left: 24px; }
+.indent-2 { padding-left: 40px; }
+.indent-3 { padding-left: 56px; }
+.indent-4 { padding-left: 72px; }
+.indent-5 { padding-left: 88px; }
+
+/* Active Section Accent Styling */
+.itemActive {
+    color: var(--color-primary) !important;
+    font-weight: 550;
+    background: var(--color-primary-glow) !important;
+}
+
+.itemActive::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 6px;
+    bottom: 6px;
+    width: 3px;
+    background: var(--color-primary);
+    border-radius: 2px;
+    box-shadow: 0 0 8px var(--color-primary);
+}
+
+/* Icon Styles */
+.collapseIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    opacity: 0.6;
+    padding: 2px;
+    border-radius: 4px;
+    transition: transform 0.2s ease, background 0.15s ease;
+    cursor: pointer;
+    margin-right: -2px;
+    z-index: 5;
+}
+
+.collapseIcon:hover {
+    background: var(--ui-hover);
+    color: var(--color-text-main);
+}
+
+.collapsed {
+    transform: rotate(-90deg);
+}
+
+.expanded {
+    transform: rotate(0deg);
+}
+
+.itemIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    opacity: 0.7;
+}
+
+.itemLabel {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+}
+
+/* Typographical hierarchy style modifiers */
+.heading1 {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--color-text-main);
+}
+
+.heading2 {
+    font-weight: 550;
+    font-size: 0.82rem;
+}
+
+.heading3 {
+    font-size: 0.8rem;
+}
+
+.page {
+    font-weight: 500;
+    color: var(--color-secondary);
+}
+
+.todo {
+    font-family: monospace;
+}
+
+/* Custom Checkbox styled for TOC items */
+.checkbox {
+    width: 12px;
+    height: 12px;
+    border: 1px solid var(--color-text-muted);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 2px;
+}
+
+.checkboxChecked {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+}
+
+.checkboxChecked::after {
+    content: '✓';
+    color: #ffffff;
+    font-size: 8px;
+    font-weight: bold;
+}
+
+/* Sub-items container with sliding height animations */
+.childrenContainer {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+
+.childrenContainerCollapsed {
+    max-height: 0 !important;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Scroll Indicators at top/bottom of content */
+.scrollIndicator {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 16px;
+    pointer-events: none;
+    z-index: 5;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.scrollIndicatorTop {
+    top: 45px;
+    background: linear-gradient(to bottom, var(--color-bg-base), transparent);
+}
+
+.scrollIndicatorBottom {
+    bottom: 0;
+    background: linear-gradient(to top, var(--color-bg-base), transparent);
+}
+
+/* Row Controls (Hover Rearrange Up/Down & Navigate) */
+.rowControls {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: auto; /* Push to the absolute right of the row */
+    opacity: 0; /* Hidden by default */
+    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: auto;
+}
+
+.itemRow:hover .rowControls {
+    opacity: 1; /* Visible on row hover */
+}
+
+.rearrangeBtn,
+.navigateBtn {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 3px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.rearrangeBtn:hover {
+    background: var(--glass-bg-hover);
+    color: var(--color-secondary) !important;
+    transform: scale(1.08);
+}
+
+.navigateBtn:hover {
+    background: var(--glass-bg-hover);
+    color: var(--color-primary) !important;
+    transform: translateX(2px) scale(1.08);
+}
+
+/* Card Icon in Outline List */
+.cardIcon {
+    color: var(--color-primary);
+    flex-shrink: 0;
+    opacity: 0.75;
+    transition: opacity 0.2s ease;
+}
+
+.itemActive .cardIcon {
+    opacity: 1;
+}
+
+/* Header Actions Controls */
+.headerActions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.actionIconBtn {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.actionIconBtn:hover {
+    background: var(--glass-bg-hover);
+    color: var(--color-primary);
+}
+
+/* Modern Sleek Icon Sliding Track */
+.switcherTrack {
+    display: inline-flex;
+    position: relative;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 2px;
+    align-items: center;
+    user-select: none;
+    cursor: pointer;
+    overflow: hidden;
+    height: 26px;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.switcherTrack:hover {
+    border-color: rgba(99, 102, 241, 0.4);
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.05);
+}
+
+/* Sliding active background bubble */
+.switcherSlider {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    width: 22px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.12) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 6px;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s ease;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* Sliding offsets precisely aligned to 22px option buttons */
+.sliderLeft {
+    transform: translateX(0);
+}
+
+.sliderRight {
+    transform: translateX(24px); /* Moves exactly by button width (22px) + gap/padding (2px) */
+}
+
+/* Individual options */
+.switcherOption {
+    position: relative;
+    z-index: 2;
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    outline: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.switcherOptionActive {
+    color: var(--color-primary, #6366f1) !important;
+    filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.4));
+}
+
+.switcherOption:hover:not(.switcherOptionActive) {
+    color: var(--color-text-main);
+}
+
+.headerDivider {
+    width: 1px;
+    height: 14px;
+    background: var(--glass-border);
+    margin: 0 4px;
+}
+
+/* Modern Glassmorphic Search Bar */
+.searchContainer {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--glass-border);
+    background: rgba(15, 17, 21, 0.4);
+    display: flex;
+    align-items: center;
+    position: relative;
+    z-index: 10;
+}
+
+.searchInput {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 6px 32px 6px 12px;
+    font-size: 0.78rem;
+    color: var(--color-text-main);
+    outline: none;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: inherit;
+}
+
+.searchInput::placeholder {
+    color: var(--color-text-muted);
+    opacity: 0.6;
+}
+
+.searchInput:focus {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 12px var(--color-primary-glow);
+}
+
+.clearSearchBtn {
+    position: absolute;
+    right: 24px;
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.clearSearchBtn:hover {
+    opacity: 1;
+    color: var(--color-text-main);
+}
+
+/* Premium Heading Badge Styling */
+.headingBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    width: 20px;
+    height: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    flex-shrink: 0;
+    letter-spacing: -0.05em;
+    user-select: none;
+}
+
+/* Item Icon Container */
+.itemIconContainer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+}
+
+/* Completed Todo list items */
+.todoItemCompleted .itemLabel {
+    text-decoration: line-through;
+    color: var(--color-text-muted) !important;
+    opacity: 0.5;
+}
+
+/* Checklist Progress Bar container */
+.progressContainer {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--glass-border);
+    background: rgba(16, 185, 129, 0.02);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 10;
+}
+
+.progressHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    font-weight: 550;
+    color: var(--color-text-muted);
+}
+
+.progressLabel {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #10b981;
+}
+
+.progressStats {
+    font-family: monospace;
+    font-weight: 600;
+}
+
+.progressBarBg {
+    width: 100%;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progressBarFill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+    border-radius: 3px;
+    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}

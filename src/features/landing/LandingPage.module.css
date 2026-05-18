@@ -829,3 +829,225 @@
   border-radius: 12px 12px 0 0;
   pointer-events: none;
 }
+
+/* =====================================================
+   RESPONSIVE DESIGN & MOBILE MENU
+   ===================================================== */
+
+/* Default hidden elements on desktop */
+.mobileHeaderLeft {
+  display: none;
+}
+
+.drawerCloseButton {
+  display: none;
+}
+
+.sidebarSearch {
+  display: none;
+}
+
+/* Sidebar default transition */
+.sidebar {
+  transition: transform var(--transition-smooth);
+}
+
+/* Responsive Overrides (max-width: 768px) */
+@media (max-width: 768px) {
+  /* ── Drawer & Sidebar Overlay ── */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 1000;
+    transform: translateX(-100%);
+    box-shadow: 20px 0 40px rgba(0, 0, 0, 0.4);
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .sidebarOpen {
+    transform: translateX(0);
+  }
+
+  .drawerOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 999;
+    animation: fadeInOverlay 0.25s ease-out;
+  }
+
+  @keyframes fadeInOverlay {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .drawerCloseButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    transition: background var(--transition-fast), color var(--transition-fast);
+    margin-left: auto;
+  }
+
+  .drawerCloseButton:hover {
+    background: var(--ui-hover);
+    color: var(--color-text-main);
+  }
+
+  /* ── Sidebar Mobile Search ── */
+  .sidebarSearch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 12px 14px 4px;
+    color: var(--color-text-muted);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  :global([data-theme="light"]) .sidebarSearch {
+    background: rgba(255, 255, 255, 0.5);
+  }
+
+  .sidebarSearch input {
+    background: transparent;
+    border: none;
+    color: var(--color-text-main);
+    outline: none;
+    font-size: 13px;
+    width: 100%;
+    font-family: var(--font-sans);
+  }
+
+  .sidebarSearch input::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  /* ── Top Bar Adjustments ── */
+  .topBar {
+    padding: 0 16px;
+  }
+
+  .searchSection {
+    display: none; /* Hide main search bar, accessible in sidebar instead */
+  }
+
+  .mobileHeaderLeft {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .hamburgerButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--color-text-main);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: background var(--transition-fast);
+  }
+
+  .hamburgerButton:hover {
+    background: var(--ui-hover);
+  }
+
+  .mobileLogo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--color-text-main);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .mobileLogo svg {
+    color: var(--color-primary);
+    filter: drop-shadow(0 0 6px var(--color-primary-glow));
+  }
+
+  .userSection {
+    gap: 6px;
+  }
+
+  .loginButton {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .signupButton {
+    padding: 7px 12px;
+    font-size: 12.5px;
+  }
+
+  /* ── Content Layout Adjustments ── */
+  .content {
+    padding: 24px 20px;
+  }
+
+  .contentHeader {
+    margin-bottom: 32px;
+  }
+
+  .contentHeader h1 {
+    font-size: 22px;
+  }
+
+  /* ── Empty State Scale Down ── */
+  .emptyState {
+    padding-top: 32px;
+  }
+
+  .emptyIllustration {
+    width: 96px;
+    height: 96px;
+    margin-bottom: 24px;
+    border-radius: 20px;
+  }
+
+  .emptyIllustration svg {
+    width: 36px;
+    height: 36px;
+  }
+
+  .emptyState h2 {
+    font-size: 18px;
+  }
+
+  .emptyState p {
+    font-size: 13.5px;
+    margin-bottom: 24px;
+    max-width: 240px;
+  }
+
+  .primaryButton {
+    padding: 10px 24px;
+    font-size: 14px;
+  }
+}

@@ -141,9 +141,21 @@ export function isUrl(str: string): boolean {
 
 export function renderContentWithLinks(content: string): string {
     if (!content) return '';
-    // Match URLs in text and turn them into styled clickable links
-    const urlPattern = /(https?:\/\/[^\s$.?#].[^\s]*)/g;
-    return content.replace(urlPattern, '<a href="$1" target="_blank" rel="noopener noreferrer" class="editor-inline-link" style="color: var(--color-primary, #6366f1); text-decoration: underline; font-weight: 500;">$1</a>');
+    // Match:
+    // 1. Markdown links: [Label](URL)
+    // 2. Raw URLs: http://, https://, or www.
+    const pattern = /\[([^\]]+)\]\(((?:https?:\/\/|www\.)[^\s()<>]+(?:\([\w\d]+\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))\)|((?:https?:\/\/|www\.)[^\s()<>]+(?:\([\w\d]+\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))/gi;
+    
+    return content.replace(pattern, (match, label, markdownUrl, rawUrl) => {
+        if (label) {
+            const href = markdownUrl.startsWith('http') ? markdownUrl : 'https://' + markdownUrl;
+            return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="editor-inline-link" style="color: var(--color-primary, #6366f1); text-decoration: underline; font-weight: 500;">${label}</a>`;
+        } else if (rawUrl) {
+            const href = rawUrl.startsWith('http') ? rawUrl : 'https://' + rawUrl;
+            return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="editor-inline-link" style="color: var(--color-primary, #6366f1); text-decoration: underline; font-weight: 500;">${rawUrl}</a>`;
+        }
+        return match;
+    });
 }
 
 // 2. Handle Text/HTML - SYNC
@@ -204,6 +216,35 @@ export const parseTextOrHtml = (e: React.ClipboardEvent): Block[] => {
     return [];
 };
 
+interface ExtractedLink {
+    url: string;
+    label?: string;
+}
+
+function parseExactLinkLine(trimmedLine: string): ExtractedLink | null {
+    // Strips common markdown line prefixes: * , - , • , > , 1. etc.
+    const cleanLine = trimmedLine.replace(/^([-*•>\s]|\d+\.\s)+/, '').trim();
+    
+    // Check 1: Exact Markdown Link: [Label](URL)
+    const markdownMatch = cleanLine.match(/^\[([^\]]+)\]\(((?:https?:\/\/|www\.)[^\s()<>]+)\)$/i);
+    if (markdownMatch) {
+        return {
+            url: markdownMatch[2],
+            label: markdownMatch[1]
+        };
+    }
+    
+    // Check 2: Exact Raw URL: http://... or www....
+    const rawMatch = cleanLine.match(/^((?:https?:\/\/|www\.)[^\s()<>]+(?:\([\w\d]+\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))$/i);
+    if (rawMatch) {
+        return {
+            url: rawMatch[1]
+        };
+    }
+    
+    return null;
+}
+
 /**
  * Parse plain text content, with Markdown detection for ChatGPT-style output.
  * Handles headings, lists, code fences, tables, blockquotes, dividers, etc.
@@ -217,15 +258,17 @@ function parsePlainText(text: string): Block[] {
         const line = lines[i];
         const trimmed = line.trim();
 
-        // --- Single Line URL Upgrade ---
-        if (isUrl(trimmed)) {
+        // --- Standalone Link block conversion ---
+        const exactLink = parseExactLinkLine(trimmed);
+        if (exactLink) {
             blocks.push({
                 id: uuidv4(),
                 type: 'link',
-                content: trimmed.startsWith('http') ? trimmed : 'https://' + trimmed,
+                content: exactLink.url.startsWith('http') ? exactLink.url : 'https://' + exactLink.url,
                 metadata: {
                     displayMode: 'bookmark',
-                    isLoading: true
+                    isLoading: true,
+                    customTitle: exactLink.label
                 }
             });
             i++;
@@ -492,6 +535,26 @@ function processNodes(nodes: ChildNode[], blocks: Block[]) {
 
         // --- Paragraphs and divs ---
         if (tagName === 'p' || tagName === 'div') {
+            // Check for standalone link inside paragraph/div
+            const anchors = el.querySelectorAll('a');
+            const innerText = el.textContent?.trim() || '';
+            if (anchors.length === 1 && innerText === anchors[0].textContent?.trim()) {
+                const href = anchors[0].getAttribute('href');
+                if (href) {
+                    blocks.push({
+                        id: uuidv4(),
+                        type: 'link',
+                        content: href.startsWith('http') ? href : 'https://' + href,
+                        metadata: {
+                            displayMode: 'bookmark',
+                            isLoading: true,
+                            customTitle: anchors[0].textContent?.trim() || undefined
+                        }
+                    });
+                    continue;
+                }
+            }
+
             // Check for embedded images
             const img = el.querySelector('img');
             if (img && img.src) {
@@ -533,9 +596,28 @@ function processNodes(nodes: ChildNode[], blocks: Block[]) {
             continue;
         }
 
-        // --- Inline elements (span, strong, em, a, code, etc.) ---
+        // --- Standalone anchor ---
+        if (tagName === 'a') {
+            const href = el.getAttribute('href');
+            const text = el.textContent?.trim() || '';
+            if (href) {
+                blocks.push({
+                    id: uuidv4(),
+                    type: 'link',
+                    content: href.startsWith('http') ? href : 'https://' + href,
+                    metadata: {
+                        displayMode: 'bookmark',
+                        isLoading: true,
+                        customTitle: text || undefined
+                    }
+                });
+                continue;
+            }
+        }
+
+        // --- Inline elements (span, strong, em, code, etc.) ---
         // These shouldn't normally be top-level, but ChatGPT sometimes wraps content oddly
-        if (['span', 'strong', 'em', 'b', 'i', 'a', 'code', 'mark', 'u', 's', 'del', 'sub', 'sup'].includes(tagName)) {
+        if (['span', 'strong', 'em', 'b', 'i', 'code', 'mark', 'u', 's', 'del', 'sub', 'sup'].includes(tagName)) {
             const text = getCleanText(el);
             if (text) {
                 blocks.push({ id: uuidv4(), type: 'text', content: text });
@@ -565,15 +647,58 @@ function processListItems(listEl: HTMLElement, blocks: Block[], listType: 'bulle
     for (const child of children) {
         if (child.tagName.toLowerCase() !== 'li') continue;
 
+        // Check for standalone link inside list item
+        const anchors = child.querySelectorAll('a');
+        const innerText = child.textContent?.trim() || '';
+        if (anchors.length === 1 && innerText === anchors[0].textContent?.trim()) {
+            const href = anchors[0].getAttribute('href');
+            if (href) {
+                blocks.push({
+                    id: uuidv4(),
+                    type: 'link',
+                    content: href.startsWith('http') ? href : 'https://' + href,
+                    metadata: {
+                        displayMode: 'bookmark',
+                        isLoading: true,
+                        customTitle: anchors[0].textContent?.trim() || undefined
+                    }
+                });
+                continue;
+            }
+        }
+
+        // Clone the list item and convert anchor tags to markdown format to preserve URLs
+        const clone = child.cloneNode(true) as HTMLElement;
+        const cloneAnchors = clone.querySelectorAll('a');
+        cloneAnchors.forEach(a => {
+            const href = a.getAttribute('href');
+            const text = a.textContent || '';
+            
+            if (href && text.trim()) {
+                if (href !== text) {
+                    const markdownLink = `[${text}](${href})`;
+                    const textNode = clone.ownerDocument.createTextNode(markdownLink);
+                    a.parentNode?.replaceChild(textNode, a);
+                } else {
+                    const textNode = clone.ownerDocument.createTextNode(href);
+                    a.parentNode?.replaceChild(textNode, a);
+                }
+            }
+        });
+
         // Get direct text content (excluding nested lists)
         let textContent = '';
         const nestedLists: HTMLElement[] = [];
 
-        for (const liChild of Array.from(child.childNodes)) {
+        for (const liChild of Array.from(clone.childNodes)) {
             if (liChild.nodeType === Node.ELEMENT_NODE) {
                 const childTag = (liChild as HTMLElement).tagName.toLowerCase();
                 if (childTag === 'ul' || childTag === 'ol') {
-                    nestedLists.push(liChild as HTMLElement);
+                    const origIndex = Array.from(clone.childNodes).indexOf(liChild);
+                    const origNestedList = child.childNodes[origIndex] as HTMLElement;
+                    if (origNestedList) {
+                        nestedLists.push(origNestedList);
+                    }
                 } else {
                     textContent += (liChild as HTMLElement).textContent || '';
                 }
@@ -598,10 +723,29 @@ function processListItems(listEl: HTMLElement, blocks: Block[], listType: 'bulle
 }
 
 /**
- * Extract clean text content from an element, preserving meaningful whitespace.
+ * Extract clean text content from an element, converting internal <a> tags to markdown links to preserve URLs.
  */
 function getCleanText(el: HTMLElement): string {
-    const raw = (el.innerText || el.textContent || '').trim();
+    // Clone the element and convert anchor tags to markdown format to preserve URLs
+    const clone = el.cloneNode(true) as HTMLElement;
+    const anchors = clone.querySelectorAll('a');
+    anchors.forEach(a => {
+        const href = a.getAttribute('href');
+        const text = a.textContent || '';
+        
+        if (href && text.trim()) {
+            if (href !== text) {
+                const markdownLink = `[${text}](${href})`;
+                const textNode = clone.ownerDocument.createTextNode(markdownLink);
+                a.parentNode?.replaceChild(textNode, a);
+            } else {
+                const textNode = clone.ownerDocument.createTextNode(href);
+                a.parentNode?.replaceChild(textNode, a);
+            }
+        }
+    });
+
+    const raw = (clone.innerText || clone.textContent || '').trim();
     return hasLatex(raw) ? cleanLatex(raw) : raw;
 }
 

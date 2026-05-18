@@ -104,9 +104,10 @@
 
 .blockNode.mediaBlockNode {
     display: block;
-    background: rgba(15, 17, 21, 0.9) !important;
-    backdrop-filter: blur(20px) !important;
-    border: 1px solid rgba(139, 92, 246, 0.3) !important;
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(var(--backdrop-blur)) !important;
+    -webkit-backdrop-filter: blur(var(--backdrop-blur)) !important;
+    border: 1px solid var(--glass-border) !important;
     border-radius: 12px;
     padding: 0;
     /* Let ReactFlow node style control the pixel width */
@@ -124,7 +125,7 @@
 }
 
 .blockNode.mediaBlockNode:hover {
-    border-color: rgba(139, 92, 246, 0.8) !important;
+    border-color: var(--color-primary) !important;
     box-shadow: none !important;
 }
 

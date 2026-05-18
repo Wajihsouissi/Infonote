@@ -15,11 +15,13 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     currentView: 'landing',
     selectedCanvasNodeIds: new Set<string>(),
     isMetadataOpen: false,
+    isTOCOpen: false,
 
     setActiveIconMenuId: (id) => set({ activeIconMenuId: id }),
     setKanbanModalOpen: (isOpen) => set({ isKanbanModalOpen: isOpen, editingKanbanId: isOpen ? get().editingKanbanId : null }),
     setEditingKanbanId: (id) => set({ editingKanbanId: id }),
-    setMetadataOpen: (isOpen) => set({ isMetadataOpen: isOpen }),
+    setMetadataOpen: (isOpen) => set({ isMetadataOpen: isOpen, isTOCOpen: isOpen ? false : get().isTOCOpen }),
+    setTOCOpen: (isOpen) => set({ isTOCOpen: isOpen, isMetadataOpen: isOpen ? false : get().isMetadataOpen }),
     setInteractionState: (newState) => set((state) => ({
         interactionState: { ...state.interactionState, ...newState }
     })),

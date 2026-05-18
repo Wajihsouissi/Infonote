@@ -282,6 +282,18 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         }
     }, [initialContent]);
 
+    // Force external synchronization when TOC rearranges blocks
+    useEffect(() => {
+        const handleForceSync = () => {
+            if (initialContent) {
+                const nextContent = Array.isArray(initialContent) ? initialContent : [{ id: uuidv4(), type: 'text' as const, content: typeof initialContent === 'string' ? initialContent : '' }];
+                setBlocks(nextContent);
+            }
+        };
+        window.addEventListener('infonote-force-editor-sync', handleForceSync);
+        return () => window.removeEventListener('infonote-force-editor-sync', handleForceSync);
+    }, [initialContent]);
+
     useEffect(() => {
         if (!focusId) return;
 
@@ -1033,6 +1045,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                 promoteBlockHandles={promoteBlockHandles}
                                 disableMediaControls={disableMediaControls}
                                 parentToggleIndent={parentToggleIndent}
+                                minimal={minimal}
                                 onUpdateBlock={updateBlock}
                                 onKeyDown={handleKeyDown}
                                 onPaste={handleBlockPaste}
@@ -1066,6 +1079,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                     promoteBlockHandles={promoteBlockHandles}
                                     disableMediaControls={disableMediaControls}
                                     parentToggleIndent={node.block.indent || 0}
+                                    minimal={minimal}
                                     onUpdateBlock={updateBlock}
                                     onKeyDown={handleKeyDown}
                                     onPaste={handleBlockPaste}

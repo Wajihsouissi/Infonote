@@ -12,7 +12,9 @@ import {
   MoreHorizontal,
   Rocket,
   Sun,
-  Moon
+  Moon,
+  Menu,
+  X
 } from 'lucide-react';
 import styles from './LandingPage.module.css';
 
@@ -21,6 +23,7 @@ export const LandingPage: React.FC = () => {
   const currentView = useStore((state) => state.currentView);
   const theme = useStore((state) => state.theme);
   const toggleTheme = useStore((state) => state.toggleTheme);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
   return (
     <div className={styles.container}>
@@ -58,28 +61,55 @@ export const LandingPage: React.FC = () => {
         ))}
       </div>
 
+      {/* Mobile drawer overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className={styles.drawerOverlay} 
+          onClick={() => setIsMobileMenuOpen(false)} 
+        />
+      )}
+
       {/* Sidebar */}
 
-      <aside className={styles.sidebar}>
+      <aside className={`${styles.sidebar} ${isMobileMenuOpen ? styles.sidebarOpen : ''}`}>
         <div className={styles.logoSection}>
           <div className={styles.logo}>
             <Rocket className={styles.logoIcon} />
             <span>Infonote</span>
           </div>
+          <button 
+            className={styles.drawerCloseButton}
+            onClick={() => setIsMobileMenuOpen(false)}
+            aria-label="Close menu"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Mobile Search - only visible on mobile inside drawer */}
+        <div className={styles.sidebarSearch}>
+          <Search size={14} />
+          <input type="text" placeholder="Search..." />
         </div>
 
         <nav className={styles.nav}>
           <div className={styles.navGroup}>
             <button
               className={`${styles.navItem} ${currentView === 'canvas' ? styles.active : ''}`}
-              onClick={() => setCurrentView('canvas')}
+              onClick={() => {
+                setCurrentView('canvas');
+                setIsMobileMenuOpen(false);
+              }}
             >
               <Layout size={18} />
               <span>Canvas</span>
             </button>
             <button
               className={`${styles.navItem} ${currentView === 'marketplace' ? styles.active : ''}`}
-              onClick={() => setCurrentView('marketplace')}
+              onClick={() => {
+                setCurrentView('marketplace');
+                setIsMobileMenuOpen(false);
+              }}
             >
               <ShoppingBag size={18} />
               <span>Marketplace</span>
@@ -90,11 +120,11 @@ export const LandingPage: React.FC = () => {
 
           <div className={styles.navGroup}>
             <div className={styles.navLabel}>Recently viewed</div>
-            <button className={styles.navItemSecondary}>
+            <button className={styles.navItemSecondary} onClick={() => setIsMobileMenuOpen(false)}>
               <Clock size={16} />
               <span>Project Roadmap</span>
             </button>
-            <button className={styles.navItemSecondary}>
+            <button className={styles.navItemSecondary} onClick={() => setIsMobileMenuOpen(false)}>
               <Clock size={16} />
               <span>Meeting Notes</span>
             </button>
@@ -104,7 +134,7 @@ export const LandingPage: React.FC = () => {
 
           <div className={styles.navGroup}>
             <div className={styles.navLabel}>Favorites</div>
-            <button className={styles.navItemSecondary}>
+            <button className={styles.navItemSecondary} onClick={() => setIsMobileMenuOpen(false)}>
               <Star size={16} />
               <span>Personal Brain</span>
             </button>
@@ -120,7 +150,7 @@ export const LandingPage: React.FC = () => {
             </div>
             <span>{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
           </button>
-          <button className={styles.settingsButton}>
+          <button className={styles.settingsButton} onClick={() => setIsMobileMenuOpen(false)}>
             <Settings size={18} />
             <span>Settings</span>
           </button>
@@ -131,6 +161,22 @@ export const LandingPage: React.FC = () => {
       <div className={styles.mainArea}>
         <header className={styles.topBar}>
           <div className={styles.topBarDecor} />
+          
+          {/* Mobile Menu Toggle & Logo */}
+          <div className={styles.mobileHeaderLeft}>
+            <button 
+              className={styles.hamburgerButton} 
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label="Toggle menu"
+            >
+              {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+            <div className={styles.mobileLogo} onClick={() => setCurrentView('landing')}>
+              <Rocket className={styles.logoIcon} size={18} />
+              <span>Infonote</span>
+            </div>
+          </div>
+
           <div className={styles.searchSection}>
             <div className={styles.searchBar}>
               <Search size={16} />
@@ -139,11 +185,17 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <div className={styles.userSection}>
-            <button className={styles.loginButton} onClick={() => setCurrentView('login')}>
+            <button className={styles.loginButton} onClick={() => {
+              setCurrentView('login');
+              setIsMobileMenuOpen(false);
+            }}>
               <LogIn size={15} />
               <span>Log in</span>
             </button>
-            <button className={styles.signupButton} onClick={() => setCurrentView('signup')}>
+            <button className={styles.signupButton} onClick={() => {
+              setCurrentView('signup');
+              setIsMobileMenuOpen(false);
+            }}>
               <span>Sign up free</span>
             </button>
           </div>
@@ -170,9 +222,12 @@ export const LandingPage: React.FC = () => {
             <p>Create a new canvas or browse the marketplace to get started.</p>
             <button
               className={styles.primaryButton}
-              onClick={() => setCurrentView('canvas')}
+              onClick={() => {
+                setCurrentView('canvas');
+                setIsMobileMenuOpen(false);
+              }}
             >
-              < Layout size={18} />
+              <Layout size={18} />
               <span>Open Canvas</span>
             </button>
           </div>
