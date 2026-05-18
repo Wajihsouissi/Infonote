@@ -1,25 +1,43 @@
 /**
  * Browser-only Supabase client for the Vite SPA.
  *
- * We only use @supabase/ssr's browser helper. There is no server or middleware
- * in this project, so the Next.js server/middleware helpers do not apply.
+ * Uses the standard @supabase/supabase-js createClient for maximum
+ * compatibility in a pure client-side Vite application.  The client is
+ * initialized with VITE_ prefixed environment variables so Vite bundles
+ * them correctly into the production build.
+ *
+ * IMPORTANT — your .env / .env.production file must contain:
+ *   VITE_SUPABASE_URL=https://<project>.supabase.co
+ *   VITE_SUPABASE_ANON_KEY=<your-anon-public-key>
+ *
+ * Vite strips all non-VITE_ prefixed variables at build time.
  */
-import { createBrowserClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
-const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!url || !key) {
     // Surface a loud dev error; Supabase features will be disabled until env is set.
     console.warn(
-        '[Supabase] Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY. ' +
-        'Cloud storage and auth will be disabled.'
+        '[Supabase] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. ' +
+        'Cloud storage and auth will be disabled. ' +
+        'Create a .env file in the project root with these variables.'
     );
 }
 
 export const isSupabaseConfigured = Boolean(url && key);
 
-// Initialize client only if configured to avoid @supabase/ssr throw
-export const supabase = isSupabaseConfigured 
-    ? createBrowserClient(url!, key!) 
-    : null as any;
+// Initialize client only if configured to avoid runtime throw.
+export const supabase = isSupabaseConfigured
+    ? createClient(url!, key!, {
+          auth: {
+              // Use localStorage so the session survives page refreshes.
+              storage: localStorage,
+              storageKey: 'infonote-auth-token',
+              autoRefreshToken: true,
+              persistSession: true,
+              detectSessionInUrl: true,
+          },
+      })
+    : (null as unknown as ReturnType<typeof createClient>);

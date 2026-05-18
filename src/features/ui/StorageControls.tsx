@@ -70,7 +70,7 @@ export const StorageControls: React.FC = () => {
 
     const handleCloudClick = useCallback(() => {
         if (!configured) {
-            setErrorMessage('Supabase is not configured. Set VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY.');
+            setErrorMessage('Supabase is not configured. Set VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY.');
             return;
         }
         if (!user) {

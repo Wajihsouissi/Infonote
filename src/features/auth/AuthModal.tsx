@@ -69,7 +69,7 @@ export const AuthModal: React.FC = () => {
         setSuccess(null);
 
         if (!isSupabaseConfigured) {
-            setError('Cloud auth is not configured. Set VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY in .env.local.');
+            setError('Cloud auth is not configured. Set VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY in .env.local.');
             return;
         }
 

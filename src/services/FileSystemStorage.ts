@@ -159,7 +159,8 @@ export class FileSystemStorage {
         const handle = await this.getStoredHandle();
 
         if (!handle) {
-            console.log('[Storage] No stored handle found');
+            // Silently skip — no previously-granted directory handle exists.
+            // This is expected on first visit or after IndexedDB was cleared.
             return false;
         }
 

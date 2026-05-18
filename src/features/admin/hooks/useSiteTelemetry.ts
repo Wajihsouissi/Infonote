@@ -18,17 +18,15 @@ export function useSiteTelemetry(): void {
         sessionStorage.setItem(SESSION_KEY, '1');
 
         // Fire-and-forget; telemetry must never block the UI or surface errors.
-        void supabase
-            .from('site_visits')
-            .insert({
-                user_agent: navigator.userAgent.slice(0, 500),
-            })
-            .then(() => {
-                // logged
-            })
-            .catch(() => {
+        void (async () => {
+            try {
+                await supabase.from('site_visits').insert({
+                    user_agent: navigator.userAgent.slice(0, 500),
+                });
+            } catch {
                 // Silently drop telemetry failures so the user experience
                 // is never degraded by analytics plumbing.
-            });
+            }
+        })();
     }, []);
 }

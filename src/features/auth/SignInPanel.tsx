@@ -24,7 +24,7 @@ export const SignInPanel: React.FC<Props> = ({ onSignedIn, compact }) => {
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
         if (!configured) {
-            setError('Supabase is not configured. Set VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY.');
+            setError('Supabase is not configured. Set VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY.');
             return;
         }
         const cleanEmail = email.trim().toLowerCase();

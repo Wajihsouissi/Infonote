@@ -142,7 +142,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
                         onClick={handleSignOut}
                     >
                         <LogOut size={15} />
-                        <span>Sign out</span>
+                        <span>Deconnexion</span>
                     </button>
                 </div>
             )}
