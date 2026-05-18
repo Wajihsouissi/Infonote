@@ -145,28 +145,28 @@
     /* Removed background for cleaner look */
 }
 
-.block:empty:before {
+.block[data-is-empty="true"]:before {
     content: attr(data-placeholder);
     color: var(--color-text-muted);
-    opacity: 0;
+    opacity: 0.35;
     pointer-events: none;
     display: block;
     transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Smart Placeholder: Keep all empty placeholders completely hidden by default */
-.block:empty:not(:focus):before {
-    opacity: 0 !important;
+/* Smart Placeholder: Keep all empty placeholders soft by default when not focused */
+.block[data-is-empty="true"]:not(:focus):before {
+    opacity: 0.35 !important;
 }
 
 /* Standalone blocks on the canvas (inside minimal editors) should always show their empty placeholder, even when unfocused! */
-.minimal .block:empty:not(:focus):before {
+.minimal .block[data-is-empty="true"]:not(:focus):before {
     opacity: 0.35 !important;
 }
 
-/* Always show placeholder only when the block is actively focused */
-.block:empty:focus:before {
-    opacity: 0.35 !important;
+/* Always show placeholder more prominently when the block is actively focused */
+.block[data-is-empty="true"]:focus:before {
+    opacity: 0.5 !important;
 }
 
 .text {

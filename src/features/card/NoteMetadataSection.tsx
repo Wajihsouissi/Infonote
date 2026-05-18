@@ -41,7 +41,7 @@ export function NoteMetadataSection({
     };
 
     return (
-        <div className={styles.expandedMetadata}>
+        <div className={`${styles.expandedMetadata} custom-drag-handle`}>
             {/* Header with Icon and Title */}
             <div className={styles.expandedHeader}>
                 <button

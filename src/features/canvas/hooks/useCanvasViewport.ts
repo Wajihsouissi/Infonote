@@ -61,12 +61,14 @@ export function useCanvasViewport({ nodes, currentParentId }: UseCanvasViewportO
             if (DEBUG) console.log("[visibleNodes] Culled:", rootNodes.length, "->", culledNodes.length);
         }
 
-        // Strip parentId for ReactFlow rendering (root level nodes)
+        // Strip parentId for ReactFlow rendering (root level nodes) and dynamically apply custom drag handle
         return culledNodes.map(n => {
-            if (n.parentId === currentParentId) {
-                return { ...n, parentId: undefined };
-            }
-            return n;
+            const hasDragHandle = n.type === 'note' || n.type === 'fused-note';
+            return {
+                ...n,
+                ...(n.parentId === currentParentId ? { parentId: undefined } : {}),
+                ...(hasDragHandle ? { dragHandle: '.custom-drag-handle' } : {})
+            };
         });
     }, [rootNodes, currentParentId, viewport]);
 

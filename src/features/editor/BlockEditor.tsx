@@ -626,7 +626,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                             style: {
                                 ...n.style,
                                 width: MIN_FUSED_SIZE,
-                                height: MIN_FUSED_SIZE
+                                height: undefined
                             }
                         };
                     }));

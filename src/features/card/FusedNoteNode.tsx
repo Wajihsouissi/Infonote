@@ -56,6 +56,37 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     const displayColor = data.color ? toPastelColor(data.color, theme === 'light') : undefined;
     const accentColor = data.color ? lightenColor(data.color, 15) : displayColor;
 
+    // Get the node's style from the store to check if it has been manually resized
+    const nodeStyle = useStore(s => s.nodes.find(n => n.id === id)?.style);
+    const hasManualHeight = nodeStyle?.height !== undefined;
+
+    const dynamicStyle = {
+        backgroundColor: displayColor || undefined,
+        // Force dark text contrast when a custom color is active (pastel background)
+        ...(displayColor ? {
+            '--color-text-main': '#1f2937',
+            '--color-text-muted': '#6b7280',
+            '--color-border': 'rgba(0,0,0,0.2)',
+            '--note-bg-dynamic': data.color,
+            color: '#1f2937'
+        } : {}),
+        display: 'flex',
+        flexDirection: 'column' as const,
+        ...(hasManualHeight ? {
+            height: '100%',
+        } : {
+            height: 'auto',
+            minHeight: '208px', // 4 units
+            maxHeight: '432px', // 8 units
+        })
+    };
+
+    const contentStyle = {
+        flex: hasManualHeight ? '1 1 0%' : '1 1 auto',
+        overflowY: 'auto' as const,
+        height: hasManualHeight ? '100%' : 'auto',
+    };
+
     // EditBar state
     const [showEditBar, setShowEditBar] = useState(false);
     const [editBarPosition, setEditBarPosition] = useState({ x: 0, y: 0 });
@@ -222,19 +253,32 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             const rawW = startW + deltaX;
             const rawH = startH + deltaY;
 
-            const { width, height } = snapFusedDimensions(rawW, rawH);
+            const { width: targetW, height: targetH } = snapFusedDimensions(rawW, rawH);
 
-            if (nodeRef.current) {
-                updateNode(id, { style: { width, height } });
+            // Gate state updates: only write to the store if snapped dimensions actually changed
+            const currentStyle = useStore.getState().nodes.find(n => n.id === id)?.style;
+            const currentW = currentStyle?.width;
+            const currentH = currentStyle?.height;
+
+            if (currentW !== targetW || currentH !== targetH) {
+                updateNode(id, { style: { width: targetW, height: targetH } });
             }
         };
 
-        const onMouseUp = () => {
+        const onMouseUp = (upEvent: MouseEvent) => {
             activeResize.current = false;
             document.body.style.cursor = '';
             document.body.classList.remove('infonote-resizing-active');
             window.removeEventListener('mousemove', onMouseMove);
             window.removeEventListener('mouseup', onMouseUp);
+
+            const deltaX = (upEvent.clientX - startX) / zoom;
+            const deltaY = (upEvent.clientY - startY) / zoom;
+            const rawW = startW + deltaX;
+            const rawH = startH + deltaY;
+
+            const { width: finalW, height: finalH } = snapFusedDimensions(rawW, rawH);
+            updateNode(id, { style: { width: finalW, height: finalH } });
         };
 
         window.addEventListener('mousemove', onMouseMove);
@@ -296,17 +340,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             `}
             ref={nodeRef}
             onContextMenu={handleContextMenu}
-            style={{
-                backgroundColor: displayColor || undefined,
-                // Force dark text contrast when a custom color is active (pastel background)
-                ...(displayColor ? {
-                    '--color-text-main': '#1f2937',
-                    '--color-text-muted': '#6b7280',
-                    '--color-border': 'rgba(0,0,0,0.2)',
-                    '--note-bg-dynamic': data.color,
-                    color: '#1f2937'
-                } : {})
-            }}
+            style={dynamicStyle}
         >
             {/* Top accent strip using the note color */}
             <div
@@ -335,6 +369,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 onWheelCapture={(e) => e.stopPropagation()}
                 onPointerDown={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
+                style={contentStyle}
             >
                 <BlockEditor
                     initialContent={data.content}

@@ -150,6 +150,39 @@ export function CanvasBoard() {
                 y: mousePosRef.current.y
             });
 
+            // Prevent overstacking: add a random starting jitter and check for realistic card collisions
+            const { nodes: currentNodes } = useStore.getState();
+            let targetX = flowPos.x + (Math.random() - 0.5) * 120; // random offset between -60px and +60px
+            let targetY = flowPos.y + (Math.random() - 0.5) * 80;  // random offset between -40px and +40px
+            
+            const thresholdX = 180; // check for horizontal overlap (card width ~300px)
+            const thresholdY = 60;  // check for vertical overlap (card height ~100px)
+
+            let overlap = true;
+            let attempts = 0;
+            const maxAttempts = 30;
+
+            while (overlap && attempts < maxAttempts) {
+                overlap = false;
+                for (const node of currentNodes) {
+                    const nodeParentId = node.parentId || undefined;
+                    const activeParent = currentParentId || undefined;
+                    if (nodeParentId !== activeParent) continue;
+
+                    const dx = Math.abs(node.position.x - targetX);
+                    const dy = Math.abs(node.position.y - targetY);
+
+                    // If nodes overlap within the card's dimensions, disperse randomly
+                    if (dx < thresholdX && dy < thresholdY) {
+                        targetX += (Math.random() * 40 + 20) * (Math.random() > 0.5 ? 1 : -1);
+                        targetY += (Math.random() * 40 + 20) * (Math.random() > 0.5 ? 1 : -1);
+                        overlap = true;
+                        attempts++;
+                        break;
+                    }
+                }
+            }
+
             // Create new Text Block
             const nodeId = uuidv4();
             const newBlock = {
@@ -160,7 +193,7 @@ export function CanvasBoard() {
 
             addNode(
                 'block',
-                flowPos,
+                { x: targetX, y: targetY },
                 { content: [newBlock], isStandaloneBlock: true },
                 { width: 300, height: 100 },
                 currentParentId || undefined,

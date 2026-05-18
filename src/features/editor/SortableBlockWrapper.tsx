@@ -26,6 +26,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
     const [dropIndication, setDropIndication] = useState<'top' | 'bottom' | null>(null);
 
     const handleDragStart = (e: React.DragEvent) => {
+        e.stopPropagation();
         // If promoting handles, we don't want internal block dragging
         if (promoteBlockHandles) {
             e.preventDefault();
@@ -152,7 +153,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         <div
             ref={ref}
             data-block-type={block?.type}
-            className={`${styles.sortableWrapper} ${isSelected ? styles.selected : ''} ${hideHandle ? styles.hideHandle : ''} ${(!canDragWrapper && !promoteBlockHandles) ? 'nodrag' : ''} ${dropClass}`}
+            className={`${styles.sortableWrapper} ${isSelected ? styles.selected : ''} ${hideHandle ? styles.hideHandle : ''} nodrag ${dropClass}`}
             style={style}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}

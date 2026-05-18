@@ -165,7 +165,7 @@ export function useCanvasDrop({
                             return {
                                 ...n,
                                 type: 'fused-note' as const,
-                                style: { ...n.style, height: 'auto' }
+                                style: { ...n.style, height: undefined }
                             } as AppNode;
                         }
                         return n;
@@ -228,7 +228,7 @@ export function useCanvasDrop({
                     },
                     style: {
                         width: BLOCK_WIDTH,
-                        height: BLOCK_HEIGHT
+                        height: blocksToAdd.length > 1 ? undefined : BLOCK_HEIGHT
                     },
                     parentId: targetParentId,
                 };

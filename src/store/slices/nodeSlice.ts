@@ -207,7 +207,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             id: customId || uuidv4(),
             type,
             position,
-            style: style || { width: 432, height: 432 },
+            style: style || (type === 'fused-note' ? { width: MIN_FUSED_SIZE } : { width: 432, height: 432 }),
             data: {
                 label: initialData?.label || 'New Note',
                 content: '',
@@ -385,8 +385,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 isStandaloneBlock: true
             } as any,
             style: {
-                width: MIN_FUSED_SIZE,
-                height: MIN_FUSED_SIZE
+                width: MIN_FUSED_SIZE
             },
             parentId: sourceNode.parentId
         };
@@ -710,8 +709,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 isStandaloneBlock: true
             },
             style: {
-                width: MIN_FUSED_SIZE,
-                height: MIN_FUSED_SIZE
+                width: MIN_FUSED_SIZE
             },
             parentId: currentParentId || undefined
         };
@@ -967,7 +965,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 id: newNodeId,
                 type: 'fused-note',
                 position: { x, y },
-                style: { width: MIN_FUSED_SIZE, height: MIN_FUSED_SIZE },
+                style: { width: MIN_FUSED_SIZE },
                 data: {
                     content: sectionBlocks,
                     isStandaloneBlock: true

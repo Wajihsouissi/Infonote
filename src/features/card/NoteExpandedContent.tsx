@@ -239,7 +239,7 @@ export function NoteExpandedContent({
                 </>
             ) : (
                 /* Minimal Header (When Hidden) */
-                <div className={styles.minimalHeader} style={headerStyle}>
+                <div className={`${styles.minimalHeader} custom-drag-handle`} style={headerStyle}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
                         <IconComponent size={20} />
                         <input

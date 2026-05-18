@@ -286,7 +286,7 @@
     justify-content: center;
     opacity: 0;
     transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: ns-resize !important;
+    cursor: nwse-resize !important;
     z-index: 30;
     pointer-events: auto;
     transform: rotate(180deg);
@@ -308,7 +308,8 @@
     transition: background-color 0.3s ease, transform 0.3s ease;
 }
 
-.fusedNoteNode:hover .modernResizeHandle {
+.fusedNoteNode:hover .modernResizeHandle,
+.fusedNoteNode.selected .modernResizeHandle {
     opacity: 1;
 }
 
