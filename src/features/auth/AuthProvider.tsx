@@ -1,9 +1,12 @@
 /**
  * Thin auth context around Supabase Auth.
  *
- * Exposes the current user + a loading flag, and a sign-out helper. Sign-in is
- * handled by <SignInPanel /> via email magic link, which is the lowest-friction
- * method that does not require extra provider setup.
+ * - Captures any active session on mount (so the user stays logged in across
+ *   refreshes) and listens for future auth events via onAuthStateChange.
+ * - Mirrors the canonical `user_profiles` row into the global Zustand store so
+ *   the UI always reads the same identity that lives in the database.
+ * - Exposes a sign-out helper that destroys the remote session, resets the
+ *   Zustand auth slice, and redirects back to the public landing context.
  */
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
@@ -24,15 +27,57 @@ const AuthContext = createContext<AuthContextValue>({
     signOut: async () => {},
 });
 
+type ProfileRow = {
+    id: string;
+    email: string | null;
+    display_name?: string | null;
+};
+
+/**
+ * Pull the canonical `user_profiles` row for the active user, if it exists.
+ * Falls back gracefully so a missing row never breaks the auth flow.
+ */
+async function fetchProfileRow(userId: string): Promise<ProfileRow | null> {
+    if (!isSupabaseConfigured) return null;
+    try {
+        const { data, error } = await supabase
+            .from('user_profiles')
+            .select('id, email, display_name')
+            .eq('id', userId)
+            .maybeSingle();
+        if (error) return null;
+        return (data as ProfileRow) ?? null;
+    } catch {
+        return null;
+    }
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState<boolean>(isSupabaseConfigured);
 
-    // Push changes into the global Zustand store so the active user id is
-    // available outside of React (e.g. from services / non-component code).
-    const pushToStore = useCallback((u: User | null) => {
-        const setAuthUser = useStore.getState().setAuthUser;
-        setAuthUser(u ? { id: u.id, email: u.email ?? null } : null);
+    /**
+     * Push the active user into the Zustand store. When a real session exists
+     * we also enrich the payload with the matching `user_profiles` row so the
+     * UI sees backend-of-record values (email, display name) rather than raw
+     * auth metadata.
+     */
+    const pushToStore = useCallback(async (u: User | null) => {
+        const { setAuthUser, resetAuth } = useStore.getState();
+        if (!u) {
+            resetAuth();
+            return;
+        }
+        const profile = await fetchProfileRow(u.id);
+        const metaName =
+            (u.user_metadata?.display_name as string | undefined) ??
+            (u.user_metadata?.full_name as string | undefined) ??
+            null;
+        setAuthUser({
+            id: u.id,
+            email: profile?.email ?? u.email ?? null,
+            displayName: profile?.display_name ?? metaName ?? null,
+        });
     }, []);
 
     useEffect(() => {
@@ -44,10 +89,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         let cancelled = false;
 
-        supabase.auth.getUser().then(({ data }: { data: { user: User | null } }) => {
+        // Hydrate from any persisted Supabase session on mount. This is what
+        // keeps the user "logged in" after a refresh or back-navigation: the
+        // browser client reads the token from localStorage and rehydrates.
+        supabase.auth.getSession().then(async ({ data }: { data: { session: Session | null } }) => {
             if (cancelled) return;
-            setUser(data.user ?? null);
-            pushToStore(data.user ?? null);
+            const sessionUser = data.session?.user ?? null;
+            setUser(sessionUser);
+            await pushToStore(sessionUser);
             setLoading(false);
         }).catch(() => {
             if (!cancelled) {
@@ -56,11 +105,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         });
 
-        const { data: sub } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-            const nextUser = session?.user ?? null;
-            setUser(nextUser);
-            pushToStore(nextUser);
-        });
+        const { data: sub } = supabase.auth.onAuthStateChange(
+            (_event: AuthChangeEvent, session: Session | null) => {
+                const nextUser = session?.user ?? null;
+                setUser(nextUser);
+                // fire-and-forget; pushToStore handles its own errors
+                void pushToStore(nextUser);
+            }
+        );
 
         return () => {
             cancelled = true;
@@ -70,9 +122,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signOut = useCallback(async () => {
         if (!isSupabaseConfigured) return;
-        await supabase.auth.signOut();
-        pushToStore(null);
-    }, [pushToStore]);
+        try {
+            await supabase.auth.signOut();
+        } finally {
+            // Always tear down local state even if the network call fails.
+            const { resetAuth, setCurrentView } = useStore.getState();
+            resetAuth();
+            setUser(null);
+            // Redirect back to the public homepage context.
+            setCurrentView('landing');
+        }
+    }, []);
 
     return (
         <AuthContext.Provider value={{ user, loading, configured: isSupabaseConfigured, signOut }}>

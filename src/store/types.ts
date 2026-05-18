@@ -67,11 +67,13 @@ export type AppView = 'landing' | 'canvas' | 'marketplace' | 'login' | 'signup';
 export interface AuthUser {
     id: string;
     email: string | null;
+    displayName?: string | null;
 }
 
 export interface AuthState {
     userId: string | null;
     email: string | null;
+    displayName: string | null;
     isAuthenticated: boolean;
     isAuthLoading: boolean;
 }
@@ -82,6 +84,8 @@ export interface AuthSlice {
     setAuthUser: (user: AuthUser | null) => void;
     setAuthLoading: (isLoading: boolean) => void;
     setAuthModalOpen: (isOpen: boolean) => void;
+    /** Reset auth slice back to its unauthenticated default. */
+    resetAuth: () => void;
 }
 
 export interface UISlice {

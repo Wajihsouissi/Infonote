@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
-import { useAuth } from '../auth/AuthProvider';
+import { ProfileMenu } from '../auth/ProfileMenu';
 import { useRecentlyViewed, useGlobalSearch } from './hooks/useDashboardData';
 import {
   Layout,
@@ -24,7 +24,9 @@ export const LandingPage: React.FC = () => {
   const theme = useStore((state) => state.theme);
   const toggleTheme = useStore((state) => state.toggleTheme);
 
-  const { user, signOut } = useAuth();
+  // Read auth straight from the global store so the header reacts the
+  // instant Supabase fires onAuthStateChange (login, logout, refresh).
+  const isAuthenticated = useStore((state) => state.auth.isAuthenticated);
   
   // Try to grab the last active workspace ID from local storage
   const activeWorkspaceId = typeof window !== 'undefined' 
@@ -180,18 +182,8 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <div className={styles.userSection}>
-            {user ? (
-              <>
-                <span style={{ fontSize: '13px', marginRight: '12px', opacity: 0.8 }}>
-                  {user.user_metadata?.display_name || user.email}
-                </span>
-                <button className={styles.signupButton} onClick={() => setCurrentView('canvas')}>
-                  <span>Go to Canvas</span>
-                </button>
-                <button className={styles.loginButton} onClick={signOut} style={{ marginLeft: '8px' }}>
-                  <span>Sign out</span>
-                </button>
-              </>
+            {isAuthenticated ? (
+              <ProfileMenu onOpenCanvas={() => setCurrentView('canvas')} />
             ) : (
               <>
                 <button className={styles.loginButton} onClick={() => setCurrentView('login')}>
