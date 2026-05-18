@@ -17,8 +17,19 @@ export class FileSystemBackend implements GraphBackend {
         return fileSystemStorage.directoryName ?? null;
     }
 
+    /**
+     * Reconnect to a previously-granted directory handle stored in IndexedDB.
+     * Does NOT prompt the user — safe to call on app startup.
+     */
+    async reconnect(): Promise<boolean> {
+        return fileSystemStorage.reconnect();
+    }
+
+    /**
+     * Full connect flow: try IndexedDB reconnect first, then prompt user.
+     * Must only be called from an explicit user gesture (button click).
+     */
     async connect(): Promise<boolean> {
-        // Prefer reconnecting to a previously granted directory before prompting.
         const reconnected = await fileSystemStorage.reconnect();
         if (reconnected) return true;
         return fileSystemStorage.selectDirectory();

@@ -7,7 +7,7 @@
  * resets the store and redirects to the public landing context.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LogOut, User as UserIcon, Layout } from 'lucide-react';
+import { LogOut, User as UserIcon, Layout, Shield } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { useAuth } from './AuthProvider';
 import styles from './ProfileMenu.module.css';
@@ -105,6 +105,19 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
                     >
                         <UserIcon size={15} />
                         <span>Profile</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        role="menuitem"
+                        className={styles.menuItem}
+                        onClick={() => {
+                            setOpen(false);
+                            useStore.getState().setCurrentView('admin');
+                        }}
+                    >
+                        <Shield size={15} />
+                        <span>Admin</span>
                     </button>
 
                     {onOpenCanvas && (

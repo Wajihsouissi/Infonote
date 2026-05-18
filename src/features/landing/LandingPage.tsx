@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { ProfileMenu } from '../auth/ProfileMenu';
+import { useSiteTelemetry } from '../admin/hooks/useSiteTelemetry';
 import { useRecentlyViewed, useGlobalSearch } from './hooks/useDashboardData';
 import {
   Layout,
@@ -30,6 +31,9 @@ export const LandingPage: React.FC = () => {
   // Read auth straight from the global store so the header reacts the
   // instant Supabase fires onAuthStateChange (login, logout, refresh).
   const isAuthenticated = useStore((state) => state.auth.isAuthenticated);
+
+  // Log a site visit row for admin analytics (deduped per browser session).
+  useSiteTelemetry();
   
   // Try to grab the last active workspace ID from local storage
   const activeWorkspaceId = typeof window !== 'undefined' 

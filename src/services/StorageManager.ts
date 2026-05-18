@@ -84,10 +84,12 @@ export function initStorageManager(
 async function autoReconnect(): Promise<void> {
     if (!storeCallbacks) return;
 
-    // Only attempt file-system auto-reconnect (uses an IndexedDB-stored handle).
+    // Only attempt file-system auto-reconnect from IndexedDB-stored handle.
+    // NEVER prompt the user here — showDirectoryPicker requires a direct user
+    // gesture and will throw a SecurityError if called during startup.
     // Cloud reconnect is an explicit user action because it requires auth.
     try {
-        const connected = await fileSystemBackend.connect().catch(() => false);
+        const connected = await fileSystemBackend.reconnect().catch(() => false);
         if (!connected) return;
 
         activeBackend = fileSystemBackend;

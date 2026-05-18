@@ -20,9 +20,20 @@ export const SignupPage: React.FC = () => {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !firstName || !lastName) return;
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+    const cleanFirst = firstName.trim();
+    const cleanLast = lastName.trim();
 
-    if (password !== confirmPassword) {
+    if (!cleanEmail || !cleanPassword || !cleanFirst || !cleanLast) {
+      setError('All fields are required.');
+      return;
+    }
+    if (cleanPassword.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+    if (cleanPassword !== confirmPassword.trim()) {
       setError('Passwords do not match');
       return;
     }
@@ -32,11 +43,11 @@ export const SignupPage: React.FC = () => {
 
     try {
       const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
+        email: cleanEmail,
+        password: cleanPassword,
         options: {
           data: {
-            display_name: `${firstName} ${lastName}`.trim(),
+            display_name: `${cleanFirst} ${cleanLast}`.trim(),
           }
         }
       });

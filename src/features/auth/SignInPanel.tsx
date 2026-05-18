@@ -27,6 +27,16 @@ export const SignInPanel: React.FC<Props> = ({ onSignedIn, compact }) => {
             setError('Supabase is not configured. Set VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY.');
             return;
         }
+        const cleanEmail = email.trim().toLowerCase();
+        const cleanPassword = password.trim();
+        if (!cleanEmail || !cleanPassword) {
+            setError('Email and password are required.');
+            return;
+        }
+        if (cleanPassword.length < 6) {
+            setError('Password must be at least 6 characters.');
+            return;
+        }
         setLoading(true);
         setMessage(null);
         setError(null);
@@ -34,16 +44,16 @@ export const SignInPanel: React.FC<Props> = ({ onSignedIn, compact }) => {
         try {
             if (mode === 'signup') {
                 const { error: signUpError } = await supabase.auth.signUp({
-                    email,
-                    password,
+                    email: cleanEmail,
+                    password: cleanPassword,
                 });
                 if (signUpError) throw signUpError;
                 setMessage('Account created! You are now signed in.');
                 onSignedIn?.();
             } else {
                 const { error: signInError } = await supabase.auth.signInWithPassword({
-                    email,
-                    password,
+                    email: cleanEmail,
+                    password: cleanPassword,
                 });
                 if (signInError) throw signInError;
                 setMessage('Successfully signed in.');

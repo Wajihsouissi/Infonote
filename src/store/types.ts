@@ -62,7 +62,7 @@ export interface StorageSlice {
     loadGraph: (nodes: AppNode[], edges: Edge[]) => void;
 }
 
-export type AppView = 'landing' | 'canvas' | 'marketplace' | 'login' | 'signup';
+export type AppView = 'landing' | 'canvas' | 'marketplace' | 'login' | 'signup' | 'admin';
 
 export interface AuthUser {
     id: string;
