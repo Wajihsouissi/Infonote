@@ -27,7 +27,6 @@ import { CanvasSlashMenu } from './CanvasSlashMenu';
 import { CloudSyncControls } from './CloudSyncControls';
 import { CenteredEdge } from './CenteredEdge';
 import { CustomConnectionLine } from './CustomConnectionLine';
-import { AuthButton } from '../auth/AuthButton';
 import { AuthModal } from '../auth/AuthModal';
 import { useStore } from '../../store/useStore';
 import { v4 as uuidv4 } from 'uuid';
@@ -356,7 +355,6 @@ export function CanvasBoard() {
             <div className={styles.canvasArea}>
                 <div className={styles.topRightToolbar}>
                     <StorageControls />
-                    <AuthButton />
                     <div className={styles.topRightSeparator} />
                     <ThemeSwitcher />
                     <button

@@ -8,6 +8,7 @@
 import { fileSystemBackend } from './storage/FileSystemBackend';
 import type { GraphBackend, BackendKind } from './storage/types';
 import { shallow } from 'zustand/shallow';
+import { useStore } from '../store/useStore';
 
 let isInitialized = false;
 let saveTimeout: number | null = null;
@@ -53,14 +54,21 @@ export function initStorageManager(
         (state: any) => ({
             nodes: state.nodes,
             edges: state.edges,
-            isConnected: state.storage.isConnected
+            isConnected: state.storage.isConnected,
+            setLocalDirty: (state as any).setLocalDirty,
+            setCloudDirty: (state as any).setCloudDirty
         }),
         (curr, prev) => {
-            if (!curr.isConnected || isRestoring) return;
             const nodesChanged = curr.nodes !== prev.nodes;
             const edgesChanged = curr.edges !== prev.edges;
 
             if (nodesChanged || edgesChanged) {
+                // Mark both states as unsynced/dirty
+                if (curr.setLocalDirty) curr.setLocalDirty(true);
+                if (curr.setCloudDirty) curr.setCloudDirty(true);
+
+                if (!curr.isConnected || isRestoring) return;
+
                 if (saveTimeout) {
                     clearTimeout(saveTimeout);
                     saveTimeout = null;
@@ -110,8 +118,20 @@ async function performSave(): Promise<void> {
     try {
         const { nodes, edges } = storeCallbacks.getState();
         await activeBackend.save({ nodes, edges });
-        storeCallbacks.setLastSaved(new Date().toLocaleTimeString());
-    } catch {
+        
+        const timeStr = new Date().toLocaleTimeString();
+        storeCallbacks.setLastSaved(timeStr);
+        
+        // Update new dynamic states
+        const state = useStore.getState();
+        if (state.setLocalLastSaved) state.setLocalLastSaved(timeStr);
+        if (state.setLocalDirty) state.setLocalDirty(false);
+        if (state.setLocalError) state.setLocalError(null);
+    } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        const state = useStore.getState();
+        if (state.setLocalError) state.setLocalError(errorMsg);
+
         // If the backend dropped its connection, surface that to the UI.
         if (!activeBackend.isConnected) {
             storeCallbacks.setStorageStatus(false, null);

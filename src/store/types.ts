@@ -59,11 +59,27 @@ export interface StorageSlice {
         directoryName: string | null;
         lastSaved: string | null;
         isSaving: boolean;
+        
+        // Dynamic Save States:
+        localLastSaved: string | null;
+        cloudLastSaved: string | null;
+        isLocalDirty: boolean;
+        isCloudDirty: boolean;
+        localError: string | null;
+        cloudError: string | null;
     };
     setStorageStatus: (isConnected: boolean, directoryName: string | null) => void;
     setLastSaved: (date: string | null) => void;
     setIsSaving: (isSaving: boolean) => void;
     loadGraph: (nodes: AppNode[], edges: Edge[]) => void;
+
+    // Setters for Dynamic States:
+    setLocalLastSaved: (date: string | null) => void;
+    setCloudLastSaved: (date: string | null) => void;
+    setLocalDirty: (dirty: boolean) => void;
+    setCloudDirty: (dirty: boolean) => void;
+    setLocalError: (err: string | null) => void;
+    setCloudError: (err: string | null) => void;
 }
 
 export type AppView = 'landing' | 'canvas' | 'marketplace' | 'login' | 'signup';
@@ -97,6 +113,7 @@ export interface UISlice {
     isKanbanModalOpen: boolean;
     theme: 'light' | 'dark';
     currentView: AppView;
+    hasEnteredApp: boolean;
     interactionState: {
         draggingKanbanNodeId: string | null;
         hoveredKanbanColumn: { kanbanId: string; columnId: string } | null;
@@ -121,6 +138,7 @@ export interface UISlice {
     toggleCanvasNodeSelection: (id: string) => void;
     clearCanvasSelection: () => void;
     setCurrentView: (view: AppView) => void;
+    setHasEnteredApp: (val: boolean) => void;
     selectedEdgeId: string | null;
     setSelectedEdgeId: (id: string | null) => void;
     selectedEdgeIds: Set<string>;

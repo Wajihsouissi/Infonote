@@ -12,7 +12,8 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
         dropTarget: null
     },
     theme: (localStorage.getItem('infonote-theme') as 'light' | 'dark') || 'dark',
-    currentView: 'landing',
+    currentView: 'login',
+    hasEnteredApp: false,
     selectedCanvasNodeIds: new Set<string>(),
     selectedEdgeId: null,
     selectedEdgeIds: new Set<string>(),
@@ -96,5 +97,12 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
         };
     }),
 
-    setCurrentView: (view) => set({ currentView: view }),
+    setCurrentView: (view) => {
+        const isAppView = view === 'landing' || view === 'canvas' || view === 'marketplace';
+        set((state) => ({
+            currentView: view,
+            hasEnteredApp: isAppView ? true : state.hasEnteredApp
+        }));
+    },
+    setHasEnteredApp: (val) => set({ hasEnteredApp: val }),
 });

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Rocket, Mail, Lock, Eye, EyeOff, ArrowLeft, LogIn, Zap, GitBranch, Layers, Loader2, AlertCircle } from 'lucide-react';
+import { Rocket, Mail, Lock, Eye, EyeOff, User, ArrowLeft, LogIn, Zap, GitBranch, Layers, Loader2, AlertCircle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { supabase } from '../../services/supabase/client';
+import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
 import styles from './AuthPage.module.css';
 
 export const LoginPage: React.FC = () => {
   const setCurrentView = useStore((state) => state.setCurrentView);
+  const hasEnteredApp = useStore((state) => state.hasEnteredApp);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,6 +19,58 @@ export const LoginPage: React.FC = () => {
     
     setLoading(true);
     setError(null);
+    
+    // ── MOCK AUTH FLOW ──
+    if (!isSupabaseConfigured) {
+      setTimeout(() => {
+        try {
+          // Pre-populate standard demo accounts
+          const defaultUsers = [
+            { id: 'demo-user-id', email: 'demo@infonote.com', password: 'password123', displayName: 'Demo User' },
+            { id: 'guest-user-id', email: 'guest@infonote.com', password: 'password', displayName: 'Infonote Guest' }
+          ];
+
+          // Fetch mock users from localStorage
+          const localUsersRaw = localStorage.getItem('infonote-mock-users');
+          const localUsers = localUsersRaw ? JSON.parse(localUsersRaw) : [];
+          
+          const allUsers = [...defaultUsers, ...localUsers];
+          const matchedUser = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+
+          if (!matchedUser) {
+            throw new Error('No account found with this email. Please sign up first!');
+          }
+
+          if (matchedUser.password !== password) {
+            throw new Error('Incorrect password. Please try again!');
+          }
+
+          // Create mock session
+          const sessionUser = {
+            id: matchedUser.id,
+            email: matchedUser.email,
+            displayName: matchedUser.displayName
+          };
+
+          localStorage.setItem('infonote-mock-session', JSON.stringify(sessionUser));
+          
+          // Set user in Zustand store
+          useStore.getState().setAuthUser({
+            id: sessionUser.id,
+            email: sessionUser.email,
+            displayName: sessionUser.displayName
+          });
+
+          // Trigger view update
+          setCurrentView('canvas');
+        } catch (err) {
+          setError(err instanceof Error ? err.message : String(err));
+        } finally {
+          setLoading(false);
+        }
+      }, 800); // 800ms loading feeling for high-fidelity response
+      return;
+    }
     
     try {
       const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -51,10 +104,12 @@ export const LoginPage: React.FC = () => {
 
         {/* Left Header with Back Button and Logo */}
         <div className={styles.leftHeader}>
-          <button className={styles.backButton} onClick={() => setCurrentView('landing')}>
-            <ArrowLeft size={14} />
-            Back to home
-          </button>
+          {hasEnteredApp && (
+            <button className={styles.backButton} onClick={() => setCurrentView('landing')}>
+              <ArrowLeft size={14} />
+              Back to home
+            </button>
+          )}
           <div className={styles.leftLogo}>
             <Rocket size={22} className={styles.leftLogoIcon} />
             <span>Infonote</span>
@@ -197,6 +252,17 @@ export const LoginPage: React.FC = () => {
               {loading ? <Loader2 size={15} className="animate-spin" /> : <LogIn size={15} />}
               Sign in
             </button>
+
+            {!hasEnteredApp && (
+              <button
+                type="button"
+                className={styles.guestButton}
+                onClick={() => setCurrentView('landing')}
+              >
+                <User size={15} />
+                Continue as guest
+              </button>
+            )}
           </form>
 
           <p className={styles.footer}>

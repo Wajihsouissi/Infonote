@@ -705,3 +705,33 @@
 :global([data-theme="dark"]) .switchLink:hover {
   color: #ffffff;
 }
+
+/* ── Guest Button ─────────────────────────────────── */
+.guestButton {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--auth-border-main);
+  background: var(--auth-btn-bg);
+  color: var(--auth-text-main);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all var(--transition-fast);
+  margin-top: 10px;
+}
+
+.guestButton:hover {
+  background: var(--auth-btn-hover);
+  border-color: var(--color-secondary);
+  transform: translateY(-1px);
+}
+
+.guestButton:active {
+  transform: translateY(0);
+}

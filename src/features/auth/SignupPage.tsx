@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Rocket, Mail, Lock, Eye, EyeOff, User, ArrowLeft, UserPlus, Zap, GitBranch, Layers, Loader2, AlertCircle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { supabase } from '../../services/supabase/client';
+import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
 import styles from './AuthPage.module.css';
 
 export const SignupPage: React.FC = () => {
   const setCurrentView = useStore((state) => state.setCurrentView);
+  const hasEnteredApp = useStore((state) => state.hasEnteredApp);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm]   = useState(false);
 
@@ -29,6 +30,61 @@ export const SignupPage: React.FC = () => {
 
     setLoading(true);
     setError(null);
+
+    // ── MOCK AUTH FLOW ──
+    if (!isSupabaseConfigured) {
+      setTimeout(() => {
+        try {
+          // Fetch existing mock users
+          const localUsersRaw = localStorage.getItem('infonote-mock-users');
+          const localUsers = localUsersRaw ? JSON.parse(localUsersRaw) : [];
+
+          // Check if email already registered
+          const emailExists = localUsers.some((u: any) => u.email.toLowerCase() === email.toLowerCase()) || 
+                              email.toLowerCase() === 'demo@infonote.com' || 
+                              email.toLowerCase() === 'guest@infonote.com';
+
+          if (emailExists) {
+            throw new Error('An account with this email already exists.');
+          }
+
+          // Create new user record
+          const newUser = {
+            id: `mock-user-${Date.now()}`,
+            email: email,
+            password: password,
+            displayName: `${firstName} ${lastName}`.trim()
+          };
+
+          // Save to mock users list
+          localUsers.push(newUser);
+          localStorage.setItem('infonote-mock-users', JSON.stringify(localUsers));
+
+          // Log user in automatically by creating a mock session
+          const sessionUser = {
+            id: newUser.id,
+            email: newUser.email,
+            displayName: newUser.displayName
+          };
+          localStorage.setItem('infonote-mock-session', JSON.stringify(sessionUser));
+
+          // Set user in Zustand store
+          useStore.getState().setAuthUser({
+            id: sessionUser.id,
+            email: sessionUser.email,
+            displayName: sessionUser.displayName
+          });
+
+          // Redirect to canvas
+          setCurrentView('canvas');
+        } catch (err) {
+          setError(err instanceof Error ? err.message : String(err));
+        } finally {
+          setLoading(false);
+        }
+      }, 1000); // 1000ms premium feeling loading transition
+      return;
+    }
 
     try {
       const { error: signUpError } = await supabase.auth.signUp({
@@ -67,10 +123,12 @@ export const SignupPage: React.FC = () => {
 
         {/* Left Header with Back Button and Logo */}
         <div className={styles.leftHeader}>
-          <button className={styles.backButton} onClick={() => setCurrentView('landing')}>
-            <ArrowLeft size={14} />
-            Back to home
-          </button>
+          {hasEnteredApp && (
+            <button className={styles.backButton} onClick={() => setCurrentView('landing')}>
+              <ArrowLeft size={14} />
+              Back to home
+            </button>
+          )}
           <div className={styles.leftLogo}>
             <Rocket size={22} className={styles.leftLogoIcon} />
             <span>Infonote</span>
@@ -279,6 +337,17 @@ export const SignupPage: React.FC = () => {
               {loading ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />}
               Create account
             </button>
+
+            {!hasEnteredApp && (
+              <button
+                type="button"
+                className={styles.guestButton}
+                onClick={() => setCurrentView('landing')}
+              >
+                <User size={15} />
+                Continue as guest
+              </button>
+            )}
 
             {/* Terms */}
             <p className={styles.terms}>

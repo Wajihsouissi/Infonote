@@ -24,6 +24,11 @@ export function CloudSyncControls() {
     const setAuthModalOpen = useStore((s) => s.setAuthModalOpen);
     const loadGraph = useStore((s) => s.loadGraph);
 
+    // Sync setters for global state
+    const setCloudLastSaved = useStore((s) => s.setCloudLastSaved);
+    const setCloudDirty = useStore((s) => s.setCloudDirty);
+    const setCloudError = useStore((s) => s.setCloudError);
+
     const [status, setStatus] = useState<Status>({ kind: 'idle' });
 
     const flashStatus = useCallback((next: Status, ms = 2400) => {
@@ -49,14 +54,20 @@ export function CloudSyncControls() {
         const { nodes, edges } = useStore.getState();
         const result = await saveCanvasToCloud(userId, nodes, edges);
         if (result.ok) {
+            const timeStr = new Date().toLocaleTimeString();
+            if (setCloudLastSaved) setCloudLastSaved(timeStr);
+            if (setCloudDirty) setCloudDirty(false);
+            if (setCloudError) setCloudError(null);
             flashStatus({
                 kind: 'success',
                 message: `Saved ${result.counts.nodes} nodes / ${result.counts.edges} edges`,
             });
         } else {
-            flashStatus({ kind: 'error', message: result.error });
+            const errMsg = result.error || 'Cloud save failed';
+            if (setCloudError) setCloudError(errMsg);
+            flashStatus({ kind: 'error', message: errMsg });
         }
-    }, [isAuthenticated, userId, setAuthModalOpen, flashStatus]);
+    }, [isAuthenticated, userId, setAuthModalOpen, flashStatus, setCloudLastSaved, setCloudDirty, setCloudError]);
 
     const handleReload = useCallback(async () => {
         if (!isSupabaseConfigured) {

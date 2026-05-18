@@ -474,7 +474,7 @@
   -webkit-backdrop-filter: blur(var(--backdrop-blur));
   flex-shrink: 0;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* Top bar — Main background gradient sweep */
@@ -629,6 +629,33 @@
 
 .loginButton:active {
   opacity: 0.8;
+}
+
+/* Log out — premium transparent danger button */
+.logoutButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.logoutButton:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.logoutButton:active {
+  transform: scale(0.98);
 }
 
 /* Sign up — Premium gradient button */

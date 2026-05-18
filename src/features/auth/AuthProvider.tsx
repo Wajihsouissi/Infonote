@@ -82,6 +82,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     useEffect(() => {
         if (!isSupabaseConfigured) {
+            const mockSessionRaw = localStorage.getItem('infonote-mock-session');
+            if (mockSessionRaw) {
+                try {
+                    const mockUser = JSON.parse(mockSessionRaw);
+                    setUser(mockUser);
+                    
+                    // Push to Zustand store
+                    const { setAuthUser } = useStore.getState();
+                    setAuthUser({
+                        id: mockUser.id,
+                        email: mockUser.email,
+                        displayName: mockUser.displayName
+                    });
+
+                    // Redirect if they are currently on login/signup to landing
+                    const { currentView, setCurrentView } = useStore.getState();
+                    if (currentView === 'login' || currentView === 'signup') {
+                        setCurrentView('landing');
+                    }
+                } catch (e) {
+                    console.error("Error loading mock session", e);
+                }
+            }
             setLoading(false);
             useStore.getState().setAuthLoading(false);
             return;
@@ -121,7 +144,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [pushToStore]);
 
     const signOut = useCallback(async () => {
-        if (!isSupabaseConfigured) return;
+        if (!isSupabaseConfigured) {
+            // Tear down local mock session
+            localStorage.removeItem('infonote-mock-session');
+            const { resetAuth, setCurrentView } = useStore.getState();
+            resetAuth();
+            setUser(null);
+            setCurrentView('landing');
+            return;
+        }
         try {
             await supabase.auth.signOut();
         } finally {
