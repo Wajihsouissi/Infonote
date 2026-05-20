@@ -78,6 +78,15 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             '--glass-border': `${borderColor}40`,
             '--icon-color': darkText,
             '--note-bg-dynamic': data.color,
+            '--table-bg': `${displayColor}26`,
+            '--table-header-bg': `${displayColor}3d`,
+            '--table-row-hover-bg': `${displayColor}33`,
+            '--table-cell-focus-bg': `${displayColor}4d`,
+            '--table-controls-bg': `${displayColor}22`,
+            '--table-btn-hover-bg': `${displayColor}33`,
+            '--table-border': `${borderColor}33`,
+            '--table-border-strong': `${borderColor}55`,
+            '--table-focus-ring': `${borderColor}80`,
             color: darkText,
         } as React.CSSProperties;
     }, [displayColor, data.color]);

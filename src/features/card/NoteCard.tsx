@@ -5,7 +5,7 @@ import styles from './NoteCard.module.css';
 import type { NoteNode } from '../../types';
 import { useStore } from '../../store/useStore';
 import { IconPicker } from './IconPicker';
-import { iconMap, defaultIconName } from './iconMap';
+import { defaultIconName, CardIcon } from './iconMap';
 import { NoteExpandedContent } from './NoteExpandedContent';
 
 import { CoverPicker } from './CoverPicker';
@@ -138,9 +138,6 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             });
         }
     }, [data, isEditingMetadata]);
-
-    // Get the icon component
-    const IconComponent = iconMap[data.icon || defaultIconName] || iconMap[defaultIconName];
 
     // Metadata editing handlers
     const handleSaveMetadata = useCallback(() => {
@@ -517,7 +514,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                         onClick={handleIconClick}
                         title="Change icon"
                     >
-                        <IconComponent size={32} />
+                        <CardIcon icon={data.icon || defaultIconName} size={32} />
                     </button>
                     <input
                         className={`${styles.iconTextInput} nodrag`}

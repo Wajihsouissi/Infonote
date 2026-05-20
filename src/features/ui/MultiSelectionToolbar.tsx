@@ -1,15 +1,19 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Trash2, Copy, Palette, Layers, X, ArrowUpRight } from 'lucide-react';
+import { useReactFlow } from '@xyflow/react';
+import { Trash2, Copy, Palette, Layers, X, ArrowUpRight, ArrowRight, GitBranch } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import styles from './MultiSelectionToolbar.module.css';
 
 export function MultiSelectionToolbar() {
+    const { screenToFlowPosition } = useReactFlow();
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
     const clearCanvasSelection = useStore(s => s.clearCanvasSelection);
     const bulkDeleteNodes = useStore(s => s.bulkDeleteNodes);
     const bulkDuplicateNodes = useStore(s => s.bulkDuplicateNodes);
     const bulkApplyColor = useStore(s => s.bulkApplyColor);
     const fuseNodes = useStore(s => s.fuseNodes);
+    const releaseNodeContentToBlocks = useStore(s => s.releaseNodeContentToBlocks);
+    const selectConnectedCanvasNodes = useStore(s => s.selectConnectedCanvasNodes);
     const isLinkingMode = useStore(s => s.isLinkingMode);
     const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
     const [showColorPicker, setShowColorPicker] = useState(false);
@@ -68,6 +72,22 @@ export function MultiSelectionToolbar() {
         fuseNodes(Array.from(selectedCanvasNodeIds));
         clearCanvasSelection();
     }, [selectedCanvasNodeIds, clearCanvasSelection, fuseNodes]);
+
+    const handleRelease = useCallback(() => {
+        const selectedId = Array.from(selectedCanvasNodeIds)[0];
+        if (!selectedId) return;
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        const flowCenter = screenToFlowPosition({ x: centerX, y: centerY });
+        releaseNodeContentToBlocks(selectedId, flowCenter);
+        clearCanvasSelection();
+    }, [selectedCanvasNodeIds, releaseNodeContentToBlocks, clearCanvasSelection, screenToFlowPosition]);
+
+    const handleSelectConnected = useCallback(() => {
+        const selectedId = Array.from(selectedCanvasNodeIds)[0];
+        if (!selectedId) return;
+        selectConnectedCanvasNodes(selectedId);
+    }, [selectedCanvasNodeIds, selectConnectedCanvasNodes]);
 
 
 
@@ -196,6 +216,28 @@ export function MultiSelectionToolbar() {
                                 >
                                     <ArrowUpRight size={16} />
                                     <span>Link</span>
+                                </button>
+                            </>
+                        )}
+
+                        {selectedCount === 1 && (
+                            <>
+                                <button
+                                    className={`${styles.actionBtn} ${styles.primary}`}
+                                    onClick={handleRelease}
+                                    title="Release node content into blocks on canvas"
+                                >
+                                    <ArrowRight size={16} />
+                                    <span>Release</span>
+                                </button>
+
+                                <button
+                                    className={styles.actionBtn}
+                                    onClick={handleSelectConnected}
+                                    title="Select all nodes connected to this node"
+                                >
+                                    <GitBranch size={16} />
+                                    <span>Connected</span>
                                 </button>
                             </>
                         )}

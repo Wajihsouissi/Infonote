@@ -43,6 +43,15 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             '--color-border': `${borderColor}40`, // 40% opacity
             '--glass-border': `${borderColor}40`,
             '--icon-color': darkText,
+            '--table-bg': `${displayColor}26`,
+            '--table-header-bg': `${displayColor}3d`,
+            '--table-row-hover-bg': `${displayColor}33`,
+            '--table-cell-focus-bg': `${displayColor}4d`,
+            '--table-controls-bg': `${displayColor}22`,
+            '--table-btn-hover-bg': `${displayColor}33`,
+            '--table-border': `${borderColor}33`,
+            '--table-border-strong': `${borderColor}55`,
+            '--table-focus-ring': `${borderColor}80`,
         } as React.CSSProperties;
     }, [displayColor]);
     const isSingleMedia = Array.isArray(data.content) && data.content.length === 1 && (data.content[0].type === 'image' || data.content[0].type === 'video' || data.content[0].type === 'file');

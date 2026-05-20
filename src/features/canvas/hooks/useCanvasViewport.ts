@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback, useRef } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import type { AppNode } from '../../../types';
+import { useStore } from '../../../store/useStore';
 
 const DEBUG = import.meta.env.DEV;
 
@@ -15,6 +16,7 @@ interface UseCanvasViewportOptions {
  */
 export function useCanvasViewport({ nodes, currentParentId }: UseCanvasViewportOptions) {
     const { getViewport } = useReactFlow();
+    const selectedCanvasNodeIds = useStore(state => state.selectedCanvasNodeIds);
     
     // Viewport tracking for culling
     const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
@@ -45,6 +47,9 @@ export function useCanvasViewport({ nodes, currentParentId }: UseCanvasViewportO
             const maxY = (-viewport.y + window.innerHeight + MARGIN) / viewport.zoom;
 
             culledNodes = rootNodes.filter(n => {
+                // Never cull selected nodes so they remain in the render tree and can be focused successfully
+                if (selectedCanvasNodeIds.has(n.id)) return true;
+
                 const nodeWidth = typeof n.style?.width === 'number' ? n.style.width : 432;
                 const nodeHeight = typeof n.style?.height === 'number' ? n.style.height : 432;
                 const nodeX = n.position.x;
@@ -70,7 +75,7 @@ export function useCanvasViewport({ nodes, currentParentId }: UseCanvasViewportO
                 ...(hasDragHandle ? { dragHandle: '.custom-drag-handle' } : {})
             };
         });
-    }, [rootNodes, currentParentId, viewport]);
+    }, [rootNodes, currentParentId, viewport, selectedCanvasNodeIds]);
 
     // Track viewport changes (throttled to 200ms)
     const handleViewportChange = useCallback(() => {

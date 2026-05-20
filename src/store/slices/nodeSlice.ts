@@ -338,6 +338,131 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         }));
     },
 
+    releaseNodeContentToBlocks: (nodeId: string, centerPosition?: { x: number; y: number }) => {
+        const { nodes, edges, currentParentId } = get();
+        const sourceNode = nodes.find(n => n.id === nodeId);
+        if (!sourceNode) return;
+
+        const rawContent = (sourceNode.data as any).content;
+        const normalizeText = (value: unknown) => {
+            if (typeof value !== 'string') return '';
+            return value.trim().replace(/[\n\u200B\u00A0\u200C\uFEFF]/g, '');
+        };
+        const isEmptyBlock = (b: any) => {
+            if (!b) return true;
+            if (b.type === 'divider') return true;
+            if (b.type === 'table') {
+                const rows = b.metadata?.rows;
+                if (!Array.isArray(rows) || rows.length === 0) return true;
+                return rows.every((row: any) =>
+                    Array.isArray(row) && row.every((cell: any) => normalizeText(String(cell)).length === 0)
+                );
+            }
+            if (b.type === 'columns') {
+                const cols = b.metadata?.columns;
+                return !Array.isArray(cols) || cols.length === 0;
+            }
+            return normalizeText(b.content).length === 0;
+        };
+        const blocks = Array.isArray(rawContent)
+            ? rawContent.filter((b: any) => !isEmptyBlock(b))
+            : (typeof rawContent === 'string' && rawContent.trim().length > 0)
+                ? [{ id: uuidv4(), type: 'text', content: rawContent }]
+                : [];
+
+        if (blocks.length === 0) return;
+
+        const listLikeTypes = new Set(['todo', 'bullet', 'numbered']);
+        const blockGroups: any[][] = [];
+        for (let i = 0; i < blocks.length; i++) {
+            const b = blocks[i];
+            if (b && listLikeTypes.has(b.type)) {
+                const group: any[] = [b];
+                while (i + 1 < blocks.length && blocks[i + 1] && listLikeTypes.has(blocks[i + 1].type)) {
+                    group.push(blocks[i + 1]);
+                    i++;
+                }
+                blockGroups.push(group);
+            } else {
+                blockGroups.push([b]);
+            }
+        }
+
+        const parentId = currentParentId || undefined;
+        const parentIdForEdge = currentParentId ?? null;
+
+        const resolvedCenterX = centerPosition?.x ?? sourceNode.position.x;
+        const resolvedCenterY = centerPosition?.y ?? sourceNode.position.y;
+        const center = { x: snapToGridValue(resolvedCenterX), y: snapToGridValue(resolvedCenterY) };
+
+        const centralGroup = blockGroups[0];
+        const outerGroups = blockGroups.slice(1);
+
+        const centralNodeId = uuidv4();
+        const newNodes: AppNode[] = [
+            {
+                id: centralNodeId,
+                type: 'block',
+                position: center,
+                style: { width: 320, height: 120 },
+                data: {
+                    content: centralGroup,
+                    isStandaloneBlock: true
+                } as any,
+                parentId
+            } as AppNode
+        ];
+
+        const newEdges: Edge[] = [];
+
+        const outerCount = outerGroups.length;
+        if (outerCount > 0) {
+            const minRadius = BASE_UNIT * 6;
+            const r = snapToGridValue(Math.max(minRadius, (outerCount * 340) / (2 * Math.PI)));
+            const angleStep = (2 * Math.PI) / outerCount;
+            const angleOffset = -Math.PI / 2;
+
+            outerGroups.forEach((group: any[], index: number) => {
+                const angle = angleOffset + angleStep * index;
+                const x = snapToGridValue(center.x + r * Math.cos(angle));
+                const y = snapToGridValue(center.y + r * Math.sin(angle));
+                const newNodeId = uuidv4();
+
+                newNodes.push({
+                    id: newNodeId,
+                    type: 'block',
+                    position: { x, y },
+                    style: { width: 320, height: 120 },
+                    data: {
+                        content: group,
+                        isStandaloneBlock: true
+                    } as any,
+                    parentId
+                } as AppNode);
+
+                newEdges.push({
+                    id: uuidv4(),
+                    source: centralNodeId,
+                    target: newNodeId,
+                    type: 'centered',
+                    data: { parentId: parentIdForEdge }
+                } as Edge);
+            });
+        }
+
+        const newEdgesBase = edges.filter(e => e.source !== nodeId && e.target !== nodeId);
+        const newNodesBase = nodes.filter(n => n.id !== nodeId);
+
+        set({
+            nodes: [...newNodesBase, ...newNodes],
+            edges: [...newEdgesBase, ...newEdges]
+        });
+
+        if (currentParentId) {
+            scheduleParentSync(currentParentId, () => get().syncParentContent(currentParentId));
+        }
+    },
+
     splitNode: (nodeId, splitBlockId, currentBlocks) => {
         const { nodes, edges } = get();
         const sourceNode = nodes.find(n => n.id === nodeId);

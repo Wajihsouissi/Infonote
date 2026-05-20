@@ -103,6 +103,12 @@ export function CanvasBoard() {
     const [isFocusArmed, setIsFocusArmed] = useState(false);
     const isFocusArmedRef = useRef(false);
     const focusArmTimeoutRef = useRef<number | null>(null);
+    
+    // Key focus improvements: track hovered/clicked nodes & visual indicators
+    const hoveredNodeRef = useRef<any | null>(null);
+    const lastInteractedNodeIdRef = useRef<string | null>(null);
+    const [justFocused, setJustFocused] = useState(false);
+    const justFocusedTimeoutRef = useRef<number | null>(null);
 
     // Viewport culling and visible nodes
     const { visibleNodes, handleViewportChange } = useCanvasViewport({
@@ -289,8 +295,18 @@ export function CanvasBoard() {
         };
 
         const handlePointerDown = (e: PointerEvent) => {
-            if (!isInEditableField) return;
             const target = e.target as HTMLElement | null;
+            if (target) {
+                const nodeEl = target.closest('.react-flow__node');
+                if (nodeEl) {
+                    const nodeId = nodeEl.getAttribute('data-id');
+                    if (nodeId) {
+                        lastInteractedNodeIdRef.current = nodeId;
+                    }
+                }
+            }
+
+            if (!isInEditableField) return;
             if (!target) return;
             const isClickInsideEditable = target.tagName === 'INPUT' ||
                 target.tagName === 'TEXTAREA' ||
@@ -309,6 +325,14 @@ export function CanvasBoard() {
             document.removeEventListener('pointerdown', handlePointerDown, true);
         };
     }, [blurActiveEditable, isInEditableField]);
+
+    const selectedCanvasNodeIdsRef = useRef(selectedCanvasNodeIds);
+    const nodesRef = useRef(nodes);
+
+    useEffect(() => {
+        selectedCanvasNodeIdsRef.current = selectedCanvasNodeIds;
+        nodesRef.current = nodes;
+    }, [selectedCanvasNodeIds, nodes]);
 
     useEffect(() => {
         const clearArm = () => {
@@ -332,13 +356,68 @@ export function CanvasBoard() {
         };
 
         const handleKeyDown = (e: KeyboardEvent) => {
+            // Real-time active editable field verification as a robust double-lock guard
+            const activeEl = document.activeElement as HTMLElement | null;
+            if (activeEl) {
+                const isEditable = activeEl.tagName === 'INPUT' ||
+                    activeEl.tagName === 'TEXTAREA' ||
+                    activeEl.isContentEditable ||
+                    !!activeEl.closest('[contenteditable]') ||
+                    !!activeEl.closest('[class*="BlockEditor"]') ||
+                    !!activeEl.closest('[class*="editor"]');
+                if (isEditable) return;
+            }
             if (isInEditableField) return;
+
             if (e.key === 'Escape') {
                 clearArm();
                 return;
             }
             if (e.key !== 'f' && e.key !== 'F') return;
             e.preventDefault();
+
+            // Intelligent priority-based node focusing:
+            let nodesToFocus: any[] = [];
+
+            // Priority 1: Hovered node (immediate context)
+            if (hoveredNodeRef.current) {
+                const found = nodesRef.current.find(n => n.id === hoveredNodeRef.current.id);
+                if (found) nodesToFocus = [found];
+            }
+
+            // Priority 2: Selected nodes
+            if (nodesToFocus.length === 0) {
+                const selectedIds = Array.from(selectedCanvasNodeIdsRef.current);
+                if (selectedIds.length > 0) {
+                    nodesToFocus = nodesRef.current.filter(n => selectedIds.includes(n.id));
+                }
+            }
+
+            // Priority 3: Last interacted node (from clicks/pointers)
+            if (nodesToFocus.length === 0 && lastInteractedNodeIdRef.current) {
+                const found = nodesRef.current.find(n => n.id === lastInteractedNodeIdRef.current);
+                if (found) nodesToFocus = [found];
+            }
+
+            // If we found nodes to focus, center/zoom them instantly!
+            if (nodesToFocus.length > 0) {
+                fitView({ nodes: nodesToFocus, padding: 0.45, duration: 450, maxZoom: 1.3 });
+                clearArm();
+
+                // Show success visual HUD notification
+                if (justFocusedTimeoutRef.current) {
+                    window.clearTimeout(justFocusedTimeoutRef.current);
+                }
+                setJustFocused(true);
+                justFocusedTimeoutRef.current = window.setTimeout(() => {
+                    setJustFocused(false);
+                    justFocusedTimeoutRef.current = null;
+                }, 1500);
+
+                return;
+            }
+
+            // Fallback: If no selected/hovered/clicked nodes, toggle/arm focusing for the next mouse click
             if (isFocusArmedRef.current) {
                 clearArm();
                 return;
@@ -354,8 +433,11 @@ export function CanvasBoard() {
             if (focusArmTimeoutRef.current) {
                 window.clearTimeout(focusArmTimeoutRef.current);
             }
+            if (justFocusedTimeoutRef.current) {
+                window.clearTimeout(justFocusedTimeoutRef.current);
+            }
         };
-    }, [isInEditableField]);
+    }, [isInEditableField, fitView]);
 
     // Track mouse coordinates on window
     const mousePosRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
@@ -704,6 +786,7 @@ export function CanvasBoard() {
                     showCtrl={modifierKeys.ctrl}
                     showShift={modifierKeys.shift}
                     showFocus={isFocusArmed}
+                    showSuccess={justFocused}
                     suppress={isInEditableField}
                     top={76}
                 />
@@ -721,6 +804,12 @@ export function CanvasBoard() {
                     defaultEdgeOptions={defaultEdgeOptions}
                     connectionLineComponent={CustomConnectionLine}
                     connectionRadius={150}
+                    onNodeMouseEnter={(_, node) => {
+                        hoveredNodeRef.current = node;
+                    }}
+                    onNodeMouseLeave={() => {
+                        hoveredNodeRef.current = null;
+                    }}
                     onPaneClick={() => {
                         if (isLinkingMode) return;
                         blurActiveEditable();

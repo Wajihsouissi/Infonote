@@ -22,6 +22,7 @@ export interface NodeSlice {
     updateNodeData: (id: string, data: any) => void;
     updateNode: (id: string, updates: Partial<AppNode>) => void;
     splitNode: (nodeId: string, splitBlockId: string, currentBlocks?: any[]) => void;
+    releaseNodeContentToBlocks: (nodeId: string, centerPosition?: { x: number; y: number }) => void;
     extractPageFromBlock: (block: any, position: { x: number; y: number }, sourceNodeId?: string) => void;
     createPageFromText: (text: string, position?: { x: number; y: number }) => string;
     savePageContent: (parentId: string, content: any[], transientNodeIds: string[]) => void;
@@ -141,6 +142,7 @@ export interface UISlice {
     toggleCanvasNodeSelection: (id: string) => void;
     setIsLinkingMode: (isLinking: boolean) => void;
     clearCanvasSelection: () => void;
+    selectConnectedCanvasNodes: (nodeId: string) => void;
     setLastCreatedCanvasNodeId: (id: string | null) => void;
     setCurrentView: (view: AppView) => void;
     setHasEnteredApp: (val: boolean) => void;

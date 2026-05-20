@@ -4,7 +4,7 @@ import { Eye, X, ExternalLink } from 'lucide-react';
 import styles from './NoteCard.module.css';
 import { BlockEditor } from '../editor/BlockEditor';
 import { IconPicker } from './IconPicker';
-import { iconMap, defaultIconName } from './iconMap';
+import { defaultIconName, CardIcon } from './iconMap';
 import type { NoteNode } from '../../types';
 import { useStore } from '../../store/useStore';
 import { CoverPicker } from './CoverPicker';
@@ -147,19 +147,31 @@ export function NoteExpandedContent({
         return <div>Error: Missing data</div>;
     }
 
-    // Derived state
-    const IconComponent = iconMap[data.icon || defaultIconName] || iconMap[defaultIconName];
-
     // Dynamic color styles
     const dynamicStyles = useMemo(() => {
         if (!data.color) return {};
         const noteAreaBg = lightenColor(data.color, 70); // Very light pastel for note area
+        const tableSurface = lightenColor(data.color, 84);
+        const tableHeaderSurface = lightenColor(data.color, 78);
+        const tableHoverSurface = lightenColor(data.color, 81);
+        const tableFocusSurface = lightenColor(data.color, 74);
+        const tableBorderColor = darkenColor(data.color, 55);
         return {
             '--color-text-main': '#1f2937',
             '--color-text-muted': '#6b7280',
             '--color-border': 'rgba(0,0,0,0.2)',
+            '--glass-border': `${tableBorderColor}33`,
             '--note-bg-dynamic': data.color,
             '--note-area-bg': noteAreaBg, // Pastel background for note area
+            '--table-bg': `${tableSurface}cc`,
+            '--table-header-bg': `${tableHeaderSurface}ff`,
+            '--table-row-hover-bg': `${tableHoverSurface}cc`,
+            '--table-cell-focus-bg': `${tableFocusSurface}cc`,
+            '--table-controls-bg': `${tableSurface}e6`,
+            '--table-btn-hover-bg': `${tableHeaderSurface}cc`,
+            '--table-border': `${tableBorderColor}33`,
+            '--table-border-strong': `${tableBorderColor}55`,
+            '--table-focus-ring': `${tableBorderColor}80`,
         } as React.CSSProperties;
     }, [data.color]);
 
@@ -210,7 +222,7 @@ export function NoteExpandedContent({
 
                     {/* Metadata Section (Icon + Title + Desc) */}
                     <NoteMetadataSection
-                        IconComponent={IconComponent}
+                        icon={data.icon || defaultIconName}
                         label={data.label}
                         description={data.description || ''}
                         editedLabel={editedData.label}
@@ -241,7 +253,7 @@ export function NoteExpandedContent({
                 /* Minimal Header (When Hidden) */
                 <div className={`${styles.minimalHeader} custom-drag-handle`} style={headerStyle}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-                        <IconComponent size={20} />
+                        <CardIcon icon={data.icon || defaultIconName} size={20} />
                         <input
                             type="text"
                             value={editedData.label}

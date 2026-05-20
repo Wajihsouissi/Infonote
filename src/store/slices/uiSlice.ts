@@ -77,6 +77,61 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
         isLinkingMode: false
     }),
 
+    selectConnectedCanvasNodes: (nodeId: string) => {
+        const { edges, nodes, currentParentId } = get();
+
+        const activeParent = currentParentId ?? null;
+        const visibleNodes = nodes.filter(n => (n.parentId || null) === activeParent);
+        const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
+
+        const visibleEdges = edges.filter(e => {
+            if (!visibleNodeIds.has(e.source) || !visibleNodeIds.has(e.target)) return false;
+            const edgeParent = (e.data as { parentId?: string | null } | undefined)?.parentId ?? null;
+            return edgeParent === activeParent;
+        });
+
+        const adjacency = new Map<string, Set<string>>();
+        visibleEdges.forEach(e => {
+            if (!adjacency.has(e.source)) adjacency.set(e.source, new Set());
+            if (!adjacency.has(e.target)) adjacency.set(e.target, new Set());
+            adjacency.get(e.source)!.add(e.target);
+            adjacency.get(e.target)!.add(e.source);
+        });
+
+        const selected = new Set<string>();
+        const queue: string[] = [];
+
+        if (visibleNodeIds.has(nodeId)) {
+            selected.add(nodeId);
+            queue.push(nodeId);
+        }
+
+        while (queue.length > 0) {
+            const cur = queue.shift()!;
+            const neighbors = adjacency.get(cur);
+            if (!neighbors) continue;
+            neighbors.forEach(nid => {
+                if (selected.has(nid)) return;
+                selected.add(nid);
+                queue.push(nid);
+            });
+        }
+
+        set({
+            selectedCanvasNodeIds: selected,
+            selectedEdgeId: null,
+            selectedEdgeIds: new Set<string>(),
+            isLinkingMode: selected.size < 2 ? false : get().isLinkingMode
+        });
+
+        get().setNodes(nds => nds.map(n => {
+            if (!visibleNodeIds.has(n.id)) return n;
+            const shouldBeSelected = selected.has(n.id);
+            if (n.selected === shouldBeSelected) return n;
+            return { ...n, selected: shouldBeSelected };
+        }));
+    },
+
     setLastCreatedCanvasNodeId: (id: string | null) => set({ lastCreatedCanvasNodeId: id }),
 
     setSelectedEdgeId: (id: string | null) => set({
