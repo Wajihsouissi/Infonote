@@ -12,25 +12,25 @@ export function useLazyRender(rootMargin = '400px') {
     useEffect(() => {
         if (!containerRef.current) return;
 
-        observerRef.current = new IntersectionObserver(
+        const observer = new IntersectionObserver(
             (entries) => {
                 entries.forEach((entry) => {
-                    if (entry.isIntersecting && !hasRendered) {
+                    if (entry.isIntersecting) {
                         setHasRendered(true);
+                        observer.disconnect();
                     }
                 });
             },
             { rootMargin }
         );
 
-        observerRef.current.observe(containerRef.current);
+        observer.observe(containerRef.current);
+        observerRef.current = observer;
 
         return () => {
-            if (observerRef.current) {
-                observerRef.current.disconnect();
-            }
+            observer.disconnect();
         };
-    }, [hasRendered, rootMargin]);
+    }, [rootMargin]);
 
     return {
         hasRendered,

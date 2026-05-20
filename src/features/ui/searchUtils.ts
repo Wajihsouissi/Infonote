@@ -14,7 +14,30 @@ export interface SearchFilters {
 export interface ScoredResult {
     nodeId: string;
     score: number;
-    highlights: Record<string, string>; // field -> highlighted html
+    highlights: Record<string, string>;
+}
+
+export interface PathSegment {
+    id: string;
+    label: string;
+}
+
+export interface RichSearchResult {
+    id: string;
+    label: string;
+    type: string;
+    preview: string;
+    previewContext: string;
+    tags: string[];
+    status?: string;
+    priority?: string;
+    score: number;
+    createdAt?: string;
+    updatedAt?: string;
+    wordCount?: number;
+    path: PathSegment[];
+    category?: string;
+    icon?: string;
 }
 
 /**
@@ -206,6 +229,14 @@ export function calculateRelevance(node: AppNode, filters: SearchFilters): numbe
     const count = (searchableText.match(new RegExp(escapeRegExp(searchText), 'gi')) || []).length;
     score += count * 2;
 
+    // Recency bonus
+    score += recencyBonus(data.updatedAt || data.createdAt);
+
+    // Content richness bonus (nodes with more content rank slightly higher)
+    const wordCount = estimateWordCount(node);
+    if (wordCount > 200) score += 5;
+    else if (wordCount > 50) score += 3;
+
     return score;
 }
 
@@ -220,4 +251,60 @@ export function highlightMatch(text: string, term: string): string {
     if (!term) return text;
     const regex = new RegExp(`(${escapeRegExp(term)})`, 'gi');
     return text.replace(regex, '<strong>$1</strong>');
+}
+
+/**
+ * Extracts preview with surrounding context around the matched term.
+ */
+export function extractPreviewContext(text: string, searchTerm: string, contextChars: number = 60): string {
+    if (!searchTerm || !text) return text.slice(0, 120);
+    const lower = text.toLowerCase();
+    const idx = lower.indexOf(searchTerm.toLowerCase());
+    if (idx === -1) return text.slice(0, 120);
+
+    const start = Math.max(0, idx - contextChars);
+    const end = Math.min(text.length, idx + searchTerm.length + contextChars);
+    let preview = text.slice(start, end);
+
+    if (start > 0) preview = '...' + preview;
+    if (end < text.length) preview = preview + '...';
+    return preview;
+}
+
+/**
+ * Builds a breadcrumb path for a node by walking up the parent chain.
+ */
+export function buildNodePath(nodeId: string, nodes: AppNode[]): PathSegment[] {
+    const path: PathSegment[] = [];
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    let current = nodeMap.get(nodeId);
+
+    while (current) {
+        path.unshift({ id: current.id, label: String((current.data as any)?.label || 'Untitled') });
+        const parentId = (current as any).parentId;
+        current = parentId ? nodeMap.get(parentId) : undefined;
+    }
+
+    return path;
+}
+
+/**
+ * Estimates word count from node content.
+ */
+export function estimateWordCount(node: AppNode): number {
+    const textParts = extractNodeSearchableText(node);
+    const allText = textParts.join(' ');
+    return allText.split(/\s+/).filter(w => w.length > 0).length;
+}
+
+/**
+ * Applies bonus score for recent updates (lower is better).
+ */
+export function recencyBonus(updatedAt?: string): number {
+    if (!updatedAt) return 0;
+    const daysAgo = (Date.now() - new Date(updatedAt).getTime()) / (1000 * 60 * 60 * 24);
+    if (daysAgo < 1) return 30;
+    if (daysAgo < 7) return 20;
+    if (daysAgo < 30) return 10;
+    return 0;
 }

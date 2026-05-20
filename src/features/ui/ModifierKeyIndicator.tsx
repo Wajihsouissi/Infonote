@@ -18,7 +18,7 @@ export function ModifierKeyIndicator({
     showSuccess = false,
     suppress = false,
     top = 76,
-    persistOnReleaseMs = 900,
+    persistOnReleaseMs = 0,
 }: Props) {
     const isActive = showCtrl || showShift || showFocus || showSuccess;
     const [render, setRender] = useState(false);
@@ -57,7 +57,7 @@ export function ModifierKeyIndicator({
                 // Unmount component only after transition completes
                 renderTimerRef.current = window.setTimeout(() => {
                     setRender(false);
-                }, 240);
+                }, 100);
             }, persistOnReleaseMs);
         }
     }, [isActive, persistOnReleaseMs, suppress, visible]);

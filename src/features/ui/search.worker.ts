@@ -2,7 +2,10 @@ import {
     parseSearchQuery, 
     matchNode, 
     calculateRelevance, 
-    extractNodeSearchableText 
+    extractNodeSearchableText,
+    extractPreviewContext,
+    buildNodePath,
+    estimateWordCount
 } from './searchUtils';
 import type { AppNode } from '../../types';
 
@@ -22,34 +25,46 @@ self.onmessage = (e: MessageEvent) => {
         .map((node: AppNode) => {
             const data = node.data as any;
             const score = calculateRelevance(node, filters);
+            const allText = extractNodeSearchableText(node);
             
-            // Find a preview snippet that contains the search text
             let preview = '';
+            let previewContext = '';
             if (searchText) {
-                const allText = extractNodeSearchableText(node);
                 const matchingPart = allText.find(t => t.toLowerCase().includes(searchText));
                 if (matchingPart) {
                     preview = matchingPart;
+                    previewContext = extractPreviewContext(matchingPart, searchText);
                 }
             }
             
             if (!preview) {
                 preview = String(data.description || (Array.isArray(data.content) ? '' : data.content) || '');
+                previewContext = preview.slice(0, 120);
             }
+
+            const path = buildNodePath(node.id, nodes);
+            const wordCount = estimateWordCount(node);
 
             return {
                 id: node.id,
                 label: String(data.label || 'Untitled'),
                 type: node.type,
                 preview,
+                previewContext,
                 tags: data.tags || [],
                 status: data.status,
                 priority: data.priority,
-                score
+                score,
+                createdAt: data.createdAt,
+                updatedAt: data.updatedAt,
+                wordCount,
+                path,
+                category: data.category,
+                icon: data.icon
             };
         })
         .sort((a: any, b: any) => b.score - a.score)
-        .slice(0, 10);
+        .slice(0, 20);
 
     self.postMessage({ results: filtered });
 };

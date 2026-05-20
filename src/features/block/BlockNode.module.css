@@ -202,8 +202,14 @@
 
 .blockNode.mediaBlockNode.linkBlockNode {
     overflow: visible !important;
+    padding: 8px;
 }
 
-.linkBlockNode .content {
+.blockNode.mediaBlockNode.linkBlockNode .content {
+    width: 100%;
+    height: auto;
+}
+
+.blockNode.mediaBlockNode.linkBlockNode .content {
     overflow: visible !important;
 }

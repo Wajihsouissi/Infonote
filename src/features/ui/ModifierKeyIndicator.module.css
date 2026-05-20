@@ -20,9 +20,9 @@
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     transition: 
-        opacity 240ms cubic-bezier(0.16, 1, 0.3, 1),
-        transform 240ms cubic-bezier(0.16, 1, 0.3, 1),
-        visibility 0ms linear 240ms;
+        opacity 100ms cubic-bezier(0.16, 1, 0.3, 1),
+        transform 100ms cubic-bezier(0.16, 1, 0.3, 1),
+        visibility 0ms linear 100ms;
 }
 
 .visible {
@@ -30,8 +30,8 @@
     visibility: visible;
     transform: translateX(-50%) translateY(0) scale(1);
     transition: 
-        opacity 240ms cubic-bezier(0.16, 1, 0.3, 1),
-        transform 240ms cubic-bezier(0.16, 1, 0.3, 1),
+        opacity 100ms cubic-bezier(0.16, 1, 0.3, 1),
+        transform 100ms cubic-bezier(0.16, 1, 0.3, 1),
         visibility 0ms linear 0ms;
 }
 

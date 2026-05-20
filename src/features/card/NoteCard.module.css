@@ -6,13 +6,12 @@
     border: 1px solid var(--glass-border);
     color: var(--color-text-main);
     box-shadow: var(--glass-shadow);
-    transition: width 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-        height 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    transition:
         background 0.2s ease,
         border-color 0.2s ease,
         box-shadow 0.2s ease,
         transform 0.15s cubic-bezier(0.2, 0, 0.2, 1);
-    will-change: background-color, border-color, box-shadow, transform;
+    will-change: transform;
     display: flex;
     flex-direction: column;
 }
@@ -404,6 +403,7 @@
 .expandedView {
     overflow: hidden;
     border-radius: 12px;
+    contain: layout paint style;
 }
 
 /* Restored Cover Image Styles */
@@ -689,7 +689,8 @@
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
     position: relative;
-    /* Added for controls */
+    contain: layout paint style;
+    will-change: transform;
 
     /* Visual Separation */
     background: transparent;
@@ -957,7 +958,8 @@
     scrollbar-width: thin;
     scrollbar-color: var(--color-border) transparent;
     position: relative;
-    /* Added for controls */
+    contain: layout paint style;
+    will-change: transform;
 
     /* Visual Separation - use dynamic override or default */
     background: var(--note-area-bg, var(--note-bg));
