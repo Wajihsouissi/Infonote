@@ -5,15 +5,18 @@ import { Search } from 'lucide-react';
 import styles from './BlockEditor.module.css';
 import type { BlockType } from './types';
 import { MENU_ITEMS } from './menuConstants';
+import { toPastelColor, darkenColor } from '../../utils/colorUtils';
 
 interface SlashMenuProps {
     anchorRect: DOMRect | { top: number; left: number; bottom: number }; // Virtual or real rect
     filter: string;
     onSelect: (type: BlockType, metadata?: any) => void;
     onClose: () => void;
+    nodeColor?: string;
+    theme?: 'light' | 'dark';
 }
 
-export function SlashMenu({ anchorRect, filter, onSelect, onClose }: SlashMenuProps) {
+export function SlashMenu({ anchorRect, filter, onSelect, onClose, nodeColor, theme }: SlashMenuProps) {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const menuRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -22,6 +25,53 @@ export function SlashMenu({ anchorRect, filter, onSelect, onClose }: SlashMenuPr
         top: anchorRect.bottom + 5,
         left: anchorRect.left
     });
+
+    // Robust check for custom colors vs default transparent/none colors
+    const displayColor = useMemo(() => {
+        if (!nodeColor) return undefined;
+        const normalized = nodeColor.trim().toLowerCase();
+        if (
+            normalized === '' ||
+            normalized === 'transparent' ||
+            normalized === 'inherit' ||
+            normalized === 'none' ||
+            normalized === 'default'
+        ) {
+            return undefined;
+        }
+        return toPastelColor(nodeColor, theme === 'light');
+    }, [nodeColor, theme]);
+
+    const dynamicStyles = useMemo(() => {
+        if (!displayColor) return {};
+
+        const darkText = darkenColor(displayColor, 80);
+        const mutedText = darkenColor(displayColor, 65);
+        const borderColor = darkenColor(displayColor, 40);
+
+        return {
+            '--slash-bg': displayColor,
+            '--color-text-main': darkText,
+            '--color-text-muted': mutedText,
+            '--color-border': `${borderColor}40`,
+            '--glass-border': `${borderColor}40`,
+            '--selected-bg': `${darkText}12`,
+            '--slash-item-hover-bg': `${darkText}08`,
+            '--selected-accent': darkText,
+            '--icon-color': darkText,
+            '--slash-scrollbar': `${darkText}20`,
+            '--slash-input-bg': theme === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.04)',
+            '--slash-input-bg-focus': theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)',
+            '--slash-focus-shadow': `0 0 0 2px ${darkText}20`,
+            '--slash-icon-bg': theme === 'light' ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.03)',
+            '--slash-icon-border': theme === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.04)',
+            '--slash-icon-hover-bg': theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)',
+            '--slash-icon-hover-border': theme === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)',
+            '--selected-icon-bg': `${darkText}20`,
+            '--selected-icon-border': `${darkText}35`,
+            color: darkText,
+        } as React.CSSProperties;
+    }, [displayColor, theme]);
 
     // Sync filter prop if it changes
     useEffect(() => {
@@ -130,7 +180,7 @@ export function SlashMenu({ anchorRect, filter, onSelect, onClose }: SlashMenuPr
     return createPortal(
         <motion.div
             className={styles.slashMenu}
-            style={{ top: position.top, left: position.left }}
+            style={{ top: position.top, left: position.left, ...dynamicStyles }}
             ref={menuRef}
             initial={{ opacity: 0, y: 5, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}

@@ -1,13 +1,36 @@
-import { memo, useState } from 'react';
+import { memo, useState, useEffect } from 'react';
 import {
     getBezierPath,
     getSmoothStepPath,
     getStraightPath,
     useInternalNode,
+    useReactFlow,
     Position,
     type EdgeProps
 } from '@xyflow/react';
 import { useStore } from '../../store/useStore';
+
+// Helper to check if a coordinates point is inside any node, excluding a specific node id
+function findNodeAtPosition(nodes: any[], pos: { x: number; y: number }, excludeNodeId?: string) {
+    for (const node of nodes) {
+        if (excludeNodeId && node.id === excludeNodeId) {
+            continue;
+        }
+        const abs = node.internals?.positionAbsolute ?? node.position;
+        if (!abs) continue;
+        const w = node.measured?.width ?? (node.width ?? 0);
+        const h = node.measured?.height ?? (node.height ?? 0);
+        if (
+            pos.x >= abs.x &&
+            pos.x <= abs.x + w &&
+            pos.y >= abs.y &&
+            pos.y <= abs.y + h
+        ) {
+            return node;
+        }
+    }
+    return null;
+}
 
 // Helper to calculate the shortest path between two nodes' border midpoints
 function getSmartEdgeParams(
@@ -113,23 +136,222 @@ export const CenteredEdge = memo(function CenteredEdge({
     style,
     data,
 }: EdgeProps) {
+    const reactFlowInstance = useReactFlow();
+    const updateEdge = useStore((s) => s.updateEdge);
     const setSelectedEdgeId = useStore((s) => s.setSelectedEdgeId);
     const selectedEdgeIds = useStore((s) => s.selectedEdgeIds);
     const toggleCanvasEdgeSelection = useStore((s) => s.toggleCanvasEdgeSelection);
     const isSelected = selected || (selectedEdgeIds && selectedEdgeIds.has(id));
     const [isHovered, setIsHovered] = useState(false);
+    const [dragState, setDragState] = useState<{
+        point: 'source' | 'target';
+        x: number;
+        y: number;
+        isValid: boolean;
+        hoveredNode: any | null;
+    } | null>(null);
+
+    useEffect(() => {
+        if (dragState) {
+            document.body.style.cursor = 'grabbing';
+        } else {
+            document.body.style.cursor = '';
+        }
+        return () => {
+            document.body.style.cursor = '';
+        };
+    }, [dragState]);
 
     const sourceNode = useInternalNode(source);
     const targetNode = useInternalNode(target);
 
+    const sourceRef = (element: SVGGElement | null) => {
+        if (!element) return;
+        
+        element.onpointerdown = null;
+        element.onpointerdown = (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            try {
+                element.setPointerCapture(e.pointerId);
+            } catch (err) {
+                console.error('Failed to set pointer capture:', err);
+            }
+            
+            const flowPos = reactFlowInstance.screenToFlowPosition({
+                x: e.clientX,
+                y: e.clientY
+            });
+            
+            const nodes = useStore.getState().nodes;
+            const targetNode = findNodeAtPosition(nodes, flowPos, target);
+            
+            setDragState({
+                point: 'source',
+                x: flowPos.x,
+                y: flowPos.y,
+                isValid: !!targetNode,
+                hoveredNode: targetNode,
+            });
+            
+            element.onpointermove = (moveEvent) => {
+                moveEvent.stopPropagation();
+                moveEvent.preventDefault();
+                
+                const moveFlowPos = reactFlowInstance.screenToFlowPosition({
+                    x: moveEvent.clientX,
+                    y: moveEvent.clientY
+                });
+                
+                const currentNodes = useStore.getState().nodes;
+                const currentTargetNode = findNodeAtPosition(currentNodes, moveFlowPos, target);
+                
+                setDragState({
+                    point: 'source',
+                    x: moveFlowPos.x,
+                    y: moveFlowPos.y,
+                    isValid: !!currentTargetNode,
+                    hoveredNode: currentTargetNode,
+                });
+            };
+            
+            element.onpointerup = (upEvent) => {
+                upEvent.stopPropagation();
+                upEvent.preventDefault();
+                
+                try {
+                    element.releasePointerCapture(upEvent.pointerId);
+                } catch (err) {
+                    console.error('Failed to release pointer capture:', err);
+                }
+                
+                element.onpointermove = null;
+                element.onpointerup = null;
+                
+                const upFlowPos = reactFlowInstance.screenToFlowPosition({
+                    x: upEvent.clientX,
+                    y: upEvent.clientY
+                });
+                
+                const currentNodes = useStore.getState().nodes;
+                const finalTargetNode = findNodeAtPosition(currentNodes, upFlowPos, target);
+                
+                if (finalTargetNode) {
+                    updateEdge(id, { source: finalTargetNode.id });
+                }
+                
+                setDragState(null);
+            };
+        };
+    };
+
+    const targetRef = (element: SVGGElement | null) => {
+        if (!element) return;
+        
+        element.onpointerdown = null;
+        element.onpointerdown = (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            try {
+                element.setPointerCapture(e.pointerId);
+            } catch (err) {
+                console.error('Failed to set pointer capture:', err);
+            }
+            
+            const flowPos = reactFlowInstance.screenToFlowPosition({
+                x: e.clientX,
+                y: e.clientY
+            });
+            
+            const nodes = useStore.getState().nodes;
+            const targetNode = findNodeAtPosition(nodes, flowPos, source);
+            
+            setDragState({
+                point: 'target',
+                x: flowPos.x,
+                y: flowPos.y,
+                isValid: !!targetNode,
+                hoveredNode: targetNode,
+            });
+            
+            element.onpointermove = (moveEvent) => {
+                moveEvent.stopPropagation();
+                moveEvent.preventDefault();
+                
+                const moveFlowPos = reactFlowInstance.screenToFlowPosition({
+                    x: moveEvent.clientX,
+                    y: moveEvent.clientY
+                });
+                
+                const currentNodes = useStore.getState().nodes;
+                const currentTargetNode = findNodeAtPosition(currentNodes, moveFlowPos, source);
+                
+                setDragState({
+                    point: 'target',
+                    x: moveFlowPos.x,
+                    y: moveFlowPos.y,
+                    isValid: !!currentTargetNode,
+                    hoveredNode: currentTargetNode,
+                });
+            };
+            
+            element.onpointerup = (upEvent) => {
+                upEvent.stopPropagation();
+                upEvent.preventDefault();
+                
+                try {
+                    element.releasePointerCapture(upEvent.pointerId);
+                } catch (err) {
+                    console.error('Failed to release pointer capture:', err);
+                }
+                
+                element.onpointermove = null;
+                element.onpointerup = null;
+                
+                const upFlowPos = reactFlowInstance.screenToFlowPosition({
+                    x: upEvent.clientX,
+                    y: upEvent.clientY
+                });
+                
+                const currentNodes = useStore.getState().nodes;
+                const finalTargetNode = findNodeAtPosition(currentNodes, upFlowPos, source);
+                
+                if (finalTargetNode) {
+                    updateEdge(id, { target: finalTargetNode.id });
+                }
+                
+                setDragState(null);
+            };
+        };
+    };
+
+    // Determine effective source/target nodes for shortest-path routing during drag
+    const effectiveSourceNode = dragState && dragState.point === 'source'
+        ? dragState.hoveredNode || {
+            internals: { positionAbsolute: { x: dragState.x, y: dragState.y } },
+            measured: { width: 0, height: 0 },
+            position: { x: dragState.x, y: dragState.y }
+          }
+        : sourceNode;
+
+    const effectiveTargetNode = dragState && dragState.point === 'target'
+        ? dragState.hoveredNode || {
+            internals: { positionAbsolute: { x: dragState.x, y: dragState.y } },
+            measured: { width: 0, height: 0 },
+            position: { x: dragState.x, y: dragState.y }
+          }
+        : targetNode;
+
     // Calculate smart connection parameters to draw the shortest path between nodes
     const { sx, sy, tx, ty, sourcePos, targetPos } = getSmartEdgeParams(
-        sourceNode,
-        targetNode,
-        sourceX,
-        sourceY,
-        targetX,
-        targetY,
+        effectiveSourceNode,
+        effectiveTargetNode,
+        dragState && dragState.point === 'source' ? dragState.x : sourceX,
+        dragState && dragState.point === 'source' ? dragState.y : sourceY,
+        dragState && dragState.point === 'target' ? dragState.x : targetX,
+        dragState && dragState.point === 'target' ? dragState.y : targetY,
         sourcePosition,
         targetPosition
     );
@@ -138,7 +360,8 @@ export const CenteredEdge = memo(function CenteredEdge({
     const edgeData = (data ?? {}) as any;
     const edgeType = edgeData.edgeType || 'bezier';
     const lineStyle = edgeData.lineStyle || 'solid';
-    const markerEndType = edgeData.markerEndType || 'arrow';
+    const markerStartType = edgeData.markerStartType || 'none';
+    const markerEndType = edgeData.markerEndType || 'none';
     const label = edgeData.label || '';
 
     // Selected or hovered edge is thicker and glows
@@ -200,36 +423,63 @@ export const CenteredEdge = memo(function CenteredEdge({
 
     const markerId = `marker-${id}`;
 
+    const handleColor = dragState?.isValid ? '#10b981' : '#a855f7';
+    const glowColor = dragState?.isValid ? 'rgba(16, 185, 129, 0.25)' : 'rgba(168, 85, 247, 0.25)';
+    const strokeGlow = dragState?.isValid ? 'rgba(16, 185, 129, 0.6)' : 'rgba(168, 85, 247, 0.6)';
+
     return (
-        <>
-            <svg style={{ position: 'absolute', width: 0, height: 0, pointerEvents: 'none' }}>
-                <defs>
-                    <marker
-                        id={`${markerId}-arrow`}
-                        viewBox="0 0 10 10"
-                        refX="8"
-                        refY="5"
-                        markerWidth="6"
-                        markerHeight="6"
-                        orient="auto-start-reverse"
-                    >
-                        <path d="M 0 0 L 10 5 L 0 10 z" fill={strokeColor} style={{ transition: 'fill 0.2s' }} />
-                    </marker>
-                    <marker
-                        id={`${markerId}-circle`}
-                        viewBox="0 0 10 10"
-                        refX="5"
-                        refY="5"
-                        markerWidth="6"
-                        markerHeight="6"
-                        orient="auto"
-                    >
-                        <circle cx="5" cy="5" r="4" fill={strokeColor} style={{ transition: 'fill 0.2s' }} />
-                    </marker>
-                </defs>
-            </svg>
+        <g
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+        >
+            <defs>
+                <linearGradient id="edge-handle-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#a855f7" />
+                    <stop offset="100%" stopColor="#ec4899" />
+                </linearGradient>
+                <marker
+                    id={`${markerId}-arrow-end`}
+                    viewBox="0 0 10 10"
+                    refX="8"
+                    refY="5"
+                    markerWidth="6"
+                    markerHeight="6"
+                    orient="auto"
+                >
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill={strokeColor} style={{ transition: 'fill 0.2s' }} />
+                </marker>
+                <marker
+                    id={`${markerId}-arrow-start`}
+                    viewBox="0 0 10 10"
+                    refX="2"
+                    refY="5"
+                    markerWidth="6"
+                    markerHeight="6"
+                    orient="auto"
+                >
+                    <path d="M 10 0 L 0 5 L 10 10 z" fill={strokeColor} style={{ transition: 'fill 0.2s' }} />
+                </marker>
+                <marker
+                    id={`${markerId}-circle`}
+                    viewBox="0 0 10 10"
+                    refX="5"
+                    refY="5"
+                    markerWidth="6"
+                    markerHeight="6"
+                    orient="auto"
+                >
+                    <circle cx="5" cy="5" r="4" fill={strokeColor} style={{ transition: 'fill 0.2s' }} />
+                </marker>
+            </defs>
 
             <style>{`
+                .react-flow__edges {
+                    z-index: 1000 !important;
+                    pointer-events: none !important;
+                }
+                .react-flow__edge {
+                    pointer-events: all !important;
+                }
                 @keyframes customDash {
                     to {
                         stroke-dashoffset: -20;
@@ -238,18 +488,6 @@ export const CenteredEdge = memo(function CenteredEdge({
                 .custom-animated-edge-${id} {
                     stroke-dasharray: 8, 4;
                     animation: customDash 1.2s linear infinite;
-                }
-                @keyframes selectedEdgeFlow-${id} {
-                    from {
-                        stroke-dashoffset: 24;
-                    }
-                    to {
-                        stroke-dashoffset: 0;
-                    }
-                }
-                .selected-edge-${id} {
-                    stroke-dasharray: 6, 4 !important;
-                    animation: selectedEdgeFlow-${id} 0.5s linear infinite !important;
                 }
                 .edge-label-container-${id} {
                     display: flex;
@@ -321,10 +559,17 @@ export const CenteredEdge = memo(function CenteredEdge({
                         ? '2,4' 
                         : undefined
                 }
-                className={`${isAnimated ? `custom-animated-edge-${id}` : ''} ${isSelected ? `selected-edge-${id}` : ''}`}
+                className={`${isAnimated ? `custom-animated-edge-${id}` : ''}`}
+                markerStart={
+                    markerStartType === 'arrow'
+                        ? `url(#${markerId}-arrow-start)`
+                        : markerStartType === 'circle'
+                        ? `url(#${markerId}-circle)`
+                        : undefined
+                }
                 markerEnd={
                     markerEndType === 'arrow'
-                        ? `url(#${markerId}-arrow)`
+                        ? `url(#${markerId}-arrow-end)`
                         : markerEndType === 'circle'
                         ? `url(#${markerId}-circle)`
                         : undefined
@@ -351,6 +596,73 @@ export const CenteredEdge = memo(function CenteredEdge({
                     </div>
                 </foreignObject>
             )}
-        </>
+
+            {/* Interactive Drag Handles on Click (Selection) or Drag */}
+            {(isSelected || dragState) && (
+                <g>
+                    {/* Source Drag Handle */}
+                    <g
+                        ref={sourceRef}
+                        style={{ cursor: dragState?.point === 'source' ? 'grabbing' : 'grab', touchAction: 'none', pointerEvents: 'all' }}
+                    >
+                        {/* Invisible large hit box (highly grab-friendly) */}
+                        <circle cx={sx} cy={sy} r={26} fill="transparent" style={{ pointerEvents: 'all' }} />
+                        
+                        {/* Glowing outer circle */}
+                        <circle
+                            cx={sx}
+                            cy={sy}
+                            r={dragState?.point === 'source' ? 12.5 : 9.5}
+                            fill={dragState?.point === 'source' ? glowColor : 'rgba(168, 85, 247, 0.25)'}
+                            stroke={dragState?.point === 'source' ? strokeGlow : 'rgba(168, 85, 247, 0.6)'}
+                            strokeWidth={1}
+                            style={{ transition: 'transform 0.15s ease, fill 0.2s, stroke 0.2s' }}
+                        />
+                        
+                        {/* Premium inner circle with white outline */}
+                        <circle
+                            cx={sx}
+                            cy={sy}
+                            r={dragState?.point === 'source' ? 7 : 5.5}
+                            fill={dragState?.point === 'source' ? handleColor : 'url(#edge-handle-grad)'}
+                            stroke="#ffffff"
+                            strokeWidth={1.5}
+                            style={{ transition: 'fill 0.2s' }}
+                        />
+                    </g>
+
+                    {/* Target Drag Handle */}
+                    <g
+                        ref={targetRef}
+                        style={{ cursor: dragState?.point === 'target' ? 'grabbing' : 'grab', touchAction: 'none', pointerEvents: 'all' }}
+                    >
+                        {/* Invisible large hit box (highly grab-friendly) */}
+                        <circle cx={tx} cy={ty} r={26} fill="transparent" style={{ pointerEvents: 'all' }} />
+                        
+                        {/* Glowing outer circle */}
+                        <circle
+                            cx={tx}
+                            cy={ty}
+                            r={dragState?.point === 'target' ? 12.5 : 9.5}
+                            fill={dragState?.point === 'target' ? glowColor : 'rgba(168, 85, 247, 0.25)'}
+                            stroke={dragState?.point === 'target' ? strokeGlow : 'rgba(168, 85, 247, 0.6)'}
+                            strokeWidth={1}
+                            style={{ transition: 'transform 0.15s ease, fill 0.2s, stroke 0.2s' }}
+                        />
+                        
+                        {/* Premium inner circle with white outline */}
+                        <circle
+                            cx={tx}
+                            cy={ty}
+                            r={dragState?.point === 'target' ? 7 : 5.5}
+                            fill={dragState?.point === 'target' ? handleColor : 'url(#edge-handle-grad)'}
+                            stroke="#ffffff"
+                            strokeWidth={1.5}
+                            style={{ transition: 'fill 0.2s' }}
+                        />
+                    </g>
+                </g>
+            )}
+        </g>
     );
 });

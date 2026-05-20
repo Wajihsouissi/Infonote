@@ -92,29 +92,17 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
     edges: initialEdges,
 
     onNodesChange: (changes) => {
-        const detailedChanges = changes.map(c => {
-            const detail: any = {
-                type: c.type,
-                id: (c as any).id
-            };
-
-            if (c.type === 'remove') {
-                detail.removing = (c as any).id;
-            } else if (c.type === 'position') {
-                detail.position = (c as any).position;
-                detail.dragging = (c as any).dragging;
-            } else if (c.type === 'select') {
-                detail.selected = (c as any).selected;
-            } else if (c.type === 'dimensions') {
-                detail.dimensions = (c as any).dimensions;
-            }
-
-            return detail;
-        });
-
+        // Only build detailed logging for non-trivial changes to reduce console noise
         if (DEBUG) {
-            console.log("[onNodesChange] Received changes (detailed):");
-            detailedChanges.forEach(c => console.log("  ", c));
+            const importantChanges = changes.filter(c => c.type !== 'select' && c.type !== 'dimensions');
+            if (importantChanges.length > 0) {
+                console.log("[onNodesChange] Received changes:", importantChanges.map(c => {
+                    const detail: any = { type: c.type, id: (c as any).id };
+                    if (c.type === 'remove') detail.removing = (c as any).id;
+                    else if (c.type === 'position') { detail.position = (c as any).position; detail.dragging = (c as any).dragging; }
+                    return detail;
+                }));
+            }
         }
 
         // CRITICAL FIX: Preserve parentId for nodes during 'replace' and other changes
@@ -203,10 +191,15 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         const { currentParentId } = get();
         const targetParentId = parentId !== undefined ? parentId : (currentParentId || undefined);
 
+        const snappedPosition = {
+            x: snapToGridValue(position.x),
+            y: snapToGridValue(position.y)
+        };
+
         const newNode: AppNode = {
             id: customId || uuidv4(),
             type,
-            position,
+            position: snappedPosition,
             style: style || (type === 'fused-note' ? { width: MIN_FUSED_SIZE } : { width: 432, height: 432 }),
             data: {
                 label: initialData?.label || 'New Note',
@@ -599,7 +592,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             return;
         }
 
-        const OFFSET = 50; // Offset for duplicated nodes to avoid overlap
+        const OFFSET = BASE_UNIT; // Offset by one grid cell (56px) for duplicated nodes to keep them aligned
         const newNodes: AppNode[] = [];
 
         nodesToDuplicate.forEach(node => {
@@ -744,6 +737,42 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         set({ nodes: newNodes, edges: newEdges });
 
         if (DEBUG) console.log("[fuseNodes] Completed - Final node count:", newNodes.length);
+    },
+
+    linkSelectedNodes: (mainNodeId, targetNodeIds) => {
+        console.log("[linkSelectedNodes] Called with mainNodeId:", mainNodeId, "targetNodeIds:", targetNodeIds);
+        const { edges, currentParentId } = get();
+        const parentIdForEdge = currentParentId ?? null;
+        
+        const newEdges: Edge[] = [];
+        targetNodeIds.forEach(targetId => {
+            if (targetId === mainNodeId) return;
+            
+            // Check if an edge already exists from mainNodeId to targetId
+            const edgeExists = edges.some(e => 
+                (e.source === mainNodeId && e.target === targetId) ||
+                (e.source === targetId && e.target === mainNodeId)
+            );
+            
+            if (!edgeExists) {
+                newEdges.push({
+                    id: uuidv4(),
+                    source: mainNodeId,
+                    target: targetId,
+                    type: 'centered',
+                    data: { parentId: parentIdForEdge },
+                } as Edge);
+            }
+        });
+        
+        if (newEdges.length > 0) {
+            console.log("[linkSelectedNodes] Created new edges:", newEdges);
+            set({
+                edges: [...edges, ...newEdges]
+            });
+        } else {
+            console.log("[linkSelectedNodes] No new edges created (already existed or empty targets).");
+        }
     },
 
     hydrateCanvasFromContent: (nodeId: string) => {

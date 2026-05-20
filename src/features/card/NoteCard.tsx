@@ -7,14 +7,14 @@ import { useStore } from '../../store/useStore';
 import { IconPicker } from './IconPicker';
 import { iconMap, defaultIconName } from './iconMap';
 import { NoteExpandedContent } from './NoteExpandedContent';
-import { EditBar } from '../ui/EditBar';
+
 import { CoverPicker } from './CoverPicker';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { calculateNoteLayout, MAX_HEIGHT, SNAP_STEP } from '../../config/layout';
 import { toPastelColor, darkenColor } from '../../utils/colorUtils';
 
 export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<NoteNode>) => {
-    const { setNodes, getViewport, deleteElements } = useReactFlow();
+    const { setNodes, getViewport } = useReactFlow();
     const connection = useConnection();
     const isConnecting = connection.inProgress;
 
@@ -31,6 +31,11 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
     const interactionState = useStore(s => s.interactionState);
     const theme = useStore(s => s.theme);
+    const isLinkingMode = useStore(s => s.isLinkingMode);
+    const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
+    const linkSelectedNodes = useStore(s => s.linkSelectedNodes);
+    const clearCanvasSelection = useStore(s => s.clearCanvasSelection);
+    const setNodesStore = useStore(s => s.setNodes);
 
     const isDragging = interactionState.draggedNodeId === id;
     const isDropTarget = interactionState.dropTarget?.id === id;
@@ -38,6 +43,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
     // Track fusion event for animation
     const [isFusing, setIsFusing] = useState(false);
+    const [isHoveredLinking, setIsHoveredLinking] = useState(false);
     const lastFusedTimeRef = useRef(data.lastFusedAt || 0);
 
     useEffect(() => {
@@ -61,11 +67,10 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     const dynamicStyles = useMemo(() => {
         if (!displayColor) return {};
 
-        // If we have a pastel background, force dark text for contrast
-        // regardless of the system theme (light/dark mode)
-        const darkText = darkenColor(displayColor, 60); // Dark text derived from bg
-        const mutedText = darkenColor(displayColor, 40); // Muted text
-        const borderColor = darkenColor(displayColor, 20);
+        // Smart high-contrast colors derived from the bg color for exceptional readability
+        const darkText = darkenColor(displayColor, 80); // 80% darken for main text (flawless readability)
+        const mutedText = darkenColor(displayColor, 65); // 65% darken for secondary text
+        const borderColor = darkenColor(displayColor, 40); // 40% darken for borders
 
         return {
             '--color-text-main': darkText,
@@ -81,9 +86,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     const [showCoverPicker, setShowCoverPicker] = useState(false);
     // Metadata visibility state for Expanded view is now derived from data.showMetadata
 
-    // EditBar state for context menu
-    const [showEditBar, setShowEditBar] = useState(false);
-    const [editBarPosition, setEditBarPosition] = useState({ x: 0, y: 0 });
+
 
     // Performance: Visibility tracking for heavy features (ResizeObserver, etc.)
     const [isVisible, setIsVisible] = useState(true);
@@ -289,43 +292,9 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
         setFullscreenId(id);
     };
 
-    // EditBar handlers
-    const handleContextMenu = useCallback((e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
 
-        // Use clientX/clientY for fixed positioning with small offset
-        setEditBarPosition({
-            x: e.clientX + 5,
-            y: e.clientY + 5
-        });
-        setShowEditBar(true);
-    }, []);
 
-    const handleColorChange = useCallback((color: string) => {
-        updateNodeData(id, { color });
-    }, [id, updateNodeData]);
 
-    const handleDuplicate = useCallback(() => {
-        const { nodes } = useStore.getState();
-        const currentNode = nodes.find(n => n.id === id);
-        if (!currentNode) return;
-
-        const newNode = {
-            ...currentNode,
-            id: `${id}-copy-${Date.now()}`,
-            position: {
-                x: currentNode.position.x + 50,
-                y: currentNode.position.y + 50
-            }
-        };
-
-        setNodes((nds) => [...nds, newNode as any]);
-    }, [id, setNodes]);
-
-    const handleDelete = useCallback(() => {
-        deleteElements({ nodes: [{ id }] });
-    }, [id, deleteElements]);
 
     return (
         <div
@@ -341,7 +310,6 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
         ${viewMode !== 'expanded' ? 'custom-drag-handle' : ''}
       `}
             onDoubleClick={handleDoubleClick}
-            onContextMenu={handleContextMenu}
             ref={cardRef}
             style={{
                 width: '100%',
@@ -352,6 +320,57 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                 ...dynamicStyles
             }}
         >
+            {isLinkingMode && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: 9999,
+                        cursor: 'pointer',
+                        backgroundColor: isHoveredLinking ? 'rgba(6, 182, 212, 0.15)' : 'rgba(6, 182, 212, 0.04)',
+                        border: '2px solid transparent',
+                        borderColor: isHoveredLinking ? '#06b6d4' : 'transparent',
+                        boxShadow: isHoveredLinking ? '0 0 15px rgba(6, 182, 212, 0.4)' : 'none',
+                        transition: 'all 0.2s ease',
+                        borderRadius: 'inherit',
+                        boxSizing: 'border-box',
+                    }}
+                    onMouseEnter={() => setIsHoveredLinking(true)}
+                    onMouseLeave={() => setIsHoveredLinking(false)}
+                    onClick={(e) => {
+                        console.log("[NoteCard Overlay Click] Clicked ID:", id);
+                        e.stopPropagation();
+                        e.preventDefault();
+                        linkSelectedNodes(id, Array.from(selectedCanvasNodeIds));
+                        setIsLinkingMode(false);
+                        clearCanvasSelection();
+                        setNodesStore(nds => nds.map(n => n.selected ? { ...n, selected: false } : n));
+                    }}
+                    onPointerDown={(e) => {
+                        console.log("[NoteCard Overlay PointerDown] ID:", id);
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }}
+                    onMouseDown={(e) => {
+                        console.log("[NoteCard Overlay MouseDown] ID:", id);
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }}
+                    onMouseUp={(e) => {
+                        console.log("[NoteCard Overlay MouseUp] ID:", id);
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }}
+                    onDoubleClick={(e) => {
+                        console.log("[NoteCard Overlay DoubleClick] ID:", id);
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }}
+                />
+            )}
             {/* custom strict resize handle */}
             <div
                 className={`${styles.modernResizeHandle} nodrag`}
@@ -591,17 +610,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
 
 
-            {/* EditBar Context Menu */}
-            {showEditBar && (
-                <EditBar
-                    position={editBarPosition}
-                    onClose={() => setShowEditBar(false)}
-                    onColorChange={handleColorChange}
-                    currentColor={data.color}
-                    onDelete={handleDelete}
-                    onDuplicate={handleDuplicate}
-                />
-            )}
+
 
             {showCoverPicker && (
                 <CoverPicker

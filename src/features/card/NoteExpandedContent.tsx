@@ -300,8 +300,12 @@ export function NoteExpandedContent({
             <div
                 className={`${styles.noteArea} nodrag`}
                 onWheelCapture={(e) => e.stopPropagation()}
-                onPointerDown={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => {
+                    e.stopPropagation();
+                }}
+                onMouseDown={(e) => {
+                    e.stopPropagation();
+                }}
                 ref={contentRef}
                 onDrop={handleAreaDrop}
                 onDragOver={(e) => {

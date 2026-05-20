@@ -1,8 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Trash2, Copy, Palette, Layers, X } from 'lucide-react';
+import { Trash2, Copy, Palette, Layers, X, ArrowUpRight } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import styles from './MultiSelectionToolbar.module.css';
-import { toPastelColor } from '../../utils/colorUtils';
 
 export function MultiSelectionToolbar() {
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
@@ -11,7 +10,8 @@ export function MultiSelectionToolbar() {
     const bulkDuplicateNodes = useStore(s => s.bulkDuplicateNodes);
     const bulkApplyColor = useStore(s => s.bulkApplyColor);
     const fuseNodes = useStore(s => s.fuseNodes);
-    const theme = useStore(s => s.theme);
+    const isLinkingMode = useStore(s => s.isLinkingMode);
+    const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const colorPickerRef = useRef<HTMLDivElement>(null);
@@ -69,26 +69,43 @@ export function MultiSelectionToolbar() {
         clearCanvasSelection();
     }, [selectedCanvasNodeIds, clearCanvasSelection, fuseNodes]);
 
-    const isLightMode = theme === 'light';
+
 
     const colors = [
-        { name: 'Default', value: 'transparent', displayValue: '#1a1a1a' },
-        { name: 'Red', value: '#ef4444', displayValue: toPastelColor('#ef4444', isLightMode) },
-        { name: 'Orange', value: '#f97316', displayValue: toPastelColor('#f97316', isLightMode) },
-        { name: 'Yellow', value: '#eab308', displayValue: toPastelColor('#eab308', isLightMode) },
-        { name: 'Green', value: '#22c55e', displayValue: toPastelColor('#22c55e', isLightMode) },
-        { name: 'Blue', value: '#3b82f6', displayValue: toPastelColor('#3b82f6', isLightMode) },
-        { name: 'Purple', value: '#a855f7', displayValue: toPastelColor('#a855f7', isLightMode) },
-        { name: 'Pink', value: '#ec4899', displayValue: toPastelColor('#ec4899', isLightMode) },
-        { name: 'Gray', value: '#6b7280', displayValue: toPastelColor('#6b7280', isLightMode) },
-        { name: 'Cyan', value: '#06b6d4', displayValue: toPastelColor('#06b6d4', isLightMode) },
-        { name: 'Teal', value: '#14b8a6', displayValue: toPastelColor('#14b8a6', isLightMode) },
-        { name: 'Lime', value: '#84cc16', displayValue: toPastelColor('#84cc16', isLightMode) },
+        { name: 'Default', value: 'transparent', displayValue: 'transparent' },
+        { name: 'Red', value: '#ef4444', displayValue: '#ef4444' },
+        { name: 'Orange', value: '#f97316', displayValue: '#f97316' },
+        { name: 'Yellow', value: '#eab308', displayValue: '#eab308' },
+        { name: 'Green', value: '#22c55e', displayValue: '#22c55e' },
+        { name: 'Blue', value: '#3b82f6', displayValue: '#3b82f6' },
+        { name: 'Purple', value: '#a855f7', displayValue: '#a855f7' },
+        { name: 'Pink', value: '#ec4899', displayValue: '#ec4899' },
+        { name: 'Gray', value: '#6b7280', displayValue: '#6b7280' },
+        { name: 'Cyan', value: '#06b6d4', displayValue: '#06b6d4' },
+        { name: 'Teal', value: '#14b8a6', displayValue: '#14b8a6' },
+        { name: 'Lime', value: '#84cc16', displayValue: '#84cc16' },
     ];
 
     return (
         <div className={styles.toolbar}>
-            {showDeleteConfirm ? (
+            {isLinkingMode ? (
+                // Linking Mode UI
+                <div className={styles.confirmContainer}>
+                    <span className={styles.confirmText} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span className={styles.pulseDot} />
+                        Choose the central node to link all selected nodes
+                    </span>
+                    <div className={styles.confirmActions}>
+                        <button
+                            className={styles.actionBtn}
+                            onClick={() => setIsLinkingMode(false)}
+                        >
+                            <X size={16} />
+                            <span>Cancel</span>
+                        </button>
+                    </div>
+                </div>
+            ) : showDeleteConfirm ? (
                 // Delete Confirmation UI
                 <div className={styles.confirmContainer}>
                     <span className={styles.confirmText}>
@@ -146,11 +163,15 @@ export function MultiSelectionToolbar() {
                                         {colors.map(color => (
                                             <button
                                                 key={color.value}
-                                                className={styles.colorOption}
-                                                style={{ backgroundColor: color.displayValue }}
+                                                className={`${styles.colorOption} ${color.value === 'transparent' ? styles.transparentOption : ''}`}
+                                                style={{ backgroundColor: color.value === 'transparent' ? undefined : color.displayValue }}
                                                 onClick={() => handleBulkColor(color.value)}
                                                 title={color.name}
-                                            />
+                                            >
+                                                {color.value === 'transparent' && (
+                                                    <span className={styles.transparentSlash} />
+                                                )}
+                                            </button>
                                         ))}
                                     </div>
                                 </div>
@@ -158,14 +179,25 @@ export function MultiSelectionToolbar() {
                         </div>
 
                         {selectedCount > 1 && (
-                            <button
-                                className={`${styles.actionBtn} ${styles.primary}`}
-                                onClick={handleFuseNodes}
-                                title="Fuse selected items into one container"
-                            >
-                                <Layers size={16} />
-                                <span>Fuse</span>
-                            </button>
+                            <>
+                                <button
+                                    className={`${styles.actionBtn} ${styles.primary}`}
+                                    onClick={handleFuseNodes}
+                                    title="Fuse selected items into one container"
+                                >
+                                    <Layers size={16} />
+                                    <span>Fuse</span>
+                                </button>
+
+                                <button
+                                    className={styles.actionBtn}
+                                    onClick={() => setIsLinkingMode(true)}
+                                    title="Link selected nodes with lines from a main node"
+                                >
+                                    <ArrowUpRight size={16} />
+                                    <span>Link</span>
+                                </button>
+                            </>
                         )}
 
                         <div className={styles.separator} />

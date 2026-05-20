@@ -44,6 +44,8 @@ import { memo } from 'react';
 export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles, disableMediaControls, promoteBlockHandles, selectionIslandPortalId, syncUpdate, editorId }: BlockEditorProps) {
     const editorRef = useRef<HTMLDivElement>(null);
     const editorInstanceId = useRef(editorId || `editor-${uuidv4()}`);
+    const nodeColor = useStore(s => (s.nodes.find(n => n.id === nodeId)?.data as any)?.color);
+    const theme = useStore(s => s.theme);
     const [blocks, setBlocks] = useState<Block[]>(() => {
         if (Array.isArray(initialContent) && initialContent.length > 0) return initialContent;
         // Migration for legacy string content or empty array
@@ -57,6 +59,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
     const [focusId, setFocusId] = useState<string | null>(null);
     const caretPositionRef = useRef<'start' | 'end' | number | null>(null);
     const blockRefs = useRef<{ [key: string]: HTMLElement | null }>({});
+    const autoFocusDoneRef = useRef(false);
 
     // Create a stable debounced update function
     const timeoutRef = useRef<any>(null);
@@ -256,33 +259,44 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
     // Auto-focus effect
     useEffect(() => {
-        if (autoFocus && !focusId && blocks.length > 0) {
+        if (!autoFocus) return;
+        if (autoFocusDoneRef.current) return;
+        if (focusId) return;
+        if (blocks.length === 0) return;
+
+        autoFocusDoneRef.current = true;
             const targetId = blocks[blocks.length - 1].id;
             setFocusId(targetId);
-        }
-    }, []); // Run once on mount
+    }, [autoFocus, blocks.length, focusId]);
 
     // Sync with external content updates (e.g. Fusion / collab)
     useEffect(() => {
         if (initialContent) {
-            const nextContent = Array.isArray(initialContent)
-                ? (initialContent.length > 0 ? initialContent : [{ id: uuidv4(), type: 'text' as const, content: '' }])
-                : [{ id: uuidv4(), type: 'text' as const, content: typeof initialContent === 'string' ? initialContent : '' }];
+            setBlocks(prev => {
+                // Construct nextContent based on initialContent but reusing prev IDs where possible to prevent DOM unmounts
+                const nextContent = Array.isArray(initialContent)
+                    ? (initialContent.length > 0 
+                        ? initialContent 
+                        : (prev.length === 1 && prev[0].type === 'text' && prev[0].content === '' 
+                            ? prev 
+                            : [{ id: uuidv4(), type: 'text' as const, content: '' }]))
+                    : (prev.length === 1 && prev[0].type === 'text' && prev[0].content === initialContent
+                        ? prev
+                        : [{ id: uuidv4(), type: 'text' as const, content: typeof initialContent === 'string' ? initialContent : '' }]);
 
-            if (timeoutRef.current) {
-                // If actively typing, merge all other blocks but keep the editing block local
-                const activeEl = document.activeElement;
-                let activeBlockId: string | null = null;
-                if (activeEl) {
-                    for (const [id, el] of Object.entries(blockRefs.current)) {
-                        if (el === activeEl || el?.contains(activeEl)) {
-                            activeBlockId = id;
-                            break;
+                if (timeoutRef.current) {
+                    // If actively typing, merge all other blocks but keep the editing block local
+                    const activeEl = document.activeElement;
+                    let activeBlockId: string | null = null;
+                    if (activeEl) {
+                        for (const [id, el] of Object.entries(blockRefs.current)) {
+                            if (el === activeEl || el?.contains(activeEl)) {
+                                activeBlockId = id;
+                                break;
+                            }
                         }
                     }
-                }
 
-                setBlocks(prev => {
                     const localMap = new Map(prev.map(b => [b.id, b]));
                     const merged = nextContent.map(externalBlock => {
                         const localBlock = localMap.get(externalBlock.id);
@@ -307,11 +321,8 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         return prev;
                     }
                     return merged;
-                });
-                return;
-            }
+                }
 
-            setBlocks(prev => {
                 if (JSON.stringify(prev) === JSON.stringify(nextContent)) {
                     return prev;
                 }
@@ -324,8 +335,18 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
     useEffect(() => {
         const handleForceSync = () => {
             if (initialContent) {
-                const nextContent = Array.isArray(initialContent) ? initialContent : [{ id: uuidv4(), type: 'text' as const, content: typeof initialContent === 'string' ? initialContent : '' }];
-                setBlocks(nextContent);
+                setBlocks(prev => {
+                    const nextContent = Array.isArray(initialContent)
+                        ? (initialContent.length > 0 
+                            ? initialContent 
+                            : (prev.length === 1 && prev[0].type === 'text' && prev[0].content === '' 
+                                ? prev 
+                                : [{ id: uuidv4(), type: 'text' as const, content: '' }]))
+                        : (prev.length === 1 && prev[0].type === 'text' && prev[0].content === initialContent
+                            ? prev
+                            : [{ id: uuidv4(), type: 'text' as const, content: typeof initialContent === 'string' ? initialContent : '' }]);
+                    return nextContent;
+                });
             }
         };
         window.addEventListener('infonote-force-editor-sync', handleForceSync);
@@ -990,6 +1011,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
     return (
         <div
+            data-infonote-block-editor
             className={`${styles.editor} ${minimal ? styles.minimal : ''}`}
             ref={editorRef}
             tabIndex={-1}
@@ -1203,6 +1225,8 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         setSlashMenuState(null);
                         setFocusId(targetId);
                     }}
+                    nodeColor={nodeColor}
+                    theme={theme}
                 />
             )}
 

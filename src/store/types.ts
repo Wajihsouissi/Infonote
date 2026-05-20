@@ -31,6 +31,7 @@ export interface NodeSlice {
     bulkApplyColor: (nodeIds: string[], color: string) => void;
     fuseNodes: (nodeIds: string[]) => void;
     hydrateCanvasFromContent: (nodeId: string) => void;
+    linkSelectedNodes: (mainNodeId: string, targetNodeIds: string[]) => void;
     updateEdge: (id: string, updates: Partial<Edge>) => void;
     deleteEdge: (id: string) => void;
     duplicateEdge: (id: string) => void;
@@ -124,9 +125,11 @@ export interface UISlice {
         } | null;
     };
     editingKanbanId: string | null;
+    lastCreatedCanvasNodeId: string | null;
     selectedCanvasNodeIds: Set<string>;
     isMetadataOpen: boolean;
     isTOCOpen: boolean;
+    isLinkingMode: boolean;
     setActiveIconMenuId: (id: string | null) => void;
     setKanbanModalOpen: (isOpen: boolean) => void;
     setEditingKanbanId: (id: string | null) => void;
@@ -136,7 +139,9 @@ export interface UISlice {
     toggleTheme: () => void;
     setSelectedCanvasNodeIds: (ids: Set<string>) => void;
     toggleCanvasNodeSelection: (id: string) => void;
+    setIsLinkingMode: (isLinking: boolean) => void;
     clearCanvasSelection: () => void;
+    setLastCreatedCanvasNodeId: (id: string | null) => void;
     setCurrentView: (view: AppView) => void;
     setHasEnteredApp: (val: boolean) => void;
     selectedEdgeId: string | null;

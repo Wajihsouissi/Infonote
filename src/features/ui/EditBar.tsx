@@ -1,9 +1,7 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Palette, Trash2, Copy, Link } from 'lucide-react';
 import styles from './EditBar.module.css';
-import { toPastelColor } from '../../utils/colorUtils';
-import { useStore } from '../../store/useStore';
 
 interface EditBarProps {
     position: { x: number; y: number };
@@ -35,13 +33,10 @@ export function EditBar({
     onDuplicate,
     onCopyLink
 }: EditBarProps) {
-    const theme = useStore(s => s.theme);
+    // theme is removed because it's unused
     const [showColorPicker, setShowColorPicker] = useState(false);
     const editBarRef = useRef<HTMLDivElement>(null);
 
-    const pastelPresetColors = useMemo(() => {
-        return PRESET_COLORS.map(color => toPastelColor(color, theme === 'light'));
-    }, [theme]);
 
     // Adjust position to prevent overflow
     useEffect(() => {
@@ -125,14 +120,14 @@ export function EditBar({
                     {showColorPicker && (
                         <div className={styles.colorPicker}>
                             <div className={styles.colorGrid}>
-                                {PRESET_COLORS.map((color, index) => (
+                                {PRESET_COLORS.map((color) => (
                                     <button
                                         key={color}
                                         className={`${styles.colorSwatch} ${currentColor === color ? styles.colorSwatchActive : ''
                                             }`}
-                                        style={{ background: pastelPresetColors[index] }}
+                                        style={{ background: color }}
                                         onClick={() => handleColorSelect(color)}
-                                        title={`${color} (pastel)`}
+                                        title={color}
                                     />
                                 ))}
                             </div>
@@ -141,7 +136,8 @@ export function EditBar({
                                 className={styles.clearColorBtn}
                                 onClick={() => handleColorSelect('')}
                             >
-                                Clear Color
+                                <span className={styles.clearColorSwatch} />
+                                <span>Clear Color</span>
                             </button>
                         </div>
                     )}

@@ -347,3 +347,102 @@
     display: flex;
     gap: 8px;
 }
+
+/* Style Picker Popover */
+.stylePickerTrigger {
+    position: relative;
+}
+
+.activeStyleBtn {
+    background: var(--color-primary-muted, rgba(139, 92, 246, 0.15)) !important;
+    border-color: var(--color-primary) !important;
+    color: var(--color-primary) !important;
+    box-shadow: 0 0 12px var(--color-primary-glow);
+}
+
+.stylePopover {
+    position: absolute;
+    bottom: calc(100% + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface-elevated, #1a1a1c);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+    z-index: 10000;
+    width: 280px;
+    max-height: 480px;
+    overflow-y: auto;
+    backdrop-filter: blur(12px);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.popoverSection {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.sectionTitle {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+}
+
+.popoverGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+}
+
+.popoverGridStacked {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.popoverOption {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    justify-content: flex-start;
+}
+
+.popoverOption:hover {
+    background: var(--glass-bg-hover);
+    border-color: var(--border-hover);
+    transform: translateY(-1px);
+}
+
+.activeOption {
+    background: var(--color-primary-muted, rgba(139, 92, 246, 0.15)) !important;
+    border-color: var(--color-primary) !important;
+    color: var(--color-primary) !important;
+}
+
+.popoverSectionRow {
+    display: flex;
+    gap: 10px;
+}
+
+.popoverSectionHalf {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}

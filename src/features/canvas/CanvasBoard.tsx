@@ -1,4 +1,4 @@
-import { useMemo, useEffect, Suspense, lazy, useRef, useCallback } from 'react';
+import { useMemo, useEffect, Suspense, lazy, useRef, useCallback, useState } from 'react';
 import {
     ReactFlow,
     Controls,
@@ -22,11 +22,13 @@ import { StorageControls } from '../ui/StorageControls';
 import { SlidersHorizontal, ListCollapse } from 'lucide-react';
 import { HomeButton } from '../ui/HomeButton';
 import { HistoryControls } from '../ui/HistoryControls';
+import { ModifierKeyIndicator } from '../ui/ModifierKeyIndicator';
 import { KanbanNodeComponent } from '../kanban/KanbanNode';
 import { CanvasSlashMenu } from './CanvasSlashMenu';
 import { CloudSyncControls } from './CloudSyncControls';
 import { CenteredEdge } from './CenteredEdge';
 import { CustomConnectionLine } from './CustomConnectionLine';
+import { BASE_UNIT } from '../../config/layout';
 import { AuthModal } from '../auth/AuthModal';
 import { useStore } from '../../store/useStore';
 import { v4 as uuidv4 } from 'uuid';
@@ -40,6 +42,7 @@ import {
     useCanvasNodeDrag,
 } from './hooks';
 import { useRecentlyViewed } from '../landing/hooks/useDashboardData';
+import { useModifierKeys } from '../ui/hooks/useModifierKeys';
 
 // Lazy load KanbanConfigModal
 const KanbanConfigModal = lazy(() =>
@@ -60,7 +63,6 @@ export function CanvasBoard() {
         selectedCanvasNodeIds,
         theme,
         onNodesChange,
-        onEdgesChange,
         onConnect,
         setNodes,
         updateNodeData,
@@ -71,7 +73,10 @@ export function CanvasBoard() {
         leftSidePanelId,
         setRightSidePanelId,
         setLeftSidePanelId,
+        toggleCanvasNodeSelection,
         setSelectedCanvasNodeIds,
+        clearCanvasSelection,
+        setLastCreatedCanvasNodeId,
     } = useCanvasStoreSelectors();
 
     // Throttling Ref for drag cleanup
@@ -82,17 +87,74 @@ export function CanvasBoard() {
     const setMetadataOpen = useStore(s => s.setMetadataOpen);
     const metadataBtnRef = useRef<HTMLButtonElement | null>(null);
 
+    // Linking Mode
+    const isLinkingMode = useStore(s => s.isLinkingMode);
+    const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
+    const linkSelectedNodes = useStore(s => s.linkSelectedNodes);
+
     // TOC Panel UI State
     const isTOCOpen = useStore(s => s.isTOCOpen);
     const setTOCOpen = useStore(s => s.setTOCOpen);
     const tocBtnRef = useRef<HTMLButtonElement | null>(null);
     const setSelectedEdgeId = useStore(s => s.setSelectedEdgeId);
+    const isBoxSelectingRef = useRef(false);
+    const modifierKeys = useModifierKeys();
+    const [isInEditableField, setIsInEditableField] = useState(false);
+    const [isFocusArmed, setIsFocusArmed] = useState(false);
+    const isFocusArmedRef = useRef(false);
+    const focusArmTimeoutRef = useRef<number | null>(null);
 
     // Viewport culling and visible nodes
     const { visibleNodes, handleViewportChange } = useCanvasViewport({
         nodes,
         currentParentId,
     });
+
+    const processedNodes = useMemo(() => {
+        return visibleNodes.map(node => {
+            const isSelected = selectedCanvasNodeIds.has(node.id);
+            const classes = [
+                node.className || '',
+                isSelected ? 'is-selected' : '',
+                isLinkingMode ? 'is-linking-mode' : '',
+            ].filter(Boolean).join(' ');
+            return {
+                ...node,
+                className: classes
+            };
+        });
+    }, [visibleNodes, selectedCanvasNodeIds, isLinkingMode]);
+
+    const applySelectedIdsToNodes = useCallback((ids: Set<string>) => {
+        setNodes(nds => {
+            let changed = false;
+            const next = nds.map(n => {
+                const shouldBeSelected = ids.has(n.id);
+                if (n.selected === shouldBeSelected) return n;
+                changed = true;
+                return { ...n, selected: shouldBeSelected };
+            });
+            return changed ? next : nds;
+        });
+    }, [setNodes]);
+
+
+
+    const blurActiveEditable = useCallback(() => {
+        const el = document.activeElement as HTMLElement | null;
+        if (!el) return false;
+        const isEditable = el.tagName === 'INPUT' ||
+            el.tagName === 'TEXTAREA' ||
+            el.isContentEditable ||
+            !!el.closest('[contenteditable]') ||
+            !!el.closest('[class*="BlockEditor"]') ||
+            !!el.closest('[class*="editor"]');
+        if (!isEditable) return false;
+        el.blur();
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        return true;
+    }, []);
 
     // Debug logging for visible nodes
     useEffect(() => {
@@ -110,7 +172,190 @@ export function CanvasBoard() {
     const addNode = useStore(s => s.addNode);
 
     // Focus viewport when parent changes
-    const { fitView, screenToFlowPosition } = useReactFlow();
+    const { fitView, screenToFlowPosition, getViewport, setViewport } = useReactFlow();
+
+    const keysPressed = useRef<{ [key: string]: boolean }>({});
+    const animationFrameId = useRef<number | null>(null);
+
+    const getViewportRef = useRef(getViewport);
+    const setViewportRef = useRef(setViewport);
+    const screenToFlowPositionRef = useRef(screenToFlowPosition);
+
+    useEffect(() => {
+        getViewportRef.current = getViewport;
+        setViewportRef.current = setViewport;
+        screenToFlowPositionRef.current = screenToFlowPosition;
+    }, [getViewport, setViewport, screenToFlowPosition]);
+
+    useEffect(() => {
+        const zoomFactorPerFrame = 1.015; // 1.5% zoom per frame (very smooth at 60fps)
+        
+        const tick = () => {
+            const plusPressed = keysPressed.current['plus'];
+            const minusPressed = keysPressed.current['minus'];
+
+            if (!plusPressed && !minusPressed) {
+                animationFrameId.current = null;
+                return;
+            }
+
+            const { x, y, zoom } = getViewportRef.current();
+            let newZoom = zoom;
+
+            if (plusPressed) {
+                newZoom = Math.min(2, zoom * zoomFactorPerFrame);
+            } else if (minusPressed) {
+                newZoom = Math.max(0.05, zoom / zoomFactorPerFrame);
+            }
+
+            if (newZoom !== zoom) {
+                const mouseX = mousePosRef.current.x;
+                const mouseY = mousePosRef.current.y;
+                const flowPos = screenToFlowPositionRef.current({ x: mouseX, y: mouseY });
+                
+                const newX = x + flowPos.x * (zoom - newZoom);
+                const newY = y + flowPos.y * (zoom - newZoom);
+                
+                // Set transition duration: 0 for instant, buttery-smooth frame updates
+                setViewportRef.current({ x: newX, y: newY, zoom: newZoom });
+            }
+
+            animationFrameId.current = requestAnimationFrame(tick);
+        };
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (isInEditableField) return;
+
+            if (e.key === '+' || e.key === '=') {
+                e.preventDefault();
+                keysPressed.current['plus'] = true;
+                if (!animationFrameId.current) {
+                    animationFrameId.current = requestAnimationFrame(tick);
+                }
+            } else if (e.key === '-') {
+                e.preventDefault();
+                keysPressed.current['minus'] = true;
+                if (!animationFrameId.current) {
+                    animationFrameId.current = requestAnimationFrame(tick);
+                }
+            } else if (e.key === '5') {
+                e.preventDefault();
+                fitView({ duration: 400 });
+            }
+        };
+
+        const handleKeyUp = (e: KeyboardEvent) => {
+            if (e.key === '+' || e.key === '=') {
+                keysPressed.current['plus'] = false;
+            } else if (e.key === '-') {
+                keysPressed.current['minus'] = false;
+            }
+        };
+
+        const handleBlur = () => {
+            keysPressed.current = {};
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        window.addEventListener('blur', handleBlur);
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+            window.removeEventListener('blur', handleBlur);
+            if (animationFrameId.current) {
+                cancelAnimationFrame(animationFrameId.current);
+            }
+        };
+    }, [isInEditableField, fitView]);
+
+    useEffect(() => {
+        isFocusArmedRef.current = isFocusArmed;
+    }, [isFocusArmed]);
+
+    useEffect(() => {
+        if (isInEditableField && isFocusArmedRef.current) {
+            setIsFocusArmed(false);
+        }
+    }, [isInEditableField]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key !== 'Escape') return;
+            if (!blurActiveEditable()) return;
+            e.preventDefault();
+            e.stopPropagation();
+        };
+
+        const handlePointerDown = (e: PointerEvent) => {
+            if (!isInEditableField) return;
+            const target = e.target as HTMLElement | null;
+            if (!target) return;
+            const isClickInsideEditable = target.tagName === 'INPUT' ||
+                target.tagName === 'TEXTAREA' ||
+                target.isContentEditable ||
+                !!target.closest('[contenteditable]') ||
+                !!target.closest('[class*="BlockEditor"]') ||
+                !!target.closest('[class*="editor"]');
+            if (isClickInsideEditable) return;
+            blurActiveEditable();
+        };
+
+        window.addEventListener('keydown', handleKeyDown, { capture: true });
+        document.addEventListener('pointerdown', handlePointerDown, { capture: true });
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown, true);
+            document.removeEventListener('pointerdown', handlePointerDown, true);
+        };
+    }, [blurActiveEditable, isInEditableField]);
+
+    useEffect(() => {
+        const clearArm = () => {
+            if (focusArmTimeoutRef.current) {
+                window.clearTimeout(focusArmTimeoutRef.current);
+                focusArmTimeoutRef.current = null;
+            }
+            if (isFocusArmedRef.current) setIsFocusArmed(false);
+        };
+
+        const armForNextClick = () => {
+            if (focusArmTimeoutRef.current) {
+                window.clearTimeout(focusArmTimeoutRef.current);
+                focusArmTimeoutRef.current = null;
+            }
+            setIsFocusArmed(true);
+            focusArmTimeoutRef.current = window.setTimeout(() => {
+                setIsFocusArmed(false);
+                focusArmTimeoutRef.current = null;
+            }, 2500);
+        };
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (isInEditableField) return;
+            if (e.key === 'Escape') {
+                clearArm();
+                return;
+            }
+            if (e.key !== 'f' && e.key !== 'F') return;
+            e.preventDefault();
+            if (isFocusArmedRef.current) {
+                clearArm();
+                return;
+            }
+            armForNextClick();
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('blur', clearArm);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('blur', clearArm);
+            if (focusArmTimeoutRef.current) {
+                window.clearTimeout(focusArmTimeoutRef.current);
+            }
+        };
+    }, [isInEditableField]);
 
     // Track mouse coordinates on window
     const mousePosRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
@@ -121,6 +366,33 @@ export function CanvasBoard() {
         };
         window.addEventListener('mousemove', handleMouseMove);
         return () => window.removeEventListener('mousemove', handleMouseMove);
+    }, []);
+
+    useEffect(() => {
+        const checkEditable = () => {
+            const el = document.activeElement as HTMLElement | null;
+            if (!el) return false;
+            return el.tagName === 'INPUT' ||
+                el.tagName === 'TEXTAREA' ||
+                el.isContentEditable ||
+                !!el.closest('[contenteditable]') ||
+                !!el.closest('[class*="BlockEditor"]') ||
+                !!el.closest('[class*="editor"]');
+        };
+
+        const updateEditable = () => {
+            const next = checkEditable();
+            setIsInEditableField(prev => prev === next ? prev : next);
+        };
+
+        updateEditable();
+        window.addEventListener('focusin', updateEditable);
+        window.addEventListener('focusout', updateEditable);
+
+        return () => {
+            window.removeEventListener('focusin', updateEditable);
+            window.removeEventListener('focusout', updateEditable);
+        };
     }, []);
 
     // Create Text Block on pressing Enter on canvas
@@ -201,12 +473,22 @@ export function CanvasBoard() {
             );
 
             // Automatically highlight and select the newly created text block node
-            setSelectedCanvasNodeIds(new Set([nodeId]));
+            const nextSelectedIds = new Set([nodeId]);
+            setSelectedCanvasNodeIds(nextSelectedIds);
+            applySelectedIdsToNodes(nextSelectedIds);
+            setLastCreatedCanvasNodeId(nodeId);
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const el = document.querySelector(`#block-${newBlock.id} [contenteditable="true"]`) as HTMLElement | null;
+                    el?.focus();
+                });
+            });
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [addNode, currentParentId, screenToFlowPosition, setSelectedCanvasNodeIds]);
+    }, [addNode, applySelectedIdsToNodes, currentParentId, screenToFlowPosition, setLastCreatedCanvasNodeId, setSelectedCanvasNodeIds]);
 
     // Canvas-Level Direct URL Pasting
     const handleCanvasPaste = (e: React.ClipboardEvent) => {
@@ -376,6 +658,7 @@ export function CanvasBoard() {
     });
 
 
+
     // Cleanup ref on unmount
     useEffect(() => {
         return () => {
@@ -417,12 +700,20 @@ export function CanvasBoard() {
                     <Breadcrumbs />
                 </div>
 
+                <ModifierKeyIndicator
+                    showCtrl={modifierKeys.ctrl}
+                    showShift={modifierKeys.shift}
+                    showFocus={isFocusArmed}
+                    suppress={isInEditableField}
+                    top={76}
+                />
+
 
                 <ReactFlow
-                    nodes={visibleNodes}
+                    className={isLinkingMode ? 'is-linking-mode' : ''}
+                    nodes={processedNodes}
                     edges={visibleEdges}
                     onNodesChange={onNodesChange}
-                    onEdgesChange={onEdgesChange}
                     onConnect={onConnect}
                     isValidConnection={isValidConnection}
                     nodeTypes={nodeTypes}
@@ -431,7 +722,38 @@ export function CanvasBoard() {
                     connectionLineComponent={CustomConnectionLine}
                     connectionRadius={150}
                     onPaneClick={() => {
+                        if (isLinkingMode) return;
+                        blurActiveEditable();
+                        if (isFocusArmedRef.current) setIsFocusArmed(false);
                         setSelectedEdgeId(null);
+                        clearCanvasSelection();
+                        applySelectedIdsToNodes(new Set());
+                    }}
+                    onNodeClick={(e, node) => {
+                        e.stopPropagation();
+                        setSelectedEdgeId(null);
+
+                        // If in linking mode, clicking a node establishes it as the main node
+                        if (isLinkingMode) {
+                            linkSelectedNodes(node.id, Array.from(selectedCanvasNodeIds));
+                            setIsLinkingMode(false);
+                            clearCanvasSelection();
+                            applySelectedIdsToNodes(new Set());
+                            return;
+                        }
+
+                        if (isFocusArmedRef.current) {
+                            fitView({ nodes: [node], padding: 0.45, duration: 450, maxZoom: 1.3 });
+                            setIsFocusArmed(false);
+                        }
+                        if (e.shiftKey) {
+                            toggleCanvasNodeSelection(node.id);
+                            const nextIds = useStore.getState().selectedCanvasNodeIds;
+                            applySelectedIdsToNodes(nextIds);
+                        } else {
+                            const currentIds = useStore.getState().selectedCanvasNodeIds;
+                            applySelectedIdsToNodes(currentIds);
+                        }
                     }}
                     onEdgeClick={(e, edge) => {
                         e.stopPropagation();
@@ -445,32 +767,41 @@ export function CanvasBoard() {
                     colorMode={theme}
                     minZoom={0.05}
                     maxZoom={2}
-                    snapToGrid={false}
+                    snapToGrid={true}
+                    snapGrid={[BASE_UNIT, BASE_UNIT]}
                     onDragOver={onDragOver}
                     onDrop={onDrop}
                     onNodeDragStart={onNodeDragStart}
                     onNodeDrag={onNodeDrag}
                     onNodeDragStop={onNodeDragStop}
                     onMove={handleViewportChange}
+                    onSelectionStart={() => {
+                        isBoxSelectingRef.current = true;
+                        setSelectedEdgeId(null);
+                    }}
+                    onSelectionEnd={() => {
+                        isBoxSelectingRef.current = false;
+                    }}
                     onSelectionChange={({ nodes: selectedNodes }) => {
-                        const newIds = selectedNodes.map(n => n.id);
-                        const isSame = newIds.length === selectedCanvasNodeIds.size && newIds.every(id => selectedCanvasNodeIds.has(id));
+                        const nextIds = new Set(selectedNodes.map(n => n.id));
+                        const currentIds = useStore.getState().selectedCanvasNodeIds;
+                        const isSame = nextIds.size === currentIds.size && Array.from(nextIds).every(id => currentIds.has(id));
                         if (!isSame) {
-                            setSelectedCanvasNodeIds(new Set(newIds));
+                            setSelectedCanvasNodeIds(nextIds);
                         }
                     }}
-                    selectionOnDrag={false}
+                    selectionOnDrag={true}
                     panOnDrag={true}
                     selectionKeyCode="Control"
                     multiSelectionKeyCode="Shift"
                     selectionMode={SelectionMode.Partial}
                     // Performance optimizations
-                    nodesDraggable={true}
-                    nodesConnectable={true}
+                    nodesDraggable={!isLinkingMode}
+                    nodesConnectable={!isLinkingMode}
                     nodesFocusable={false}
-                    edgesFocusable={true}
-                    elementsSelectable={true}
-                    selectNodesOnDrag={true}
+                    edgesFocusable={!isLinkingMode}
+                    elementsSelectable={!isLinkingMode}
+                    selectNodesOnDrag={false}
                     panOnScroll={true}
                     zoomOnScroll={true}
                     zoomOnPinch={true}
@@ -526,8 +857,8 @@ export function CanvasBoard() {
                 nodeId={leftSidePanelId}
                 onClose={() => setLeftSidePanelId(null)}
             />
-            <FullscreenModal />
-            <CenterModal />
+            <FullscreenModal onCanvasDragOver={onDragOver} onCanvasDrop={onDrop} />
+            <CenterModal onCanvasDragOver={onDragOver} onCanvasDrop={onDrop} />
             <AuthModal />
             <Suspense fallback={null}>
                 <KanbanConfigModal />

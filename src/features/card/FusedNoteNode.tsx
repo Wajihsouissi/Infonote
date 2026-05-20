@@ -1,13 +1,13 @@
-import { memo, useCallback, useRef, useState, useEffect } from 'react';
+import { memo, useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
-import { StickyNote, GripHorizontal } from 'lucide-react';
+import { StickyNote } from 'lucide-react';
 import { BlockEditor } from '../editor/BlockEditor';
-import { EditBar } from '../ui/EditBar';
+
 import { useStore } from '../../store/useStore';
 import type { Node } from '@xyflow/react';
 import styles from './FusedNoteNode.module.css';
 import { snapFusedDimensions, MIN_EXPANDED_SIZE } from '../../config/layout';
-import { toPastelColor, lightenColor } from '../../utils/colorUtils';
+import { toPastelColor, lightenColor, darkenColor } from '../../utils/colorUtils';
 
 export type FusedNoteNodeData = {
     content: any[];
@@ -18,7 +18,7 @@ export type FusedNoteNodeData = {
 import { v4 as uuidv4 } from 'uuid';
 
 export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedNoteNodeData>>) => {
-    const { setNodes, getViewport, deleteElements } = useReactFlow(); // Added setNodes back
+    const { getViewport } = useReactFlow();
     const connection = useConnection();
     const isConnecting = connection.inProgress;
     const updateNodeData = useStore(s => s.updateNodeData);
@@ -26,6 +26,11 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
     const interactionState = useStore(s => s.interactionState);
     const theme = useStore(s => s.theme);
+    const isLinkingMode = useStore(s => s.isLinkingMode);
+    const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
+    const linkSelectedNodes = useStore(s => s.linkSelectedNodes);
+    const clearCanvasSelection = useStore(s => s.clearCanvasSelection);
+    const setNodesStore = useStore(s => s.setNodes);
 
     const isDragging = interactionState.draggedNodeId === id;
     const isDropTarget = interactionState.dropTarget?.id === id;
@@ -33,6 +38,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
     // Track fusion event for animation
     const [isFusing, setIsFusing] = useState(false);
+    const [isHoveredLinking, setIsHoveredLinking] = useState(false);
     const lastFusedTimeRef = useRef(data.lastFusedAt || 0);
 
     useEffect(() => {
@@ -56,20 +62,33 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     const displayColor = data.color ? toPastelColor(data.color, theme === 'light') : undefined;
     const accentColor = data.color ? lightenColor(data.color, 15) : displayColor;
 
+    // Dynamic styles for contrast
+    const dynamicStyles = useMemo(() => {
+        if (!displayColor) return {};
+
+        // Smart high-contrast colors derived from the bg color for exceptional readability
+        const darkText = darkenColor(displayColor, 80); // 80% darken for main text (flawless readability)
+        const mutedText = darkenColor(displayColor, 65); // 65% darken for secondary text
+        const borderColor = darkenColor(displayColor, 40); // 40% darken for borders
+
+        return {
+            '--color-text-main': darkText,
+            '--color-text-muted': mutedText,
+            '--color-border': `${borderColor}40`, // 40% opacity
+            '--glass-border': `${borderColor}40`,
+            '--icon-color': darkText,
+            '--note-bg-dynamic': data.color,
+            color: darkText,
+        } as React.CSSProperties;
+    }, [displayColor, data.color]);
+
     // Get the node's style from the store to check if it has been manually resized
     const nodeStyle = useStore(s => s.nodes.find(n => n.id === id)?.style);
     const hasManualHeight = nodeStyle?.height !== undefined;
 
     const dynamicStyle = {
         backgroundColor: displayColor || undefined,
-        // Force dark text contrast when a custom color is active (pastel background)
-        ...(displayColor ? {
-            '--color-text-main': '#1f2937',
-            '--color-text-muted': '#6b7280',
-            '--color-border': 'rgba(0,0,0,0.2)',
-            '--note-bg-dynamic': data.color,
-            color: '#1f2937'
-        } : {}),
+        ...dynamicStyles,
         display: 'flex',
         flexDirection: 'column' as const,
         ...(hasManualHeight ? {
@@ -87,9 +106,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
         height: hasManualHeight ? '100%' : 'auto',
     };
 
-    // EditBar state
-    const [showEditBar, setShowEditBar] = useState(false);
-    const [editBarPosition, setEditBarPosition] = useState({ x: 0, y: 0 });
+
 
     const handleConvertToCard = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
@@ -285,43 +302,9 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
         window.addEventListener('mouseup', onMouseUp);
     };
 
-    // EditBar handlers
-    const handleContextMenu = useCallback((e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
 
-        // Use clientX/clientY for fixed positioning with small offset
-        setEditBarPosition({
-            x: e.clientX + 5,
-            y: e.clientY + 5
-        });
-        setShowEditBar(true);
-    }, []);
 
-    const handleColorChange = useCallback((color: string) => {
-        updateNodeData(id, { color });
-    }, [id, updateNodeData]);
 
-    const handleDuplicate = useCallback(() => {
-        const { nodes } = useStore.getState();
-        const currentNode = nodes.find(n => n.id === id);
-        if (!currentNode) return;
-
-        const newNode = {
-            ...currentNode,
-            id: `${id}-copy-${Date.now()}`,
-            position: {
-                x: currentNode.position.x + 50,
-                y: currentNode.position.y + 50
-            }
-        };
-
-        setNodes((nds) => [...nds, newNode as any]);
-    }, [id, setNodes]);
-
-    const handleDelete = useCallback(() => {
-        deleteElements({ nodes: [{ id }] });
-    }, [id, deleteElements]);
 
     const handleContentUpdate = useCallback((blocks: any[]) => {
         updateNodeData(id, { content: blocks });
@@ -330,6 +313,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     return (
         <div
             className={`
+                custom-drag-handle
                 ${styles.fusedNoteNode} 
                 ${selected ? styles.selected : ''} 
                 ${isMultiSelected ? styles.multiSelected : ''}
@@ -339,19 +323,64 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 ${isFusing ? styles.fusing : ''}
             `}
             ref={nodeRef}
-            onContextMenu={handleContextMenu}
             style={dynamicStyle}
         >
+            {isLinkingMode && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: 9999,
+                        cursor: 'pointer',
+                        backgroundColor: isHoveredLinking ? 'rgba(6, 182, 212, 0.15)' : 'rgba(6, 182, 212, 0.04)',
+                        border: '2px solid transparent',
+                        borderColor: isHoveredLinking ? '#06b6d4' : 'transparent',
+                        boxShadow: isHoveredLinking ? '0 0 15px rgba(6, 182, 212, 0.4)' : 'none',
+                        transition: 'all 0.2s ease',
+                        borderRadius: 'inherit',
+                        boxSizing: 'border-box',
+                    }}
+                    onMouseEnter={() => setIsHoveredLinking(true)}
+                    onMouseLeave={() => setIsHoveredLinking(false)}
+                    onClick={(e) => {
+                        console.log("[FusedNoteNode Overlay Click] Clicked ID:", id);
+                        e.stopPropagation();
+                        e.preventDefault();
+                        linkSelectedNodes(id, Array.from(selectedCanvasNodeIds));
+                        setIsLinkingMode(false);
+                        clearCanvasSelection();
+                        setNodesStore(nds => nds.map(n => n.selected ? { ...n, selected: false } : n));
+                    }}
+                    onPointerDown={(e) => {
+                        console.log("[FusedNoteNode Overlay PointerDown] ID:", id);
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }}
+                    onMouseDown={(e) => {
+                        console.log("[FusedNoteNode Overlay MouseDown] ID:", id);
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }}
+                    onMouseUp={(e) => {
+                        console.log("[FusedNoteNode Overlay MouseUp] ID:", id);
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }}
+                    onDoubleClick={(e) => {
+                        console.log("[FusedNoteNode Overlay DoubleClick] ID:", id);
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }}
+                />
+            )}
             {/* Top accent strip using the note color */}
             <div
                 className={styles.accentStrip}
                 style={{ backgroundColor: accentColor || 'var(--color-primary)' }}
             />
-
-            {/* Floating Handle - Centered Top */}
-            <div className={`custom-drag-handle ${styles.floatingHandle}`}>
-                <GripHorizontal size={16} />
-            </div>
 
             {/* Conversion Button */}
             <button
@@ -367,8 +396,12 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 className={`${styles.content} nodrag`} 
                 ref={contentRef}
                 onWheelCapture={(e) => e.stopPropagation()}
-                onPointerDown={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => {
+                    e.stopPropagation();
+                }}
+                onMouseDown={(e) => {
+                    e.stopPropagation();
+                }}
                 style={contentStyle}
             >
                 <BlockEditor
@@ -423,17 +456,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 <Handle type="source" position={Position.Top} className={styles.handle} isConnectableEnd={false} id="out" />
             )}
 
-            {/* EditBar Context Menu */}
-            {showEditBar && (
-                <EditBar
-                    position={editBarPosition}
-                    onClose={() => setShowEditBar(false)}
-                    onColorChange={handleColorChange}
-                    currentColor={data.color}
-                    onDelete={handleDelete}
-                    onDuplicate={handleDuplicate}
-                />
-            )}
+
         </div>
     );
 });

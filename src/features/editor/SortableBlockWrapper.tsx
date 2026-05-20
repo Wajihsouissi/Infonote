@@ -34,8 +34,6 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         }
         if (!block) return;
 
-        document.body.classList.add('infonote-block-dragging');
-
         // Register cleanup function for when drag ends
         // This will clear selection in the source editor
         (window as any).infonoteDragCleanup = () => {
@@ -63,8 +61,13 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
             }
         }
 
-        // Optimize Drag Ghost: Delay styling so browser captures full opacity image first
+        // Optimize Drag Ghost and avoid immediate drag cancellation in Chrome/Firefox.
+        // Mutating document.body or the wrapper's styles synchronously inside onDragStart
+        // causes the browser to immediately cancel the drag. Delaying layout changes to the
+        // next tick allows the browser to successfully start the native drag gesture.
         setTimeout(() => {
+            document.body.classList.add('infonote-block-dragging');
+            (window as any).infonoteBlockDragging = true;
             if (ref.current) {
                 ref.current.classList.add(styles.dragging);
             }
@@ -75,6 +78,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         if (ref.current) ref.current.classList.remove(styles.dragging);
         setDropIndication(null);
         document.body.classList.remove('infonote-block-dragging');
+        (window as any).infonoteBlockDragging = false;
 
         // Execute both regular and multi-block cleanup
         const regularCleanup = (window as any).infonoteDragCleanup;

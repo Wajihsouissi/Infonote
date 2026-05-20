@@ -12,6 +12,7 @@ export function useCanvasStoreSelectors() {
     const currentParentId = useStore(useCallback(s => s.currentParentId, []));
     const interactionState = useStore(useCallback(s => s.interactionState, []));
     const selectedCanvasNodeIds = useStore(useCallback(s => s.selectedCanvasNodeIds, []));
+    const lastCreatedCanvasNodeId = useStore(useCallback(s => s.lastCreatedCanvasNodeId, []));
     const rightSidePanelId = useStore(useCallback(s => s.rightSidePanelId, []));
     const leftSidePanelId = useStore(useCallback(s => s.leftSidePanelId, []));
     const theme = useStore(useCallback(s => s.theme, []));
@@ -29,6 +30,7 @@ export function useCanvasStoreSelectors() {
     const toggleCanvasNodeSelection = useStore(useCallback(s => s.toggleCanvasNodeSelection, []));
     const setSelectedCanvasNodeIds = useStore(useCallback(s => s.setSelectedCanvasNodeIds, []));
     const clearCanvasSelection = useStore(useCallback(s => s.clearCanvasSelection, []));
+    const setLastCreatedCanvasNodeId = useStore(useCallback(s => s.setLastCreatedCanvasNodeId, []));
     const setRightSidePanelId = useStore(useCallback(s => s.setRightSidePanelId, []));
     const setLeftSidePanelId = useStore(useCallback(s => s.setLeftSidePanelId, []));
 
@@ -39,6 +41,7 @@ export function useCanvasStoreSelectors() {
         currentParentId,
         interactionState,
         selectedCanvasNodeIds,
+        lastCreatedCanvasNodeId,
         rightSidePanelId,
         leftSidePanelId,
         theme,
@@ -55,6 +58,7 @@ export function useCanvasStoreSelectors() {
         toggleCanvasNodeSelection,
         setSelectedCanvasNodeIds,
         clearCanvasSelection,
+        setLastCreatedCanvasNodeId,
         setRightSidePanelId,
         setLeftSidePanelId,
     };

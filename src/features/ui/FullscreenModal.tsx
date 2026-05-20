@@ -4,7 +4,13 @@ import styles from './FullscreenModal.module.css';
 import { NoteExpandedContent } from '../card/NoteExpandedContent';
 import { BlockEditor } from '../editor/BlockEditor';
 
-export function FullscreenModal() {
+export function FullscreenModal({
+    onCanvasDragOver,
+    onCanvasDrop
+}: {
+    onCanvasDragOver?: (e: React.DragEvent) => void;
+    onCanvasDrop?: (e: React.DragEvent) => void;
+}) {
     // Atomic Selectors
     const fullscreenId = useStore(s => s.fullscreenId);
     const setFullscreenId = useStore(s => s.setFullscreenId);
@@ -56,13 +62,19 @@ export function FullscreenModal() {
             className={styles.overlay}
             onClick={handleClose}
             onDragOver={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
+                if (onCanvasDragOver) {
+                    onCanvasDragOver(e);
+                } else {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
             }}
             onDrop={(e) => {
-                // Prevent drops on the overlay itself from propagating to ReactFlow
-                // The actual content (NoteExpandedContent/BlockEditor) will handle their own drops
-                e.stopPropagation();
+                if (onCanvasDrop) {
+                    onCanvasDrop(e);
+                } else {
+                    e.stopPropagation();
+                }
             }}
         >
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -70,6 +82,7 @@ export function FullscreenModal() {
                     {activeNode.type === 'note' ? (
                         <NoteExpandedContent
                             id={fullscreenId}
+                            nodeId={fullscreenId}
                             data={activeNode.data as any}
                             onUpdate={updateNodeData}
                             onClose={handleClose}
@@ -81,6 +94,7 @@ export function FullscreenModal() {
                     ) : (
                         <div className={styles.editorContainer}>
                             <BlockEditor
+                                nodeId={fullscreenId}
                                 initialContent={(activeNode.data as any).content}
                                 onUpdate={(blocks) => updateNodeData(fullscreenId, { content: blocks })}
                                 autoFocus={true}

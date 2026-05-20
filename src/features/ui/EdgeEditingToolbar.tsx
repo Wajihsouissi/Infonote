@@ -9,7 +9,8 @@ import {
     Spline,
     Workflow,
     Minus,
-    Activity
+    Activity,
+    Sliders
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import styles from './EdgeEditingToolbar.module.css';
@@ -26,7 +27,9 @@ export function EdgeEditingToolbar() {
 
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showStyleMenu, setShowStyleMenu] = useState(false);
     const colorPickerRef = useRef<HTMLDivElement>(null);
+    const styleMenuRef = useRef<HTMLDivElement>(null);
 
     // Find all currently selected edges
     const selectedEdges = edges.filter(
@@ -45,6 +48,18 @@ export function EdgeEditingToolbar() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showColorPicker]);
 
+    // Close style menu when clicking outside
+    useEffect(() => {
+        if (!showStyleMenu) return;
+        const handleClickOutside = (event: MouseEvent) => {
+            if (styleMenuRef.current && !styleMenuRef.current.contains(event.target as Node)) {
+                setShowStyleMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showStyleMenu]);
+
     if (selectedEdges.length === 0) return null;
 
     const isMultiSelect = selectedEdges.length > 1;
@@ -61,7 +76,8 @@ export function EdgeEditingToolbar() {
     const edgeType = getCommonValue<'bezier' | 'smoothstep' | 'straight' | 'step'>('edgeType', 'bezier');
     const lineStyle = getCommonValue<'solid' | 'dashed' | 'dotted'>('lineStyle', 'solid');
     const strokeWidth = getCommonValue<number>('strokeWidth', 1.75);
-    const markerEndType = getCommonValue<'none' | 'arrow' | 'circle'>('markerEndType', 'arrow');
+    const markerStartType = getCommonValue<'none' | 'arrow' | 'circle'>('markerStartType', 'none');
+    const markerEndType = getCommonValue<'none' | 'arrow' | 'circle'>('markerEndType', 'none');
     const isAnimated = selectedEdges.every((e) => e.animated || (e.data as any)?.animated);
     const label = getCommonValue<string>('label', '');
     const activeColor = getCommonValue<string>('color', 'transparent');
@@ -109,6 +125,14 @@ export function EdgeEditingToolbar() {
         selectedEdges.forEach(edge => {
             updateEdge(edge.id, {
                 data: { ...edge.data, lineStyle: styleName }
+            });
+        });
+    };
+
+    const handleMarkerStartChange = (type: 'none' | 'arrow' | 'circle') => {
+        selectedEdges.forEach(edge => {
+            updateEdge(edge.id, {
+                data: { ...edge.data, markerStartType: type }
             });
         });
     };
@@ -203,111 +227,168 @@ export function EdgeEditingToolbar() {
                     </div>
 
                     <div className={styles.actions}>
-                        {/* 1. Curve Type Segment Selector */}
-                        <div className={styles.segmentControl} title="Curve type">
+                        {/* Style Selector Popover Trigger */}
+                        <div className={styles.stylePickerTrigger} ref={styleMenuRef}>
                             <button
-                                className={`${styles.segmentBtn} ${edgeType === 'bezier' ? styles.active : ''}`}
-                                onClick={() => handleCurveChange('bezier')}
-                                title="Bezier Curve"
+                                className={`${styles.actionBtn} ${showStyleMenu ? styles.activeStyleBtn : ''}`}
+                                onClick={() => setShowStyleMenu(!showStyleMenu)}
+                                title="Connection Style"
                             >
-                                <Spline size={14} />
+                                <Sliders size={14} />
+                                <span>Style</span>
                             </button>
-                            <button
-                                className={`${styles.segmentBtn} ${edgeType === 'smoothstep' ? styles.active : ''}`}
-                                onClick={() => handleCurveChange('smoothstep')}
-                                title="Smooth Corners"
-                            >
-                                <Workflow size={14} />
-                            </button>
-                            <button
-                                className={`${styles.segmentBtn} ${edgeType === 'straight' ? styles.active : ''}`}
-                                onClick={() => handleCurveChange('straight')}
-                                title="Straight Line"
-                            >
-                                <Minus size={14} />
-                            </button>
-                            <button
-                                className={`${styles.segmentBtn} ${edgeType === 'step' ? styles.active : ''}`}
-                                onClick={() => handleCurveChange('step')}
-                                title="Orthogonal Steps"
-                            >
-                                <Activity size={14} />
-                            </button>
-                        </div>
 
-                        {/* 2. Line Style Selector (Solid, Dashed, Dotted) */}
-                        <div className={styles.segmentControl} title="Line Style">
-                            <button
-                                className={`${styles.segmentBtn} ${lineStyle === 'solid' ? styles.active : ''}`}
-                                onClick={() => handleLineStyleChange('solid')}
-                                title="Solid Line"
-                            >
-                                <span className={styles.lineIndicatorSolid} />
-                            </button>
-                            <button
-                                className={`${styles.segmentBtn} ${lineStyle === 'dashed' ? styles.active : ''}`}
-                                onClick={() => handleLineStyleChange('dashed')}
-                                title="Dashed Line"
-                            >
-                                <span className={styles.lineIndicatorDashed} />
-                            </button>
-                            <button
-                                className={`${styles.segmentBtn} ${lineStyle === 'dotted' ? styles.active : ''}`}
-                                onClick={() => handleLineStyleChange('dotted')}
-                                title="Dotted Line"
-                            >
-                                <span className={styles.lineIndicatorDotted} />
-                            </button>
-                        </div>
+                            {showStyleMenu && (
+                                <div className={styles.stylePopover}>
+                                    {/* Curve Style */}
+                                    <div className={styles.popoverSection}>
+                                        <div className={styles.sectionTitle}>Curve Style</div>
+                                        <div className={styles.popoverGrid}>
+                                            <button
+                                                className={`${styles.popoverOption} ${edgeType === 'bezier' ? styles.activeOption : ''}`}
+                                                onClick={() => handleCurveChange('bezier')}
+                                            >
+                                                <Spline size={14} />
+                                                <span>Bezier</span>
+                                            </button>
+                                            <button
+                                                className={`${styles.popoverOption} ${edgeType === 'smoothstep' ? styles.activeOption : ''}`}
+                                                onClick={() => handleCurveChange('smoothstep')}
+                                            >
+                                                <Workflow size={14} />
+                                                <span>Smooth</span>
+                                            </button>
+                                            <button
+                                                className={`${styles.popoverOption} ${edgeType === 'straight' ? styles.activeOption : ''}`}
+                                                onClick={() => handleCurveChange('straight')}
+                                            >
+                                                <Minus size={14} />
+                                                <span>Straight</span>
+                                            </button>
+                                            <button
+                                                className={`${styles.popoverOption} ${edgeType === 'step' ? styles.activeOption : ''}`}
+                                                onClick={() => handleCurveChange('step')}
+                                            >
+                                                <Activity size={14} />
+                                                <span>Step</span>
+                                            </button>
+                                        </div>
+                                    </div>
 
-                        {/* 3. Stroke Thickness Selector */}
-                        <div className={styles.segmentControl} title="Stroke Width">
-                            <button
-                                className={`${styles.segmentBtn} ${strokeWidth === 1.75 ? styles.active : ''}`}
-                                onClick={() => handleWidthChange(1.75)}
-                                title="Thin"
-                            >
-                                <span className={styles.widthIndicatorThin} />
-                            </button>
-                            <button
-                                className={`${styles.segmentBtn} ${strokeWidth === 3 ? styles.active : ''}`}
-                                onClick={() => handleWidthChange(3)}
-                                title="Medium"
-                            >
-                                <span className={styles.widthIndicatorMedium} />
-                            </button>
-                            <button
-                                className={`${styles.segmentBtn} ${strokeWidth === 5 ? styles.active : ''}`}
-                                onClick={() => handleWidthChange(5)}
-                                title="Thick"
-                            >
-                                <span className={styles.widthIndicatorThick} />
-                            </button>
-                        </div>
+                                    {/* Line Pattern */}
+                                    <div className={styles.popoverSection}>
+                                        <div className={styles.sectionTitle}>Pattern</div>
+                                        <div className={styles.popoverGrid}>
+                                            <button
+                                                className={`${styles.popoverOption} ${lineStyle === 'solid' ? styles.activeOption : ''}`}
+                                                onClick={() => handleLineStyleChange('solid')}
+                                            >
+                                                <span className={styles.lineIndicatorSolid} />
+                                                <span>Solid</span>
+                                            </button>
+                                            <button
+                                                className={`${styles.popoverOption} ${lineStyle === 'dashed' ? styles.activeOption : ''}`}
+                                                onClick={() => handleLineStyleChange('dashed')}
+                                            >
+                                                <span className={styles.lineIndicatorDashed} />
+                                                <span>Dashed</span>
+                                            </button>
+                                            <button
+                                                className={`${styles.popoverOption} ${lineStyle === 'dotted' ? styles.activeOption : ''}`}
+                                                onClick={() => handleLineStyleChange('dotted')}
+                                            >
+                                                <span className={styles.lineIndicatorDotted} />
+                                                <span>Dotted</span>
+                                            </button>
+                                        </div>
+                                    </div>
 
-                        {/* 4. End Marker Arrow Selector */}
-                        <div className={styles.segmentControl} title="End Marker">
-                            <button
-                                className={`${styles.segmentBtn} ${markerEndType === 'none' ? styles.active : ''}`}
-                                onClick={() => handleMarkerChange('none')}
-                                title="None"
-                            >
-                                <span className={styles.markerNone}>—</span>
-                            </button>
-                            <button
-                                className={`${styles.segmentBtn} ${markerEndType === 'arrow' ? styles.active : ''}`}
-                                onClick={() => handleMarkerChange('arrow')}
-                                title="Arrow"
-                            >
-                                <span className={styles.markerArrow}>➔</span>
-                            </button>
-                            <button
-                                className={`${styles.segmentBtn} ${markerEndType === 'circle' ? styles.active : ''}`}
-                                onClick={() => handleMarkerChange('circle')}
-                                title="Circle"
-                            >
-                                <span className={styles.markerCircle}>●</span>
-                            </button>
+                                    {/* Thickness */}
+                                    <div className={styles.popoverSection}>
+                                        <div className={styles.sectionTitle}>Thickness</div>
+                                        <div className={styles.popoverGrid}>
+                                            <button
+                                                className={`${styles.popoverOption} ${strokeWidth === 1.75 ? styles.activeOption : ''}`}
+                                                onClick={() => handleWidthChange(1.75)}
+                                            >
+                                                <span className={styles.widthIndicatorThin} />
+                                                <span>Thin</span>
+                                            </button>
+                                            <button
+                                                className={`${styles.popoverOption} ${strokeWidth === 3 ? styles.activeOption : ''}`}
+                                                onClick={() => handleWidthChange(3)}
+                                            >
+                                                <span className={styles.widthIndicatorMedium} />
+                                                <span>Medium</span>
+                                            </button>
+                                            <button
+                                                className={`${styles.popoverOption} ${strokeWidth === 5 ? styles.activeOption : ''}`}
+                                                onClick={() => handleWidthChange(5)}
+                                            >
+                                                <span className={styles.widthIndicatorThick} />
+                                                <span>Thick</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Start & End Pointers */}
+                                    <div className={styles.popoverSectionRow}>
+                                        <div className={styles.popoverSectionHalf}>
+                                            <div className={styles.sectionTitle}>Start Pointer</div>
+                                            <div className={styles.popoverGridStacked}>
+                                                <button
+                                                    className={`${styles.popoverOption} ${markerStartType === 'none' ? styles.activeOption : ''}`}
+                                                    onClick={() => handleMarkerStartChange('none')}
+                                                >
+                                                    <span className={styles.markerNone}>—</span>
+                                                    <span>None</span>
+                                                </button>
+                                                <button
+                                                    className={`${styles.popoverOption} ${markerStartType === 'arrow' ? styles.activeOption : ''}`}
+                                                    onClick={() => handleMarkerStartChange('arrow')}
+                                                >
+                                                    <span className={styles.markerArrow}>➔</span>
+                                                    <span>Arrow</span>
+                                                </button>
+                                                <button
+                                                    className={`${styles.popoverOption} ${markerStartType === 'circle' ? styles.activeOption : ''}`}
+                                                    onClick={() => handleMarkerStartChange('circle')}
+                                                >
+                                                    <span className={styles.markerCircle}>●</span>
+                                                    <span>Circle</span>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className={styles.popoverSectionHalf}>
+                                            <div className={styles.sectionTitle}>End Pointer</div>
+                                            <div className={styles.popoverGridStacked}>
+                                                <button
+                                                    className={`${styles.popoverOption} ${markerEndType === 'none' ? styles.activeOption : ''}`}
+                                                    onClick={() => handleMarkerChange('none')}
+                                                >
+                                                    <span className={styles.markerNone}>—</span>
+                                                    <span>None</span>
+                                                </button>
+                                                <button
+                                                    className={`${styles.popoverOption} ${markerEndType === 'arrow' ? styles.activeOption : ''}`}
+                                                    onClick={() => handleMarkerChange('arrow')}
+                                                >
+                                                    <span className={styles.markerArrow}>➔</span>
+                                                    <span>Arrow</span>
+                                                </button>
+                                                <button
+                                                    className={`${styles.popoverOption} ${markerEndType === 'circle' ? styles.activeOption : ''}`}
+                                                    onClick={() => handleMarkerChange('circle')}
+                                                >
+                                                    <span className={styles.markerCircle}>●</span>
+                                                    <span>Circle</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* 5. Custom Color Picker Trigger */}
