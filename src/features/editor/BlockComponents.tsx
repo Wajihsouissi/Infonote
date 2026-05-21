@@ -330,12 +330,22 @@ export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
         );
     }
 
+    const toggleHeaderLevel = block.type === 'toggle' ? block.metadata?.toggleHeaderLevel : undefined;
+    // When the toggle has an original heading level, preserve heading typography
+    const contentClassName = toggleHeaderLevel
+        ? `${styles.block} ${styles[`heading${toggleHeaderLevel}`]} ${styles.toggleHeaderContent}`
+        : `${styles.block} ${styles.text}`;
+
+    const placeholder = toggleHeaderLevel
+        ? `Heading ${toggleHeaderLevel}...`
+        : (block.type === 'toggle' ? "Toggle list item" : "List item");
+
     if (readOnly) {
         return (
             <div className={wrapperClass}>
                 {prefix}
                 <div
-                    className={`${styles.block} ${styles.text}`}
+                    className={contentClassName}
                     style={{
                         color: block.metadata?.textColor,
                         backgroundColor: block.metadata?.backgroundColor
@@ -351,7 +361,7 @@ export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
             {prefix}
             <div
                 ref={ref}
-                className={`${styles.block} ${styles.text}`}
+                className={contentClassName}
                 style={{
                     color: block.metadata?.textColor,
                     backgroundColor: block.metadata?.backgroundColor
@@ -361,7 +371,7 @@ export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
                 onInput={(e) => onChange(e.currentTarget.innerText)}
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
-                data-placeholder={block.type === 'toggle' ? "Toggle list item" : "List item"}
+                data-placeholder={placeholder}
                 data-is-empty={!block.content || block.content.trim() === '' ? 'true' : 'false'}
                 {...handlers}
             />

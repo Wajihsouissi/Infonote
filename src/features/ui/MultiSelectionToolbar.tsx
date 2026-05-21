@@ -1,7 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useReactFlow } from '@xyflow/react';
-import { Trash2, Copy, Palette, Layers, X, ArrowUpRight, ArrowRight, GitBranch } from 'lucide-react';
+import {
+    Trash2, Copy, Palette, Layers, X, ArrowUpRight, ArrowRight, GitBranch,
+    Grid3x3, CircleDot, ArrowRightLeft, Columns2, Rows2,
+} from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import { Tooltip } from './Tooltip';
 import styles from './MultiSelectionToolbar.module.css';
 
 export function MultiSelectionToolbar() {
@@ -18,7 +22,10 @@ export function MultiSelectionToolbar() {
     const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showLayoutPopover, setShowLayoutPopover] = useState(false);
     const colorPickerRef = useRef<HTMLDivElement>(null);
+    const layoutPopoverRef = useRef<HTMLDivElement>(null);
+    const arrangeNodes = useStore(s => s.arrangeNodes);
 
     const selectedCount = selectedCanvasNodeIds.size;
 
@@ -35,6 +42,20 @@ export function MultiSelectionToolbar() {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showColorPicker]);
+
+    // Close layout popover when clicking outside
+    useEffect(() => {
+        if (!showLayoutPopover) return;
+
+        const handleClickOutside = (event: MouseEvent) => {
+            if (layoutPopoverRef.current && !layoutPopoverRef.current.contains(event.target as Node)) {
+                setShowLayoutPopover(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showLayoutPopover]);
 
     // Get bulk action handlers from store
     const handleBulkDelete = useCallback(() => {
@@ -89,7 +110,18 @@ export function MultiSelectionToolbar() {
         selectConnectedCanvasNodes(selectedId);
     }, [selectedCanvasNodeIds, selectConnectedCanvasNodes]);
 
+    const handleArrange = useCallback((mode: 'grid' | 'circle' | 'flow' | 'horizontal-row' | 'vertical-column') => {
+        arrangeNodes(Array.from(selectedCanvasNodeIds), mode);
+        setShowLayoutPopover(false);
+    }, [selectedCanvasNodeIds, arrangeNodes]);
 
+    const layoutOptions: { mode: typeof handleArrange extends (mode: infer M) => void ? M : never; label: string; desc: string; icon: React.ReactNode }[] = [
+        { mode: 'grid', label: 'Grid', desc: 'Arrange in rows and columns', icon: <Grid3x3 size={18} /> },
+        { mode: 'circle', label: 'Circle', desc: 'Arrange in a circular pattern', icon: <CircleDot size={18} /> },
+        { mode: 'flow', label: 'Flow', desc: 'Left-to-right reading order', icon: <ArrowRightLeft size={18} /> },
+        { mode: 'horizontal-row', label: 'Horizontal Row', desc: 'Evenly spaced in a single row', icon: <Columns2 size={18} /> },
+        { mode: 'vertical-column', label: 'Vertical Column', desc: 'Evenly spaced in a single column', icon: <Rows2 size={18} /> },
+    ] as const;
 
     const colors = [
         { name: 'Default', value: 'transparent', displayValue: 'transparent' },
@@ -157,24 +189,24 @@ export function MultiSelectionToolbar() {
                     </div>
 
                     <div className={styles.actions}>
-                        <button
-                            className={styles.actionBtn}
-                            onClick={handleBulkDuplicate}
-                            title="Duplicate selected items"
-                        >
-                            <Copy size={16} />
-                            <span>Duplicate</span>
-                        </button>
-
-                        <div className={styles.colorPickerTrigger} ref={colorPickerRef}>
+                        <Tooltip label="Duplicate" desc="Duplicate selected items">
                             <button
                                 className={styles.actionBtn}
-                                onClick={() => setShowColorPicker(!showColorPicker)}
-                                title="Apply color to selected items"
+                                onClick={handleBulkDuplicate}
                             >
-                                <Palette size={16} />
-                                <span>Color</span>
+                                <Copy size={16} />
                             </button>
+                        </Tooltip>
+
+                        <div className={styles.colorPickerTrigger} ref={colorPickerRef}>
+                            <Tooltip label="Color" desc="Apply color to selected items">
+                                <button
+                                    className={styles.actionBtn}
+                                    onClick={() => setShowColorPicker(!showColorPicker)}
+                                >
+                                    <Palette size={16} />
+                                </button>
+                            </Tooltip>
 
                             {showColorPicker && (
                                 <div className={styles.colorPopover}>
@@ -200,67 +232,97 @@ export function MultiSelectionToolbar() {
 
                         {selectedCount > 1 && (
                             <>
-                                <button
-                                    className={`${styles.actionBtn} ${styles.primary}`}
-                                    onClick={handleFuseNodes}
-                                    title="Fuse selected items into one container"
-                                >
-                                    <Layers size={16} />
-                                    <span>Fuse</span>
-                                </button>
+                                <Tooltip label="Fuse" desc="Fuse selected items into one container">
+                                    <button
+                                        className={`${styles.actionBtn} ${styles.primary}`}
+                                        onClick={handleFuseNodes}
+                                    >
+                                        <Layers size={16} />
+                                    </button>
+                                </Tooltip>
 
-                                <button
-                                    className={styles.actionBtn}
-                                    onClick={() => setIsLinkingMode(true)}
-                                    title="Link selected nodes with lines from a main node"
-                                >
-                                    <ArrowUpRight size={16} />
-                                    <span>Link</span>
-                                </button>
+                                <Tooltip label="Link" desc="Link selected nodes with lines from a main node">
+                                    <button
+                                        className={styles.actionBtn}
+                                        onClick={() => setIsLinkingMode(true)}
+                                    >
+                                        <ArrowUpRight size={16} />
+                                    </button>
+                                </Tooltip>
+
+                                <div className={styles.layoutTrigger} ref={layoutPopoverRef}>
+                                    <Tooltip label="Layout" desc="Arrange selected nodes">
+                                        <button
+                                            className={styles.actionBtn}
+                                            onClick={() => setShowLayoutPopover(!showLayoutPopover)}
+                                        >
+                                            <Grid3x3 size={16} />
+                                        </button>
+                                    </Tooltip>
+
+                                    {showLayoutPopover && (
+                                        <div className={styles.layoutPopover}>
+                                            <div className={styles.layoutLabel}>Arrange Layout</div>
+                                            <div className={styles.layoutGrid}>
+                                                    {layoutOptions.map(opt => (
+                                                        <Tooltip key={opt.mode} label={opt.label} desc={opt.desc}>
+                                                            <button
+                                                                className={styles.layoutOption}
+                                                                onClick={() => handleArrange(opt.mode as any)}
+                                                            >
+                                                                {opt.icon}
+                                                            </button>
+                                                        </Tooltip>
+                                                    ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </>
                         )}
 
                         {selectedCount === 1 && (
                             <>
-                                <button
-                                    className={`${styles.actionBtn} ${styles.primary}`}
-                                    onClick={handleRelease}
-                                    title="Release node content into blocks on canvas"
-                                >
-                                    <ArrowRight size={16} />
-                                    <span>Release</span>
-                                </button>
+                                <Tooltip label="Release" desc="Release node content into blocks on canvas">
+                                    <button
+                                        className={`${styles.actionBtn} ${styles.primary}`}
+                                        onClick={handleRelease}
+                                    >
+                                        <ArrowRight size={16} />
+                                    </button>
+                                </Tooltip>
 
-                                <button
-                                    className={styles.actionBtn}
-                                    onClick={handleSelectConnected}
-                                    title="Select all nodes connected to this node"
-                                >
-                                    <GitBranch size={16} />
-                                    <span>Connected</span>
-                                </button>
+                                <Tooltip label="Connected" desc="Select all nodes connected to this node">
+                                    <button
+                                        className={styles.actionBtn}
+                                        onClick={handleSelectConnected}
+                                    >
+                                        <GitBranch size={16} />
+                                    </button>
+                                </Tooltip>
                             </>
                         )}
 
                         <div className={styles.separator} />
 
-                        <button
-                            className={`${styles.actionBtn} ${styles.delete}`}
-                            onClick={handleBulkDelete}
-                            title="Delete selected items"
-                        >
-                            <Trash2 size={16} />
-                            <span>Delete</span>
-                        </button>
+                        <Tooltip label="Delete" desc="Delete selected items">
+                            <button
+                                className={`${styles.actionBtn} ${styles.delete}`}
+                                onClick={handleBulkDelete}
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </Tooltip>
                     </div>
 
-                    <button
-                        className={styles.closeBtn}
-                        onClick={clearCanvasSelection}
-                        title="Clear selection"
-                    >
-                        <X size={16} />
-                    </button>
+                    <Tooltip label="Close" desc="Clear selection">
+                        <button
+                            className={styles.closeBtn}
+                            onClick={clearCanvasSelection}
+                        >
+                            <X size={16} />
+                        </button>
+                    </Tooltip>
                 </>
             )}
         </div>

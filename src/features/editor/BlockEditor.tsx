@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { createPortal } from 'react-dom';
-import { motion } from 'motion/react';
 
 import type { Block } from './types';
 import styles from './BlockEditor.module.css';
@@ -1192,19 +1191,10 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                     onSelectionMouseDown={handleSelectionMouseDown}
                                     onRegisterRef={handleRegisterRef}
                                 />
-                                {showChildren && (
-                                    <motion.div 
-                                        className={styles.toggleChildrenContainer}
-                                        initial={{ height: isCollapsed ? 0 : 'auto', opacity: isCollapsed ? 0 : 1 }}
-                                        animate={{ 
-                                            height: isCollapsed ? 0 : 'auto', 
-                                            opacity: isCollapsed ? 0 : 1 
-                                        }}
-                                        transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                                        style={{ overflow: 'hidden' }}
-                                    >
-                                        {node.children.map(child => renderNode(child, node.block.indent || 0, currentReadOnly || isCollapsed))}
-                                    </motion.div>
+                                {showChildren && !isCollapsed && (
+                                    <div className={styles.toggleChildrenContainer}>
+                                        {node.children.map(child => renderNode(child, node.block.indent || 0, currentReadOnly))}
+                                    </div>
                                 )}
                             </div>
                         );

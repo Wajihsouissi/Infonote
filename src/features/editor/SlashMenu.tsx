@@ -21,6 +21,7 @@ export function SlashMenu({ anchorRect, filter, onSelect, onClose, nodeColor, th
     const menuRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const [searchQuery, setSearchQuery] = useState(filter || '');
+    const itemsListRef = useRef<HTMLDivElement>(null);
     const [position, setPosition] = useState<{ top: number; left: number; height?: number }>({
         top: anchorRect.bottom + 5,
         left: anchorRect.left
@@ -111,6 +112,13 @@ export function SlashMenu({ anchorRect, filter, onSelect, onClose, nodeColor, th
         setSelectedIndex(0);
     }, [filteredItems]);
 
+    // Scroll selected item into view
+    useEffect(() => {
+        if (!itemsListRef.current) return;
+        const selected = itemsListRef.current.children[selectedIndex] as HTMLElement | undefined;
+        selected?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, [selectedIndex]);
+
     // Smart Positioning
     useEffect(() => {
         if (!menuRef.current) return;
@@ -198,7 +206,7 @@ export function SlashMenu({ anchorRect, filter, onSelect, onClose, nodeColor, th
                 />
             </div>
             <div className={styles.menuHeader}>Basic Blocks</div>
-            <div className={styles.slashMenuItemsList}>
+            <div className={styles.slashMenuItemsList} ref={itemsListRef}>
                 {filteredItems.length === 0 ? (
                     <div className={styles.slashMenuEmpty}>No matching blocks</div>
                 ) : (

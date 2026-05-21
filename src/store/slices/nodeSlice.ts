@@ -1093,10 +1093,8 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         let startY = margin;
         const startX = margin;
         
-        // Use a more generous grid for fused nodes
-        const gridColumnWidth = BASE_UNIT * 10;  // 560px (allows for gap between 432px cards)
-        const gridRowHeight = BASE_UNIT * 10;    // 560px
-        const maxColumns = 4;         // Max 4 per row for better visibility
+        // Use vertical layout for fused nodes (stacked under each other)
+        const verticalGap = BASE_UNIT;  // Gap between stacked fused notes
 
         if (children.length > 0) {
             const maxY = Math.max(
@@ -1108,12 +1106,9 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         const newNodes: AppNode[] = sections.map((sectionBlocks, index) => {
             const newNodeId = uuidv4();
             
-            // Calculate grid position
-            const row = Math.floor(index / maxColumns);
-            const col = index % maxColumns;
-            
-            const x = startX + (col * gridColumnWidth);
-            const y = startY + (row * gridRowHeight);
+            // Stack vertically: each fused note placed below the previous one
+            const x = startX;
+            const y = startY + (index * MIN_FUSED_SIZE) + (index * verticalGap);
 
             return {
                 id: newNodeId,
@@ -1168,5 +1163,117 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 edges: [...edges.filter((e) => e.id !== id), edge],
             });
         }
-    }
+    },
+
+    arrangeNodes: (nodeIds, mode) => {
+        const { nodes } = get();
+        const selected = nodes.filter(n => nodeIds.includes(n.id));
+        if (selected.length < 2) return;
+
+        const count = selected.length;
+
+        const getW = (n: typeof selected[0]) => (typeof n.style?.width === 'number' ? n.style.width : 432);
+        const getH = (n: typeof selected[0]) => (typeof n.style?.height === 'number' ? n.style.height : 432);
+
+        const bbox = selected.reduce((acc, n) => ({
+            minX: Math.min(acc.minX, n.position.x),
+            maxX: Math.max(acc.maxX, n.position.x + getW(n)),
+            minY: Math.min(acc.minY, n.position.y),
+            maxY: Math.max(acc.maxY, n.position.y + getH(n)),
+        }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
+
+        const centerX = (bbox.minX + bbox.maxX) / 2;
+        const centerY = (bbox.minY + bbox.maxY) / 2;
+        const gap = BASE_UNIT;
+
+        const positions: Record<string, { x: number; y: number }> = {};
+
+        switch (mode) {
+            case 'grid': {
+                const cols = Math.ceil(Math.sqrt(count));
+                const cellW = Math.max(...selected.map(getW));
+                const cellH = Math.max(...selected.map(getH));
+                const rows = Math.ceil(count / cols);
+                const gridW = cols * cellW + (cols - 1) * gap;
+                const gridH = rows * cellH + (rows - 1) * gap;
+                const ox = snapToGridValue(centerX - gridW / 2 + cellW / 2);
+                const oy = snapToGridValue(centerY - gridH / 2 + cellH / 2);
+
+                selected.forEach((node, i) => {
+                    const col = i % cols;
+                    const row = Math.floor(i / cols);
+                    positions[node.id] = {
+                        x: snapToGridValue(ox + col * (cellW + gap)),
+                        y: snapToGridValue(oy + row * (cellH + gap)),
+                    };
+                });
+                break;
+            }
+
+            case 'circle': {
+                const diagonals = selected.map(n => Math.sqrt(getW(n) ** 2 + getH(n) ** 2));
+                const maxDiag = Math.max(...diagonals);
+                const angleStep = (2 * Math.PI) / count;
+                const minRadius = count <= 2
+                    ? (maxDiag + gap)
+                    : (maxDiag + gap) / (2 * Math.sin(angleStep / 2));
+                const radius = snapToGridValue(Math.max(BASE_UNIT * 2, minRadius));
+
+                selected.forEach((node, i) => {
+                    const angle = -Math.PI / 2 + angleStep * i;
+                    positions[node.id] = {
+                        x: snapToGridValue(centerX + radius * Math.cos(angle) - getW(node) / 2),
+                        y: snapToGridValue(centerY + radius * Math.sin(angle) - getH(node) / 2),
+                    };
+                });
+                break;
+            }
+
+            case 'flow': {
+                const sorted = [...selected].sort((a, b) => (a.position.x + getW(a) / 2) - (b.position.x + getW(b) / 2));
+                const totalW = sorted.reduce((s, n) => s + getW(n), 0) + (count - 1) * gap;
+                let cx = snapToGridValue(centerX - totalW / 2);
+                sorted.forEach(node => {
+                    positions[node.id] = {
+                        x: snapToGridValue(cx),
+                        y: snapToGridValue(centerY - getH(node) / 2),
+                    };
+                    cx += getW(node) + gap;
+                });
+                break;
+            }
+
+            case 'horizontal-row': {
+                const sorted = [...selected].sort((a, b) => a.position.x - b.position.x);
+                const totalW = sorted.reduce((s, n) => s + getW(n), 0) + (count - 1) * gap;
+                let cx = snapToGridValue(centerX - totalW / 2);
+                sorted.forEach(node => {
+                    positions[node.id] = {
+                        x: snapToGridValue(cx),
+                        y: snapToGridValue(centerY - getH(node) / 2),
+                    };
+                    cx += getW(node) + gap;
+                });
+                break;
+            }
+
+            case 'vertical-column': {
+                const sorted = [...selected].sort((a, b) => a.position.y - b.position.y);
+                const totalH = sorted.reduce((s, n) => s + getH(n), 0) + (count - 1) * gap;
+                let cy = snapToGridValue(centerY - totalH / 2);
+                sorted.forEach(node => {
+                    positions[node.id] = {
+                        x: snapToGridValue(centerX - getW(node) / 2),
+                        y: snapToGridValue(cy),
+                    };
+                    cy += getH(node) + gap;
+                });
+                break;
+            }
+        }
+
+        set({
+            nodes: nodes.map(n => (positions[n.id] ? { ...n, position: positions[n.id] } : n)),
+        });
+    },
 });

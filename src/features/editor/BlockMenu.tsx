@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Trash2, Copy, Type, Palette, ArrowRight, Heading1, Heading2, Heading3, CheckSquare, Quote, List, ListOrdered, Code, Link } from 'lucide-react';
+import { Trash2, Copy, Type, Palette, ArrowRight, Heading1, Heading2, Heading3, CheckSquare, Quote, List, ListOrdered, Code, Link, ChevronDown } from 'lucide-react';
 import styles from './BlockEditor.module.css';
 import type { BlockType } from './types';
 
@@ -10,7 +10,7 @@ interface BlockMenuProps {
     // blockId: string; // Not needed
     currentType: BlockType;
     onClose: () => void;
-    onAction: (action: 'turnInto' | 'color' | 'duplicate' | 'delete' | 'split', value?: any) => void;
+    onAction: (action: 'turnInto' | 'color' | 'duplicate' | 'delete' | 'split' | 'toggleHeader', value?: any) => void;
 }
 
 const TURN_INTO_ITEMS: { label: string; type: BlockType; icon: React.ReactNode }[] = [
@@ -184,6 +184,13 @@ export function BlockMenu({ x, y, currentType, onClose, onAction }: BlockMenuPro
                 <span className={styles.slashIcon}><ArrowRight size={16} /></span>
                 <span className={styles.slashLabel}>Split Note Here</span>
             </div>
+
+            {(currentType === 'heading1' || currentType === 'heading2' || currentType === 'heading3') && (
+                <div className={styles.slashMenuItem} onMouseEnter={() => setActiveSubMenu(null)} onClick={(e) => { e.stopPropagation(); onAction('toggleHeader'); onClose(); }}>
+                    <span className={styles.slashIcon}><ChevronDown size={16} /></span>
+                    <span className={styles.slashLabel}>Toggle Header</span>
+                </div>
+            )}
 
             <div className={styles.divider} />
 

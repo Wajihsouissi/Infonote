@@ -1498,6 +1498,13 @@
     margin-top: 6px;
 }
 
+/* When a toggle preserves heading typography (toggle header), override heading margins
+   to keep the triangle aligned with the text */
+.toggleHeaderContent {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
 /* Expand drop hit-test zone during dragging with zero layout shift */
 :global(body.infonote-block-dragging) .sortableWrapper::before,
 :global(body.infonote-node-dragging) .sortableWrapper::before {

@@ -26,6 +26,7 @@ import { HistoryControls } from '../ui/HistoryControls';
 import { ModifierKeyIndicator } from '../ui/ModifierKeyIndicator';
 import { KanbanNodeComponent } from '../kanban/KanbanNode';
 import { CanvasSlashMenu } from './CanvasSlashMenu';
+import { CanvasContextMenu } from './CanvasContextMenu';
 import { CloudSyncControls } from './CloudSyncControls';
 import { CenteredEdge } from './CenteredEdge';
 import { CustomConnectionLine } from './CustomConnectionLine';
@@ -115,6 +116,7 @@ export function CanvasBoard() {
     const lastInteractedNodeIdRef = useRef<string | null>(null);
     const [justFocused, setJustFocused] = useState(false);
     const justFocusedTimeoutRef = useRef<number | null>(null);
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
     // Viewport culling and visible nodes
     const { visibleNodes, handleViewportChange } = useCanvasViewport({
@@ -676,6 +678,29 @@ export function CanvasBoard() {
         }
     };
 
+    // Native context menu handler (bypasses ReactFlow's right-click pan handling)
+    useEffect(() => {
+        const handleContextMenu = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            const isPane = target.closest('.react-flow__pane');
+            const isNode = target.closest('.react-flow__node');
+            if (!isPane || isNode) return;
+
+            // Don't show context menu when inside an editable field
+            const isEditable = !!target.closest('[contenteditable]') ||
+                !!target.closest('[class*="BlockEditor"]') ||
+                !!target.closest('input, textarea');
+            if (isEditable) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+            setContextMenu({ x: e.clientX, y: e.clientY });
+        };
+
+        document.addEventListener('contextmenu', handleContextMenu, { capture: true });
+        return () => document.removeEventListener('contextmenu', handleContextMenu, { capture: true });
+    }, []);
+
     useEffect(() => {
         if (visibleNodes.length > 0) {
             const timer = setTimeout(() => {
@@ -852,6 +877,7 @@ export function CanvasBoard() {
                     }}
                     onPaneClick={() => {
                         if (isLinkingMode) return;
+                        setContextMenu(null);
                         blurActiveEditable();
                         if (isFocusArmedRef.current) setIsFocusArmed(false);
                         setSelectedEdgeId(null);
@@ -860,6 +886,7 @@ export function CanvasBoard() {
                     }}
                     onNodeClick={(e, node) => {
                         e.stopPropagation();
+                        setContextMenu(null);
                         setSelectedEdgeId(null);
 
                         // If in linking mode, clicking a node establishes it as the main node
@@ -982,6 +1009,13 @@ export function CanvasBoard() {
             )}
 
             <BottomMenu />
+            {contextMenu && (
+                <CanvasContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    onClose={() => setContextMenu(null)}
+                />
+            )}
             <SidePanel
                 side="right"
                 nodeId={rightSidePanelId}

@@ -145,7 +145,7 @@ export function useBlockCommands({
         });
     }, [debouncedOnUpdate, setBlocks]);
 
-    const handleBlockMenuAction = useCallback((blockId: string, action: 'turnInto' | 'color' | 'duplicate' | 'delete' | 'split', value?: any) => {
+    const handleBlockMenuAction = useCallback((blockId: string, action: 'turnInto' | 'color' | 'duplicate' | 'delete' | 'split' | 'toggleHeader', value?: any) => {
         const idsToUpdate = selectedBlockIds.has(blockId)
             ? Array.from(selectedBlockIds)
             : [blockId];
@@ -209,6 +209,39 @@ export function useBlockCommands({
                 break;
             case 'split':
                 checkForSplit(blockId);
+                break;
+            case 'toggleHeader':
+                setBlocks(prev => {
+                    const index = prev.findIndex(b => b.id === blockId);
+                    if (index === -1) return prev;
+
+                    const headingBlock = prev[index];
+                    const headingType = headingBlock.type;
+                    if (headingType !== 'heading1' && headingType !== 'heading2' && headingType !== 'heading3') return prev;
+
+                    const newBlocks = [...prev];
+                    // Preserve heading level in metadata so the toggle keeps heading styling
+                    const headingLevel = headingType === 'heading1' ? 1 : headingType === 'heading2' ? 2 : 3;
+                    newBlocks[index] = {
+                        id: headingBlock.id,
+                        type: 'toggle',
+                        content: headingBlock.content,
+                        indent: headingBlock.indent || 0,
+                        metadata: { toggleHeaderLevel: headingLevel, isCollapsed: false }
+                    };
+
+                    // Indent all blocks until next same-level heading or divider
+                    let i = index + 1;
+                    while (i < newBlocks.length) {
+                        const b = newBlocks[i];
+                        if (b.type === headingType || b.type === 'divider') break;
+                        newBlocks[i] = { ...b, indent: (b.indent || 0) + 1 };
+                        i++;
+                    }
+
+                    debouncedOnUpdate(newBlocks);
+                    return newBlocks;
+                });
                 break;
         }
     }, [selectedBlockIds, debouncedOnUpdate, setBlocks, setSelectedBlockIds, checkForSplit]);
