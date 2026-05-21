@@ -195,7 +195,7 @@ export function CanvasBoard() {
 
     useEffect(() => {
         const zoomFactorPerFrame = 1.015;
-        const panSpeedPerFrame = 8;
+        const panSpeedPerFrame = 18;
 
         const tick = () => {
             const plusPressed = keysPressed.current['plus'];
