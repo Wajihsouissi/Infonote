@@ -232,10 +232,10 @@ export function CanvasBoard() {
                 setViewportRef.current({ x: newX, y: newY, zoom: newZoom });
             }
 
-            if (leftPressed) newX -= panSpeedPerFrame;
-            if (rightPressed) newX += panSpeedPerFrame;
-            if (upPressed) newY -= panSpeedPerFrame;
-            if (downPressed) newY += panSpeedPerFrame;
+            if (leftPressed) newX += panSpeedPerFrame;
+            if (rightPressed) newX -= panSpeedPerFrame;
+            if (upPressed) newY += panSpeedPerFrame;
+            if (downPressed) newY -= panSpeedPerFrame;
 
             if (leftPressed || rightPressed || upPressed || downPressed) {
                 setViewportRef.current({ x: newX, y: newY, zoom: newZoom });
