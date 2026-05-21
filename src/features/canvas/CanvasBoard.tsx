@@ -19,7 +19,8 @@ import { MetadataPanel } from '../ui/MetadataPanel';
 import { TableOfContentsPanel } from '../ui/TableOfContentsPanel';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { StorageControls } from '../ui/StorageControls';
-import { SlidersHorizontal, ListCollapse } from 'lucide-react';
+import { KeyboardShortcutsPanel } from '../ui/KeyboardShortcutsPanel';
+import { SlidersHorizontal, ListCollapse, Keyboard } from 'lucide-react';
 import { HomeButton } from '../ui/HomeButton';
 import { HistoryControls } from '../ui/HistoryControls';
 import { ModifierKeyIndicator } from '../ui/ModifierKeyIndicator';
@@ -96,6 +97,11 @@ export function CanvasBoard() {
     const isTOCOpen = useStore(s => s.isTOCOpen);
     const setTOCOpen = useStore(s => s.setTOCOpen);
     const tocBtnRef = useRef<HTMLButtonElement | null>(null);
+
+    // Shortcuts Panel UI State
+    const isShortcutsPanelOpen = useStore(s => s.isShortcutsPanelOpen);
+    const setShortcutsPanelOpen = useStore(s => s.setShortcutsPanelOpen);
+    const shortcutsBtnRef = useRef<HTMLButtonElement | null>(null);
     const setSelectedEdgeId = useStore(s => s.setSelectedEdgeId);
     const isBoxSelectingRef = useRef(false);
     const modifierKeys = useModifierKeys();
@@ -268,6 +274,9 @@ export function CanvasBoard() {
                 if (!animationFrameId.current) {
                     animationFrameId.current = requestAnimationFrame(tick);
                 }
+            } else if (e.key === 'k') {
+                e.preventDefault();
+                setShortcutsPanelOpen(!isShortcutsPanelOpen);
             }
         };
 
@@ -297,7 +306,7 @@ export function CanvasBoard() {
                 cancelAnimationFrame(animationFrameId.current);
             }
         };
-    }, [isInEditableField, fitView]);
+    }, [isInEditableField, fitView, isShortcutsPanelOpen, setShortcutsPanelOpen]);
 
     useEffect(() => {
         isFocusArmedRef.current = isFocusArmed;
@@ -786,6 +795,15 @@ export function CanvasBoard() {
                     >
                         <ListCollapse size={18} />
                     </button>
+                    <button
+                        ref={shortcutsBtnRef}
+                        className={`${styles.toolbarBtn} ${isShortcutsPanelOpen ? styles.toolbarBtnActive : ''}`}
+                        onClick={() => setShortcutsPanelOpen(!isShortcutsPanelOpen)}
+                        title={isShortcutsPanelOpen ? "Close Shortcuts" : "Keyboard Shortcuts (K)"}
+                        style={{ marginLeft: 6 }}
+                    >
+                        <Keyboard size={18} />
+                    </button>
                     {activeParentNode && (
                         <button
                             ref={metadataBtnRef}
@@ -950,6 +968,12 @@ export function CanvasBoard() {
                 isOpen={isTOCOpen}
                 onClose={() => setTOCOpen(false)}
                 buttonRef={tocBtnRef}
+            />
+
+            <KeyboardShortcutsPanel
+                isOpen={isShortcutsPanelOpen}
+                onClose={() => setShortcutsPanelOpen(false)}
+                buttonRef={shortcutsBtnRef}
             />
 
             {/* Dual Panel Backdrop (only when both sides are open) */}

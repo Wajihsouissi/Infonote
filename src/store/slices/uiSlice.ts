@@ -20,6 +20,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     selectedEdgeIds: new Set<string>(),
     isMetadataOpen: false,
     isTOCOpen: false,
+    isShortcutsPanelOpen: false,
     isLinkingMode: false,
 
     setActiveIconMenuId: (id) => set({ activeIconMenuId: id }),
@@ -27,6 +28,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     setEditingKanbanId: (id) => set({ editingKanbanId: id }),
     setMetadataOpen: (isOpen) => set({ isMetadataOpen: isOpen, isTOCOpen: isOpen ? false : get().isTOCOpen }),
     setTOCOpen: (isOpen) => set({ isTOCOpen: isOpen, isMetadataOpen: isOpen ? false : get().isMetadataOpen }),
+    setShortcutsPanelOpen: (isOpen) => set({ isShortcutsPanelOpen: isOpen }),
     setInteractionState: (newState) => set((state) => ({
         interactionState: { ...state.interactionState, ...newState }
     })),

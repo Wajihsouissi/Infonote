@@ -130,12 +130,14 @@ export interface UISlice {
     selectedCanvasNodeIds: Set<string>;
     isMetadataOpen: boolean;
     isTOCOpen: boolean;
+    isShortcutsPanelOpen: boolean;
     isLinkingMode: boolean;
     setActiveIconMenuId: (id: string | null) => void;
     setKanbanModalOpen: (isOpen: boolean) => void;
     setEditingKanbanId: (id: string | null) => void;
     setMetadataOpen: (isOpen: boolean) => void;
     setTOCOpen: (isOpen: boolean) => void;
+    setShortcutsPanelOpen: (isOpen: boolean) => void;
     setInteractionState: (state: Partial<UISlice['interactionState']>) => void;
     toggleTheme: () => void;
     setSelectedCanvasNodeIds: (ids: Set<string>) => void;
