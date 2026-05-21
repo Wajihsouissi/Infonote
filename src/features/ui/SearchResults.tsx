@@ -118,14 +118,15 @@ export const SearchResults = memo(function SearchResults({ query, onClose }: Sea
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'ArrowDown') {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === 'Escape') {
+                e.stopImmediatePropagation();
                 e.preventDefault();
+            }
+            if (e.key === 'ArrowDown') {
                 setSelectedIndex(prev => (prev + 1) % results.length);
             } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
                 setSelectedIndex(prev => (prev - 1 + results.length) % results.length);
             } else if (e.key === 'Enter') {
-                e.preventDefault();
                 if (results[selectedIndex]) {
                     handleSelect(results[selectedIndex].id);
                 }
@@ -134,8 +135,8 @@ export const SearchResults = memo(function SearchResults({ query, onClose }: Sea
             }
         };
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        window.addEventListener('keydown', handleKeyDown, { capture: true });
+        return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
     }, [results, selectedIndex, onClose]);
 
     useEffect(() => {
