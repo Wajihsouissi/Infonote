@@ -197,13 +197,14 @@ export async function connectBackend(
             if (state.setLocalDirty) state.setLocalDirty(false);
             if (state.setLocalError) state.setLocalError(null);
         } else {
+            // Folder is empty — start fresh by clearing the canvas
             const currentState = ctx.getState();
             if (currentState.nodes.length > 0) {
-                await backend.save({ nodes: currentState.nodes, edges: currentState.edges });
-                if (state.setLocalLastSaved) state.setLocalLastSaved(timeStr);
-                if (state.setLocalDirty) state.setLocalDirty(false);
-                if (state.setLocalError) state.setLocalError(null);
+                ctx.loadGraph([], []);
             }
+            if (state.setLocalLastSaved) state.setLocalLastSaved(null);
+            if (state.setLocalDirty) state.setLocalDirty(false);
+            if (state.setLocalError) state.setLocalError(null);
         }
 
         ctx.setStorageStatus(true, backend.displayName ?? 'Local Folder');
