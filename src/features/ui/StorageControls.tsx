@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Folder, FolderOpen, FolderCheck, FolderX, FolderSync, Cloud, CloudCheck, CloudAlert, CloudSync, CloudUpload } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { connectBackend, disconnectBackend, getActiveBackendKind } from '../../services/StorageManager';
+import { fileSystemStorage } from '../../services/FileSystemStorage';
 import { saveCanvasToCloud } from '../../services/cloudSync';
 import { useAuth } from '../auth/AuthProvider';
 import { SignInPanel } from '../auth/SignInPanel';
@@ -43,10 +44,16 @@ export const StorageControls: React.FC = () => {
 
     const activeKind = storage.isConnected ? getActiveBackendKind() : null;
 
-    const runConnect = useCallback(async (kind: 'filesystem') => {
+    const runConnect = useCallback(async (kind: 'filesystem', forceNew = false) => {
         setIsConnecting(true);
         if (setLocalError) setLocalError(null);
         try {
+            // If forcing a new folder, clear the stored handle and disconnect first
+            if (forceNew) {
+                await fileSystemStorage.clearStoredHandle();
+                await disconnectBackend(setStorageStatus);
+            }
+
             // If currently connected to supabase (legacy), disconnect first.
             if (storage.isConnected && activeKind && activeKind !== kind) {
                 await disconnectBackend(setStorageStatus);
@@ -72,7 +79,9 @@ export const StorageControls: React.FC = () => {
     }, [activeKind, loadGraph, setStorageStatus, storage.isConnected, setLocalError]);
 
     const handleLocalClick = useCallback(() => {
-        void runConnect('filesystem');
+        const s = useStore.getState().storage;
+        const alreadySaved = s.isConnected && !!s.localLastSaved;
+        void runConnect('filesystem', alreadySaved);
     }, [runConnect]);
 
     const handleCloudClick = useCallback(async () => {
