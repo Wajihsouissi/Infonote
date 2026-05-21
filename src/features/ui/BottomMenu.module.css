@@ -685,7 +685,6 @@
     padding: 8px 12px;
     border-radius: 8px;
     cursor: pointer;
-    transition: background-color 0.15s, color 0.15s;
     color: var(--color-text-muted);
     position: relative;
     overflow: hidden;
@@ -729,7 +728,6 @@
     border: 1px solid var(--color-border);
     color: var(--color-text-muted);
     margin-top: 1px;
-    transition: all 0.2s;
 }
 
 .selected .resultIcon {
@@ -891,7 +889,6 @@
     height: 100%;
     background: linear-gradient(90deg, var(--color-primary), #a78bfa);
     border-radius: 4px;
-    transition: width 0.3s ease;
 }
 
 .enterIcon {

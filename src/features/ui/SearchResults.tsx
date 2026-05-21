@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, memo } from 'react';
 import { useStore } from '../../store/useStore';
 import styles from './BottomMenu.module.css';
 import { FileText, Cuboid, KanbanSquare, ChevronRight, Hash, Clock, LayoutGrid, Search, CornerDownRight } from 'lucide-react';
@@ -68,7 +68,7 @@ function getPriorityColor(priority?: string): string {
     }
 }
 
-export function SearchResults({ query, onClose }: SearchResultsProps) {
+export const SearchResults = memo(function SearchResults({ query, onClose }: SearchResultsProps) {
     const nodes = useStore(s => s.nodes);
     const navigateToNode = useStore(s => s.navigateToNode);
     const setFullscreenId = useStore(s => s.setFullscreenId);
@@ -339,4 +339,4 @@ export function SearchResults({ query, onClose }: SearchResultsProps) {
             })}
         </div>
     );
-}
+});

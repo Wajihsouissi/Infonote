@@ -273,10 +273,11 @@ export function extractPreviewContext(text: string, searchTerm: string, contextC
 
 /**
  * Builds a breadcrumb path for a node by walking up the parent chain.
+ * Accepts an array or a pre-built Map for efficiency.
  */
-export function buildNodePath(nodeId: string, nodes: AppNode[]): PathSegment[] {
+export function buildNodePath(nodeId: string, nodes: AppNode[] | Map<string, AppNode>): PathSegment[] {
     const path: PathSegment[] = [];
-    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    const nodeMap = nodes instanceof Map ? nodes : new Map(nodes.map(n => [n.id, n]));
     let current = nodeMap.get(nodeId);
 
     while (current) {
