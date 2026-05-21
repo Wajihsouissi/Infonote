@@ -669,13 +669,12 @@ export function CanvasBoard() {
 
     useEffect(() => {
         if (visibleNodes.length > 0) {
-            // Wait a frame for ReactFlow to finish rendering nodes
             const timer = setTimeout(() => {
                 fitView({ duration: 400, padding: 0.2, minZoom: 0.5, maxZoom: 1 });
             }, 50);
             return () => clearTimeout(timer);
         }
-    }, [currentParentId, fitView, visibleNodes.length]);
+    }, [currentParentId]);
 
     // Visible edges:
     //  1. Endpoints must be in the visible (current parent context) node set.
