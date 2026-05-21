@@ -194,18 +194,25 @@ export function CanvasBoard() {
     }, [getViewport, setViewport, screenToFlowPosition]);
 
     useEffect(() => {
-        const zoomFactorPerFrame = 1.015; // 1.5% zoom per frame (very smooth at 60fps)
-        
+        const zoomFactorPerFrame = 1.015;
+        const panSpeedPerFrame = 8;
+
         const tick = () => {
             const plusPressed = keysPressed.current['plus'];
             const minusPressed = keysPressed.current['minus'];
+            const leftPressed = keysPressed.current['ArrowLeft'];
+            const rightPressed = keysPressed.current['ArrowRight'];
+            const upPressed = keysPressed.current['ArrowUp'];
+            const downPressed = keysPressed.current['ArrowDown'];
 
-            if (!plusPressed && !minusPressed) {
+            if (!plusPressed && !minusPressed && !leftPressed && !rightPressed && !upPressed && !downPressed) {
                 animationFrameId.current = null;
                 return;
             }
 
             const { x, y, zoom } = getViewportRef.current();
+            let newX = x;
+            let newY = y;
             let newZoom = zoom;
 
             if (plusPressed) {
@@ -218,11 +225,19 @@ export function CanvasBoard() {
                 const mouseX = mousePosRef.current.x;
                 const mouseY = mousePosRef.current.y;
                 const flowPos = screenToFlowPositionRef.current({ x: mouseX, y: mouseY });
-                
-                const newX = x + flowPos.x * (zoom - newZoom);
-                const newY = y + flowPos.y * (zoom - newZoom);
-                
-                // Set transition duration: 0 for instant, buttery-smooth frame updates
+
+                newX = x + flowPos.x * (zoom - newZoom);
+                newY = y + flowPos.y * (zoom - newZoom);
+
+                setViewportRef.current({ x: newX, y: newY, zoom: newZoom });
+            }
+
+            if (leftPressed) newX -= panSpeedPerFrame;
+            if (rightPressed) newX += panSpeedPerFrame;
+            if (upPressed) newY -= panSpeedPerFrame;
+            if (downPressed) newY += panSpeedPerFrame;
+
+            if (leftPressed || rightPressed || upPressed || downPressed) {
                 setViewportRef.current({ x: newX, y: newY, zoom: newZoom });
             }
 
@@ -247,6 +262,12 @@ export function CanvasBoard() {
             } else if (e.key === '5') {
                 e.preventDefault();
                 fitView({ duration: 400 });
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                keysPressed.current[e.key] = true;
+                if (!animationFrameId.current) {
+                    animationFrameId.current = requestAnimationFrame(tick);
+                }
             }
         };
 
@@ -255,6 +276,8 @@ export function CanvasBoard() {
                 keysPressed.current['plus'] = false;
             } else if (e.key === '-') {
                 keysPressed.current['minus'] = false;
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                keysPressed.current[e.key] = false;
             }
         };
 
