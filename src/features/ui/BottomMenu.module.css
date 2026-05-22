@@ -294,9 +294,7 @@
     left: 50%;
     transform: translateX(-50%) translateY(10px);
     margin-bottom: 24px;
-    background: var(--glass-bg);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    background: var(--color-bg-surface);
     border: 1px solid var(--glass-border);
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--glass-border);
     border-radius: 16px;

@@ -200,13 +200,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 />
             )}
             <div 
-                className={`${styles.content} nodrag`}
-                onPointerDown={(e) => {
-                    e.stopPropagation();
-                }}
-                onMouseDown={(e) => {
-                    e.stopPropagation();
-                }}
+                className={styles.content}
             >
                 <BlockEditor
                     initialContent={data.content}
@@ -217,7 +211,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     mode="atomic"
                     hideBlockHandles={false}
                     disableMediaControls={true}
-                    promoteBlockHandles={false}
+                    promoteBlockHandles={true}
                 />
             </div>
 

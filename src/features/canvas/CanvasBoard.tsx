@@ -93,6 +93,7 @@ export function CanvasBoard() {
     const isLinkingMode = useStore(s => s.isLinkingMode);
     const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
     const linkSelectedNodes = useStore(s => s.linkSelectedNodes);
+    const bulkDuplicateNodes = useStore(s => s.bulkDuplicateNodes);
 
     // TOC Panel UI State
     const isTOCOpen = useStore(s => s.isTOCOpen);
@@ -279,6 +280,16 @@ export function CanvasBoard() {
             } else if (e.key === 'k') {
                 e.preventDefault();
                 setShortcutsPanelOpen(!isShortcutsPanelOpen);
+            } else if (e.key === 'l') {
+                e.preventDefault();
+                if (selectedCanvasNodeIds.size >= 2) {
+                    setIsLinkingMode(!isLinkingMode);
+                }
+            } else if (e.key === 'd') {
+                e.preventDefault();
+                if (selectedCanvasNodeIds.size > 0) {
+                    bulkDuplicateNodes(Array.from(selectedCanvasNodeIds));
+                }
             }
         };
 
@@ -308,7 +319,7 @@ export function CanvasBoard() {
                 cancelAnimationFrame(animationFrameId.current);
             }
         };
-    }, [isInEditableField, fitView, isShortcutsPanelOpen, setShortcutsPanelOpen]);
+    }, [isInEditableField, fitView, isShortcutsPanelOpen, setShortcutsPanelOpen, selectedCanvasNodeIds, setIsLinkingMode, isLinkingMode, bulkDuplicateNodes]);
 
     useEffect(() => {
         isFocusArmedRef.current = isFocusArmed;

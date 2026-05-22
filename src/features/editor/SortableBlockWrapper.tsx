@@ -117,9 +117,8 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         if (!ref.current) return;
 
         const rect = ref.current.getBoundingClientRect();
-        const midY = rect.top + rect.height / 2;
-
-        const newIndication = e.clientY < midY ? 'top' : 'bottom';
+        const relY = e.clientY - rect.top;
+        const newIndication = relY < rect.height / 2 ? 'top' : 'bottom';
         if (dropIndication !== newIndication) setDropIndication(newIndication);
     };
 
@@ -158,7 +157,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         <div
             ref={ref}
             data-block-type={block?.type}
-            className={`${styles.sortableWrapper} ${isSelected ? styles.selected : ''} ${hideHandle ? styles.hideHandle : ''} nodrag ${dropClass}`}
+            className={`${styles.sortableWrapper} ${isSelected ? styles.selected : ''} ${hideHandle ? styles.hideHandle : ''} ${promoteBlockHandles ? '' : 'nodrag'} ${dropClass}`}
             style={style}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}

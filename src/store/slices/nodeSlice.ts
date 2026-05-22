@@ -372,82 +372,174 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         if (blocks.length === 0) return;
 
-        const listLikeTypes = new Set(['todo', 'bullet', 'numbered']);
-        const blockGroups: any[][] = [];
-        for (let i = 0; i < blocks.length; i++) {
-            const b = blocks[i];
-            if (b && listLikeTypes.has(b.type)) {
-                const group: any[] = [b];
-                while (i + 1 < blocks.length && blocks[i + 1] && listLikeTypes.has(blocks[i + 1].type)) {
-                    group.push(blocks[i + 1]);
-                    i++;
-                }
-                blockGroups.push(group);
-            } else {
-                blockGroups.push([b]);
-            }
-        }
-
         const parentId = currentParentId || undefined;
         const parentIdForEdge = currentParentId ?? null;
 
         const resolvedCenterX = centerPosition?.x ?? sourceNode.position.x;
         const resolvedCenterY = centerPosition?.y ?? sourceNode.position.y;
-        const center = { x: snapToGridValue(resolvedCenterX), y: snapToGridValue(resolvedCenterY) };
+        const baseCenter = { x: snapToGridValue(resolvedCenterX), y: snapToGridValue(resolvedCenterY) };
 
-        const centralGroup = blockGroups[0];
-        const outerGroups = blockGroups.slice(1);
+        // --- Split into sections by heading boundaries ---
+        const headingTypes = new Set(['heading1', 'heading2', 'heading3']);
+        const isHeadingBlock = (b: any) => b && headingTypes.has(b.type);
+        interface Section { heading: any | null; blocks: any[] }
+        const sections: Section[] = [];
 
-        const centralNodeId = uuidv4();
-        const newNodes: AppNode[] = [
-            {
-                id: centralNodeId,
-                type: 'block',
-                position: center,
-                style: { width: 320, height: 120 },
-                data: {
-                    content: centralGroup,
-                    isStandaloneBlock: true
-                } as any,
-                parentId
-            } as AppNode
-        ];
+        const headingIndices = blocks
+            .map((b: any, i: number) => (isHeadingBlock(b) ? i : -1))
+            .filter((i: number) => i >= 0);
 
-        const newEdges: Edge[] = [];
+        if (headingIndices.length === 0) {
+            sections.push({ heading: null, blocks });
+        } else {
+            // Capture content before the first heading
+            if (headingIndices[0] > 0) {
+                sections.push({ heading: null, blocks: blocks.slice(0, headingIndices[0]) });
+            }
+            for (let i = 0; i < headingIndices.length; i++) {
+                const startIdx = headingIndices[i];
+                const endIdx = i + 1 < headingIndices.length ? headingIndices[i + 1] : blocks.length;
+                sections.push({
+                    heading: blocks[startIdx],
+                    blocks: blocks.slice(startIdx + 1, endIdx)
+                });
+            }
+        }
 
-        const outerCount = outerGroups.length;
-        if (outerCount > 0) {
-            const minRadius = BASE_UNIT * 6;
-            const r = snapToGridValue(Math.max(minRadius, (outerCount * 340) / (2 * Math.PI)));
-            const angleStep = (2 * Math.PI) / outerCount;
+        // --- Smart node sizing ---
+        const getNodeStyle = (block: any, isHeading: boolean) => {
+            if (isHeading) return { width: 220, height: 80 };
+            switch (block.type) {
+                case 'image':
+                case 'video':
+                case 'file':
+                    return { width: 200, height: 200 };
+                case 'code':
+                    return { width: 340, height: 160 };
+                case 'table':
+                    return { width: 360, height: 180 };
+                case 'callout':
+                    return { width: 280, height: 100 };
+                case 'todo':
+                case 'bullet':
+                case 'numbered':
+                    return { width: 260, height: 70 };
+                default:
+                    const len = normalizeText(block.content).length;
+                    if (len < 50) return { width: 260, height: 70 };
+                    if (len < 200) return { width: 300, height: 100 };
+                    return { width: 340, height: 140 };
+            }
+        };
+
+        const createBlockNode = (block: any, position: { x: number; y: number }, style: { width: number; height: number }) => ({
+            id: uuidv4(),
+            type: 'block',
+            position,
+            style,
+            data: { content: [block], isStandaloneBlock: true } as any,
+            parentId
+        } as AppNode);
+
+        // --- Build a radial cluster from a center node + outer blocks ---
+        const buildRadialCluster = (centerNode: AppNode, outerBlocks: any[], centerPos: { x: number; y: number }) => {
+            const clusterNodes: AppNode[] = [centerNode];
+            const clusterEdges: Edge[] = [];
+
+            if (outerBlocks.length === 0) return { nodes: clusterNodes, edges: clusterEdges, radius: 0 };
+
+            const outerStyles = outerBlocks.map(b => getNodeStyle(b, false));
+            const maxOuterWidth = Math.max(...outerStyles.map(s => s.width));
+            const minRadius = BASE_UNIT * 4;
+            const estimatedRadius = outerBlocks.length <= 1
+                ? minRadius
+                : (maxOuterWidth * 1.5) / (2 * Math.sin(Math.PI / outerBlocks.length));
+            const r = snapToGridValue(Math.max(minRadius, estimatedRadius));
+            const angleStep = (2 * Math.PI) / outerBlocks.length;
             const angleOffset = -Math.PI / 2;
 
-            outerGroups.forEach((group: any[], index: number) => {
-                const angle = angleOffset + angleStep * index;
-                const x = snapToGridValue(center.x + r * Math.cos(angle));
-                const y = snapToGridValue(center.y + r * Math.sin(angle));
-                const newNodeId = uuidv4();
-
-                newNodes.push({
-                    id: newNodeId,
-                    type: 'block',
-                    position: { x, y },
-                    style: { width: 320, height: 120 },
-                    data: {
-                        content: group,
-                        isStandaloneBlock: true
-                    } as any,
-                    parentId
-                } as AppNode);
-
-                newEdges.push({
+            outerBlocks.forEach((block, idx) => {
+                const angle = angleOffset + angleStep * idx;
+                const x = snapToGridValue(centerPos.x + r * Math.cos(angle));
+                const y = snapToGridValue(centerPos.y + r * Math.sin(angle));
+                const node = createBlockNode(block, { x, y }, outerStyles[idx]);
+                clusterNodes.push(node);
+                clusterEdges.push({
                     id: uuidv4(),
-                    source: centralNodeId,
-                    target: newNodeId,
+                    source: centerNode.id,
+                    target: node.id,
                     type: 'centered',
                     data: { parentId: parentIdForEdge }
                 } as Edge);
             });
+
+            return { nodes: clusterNodes, edges: clusterEdges, radius: r + maxOuterWidth / 2 };
+        };
+
+        const newNodes: AppNode[] = [];
+        const newEdges: Edge[] = [];
+
+        if (sections.length === 1) {
+            const section = sections[0];
+            if (section.heading) {
+                const headingStyle = getNodeStyle(section.heading, true);
+                const centerNode = createBlockNode(section.heading, baseCenter, headingStyle);
+                const cluster = buildRadialCluster(centerNode, section.blocks, baseCenter);
+                newNodes.push(...cluster.nodes);
+                newEdges.push(...cluster.edges);
+            } else if (section.blocks.length > 0) {
+                const centerBlock = section.blocks[0];
+                const centerStyle = getNodeStyle(centerBlock, false);
+                const centerNode = createBlockNode(centerBlock, baseCenter, centerStyle);
+                const cluster = buildRadialCluster(centerNode, section.blocks.slice(1), baseCenter);
+                newNodes.push(...cluster.nodes);
+                newEdges.push(...cluster.edges);
+            }
+        } else {
+            // Multiple sections → each section is a separate radial cluster arranged horizontally
+            const clusters: { nodes: AppNode[]; edges: Edge[]; radius: number }[] = [];
+
+            for (const section of sections) {
+                let centerNode: AppNode;
+                if (section.heading) {
+                    const headingStyle = getNodeStyle(section.heading, true);
+                    centerNode = createBlockNode(section.heading, { x: 0, y: 0 }, headingStyle);
+                } else if (section.blocks.length > 0) {
+                    const centerStyle = getNodeStyle(section.blocks[0], false);
+                    centerNode = createBlockNode(section.blocks[0], { x: 0, y: 0 }, centerStyle);
+                    section.blocks = section.blocks.slice(1);
+                } else {
+                    continue;
+                }
+                const cluster = buildRadialCluster(centerNode, section.blocks, { x: 0, y: 0 });
+                clusters.push(cluster);
+            }
+
+            let offsetX = baseCenter.x;
+            for (let ci = 0; ci < clusters.length; ci++) {
+                const cluster = clusters[ci];
+                for (const node of cluster.nodes) {
+                    node.position.x += offsetX;
+                    node.position.y += baseCenter.y;
+                }
+                newNodes.push(...cluster.nodes);
+                newEdges.push(...cluster.edges);
+
+                if (ci > 0) {
+                    const prevCenterId = clusters[ci - 1].nodes[0].id;
+                    const currCenterId = cluster.nodes[0].id;
+                    newEdges.push({
+                        id: uuidv4(),
+                        source: prevCenterId,
+                        target: currCenterId,
+                        type: 'centered',
+                        data: { parentId: parentIdForEdge }
+                    } as Edge);
+                }
+
+                const clusterSpan = cluster.radius > 0 ? cluster.radius * 2 : BASE_UNIT * 4;
+                offsetX += clusterSpan + BASE_UNIT * 3;
+            }
         }
 
         const newEdgesBase = edges.filter(e => e.source !== nodeId && e.target !== nodeId);

@@ -43,6 +43,7 @@ export function BottomMenu() {
     const [activeMenu, setActiveMenu] = useState<'views' | 'blocks' | null>(null);
     const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
+    const handleAddNoteRef = useRef<() => void>(() => {});
 
     // Reset highlighted index when activeMenu changes
     useEffect(() => {
@@ -168,6 +169,36 @@ export function BottomMenu() {
             window.removeEventListener('keydown', handleKeyDown);
         };
     }, [activeMenu, highlightedIndex, screenToFlowPosition, addNode, currentParentId, nodes]);
+
+    // Global keyboard shortcuts for BottomMenu
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+
+            if (e.key === 'b' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+                e.preventDefault();
+                setActiveMenu(prev => prev === 'blocks' ? null : 'blocks');
+            } else if (e.key === 'v' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+                e.preventDefault();
+                setActiveMenu(prev => prev === 'views' ? null : 'views');
+            } else if (e.key === 'f' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                if (isSearchMode) {
+                    setIsSearchMode(false);
+                    setSearchQuery('');
+                } else {
+                    setIsSearchMode(true);
+                }
+            } else if (e.key === 'n' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                handleAddNoteRef.current();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isSearchMode]);
 
     const activeFilters = useMemo(() => parseSearchQuery(searchQuery), [searchQuery]);
 
@@ -320,6 +351,7 @@ export function BottomMenu() {
 
         addNode('note', position, { viewMode: 'expanded' }, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, currentParentId || undefined);
     };
+    handleAddNoteRef.current = handleAddNote;
 
     const handleDragStart = (e: React.DragEvent, type: string, metadata?: any) => {
         e.dataTransfer.setData('application/reactflow-block-type', type);
