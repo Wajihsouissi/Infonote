@@ -304,7 +304,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
         ${isDropTarget && dropType === 'nesting' ? styles.dropTarget : ''}
         ${isDropTarget && dropType === 'fusion' ? styles.fusionTarget : ''}
         ${isFusing ? styles.fusing : ''}
-        ${viewMode !== 'expanded' ? 'custom-drag-handle' : ''}
+        custom-drag-handle
       `}
             onDoubleClick={handleDoubleClick}
             ref={cardRef}

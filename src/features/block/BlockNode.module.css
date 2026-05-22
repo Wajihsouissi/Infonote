@@ -213,3 +213,42 @@
 .blockNode.mediaBlockNode.linkBlockNode .content {
     overflow: visible !important;
 }
+
+.convertBtn {
+    position: absolute;
+    top: -32px;
+    right: -32px;
+    width: 32px;
+    height: 32px;
+    border-radius: 100px;
+    background: rgba(30, 30, 30, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    color: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transform: scale(0.9) translateY(4px);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    z-index: 50;
+}
+
+.blockNode:hover .convertBtn,
+.colorBlockNode:hover .convertBtn {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+}
+
+.convertBtn:hover {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: rgba(139, 92, 246, 0.6);
+    box-shadow:
+        0 8px 20px rgba(124, 58, 237, 0.3),
+        0 0 0 1px rgba(139, 92, 246, 0.4);
+    transform: scale(1.1) rotate(3deg) !important;
+    color: white;
+}

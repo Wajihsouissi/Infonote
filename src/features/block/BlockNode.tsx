@@ -1,5 +1,6 @@
 import { memo, useState, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
+import { StickyNote } from 'lucide-react';
 import { BlockEditor } from '../editor/BlockEditor';
 
 import { useStore } from '../../store/useStore';
@@ -7,7 +8,8 @@ import { useStore } from '../../store/useStore';
 import type { NoteNode } from '../../types';
 import styles from './BlockNode.module.css';
 import { toPastelColor, darkenColor } from '../../utils/colorUtils';
-import { snapMediaDimensions } from '../../config/layout';
+import { snapMediaDimensions, MIN_EXPANDED_SIZE } from '../../config/layout';
+import { v4 as uuidv4 } from 'uuid';
 
 // BlockNode is a "headless" or "chromeless" text unit.
 export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
@@ -92,6 +94,109 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const handleUpdate = useCallback((blocks: any) => {
         updateNodeData(id, { content: blocks });
     }, [id, updateNodeData]);
+
+    const handleConvertToCard = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+
+        const { nodes, edges, setNodes, onEdgesChange } = useStore.getState();
+        const thisNode = nodes.find(n => n.id === id);
+        if (!thisNode) return;
+
+        const blockColor = (thisNode.data as any).color;
+        const blockContent = (thisNode.data as any).content;
+
+        const parentId = thisNode.parentId;
+        if (!parentId) {
+            setNodes((currentNodes) => currentNodes.map(n => {
+                if (n.id === id) {
+                    return {
+                        ...n,
+                        type: 'note',
+                        data: {
+                            label: (Array.isArray(blockContent) && blockContent[0]?.content) || 'Created Note',
+                            viewMode: 'expanded',
+                            content: blockContent,
+                            description: '',
+                            date: new Date().toISOString(),
+                            color: blockColor,
+                            showMetadata: false
+                        },
+                        style: {
+                            ...n.style,
+                            width: MIN_EXPANDED_SIZE,
+                            height: MIN_EXPANDED_SIZE,
+                        }
+                    } as any;
+                }
+                return n;
+            }));
+            return;
+        }
+
+        const parentNode = nodes.find(n => n.id === parentId);
+        if (!parentNode) return;
+
+        const parentContent = (parentNode.data as any).content;
+        if (!Array.isArray(parentContent)) return;
+
+        const myBlocks = Array.isArray(blockContent) ? blockContent : [];
+        if (myBlocks.length === 0) return;
+
+        const firstBlockId = myBlocks[0].id;
+        const startIndex = parentContent.findIndex((b: any) => b.id === firstBlockId);
+        if (startIndex === -1) return;
+
+        // Remove edges connected to this block node
+        const connectedEdgeIds = edges.filter(e => e.source === id || e.target === id).map(e => e.id);
+        if (connectedEdgeIds.length > 0) {
+            onEdgesChange(connectedEdgeIds.map(eId => ({ type: 'remove' as const, id: eId })));
+        }
+
+        const newNodeId = uuidv4();
+        const newNode = {
+            id: newNodeId,
+            type: 'note',
+            parentId: parentId,
+            position: thisNode.position,
+            data: {
+                label: myBlocks[0].content || 'New Note',
+                content: myBlocks,
+                viewMode: 'expanded',
+                date: new Date().toISOString(),
+                color: blockColor,
+                showMetadata: false
+            },
+            style: { width: MIN_EXPANDED_SIZE, height: MIN_EXPANDED_SIZE },
+            zIndex: 10
+        };
+
+        const pageBlock = {
+            id: uuidv4(),
+            type: 'page',
+            content: myBlocks[0].content || 'New Note',
+            metadata: { nodeId: newNodeId }
+        };
+
+        setNodes((currentNodes) => {
+            const parentNode = currentNodes.find(n => n.id === parentId);
+            if (!parentNode) return currentNodes;
+
+            const oldContent = (parentNode.data as any).content || [];
+            const newParentContent = [...oldContent];
+            const currentStartIndex = newParentContent.findIndex((b: any) => b.id === firstBlockId);
+
+            if (currentStartIndex !== -1) {
+                newParentContent.splice(currentStartIndex, myBlocks.length, pageBlock);
+            } else {
+                return currentNodes;
+            }
+
+            return currentNodes.filter(n => n.id !== id && n.id !== parentId).concat([
+                { ...parentNode, data: { ...parentNode.data, content: newParentContent } } as any,
+                newNode as any
+            ]);
+        });
+    }, [id]);
 
     const activeResize = useRef(false);
     const nodeRef = useRef<HTMLDivElement>(null);
@@ -199,6 +304,16 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     }}
                 />
             )}
+
+            <button
+                className={styles.convertBtn}
+                onClick={handleConvertToCard}
+                title="Convert to Card"
+                onMouseDown={(e) => e.stopPropagation()}
+            >
+                <StickyNote size={16} />
+            </button>
+
             <div 
                 className={styles.content}
             >
