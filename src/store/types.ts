@@ -92,7 +92,7 @@ export interface StorageSlice {
     restoreFromBackup: () => void;
 }
 
-export type AppView = 'landing' | 'canvas' | 'marketplace' | 'login' | 'signup' | 'admin';
+export type AppView = 'landing' | 'canvas' | 'marketplace' | 'login' | 'signup' | 'otp-verify' | 'admin';
 
 export interface AuthUser {
     id: string;
@@ -111,9 +111,16 @@ export interface AuthState {
 export interface AuthSlice {
     auth: AuthState;
     isAuthModalOpen: boolean;
+    /**
+     * Email address that has just signed up and is waiting for an OTP to be
+     * entered on the verification screen. Persisted in the store so the OTP
+     * page can reload safely without losing context.
+     */
+    pendingVerificationEmail: string | null;
     setAuthUser: (user: AuthUser | null) => void;
     setAuthLoading: (isLoading: boolean) => void;
     setAuthModalOpen: (isOpen: boolean) => void;
+    setPendingVerificationEmail: (email: string | null) => void;
     /** Reset auth slice back to its unauthenticated default. */
     resetAuth: () => void;
 }

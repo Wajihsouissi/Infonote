@@ -8,11 +8,12 @@
 import React, { useState } from 'react';
 import { Rocket, Mail, Lock, Eye, EyeOff, User, ArrowLeft, UserPlus, Zap, GitBranch, Layers, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
+import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
 import styles from './AuthPage.module.css';
 
 export const SignupPage: React.FC = () => {
   const setCurrentView = useStore((state) => state.setCurrentView);
+  const setPendingVerificationEmail = useStore((state) => state.setPendingVerificationEmail);
   const hasEnteredApp = useStore((state) => state.hasEnteredApp);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm]   = useState(false);
@@ -32,8 +33,8 @@ export const SignupPage: React.FC = () => {
     setError(null);
     setSuccessMessage(null);
 
-    if (!isSupabaseConfigured) {
-      setError('Authentication is not configured. Please contact the administrator (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).');
+    if (!isSupabaseConfigured || !supabase) {
+      setError('Authentication is not configured. Please contact the administrator (missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY).');
       return;
     }
 
@@ -80,16 +81,19 @@ export const SignupPage: React.FC = () => {
       }
 
       // Two outcomes:
-      //  1) Email confirmation REQUIRED → data.session is null. Tell the user to check their inbox.
-      //  2) Email confirmation DISABLED → data.session is non-null and AuthProvider hydrates Zustand.
+      //  1) Email confirmation REQUIRED → data.session is null. Send the user
+      //     to the OTP verification screen so they can enter the 6-digit code
+      //     that Supabase emails (delivered via Resend SMTP).
+      //  2) Email confirmation DISABLED → data.session is non-null and
+      //     AuthProvider hydrates Zustand. Drop the user straight on canvas.
       if (data.session) {
         setCurrentView('canvas');
       } else {
+        setPendingVerificationEmail(cleanEmail);
         setSuccessMessage(
-          `Account created! We sent a confirmation link to ${cleanEmail}. Please verify your email, then sign in.`
+          `We sent a 6-digit code to ${cleanEmail}. Enter it on the next screen to finish creating your account.`
         );
-        // Optional: nudge them to the sign-in page after a short delay.
-        setTimeout(() => setCurrentView('login'), 4500);
+        setTimeout(() => setCurrentView('otp-verify'), 600);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -101,19 +105,35 @@ export const SignupPage: React.FC = () => {
   const handleOAuth = async (provider: 'google' | 'facebook') => {
     setError(null);
     if (!isSupabaseConfigured || !supabase) {
-      setError('Authentication is not configured. Please contact the administrator.');
+      setError('Authentication is not configured. Please contact the administrator (missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY).');
       return;
     }
+    setLoading(true);
     try {
+      const redirectTo = getOAuthRedirectUrl();
+      // eslint-disable-next-line no-console
+      console.info('[OAuth] requesting redirectTo =', redirectTo);
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: window.location.origin,
+          redirectTo,
+          queryParams:
+            provider === 'google'
+              ? { access_type: 'offline', prompt: 'select_account' }
+              : undefined,
         },
       });
       if (oauthError) throw oauthError;
+      // Browser is navigating away to the provider; AuthProvider will pick up
+      // the SIGNED_IN event when the user lands back on the origin.
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setLoading(false);
+      const raw = err instanceof Error ? err.message : String(err);
+      if (/provider.*not enabled|unsupported.*provider/i.test(raw)) {
+        setError(`The ${provider} provider is not enabled in Supabase. Open your Supabase Dashboard → Authentication → Providers and enable ${provider}.`);
+      } else {
+        setError(raw);
+      }
     }
   };
 

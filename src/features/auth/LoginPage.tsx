@@ -9,11 +9,12 @@
 import React, { useState } from 'react';
 import { Rocket, Mail, Lock, Eye, EyeOff, User, ArrowLeft, LogIn, Zap, GitBranch, Layers, Loader2, AlertCircle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
+import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
 import styles from './AuthPage.module.css';
 
 export const LoginPage: React.FC = () => {
   const setCurrentView = useStore((state) => state.setCurrentView);
+  const setPendingVerificationEmail = useStore((state) => state.setPendingVerificationEmail);
   const hasEnteredApp = useStore((state) => state.hasEnteredApp);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
@@ -25,8 +26,8 @@ export const LoginPage: React.FC = () => {
     e.preventDefault();
     setError(null);
 
-    if (!isSupabaseConfigured) {
-      setError('Authentication is not configured. Please contact the administrator (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).');
+    if (!isSupabaseConfigured || !supabase) {
+      setError('Authentication is not configured. Please contact the administrator (missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY).');
       return;
     }
 
@@ -50,11 +51,25 @@ export const LoginPage: React.FC = () => {
       if (signInError) {
         // Surface a friendly message for the most common case.
         const msg = signInError.message?.toLowerCase() || '';
+        if (msg.includes('confirm') || msg.includes('not confirmed')) {
+          // Account exists but the email hasn't been verified yet → send the
+          // user to the OTP screen so they can finish the verification step.
+          setPendingVerificationEmail(cleanEmail);
+          // Trigger a fresh OTP so they don't have to dig through old mail.
+          try {
+            await supabase.auth.resend({
+              type: 'signup',
+              email: cleanEmail,
+              options: { emailRedirectTo: window.location.origin },
+            });
+          } catch {
+            // Non-fatal — OTP page also has a Resend button.
+          }
+          setCurrentView('otp-verify');
+          return;
+        }
         if (msg.includes('invalid') || msg.includes('credentials')) {
           throw new Error('Invalid email or password. If you just signed up, please check your inbox to confirm your email first.');
-        }
-        if (msg.includes('confirm')) {
-          throw new Error('Please confirm your email address before signing in. Check your inbox for the confirmation link.');
         }
         throw signInError;
       }
@@ -73,19 +88,44 @@ export const LoginPage: React.FC = () => {
   const handleOAuth = async (provider: 'google' | 'facebook') => {
     setError(null);
     if (!isSupabaseConfigured || !supabase) {
-      setError('Authentication is not configured. Please contact the administrator.');
+      setError('Authentication is not configured. Please contact the administrator (missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY).');
       return;
     }
+    setLoading(true);
     try {
+      // Always send Google back to the EXACT URL the user started from.
+      // `getOAuthRedirectUrl()` returns `window.location.origin + pathname`
+      // so a dev server on :5173 stays on :5173 and prod on chnkit.com
+      // stays on chnkit.com. Never hardcode a port.
+      const redirectTo = getOAuthRedirectUrl();
+      // Diagnostic log — if you ever land on the wrong host after Google
+      // sign-in, check the browser console: this is the URL we asked for.
+      // If Supabase ignores it, the URL is missing from the Dashboard's
+      // Redirect URLs allow-list.
+      // eslint-disable-next-line no-console
+      console.info('[OAuth] requesting redirectTo =', redirectTo);
+
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: window.location.origin,
+          redirectTo,
+          queryParams:
+            provider === 'google'
+              ? { access_type: 'offline', prompt: 'select_account' }
+              : undefined,
         },
       });
       if (oauthError) throw oauthError;
+      // Browser is now navigating away to the OAuth provider; nothing more to do.
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setLoading(false);
+      const raw = err instanceof Error ? err.message : String(err);
+      // Friendlier wording for the most common misconfiguration.
+      if (/provider.*not enabled|unsupported.*provider/i.test(raw)) {
+        setError(`The ${provider} provider is not enabled in Supabase. Open your Supabase Dashboard → Authentication → Providers and enable ${provider}.`);
+      } else {
+        setError(raw);
+      }
     }
   };
 
