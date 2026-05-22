@@ -21,16 +21,16 @@ export interface NodeSlice {
     addNode: (type: 'note' | 'block' | 'fused-note' | 'kanban', position: { x: number; y: number }, initialData?: any, style?: React.CSSProperties, parentId?: string, customId?: string) => void;
     updateNodeData: (id: string, data: any) => void;
     updateNode: (id: string, updates: Partial<AppNode>) => void;
-    splitNode: (nodeId: string, splitBlockId: string, currentBlocks?: any[]) => void;
-    releaseNodeContentToBlocks: (nodeId: string, centerPosition?: { x: number; y: number }) => void;
+    splitNode: (nodeId: string, splitBlockId: string, currentBlocks?: any[], skipConfirm?: boolean) => void;
+    releaseNodeContentToBlocks: (nodeId: string, centerPosition?: { x: number; y: number }, skipConfirm?: boolean) => void;
     extractPageFromBlock: (block: any, position: { x: number; y: number }, sourceNodeId?: string) => void;
     createPageFromText: (text: string, position?: { x: number; y: number }) => string;
     savePageContent: (parentId: string, content: any[], transientNodeIds: string[]) => void;
     syncParentContent: (parentId: string) => void;
-    bulkDeleteNodes: (nodeIds: string[]) => void;
+    bulkDeleteNodes: (nodeIds: string[], skipConfirm?: boolean) => void;
     bulkDuplicateNodes: (nodeIds: string[]) => void;
     bulkApplyColor: (nodeIds: string[], color: string) => void;
-    fuseNodes: (nodeIds: string[]) => void;
+    fuseNodes: (nodeIds: string[], skipConfirm?: boolean) => void;
     hydrateCanvasFromContent: (nodeId: string) => void;
     linkSelectedNodes: (mainNodeId: string, targetNodeIds: string[]) => void;
     updateEdge: (id: string, updates: Partial<Edge>) => void;
@@ -70,6 +70,10 @@ export interface StorageSlice {
         isCloudDirty: boolean;
         localError: string | null;
         cloudError: string | null;
+
+        // Backup — saved before loadGraph overwrites current state
+        backupNodes: AppNode[];
+        backupEdges: Edge[];
     };
     setStorageStatus: (isConnected: boolean, directoryName: string | null) => void;
     setLastSaved: (date: string | null) => void;
@@ -83,6 +87,9 @@ export interface StorageSlice {
     setCloudDirty: (dirty: boolean) => void;
     setLocalError: (err: string | null) => void;
     setCloudError: (err: string | null) => void;
+
+    /** Restore the snapshot taken before the last loadGraph call. */
+    restoreFromBackup: () => void;
 }
 
 export type AppView = 'landing' | 'canvas' | 'marketplace' | 'login' | 'signup';

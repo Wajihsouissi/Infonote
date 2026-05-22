@@ -19,6 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '../../store/useStore';
 import styles from './BottomMenu.module.css';
 import { MENU_ITEMS } from '../editor/menuConstants';
+import { snapToGridValue } from '../../config/layout';
 import { parseSearchQuery } from './searchUtils';
 import { MultiSelectionToolbar } from './MultiSelectionToolbar';
 import { EdgeEditingToolbar } from './EdgeEditingToolbar';
@@ -289,7 +290,7 @@ export function BottomMenu() {
         let bestY = centerY - size.height / 2;
 
         if (!doesOverlap(bestX, bestY)) {
-            return { x: bestX, y: bestY };
+            return { x: snapToGridValue(bestX), y: snapToGridValue(bestY) };
         }
 
         for (let radius = STEP; radius <= MAX_RADIUS; radius += STEP) {
@@ -302,7 +303,7 @@ export function BottomMenu() {
                 const candidateY = candidateCenterY - size.height / 2;
 
                 if (!doesOverlap(candidateX, candidateY)) {
-                    return { x: candidateX, y: candidateY };
+                    return { x: snapToGridValue(candidateX), y: snapToGridValue(candidateY) };
                 }
             }
         }
@@ -320,7 +321,7 @@ export function BottomMenu() {
             const candidateY = candidateCenterY - size.height / 2;
 
             if (!doesOverlap(candidateX, candidateY)) {
-                return { x: candidateX, y: candidateY };
+                return { x: snapToGridValue(candidateX), y: snapToGridValue(candidateY) };
             }
         }
 
@@ -331,8 +332,8 @@ export function BottomMenu() {
         const fallbackCenterY = centerY + radius * Math.sin(angle);
 
         return {
-            x: fallbackCenterX - size.width / 2,
-            y: fallbackCenterY - size.height / 2,
+            x: snapToGridValue(fallbackCenterX - size.width / 2),
+            y: snapToGridValue(fallbackCenterY - size.height / 2),
         };
     };
 

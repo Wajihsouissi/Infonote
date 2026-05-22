@@ -28,61 +28,55 @@ interface VirtualBlockListProps {
     containerWidth: number;
 }
 
-const ITEM_HEIGHT = 40; // Approximate height per block
-const OVERSCAN_COUNT = 10; // Render 10 extra items above/below viewport
+const ITEM_HEIGHT = 40;
+const OVERSCAN_COUNT = 10;
 
-// Row renderer
-const BlockRow = ({ 
-    index, 
-    style,
-    ariaAttributes,
-    ...data 
-}: any) => {
-    const {
-        blocks,
-        selectedBlockIds,
-        readOnly,
-        nodeId,
-        hideBlockHandles,
-        promoteBlockHandles,
-        disableMediaControls,
-        onUpdateBlock,
-        onKeyDown,
-        onPaste,
-        onMoveBlock,
-        onDragStart,
-        onMenuOpen,
-        onSelectionClick,
-        onSelectionMouseDown,
-        onRegisterRef
-    } = data;
-    
-    const block = blocks[index];
+interface ItemData {
+    blocks: Block[];
+    selectedBlockIds: Set<string>;
+    readOnly?: boolean;
+    nodeId?: string;
+    hideBlockHandles?: boolean;
+    promoteBlockHandles?: boolean;
+    disableMediaControls?: boolean;
+    onUpdateBlock: (id: string, content: string, metadata?: any) => void;
+    onKeyDown: (e: React.KeyboardEvent, id: string, content: string) => void;
+    onPaste: (e: React.ClipboardEvent, id: string) => void;
+    onMoveBlock: (sourceId: string, targetId: string, position: 'top' | 'bottom', dataTransfer?: DataTransfer) => void;
+    onDragStart: (e: React.DragEvent, block: Block) => void;
+    onMenuOpen: (e: React.MouseEvent, id: string) => void;
+    onSelectionClick: (e: React.MouseEvent, id: string) => void;
+    onSelectionMouseDown: (e: React.MouseEvent, id: string) => void;
+    onRegisterRef: (id: string, el: HTMLDivElement | null) => void;
+}
+
+const BlockRow = memo(function BlockRow({ index, style, data }: { index: number; style: React.CSSProperties; data: ItemData }) {
+    const block = data.blocks[index];
     if (!block) return null;
-    
+
     return (
-        <div style={style} {...ariaAttributes}>
+        <div style={style}>
             <BlockItem
                 block={block}
-                isSelected={selectedBlockIds.has(block.id)}
-                readOnly={readOnly}
-                nodeId={nodeId}
-                hideBlockHandles={hideBlockHandles}
-                promoteBlockHandles={promoteBlockHandles}
-                disableMediaControls={disableMediaControls}
-                onUpdateBlock={onUpdateBlock}
-                onKeyDown={onKeyDown}
-                onPaste={onPaste}
-                onMoveBlock={onMoveBlock}
-                onDragStart={onDragStart}
-                onMenuOpen={onMenuOpen}
-                onSelectionClick={onSelectionClick}
-                onSelectionMouseDown={onSelectionMouseDown}
-                onRegisterRef={onRegisterRef}
+                isSelected={data.selectedBlockIds.has(block.id)}
+                readOnly={data.readOnly}
+                nodeId={data.nodeId}
+                hideBlockHandles={data.hideBlockHandles}
+                promoteBlockHandles={data.promoteBlockHandles}
+                disableMediaControls={data.disableMediaControls}
+                onUpdateBlock={data.onUpdateBlock}
+                onKeyDown={data.onKeyDown}
+                onPaste={data.onPaste}
+                onMoveBlock={data.onMoveBlock}
+                onDragStart={data.onDragStart}
+                onMenuOpen={data.onMenuOpen}
+                onSelectionClick={data.onSelectionClick}
+                onSelectionMouseDown={data.onSelectionMouseDown}
+                onRegisterRef={data.onRegisterRef}
             />
         </div>
     );
-};
+});
 
 export const VirtualBlockList = memo(function VirtualBlockList({
     blocks,
@@ -106,8 +100,7 @@ export const VirtualBlockList = memo(function VirtualBlockList({
 }: VirtualBlockListProps) {
     const listRef = useRef<any>(null);
     
-    // Memoize item data to prevent re-renders
-    const itemData = useMemo(() => ({
+    const itemData = useMemo<ItemData>(() => ({
         blocks,
         selectedBlockIds,
         readOnly,
@@ -145,13 +138,15 @@ export const VirtualBlockList = memo(function VirtualBlockList({
     
     return (
         <List
-            listRef={listRef}
-            style={{ height: containerHeight, width: containerWidth }}
-            rowCount={blocks.length}
-            rowHeight={ITEM_HEIGHT}
-            rowProps={itemData}
-            rowComponent={BlockRow}
+            ref={listRef}
+            height={containerHeight}
+            width={containerWidth}
+            itemCount={blocks.length}
+            itemSize={ITEM_HEIGHT}
+            itemData={itemData}
             overscanCount={OVERSCAN_COUNT}
-        />
+        >
+            {BlockRow}
+        </List>
     );
 });

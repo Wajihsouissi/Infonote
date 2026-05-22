@@ -82,7 +82,9 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
                 content: [{ id: crypto.randomUUID?.() || Math.random().toString(36), type: 'text', content: text }],
                 isStandaloneBlock: true,
             }, { width: 320, height: 120 }, currentParentId || undefined);
-        } catch { }
+        } catch (err) {
+            console.warn('[CanvasContextMenu] Paste failed:', err);
+        }
         onClose();
     }, [x, y, addNode, screenToFlowPosition, onClose, currentParentId]);
 
@@ -103,7 +105,9 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
             link.download = `canvas-${Date.now()}.png`;
             link.href = canvas.toDataURL('image/png');
             link.click();
-        } catch { }
+        } catch (err) {
+            console.warn('[CanvasContextMenu] Screenshot failed:', err);
+        }
         if (minimap) minimap.style.display = '';
         onClose();
     }, [onClose]);
@@ -111,7 +115,7 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
     const handleClearCanvas = useCallback(() => {
         const targetIds = nodes.filter(n => n.parentId === currentParentId).map(n => n.id);
         if (targetIds.length > 0) {
-            bulkDeleteNodes(targetIds);
+            bulkDeleteNodes(targetIds, true);
             clearCanvasSelection();
         }
         onClose();

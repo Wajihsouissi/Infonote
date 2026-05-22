@@ -112,8 +112,12 @@ async function autoReconnect(): Promise<void> {
             if (state.setLocalError) state.setLocalError(null);
         }
         storeCallbacks.setStorageStatus(true, activeBackend.displayName ?? 'Local Folder');
-    } catch {
-        // Silently fail on auto-reconnect; user can still connect manually.
+    } catch (err) {
+        console.warn('[StorageManager] Auto-reconnect failed:', err);
+        const state = useStore.getState();
+        if (state.setLocalError) state.setLocalError(
+            err instanceof Error ? err.message : 'Failed to reconnect to local storage'
+        );
     }
 }
 
@@ -141,6 +145,18 @@ async function performSave(): Promise<void> {
         if (!activeBackend.isConnected) {
             storeCallbacks.setStorageStatus(false, null);
         }
+    }
+}
+
+/**
+ * Flush any pending debounced save immediately.
+ * Called from the beforeunload handler to minimize data loss on tab close.
+ */
+export function flushPendingSave(): void {
+    if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        saveTimeout = null;
+        performSave();
     }
 }
 

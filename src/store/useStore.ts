@@ -7,7 +7,7 @@ import { createStorageSlice } from './slices/storageSlice';
 import { createUISlice } from './slices/uiSlice';
 import { createAuthSlice } from './slices/authSlice';
 import type { AppState } from './types';
-import { initStorageManager } from '../services/StorageManager';
+import { initStorageManager, flushPendingSave } from '../services/StorageManager';
 
 export const useStore = create<AppState>()(
     subscribeWithSelector(
@@ -20,7 +20,7 @@ export const useStore = create<AppState>()(
                 ...createAuthSlice(...a),
             }),
             {
-                limit: 50,
+                limit: 200,
                 partialize: (state) => {
                     const { nodes, edges } = state;
                     return { nodes, edges };
@@ -51,4 +51,16 @@ if (typeof window !== 'undefined') {
             }
         );
     }, 100);
+
+    // Warn on page unload if there are unsaved changes, and flush pending saves.
+    window.addEventListener('beforeunload', (e) => {
+        const state = useStore.getState();
+        const { isLocalDirty, isCloudDirty } = state.storage;
+
+        if (isLocalDirty || isCloudDirty) {
+            flushPendingSave();
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
 }

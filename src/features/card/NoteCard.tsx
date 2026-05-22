@@ -198,67 +198,9 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     }, [viewMode, id, setNodes, updateNodeData, width, height]);
 
 
-    useEffect(() => {
-        // Auto-grow logic ONLY for Expanded mode and ONLY when visible
-        if (viewMode !== 'expanded' || !contentRef.current || !cardRef.current || !isVisible) return;
-
-        // Track if this resize is due to metadata toggle to prevent unwanted height changes
-        let isMetadataToggling = false;
-        const metadataToggleTimeout = setTimeout(() => {
-            isMetadataToggling = false;
-        }, 50);
-
-        const observer = new ResizeObserver((entries) => {
-            for (const entry of entries) {
-                if (activeResize.current) return;
-                if (isMetadataToggling) return; // Prevent resize during metadata toggle
-
-                if (!cardRef.current) return;
-
-                // Dynamic Chrome Height Calculation
-                const currentCardHeight = cardRef.current.offsetHeight;
-                const contentVisibleHeight = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
-                const chromeHeight = currentCardHeight - contentVisibleHeight;
-
-                // Use scrollHeight to see actual content size demands
-                const contentScrollHeight = entry.target.scrollHeight;
-                const neededHeight = contentScrollHeight + chromeHeight;
-
-                // Calculate required grid units using centralized layout logic
-                const { height: targetHeight } = calculateNoteLayout(cardRef.current.offsetWidth, neededHeight);
-
-                // Resizing Logic:
-                const isGrowing = targetHeight > currentCardHeight + 2; // small buffer
-                const isShrinkingSignificantly = currentCardHeight - targetHeight > SNAP_STEP;
-
-                // CRITICAL: Prevent Micro-Oscillations or Loops
-                // We compare the actual rendered height (offsetHeight) with the target.
-                // If they are close enough, we assume we reached the target.
-                if (Math.abs(currentCardHeight - targetHeight) <= 4) return;
-
-                if (isGrowing || isShrinkingSignificantly) {
-                    // Check if we are already at MAX and want more -> ignore
-                    if (isGrowing && currentCardHeight >= MAX_HEIGHT && targetHeight >= MAX_HEIGHT) return;
-
-                    // Debounce slightly to avoid flicker
-                    setTimeout(() => {
-                        updateNode(id, {
-                            style: { width: cardRef.current?.offsetWidth || width || 300, height: targetHeight }
-                        });
-                    }, 10);
-                }
-            }
-        });
-
-        // Mark that metadata is toggling at the start of this effect
-        isMetadataToggling = true;
-
-        observer.observe(contentRef.current);
-        return () => {
-            observer.disconnect();
-            clearTimeout(metadataToggleTimeout);
-        };
-    }, [viewMode, id, updateNode, data.showMetadata]);
+    // Auto-resize (via ResizeObserver) was removed so that expanded cards
+    // keep their size when content changes. Content overflows with scroll
+    // via overflow-y: auto on .noteArea instead.
 
     const handleDoubleClick = (e: React.MouseEvent) => {
         e.stopPropagation(); // Prevent ReactFlow from catching it

@@ -338,7 +338,11 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         }));
     },
 
-    releaseNodeContentToBlocks: (nodeId: string, centerPosition?: { x: number; y: number }) => {
+    releaseNodeContentToBlocks: (nodeId: string, centerPosition?: { x: number; y: number }, skipConfirm?: boolean) => {
+        if (!skipConfirm && !window.confirm(
+            'Release this node\'s content as individual blocks? The source node will be replaced.'
+        )) return;
+
         const { nodes, edges, currentParentId } = get();
         const sourceNode = nodes.find(n => n.id === nodeId);
         if (!sourceNode) return;
@@ -555,11 +559,15 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         }
     },
 
-    splitNode: (nodeId, splitBlockId, currentBlocks) => {
+    splitNode: (nodeId, splitBlockId, currentBlocks, skipConfirm) => {
         const { nodes, edges } = get();
         const sourceNode = nodes.find(n => n.id === nodeId);
 
         if (!sourceNode || !('content' in sourceNode.data) || !Array.isArray((sourceNode.data as any).content)) return;
+
+        if (!skipConfirm && !window.confirm(
+            'Split this node at the selected block? Content will be moved to a new fused note.'
+        )) return;
 
         // Use caller-provided blocks if available (avoids stale store state from debounce),
         // otherwise fall back to store data
@@ -773,7 +781,11 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         }
     },
 
-    bulkDeleteNodes: (nodeIds: string[]) => {
+    bulkDeleteNodes: (nodeIds: string[], skipConfirm?: boolean) => {
+        if (!skipConfirm && !window.confirm(
+            `Delete ${nodeIds.length} node(s)? This can be undone via undo (up to 200 steps).`
+        )) return;
+
         const { nodes, edges } = get();
 
         if (DEBUG) {
@@ -864,7 +876,11 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         if (DEBUG) console.log("[bulkApplyColor] Completed");
     },
 
-    fuseNodes: (nodeIds: string[]) => {
+    fuseNodes: (nodeIds: string[], skipConfirm?: boolean) => {
+        if (!skipConfirm && !window.confirm(
+            `Merge ${nodeIds.length} nodes into one fused note? The originals will be removed. This can be undone via undo (up to 200 steps).`
+        )) return;
+
         const { nodes, edges, currentParentId } = get();
         const nodesToFuse = nodes.filter(n => nodeIds.includes(n.id));
 
@@ -931,29 +947,26 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         newNodes.push(fusedNode);
         if (DEBUG) console.log("[fuseNodes] Nodes after adding fused:", newNodes.length);
 
-        // Check for duplicates
-        const nodeIdSet = new Set(newNodes.map(n => n.id));
-        if (nodeIdSet.size !== newNodes.length) {
-            if (DEBUG) {
-                console.error("[fuseNodes] ERROR: Duplicate node IDs detected!");
-                const idCounts = new Map<string, number>();
-                newNodes.forEach(n => {
-                    idCounts.set(n.id, (idCounts.get(n.id) || 0) + 1);
-                });
-                idCounts.forEach((count, id) => {
-                    if (count > 1) {
-                        console.error("[fuseNodes] Duplicate ID:", id, "count:", count);
-                    }
-                });
+        // Deduplicate — ensure no duplicate IDs enter the store
+        const seenIds = new Set<string>();
+        const dedupedNodes: AppNode[] = [];
+        for (const n of newNodes) {
+            if (seenIds.has(n.id)) {
+                // Generate a fresh ID for the duplicate to prevent store corruption
+                dedupedNodes.push({ ...n, id: uuidv4() });
+                if (DEBUG) console.warn("[fuseNodes] Fixed duplicate ID:", n.id);
+            } else {
+                seenIds.add(n.id);
+                dedupedNodes.push(n);
             }
         }
 
         // Remove edges connected to deleted nodes
         const newEdges = edges.filter(e => !nodeIds.includes(e.source) && !nodeIds.includes(e.target));
 
-        set({ nodes: newNodes, edges: newEdges });
+        set({ nodes: dedupedNodes, edges: newEdges });
 
-        if (DEBUG) console.log("[fuseNodes] Completed - Final node count:", newNodes.length);
+        if (DEBUG) console.log("[fuseNodes] Completed - Final node count:", dedupedNodes.length);
     },
 
     linkSelectedNodes: (mainNodeId, targetNodeIds) => {

@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { Cloud, CloudDownload, Loader2, CheckCircle2, AlertCircle, LogIn } from 'lucide-react';
+import { useCallback, useState, useEffect } from 'react';
+import { Cloud, CloudDownload, Undo2, Loader2, CheckCircle2, AlertCircle, LogIn } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { saveCanvasToCloud, loadCanvasFromCloud } from '../../services/cloudSync';
 import { isSupabaseConfigured } from '../../services/supabase/client';
@@ -30,6 +30,12 @@ export function CloudSyncControls() {
     const setCloudError = useStore((s) => s.setCloudError);
 
     const [status, setStatus] = useState<Status>({ kind: 'idle' });
+
+    // Detect if a cloud reload backup exists in localStorage
+    const [hasCloudBackup, setHasCloudBackup] = useState(false);
+    useEffect(() => {
+        setHasCloudBackup(localStorage.getItem('infonote-cloud-reload-backup') !== null);
+    }, []);
 
     const flashStatus = useCallback((next: Status, ms = 2400) => {
         setStatus(next);
@@ -85,6 +91,19 @@ export function CloudSyncControls() {
         );
         if (!confirmed) return;
 
+        // Backup current in-memory state to localStorage before overwriting
+        try {
+            const current = useStore.getState();
+            const backup = {
+                nodes: current.nodes,
+                edges: current.edges,
+                timestamp: Date.now(),
+            };
+            localStorage.setItem('infonote-cloud-reload-backup', JSON.stringify(backup));
+        } catch {
+            // Backup is best-effort; localStorage may be full
+        }
+
         setStatus({ kind: 'loading' });
         const result = await loadCanvasFromCloud(userId);
         if (result.ok) {
@@ -98,6 +117,33 @@ export function CloudSyncControls() {
         }
     }, [isAuthenticated, userId, setAuthModalOpen, loadGraph, flashStatus]);
 
+    const handleRestoreBackup = useCallback(() => {
+        try {
+            const raw = localStorage.getItem('infonote-cloud-reload-backup');
+            if (!raw) {
+                flashStatus({ kind: 'error', message: 'No cloud reload backup found.' });
+                return;
+            }
+            const backup = JSON.parse(raw);
+            if (!backup.nodes || !backup.edges) {
+                flashStatus({ kind: 'error', message: 'Cloud reload backup is corrupt.' });
+                return;
+            }
+            const confirmed = window.confirm(
+                `Restore canvas from backup saved at ${new Date(backup.timestamp).toLocaleString()}?`
+            );
+            if (!confirmed) return;
+            loadGraph(backup.nodes, backup.edges);
+            localStorage.removeItem('infonote-cloud-reload-backup');
+            setHasCloudBackup(false);
+            flashStatus({ kind: 'success', message: 'Restored from cloud reload backup.' });
+        } catch {
+            localStorage.removeItem('infonote-cloud-reload-backup');
+            setHasCloudBackup(false);
+            flashStatus({ kind: 'error', message: 'Failed to restore backup. It has been cleared.' });
+        }
+    }, [loadGraph, flashStatus]);
+
     if (!isSupabaseConfigured) return null;
 
     const saving = status.kind === 'saving';
@@ -106,6 +152,17 @@ export function CloudSyncControls() {
 
     return (
         <div className={styles.wrap} role="group" aria-label="Cloud sync">
+            {hasCloudBackup && (
+                <button
+                    type="button"
+                    className={`${styles.btn} ${styles.warning}`}
+                    onClick={handleRestoreBackup}
+                    title="Restore canvas from backup taken before last cloud reload"
+                >
+                    <Undo2 size={14} />
+                    <span>Restore Backup</span>
+                </button>
+            )}
             <button
                 type="button"
                 className={`${styles.btn} ${styles.primary}`}
