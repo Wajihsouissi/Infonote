@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { ProfileMenu } from '../auth/ProfileMenu';
+import { useSiteTelemetry } from '../admin/hooks/useSiteTelemetry';
 import { useRecentlyViewed, useGlobalSearch } from './hooks/useDashboardData';
 import {
   Layout,
@@ -31,6 +32,9 @@ export const LandingPage: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
   const isAuthenticated = useStore((state) => state.auth.isAuthenticated);
+
+  // Log a site visit row for admin analytics (deduped per browser session).
+  useSiteTelemetry();
 
   const activeWorkspaceId = typeof window !== 'undefined'
     ? localStorage.getItem('infonote.activeWorkspaceId') || undefined

@@ -31,7 +31,7 @@ interface VirtualBlockListProps {
 const ITEM_HEIGHT = 40;
 const OVERSCAN_COUNT = 10;
 
-interface ItemData {
+interface RowData {
     blocks: Block[];
     selectedBlockIds: Set<string>;
     readOnly?: boolean;
@@ -50,29 +50,33 @@ interface ItemData {
     onRegisterRef: (id: string, el: HTMLDivElement | null) => void;
 }
 
-const BlockRow = memo(function BlockRow({ index, style, data }: { index: number; style: React.CSSProperties; data: ItemData }) {
-    const block = data.blocks[index];
+const BlockRow = memo(function BlockRow({ index, style, ...rowProps }: { 
+    ariaAttributes: any; 
+    index: number; 
+    style: React.CSSProperties; 
+} & RowData) {
+    const block = rowProps.blocks[index];
     if (!block) return null;
 
     return (
         <div style={style}>
             <BlockItem
                 block={block}
-                isSelected={data.selectedBlockIds.has(block.id)}
-                readOnly={data.readOnly}
-                nodeId={data.nodeId}
-                hideBlockHandles={data.hideBlockHandles}
-                promoteBlockHandles={data.promoteBlockHandles}
-                disableMediaControls={data.disableMediaControls}
-                onUpdateBlock={data.onUpdateBlock}
-                onKeyDown={data.onKeyDown}
-                onPaste={data.onPaste}
-                onMoveBlock={data.onMoveBlock}
-                onDragStart={data.onDragStart}
-                onMenuOpen={data.onMenuOpen}
-                onSelectionClick={data.onSelectionClick}
-                onSelectionMouseDown={data.onSelectionMouseDown}
-                onRegisterRef={data.onRegisterRef}
+                isSelected={rowProps.selectedBlockIds.has(block.id)}
+                readOnly={rowProps.readOnly}
+                nodeId={rowProps.nodeId}
+                hideBlockHandles={rowProps.hideBlockHandles}
+                promoteBlockHandles={rowProps.promoteBlockHandles}
+                disableMediaControls={rowProps.disableMediaControls}
+                onUpdateBlock={rowProps.onUpdateBlock}
+                onKeyDown={rowProps.onKeyDown}
+                onPaste={rowProps.onPaste}
+                onMoveBlock={rowProps.onMoveBlock}
+                onDragStart={rowProps.onDragStart}
+                onMenuOpen={rowProps.onMenuOpen}
+                onSelectionClick={rowProps.onSelectionClick}
+                onSelectionMouseDown={rowProps.onSelectionMouseDown}
+                onRegisterRef={rowProps.onRegisterRef}
             />
         </div>
     );
@@ -96,11 +100,11 @@ export const VirtualBlockList = memo(function VirtualBlockList({
     onSelectionMouseDown,
     onRegisterRef,
     containerHeight,
-    containerWidth
+    containerWidth: _containerWidth,
 }: VirtualBlockListProps) {
     const listRef = useRef<any>(null);
-    
-    const itemData = useMemo<ItemData>(() => ({
+
+    const rowProps = useMemo((): RowData => ({
         blocks,
         selectedBlockIds,
         readOnly,
@@ -138,15 +142,13 @@ export const VirtualBlockList = memo(function VirtualBlockList({
     
     return (
         <List
-            ref={listRef}
-            height={containerHeight}
-            width={containerWidth}
-            itemCount={blocks.length}
-            itemSize={ITEM_HEIGHT}
-            itemData={itemData}
+            listRef={listRef}
+            rowCount={blocks.length}
+            rowHeight={ITEM_HEIGHT}
+            rowProps={rowProps}
+            rowComponent={BlockRow as any}
             overscanCount={OVERSCAN_COUNT}
-        >
-            {BlockRow}
-        </List>
+            style={{ height: containerHeight }}
+        />
     );
 });

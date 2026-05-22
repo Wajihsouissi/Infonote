@@ -10,7 +10,7 @@ import { NoteExpandedContent } from './NoteExpandedContent';
 
 import { CoverPicker } from './CoverPicker';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
-import { calculateNoteLayout, MAX_HEIGHT, SNAP_STEP } from '../../config/layout';
+import { calculateNoteLayout } from '../../config/layout';
 import { toPastelColor, darkenColor } from '../../utils/colorUtils';
 
 export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<NoteNode>) => {
@@ -89,7 +89,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
 
     // Performance: Visibility tracking for heavy features (ResizeObserver, etc.)
-    const [isVisible, setIsVisible] = useState(true);
+    const [_isVisible, setIsVisible] = useState(true);
     const observerRef = useRef<IntersectionObserver | null>(null);
 
     useEffect(() => {

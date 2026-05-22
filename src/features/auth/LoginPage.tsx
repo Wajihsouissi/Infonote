@@ -15,7 +15,16 @@ export const LoginPage: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+    if (!cleanEmail || !cleanPassword) {
+      setError('Email and password are required.');
+      return;
+    }
+    if (cleanPassword.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
     
     setLoading(true);
     setError(null);
@@ -74,8 +83,8 @@ export const LoginPage: React.FC = () => {
     
     try {
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: cleanEmail,
+        password: cleanPassword,
       });
       if (signInError) throw signInError;
       setCurrentView('canvas');
