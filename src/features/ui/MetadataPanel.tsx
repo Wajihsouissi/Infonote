@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Image as ImageIcon, X } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { IconPicker } from '../card/IconPicker';
-import { iconMap, defaultIconName } from '../card/iconMap';
+import { defaultIconName, CardIcon } from '../card/iconMap';
 import { ChipInput } from './ChipInput';
 import { CustomSelect } from './CustomSelect';
 import { CustomDatePicker } from './CustomDatePicker';
@@ -106,8 +106,6 @@ export function MetadataPanel({ nodeId, isOpen, onClose, buttonRef }: MetadataPa
         );
     }
 
-    const IconComponent = iconMap[editedData.icon || defaultIconName] || iconMap[defaultIconName];
-
     const handleSave = () => {
         if (nodeId) {
             updateNodeData(nodeId, editedData);
@@ -126,8 +124,6 @@ export function MetadataPanel({ nodeId, isOpen, onClose, buttonRef }: MetadataPa
         handleImmediateUpdate({ icon: newIcon });
         setShowIconPicker(false);
     };
-
-
 
     const showPanel = isOpen && !!node;
 
@@ -181,7 +177,7 @@ export function MetadataPanel({ nodeId, isOpen, onClose, buttonRef }: MetadataPa
                         onClick={() => setShowIconPicker(true)}
                         title="Change Icon"
                     >
-                        <IconComponent size={24} />
+                        <CardIcon icon={editedData.icon || defaultIconName} size={24} />
                     </button>
                     <input
                         className={styles.titleInput}

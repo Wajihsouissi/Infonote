@@ -3,7 +3,13 @@ import { BlockEditor } from '../editor/BlockEditor';
 import styles from './FullscreenModal.module.css';
 import { NoteExpandedContent } from '../card/NoteExpandedContent';
 
-export function CenterModal() {
+export function CenterModal({
+    onCanvasDragOver,
+    onCanvasDrop
+}: {
+    onCanvasDragOver?: (e: React.DragEvent) => void;
+    onCanvasDrop?: (e: React.DragEvent) => void;
+}) {
     // Atomic Selectors
     const centerPanelId = useStore(s => s.centerPanelId);
     const setCenterPanelId = useStore(s => s.setCenterPanelId);
@@ -26,13 +32,19 @@ export function CenterModal() {
             className={styles.overlay}
             onClick={() => setCenterPanelId(null)}
             onDragOver={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
+                if (onCanvasDragOver) {
+                    onCanvasDragOver(e);
+                } else {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
             }}
             onDrop={(e) => {
-                // Prevent drops on the overlay itself from propagating to ReactFlow
-                // The actual content (NoteExpandedContent/BlockEditor) will handle their own drops
-                e.stopPropagation();
+                if (onCanvasDrop) {
+                    onCanvasDrop(e);
+                } else {
+                    e.stopPropagation();
+                }
             }}
         >
             <div className={`${styles.modal} ${styles.centerModalOverride}`} onClick={(e) => e.stopPropagation()}>
@@ -40,6 +52,7 @@ export function CenterModal() {
                     {activeNode.type === 'note' ? (
                         <NoteExpandedContent
                             id={centerPanelId}
+                            nodeId={centerPanelId}
                             data={activeNode.data as any}
                             onUpdate={updateNodeData}
                             onClose={() => setCenterPanelId(null)}
@@ -49,6 +62,7 @@ export function CenterModal() {
                         <div className={styles.editorContainer}>
                             <BlockEditor
                                 key={centerPanelId}
+                                nodeId={centerPanelId}
                                 initialContent={(activeNode.data as any).content}
                                 onUpdate={(blocks) => updateNodeData(centerPanelId, { content: blocks })}
                                 autoFocus={true}

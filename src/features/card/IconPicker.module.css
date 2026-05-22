@@ -18,9 +18,10 @@
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: flex-start; /* Align modal at the top vertically */
+    justify-content: center; /* Center modal horizontally */
     z-index: 10000;
+    padding-top: 60px; /* Position it beautifully from the top */
     animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -62,21 +63,34 @@
     to { opacity: 1; }
 }
 
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* Standard centered modal box (for canvas card note click triggers) */
 .modal {
     background: linear-gradient(135deg, #1c1e26, #12141c);
     border: 1px solid var(--glass-border);
     border-radius: 16px;
     padding: 20px;
-    width: 290px;
+    width: 720px;
+    max-width: 90vw;
     height: 520px;
-    max-height: 85vh;
+    max-height: 80vh; /* Scaled slightly down to prevent overflow when placed at top-center */
     display: flex;
     flex-direction: column;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
     position: relative;
     overflow: hidden;
     font-family: 'Inter', -apple-system, sans-serif;
+    animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Premium Absolute Modal that adapts completely inside the Properties Sidebar Panel */
@@ -209,14 +223,84 @@
 /* Grid layout with scroll lock and Poppins/Inter font integration */
 .iconGrid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr); /* 4 columns for compact 310px width */
-    gap: 6px;
+    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); /* Auto-fill adapts dynamically to container width */
+    gap: 8px;
     overflow-y: auto; /* Enable vertical scrolling */
     padding: 2px;
     flex: 1; /* Stretch to fill available vertical space */
     min-height: 0; /* CRITICAL: Force flex containment to allow native scroll */
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* Premium Custom Image Upload Styling */
+.uploadRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-shrink: 0;
+}
+
+.uploadArea {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px dashed var(--glass-border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.8rem;
+    color: var(--color-text-main);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.uploadArea:hover {
+    background: var(--color-primary-glow);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.uploadArea svg {
+    color: var(--color-text-muted);
+    transition: color 0.2s;
+}
+
+.uploadArea:hover svg {
+    color: var(--color-primary);
+}
+
+.currentCustomPreview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    height: 40px;
+    box-sizing: border-box;
+}
+
+.previewLabel {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+.previewWrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    overflow: hidden;
+    width: 24px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .iconGrid::-webkit-scrollbar {

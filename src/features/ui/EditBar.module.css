@@ -85,59 +85,62 @@
 /* Color Picker Dropdown */
 .colorPicker {
     position: absolute;
-    bottom: calc(100% + 8px);
+    bottom: calc(100% + 12px);
     left: 50%;
     transform: translateX(-50%);
 
-    background: var(--glass-bg);
-    backdrop-filter: blur(var(--backdrop-blur));
-    -webkit-backdrop-filter: blur(var(--backdrop-blur));
-    border: 1px solid var(--glass-border);
-    border-radius: 12px;
-    padding: 12px;
+    background: var(--surface-elevated);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    min-width: 180px;
 
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
 
-    animation: slideDown 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    animation: popoverFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     z-index: 1001;
 }
 
-@keyframes slideDown {
+@keyframes popoverFadeIn {
     from {
         opacity: 0;
-        transform: translateX(-50%) translateY(10px);
+        transform: translate(-50%, 8px) scale(0.95);
     }
-
     to {
         opacity: 1;
-        transform: translateX(-50%) translateY(0);
+        transform: translate(-50%, 0) scale(1);
     }
 }
 
 .colorGrid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: 10px;
+    margin-bottom: 12px;
 }
 
 .colorSwatch {
+    position: relative;
     width: 32px;
     height: 32px;
     border-radius: 8px;
-    border: 2px solid transparent;
+    border: 1.5px solid var(--border);
     cursor: pointer;
     transition: all var(--transition-fast);
-    position: relative;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
 }
 
 .colorSwatch:hover {
-    transform: scale(1.15);
-    border-color: var(--color-text-main);
+    transform: scale(1.18) translateY(-2px);
+    border-color: var(--color-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .colorSwatchActive {
-    border-color: var(--color-text-main) !important;
+    border-color: var(--color-primary) !important;
     box-shadow: 0 0 0 2px var(--color-bg-base), 0 0 0 4px var(--color-primary);
 }
 
@@ -155,18 +158,64 @@
 
 .clearColorBtn {
     width: 100%;
-    padding: 8px;
-    border-radius: 6px;
+    padding: 8px 12px;
+    border-radius: 8px;
     background: var(--color-bg-card);
-    border: 1px solid var(--glass-border);
-    color: var(--color-text-muted);
-    font-size: 0.75rem;
+    border: 1px solid var(--border);
+    color: var(--color-text-main);
+    font-size: 0.8rem;
+    font-weight: 500;
     cursor: pointer;
     transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
 
 .clearColorBtn:hover {
     background: var(--glass-bg-hover);
     border-color: var(--color-primary);
     color: var(--color-primary);
+    transform: translateY(-1px);
+}
+
+.clearColorSwatch {
+    position: relative;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    
+    background: linear-gradient(45deg, #ccc 25%, transparent 25%), 
+                linear-gradient(-45deg, #ccc 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #ccc 75%), 
+                linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    background-size: 4px 4px;
+    background-position: 0 0, 0 2px, 2px -2px, -2px 0px;
+    background-color: #f3f4f6;
+    flex-shrink: 0;
+}
+
+:global([data-theme="dark"]) .clearColorSwatch {
+    background: linear-gradient(45deg, #444 25%, transparent 25%), 
+                linear-gradient(-45deg, #444 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #444 75%), 
+                linear-gradient(-45deg, transparent 75%, #444 75%);
+    background-size: 4px 4px;
+    background-position: 0 0, 0 2px, 2px -2px, -2px 0px;
+    background-color: #222;
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.clearColorSwatch::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1.5px;
+    background-color: #ef4444;
+    transform: translateY(-50%) rotate(-45deg);
 }

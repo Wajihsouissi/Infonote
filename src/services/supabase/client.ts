@@ -17,8 +17,15 @@ import { createClient } from '@supabase/supabase-js';
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!url || !key) {
-    // Surface a loud dev error; Supabase features will be disabled until env is set.
+const hasPlaceholders =
+    url === 'your-supabase-project-url-here' ||
+    key === 'your-supabase-anon-key-here';
+
+const isValidUrl = url && (url.startsWith('http://') || url.startsWith('https://'));
+
+export const isSupabaseConfigured = Boolean(url && key && !hasPlaceholders && isValidUrl);
+
+if (!isSupabaseConfigured) {
     console.warn(
         '[Supabase] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. ' +
         'Cloud storage and auth will be disabled. ' +
@@ -26,13 +33,10 @@ if (!url || !key) {
     );
 }
 
-export const isSupabaseConfigured = Boolean(url && key);
-
 // Initialize client only if configured to avoid runtime throw.
 export const supabase = isSupabaseConfigured
     ? createClient(url!, key!, {
           auth: {
-              // Use localStorage so the session survives page refreshes.
               storage: localStorage,
               storageKey: 'infonote-auth-token',
               autoRefreshToken: true,

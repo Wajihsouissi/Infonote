@@ -107,14 +107,15 @@ export const calculateNoteLayout = (rawWidth: number, rawHeight: number) => {
 export const snapFusedDimensions = (rawWidth: number, rawHeight: number) => {
     const step = BASE_UNIT;
 
-    // Width logic
+    // Width logic: min 8 units, max 12 units
     let width = Math.round(rawWidth / step) * step - GRID_GAP;
     if (width < MIN_EXPANDED_SIZE) width = MIN_EXPANDED_SIZE;
     if (width > MAX_WIDTH) width = MAX_WIDTH;
 
-    // Height logic
+    // Height logic: min 4 units, max 20 units
     let height = Math.round(rawHeight / step) * step - GRID_GAP;
-    if (height < MIN_EXPANDED_SIZE) height = MIN_EXPANDED_SIZE;
+    const minHeight = (4 * BASE_UNIT) - GRID_GAP;
+    if (height < minHeight) height = minHeight;
     if (height > MAX_HEIGHT) height = MAX_HEIGHT;
 
     return { width, height };

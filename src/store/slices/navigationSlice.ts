@@ -61,8 +61,8 @@ export const createNavigationSlice: StateCreator<AppState, [], [], NavigationSli
         // Verify parent still exists
         const exists = nodes.some(n => n.id === currentParentId);
         if (!exists) {
-            set({ breadcrumbs: [{ id: null, label: 'Home' }] });
-            // Don't clear localStorage here, as nodes might still be loading batch-by-batch
+            set({ currentParentId: null, breadcrumbs: [{ id: null, label: 'Home' }] });
+            if (typeof window !== 'undefined') localStorage.removeItem('infonote-current-parent-id');
             return;
         }
 

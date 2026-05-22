@@ -25,7 +25,11 @@ export function useCanvasDrop({
 
     const onDragOver = useCallback((event: React.DragEvent) => {
         const { centerPanelId, fullscreenId } = useStore.getState();
-        if (centerPanelId || fullscreenId) return;
+        if (centerPanelId || fullscreenId) {
+            const isDraggingBlock = event.dataTransfer.types.includes('application/reactflow-block-type') || 
+                                    event.dataTransfer.types.includes('application/infonote-block-data');
+            if (!isDraggingBlock) return;
+        }
 
         event.preventDefault();
         event.dataTransfer.dropEffect = 'copy';
@@ -34,26 +38,25 @@ export function useCanvasDrop({
     const onDrop = useCallback(
         (event: React.DragEvent) => {
             const { centerPanelId, fullscreenId, currentParentId, nodes } = useStore.getState();
-            if (centerPanelId || fullscreenId) return;
+
+            const type = event.dataTransfer.getData('application/reactflow-block-type') as BlockType;
+            const blockDataJson = event.dataTransfer.getData('application/infonote-block-data');
+
+            if (centerPanelId || fullscreenId) {
+                if (!type && !blockDataJson) return;
+            }
 
             // Check if the drop landed inside a node's BlockEditor
             const target = event.target as HTMLElement;
-            const isInsideBlockEditor = target.closest('[class*="BlockEditor"]') ||
-                target.closest('[class*="editor"]') ||
-                target.closest('[class*="noteArea"]') ||
-                target.closest('[class*="fusedNoteNode"]') ||
-                target.closest('[class*="content"]');
+            const isInsideBlockEditor = !!target.closest('[data-infonote-block-editor]');
 
             // Parse block data to check if this is a cross-node block transfer
-            const blockDataJson = event.dataTransfer.getData('application/infonote-block-data');
             let hasSourceNode = false;
-            let sourceNodeIdFromData: string | null = null;
 
             if (blockDataJson) {
                 try {
                     const parsed = JSON.parse(blockDataJson);
                     hasSourceNode = !!parsed.sourceNodeId;
-                    sourceNodeIdFromData = parsed.sourceNodeId;
                 } catch (e) {
                     // Parse failed
                 }
@@ -63,32 +66,14 @@ export function useCanvasDrop({
             // Constant 20px screen-space hover checking size, scaled to flow space
             const checkSize = Math.max(10, 20 / zoom);
 
-            // Check if drop position intersects with a node (early check)
-            const earlyPosition = screenToFlowPosition({
-                x: event.clientX,
-                y: event.clientY,
-            });
-            const earlyDropRect = {
-                x: earlyPosition.x - checkSize / 2,
-                y: earlyPosition.y - checkSize / 2,
-                width: checkSize,
-                height: checkSize
-            };
-            const earlyIntersections = getIntersectingNodes(earlyDropRect as any);
-            const earlyTargetNode = earlyIntersections.find(n =>
-                (n.type === 'block' || n.type === 'fused-note' || n.type === 'note') &&
-                n.id !== sourceNodeIdFromData &&
-                n.id !== currentParentId
-            );
+
 
             // If dropping inside a node's content area AND it's from another node, let BlockEditor handle it
-            if ((isInsideBlockEditor || earlyTargetNode) && hasSourceNode) {
+            if (isInsideBlockEditor && hasSourceNode) {
                 return;
             }
 
             event.preventDefault();
-
-            const type = event.dataTransfer.getData('application/reactflow-block-type') as BlockType;
 
             const rawPosition = screenToFlowPosition({
                 x: event.clientX,
@@ -165,7 +150,7 @@ export function useCanvasDrop({
                             return {
                                 ...n,
                                 type: 'fused-note' as const,
-                                style: { ...n.style, height: 'auto' }
+                                style: { ...n.style, height: undefined }
                             } as AppNode;
                         }
                         return n;
@@ -228,7 +213,7 @@ export function useCanvasDrop({
                     },
                     style: {
                         width: BLOCK_WIDTH,
-                        height: BLOCK_HEIGHT
+                        height: blocksToAdd.length > 1 ? undefined : BLOCK_HEIGHT
                     },
                     parentId: targetParentId,
                 };

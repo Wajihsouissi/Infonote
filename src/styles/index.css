@@ -28,12 +28,22 @@
   --color-text-muted: #9ca3af;
   --color-border: #333645;
 
+  /* Global variables used in other styles */
+  --border: var(--color-border);
+  --border-hover: #4e526b;
+  --surface-elevated: #1e1f29;
+
   /* Glassmorphism - Source of Truth (From NoteCard) */
   --glass-bg: rgba(28, 30, 38, 0.7);
   --glass-bg-hover: rgba(28, 30, 38, 0.85);
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --backdrop-blur: 12px;
+
+  /* Handle Glassmorphism Variables */
+  --handle-glass-bg: rgba(255, 255, 255, 0.25);
+  --handle-glass-border: rgba(255, 255, 255, 0.45);
+  --handle-glass-shadow: rgba(0, 0, 0, 0.12);
 
   /* UI Elements */
   --ui-hover: rgba(255, 255, 255, 0.05);
@@ -66,6 +76,11 @@
   --color-text-muted: #6b7280;
   --color-border: #e5e7eb;
 
+  /* Global variables used in other styles */
+  --border: var(--color-border);
+  --border-hover: #cbd5e1;
+  --surface-elevated: #ffffff;
+
   /* Glassmorphism - Source of Truth (From BottomMenu) */
   --glass-bg: rgba(255, 255, 255, 0.7);
   --glass-bg-hover: rgba(255, 255, 255, 0.9);
@@ -73,6 +88,11 @@
   --glass-border: rgba(0, 0, 0, 0.08);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   --backdrop-blur: 12px;
+
+  /* Handle Glassmorphism Variables */
+  --handle-glass-bg: rgba(15, 23, 42, 0.12); /* Smoked glass backing */
+  --handle-glass-border: rgba(15, 23, 42, 0.22); /* Slate boundary edge */
+  --handle-glass-shadow: rgba(0, 0, 0, 0.08);
 
   /* Context Specific Overrides - Light Mode = Solid White */
   --modal-bg: #ffffff;
@@ -255,4 +275,229 @@ body {
   border-radius: 6px;
   position: relative;
   z-index: 10;
+}
+
+/* Premium highlighting during active connection drag */
+.react-flow__node.connecting {
+  border-color: var(--color-secondary) !important;
+  box-shadow: 0 0 0 2px var(--color-secondary), 0 0 16px rgba(6, 182, 212, 0.3) !important;
+  transition: border-color 0.2s, box-shadow 0.2s !important;
+}
+
+.react-flow__node.connecting:hover {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 2px var(--color-primary), 0 0 20px rgba(139, 92, 246, 0.5) !important;
+}
+
+/* Ensure the connection source handles are hidden by default and only appear on hover */
+.topRightHandle,
+.react-flow__handle-source,
+.react-flow__handle.source {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: 3000 !important;
+  top: 8px !important;
+  right: 8px !important;
+  left: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50% !important;
+  background: var(--handle-glass-bg) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  opacity: 0.15 !important; /* Soft base glass presence */
+  border: 1.5px solid var(--handle-glass-border) !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3), 0 2px 6px var(--handle-glass-shadow) !important;
+  transition: opacity 0.25s ease, background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+/* Fade-in the source handles when hovering over any React Flow node */
+.react-flow__node:hover .topRightHandle,
+.react-flow__node:hover .react-flow__handle-source,
+.react-flow__node:hover .react-flow__handle.source {
+  opacity: 0.8 !important; /* Elegant glassy presence on node hover */
+  pointer-events: auto !important;
+}
+
+/* Sparkle Star Twinkling Animations */
+@keyframes sparkleTwinkle {
+  0%, 100% {
+    transform: scale(0.3) rotate(0deg);
+    opacity: 0.1;
+  }
+  50% {
+    transform: scale(1.1) rotate(180deg);
+    opacity: 1;
+    filter: drop-shadow(0 0 4px rgba(253, 224, 71, 0.8));
+  }
+}
+@keyframes sparkleTwinkleSecond {
+  0%, 100% {
+    transform: scale(1) rotate(45deg);
+    opacity: 1;
+    filter: drop-shadow(0 0 3px rgba(103, 232, 249, 0.8));
+  }
+  50% {
+    transform: scale(0.2) rotate(225deg);
+    opacity: 0.1;
+  }
+}
+
+/* Double Twinkling Sparkle Stars for Source Handles - Triggered STRICTLY on direct handle hover */
+/* Twinkling Sparkle Star 1 (Bottom Left - Cyan) */
+.topRightHandle:hover::before,
+.react-flow__handle.source:hover::before {
+  content: '' !important;
+  position: absolute !important;
+  bottom: -6px !important;
+  left: -6px !important;
+  width: 7px !important;
+  height: 7px !important;
+  background: #67e8f9 !important;
+  clip-path: polygon(50% 0%, 65% 35%, 100% 50%, 65% 65%, 50% 100%, 35% 65%, 0% 50%, 35% 35%) !important;
+  animation: sparkleTwinkleSecond 2s ease-in-out infinite !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+}
+
+/* Twinkling Sparkle Star 2 (Top Right - Gold) */
+.topRightHandle:hover::after,
+.react-flow__handle.source:hover::after {
+  content: '' !important;
+  position: absolute !important;
+  top: -6px !important;
+  right: -6px !important;
+  width: 9px !important;
+  height: 9px !important;
+  background: #fde047 !important;
+  clip-path: polygon(50% 0%, 65% 35%, 100% 50%, 65% 65%, 50% 100%, 35% 65%, 0% 50%, 35% 35%) !important;
+  animation: sparkleTwinkle 1.5s ease-in-out infinite !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+}
+
+/* Force-hide all top-right source handles entirely while actively dragging a connection line */
+.react-flow__node.connecting .topRightHandle,
+.react-flow__node.connecting .react-flow__handle-source,
+.react-flow__node.connecting .react-flow__handle.source,
+.react-flow:has(.react-flow__handle-connecting) .topRightHandle,
+.react-flow:has(.react-flow__handle-connecting) .react-flow__handle-source,
+.react-flow:has(.react-flow__handle-connecting) .react-flow__handle.source,
+.react-flow__connection-connecting .topRightHandle,
+.react-flow__connection-connecting .react-flow__handle-source,
+.react-flow__connection-connecting .react-flow__handle.source,
+.react-flow__connection-drag .topRightHandle,
+.react-flow__connection-drag .react-flow__handle-source,
+.react-flow__connection-drag .react-flow__handle.source {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Hover scales, colors, and shines the source handle dot directly */
+.topRightHandle:hover,
+.react-flow__handle-source:hover,
+.react-flow__handle.source:hover {
+  transform: scale(1.3) !important;
+  opacity: 1 !important;
+  background: linear-gradient(135deg, #a78bfa, #ec4899) !important; /* Colorful premium purple-pink gradient on direct hover! */
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 4px 12px rgba(167, 139, 250, 0.4), 0 0 15px rgba(236, 72, 153, 0.3) !important;
+}
+
+/* Temporarily raise target handles on top of node contents only during active connection dragging */
+.react-flow__node.connecting .react-flow__handle.target,
+.react-flow__node.connecting .react-flow__handle-target {
+  z-index: 2500 !important;
+}
+
+/* Render a soft grayed centered snap dot target inside the target handle during active dragging */
+.react-flow__node.connecting .react-flow__handle.target::before,
+.react-flow__node.connecting .react-flow__handle-target::before {
+  content: '';
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: 14px !important;
+  height: 14px !important;
+  background: var(--handle-glass-bg) !important; /* Adaptive glass backing */
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  border: 1.5px solid var(--handle-glass-border) !important; /* Adaptive glass ring */
+  border-radius: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3), 0 2px 6px var(--handle-glass-shadow) !important;
+  opacity: 0.65 !important; /* Soft frosted presence */
+  pointer-events: none !important;
+  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.25s, border-color 0.25s, box-shadow 0.25s, opacity 0.25s !important;
+}
+
+/* Highlight, scale, color, and glow the centered snap dot when the cursor hovers directly over a valid target node */
+.react-flow__node.connecting:hover .react-flow__handle.target::before,
+.react-flow__node.connecting:hover .react-flow__handle-target::before {
+  transform: translate(-50%, -50%) scale(1.4) !important;
+  background: linear-gradient(135deg, #ec4899, #f472b6) !important; /* Magical soft pink glow transition! */
+  border-color: #ffffff !important;
+  box-shadow: 0 0 15px rgba(236, 72, 153, 0.6), 0 0 25px rgba(236, 72, 153, 0.4) !important;
+  opacity: 1 !important;
+}
+
+/* Golden Twinkling Sparkle Star for Target Snap Dot STRICTLY on valid node hover */
+.react-flow__node.connecting:hover .react-flow__handle.target::after,
+.react-flow__node.connecting:hover .react-flow__handle-target::after {
+  content: '' !important;
+  position: absolute !important;
+  top: -10px !important;
+  left: 14px !important;
+  width: 9px !important;
+  height: 9px !important;
+  background: #fde047 !important;
+  clip-path: polygon(50% 0%, 65% 35%, 100% 50%, 65% 65%, 50% 100%, 35% 65%, 0% 50%, 35% 35%) !important;
+  animation: sparkleTwinkle 1.4s ease-in-out infinite !important;
+  pointer-events: none !important;
+}
+
+/* Premium Linking Mode Styling */
+.react-flow__node.is-linking-mode {
+  cursor: pointer !important;
+  opacity: 0.4;
+  transition: opacity 0.3s, filter 0.3s !important;
+  filter: grayscale(40%);
+  pointer-events: auto !important;
+  border-radius: 12px !important;
+}
+
+.react-flow__node.is-linking-mode.is-selected {
+  cursor: pointer !important;
+  opacity: 1 !important;
+  filter: none !important;
+  box-shadow: 0 0 0 3px var(--color-secondary), 0 0 20px rgba(6, 182, 212, 0.5) !important;
+  border-color: var(--color-secondary) !important;
+  animation: linkingPulse 1.6s ease-in-out infinite !important;
+  pointer-events: auto !important;
+}
+
+.react-flow__node.is-linking-mode.is-selected:hover {
+  box-shadow: 0 0 0 3px var(--color-primary), 0 0 25px rgba(139, 92, 246, 0.7) !important;
+  border-color: var(--color-primary) !important;
+}
+
+@keyframes linkingPulse {
+  0% {
+    box-shadow: 0 0 0 3px var(--color-secondary), 0 0 20px rgba(6, 182, 212, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 5px var(--color-secondary), 0 0 30px rgba(6, 182, 212, 0.8);
+  }
+  100% {
+    box-shadow: 0 0 0 3px var(--color-secondary), 0 0 20px rgba(6, 182, 212, 0.4);
+  }
+}
+
+/* Disable selection box pointer events during linking mode to allow clicking the nodes underneath */
+.react-flow.is-linking-mode .react-flow__nodesselection,
+.react-flow.is-linking-mode .react-flow__nodesselection-rect,
+.react-flow.is-linking-mode .react-flow__selection {
+  pointer-events: none !important;
 }

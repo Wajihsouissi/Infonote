@@ -1,15 +1,17 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { FolderOpen, Check, Loader2, AlertCircle, Cloud } from 'lucide-react';
+import { Folder, FolderOpen, FolderCheck, FolderX, FolderSync, Cloud, CloudCheck, CloudAlert, CloudSync, CloudUpload } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { connectBackend, disconnectBackend, getActiveBackendKind } from '../../services/StorageManager';
+import { fileSystemStorage } from '../../services/FileSystemStorage';
+import { saveCanvasToCloud } from '../../services/cloudSync';
 import { useAuth } from '../auth/AuthProvider';
 import { SignInPanel } from '../auth/SignInPanel';
 import styles from './StorageControls.module.css';
 
 /**
- * Storage controls: two buttons now - local folder (existing) and cloud
- * (Supabase). Cloud requires a signed-in user; if not signed in, the button
- * opens a small sign-in popover.
+ * Storage controls: Folder Save (Local) and Cloud Save (Supabase).
+ * Dynamically switches states and styles for never saved, unsynced (dirty), 
+ * and saving errors.
  */
 export const StorageControls: React.FC = () => {
     const storage = useStore(s => s.storage);
@@ -17,8 +19,14 @@ export const StorageControls: React.FC = () => {
     const loadGraph = useStore(s => s.loadGraph);
     const { user, configured, loading: authLoading } = useAuth();
 
+    // Store setters for dynamic status
+    const setCloudLastSaved = useStore(s => s.setCloudLastSaved);
+    const setCloudDirty = useStore(s => s.setCloudDirty);
+    const setLocalError = useStore(s => s.setLocalError);
+    const setCloudError = useStore(s => s.setCloudError);
+
     const [isConnecting, setIsConnecting] = useState(false);
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [isSavingCloud, setIsSavingCloud] = useState(false);
     const [showAuthPopover, setShowAuthPopover] = useState(false);
     const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -36,11 +44,17 @@ export const StorageControls: React.FC = () => {
 
     const activeKind = storage.isConnected ? getActiveBackendKind() : null;
 
-    const runConnect = useCallback(async (kind: 'filesystem' | 'supabase') => {
+    const runConnect = useCallback(async (kind: 'filesystem', forceNew = false) => {
         setIsConnecting(true);
-        setErrorMessage(null);
+        if (setLocalError) setLocalError(null);
         try {
-            // If currently connected to the other backend, disconnect first.
+            // If forcing a new folder, clear the stored handle and disconnect first
+            if (forceNew) {
+                await fileSystemStorage.clearStoredHandle();
+                await disconnectBackend(setStorageStatus);
+            }
+
+            // If currently connected to supabase (legacy), disconnect first.
             if (storage.isConnected && activeKind && activeKind !== kind) {
                 await disconnectBackend(setStorageStatus);
             }
@@ -55,79 +69,122 @@ export const StorageControls: React.FC = () => {
             });
 
             if (!result.success) {
-                setErrorMessage(result.error || 'Connection failed');
+                if (setLocalError) setLocalError(result.error || 'Connection failed');
             }
         } catch (err) {
-            setErrorMessage(err instanceof Error ? err.message : String(err));
+            if (setLocalError) setLocalError(err instanceof Error ? err.message : String(err));
         } finally {
             setIsConnecting(false);
         }
-    }, [activeKind, loadGraph, setStorageStatus, storage.isConnected]);
+    }, [activeKind, loadGraph, setStorageStatus, storage.isConnected, setLocalError]);
 
     const handleLocalClick = useCallback(() => {
-        void runConnect('filesystem');
+        const s = useStore.getState().storage;
+        const alreadySaved = s.isConnected && !!s.localLastSaved;
+        void runConnect('filesystem', alreadySaved);
     }, [runConnect]);
 
-    const handleCloudClick = useCallback(() => {
+    const handleCloudClick = useCallback(async () => {
         if (!configured) {
-            setErrorMessage('Supabase is not configured. Set VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY.');
+            if (setCloudError) setCloudError('Supabase is not configured. Check environmental variables.');
             return;
         }
         if (!user) {
             setShowAuthPopover(v => !v);
             return;
         }
-        void runConnect('supabase');
-    }, [configured, user, runConnect]);
 
-    // Local folder button
-    const localConnected = storage.isConnected && activeKind === 'filesystem';
-    const localIcon = isConnecting && !showAuthPopover ? <Loader2 size={18} className="animate-spin" />
-        : errorMessage && !localConnected ? <AlertCircle size={18} />
-        : localConnected ? <Check size={18} />
-        : <FolderOpen size={18} />;
+        setIsSavingCloud(true);
+        if (setCloudError) setCloudError(null);
+        try {
+            const { nodes, edges } = useStore.getState();
+            const result = await saveCanvasToCloud(user.id, nodes, edges);
+            if (result.ok) {
+                const timeStr = new Date().toLocaleTimeString();
+                if (setCloudLastSaved) setCloudLastSaved(timeStr);
+                if (setCloudDirty) setCloudDirty(false);
+                if (setCloudError) setCloudError(null);
+            } else {
+                if (setCloudError) setCloudError(result.error || 'Cloud save failed');
+            }
+        } catch (err) {
+            const errStr = err instanceof Error ? err.message : String(err);
+            if (setCloudError) setCloudError(errStr);
+        } finally {
+            setIsSavingCloud(false);
+        }
+    }, [configured, user, setCloudLastSaved, setCloudDirty, setCloudError]);
+
+    // Local folder button state
+    const localStatus = 
+        storage.localError ? 'error' :
+        (!storage.isConnected || !storage.localLastSaved) ? 'never-saved' :
+        storage.isLocalDirty ? 'not-synced' : 'synced';
+
+    const localIcon = isConnecting ? <FolderSync size={18} className="animate-spin" />
+        : localStatus === 'error' ? <FolderX size={18} />
+        : localStatus === 'synced' ? <FolderCheck size={18} />
+        : localStatus === 'not-synced' ? <FolderOpen size={18} />
+        : <Folder size={18} />;
+
     const localTitle = isConnecting ? 'Connecting...'
-        : localConnected ? `Connected: ${storage.directoryName}${storage.lastSaved ? ' - Last saved: ' + storage.lastSaved : ''}`
-        : 'Connect local folder';
+        : localStatus === 'error' ? `Local Save Error: ${storage.localError}`
+        : localStatus === 'not-synced' ? `Local Save: Unsaved changes exist! (Last saved: ${storage.localLastSaved || 'Never'})`
+        : localStatus === 'synced' ? `Local Save: Synced to folder "${storage.directoryName}" (Last saved: ${storage.localLastSaved})`
+        : 'Never saved locally. Click to select folder.';
 
-    // Cloud button
-    const cloudConnected = storage.isConnected && activeKind === 'supabase';
-    const cloudIcon = authLoading ? <Loader2 size={18} className="animate-spin" />
-        : cloudConnected ? <Check size={18} />
+    // Cloud button state
+    const cloudStatus = 
+        storage.cloudError ? 'error' :
+        (!user || !storage.cloudLastSaved) ? 'never-saved' :
+        storage.isCloudDirty ? 'not-synced' : 'synced';
+
+    const cloudIcon = (authLoading || isSavingCloud) ? <CloudSync size={18} className="animate-spin" />
+        : cloudStatus === 'error' ? <CloudAlert size={18} />
+        : cloudStatus === 'synced' ? <CloudCheck size={18} />
+        : cloudStatus === 'not-synced' ? <CloudUpload size={18} />
         : <Cloud size={18} />;
+
     const cloudTitle = !configured ? 'Cloud disabled (env not configured)'
-        : !user ? 'Sign in to connect cloud'
-        : cloudConnected ? `Connected: ${storage.directoryName}${storage.lastSaved ? ' - Last saved: ' + storage.lastSaved : ''}`
-        : 'Connect cloud (Supabase)';
+        : !user ? 'Sign in to connect & save to cloud'
+        : isSavingCloud ? 'Saving to cloud...'
+        : cloudStatus === 'error' ? `Cloud Sync Error: ${storage.cloudError}`
+        : cloudStatus === 'not-synced' ? `Cloud Save: Unsynced changes exist! Click to save (Last synced: ${storage.cloudLastSaved || 'Never'})`
+        : cloudStatus === 'synced' ? `Cloud Save: Synced to cloud (Last synced: ${storage.cloudLastSaved})`
+        : 'Never saved to cloud. Click to save snapshot.';
+
+    const localClassName = `${styles.iconBtn} ` + (
+        isConnecting ? styles.saving :
+        localStatus === 'error' ? styles.error :
+        localStatus === 'not-synced' ? styles.notSynced :
+        localStatus === 'synced' ? styles.synced :
+        styles.neverSaved
+    );
+
+    const cloudClassName = `${styles.iconBtn} ` + (
+        (authLoading || isSavingCloud) ? styles.saving :
+        cloudStatus === 'error' ? styles.error :
+        cloudStatus === 'not-synced' ? styles.notSynced :
+        cloudStatus === 'synced' ? styles.synced :
+        styles.neverSaved
+    );
 
     return (
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', position: 'relative' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', position: 'relative' }}>
             <button
-                className={`${styles.iconBtn} ${storage.isSaving && localConnected ? styles.saving : ''} ${errorMessage && !localConnected ? styles.error : ''}`}
+                className={localClassName}
                 onClick={handleLocalClick}
                 disabled={isConnecting}
                 title={localTitle}
-                style={{
-                    borderColor: localConnected ? 'var(--color-primary)' : undefined,
-                    background: localConnected ? 'rgba(16, 185, 129, 0.05)' : undefined,
-                    opacity: isConnecting ? 0.7 : 1,
-                    cursor: isConnecting ? 'not-allowed' : 'pointer',
-                }}
             >
                 {localIcon}
             </button>
 
             <button
-                className={`${styles.iconBtn} ${storage.isSaving && cloudConnected ? styles.saving : ''}`}
+                className={cloudClassName}
                 onClick={handleCloudClick}
-                disabled={isConnecting || !configured}
+                disabled={isConnecting || !configured || isSavingCloud}
                 title={cloudTitle}
-                style={{
-                    borderColor: cloudConnected ? 'var(--color-primary)' : undefined,
-                    background: cloudConnected ? 'rgba(59, 130, 246, 0.05)' : undefined,
-                    opacity: !configured ? 0.5 : 1,
-                    cursor: !configured ? 'not-allowed' : 'pointer',
-                }}
             >
                 {cloudIcon}
             </button>
@@ -149,18 +206,9 @@ export const StorageControls: React.FC = () => {
                     <SignInPanel
                         compact
                         onSignedIn={() => {
-                            // Keep the popover open so the user sees the "check your email" message.
+                            setShowAuthPopover(false);
                         }}
                     />
-                </div>
-            )}
-
-            {errorMessage && (
-                <div
-                    title={errorMessage}
-                    style={{ color: 'var(--color-error, #dc2626)', display: 'flex', alignItems: 'center' }}
-                >
-                    <AlertCircle size={16} />
                 </div>
             )}
         </div>

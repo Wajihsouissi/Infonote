@@ -15,9 +15,17 @@ export function NoteContentPanel({ nodeId }: NoteContentPanelProps) {
 
     return (
         <div className={styles.panel}>
-            <div className={styles.contentContainer} onMouseDownCapture={(e) => e.stopPropagation()}>
+            <div 
+                className={styles.contentContainer} 
+                onMouseDownCapture={(e) => {
+                    const target = e.target as HTMLElement;
+                    if (target.closest('[draggable="true"]')) return;
+                    e.stopPropagation();
+                }}
+            >
                 <BlockEditor
                     key={nodeId} // Reset Key on change
+                    nodeId={nodeId}
                     initialContent={(node.data as any).content}
                     onUpdate={(blocks) => updateNodeData(nodeId, { content: blocks })}
                 />

@@ -17,6 +17,7 @@
 
     box-shadow: var(--glass-shadow);
     color: var(--color-text-main);
+    position: relative; /* Anchor dot */
 }
 
 .homeButton:hover {
@@ -29,4 +30,34 @@
 
 .homeButton:active {
     transform: translateY(0);
+}
+
+.authed {
+    border-color: var(--color-primary);
+    background: rgba(139, 92, 246, 0.08);
+}
+
+.iconWrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-main);
+    transition: all var(--transition-fast);
+}
+
+.homeButton:hover .iconWrapper {
+    color: var(--color-primary);
+    transform: scale(1.05);
+}
+
+.dot {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    border: 2px solid var(--color-bg-base);
+    box-shadow: 0 0 0 1px var(--glass-border);
 }

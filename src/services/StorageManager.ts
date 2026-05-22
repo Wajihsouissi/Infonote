@@ -8,6 +8,7 @@
 import { fileSystemBackend } from './storage/FileSystemBackend';
 import type { GraphBackend, BackendKind } from './storage/types';
 import { shallow } from 'zustand/shallow';
+import { useStore } from '../store/useStore';
 
 let isInitialized = false;
 let saveTimeout: number | null = null;
@@ -53,14 +54,21 @@ export function initStorageManager(
         (state: any) => ({
             nodes: state.nodes,
             edges: state.edges,
-            isConnected: state.storage.isConnected
+            isConnected: state.storage.isConnected,
+            setLocalDirty: (state as any).setLocalDirty,
+            setCloudDirty: (state as any).setCloudDirty
         }),
         (curr, prev) => {
-            if (!curr.isConnected || isRestoring) return;
             const nodesChanged = curr.nodes !== prev.nodes;
             const edgesChanged = curr.edges !== prev.edges;
 
             if (nodesChanged || edgesChanged) {
+                // Mark both states as unsynced/dirty
+                if (curr.setLocalDirty) curr.setLocalDirty(true);
+                if (curr.setCloudDirty) curr.setCloudDirty(true);
+
+                if (!curr.isConnected || isRestoring) return;
+
                 if (saveTimeout) {
                     clearTimeout(saveTimeout);
                     saveTimeout = null;
@@ -95,14 +103,23 @@ async function autoReconnect(): Promise<void> {
         activeBackend = fileSystemBackend;
 
         const data = await fileSystemBackend.load();
+        const timeStr = new Date().toLocaleTimeString();
+        const state = useStore.getState();
         if (data && data.nodes.length > 0) {
             isRestoring = true;
             storeCallbacks.loadGraph(data.nodes, data.edges);
             isRestoring = false;
+            if (state.setLocalLastSaved) state.setLocalLastSaved(timeStr);
+            if (state.setLocalDirty) state.setLocalDirty(false);
+            if (state.setLocalError) state.setLocalError(null);
         }
         storeCallbacks.setStorageStatus(true, activeBackend.displayName ?? 'Local Folder');
-    } catch {
-        // Silently fail on auto-reconnect; user can still connect manually.
+    } catch (err) {
+        console.warn('[StorageManager] Auto-reconnect failed:', err);
+        const state = useStore.getState();
+        if (state.setLocalError) state.setLocalError(
+            err instanceof Error ? err.message : 'Failed to reconnect to local storage'
+        );
     }
 }
 
@@ -112,12 +129,36 @@ async function performSave(): Promise<void> {
     try {
         const { nodes, edges } = storeCallbacks.getState();
         await activeBackend.save({ nodes, edges });
-        storeCallbacks.setLastSaved(new Date().toLocaleTimeString());
-    } catch {
+        
+        const timeStr = new Date().toLocaleTimeString();
+        storeCallbacks.setLastSaved(timeStr);
+        
+        // Update new dynamic states
+        const state = useStore.getState();
+        if (state.setLocalLastSaved) state.setLocalLastSaved(timeStr);
+        if (state.setLocalDirty) state.setLocalDirty(false);
+        if (state.setLocalError) state.setLocalError(null);
+    } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        const state = useStore.getState();
+        if (state.setLocalError) state.setLocalError(errorMsg);
+
         // If the backend dropped its connection, surface that to the UI.
         if (!activeBackend.isConnected) {
             storeCallbacks.setStorageStatus(false, null);
         }
+    }
+}
+
+/**
+ * Flush any pending debounced save immediately.
+ * Called from the beforeunload handler to minimize data loss on tab close.
+ */
+export function flushPendingSave(): void {
+    if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        saveTimeout = null;
+        performSave();
     }
 }
 
@@ -163,15 +204,25 @@ export async function connectBackend(
         activeBackend = backend;
 
         const data = await backend.load();
+        const timeStr = new Date().toLocaleTimeString();
+        const state = useStore.getState();
+
         if (data && data.nodes.length > 0) {
             isRestoring = true;
             ctx.loadGraph(data.nodes, data.edges);
             isRestoring = false;
+            if (state.setLocalLastSaved) state.setLocalLastSaved(timeStr);
+            if (state.setLocalDirty) state.setLocalDirty(false);
+            if (state.setLocalError) state.setLocalError(null);
         } else {
+            // Folder is empty — start fresh by clearing the canvas
             const currentState = ctx.getState();
             if (currentState.nodes.length > 0) {
-                await backend.save({ nodes: currentState.nodes, edges: currentState.edges });
+                ctx.loadGraph([], []);
             }
+            if (state.setLocalLastSaved) state.setLocalLastSaved(null);
+            if (state.setLocalDirty) state.setLocalDirty(false);
+            if (state.setLocalError) state.setLocalError(null);
         }
 
         ctx.setStorageStatus(true, backend.displayName ?? 'Local Folder');
@@ -189,6 +240,11 @@ export async function disconnectBackend(
     try { await activeBackend.disconnect(); } catch { /* ignore */ }
     activeBackend = fileSystemBackend;
     setStorageStatus(false, null);
+
+    const state = useStore.getState();
+    if (state.setLocalLastSaved) state.setLocalLastSaved(null);
+    if (state.setLocalDirty) state.setLocalDirty(false);
+    if (state.setLocalError) state.setLocalError(null);
 }
 
 export function getActiveBackendKind(): BackendKind {

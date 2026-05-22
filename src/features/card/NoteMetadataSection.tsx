@@ -1,8 +1,8 @@
-import type { LucideIcon } from 'lucide-react';
+import { CardIcon, defaultIconName } from './iconMap';
 import styles from './NoteCard.module.css';
 
 interface NoteMetadataSectionProps {
-    IconComponent: LucideIcon;
+    icon: string;
     label: string;
     description: string;
     editedLabel: string;
@@ -20,7 +20,7 @@ interface NoteMetadataSectionProps {
  * Handles inline editing of note metadata.
  */
 export function NoteMetadataSection({
-    IconComponent,
+    icon,
     label,
     description,
     editedLabel,
@@ -41,7 +41,7 @@ export function NoteMetadataSection({
     };
 
     return (
-        <div className={styles.expandedMetadata}>
+        <div className={`${styles.expandedMetadata} custom-drag-handle`}>
             {/* Header with Icon and Title */}
             <div className={styles.expandedHeader}>
                 <button
@@ -49,7 +49,7 @@ export function NoteMetadataSection({
                     onClick={onIconClick}
                     title="Change icon"
                 >
-                    <IconComponent size={32} />
+                    <CardIcon icon={icon || defaultIconName} size={32} />
                 </button>
                 <div className={styles.titleSection}>
                     <input

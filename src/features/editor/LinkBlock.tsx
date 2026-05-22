@@ -171,14 +171,12 @@ export const LinkBlock: React.FC<LinkBlockProps> = ({
         const domainName = getDomain(url);
 
         return (
-            <a 
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
+            <div 
                 className={styles.bookmarkCard}
-                onClick={() => {
-                    // Let users double click or let click through, but allow dragging and menus
-                    if (readOnly) return;
+                onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.open(url, '_blank', 'noopener,noreferrer');
                 }}
             >
                 <div className={styles.bookmarkInfo}>
@@ -210,7 +208,7 @@ export const LinkBlock: React.FC<LinkBlockProps> = ({
                         />
                     </div>
                 )}
-            </a>
+            </div>
         );
     };
 
@@ -294,12 +292,9 @@ export const LinkBlock: React.FC<LinkBlockProps> = ({
                     </div>
                 ) : (
                     <span className={styles.textLinkWrapper} onClick={(e) => {
-                        if (e.ctrlKey) {
-                            handleOpen(e);
-                        } else {
-                            setIsEditingLabel(true);
-                        }
-                    }} title="Click to edit label, Ctrl+Click to open link">
+                        e.stopPropagation();
+                        handleOpen(e);
+                    }} title="Open link">
                         {metadata.favicon && (
                             <img 
                                 src={metadata.favicon} 
@@ -311,7 +306,7 @@ export const LinkBlock: React.FC<LinkBlockProps> = ({
                             />
                         )}
                         <span>{displayText}</span>
-                        <ExternalLink size={10} style={{ opacity: 0.6 }} onClick={handleOpen} />
+                        <ExternalLink size={10} style={{ opacity: 0.6 }} />
                     </span>
                 )}
             </div>

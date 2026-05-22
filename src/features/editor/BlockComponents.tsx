@@ -133,6 +133,7 @@ export const TextBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             data-placeholder={minimal ? "Text..." : "Type '/' for commands"}
+            data-is-empty={!block.content || block.content.trim() === '' ? 'true' : 'false'}
             {...handlers}
         />
     );
@@ -168,6 +169,7 @@ export const HeadingBlock = memo(({ block, level, readOnly, onChange, onKeyDown,
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             data-placeholder={`Heading ${level}...`}
+            data-is-empty={!block.content || block.content.trim() === '' ? 'true' : 'false'}
             {...handlers}
         />
     );
@@ -208,6 +210,7 @@ export const TodoBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
                 data-placeholder="To-do item"
+                data-is-empty={!block.content || block.content.trim() === '' ? 'true' : 'false'}
                 {...handlers}
             />
         </div>
@@ -247,6 +250,7 @@ export const QuoteBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste,
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
                 data-placeholder="Empty quote"
+                data-is-empty={!block.content || block.content.trim() === '' ? 'true' : 'false'}
                 {...handlers}
             />
         </div>
@@ -326,12 +330,22 @@ export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
         );
     }
 
+    const toggleHeaderLevel = block.type === 'toggle' ? block.metadata?.toggleHeaderLevel : undefined;
+    // When the toggle has an original heading level, preserve heading typography
+    const contentClassName = toggleHeaderLevel
+        ? `${styles.block} ${styles[`heading${toggleHeaderLevel}`]} ${styles.toggleHeaderContent}`
+        : `${styles.block} ${styles.text}`;
+
+    const placeholder = toggleHeaderLevel
+        ? `Heading ${toggleHeaderLevel}...`
+        : (block.type === 'toggle' ? "Toggle list item" : "List item");
+
     if (readOnly) {
         return (
             <div className={wrapperClass}>
                 {prefix}
                 <div
-                    className={`${styles.block} ${styles.text}`}
+                    className={contentClassName}
                     style={{
                         color: block.metadata?.textColor,
                         backgroundColor: block.metadata?.backgroundColor
@@ -347,7 +361,7 @@ export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
             {prefix}
             <div
                 ref={ref}
-                className={`${styles.block} ${styles.text}`}
+                className={contentClassName}
                 style={{
                     color: block.metadata?.textColor,
                     backgroundColor: block.metadata?.backgroundColor
@@ -357,7 +371,8 @@ export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
                 onInput={(e) => onChange(e.currentTarget.innerText)}
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
-                data-placeholder={block.type === 'toggle' ? "Toggle list item" : "List item"}
+                data-placeholder={placeholder}
+                data-is-empty={!block.content || block.content.trim() === '' ? 'true' : 'false'}
                 {...handlers}
             />
         </div>
@@ -429,6 +444,7 @@ export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPast
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
                 data-placeholder="Callout text..."
+                data-is-empty={!block.content || block.content.trim() === '' ? 'true' : 'false'}
                 {...handlers}
             />
         </div>
@@ -452,6 +468,7 @@ export const CodeBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
                 onPaste={onPaste}
                 spellCheck={false}
                 data-placeholder="Code snippet..."
+                data-is-empty={!block.content || block.content.trim() === '' ? 'true' : 'false'}
                 {...handlers}
             />
         </div>

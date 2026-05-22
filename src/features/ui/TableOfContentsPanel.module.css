@@ -1,10 +1,26 @@
 /* Shifting Grain/Noise Animation */
 @keyframes grainShift {
-    0%, 100% { transform: translate(0, 0); }
-    20% { transform: translate(-2px, 2px); }
-    40% { transform: translate(2px, -2px); }
-    60% { transform: translate(-1px, -2px); }
-    80% { transform: translate(1px, 1px); }
+
+    0%,
+    100% {
+        transform: translate(0, 0);
+    }
+
+    20% {
+        transform: translate(-2px, 2px);
+    }
+
+    40% {
+        transform: translate(2px, -2px);
+    }
+
+    60% {
+        transform: translate(-1px, -2px);
+    }
+
+    80% {
+        transform: translate(1px, 1px);
+    }
 }
 
 .panel {
@@ -44,7 +60,7 @@
     position: absolute;
     inset: 0;
     background: radial-gradient(ellipse 160% 40% at 50% 0%, rgba(139, 92, 246, 0.12) 0%, transparent 65%),
-                radial-gradient(ellipse 120% 30% at 50% 100%, rgba(6, 182, 212, 0.06) 0%, transparent 65%);
+        radial-gradient(ellipse 120% 30% at 50% 100%, rgba(6, 182, 212, 0.06) 0%, transparent 65%);
     pointer-events: none;
     z-index: 1;
 }
@@ -62,7 +78,7 @@
     animation: grainShift 0.12s steps(1) infinite;
 }
 
-.panel > * {
+.panel>* {
     position: relative;
     z-index: 2;
 }
@@ -174,7 +190,8 @@
 .itemRow:hover {
     background: var(--glass-bg-hover);
     color: var(--color-text-main);
-    padding-left: 10px; /* Micro-scale shift hover */
+    padding-left: 10px;
+    /* Micro-scale shift hover */
 }
 
 /* Depth Guide Lines - notion-style hierarchy lines */
@@ -192,12 +209,29 @@
 }
 
 /* Indent Spacing classes */
-.indent-0 { padding-left: 8px; }
-.indent-1 { padding-left: 24px; }
-.indent-2 { padding-left: 40px; }
-.indent-3 { padding-left: 56px; }
-.indent-4 { padding-left: 72px; }
-.indent-5 { padding-left: 88px; }
+.indent-0 {
+    padding-left: 8px;
+}
+
+.indent-1 {
+    padding-left: 24px;
+}
+
+.indent-2 {
+    padding-left: 40px;
+}
+
+.indent-3 {
+    padding-left: 56px;
+}
+
+.indent-4 {
+    padding-left: 72px;
+}
+
+.indent-5 {
+    padding-left: 88px;
+}
 
 /* Active Section Accent Styling */
 .itemActive {
@@ -354,14 +388,17 @@
     display: flex;
     align-items: center;
     gap: 3px;
-    margin-left: auto; /* Push to the absolute right of the row */
-    opacity: 0; /* Hidden by default */
+    margin-left: auto;
+    /* Push to the absolute right of the row */
+    opacity: 0;
+    /* Hidden by default */
     transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     pointer-events: auto;
 }
 
 .itemRow:hover .rowControls {
-    opacity: 1; /* Visible on row hover */
+    opacity: 1;
+    /* Visible on row hover */
 }
 
 .rearrangeBtn,
@@ -468,7 +505,8 @@
 }
 
 .sliderRight {
-    transform: translateX(24px); /* Moves exactly by button width (22px) + gap/padding (2px) */
+    transform: translateX(24px);
+    /* Moves exactly by button width (22px) + gap/padding (2px) */
 }
 
 /* Individual options */
@@ -479,7 +517,7 @@
     border: none;
     color: var(--color-text-muted);
     cursor: pointer;
-    width: 22px;
+    width: 23px;
     height: 22px;
     border-radius: 6px;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);

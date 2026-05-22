@@ -1,10 +1,12 @@
 .iconBtn {
-    background: transparent;
-    border: none;
-    border-radius: 8px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
 
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
 
     display: flex;
     align-items: center;
@@ -13,42 +15,81 @@
     cursor: pointer;
     transition: all var(--transition-fast);
     color: var(--color-text-main);
+    box-shadow: var(--glass-shadow);
 }
 
 .iconBtn:hover {
     background: var(--glass-bg-hover);
     color: var(--color-primary);
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
 }
 
 .iconBtn:active {
     transform: translateY(0);
 }
 
+/* 1. Never Saved */
+.neverSaved {
+    border-color: var(--glass-border);
+    opacity: 0.75;
+}
+.neverSaved svg {
+    color: var(--color-text-muted, rgba(255, 255, 255, 0.45));
+}
+
+/* 2. Not Synced (Dirty changes exist) */
+.notSynced {
+    border-color: var(--color-warning, #f59e0b) !important;
+    background: rgba(245, 158, 11, 0.06) !important;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.15) !important;
+    animation: warningPulse 2.4s infinite ease-in-out;
+}
+.notSynced svg {
+    color: var(--color-warning, #f59e0b) !important;
+}
+
+@keyframes warningPulse {
+    0%, 100% { border-color: rgba(245, 158, 11, 0.4); box-shadow: 0 0 8px rgba(245, 158, 11, 0.1); }
+    50% { border-color: rgba(245, 158, 11, 0.85); box-shadow: 0 0 16px rgba(245, 158, 11, 0.3); }
+}
+
+/* 3. Synced successfully (Clean) */
+.synced {
+    border-color: #10b981 !important;
+    background: rgba(16, 185, 129, 0.06) !important;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.1) !important;
+}
+.synced svg {
+    color: #10b981 !important;
+}
+
+/* 4. Saving Problem (Error) */
+.error {
+    border-color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.08) !important;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.25) !important;
+    animation: errorPulse 1.8s infinite ease-in-out;
+}
+.error svg {
+    color: #ef4444 !important;
+}
+
+@keyframes errorPulse {
+    0%, 100% { border-color: rgba(239, 68, 68, 0.45); }
+    50% { border-color: rgba(239, 68, 68, 0.95); }
+}
+
 .saving {
-    animation: pulse 2s infinite ease-in-out;
-    background: rgba(139, 92, 246, 0.15) !important;
+    animation: pulse 1.6s infinite ease-in-out;
+    background: rgba(139, 92, 246, 0.12) !important;
+    border-color: var(--color-primary) !important;
+}
+.saving svg {
     color: var(--color-primary) !important;
 }
 
-.error {
-    background: rgba(220, 38, 38, 0.1) !important;
-    color: var(--color-error, #dc2626) !important;
-}
-
 @keyframes pulse {
-    0% {
-        transform: scale(1);
-        opacity: 0.8;
-    }
-
-    50% {
-        transform: scale(1.05);
-        opacity: 1;
-    }
-
-    100% {
-        transform: scale(1);
-        opacity: 0.8;
-    }
+    0%, 100% { transform: scale(1); opacity: 0.9; }
+    50% { transform: scale(1.04); opacity: 1; }
 }

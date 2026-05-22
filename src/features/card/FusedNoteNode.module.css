@@ -254,6 +254,7 @@
     background: var(--color-primary) !important;
     border: 2px solid var(--bg-dark) !important;
     transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+    pointer-events: none;
     /* Position at top-right */
     left: auto !important;
     right: -6px !important;
@@ -262,9 +263,9 @@
     z-index: 50;
 }
 
-.fusedNoteNode:hover .handle,
-.fusedNoteNode.selected .handle {
+.fusedNoteNode:hover .handle {
     opacity: 1;
+    pointer-events: auto;
 }
 
 .handle:hover {
@@ -286,7 +287,7 @@
     justify-content: center;
     opacity: 0;
     transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: ns-resize !important;
+    cursor: nwse-resize !important;
     z-index: 30;
     pointer-events: auto;
     transform: rotate(180deg);
@@ -308,7 +309,8 @@
     transition: background-color 0.3s ease, transform 0.3s ease;
 }
 
-.fusedNoteNode:hover .modernResizeHandle {
+.fusedNoteNode:hover .modernResizeHandle,
+.fusedNoteNode.selected .modernResizeHandle {
     opacity: 1;
 }
 

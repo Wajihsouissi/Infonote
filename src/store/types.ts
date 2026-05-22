@@ -21,16 +21,23 @@ export interface NodeSlice {
     addNode: (type: 'note' | 'block' | 'fused-note' | 'kanban', position: { x: number; y: number }, initialData?: any, style?: React.CSSProperties, parentId?: string, customId?: string) => void;
     updateNodeData: (id: string, data: any) => void;
     updateNode: (id: string, updates: Partial<AppNode>) => void;
-    splitNode: (nodeId: string, splitBlockId: string, currentBlocks?: any[]) => void;
+    splitNode: (nodeId: string, splitBlockId: string, currentBlocks?: any[], skipConfirm?: boolean) => void;
+    releaseNodeContentToBlocks: (nodeId: string, centerPosition?: { x: number; y: number }, skipConfirm?: boolean) => void;
     extractPageFromBlock: (block: any, position: { x: number; y: number }, sourceNodeId?: string) => void;
     createPageFromText: (text: string, position?: { x: number; y: number }) => string;
     savePageContent: (parentId: string, content: any[], transientNodeIds: string[]) => void;
     syncParentContent: (parentId: string) => void;
-    bulkDeleteNodes: (nodeIds: string[]) => void;
+    bulkDeleteNodes: (nodeIds: string[], skipConfirm?: boolean) => void;
     bulkDuplicateNodes: (nodeIds: string[]) => void;
     bulkApplyColor: (nodeIds: string[], color: string) => void;
-    fuseNodes: (nodeIds: string[]) => void;
+    fuseNodes: (nodeIds: string[], skipConfirm?: boolean) => void;
     hydrateCanvasFromContent: (nodeId: string) => void;
+    linkSelectedNodes: (mainNodeId: string, targetNodeIds: string[]) => void;
+    updateEdge: (id: string, updates: Partial<Edge>) => void;
+    deleteEdge: (id: string) => void;
+    duplicateEdge: (id: string) => void;
+    bringEdgeToFront: (id: string) => void;
+    arrangeNodes: (nodeIds: string[], mode: 'grid' | 'circle' | 'flow' | 'horizontal-row' | 'vertical-column') => void;
 }
 
 export interface NavigationSlice {
@@ -55,11 +62,34 @@ export interface StorageSlice {
         directoryName: string | null;
         lastSaved: string | null;
         isSaving: boolean;
+        
+        // Dynamic Save States:
+        localLastSaved: string | null;
+        cloudLastSaved: string | null;
+        isLocalDirty: boolean;
+        isCloudDirty: boolean;
+        localError: string | null;
+        cloudError: string | null;
+
+        // Backup — saved before loadGraph overwrites current state
+        backupNodes: AppNode[];
+        backupEdges: Edge[];
     };
     setStorageStatus: (isConnected: boolean, directoryName: string | null) => void;
     setLastSaved: (date: string | null) => void;
     setIsSaving: (isSaving: boolean) => void;
     loadGraph: (nodes: AppNode[], edges: Edge[]) => void;
+
+    // Setters for Dynamic States:
+    setLocalLastSaved: (date: string | null) => void;
+    setCloudLastSaved: (date: string | null) => void;
+    setLocalDirty: (dirty: boolean) => void;
+    setCloudDirty: (dirty: boolean) => void;
+    setLocalError: (err: string | null) => void;
+    setCloudError: (err: string | null) => void;
+
+    /** Restore the snapshot taken before the last loadGraph call. */
+    restoreFromBackup: () => void;
 }
 
 export type AppView = 'landing' | 'canvas' | 'marketplace' | 'login' | 'signup' | 'admin';
@@ -93,6 +123,7 @@ export interface UISlice {
     isKanbanModalOpen: boolean;
     theme: 'light' | 'dark';
     currentView: AppView;
+    hasEnteredApp: boolean;
     interactionState: {
         draggingKanbanNodeId: string | null;
         hoveredKanbanColumn: { kanbanId: string; columnId: string } | null;
@@ -103,20 +134,33 @@ export interface UISlice {
         } | null;
     };
     editingKanbanId: string | null;
+    lastCreatedCanvasNodeId: string | null;
     selectedCanvasNodeIds: Set<string>;
     isMetadataOpen: boolean;
     isTOCOpen: boolean;
+    isShortcutsPanelOpen: boolean;
+    isLinkingMode: boolean;
     setActiveIconMenuId: (id: string | null) => void;
     setKanbanModalOpen: (isOpen: boolean) => void;
     setEditingKanbanId: (id: string | null) => void;
     setMetadataOpen: (isOpen: boolean) => void;
     setTOCOpen: (isOpen: boolean) => void;
+    setShortcutsPanelOpen: (isOpen: boolean) => void;
     setInteractionState: (state: Partial<UISlice['interactionState']>) => void;
     toggleTheme: () => void;
     setSelectedCanvasNodeIds: (ids: Set<string>) => void;
     toggleCanvasNodeSelection: (id: string) => void;
+    setIsLinkingMode: (isLinking: boolean) => void;
     clearCanvasSelection: () => void;
+    selectConnectedCanvasNodes: (nodeId: string) => void;
+    setLastCreatedCanvasNodeId: (id: string | null) => void;
     setCurrentView: (view: AppView) => void;
+    setHasEnteredApp: (val: boolean) => void;
+    selectedEdgeId: string | null;
+    setSelectedEdgeId: (id: string | null) => void;
+    selectedEdgeIds: Set<string>;
+    setSelectedEdgeIds: (ids: Set<string>) => void;
+    toggleCanvasEdgeSelection: (id: string) => void;
 }
 
 export type AppState = NodeSlice & NavigationSlice & StorageSlice & UISlice & AuthSlice;

@@ -19,8 +19,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '../../store/useStore';
 import styles from './BottomMenu.module.css';
 import { MENU_ITEMS } from '../editor/menuConstants';
+import { snapToGridValue } from '../../config/layout';
 import { parseSearchQuery } from './searchUtils';
 import { MultiSelectionToolbar } from './MultiSelectionToolbar';
+import { EdgeEditingToolbar } from './EdgeEditingToolbar';
 
 export function BottomMenu() {
     // Atomic Selectors
@@ -31,6 +33,9 @@ export function BottomMenu() {
     const currentParentId = useStore(s => s.currentParentId);
     const updateNodeData = useStore(s => s.updateNodeData);
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
+    const selectedEdgeId = useStore(s => s.selectedEdgeId);
+    const selectedEdgeIds = useStore(s => s.selectedEdgeIds);
+    const hasSelectedEdges = selectedEdgeId || (selectedEdgeIds && selectedEdgeIds.size > 0);
 
     const { screenToFlowPosition } = useReactFlow();
     const [isSearchMode, setIsSearchMode] = useState(false);
@@ -39,6 +44,7 @@ export function BottomMenu() {
     const [activeMenu, setActiveMenu] = useState<'views' | 'blocks' | null>(null);
     const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
+    const handleAddNoteRef = useRef<() => void>(() => {});
 
     // Reset highlighted index when activeMenu changes
     useEffect(() => {
@@ -165,6 +171,36 @@ export function BottomMenu() {
         };
     }, [activeMenu, highlightedIndex, screenToFlowPosition, addNode, currentParentId, nodes]);
 
+    // Global keyboard shortcuts for BottomMenu
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+
+            if (e.key === 'b' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+                e.preventDefault();
+                setActiveMenu(prev => prev === 'blocks' ? null : 'blocks');
+            } else if (e.key === 'v' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+                e.preventDefault();
+                setActiveMenu(prev => prev === 'views' ? null : 'views');
+            } else if (e.key === 'f' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                if (isSearchMode) {
+                    setIsSearchMode(false);
+                    setSearchQuery('');
+                } else {
+                    setIsSearchMode(true);
+                }
+            } else if (e.key === 'n' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                handleAddNoteRef.current();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isSearchMode]);
+
     const activeFilters = useMemo(() => parseSearchQuery(searchQuery), [searchQuery]);
 
     // Extract all unique tags from nodes
@@ -254,7 +290,7 @@ export function BottomMenu() {
         let bestY = centerY - size.height / 2;
 
         if (!doesOverlap(bestX, bestY)) {
-            return { x: bestX, y: bestY };
+            return { x: snapToGridValue(bestX), y: snapToGridValue(bestY) };
         }
 
         for (let radius = STEP; radius <= MAX_RADIUS; radius += STEP) {
@@ -267,7 +303,7 @@ export function BottomMenu() {
                 const candidateY = candidateCenterY - size.height / 2;
 
                 if (!doesOverlap(candidateX, candidateY)) {
-                    return { x: candidateX, y: candidateY };
+                    return { x: snapToGridValue(candidateX), y: snapToGridValue(candidateY) };
                 }
             }
         }
@@ -285,7 +321,7 @@ export function BottomMenu() {
             const candidateY = candidateCenterY - size.height / 2;
 
             if (!doesOverlap(candidateX, candidateY)) {
-                return { x: candidateX, y: candidateY };
+                return { x: snapToGridValue(candidateX), y: snapToGridValue(candidateY) };
             }
         }
 
@@ -296,8 +332,8 @@ export function BottomMenu() {
         const fallbackCenterY = centerY + radius * Math.sin(angle);
 
         return {
-            x: fallbackCenterX - size.width / 2,
-            y: fallbackCenterY - size.height / 2,
+            x: snapToGridValue(fallbackCenterX - size.width / 2),
+            y: snapToGridValue(fallbackCenterY - size.height / 2),
         };
     };
 
@@ -316,6 +352,7 @@ export function BottomMenu() {
 
         addNode('note', position, { viewMode: 'expanded' }, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, currentParentId || undefined);
     };
+    handleAddNoteRef.current = handleAddNote;
 
     const handleDragStart = (e: React.DragEvent, type: string, metadata?: any) => {
         e.dataTransfer.setData('application/reactflow-block-type', type);
@@ -383,6 +420,8 @@ export function BottomMenu() {
             <div ref={menuRef} className={styles.bottomMenu}>
                 {selectedCanvasNodeIds.size > 0 ? (
                     <MultiSelectionToolbar />
+                ) : hasSelectedEdges ? (
+                    <EdgeEditingToolbar />
                 ) : isSearchMode ? (
                     <div className={styles.searchContainer}>
                         <SearchResults
@@ -396,7 +435,7 @@ export function BottomMenu() {
                         <input
                             type="text"
                             className={styles.searchInput}
-                            placeholder="Search... "
+                            placeholder="Search notes, blocks... (#tag status:todo)"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             autoFocus

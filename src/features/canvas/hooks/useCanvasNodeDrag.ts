@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useReactFlow } from '@xyflow/react';
 import type { AppNode } from '../../../types';
+import { snapToGridValue } from '../../../config/layout';
 
 interface UseCanvasNodeDragOptions {
     nodes: AppNode[];
@@ -264,8 +265,8 @@ export function useCanvasNodeDrag({
             if (parentNode) {
                 // Preserve raw decimal coordinates; child relative -> absolute
                 const absPos = {
-                    x: node.positionAbsolute?.x ?? (parentNode.position.x + node.position.x),
-                    y: node.positionAbsolute?.y ?? (parentNode.position.y + node.position.y)
+                    x: snapToGridValue(node.positionAbsolute?.x ?? (parentNode.position.x + node.position.x)),
+                    y: snapToGridValue(node.positionAbsolute?.y ?? (parentNode.position.y + node.position.y))
                 };
 
                 setNodes(nds => nds.map(n => {

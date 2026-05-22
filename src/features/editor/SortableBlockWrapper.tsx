@@ -26,14 +26,13 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
     const [dropIndication, setDropIndication] = useState<'top' | 'bottom' | null>(null);
 
     const handleDragStart = (e: React.DragEvent) => {
+        e.stopPropagation();
         // If promoting handles, we don't want internal block dragging
         if (promoteBlockHandles) {
             e.preventDefault();
             return;
         }
         if (!block) return;
-
-        document.body.classList.add('infonote-block-dragging');
 
         // Register cleanup function for when drag ends
         // This will clear selection in the source editor
@@ -62,8 +61,13 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
             }
         }
 
-        // Optimize Drag Ghost: Delay styling so browser captures full opacity image first
+        // Optimize Drag Ghost and avoid immediate drag cancellation in Chrome/Firefox.
+        // Mutating document.body or the wrapper's styles synchronously inside onDragStart
+        // causes the browser to immediately cancel the drag. Delaying layout changes to the
+        // next tick allows the browser to successfully start the native drag gesture.
         setTimeout(() => {
+            document.body.classList.add('infonote-block-dragging');
+            (window as any).infonoteBlockDragging = true;
             if (ref.current) {
                 ref.current.classList.add(styles.dragging);
             }
@@ -74,6 +78,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         if (ref.current) ref.current.classList.remove(styles.dragging);
         setDropIndication(null);
         document.body.classList.remove('infonote-block-dragging');
+        (window as any).infonoteBlockDragging = false;
 
         // Execute both regular and multi-block cleanup
         const regularCleanup = (window as any).infonoteDragCleanup;
@@ -112,9 +117,8 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         if (!ref.current) return;
 
         const rect = ref.current.getBoundingClientRect();
-        const midY = rect.top + rect.height / 2;
-
-        const newIndication = e.clientY < midY ? 'top' : 'bottom';
+        const relY = e.clientY - rect.top;
+        const newIndication = relY < rect.height / 2 ? 'top' : 'bottom';
         if (dropIndication !== newIndication) setDropIndication(newIndication);
     };
 
@@ -144,7 +148,8 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
     };
 
     const isMedia = ['image', 'video', 'file', 'color'].includes(block?.type || '');
-    const canDragWrapper = !readOnly && isMedia && !promoteBlockHandles;
+    const isWrapperDraggable = isMedia || block?.type === 'table';
+    const canDragWrapper = !readOnly && isWrapperDraggable && !promoteBlockHandles;
 
     const dropClass = dropIndication === 'top' ? styles.dropTargetTop : (dropIndication === 'bottom' ? styles.dropTargetBottom : '');
 
@@ -152,7 +157,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         <div
             ref={ref}
             data-block-type={block?.type}
-            className={`${styles.sortableWrapper} ${isSelected ? styles.selected : ''} ${hideHandle ? styles.hideHandle : ''} ${(!canDragWrapper && !promoteBlockHandles) ? 'nodrag' : ''} ${dropClass}`}
+            className={`${styles.sortableWrapper} ${isSelected ? styles.selected : ''} ${hideHandle ? styles.hideHandle : ''} ${promoteBlockHandles ? '' : 'nodrag'} ${dropClass}`}
             style={style}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -183,4 +188,3 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         </div>
     );
 });
-

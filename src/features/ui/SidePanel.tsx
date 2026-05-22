@@ -25,6 +25,7 @@ export function SidePanel({ nodeId, side, onClose }: SidePanelProps) {
                 {activeNode.type === 'note' ? (
                     <NoteExpandedContent
                         id={nodeId}
+                        nodeId={nodeId}
                         data={activeNode.data as any}
                         onUpdate={updateNodeData}
                         onClose={onClose}
@@ -33,6 +34,7 @@ export function SidePanel({ nodeId, side, onClose }: SidePanelProps) {
                     <div className={styles.content}>
                         <BlockEditor
                             key={nodeId}
+                            nodeId={nodeId}
                             initialContent={(activeNode.data as any).content}
                             onUpdate={(blocks) => updateNodeData(nodeId, { content: blocks })}
                             autoFocus={true}

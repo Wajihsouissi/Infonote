@@ -26,9 +26,7 @@
 .minimal .heading1,
 .minimal .heading2,
 .minimal .heading3 {
-    margin-top: 0;
-    margin-bottom: 0;
-    line-height: 1.1;
+    line-height: 1.15;
 }
 
 .minimal .text,
@@ -42,15 +40,15 @@
 .sortableWrapper {
     position: relative;
     display: flex;
-    align-items: center;
-    /* Vertically center content and handle */
-    justify-content: center;
-    /* Horizontally center content inside the wrapper? No, that would center the text block in the wrapper width. Let's try centering the WRAPPER content which is handle + block. */
-    /* Wait, justify-content: center will push the handle and block to the middle of the div. */
+    align-items: flex-start;
     gap: 6px;
-    /* Space between handle and content */
     cursor: pointer;
-    /* Hand cursor on background/wrapper */
+}
+
+.sortableWrapper:has(.heading1),
+.sortableWrapper:has(.heading2),
+.sortableWrapper:has(.heading3) {
+    align-items: center;
 }
 
 .dragHandle {
@@ -73,6 +71,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
+
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 /* Force visible and scale to 1 on hover of wrapper */
@@ -145,28 +146,28 @@
     /* Removed background for cleaner look */
 }
 
-.block:empty:before {
+.block[data-is-empty="true"]:before {
     content: attr(data-placeholder);
     color: var(--color-text-muted);
-    opacity: 0;
+    opacity: 0.35;
     pointer-events: none;
     display: block;
     transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Smart Placeholder: Keep all empty placeholders completely hidden by default */
-.block:empty:not(:focus):before {
+/* Smart Placeholder: Hide empty placeholders when not focused to keep layout clean */
+.block[data-is-empty="true"]:not(:focus):before {
     opacity: 0 !important;
 }
 
 /* Standalone blocks on the canvas (inside minimal editors) should always show their empty placeholder, even when unfocused! */
-.minimal .block:empty:not(:focus):before {
+.minimal .block[data-is-empty="true"]:not(:focus):before {
     opacity: 0.35 !important;
 }
 
-/* Always show placeholder only when the block is actively focused */
-.block:empty:focus:before {
-    opacity: 0.35 !important;
+/* Always show placeholder more prominently when the block is actively focused */
+.block[data-is-empty="true"]:focus:before {
+    opacity: 0.5 !important;
 }
 
 .text {
@@ -183,8 +184,9 @@
 .heading1 {
     font-size: 1.85rem;
     font-weight: 700;
-    margin-top: 1.1rem;
-    margin-bottom: 0.3rem;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding: 1px 0;
     color: var(--color-text-main);
     letter-spacing: -0.02em;
     line-height: 1.3;
@@ -193,8 +195,9 @@
 .heading2 {
     font-size: 1.45rem;
     font-weight: 600;
-    margin-top: 0.9rem;
-    margin-bottom: 0.2rem;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding: 1px 0;
     color: var(--color-text-main);
     line-height: 1.3;
 }
@@ -202,8 +205,9 @@
 .heading3 {
     font-size: 1.2rem;
     font-weight: 600;
-    margin-top: 0.7rem;
-    margin-bottom: 0.15rem;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding: 1px 0;
     color: var(--color-text-main);
     line-height: 1.3;
 }
@@ -228,8 +232,8 @@
 
 .quoteWrapper {
     border-left: 3px solid var(--color-primary);
-    padding: 4px 0 4px 16px;
-    margin: 12px 0;
+    padding: 2px 0 2px 16px;
+    margin: 0;
     font-style: italic;
     color: var(--color-text-muted);
     background: rgba(255, 255, 255, 0.03);
@@ -318,19 +322,19 @@
     font-family: 'Fira Code', 'Consolas', 'Monaco', 'Andale Mono', monospace;
     font-size: 0.85rem;
     line-height: 1.5;
-    background: #1e1e1e;
+    background: #1e1e1e8b;
     /* VS Code dark default or similar */
-    color: #9670ff;
-    padding: 8px 12px;
+    color: #e63e2c;
+    padding: 4px 12px;
     border-radius: 8px;
     white-space: pre;
     /* Use pre to respect indentation */
     overflow-x: auto;
     /* Horizontal scroll */
     outline: none;
-    min-height: 48px;
+    min-height: 28px;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.);
 }
 
 /* Lists */
@@ -434,8 +438,8 @@
     margin: 8px 0;
     border-radius: 10px;
     overflow: hidden;
-    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
-    background: var(--color-bg-card, rgba(255, 255, 255, 0.03));
+    border: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.1)));
+    background: var(--table-bg, var(--note-area-bg, var(--color-bg-card, rgba(255, 255, 255, 0.03))));
 }
 
 .table {
@@ -445,19 +449,19 @@
 }
 
 .tableHeader {
-    background: rgba(255, 255, 255, 0.06);
-    border-bottom: 2px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+    background: var(--table-header-bg, rgba(255, 255, 255, 0.06));
+    border-bottom: 2px solid var(--table-border-strong, var(--glass-border, rgba(255, 255, 255, 0.12)));
     padding: 0;
 }
 
 .tableData {
-    border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.06));
+    border-bottom: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.06)));
     padding: 0;
 }
 
 .tableData:not(:last-child),
 .tableHeader:not(:last-child) {
-    border-right: 1px solid var(--glass-border, rgba(255, 255, 255, 0.06));
+    border-right: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.06)));
 }
 
 .table tr:last-child .tableData {
@@ -465,7 +469,7 @@
 }
 
 .table tr:hover .tableData {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--table-row-hover-bg, rgba(255, 255, 255, 0.03));
 }
 
 .tableCell {
@@ -481,8 +485,8 @@
 }
 
 .tableCell:focus {
-    background: rgba(255, 255, 255, 0.05);
-    box-shadow: inset 0 0 0 2px var(--color-primary, rgba(139, 92, 246, 0.3));
+    background: var(--table-cell-focus-bg, rgba(255, 255, 255, 0.05));
+    box-shadow: inset 0 0 0 2px var(--table-focus-ring, var(--color-primary, rgba(139, 92, 246, 0.3)));
 }
 
 .tableHeader .tableCell {
@@ -533,14 +537,14 @@
 
 .tableHeaderActionCell {
     width: 36px;
-    background: rgba(255, 255, 255, 0.06);
-    border-bottom: 2px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+    background: var(--table-header-bg, rgba(255, 255, 255, 0.06));
+    border-bottom: 2px solid var(--table-border-strong, var(--glass-border, rgba(255, 255, 255, 0.12)));
 }
 
 .tableActionCell {
     width: 36px;
     text-align: center;
-    border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.06));
+    border-bottom: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.06)));
     vertical-align: middle;
 }
 
@@ -573,8 +577,8 @@
     display: flex;
     gap: 4px;
     padding: 4px 8px;
-    background: rgba(255, 255, 255, 0.03);
-    border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.06));
+    background: var(--table-controls-bg, rgba(255, 255, 255, 0.03));
+    border-top: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.06)));
     opacity: 0;
     transition: opacity 0.2s ease;
 }
@@ -589,16 +593,16 @@
     font-weight: 500;
     color: var(--color-text-muted);
     background: transparent;
-    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+    border: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.08)));
     border-radius: 6px;
     cursor: pointer;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .tableControlBtn:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--table-btn-hover-bg, rgba(255, 255, 255, 0.08));
     color: var(--color-text-main);
-    border-color: var(--color-primary, rgba(139, 92, 246, 0.4));
+    border-color: var(--table-focus-ring, var(--color-primary, rgba(139, 92, 246, 0.4)));
 }
 
 /* Divider */
@@ -613,7 +617,7 @@
 .slashMenu {
     position: fixed;
     /* Must be fixed to float over everything */
-    background: var(--glass-bg);
+    background: var(--slash-bg, var(--glass-bg));
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--glass-border);
@@ -633,12 +637,13 @@
 .slashMenuItemsList {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     gap: 2px;
     padding-right: 2px;
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    scrollbar-color: var(--slash-scrollbar, rgba(255, 255, 255, 0.1)) transparent;
 }
 
 /* Persistent Search Bar in Slash Menu */
@@ -662,7 +667,7 @@
 .slashMenuInput {
     width: 100%;
     padding: 6px 10px 6px 26px;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--slash-input-bg, rgba(255, 255, 255, 0.03));
     border: 1px solid var(--glass-border);
     border-radius: 8px;
     outline: none;
@@ -673,9 +678,9 @@
 }
 
 .slashMenuInput:focus {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.15);
+    background: var(--slash-input-bg-focus, rgba(255, 255, 255, 0.05));
+    border-color: var(--selected-accent, var(--color-primary));
+    box-shadow: var(--slash-focus-shadow, 0 0 0 2px rgba(139, 92, 246, 0.15));
 }
 
 .slashMenuEmpty {
@@ -710,13 +715,13 @@
 }
 
 .slashMenuItem:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--slash-item-hover-bg, rgba(255, 255, 255, 0.04));
     transform: translateX(2px);
 }
 
 .slashMenuItem.selected {
-    background: rgba(139, 92, 246, 0.12); /* Beautiful tinted light purple */
-    border-left-color: var(--color-primary);
+    background: var(--selected-bg, rgba(139, 92, 246, 0.12)); /* Beautiful tinted light purple */
+    border-left-color: var(--selected-accent, var(--color-primary));
     color: var(--color-text-main);
     transform: translateX(4px);
 }
@@ -728,22 +733,22 @@
     width: 24px;
     height: 24px;
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: var(--slash-icon-bg, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--slash-icon-border, rgba(255, 255, 255, 0.05));
     color: var(--color-text-muted);
     transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .slashMenuItem:hover .slashIcon {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--slash-icon-hover-bg, rgba(255, 255, 255, 0.08));
     color: var(--color-text-main);
-    border-color: rgba(255, 255, 255, 0.1);
+    border-color: var(--slash-icon-hover-border, rgba(255, 255, 255, 0.1));
 }
 
 .slashMenuItem.selected .slashIcon {
-    background: rgba(139, 92, 246, 0.2);
-    color: var(--color-primary);
-    border-color: rgba(139, 92, 246, 0.35);
+    background: var(--selected-icon-bg, rgba(139, 92, 246, 0.2));
+    color: var(--selected-accent, var(--color-primary));
+    border-color: var(--selected-icon-border, rgba(139, 92, 246, 0.35));
 }
 
 .dangerItem {
@@ -1029,14 +1034,11 @@
 [data-external-drop-target="top"]::before {
     content: '';
     position: absolute;
-    top: -4px;
+    top: -2px;
     left: 0;
     right: 0;
-    height: 1px;
+    height: 4px;
     background: var(--color-primary);
-    border-radius: 2px;
-    box-shadow: 0 0 4px var(--color-primary), 0 0 10px var(--color-primary-glow);
-    animation: pulse 1.5s infinite;
     z-index: 100;
     pointer-events: none;
 }
@@ -1050,30 +1052,13 @@
 [data-external-drop-target="bottom"]::after {
     content: '';
     position: absolute;
-    bottom: -4px;
+    bottom: -2px;
     left: 0;
     right: 0;
-    height: 1px;
+    height: 4px;
     background: var(--color-primary);
-    border-radius: 2px;
-    box-shadow: 0 0 4px var(--color-primary), 0 0 10px var(--color-primary-glow);
-    animation: pulse 1.5s infinite;
     z-index: 100;
     pointer-events: none;
-}
-
-@keyframes pulse {
-    0% {
-        opacity: 0.6;
-    }
-
-    50% {
-        opacity: 1;
-    }
-
-    100% {
-        opacity: 0.6;
-    }
 }
 
 /* Resizable Media Wrappers */
@@ -1492,6 +1477,13 @@
     gap: 6px;
     width: 100%;
     margin-top: 6px;
+}
+
+/* When a toggle preserves heading typography (toggle header), override heading margins
+   to keep the triangle aligned with the text */
+.toggleHeaderContent {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
 }
 
 /* Expand drop hit-test zone during dragging with zero layout shift */

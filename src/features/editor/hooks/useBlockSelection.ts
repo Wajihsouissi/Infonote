@@ -83,6 +83,9 @@ export function useBlockSelection({ editorRef, blocks, blocksRef, blockRefs }: S
         if (!dragSelection && !mouseDownBlock) return;
 
         const handleGlobalMouseMove = (e: MouseEvent) => {
+            if (document.body.classList.contains('infonote-block-dragging') || (window as any).infonoteBlockDragging) {
+                return;
+            }
             if (!editorRef.current) return;
             const editorRect = editorRef.current.getBoundingClientRect();
 
@@ -148,6 +151,13 @@ export function useBlockSelection({ editorRef, blocks, blocksRef, blockRefs }: S
         };
 
         const handleGlobalMouseUp = (e: MouseEvent) => {
+            if (document.body.classList.contains('infonote-block-dragging') || (window as any).infonoteBlockDragging) {
+                setDragSelection(null);
+                setMouseDownBlock(null);
+                setTimeout(() => { wasDraggingRef.current = false; }, 0);
+                return;
+            }
+
             if (!wasDraggingRef.current && mouseDownBlock) {
                 if (!e.shiftKey && !e.ctrlKey) {
                     if (mouseDownBlock.isInteractive) {
@@ -263,6 +273,15 @@ export function useBlockSelection({ editorRef, blocks, blocksRef, blockRefs }: S
         if (e.button === 0) {
             if (e.ctrlKey) {
                 // Allow event to bubble up to BlockEditor to initiate bulk selection
+                return;
+            }
+            
+            const targetEl = e.target as HTMLElement;
+            if (
+                targetEl.closest('[class*="dragHandle"]') || 
+                targetEl.closest('.custom-drag-handle') ||
+                targetEl.closest('[draggable="true"]')
+            ) {
                 return;
             }
             

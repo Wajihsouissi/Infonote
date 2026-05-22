@@ -1,20 +1,31 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Trash2, Copy, Palette, Layers, X } from 'lucide-react';
+import { useReactFlow } from '@xyflow/react';
+import {
+    Trash2, Copy, Palette, Layers, X, ArrowUpRight, ArrowRight, GitBranch,
+    Grid3x3, CircleDot, ArrowRightLeft, Columns2, Rows2,
+} from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import { Tooltip } from './Tooltip';
 import styles from './MultiSelectionToolbar.module.css';
-import { toPastelColor } from '../../utils/colorUtils';
 
 export function MultiSelectionToolbar() {
+    const { screenToFlowPosition } = useReactFlow();
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
     const clearCanvasSelection = useStore(s => s.clearCanvasSelection);
     const bulkDeleteNodes = useStore(s => s.bulkDeleteNodes);
     const bulkDuplicateNodes = useStore(s => s.bulkDuplicateNodes);
     const bulkApplyColor = useStore(s => s.bulkApplyColor);
     const fuseNodes = useStore(s => s.fuseNodes);
-    const theme = useStore(s => s.theme);
+    const releaseNodeContentToBlocks = useStore(s => s.releaseNodeContentToBlocks);
+    const selectConnectedCanvasNodes = useStore(s => s.selectConnectedCanvasNodes);
+    const isLinkingMode = useStore(s => s.isLinkingMode);
+    const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showLayoutPopover, setShowLayoutPopover] = useState(false);
     const colorPickerRef = useRef<HTMLDivElement>(null);
+    const layoutPopoverRef = useRef<HTMLDivElement>(null);
+    const arrangeNodes = useStore(s => s.arrangeNodes);
 
     const selectedCount = selectedCanvasNodeIds.size;
 
@@ -31,6 +42,20 @@ export function MultiSelectionToolbar() {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showColorPicker]);
+
+    // Close layout popover when clicking outside
+    useEffect(() => {
+        if (!showLayoutPopover) return;
+
+        const handleClickOutside = (event: MouseEvent) => {
+            if (layoutPopoverRef.current && !layoutPopoverRef.current.contains(event.target as Node)) {
+                setShowLayoutPopover(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showLayoutPopover]);
 
     // Get bulk action handlers from store
     const handleBulkDelete = useCallback(() => {
@@ -69,26 +94,70 @@ export function MultiSelectionToolbar() {
         clearCanvasSelection();
     }, [selectedCanvasNodeIds, clearCanvasSelection, fuseNodes]);
 
-    const isLightMode = theme === 'light';
+    const handleRelease = useCallback(() => {
+        const selectedId = Array.from(selectedCanvasNodeIds)[0];
+        if (!selectedId) return;
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        const flowCenter = screenToFlowPosition({ x: centerX, y: centerY });
+        releaseNodeContentToBlocks(selectedId, flowCenter);
+        clearCanvasSelection();
+    }, [selectedCanvasNodeIds, releaseNodeContentToBlocks, clearCanvasSelection, screenToFlowPosition]);
+
+    const handleSelectConnected = useCallback(() => {
+        const selectedId = Array.from(selectedCanvasNodeIds)[0];
+        if (!selectedId) return;
+        selectConnectedCanvasNodes(selectedId);
+    }, [selectedCanvasNodeIds, selectConnectedCanvasNodes]);
+
+    const handleArrange = useCallback((mode: 'grid' | 'circle' | 'flow' | 'horizontal-row' | 'vertical-column') => {
+        arrangeNodes(Array.from(selectedCanvasNodeIds), mode);
+        setShowLayoutPopover(false);
+    }, [selectedCanvasNodeIds, arrangeNodes]);
+
+    const layoutOptions: { mode: typeof handleArrange extends (mode: infer M) => void ? M : never; label: string; desc: string; icon: React.ReactNode }[] = [
+        { mode: 'grid', label: 'Grid', desc: 'Arrange in rows and columns', icon: <Grid3x3 size={18} /> },
+        { mode: 'circle', label: 'Circle', desc: 'Arrange in a circular pattern', icon: <CircleDot size={18} /> },
+        { mode: 'flow', label: 'Flow', desc: 'Left-to-right reading order', icon: <ArrowRightLeft size={18} /> },
+        { mode: 'horizontal-row', label: 'Horizontal Row', desc: 'Evenly spaced in a single row', icon: <Columns2 size={18} /> },
+        { mode: 'vertical-column', label: 'Vertical Column', desc: 'Evenly spaced in a single column', icon: <Rows2 size={18} /> },
+    ] as const;
 
     const colors = [
-        { name: 'Default', value: 'transparent', displayValue: '#1a1a1a' },
-        { name: 'Red', value: '#ef4444', displayValue: toPastelColor('#ef4444', isLightMode) },
-        { name: 'Orange', value: '#f97316', displayValue: toPastelColor('#f97316', isLightMode) },
-        { name: 'Yellow', value: '#eab308', displayValue: toPastelColor('#eab308', isLightMode) },
-        { name: 'Green', value: '#22c55e', displayValue: toPastelColor('#22c55e', isLightMode) },
-        { name: 'Blue', value: '#3b82f6', displayValue: toPastelColor('#3b82f6', isLightMode) },
-        { name: 'Purple', value: '#a855f7', displayValue: toPastelColor('#a855f7', isLightMode) },
-        { name: 'Pink', value: '#ec4899', displayValue: toPastelColor('#ec4899', isLightMode) },
-        { name: 'Gray', value: '#6b7280', displayValue: toPastelColor('#6b7280', isLightMode) },
-        { name: 'Cyan', value: '#06b6d4', displayValue: toPastelColor('#06b6d4', isLightMode) },
-        { name: 'Teal', value: '#14b8a6', displayValue: toPastelColor('#14b8a6', isLightMode) },
-        { name: 'Lime', value: '#84cc16', displayValue: toPastelColor('#84cc16', isLightMode) },
+        { name: 'Default', value: 'transparent', displayValue: 'transparent' },
+        { name: 'Red', value: '#ef4444', displayValue: '#ef4444' },
+        { name: 'Orange', value: '#f97316', displayValue: '#f97316' },
+        { name: 'Yellow', value: '#eab308', displayValue: '#eab308' },
+        { name: 'Green', value: '#22c55e', displayValue: '#22c55e' },
+        { name: 'Blue', value: '#3b82f6', displayValue: '#3b82f6' },
+        { name: 'Purple', value: '#a855f7', displayValue: '#a855f7' },
+        { name: 'Pink', value: '#ec4899', displayValue: '#ec4899' },
+        { name: 'Gray', value: '#6b7280', displayValue: '#6b7280' },
+        { name: 'Cyan', value: '#06b6d4', displayValue: '#06b6d4' },
+        { name: 'Teal', value: '#14b8a6', displayValue: '#14b8a6' },
+        { name: 'Lime', value: '#84cc16', displayValue: '#84cc16' },
     ];
 
     return (
         <div className={styles.toolbar}>
-            {showDeleteConfirm ? (
+            {isLinkingMode ? (
+                // Linking Mode UI
+                <div className={styles.confirmContainer}>
+                    <span className={styles.confirmText} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span className={styles.pulseDot} />
+                        Choose the central node to link all selected nodes
+                    </span>
+                    <div className={styles.confirmActions}>
+                        <button
+                            className={styles.actionBtn}
+                            onClick={() => setIsLinkingMode(false)}
+                        >
+                            <X size={16} />
+                            <span>Cancel</span>
+                        </button>
+                    </div>
+                </div>
+            ) : showDeleteConfirm ? (
                 // Delete Confirmation UI
                 <div className={styles.confirmContainer}>
                     <span className={styles.confirmText}>
@@ -120,24 +189,24 @@ export function MultiSelectionToolbar() {
                     </div>
 
                     <div className={styles.actions}>
-                        <button
-                            className={styles.actionBtn}
-                            onClick={handleBulkDuplicate}
-                            title="Duplicate selected items"
-                        >
-                            <Copy size={16} />
-                            <span>Duplicate</span>
-                        </button>
-
-                        <div className={styles.colorPickerTrigger} ref={colorPickerRef}>
+                        <Tooltip label="Duplicate" desc="Duplicate selected items">
                             <button
                                 className={styles.actionBtn}
-                                onClick={() => setShowColorPicker(!showColorPicker)}
-                                title="Apply color to selected items"
+                                onClick={handleBulkDuplicate}
                             >
-                                <Palette size={16} />
-                                <span>Color</span>
+                                <Copy size={16} />
                             </button>
+                        </Tooltip>
+
+                        <div className={styles.colorPickerTrigger} ref={colorPickerRef}>
+                            <Tooltip label="Color" desc="Apply color to selected items">
+                                <button
+                                    className={styles.actionBtn}
+                                    onClick={() => setShowColorPicker(!showColorPicker)}
+                                >
+                                    <Palette size={16} />
+                                </button>
+                            </Tooltip>
 
                             {showColorPicker && (
                                 <div className={styles.colorPopover}>
@@ -146,11 +215,15 @@ export function MultiSelectionToolbar() {
                                         {colors.map(color => (
                                             <button
                                                 key={color.value}
-                                                className={styles.colorOption}
-                                                style={{ backgroundColor: color.displayValue }}
+                                                className={`${styles.colorOption} ${color.value === 'transparent' ? styles.transparentOption : ''}`}
+                                                style={{ backgroundColor: color.value === 'transparent' ? undefined : color.displayValue }}
                                                 onClick={() => handleBulkColor(color.value)}
                                                 title={color.name}
-                                            />
+                                            >
+                                                {color.value === 'transparent' && (
+                                                    <span className={styles.transparentSlash} />
+                                                )}
+                                            </button>
                                         ))}
                                     </div>
                                 </div>
@@ -158,35 +231,98 @@ export function MultiSelectionToolbar() {
                         </div>
 
                         {selectedCount > 1 && (
-                            <button
-                                className={`${styles.actionBtn} ${styles.primary}`}
-                                onClick={handleFuseNodes}
-                                title="Fuse selected items into one container"
-                            >
-                                <Layers size={16} />
-                                <span>Fuse</span>
-                            </button>
+                            <>
+                                <Tooltip label="Fuse" desc="Fuse selected items into one container">
+                                    <button
+                                        className={`${styles.actionBtn} ${styles.primary}`}
+                                        onClick={handleFuseNodes}
+                                    >
+                                        <Layers size={16} />
+                                    </button>
+                                </Tooltip>
+
+                                <Tooltip label="Link" desc="Link selected nodes with lines from a main node">
+                                    <button
+                                        className={styles.actionBtn}
+                                        onClick={() => setIsLinkingMode(true)}
+                                    >
+                                        <ArrowUpRight size={16} />
+                                    </button>
+                                </Tooltip>
+
+                                <div className={styles.layoutTrigger} ref={layoutPopoverRef}>
+                                    <Tooltip label="Layout" desc="Arrange selected nodes">
+                                        <button
+                                            className={styles.actionBtn}
+                                            onClick={() => setShowLayoutPopover(!showLayoutPopover)}
+                                        >
+                                            <Grid3x3 size={16} />
+                                        </button>
+                                    </Tooltip>
+
+                                    {showLayoutPopover && (
+                                        <div className={styles.layoutPopover}>
+                                            <div className={styles.layoutLabel}>Arrange Layout</div>
+                                            <div className={styles.layoutGrid}>
+                                                    {layoutOptions.map(opt => (
+                                                        <Tooltip key={opt.mode} label={opt.label} desc={opt.desc}>
+                                                            <button
+                                                                className={styles.layoutOption}
+                                                                onClick={() => handleArrange(opt.mode as any)}
+                                                            >
+                                                                {opt.icon}
+                                                            </button>
+                                                        </Tooltip>
+                                                    ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
+
+                        {selectedCount === 1 && (
+                            <>
+                                <Tooltip label="Release" desc="Release node content into blocks on canvas">
+                                    <button
+                                        className={`${styles.actionBtn} ${styles.primary}`}
+                                        onClick={handleRelease}
+                                    >
+                                        <ArrowRight size={16} />
+                                    </button>
+                                </Tooltip>
+
+                                <Tooltip label="Connected" desc="Select all nodes connected to this node">
+                                    <button
+                                        className={styles.actionBtn}
+                                        onClick={handleSelectConnected}
+                                    >
+                                        <GitBranch size={16} />
+                                    </button>
+                                </Tooltip>
+                            </>
                         )}
 
                         <div className={styles.separator} />
 
-                        <button
-                            className={`${styles.actionBtn} ${styles.delete}`}
-                            onClick={handleBulkDelete}
-                            title="Delete selected items"
-                        >
-                            <Trash2 size={16} />
-                            <span>Delete</span>
-                        </button>
+                        <Tooltip label="Delete" desc="Delete selected items">
+                            <button
+                                className={`${styles.actionBtn} ${styles.delete}`}
+                                onClick={handleBulkDelete}
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </Tooltip>
                     </div>
 
-                    <button
-                        className={styles.closeBtn}
-                        onClick={clearCanvasSelection}
-                        title="Clear selection"
-                    >
-                        <X size={16} />
-                    </button>
+                    <Tooltip label="Close" desc="Clear selection">
+                        <button
+                            className={styles.closeBtn}
+                            onClick={clearCanvasSelection}
+                        >
+                            <X size={16} />
+                        </button>
+                    </Tooltip>
                 </>
             )}
         </div>

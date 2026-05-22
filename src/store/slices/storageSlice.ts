@@ -8,7 +8,19 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
         isConnected: false,
         directoryName: null,
         lastSaved: null,
-        isSaving: false
+        isSaving: false,
+        
+        // Dynamic Save States initialization:
+        localLastSaved: null,
+        cloudLastSaved: null,
+        isLocalDirty: false,
+        isCloudDirty: false,
+        localError: null,
+        cloudError: null,
+
+        // Backup — saved before loadGraph overwrites current state
+        backupNodes: [],
+        backupEdges: [],
     },
     setStorageStatus: (isConnected, directoryName) => set((state) => ({
         storage: { ...state.storage, isConnected, directoryName }
@@ -19,8 +31,30 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
     setIsSaving: (isSaving) => set((state) => ({
         storage: { ...state.storage, isSaving }
     })),
+    setLocalLastSaved: (date) => set((state) => ({
+        storage: { ...state.storage, localLastSaved: date }
+    })),
+    setCloudLastSaved: (date) => set((state) => ({
+        storage: { ...state.storage, cloudLastSaved: date }
+    })),
+    setLocalDirty: (dirty) => set((state) => ({
+        storage: { ...state.storage, isLocalDirty: dirty }
+    })),
+    setCloudDirty: (dirty) => set((state) => ({
+        storage: { ...state.storage, isCloudDirty: dirty }
+    })),
+    setLocalError: (err) => set((state) => ({
+        storage: { ...state.storage, localError: err }
+    })),
+    setCloudError: (err) => set((state) => ({
+        storage: { ...state.storage, cloudError: err }
+    })),
     loadGraph: (nodes, edges) => {
         console.log('loadGraph called with:', { nodesCount: nodes.length, edgesCount: edges.length });
+
+        // Snapshot current state before overwriting (for data-loss recovery)
+        const prevNodes = get().nodes;
+        const prevEdges = get().edges;
 
         // Validate and sanitize nodes
         const validNodes = nodes.map(node => {
@@ -79,12 +113,37 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
 
         console.log(`Validated: ${validNodes.length}/${nodes.length} nodes, ${validEdges.length}/${edges.length} edges`);
 
-        set({
+        set((state) => ({
             nodes: validNodes,
             edges: validEdges,
-        });
+            storage: {
+                ...state.storage,
+                backupNodes: prevNodes,
+                backupEdges: prevEdges,
+            },
+        }));
 
         // Reconstruct breadcrumbs if we restored a parent ID from localStorage
         get().reconstructBreadcrumbs();
+    },
+
+    restoreFromBackup: () => {
+        const { storage } = get();
+        if (!storage.backupNodes || storage.backupNodes.length === 0) return;
+
+        const confirmed = window.confirm(
+            'Restore the previous canvas state from backup? This replaces the current canvas.'
+        );
+        if (!confirmed) return;
+
+        set((state) => ({
+            nodes: storage.backupNodes,
+            edges: storage.backupEdges,
+            storage: {
+                ...state.storage,
+                backupNodes: [],
+                backupEdges: [],
+            },
+        }));
     },
 });

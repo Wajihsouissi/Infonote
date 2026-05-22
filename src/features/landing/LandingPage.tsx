@@ -1,23 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { ProfileMenu } from '../auth/ProfileMenu';
-import { useSiteTelemetry } from '../admin/hooks/useSiteTelemetry';
 import { useRecentlyViewed, useGlobalSearch } from './hooks/useDashboardData';
 import {
   Layout,
   ShoppingBag,
   LogIn,
-  Plus,
   Search,
   Settings,
   Clock,
   Star,
-  MoreHorizontal,
   Rocket,
   Sun,
   Moon,
   Menu,
-  X
+  X,
+  ArrowRight,
+  Command,
+  Grid3X3,
+  Zap,
+  BookOpen
 } from 'lucide-react';
 import styles from './LandingPage.module.css';
 
@@ -28,23 +30,16 @@ export const LandingPage: React.FC = () => {
   const toggleTheme = useStore((state) => state.toggleTheme);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
-  // Read auth straight from the global store so the header reacts the
-  // instant Supabase fires onAuthStateChange (login, logout, refresh).
   const isAuthenticated = useStore((state) => state.auth.isAuthenticated);
 
-  // Log a site visit row for admin analytics (deduped per browser session).
-  useSiteTelemetry();
-  
-  // Try to grab the last active workspace ID from local storage
-  const activeWorkspaceId = typeof window !== 'undefined' 
-    ? localStorage.getItem('infonote.activeWorkspaceId') || undefined 
+  const activeWorkspaceId = typeof window !== 'undefined'
+    ? localStorage.getItem('infonote.activeWorkspaceId') || undefined
     : undefined;
 
   const { recentNotes } = useRecentlyViewed(activeWorkspaceId);
   const { search, results, isSearching } = useGlobalSearch(activeWorkspaceId);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => search(searchQuery), 300);
     return () => clearTimeout(timer);
@@ -53,12 +48,10 @@ export const LandingPage: React.FC = () => {
   return (
     <div className={styles.container}>
 
-      {/* ── Decorative ambient layer ── */}
       <div className={styles.orbPrimary} />
       <div className={styles.orbSecondary} />
       <div className={styles.orbAccent} />
 
-      {/* Floating micro-particles */}
       <div className={styles.particles} aria-hidden="true">
         {([
           { size: 3, top: '12%', left: '18%', dur: '7s', delay: '0s', opacity: 0.45 },
@@ -74,27 +67,17 @@ export const LandingPage: React.FC = () => {
             key={i}
             className={styles.particle}
             style={{
-              width: p.size,
-              height: p.size,
-              top: p.top,
-              left: p.left,
-              opacity: p.opacity,
-              '--dur': p.dur,
-              '--delay': p.delay,
+              width: p.size, height: p.size,
+              top: p.top, left: p.left, opacity: p.opacity,
+              '--dur': p.dur, '--delay': p.delay,
             } as React.CSSProperties}
           />
         ))}
       </div>
 
-      {/* Mobile drawer overlay */}
       {isMobileMenuOpen && (
-        <div 
-          className={styles.drawerOverlay} 
-          onClick={() => setIsMobileMenuOpen(false)} 
-        />
+        <div className={styles.drawerOverlay} onClick={() => setIsMobileMenuOpen(false)} />
       )}
-
-      {/* Sidebar */}
 
       <aside className={`${styles.sidebar} ${isMobileMenuOpen ? styles.sidebarOpen : ''}`}>
         <div className={styles.logoSection}>
@@ -102,7 +85,7 @@ export const LandingPage: React.FC = () => {
             <Rocket className={styles.logoIcon} />
             <span>Infonote</span>
           </div>
-          <button 
+          <button
             className={styles.drawerCloseButton}
             onClick={() => setIsMobileMenuOpen(false)}
             aria-label="Close menu"
@@ -111,7 +94,6 @@ export const LandingPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Mobile Search - only visible on mobile inside drawer */}
         <div className={styles.sidebarSearch}>
           <Search size={14} />
           <input type="text" placeholder="Search..." />
@@ -121,20 +103,14 @@ export const LandingPage: React.FC = () => {
           <div className={styles.navGroup}>
             <button
               className={`${styles.navItem} ${currentView === 'canvas' ? styles.active : ''}`}
-              onClick={() => {
-                setCurrentView('canvas');
-                setIsMobileMenuOpen(false);
-              }}
+              onClick={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }}
             >
               <Layout size={18} />
               <span>Canvas</span>
             </button>
             <button
               className={`${styles.navItem} ${currentView === 'marketplace' ? styles.active : ''}`}
-              onClick={() => {
-                setCurrentView('marketplace');
-                setIsMobileMenuOpen(false);
-              }}
+              onClick={() => { setCurrentView('marketplace'); setIsMobileMenuOpen(false); }}
             >
               <ShoppingBag size={18} />
               <span>Marketplace</span>
@@ -149,13 +125,10 @@ export const LandingPage: React.FC = () => {
               <div style={{ padding: '4px 12px', fontSize: '12px', opacity: 0.5 }}>No recent notes</div>
             ) : (
               recentNotes.map((note) => (
-                <button 
-                  key={note.id} 
-                  className={styles.navItemSecondary} 
-                  onClick={() => {
-                    setCurrentView('canvas');
-                    setIsMobileMenuOpen(false);
-                  }}
+                <button
+                  key={note.id}
+                  className={styles.navItemSecondary}
+                  onClick={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }}
                 >
                   <Clock size={16} />
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{note.node_title}</span>
@@ -191,15 +164,13 @@ export const LandingPage: React.FC = () => {
         </div>
       </aside>
 
-      {/* Main Content Area */}
       <div className={styles.mainArea}>
         <header className={styles.topBar}>
           <div className={styles.topBarDecor} />
-          
-          {/* Mobile Menu Toggle & Logo */}
+
           <div className={styles.mobileHeaderLeft}>
-            <button 
-              className={styles.hamburgerButton} 
+            <button
+              className={styles.hamburgerButton}
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-label="Toggle menu"
             >
@@ -214,9 +185,9 @@ export const LandingPage: React.FC = () => {
           <div className={styles.searchSection} style={{ position: 'relative' }}>
             <div className={styles.searchBar}>
               <Search size={16} />
-              <input 
-                type="text" 
-                placeholder="Search notes and content..." 
+              <input
+                type="text"
+                placeholder="Search notes and content..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -241,23 +212,14 @@ export const LandingPage: React.FC = () => {
 
           <div className={styles.userSection}>
             {isAuthenticated ? (
-              <ProfileMenu onOpenCanvas={() => {
-                setCurrentView('canvas');
-                setIsMobileMenuOpen(false);
-              }} />
+              <ProfileMenu onOpenCanvas={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }} />
             ) : (
               <>
-                <button className={styles.loginButton} onClick={() => {
-                  setCurrentView('login');
-                  setIsMobileMenuOpen(false);
-                }}>
+                <button className={styles.loginButton} onClick={() => { setCurrentView('login'); setIsMobileMenuOpen(false); }}>
                   <LogIn size={15} />
                   <span>Log in</span>
                 </button>
-                <button className={styles.signupButton} onClick={() => {
-                  setCurrentView('signup');
-                  setIsMobileMenuOpen(false);
-                }}>
+                <button className={styles.signupButton} onClick={() => { setCurrentView('signup'); setIsMobileMenuOpen(false); }}>
                   <span>Sign up free</span>
                 </button>
               </>
@@ -266,35 +228,129 @@ export const LandingPage: React.FC = () => {
         </header>
 
         <main className={styles.content}>
-          <div className={styles.contentHeader}>
-            <h1>Home</h1>
-            <div className={styles.contentActions}>
-              <button className={styles.viewToggle}>
-                <Layout size={16} />
+          {/* Hero Section */}
+          <section className={styles.heroSection}>
+            <div className={styles.heroBadge}>
+              <Zap size={12} />
+              <span>v2.0 — Now with AI-powered canvases</span>
+            </div>
+            <h1 className={styles.heroTitle}>
+              Your ideas
+              <br />
+              <span className={styles.heroGradient}>have a new home.</span>
+            </h1>
+            <p className={styles.heroSubtitle}>
+              A spatial canvas for thinking, creating, and organizing.
+              Drop in notes, images, PDFs — watch your ideas connect.
+            </p>
+            <div className={styles.heroActions}>
+              <button
+                className={styles.primaryButton}
+                onClick={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }}
+              >
+                <Layout size={18} />
+                <span>Open Canvas</span>
+                <ArrowRight size={16} className={styles.btnArrow} />
               </button>
-              <button className={styles.moreButton}>
-                <MoreHorizontal size={16} />
+              <button className={styles.ghostButton}>
+                <BookOpen size={16} />
+                <span>Quick Tour</span>
               </button>
             </div>
-          </div>
+          </section>
 
-          <div className={styles.emptyState}>
-            <div className={styles.emptyIllustration}>
-              <Plus size={48} />
+          {/* Quick Start Cards */}
+          {recentNotes.length === 0 && (
+            <section className={styles.quickStartSection}>
+              <div className={styles.sectionLabel}>
+                <span className={styles.sectionLabelDot} />
+                Get started
+              </div>
+              <div className={styles.cardGrid}>
+                <button
+                  className={styles.actionCard}
+                  onClick={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }}
+                >
+                  <div className={styles.cardIcon} data-accent="primary">
+                    <Layout size={22} />
+                  </div>
+                  <div className={styles.cardBody}>
+                    <h3>Start a Canvas</h3>
+                    <p>Open a blank spatial canvas and drop in your first idea.</p>
+                  </div>
+                  <ArrowRight size={16} className={styles.cardArrow} />
+                </button>
+                <button
+                  className={styles.actionCard}
+                  onClick={() => { setCurrentView('marketplace'); setIsMobileMenuOpen(false); }}
+                >
+                  <div className={styles.cardIcon} data-accent="secondary">
+                    <ShoppingBag size={22} />
+                  </div>
+                  <div className={styles.cardBody}>
+                    <h3>Browse Marketplace</h3>
+                    <p>Discover templates, plugins, and community canvases.</p>
+                  </div>
+                  <ArrowRight size={16} className={styles.cardArrow} />
+                </button>
+                <button
+                  className={styles.actionCard}
+                  onClick={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }}
+                >
+                  <div className={styles.cardIcon} data-accent="amber">
+                    <Grid3X3 size={22} />
+                  </div>
+                  <div className={styles.cardBody}>
+                    <h3>Import Your Work</h3>
+                    <p>Drag in Markdown, images, or PDFs to populate your canvas.</p>
+                  </div>
+                  <ArrowRight size={16} className={styles.cardArrow} />
+                </button>
+              </div>
+            </section>
+          )}
+
+          {/* Recent Notes Grid */}
+          {recentNotes.length > 0 && (
+            <section className={styles.recentSection}>
+              <div className={styles.sectionLabel}>
+                <span className={styles.sectionLabelDot} />
+                Continue where you left off
+              </div>
+              <div className={styles.noteGrid}>
+                {recentNotes.slice(0, 6).map((note, i) => (
+                  <button
+                    key={note.id}
+                    className={styles.noteCard}
+                    onClick={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }}
+                    style={{ '--i': i } as React.CSSProperties}
+                  >
+                    <div className={styles.noteCardDot} />
+                    <span className={styles.noteCardTitle}>{note.node_title}</span>
+                    <Clock size={12} className={styles.noteCardTime} />
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Keyboard Shortcuts Hint */}
+          <footer className={styles.shortcutsFooter}>
+            <div className={styles.shortcut}>
+              <kbd className={styles.kbd}><Command size={12} /></kbd>
+              <kbd className={styles.kbd}>K</kbd>
+              <span>Search</span>
             </div>
-            <h2>No files yet</h2>
-            <p>Create a new canvas or browse the marketplace to get started.</p>
-            <button
-              className={styles.primaryButton}
-              onClick={() => {
-                setCurrentView('canvas');
-                setIsMobileMenuOpen(false);
-              }}
-            >
-              <Layout size={18} />
-              <span>Open Canvas</span>
-            </button>
-          </div>
+            <div className={styles.shortcut}>
+              <kbd className={styles.kbd}>⌘</kbd>
+              <kbd className={styles.kbd}>B</kbd>
+              <span>Toggle sidebar</span>
+            </div>
+            <div className={styles.shortcut}>
+              <kbd className={styles.kbd}>?</kbd>
+              <span>View shortcuts</span>
+            </div>
+          </footer>
         </main>
       </div>
     </div>

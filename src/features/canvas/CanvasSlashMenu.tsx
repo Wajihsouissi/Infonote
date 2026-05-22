@@ -23,6 +23,7 @@ export function CanvasSlashMenu() {
     const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
     const inputRef = useRef<HTMLInputElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
+    const itemsListRef = useRef<HTMLDivElement>(null);
     const lastMousePos = useRef({ x: 0, y: 0 });
 
     const { screenToFlowPosition } = useReactFlow();
@@ -108,6 +109,13 @@ export function CanvasSlashMenu() {
             setSelectedIndex(Math.max(0, filteredItems.length - 1));
         }
     }, [filteredItems.length, selectedIndex]);
+
+    // Scroll selected item into view
+    useEffect(() => {
+        if (!itemsListRef.current) return;
+        const selected = itemsListRef.current.children[selectedIndex] as HTMLElement | undefined;
+        selected?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, [selectedIndex]);
 
     // Track mouse position for menu placement
     useEffect(() => {
@@ -243,7 +251,7 @@ export function CanvasSlashMenu() {
                 />
             </div>
 
-            <div className={styles.items}>
+            <div className={styles.items} ref={itemsListRef}>
                 {filteredItems.length === 0 ? (
                     <div className={styles.emptyState}>No matching items</div>
                 ) : (

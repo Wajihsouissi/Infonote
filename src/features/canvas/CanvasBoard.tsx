@@ -1,4 +1,4 @@
-import { useMemo, useEffect, Suspense, lazy, useRef } from 'react';
+import { useMemo, useEffect, Suspense, lazy, useRef, useCallback, useState } from 'react';
 import {
     ReactFlow,
     Controls,
@@ -19,14 +19,18 @@ import { MetadataPanel } from '../ui/MetadataPanel';
 import { TableOfContentsPanel } from '../ui/TableOfContentsPanel';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { StorageControls } from '../ui/StorageControls';
-import { SlidersHorizontal, ListCollapse } from 'lucide-react';
+import { KeyboardShortcutsPanel } from '../ui/KeyboardShortcutsPanel';
+import { SlidersHorizontal, ListCollapse, Keyboard } from 'lucide-react';
 import { HomeButton } from '../ui/HomeButton';
 import { HistoryControls } from '../ui/HistoryControls';
+import { ModifierKeyIndicator } from '../ui/ModifierKeyIndicator';
 import { KanbanNodeComponent } from '../kanban/KanbanNode';
 import { CanvasSlashMenu } from './CanvasSlashMenu';
+import { CanvasContextMenu } from './CanvasContextMenu';
 import { CloudSyncControls } from './CloudSyncControls';
 import { CenteredEdge } from './CenteredEdge';
-import { AuthButton } from '../auth/AuthButton';
+import { CustomConnectionLine } from './CustomConnectionLine';
+import { BASE_UNIT } from '../../config/layout';
 import { AuthModal } from '../auth/AuthModal';
 import { useStore } from '../../store/useStore';
 import { v4 as uuidv4 } from 'uuid';
@@ -40,6 +44,7 @@ import {
     useCanvasNodeDrag,
 } from './hooks';
 import { useRecentlyViewed } from '../landing/hooks/useDashboardData';
+import { useModifierKeys } from '../ui/hooks/useModifierKeys';
 
 // Lazy load KanbanConfigModal
 const KanbanConfigModal = lazy(() =>
@@ -60,7 +65,6 @@ export function CanvasBoard() {
         selectedCanvasNodeIds,
         theme,
         onNodesChange,
-        onEdgesChange,
         onConnect,
         setNodes,
         updateNodeData,
@@ -71,7 +75,10 @@ export function CanvasBoard() {
         leftSidePanelId,
         setRightSidePanelId,
         setLeftSidePanelId,
+        toggleCanvasNodeSelection,
         setSelectedCanvasNodeIds,
+        clearCanvasSelection,
+        setLastCreatedCanvasNodeId,
     } = useCanvasStoreSelectors();
 
     // Throttling Ref for drag cleanup
@@ -82,16 +89,87 @@ export function CanvasBoard() {
     const setMetadataOpen = useStore(s => s.setMetadataOpen);
     const metadataBtnRef = useRef<HTMLButtonElement | null>(null);
 
+    // Linking Mode
+    const isLinkingMode = useStore(s => s.isLinkingMode);
+    const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
+    const linkSelectedNodes = useStore(s => s.linkSelectedNodes);
+    const bulkDuplicateNodes = useStore(s => s.bulkDuplicateNodes);
+
     // TOC Panel UI State
     const isTOCOpen = useStore(s => s.isTOCOpen);
     const setTOCOpen = useStore(s => s.setTOCOpen);
     const tocBtnRef = useRef<HTMLButtonElement | null>(null);
+
+    // Shortcuts Panel UI State
+    const isShortcutsPanelOpen = useStore(s => s.isShortcutsPanelOpen);
+    const setShortcutsPanelOpen = useStore(s => s.setShortcutsPanelOpen);
+    const shortcutsBtnRef = useRef<HTMLButtonElement | null>(null);
+    const setSelectedEdgeId = useStore(s => s.setSelectedEdgeId);
+    const isBoxSelectingRef = useRef(false);
+    const modifierKeys = useModifierKeys();
+    const [isInEditableField, setIsInEditableField] = useState(false);
+    const [isFocusArmed, setIsFocusArmed] = useState(false);
+    const isFocusArmedRef = useRef(false);
+    const focusArmTimeoutRef = useRef<number | null>(null);
+    
+    // Key focus improvements: track hovered/clicked nodes & visual indicators
+    const hoveredNodeRef = useRef<any | null>(null);
+    const lastInteractedNodeIdRef = useRef<string | null>(null);
+    const [justFocused, setJustFocused] = useState(false);
+    const justFocusedTimeoutRef = useRef<number | null>(null);
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
     // Viewport culling and visible nodes
     const { visibleNodes, handleViewportChange } = useCanvasViewport({
         nodes,
         currentParentId,
     });
+
+    const processedNodes = useMemo(() => {
+        return visibleNodes.map(node => {
+            const isSelected = selectedCanvasNodeIds.has(node.id);
+            const classes = [
+                node.className || '',
+                isSelected ? 'is-selected' : '',
+                isLinkingMode ? 'is-linking-mode' : '',
+            ].filter(Boolean).join(' ');
+            return {
+                ...node,
+                className: classes
+            };
+        });
+    }, [visibleNodes, selectedCanvasNodeIds, isLinkingMode]);
+
+    const applySelectedIdsToNodes = useCallback((ids: Set<string>) => {
+        setNodes(nds => {
+            let changed = false;
+            const next = nds.map(n => {
+                const shouldBeSelected = ids.has(n.id);
+                if (n.selected === shouldBeSelected) return n;
+                changed = true;
+                return { ...n, selected: shouldBeSelected };
+            });
+            return changed ? next : nds;
+        });
+    }, [setNodes]);
+
+
+
+    const blurActiveEditable = useCallback(() => {
+        const el = document.activeElement as HTMLElement | null;
+        if (!el) return false;
+        const isEditable = el.tagName === 'INPUT' ||
+            el.tagName === 'TEXTAREA' ||
+            el.isContentEditable ||
+            !!el.closest('[contenteditable]') ||
+            !!el.closest('[class*="BlockEditor"]') ||
+            !!el.closest('[class*="editor"]');
+        if (!isEditable) return false;
+        el.blur();
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        return true;
+    }, []);
 
     // Debug logging for visible nodes
     useEffect(() => {
@@ -109,7 +187,435 @@ export function CanvasBoard() {
     const addNode = useStore(s => s.addNode);
 
     // Focus viewport when parent changes
-    const { fitView, screenToFlowPosition } = useReactFlow();
+    const { fitView, screenToFlowPosition, getViewport, setViewport } = useReactFlow();
+
+    const keysPressed = useRef<{ [key: string]: boolean }>({});
+    const animationFrameId = useRef<number | null>(null);
+
+    const getViewportRef = useRef(getViewport);
+    const setViewportRef = useRef(setViewport);
+    const screenToFlowPositionRef = useRef(screenToFlowPosition);
+
+    useEffect(() => {
+        getViewportRef.current = getViewport;
+        setViewportRef.current = setViewport;
+        screenToFlowPositionRef.current = screenToFlowPosition;
+    }, [getViewport, setViewport, screenToFlowPosition]);
+
+    useEffect(() => {
+        const zoomFactorPerFrame = 1.015;
+        const panSpeedPerFrame = 18;
+
+        const tick = () => {
+            const plusPressed = keysPressed.current['plus'];
+            const minusPressed = keysPressed.current['minus'];
+            const leftPressed = keysPressed.current['ArrowLeft'];
+            const rightPressed = keysPressed.current['ArrowRight'];
+            const upPressed = keysPressed.current['ArrowUp'];
+            const downPressed = keysPressed.current['ArrowDown'];
+
+            if (!plusPressed && !minusPressed && !leftPressed && !rightPressed && !upPressed && !downPressed) {
+                animationFrameId.current = null;
+                return;
+            }
+
+            const { x, y, zoom } = getViewportRef.current();
+            let newX = x;
+            let newY = y;
+            let newZoom = zoom;
+
+            if (plusPressed) {
+                newZoom = Math.min(2, zoom * zoomFactorPerFrame);
+            } else if (minusPressed) {
+                newZoom = Math.max(0.05, zoom / zoomFactorPerFrame);
+            }
+
+            if (newZoom !== zoom) {
+                const mouseX = mousePosRef.current.x;
+                const mouseY = mousePosRef.current.y;
+                const flowPos = screenToFlowPositionRef.current({ x: mouseX, y: mouseY });
+
+                newX = x + flowPos.x * (zoom - newZoom);
+                newY = y + flowPos.y * (zoom - newZoom);
+
+                setViewportRef.current({ x: newX, y: newY, zoom: newZoom });
+            }
+
+            if (leftPressed) newX += panSpeedPerFrame;
+            if (rightPressed) newX -= panSpeedPerFrame;
+            if (upPressed) newY += panSpeedPerFrame;
+            if (downPressed) newY -= panSpeedPerFrame;
+
+            if (leftPressed || rightPressed || upPressed || downPressed) {
+                setViewportRef.current({ x: newX, y: newY, zoom: newZoom });
+            }
+
+            animationFrameId.current = requestAnimationFrame(tick);
+        };
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (isInEditableField) return;
+
+            if (e.key === '+' || e.key === '=') {
+                e.preventDefault();
+                keysPressed.current['plus'] = true;
+                if (!animationFrameId.current) {
+                    animationFrameId.current = requestAnimationFrame(tick);
+                }
+            } else if (e.key === '-') {
+                e.preventDefault();
+                keysPressed.current['minus'] = true;
+                if (!animationFrameId.current) {
+                    animationFrameId.current = requestAnimationFrame(tick);
+                }
+            } else if (e.key === '5') {
+                e.preventDefault();
+                fitView({ duration: 400 });
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                keysPressed.current[e.key] = true;
+                if (!animationFrameId.current) {
+                    animationFrameId.current = requestAnimationFrame(tick);
+                }
+            } else if (e.key === 'k') {
+                e.preventDefault();
+                setShortcutsPanelOpen(!isShortcutsPanelOpen);
+            } else if (e.key === 'l') {
+                e.preventDefault();
+                if (selectedCanvasNodeIds.size >= 2) {
+                    setIsLinkingMode(!isLinkingMode);
+                }
+            } else if (e.key === 'd') {
+                e.preventDefault();
+                if (selectedCanvasNodeIds.size > 0) {
+                    bulkDuplicateNodes(Array.from(selectedCanvasNodeIds));
+                }
+            }
+        };
+
+        const handleKeyUp = (e: KeyboardEvent) => {
+            if (e.key === '+' || e.key === '=') {
+                keysPressed.current['plus'] = false;
+            } else if (e.key === '-') {
+                keysPressed.current['minus'] = false;
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                keysPressed.current[e.key] = false;
+            }
+        };
+
+        const handleBlur = () => {
+            keysPressed.current = {};
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        window.addEventListener('blur', handleBlur);
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+            window.removeEventListener('blur', handleBlur);
+            if (animationFrameId.current) {
+                cancelAnimationFrame(animationFrameId.current);
+            }
+        };
+    }, [isInEditableField, fitView, isShortcutsPanelOpen, setShortcutsPanelOpen, selectedCanvasNodeIds, setIsLinkingMode, isLinkingMode, bulkDuplicateNodes]);
+
+    useEffect(() => {
+        isFocusArmedRef.current = isFocusArmed;
+    }, [isFocusArmed]);
+
+    useEffect(() => {
+        if (isInEditableField && isFocusArmedRef.current) {
+            setIsFocusArmed(false);
+        }
+    }, [isInEditableField]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key !== 'Escape') return;
+            if (!blurActiveEditable()) return;
+            e.preventDefault();
+            e.stopPropagation();
+        };
+
+        const handlePointerDown = (e: PointerEvent) => {
+            const target = e.target as HTMLElement | null;
+            if (target) {
+                const nodeEl = target.closest('.react-flow__node');
+                if (nodeEl) {
+                    const nodeId = nodeEl.getAttribute('data-id');
+                    if (nodeId) {
+                        lastInteractedNodeIdRef.current = nodeId;
+                    }
+                }
+            }
+
+            if (!isInEditableField) return;
+            if (!target) return;
+            const isClickInsideEditable = target.tagName === 'INPUT' ||
+                target.tagName === 'TEXTAREA' ||
+                target.isContentEditable ||
+                !!target.closest('[contenteditable]') ||
+                !!target.closest('[class*="BlockEditor"]') ||
+                !!target.closest('[class*="editor"]');
+            if (isClickInsideEditable) return;
+            blurActiveEditable();
+        };
+
+        window.addEventListener('keydown', handleKeyDown, { capture: true });
+        document.addEventListener('pointerdown', handlePointerDown, { capture: true });
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown, true);
+            document.removeEventListener('pointerdown', handlePointerDown, true);
+        };
+    }, [blurActiveEditable, isInEditableField]);
+
+    const selectedCanvasNodeIdsRef = useRef(selectedCanvasNodeIds);
+    const nodesRef = useRef(nodes);
+
+    useEffect(() => {
+        selectedCanvasNodeIdsRef.current = selectedCanvasNodeIds;
+        nodesRef.current = nodes;
+    }, [selectedCanvasNodeIds, nodes]);
+
+    useEffect(() => {
+        const clearArm = () => {
+            if (focusArmTimeoutRef.current) {
+                window.clearTimeout(focusArmTimeoutRef.current);
+                focusArmTimeoutRef.current = null;
+            }
+            if (isFocusArmedRef.current) setIsFocusArmed(false);
+        };
+
+        const armForNextClick = () => {
+            if (focusArmTimeoutRef.current) {
+                window.clearTimeout(focusArmTimeoutRef.current);
+                focusArmTimeoutRef.current = null;
+            }
+            setIsFocusArmed(true);
+            focusArmTimeoutRef.current = window.setTimeout(() => {
+                setIsFocusArmed(false);
+                focusArmTimeoutRef.current = null;
+            }, 2500);
+        };
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Real-time active editable field verification as a robust double-lock guard
+            const activeEl = document.activeElement as HTMLElement | null;
+            if (activeEl) {
+                const isEditable = activeEl.tagName === 'INPUT' ||
+                    activeEl.tagName === 'TEXTAREA' ||
+                    activeEl.isContentEditable ||
+                    !!activeEl.closest('[contenteditable]') ||
+                    !!activeEl.closest('[class*="BlockEditor"]') ||
+                    !!activeEl.closest('[class*="editor"]');
+                if (isEditable) return;
+            }
+            if (isInEditableField) return;
+
+            if (e.key === 'Escape') {
+                clearArm();
+                return;
+            }
+            if (e.key !== 'f' && e.key !== 'F') return;
+            e.preventDefault();
+
+            // Intelligent priority-based node focusing:
+            let nodesToFocus: any[] = [];
+
+            // Priority 1: Hovered node (immediate context)
+            if (hoveredNodeRef.current) {
+                const found = nodesRef.current.find(n => n.id === hoveredNodeRef.current.id);
+                if (found) nodesToFocus = [found];
+            }
+
+            // Priority 2: Selected nodes
+            if (nodesToFocus.length === 0) {
+                const selectedIds = Array.from(selectedCanvasNodeIdsRef.current);
+                if (selectedIds.length > 0) {
+                    nodesToFocus = nodesRef.current.filter(n => selectedIds.includes(n.id));
+                }
+            }
+
+            // Priority 3: Last interacted node (from clicks/pointers)
+            if (nodesToFocus.length === 0 && lastInteractedNodeIdRef.current) {
+                const found = nodesRef.current.find(n => n.id === lastInteractedNodeIdRef.current);
+                if (found) nodesToFocus = [found];
+            }
+
+            // If we found nodes to focus, center/zoom them instantly!
+            if (nodesToFocus.length > 0) {
+                fitView({ nodes: nodesToFocus, padding: 0.45, duration: 450, maxZoom: 1.3 });
+                clearArm();
+
+                // Show success visual HUD notification
+                if (justFocusedTimeoutRef.current) {
+                    window.clearTimeout(justFocusedTimeoutRef.current);
+                }
+                setJustFocused(true);
+                justFocusedTimeoutRef.current = window.setTimeout(() => {
+                    setJustFocused(false);
+                    justFocusedTimeoutRef.current = null;
+                }, 1500);
+
+                return;
+            }
+
+            // Fallback: If no selected/hovered/clicked nodes, toggle/arm focusing for the next mouse click
+            if (isFocusArmedRef.current) {
+                clearArm();
+                return;
+            }
+            armForNextClick();
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('blur', clearArm);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('blur', clearArm);
+            if (focusArmTimeoutRef.current) {
+                window.clearTimeout(focusArmTimeoutRef.current);
+            }
+            if (justFocusedTimeoutRef.current) {
+                window.clearTimeout(justFocusedTimeoutRef.current);
+            }
+        };
+    }, [isInEditableField, fitView]);
+
+    // Track mouse coordinates on window
+    const mousePosRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            mousePosRef.current = { x: e.clientX, y: e.clientY };
+        };
+        window.addEventListener('mousemove', handleMouseMove);
+        return () => window.removeEventListener('mousemove', handleMouseMove);
+    }, []);
+
+    useEffect(() => {
+        const checkEditable = () => {
+            const el = document.activeElement as HTMLElement | null;
+            if (!el) return false;
+            return el.tagName === 'INPUT' ||
+                el.tagName === 'TEXTAREA' ||
+                el.isContentEditable ||
+                !!el.closest('[contenteditable]') ||
+                !!el.closest('[class*="BlockEditor"]') ||
+                !!el.closest('[class*="editor"]');
+        };
+
+        const updateEditable = () => {
+            const next = checkEditable();
+            setIsInEditableField(prev => prev === next ? prev : next);
+        };
+
+        updateEditable();
+        window.addEventListener('focusin', updateEditable);
+        window.addEventListener('focusout', updateEditable);
+
+        return () => {
+            window.removeEventListener('focusin', updateEditable);
+            window.removeEventListener('focusout', updateEditable);
+        };
+    }, []);
+
+    // Create Text Block on pressing Enter on canvas
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key !== 'Enter') return;
+
+            const target = e.target as HTMLElement;
+            const isEditable = target.tagName === 'INPUT' ||
+                target.tagName === 'TEXTAREA' ||
+                target.isContentEditable ||
+                target.closest('[contenteditable]') ||
+                target.closest('[class*="BlockEditor"]') ||
+                target.closest('[class*="editor"]');
+
+            if (isEditable) return;
+
+            // Prevent creation if typing in active overlays/modals
+            const isModal = target.closest('[class*="modal"]') || target.closest('[class*="Modal"]');
+            if (isModal) return;
+
+            e.preventDefault();
+
+            // Transform coordinates to canvas space
+            const flowPos = screenToFlowPosition({
+                x: mousePosRef.current.x,
+                y: mousePosRef.current.y
+            });
+
+            // Prevent overstacking: add a random starting jitter and check for realistic card collisions
+            const { nodes: currentNodes } = useStore.getState();
+            let targetX = flowPos.x + (Math.random() - 0.5) * 120; // random offset between -60px and +60px
+            let targetY = flowPos.y + (Math.random() - 0.5) * 80;  // random offset between -40px and +40px
+            
+            const thresholdX = 180; // check for horizontal overlap (card width ~300px)
+            const thresholdY = 60;  // check for vertical overlap (card height ~100px)
+
+            let overlap = true;
+            let attempts = 0;
+            const maxAttempts = 30;
+
+            while (overlap && attempts < maxAttempts) {
+                overlap = false;
+                for (const node of currentNodes) {
+                    const nodeParentId = node.parentId || undefined;
+                    const activeParent = currentParentId || undefined;
+                    if (nodeParentId !== activeParent) continue;
+
+                    const dx = Math.abs(node.position.x - targetX);
+                    const dy = Math.abs(node.position.y - targetY);
+
+                    // If nodes overlap within the card's dimensions, disperse randomly
+                    if (dx < thresholdX && dy < thresholdY) {
+                        targetX += (Math.random() * 40 + 20) * (Math.random() > 0.5 ? 1 : -1);
+                        targetY += (Math.random() * 40 + 20) * (Math.random() > 0.5 ? 1 : -1);
+                        overlap = true;
+                        attempts++;
+                        break;
+                    }
+                }
+            }
+
+            // Create new Text Block
+            const nodeId = uuidv4();
+            const newBlock = {
+                id: uuidv4(),
+                type: 'text' as const,
+                content: ''
+            };
+
+            addNode(
+                'block',
+                { x: targetX, y: targetY },
+                { content: [newBlock], isStandaloneBlock: true },
+                { width: 300, height: 100 },
+                currentParentId || undefined,
+                nodeId
+            );
+
+            // Automatically highlight and select the newly created text block node
+            const nextSelectedIds = new Set([nodeId]);
+            setSelectedCanvasNodeIds(nextSelectedIds);
+            applySelectedIdsToNodes(nextSelectedIds);
+            setLastCreatedCanvasNodeId(nodeId);
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const el = document.querySelector(`#block-${newBlock.id} [contenteditable="true"]`) as HTMLElement | null;
+                    el?.focus();
+                });
+            });
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [addNode, applySelectedIdsToNodes, currentParentId, screenToFlowPosition, setLastCreatedCanvasNodeId, setSelectedCanvasNodeIds]);
 
     // Canvas-Level Direct URL Pasting
     const handleCanvasPaste = (e: React.ClipboardEvent) => {
@@ -183,15 +689,37 @@ export function CanvasBoard() {
         }
     };
 
+    // Native context menu handler (bypasses ReactFlow's right-click pan handling)
+    useEffect(() => {
+        const handleContextMenu = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            const isPane = target.closest('.react-flow__pane');
+            const isNode = target.closest('.react-flow__node');
+            if (!isPane || isNode) return;
+
+            // Don't show context menu when inside an editable field
+            const isEditable = !!target.closest('[contenteditable]') ||
+                !!target.closest('[class*="BlockEditor"]') ||
+                !!target.closest('input, textarea');
+            if (isEditable) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+            setContextMenu({ x: e.clientX, y: e.clientY });
+        };
+
+        document.addEventListener('contextmenu', handleContextMenu, { capture: true });
+        return () => document.removeEventListener('contextmenu', handleContextMenu, { capture: true });
+    }, []);
+
     useEffect(() => {
         if (visibleNodes.length > 0) {
-            // Wait a frame for ReactFlow to finish rendering nodes
             const timer = setTimeout(() => {
                 fitView({ duration: 400, padding: 0.2, minZoom: 0.5, maxZoom: 1 });
             }, 50);
             return () => clearTimeout(timer);
         }
-    }, [currentParentId, fitView, visibleNodes.length]);
+    }, [currentParentId]);
 
     // Visible edges:
     //  1. Endpoints must be in the visible (current parent context) node set.
@@ -230,6 +758,11 @@ export function CanvasBoard() {
         selectable: true,
         deletable: true,
     }), []);
+
+    // Prevent self-loop connections (a node cannot connect to itself)
+    const isValidConnection = useCallback((connection: any) => {
+        return connection.source !== connection.target;
+    }, []);
 
     // Active parent node for metadata display
     const activeParentNode = useMemo(() =>
@@ -274,6 +807,7 @@ export function CanvasBoard() {
     });
 
 
+
     // Cleanup ref on unmount
     useEffect(() => {
         return () => {
@@ -286,7 +820,6 @@ export function CanvasBoard() {
             <div className={styles.canvasArea}>
                 <div className={styles.topRightToolbar}>
                     <StorageControls />
-                    <AuthButton />
                     <div className={styles.topRightSeparator} />
                     <ThemeSwitcher />
                     <button
@@ -297,6 +830,15 @@ export function CanvasBoard() {
                         style={{ marginLeft: 6 }}
                     >
                         <ListCollapse size={18} />
+                    </button>
+                    <button
+                        ref={shortcutsBtnRef}
+                        className={`${styles.toolbarBtn} ${isShortcutsPanelOpen ? styles.toolbarBtnActive : ''}`}
+                        onClick={() => setShortcutsPanelOpen(!isShortcutsPanelOpen)}
+                        title={isShortcutsPanelOpen ? "Close Shortcuts" : "Keyboard Shortcuts (K)"}
+                        style={{ marginLeft: 6 }}
+                    >
+                        <Keyboard size={18} />
                     </button>
                     {activeParentNode && (
                         <button
@@ -316,46 +858,117 @@ export function CanvasBoard() {
                     <Breadcrumbs />
                 </div>
 
+                <ModifierKeyIndicator
+                    showCtrl={modifierKeys.ctrl}
+                    showShift={modifierKeys.shift}
+                    showFocus={isFocusArmed}
+                    showSuccess={justFocused}
+                    suppress={isInEditableField}
+                    top={76}
+                />
+
 
                 <ReactFlow
-                    nodes={visibleNodes}
+                    className={isLinkingMode ? 'is-linking-mode' : ''}
+                    nodes={processedNodes}
                     edges={visibleEdges}
                     onNodesChange={onNodesChange}
-                    onEdgesChange={onEdgesChange}
                     onConnect={onConnect}
+                    isValidConnection={isValidConnection}
                     nodeTypes={nodeTypes}
                     edgeTypes={edgeTypes}
                     defaultEdgeOptions={defaultEdgeOptions}
+                    connectionLineComponent={CustomConnectionLine}
+                    connectionRadius={150}
+                    onNodeMouseEnter={(_, node) => {
+                        hoveredNodeRef.current = node;
+                    }}
+                    onNodeMouseLeave={() => {
+                        hoveredNodeRef.current = null;
+                    }}
+                    onPaneClick={() => {
+                        if (isLinkingMode) return;
+                        setContextMenu(null);
+                        blurActiveEditable();
+                        if (isFocusArmedRef.current) setIsFocusArmed(false);
+                        setSelectedEdgeId(null);
+                        clearCanvasSelection();
+                        applySelectedIdsToNodes(new Set());
+                    }}
+                    onNodeClick={(e, node) => {
+                        e.stopPropagation();
+                        setContextMenu(null);
+                        setSelectedEdgeId(null);
+
+                        // If in linking mode, clicking a node establishes it as the main node
+                        if (isLinkingMode) {
+                            linkSelectedNodes(node.id, Array.from(selectedCanvasNodeIds));
+                            setIsLinkingMode(false);
+                            clearCanvasSelection();
+                            applySelectedIdsToNodes(new Set());
+                            return;
+                        }
+
+                        if (isFocusArmedRef.current) {
+                            fitView({ nodes: [node], padding: 0.45, duration: 450, maxZoom: 1.3 });
+                            setIsFocusArmed(false);
+                        }
+                        if (e.shiftKey) {
+                            toggleCanvasNodeSelection(node.id);
+                            const nextIds = useStore.getState().selectedCanvasNodeIds;
+                            applySelectedIdsToNodes(nextIds);
+                        } else {
+                            const currentIds = useStore.getState().selectedCanvasNodeIds;
+                            applySelectedIdsToNodes(currentIds);
+                        }
+                    }}
+                    onEdgeClick={(e, edge) => {
+                        e.stopPropagation();
+                        if (e.shiftKey) {
+                            useStore.getState().toggleCanvasEdgeSelection(edge.id);
+                        } else {
+                            setSelectedEdgeId(edge.id);
+                        }
+                    }}
                     fitView={!currentParentId}
                     colorMode={theme}
                     minZoom={0.05}
                     maxZoom={2}
-                    snapToGrid={false}
+                    snapToGrid={true}
+                    snapGrid={[BASE_UNIT, BASE_UNIT]}
                     onDragOver={onDragOver}
                     onDrop={onDrop}
                     onNodeDragStart={onNodeDragStart}
                     onNodeDrag={onNodeDrag}
                     onNodeDragStop={onNodeDragStop}
                     onMove={handleViewportChange}
+                    onSelectionStart={() => {
+                        isBoxSelectingRef.current = true;
+                        setSelectedEdgeId(null);
+                    }}
+                    onSelectionEnd={() => {
+                        isBoxSelectingRef.current = false;
+                    }}
                     onSelectionChange={({ nodes: selectedNodes }) => {
-                        const newIds = selectedNodes.map(n => n.id);
-                        const isSame = newIds.length === selectedCanvasNodeIds.size && newIds.every(id => selectedCanvasNodeIds.has(id));
+                        const nextIds = new Set(selectedNodes.map(n => n.id));
+                        const currentIds = useStore.getState().selectedCanvasNodeIds;
+                        const isSame = nextIds.size === currentIds.size && Array.from(nextIds).every(id => currentIds.has(id));
                         if (!isSame) {
-                            setSelectedCanvasNodeIds(new Set(newIds));
+                            setSelectedCanvasNodeIds(nextIds);
                         }
                     }}
-                    selectionOnDrag={false}
+                    selectionOnDrag={true}
                     panOnDrag={true}
                     selectionKeyCode="Control"
                     multiSelectionKeyCode="Shift"
                     selectionMode={SelectionMode.Partial}
                     // Performance optimizations
-                    nodesDraggable={true}
-                    nodesConnectable={true}
+                    nodesDraggable={!isLinkingMode}
+                    nodesConnectable={!isLinkingMode}
                     nodesFocusable={false}
-                    edgesFocusable={true}
-                    elementsSelectable={true}
-                    selectNodesOnDrag={true}
+                    edgesFocusable={!isLinkingMode}
+                    elementsSelectable={!isLinkingMode}
+                    selectNodesOnDrag={false}
                     panOnScroll={true}
                     zoomOnScroll={true}
                     zoomOnPinch={true}
@@ -395,12 +1008,25 @@ export function CanvasBoard() {
                 buttonRef={tocBtnRef}
             />
 
+            <KeyboardShortcutsPanel
+                isOpen={isShortcutsPanelOpen}
+                onClose={() => setShortcutsPanelOpen(false)}
+                buttonRef={shortcutsBtnRef}
+            />
+
             {/* Dual Panel Backdrop (only when both sides are open) */}
             {rightSidePanelId && leftSidePanelId && (
                 <div className={styles.dualPanelBackdrop} />
             )}
 
             <BottomMenu />
+            {contextMenu && (
+                <CanvasContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    onClose={() => setContextMenu(null)}
+                />
+            )}
             <SidePanel
                 side="right"
                 nodeId={rightSidePanelId}
@@ -411,8 +1037,8 @@ export function CanvasBoard() {
                 nodeId={leftSidePanelId}
                 onClose={() => setLeftSidePanelId(null)}
             />
-            <FullscreenModal />
-            <CenterModal />
+            <FullscreenModal onCanvasDragOver={onDragOver} onCanvasDrop={onDrop} />
+            <CenterModal onCanvasDragOver={onDragOver} onCanvasDrop={onDrop} />
             <AuthModal />
             <Suspense fallback={null}>
                 <KanbanConfigModal />

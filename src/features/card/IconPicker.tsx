@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
     FileText, Heart, Star, Bookmark, Calendar, Clock,
     Target, Zap, Lightbulb, Rocket, Flag, Trophy,
@@ -7,10 +8,11 @@ import {
     Gift, Home, Mail, Phone, Settings, User,
     CheckCircle, AlertCircle, Info, XCircle, HelpCircle,
     TrendingUp, Activity, BarChart, PieChart, Database,
-    Folder, File, Image, Video, Search,
+    Folder, File, Image, Video, Search, Upload,
     type LucideIcon
 } from 'lucide-react';
 import styles from './IconPicker.module.css';
+import { CardIcon } from './iconMap';
 
 interface IconPickerProps {
     currentIcon: string;
@@ -69,16 +71,87 @@ const iconOptions: { icon: LucideIcon; name: string; iconName: string }[] = [
 export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconPickerProps) {
     const [searchTerm, setSearchTerm] = useState('');
 
+    useEffect(() => {
+        if (isAbsolute) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isAbsolute, onClose]);
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            if (!event.target?.result) return;
+            
+            const img = new window.Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const maxSize = 128;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > maxSize) {
+                        height = Math.round((height * maxSize) / width);
+                        width = maxSize;
+                    }
+                } else {
+                    if (height > maxSize) {
+                        width = Math.round((width * maxSize) / height);
+                        height = maxSize;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const resizedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+                    onSelect(resizedBase64);
+                    onClose();
+                } else {
+                    onSelect(event.target!.result as string);
+                    onClose();
+                }
+            };
+            img.src = event.target.result as string;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const isCustomCurrent = currentIcon && (
+        currentIcon.startsWith('data:image/') || 
+        currentIcon.startsWith('http://') || 
+        currentIcon.startsWith('https://')
+    );
+
     const filteredIcons = iconOptions.filter(({ name }) =>
         name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    return (
+    const pickerContent = (
         <div className={`${styles.overlay} ${isAbsolute ? styles.overlayAbsolute : ''}`} onClick={onClose}>
             <div className={`${styles.modal} ${isAbsolute ? styles.modalAbsolute : ''}`} onClick={(e) => e.stopPropagation()}>
                 <div className={styles.header}>
                     <h3>Choose an Icon</h3>
-                    <button className={styles.closeBtn} onClick={onClose}>
+                    <button className={styles.closeBtn} onClick={onClose} aria-label="Close icon picker">
                         <XCircle size={18} />
                     </button>
                 </div>
@@ -92,6 +165,27 @@ export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconP
                         onChange={(e) => setSearchTerm(e.target.value)}
                         autoFocus
                     />
+                </div>
+
+                <div className={styles.uploadRow}>
+                    <label className={styles.uploadArea}>
+                        <Upload size={16} />
+                        <span>Upload Custom Image</span>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            style={{ display: 'none' }}
+                        />
+                    </label>
+                    {isCustomCurrent && (
+                        <div className={styles.currentCustomPreview}>
+                            <span className={styles.previewLabel}>Current:</span>
+                            <div className={styles.previewWrapper}>
+                                <CardIcon icon={currentIcon} size={24} />
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className={styles.iconGrid}>
@@ -112,6 +206,12 @@ export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconP
             </div>
         </div>
     );
+
+    if (isAbsolute) {
+        return pickerContent;
+    }
+
+    return createPortal(pickerContent, document.body);
 }
 
 export function getIconByName(iconName: string): LucideIcon {

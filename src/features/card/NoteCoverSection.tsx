@@ -21,7 +21,7 @@ export function NoteCoverSection({
     onClose,
 }: NoteCoverSectionProps) {
     return (
-        <div className={styles.coverImage} onClick={onCoverClick}>
+        <div className={`${styles.coverImage} custom-drag-handle`} onClick={onCoverClick}>
             {coverImage ? (
                 <img src={coverImage} alt="Cover" loading="lazy" />
             ) : (

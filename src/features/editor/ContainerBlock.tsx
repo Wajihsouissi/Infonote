@@ -7,9 +7,10 @@ interface ContainerBlockProps {
     block: Block;
     onUpdate: (data: Partial<Block>) => void;
     readOnly?: boolean;
+    nodeId?: string;
 }
 
-export const ContainerBlock = ({ block, onUpdate, readOnly }: ContainerBlockProps) => {
+export const ContainerBlock = ({ block, onUpdate, readOnly, nodeId }: ContainerBlockProps) => {
     // The blocks are stored in metadata.blocks
     // If not present, default empty
     const childBlocks = block.metadata?.blocks || [];
@@ -32,6 +33,7 @@ export const ContainerBlock = ({ block, onUpdate, readOnly }: ContainerBlockProp
                 readOnly={readOnly}
                 minimal={true}
                 mode="atomic"
+                nodeId={nodeId}
             />
         </div>
     );

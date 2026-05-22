@@ -92,29 +92,17 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
     edges: initialEdges,
 
     onNodesChange: (changes) => {
-        const detailedChanges = changes.map(c => {
-            const detail: any = {
-                type: c.type,
-                id: (c as any).id
-            };
-
-            if (c.type === 'remove') {
-                detail.removing = (c as any).id;
-            } else if (c.type === 'position') {
-                detail.position = (c as any).position;
-                detail.dragging = (c as any).dragging;
-            } else if (c.type === 'select') {
-                detail.selected = (c as any).selected;
-            } else if (c.type === 'dimensions') {
-                detail.dimensions = (c as any).dimensions;
-            }
-
-            return detail;
-        });
-
+        // Only build detailed logging for non-trivial changes to reduce console noise
         if (DEBUG) {
-            console.log("[onNodesChange] Received changes (detailed):");
-            detailedChanges.forEach(c => console.log("  ", c));
+            const importantChanges = changes.filter(c => c.type !== 'select' && c.type !== 'dimensions');
+            if (importantChanges.length > 0) {
+                console.log("[onNodesChange] Received changes:", importantChanges.map(c => {
+                    const detail: any = { type: c.type, id: (c as any).id };
+                    if (c.type === 'remove') detail.removing = (c as any).id;
+                    else if (c.type === 'position') { detail.position = (c as any).position; detail.dragging = (c as any).dragging; }
+                    return detail;
+                }));
+            }
         }
 
         // CRITICAL FIX: Preserve parentId for nodes during 'replace' and other changes
@@ -179,6 +167,9 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
     },
 
     onConnect: (connection) => {
+        // Prevent self-connections: a node cannot connect to itself
+        if (connection.source === connection.target) return;
+
         const { currentParentId } = get();
         // Capture the active context from navigationSlice so edges only render
         // inside the canvas where they were created (parent-scoped visibility).
@@ -200,11 +191,16 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         const { currentParentId } = get();
         const targetParentId = parentId !== undefined ? parentId : (currentParentId || undefined);
 
+        const snappedPosition = {
+            x: snapToGridValue(position.x),
+            y: snapToGridValue(position.y)
+        };
+
         const newNode: AppNode = {
             id: customId || uuidv4(),
             type,
-            position,
-            style: style || { width: 432, height: 432 },
+            position: snappedPosition,
+            style: style || (type === 'fused-note' ? { width: MIN_FUSED_SIZE } : { width: 432, height: 432 }),
             data: {
                 label: initialData?.label || 'New Note',
                 content: '',
@@ -342,11 +338,236 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         }));
     },
 
-    splitNode: (nodeId, splitBlockId, currentBlocks) => {
+    releaseNodeContentToBlocks: (nodeId: string, centerPosition?: { x: number; y: number }, skipConfirm?: boolean) => {
+        if (!skipConfirm && !window.confirm(
+            'Release this node\'s content as individual blocks? The source node will be replaced.'
+        )) return;
+
+        const { nodes, edges, currentParentId } = get();
+        const sourceNode = nodes.find(n => n.id === nodeId);
+        if (!sourceNode) return;
+
+        const rawContent = (sourceNode.data as any).content;
+        const normalizeText = (value: unknown) => {
+            if (typeof value !== 'string') return '';
+            return value.trim().replace(/[\n\u200B\u00A0\u200C\uFEFF]/g, '');
+        };
+        const isEmptyBlock = (b: any) => {
+            if (!b) return true;
+            if (b.type === 'divider') return true;
+            if (b.type === 'table') {
+                const rows = b.metadata?.rows;
+                if (!Array.isArray(rows) || rows.length === 0) return true;
+                return rows.every((row: any) =>
+                    Array.isArray(row) && row.every((cell: any) => normalizeText(String(cell)).length === 0)
+                );
+            }
+            if (b.type === 'columns') {
+                const cols = b.metadata?.columns;
+                return !Array.isArray(cols) || cols.length === 0;
+            }
+            return normalizeText(b.content).length === 0;
+        };
+        const blocks = Array.isArray(rawContent)
+            ? rawContent.filter((b: any) => !isEmptyBlock(b))
+            : (typeof rawContent === 'string' && rawContent.trim().length > 0)
+                ? [{ id: uuidv4(), type: 'text', content: rawContent }]
+                : [];
+
+        if (blocks.length === 0) return;
+
+        const parentId = currentParentId || undefined;
+        const parentIdForEdge = currentParentId ?? null;
+
+        const resolvedCenterX = centerPosition?.x ?? sourceNode.position.x;
+        const resolvedCenterY = centerPosition?.y ?? sourceNode.position.y;
+        const baseCenter = { x: snapToGridValue(resolvedCenterX), y: snapToGridValue(resolvedCenterY) };
+
+        // --- Split into sections by heading boundaries ---
+        const headingTypes = new Set(['heading1', 'heading2', 'heading3']);
+        const isHeadingBlock = (b: any) => b && headingTypes.has(b.type);
+        interface Section { heading: any | null; blocks: any[] }
+        const sections: Section[] = [];
+
+        const headingIndices = blocks
+            .map((b: any, i: number) => (isHeadingBlock(b) ? i : -1))
+            .filter((i: number) => i >= 0);
+
+        if (headingIndices.length === 0) {
+            sections.push({ heading: null, blocks });
+        } else {
+            // Capture content before the first heading
+            if (headingIndices[0] > 0) {
+                sections.push({ heading: null, blocks: blocks.slice(0, headingIndices[0]) });
+            }
+            for (let i = 0; i < headingIndices.length; i++) {
+                const startIdx = headingIndices[i];
+                const endIdx = i + 1 < headingIndices.length ? headingIndices[i + 1] : blocks.length;
+                sections.push({
+                    heading: blocks[startIdx],
+                    blocks: blocks.slice(startIdx + 1, endIdx)
+                });
+            }
+        }
+
+        // --- Smart node sizing ---
+        const getNodeStyle = (block: any, isHeading: boolean) => {
+            if (isHeading) return { width: 220, height: 80 };
+            switch (block.type) {
+                case 'image':
+                case 'video':
+                case 'file':
+                    return { width: 200, height: 200 };
+                case 'code':
+                    return { width: 340, height: 160 };
+                case 'table':
+                    return { width: 360, height: 180 };
+                case 'callout':
+                    return { width: 280, height: 100 };
+                case 'todo':
+                case 'bullet':
+                case 'numbered':
+                    return { width: 260, height: 70 };
+                default:
+                    const len = normalizeText(block.content).length;
+                    if (len < 50) return { width: 260, height: 70 };
+                    if (len < 200) return { width: 300, height: 100 };
+                    return { width: 340, height: 140 };
+            }
+        };
+
+        const createBlockNode = (block: any, position: { x: number; y: number }, style: { width: number; height: number }) => ({
+            id: uuidv4(),
+            type: 'block',
+            position,
+            style,
+            data: { content: [block], isStandaloneBlock: true } as any,
+            parentId
+        } as AppNode);
+
+        // --- Build a radial cluster from a center node + outer blocks ---
+        const buildRadialCluster = (centerNode: AppNode, outerBlocks: any[], centerPos: { x: number; y: number }) => {
+            const clusterNodes: AppNode[] = [centerNode];
+            const clusterEdges: Edge[] = [];
+
+            if (outerBlocks.length === 0) return { nodes: clusterNodes, edges: clusterEdges, radius: 0 };
+
+            const outerStyles = outerBlocks.map(b => getNodeStyle(b, false));
+            const maxOuterWidth = Math.max(...outerStyles.map(s => s.width));
+            const minRadius = BASE_UNIT * 4;
+            const estimatedRadius = outerBlocks.length <= 1
+                ? minRadius
+                : (maxOuterWidth * 1.5) / (2 * Math.sin(Math.PI / outerBlocks.length));
+            const r = snapToGridValue(Math.max(minRadius, estimatedRadius));
+            const angleStep = (2 * Math.PI) / outerBlocks.length;
+            const angleOffset = -Math.PI / 2;
+
+            outerBlocks.forEach((block, idx) => {
+                const angle = angleOffset + angleStep * idx;
+                const x = snapToGridValue(centerPos.x + r * Math.cos(angle));
+                const y = snapToGridValue(centerPos.y + r * Math.sin(angle));
+                const node = createBlockNode(block, { x, y }, outerStyles[idx]);
+                clusterNodes.push(node);
+                clusterEdges.push({
+                    id: uuidv4(),
+                    source: centerNode.id,
+                    target: node.id,
+                    type: 'centered',
+                    data: { parentId: parentIdForEdge }
+                } as Edge);
+            });
+
+            return { nodes: clusterNodes, edges: clusterEdges, radius: r + maxOuterWidth / 2 };
+        };
+
+        const newNodes: AppNode[] = [];
+        const newEdges: Edge[] = [];
+
+        if (sections.length === 1) {
+            const section = sections[0];
+            if (section.heading) {
+                const headingStyle = getNodeStyle(section.heading, true);
+                const centerNode = createBlockNode(section.heading, baseCenter, headingStyle);
+                const cluster = buildRadialCluster(centerNode, section.blocks, baseCenter);
+                newNodes.push(...cluster.nodes);
+                newEdges.push(...cluster.edges);
+            } else if (section.blocks.length > 0) {
+                const centerBlock = section.blocks[0];
+                const centerStyle = getNodeStyle(centerBlock, false);
+                const centerNode = createBlockNode(centerBlock, baseCenter, centerStyle);
+                const cluster = buildRadialCluster(centerNode, section.blocks.slice(1), baseCenter);
+                newNodes.push(...cluster.nodes);
+                newEdges.push(...cluster.edges);
+            }
+        } else {
+            // Multiple sections → each section is a separate radial cluster arranged horizontally
+            const clusters: { nodes: AppNode[]; edges: Edge[]; radius: number }[] = [];
+
+            for (const section of sections) {
+                let centerNode: AppNode;
+                if (section.heading) {
+                    const headingStyle = getNodeStyle(section.heading, true);
+                    centerNode = createBlockNode(section.heading, { x: 0, y: 0 }, headingStyle);
+                } else if (section.blocks.length > 0) {
+                    const centerStyle = getNodeStyle(section.blocks[0], false);
+                    centerNode = createBlockNode(section.blocks[0], { x: 0, y: 0 }, centerStyle);
+                    section.blocks = section.blocks.slice(1);
+                } else {
+                    continue;
+                }
+                const cluster = buildRadialCluster(centerNode, section.blocks, { x: 0, y: 0 });
+                clusters.push(cluster);
+            }
+
+            let offsetX = baseCenter.x;
+            for (let ci = 0; ci < clusters.length; ci++) {
+                const cluster = clusters[ci];
+                for (const node of cluster.nodes) {
+                    node.position.x += offsetX;
+                    node.position.y += baseCenter.y;
+                }
+                newNodes.push(...cluster.nodes);
+                newEdges.push(...cluster.edges);
+
+                if (ci > 0) {
+                    const prevCenterId = clusters[ci - 1].nodes[0].id;
+                    const currCenterId = cluster.nodes[0].id;
+                    newEdges.push({
+                        id: uuidv4(),
+                        source: prevCenterId,
+                        target: currCenterId,
+                        type: 'centered',
+                        data: { parentId: parentIdForEdge }
+                    } as Edge);
+                }
+
+                const clusterSpan = cluster.radius > 0 ? cluster.radius * 2 : BASE_UNIT * 4;
+                offsetX += clusterSpan + BASE_UNIT * 3;
+            }
+        }
+
+        const newEdgesBase = edges.filter(e => e.source !== nodeId && e.target !== nodeId);
+        const newNodesBase = nodes.filter(n => n.id !== nodeId);
+
+        set({
+            nodes: [...newNodesBase, ...newNodes],
+            edges: [...newEdgesBase, ...newEdges]
+        });
+
+        if (currentParentId) {
+            scheduleParentSync(currentParentId, () => get().syncParentContent(currentParentId));
+        }
+    },
+
+    splitNode: (nodeId, splitBlockId, currentBlocks, skipConfirm) => {
         const { nodes, edges } = get();
         const sourceNode = nodes.find(n => n.id === nodeId);
 
         if (!sourceNode || !('content' in sourceNode.data) || !Array.isArray((sourceNode.data as any).content)) return;
+
+        if (!skipConfirm && !window.confirm(
+            'Split this node at the selected block? Content will be moved to a new fused note.'
+        )) return;
 
         // Use caller-provided blocks if available (avoids stale store state from debounce),
         // otherwise fall back to store data
@@ -382,8 +603,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 isStandaloneBlock: true
             } as any,
             style: {
-                width: MIN_FUSED_SIZE,
-                height: MIN_FUSED_SIZE
+                width: MIN_FUSED_SIZE
             },
             parentId: sourceNode.parentId
         };
@@ -561,7 +781,11 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         }
     },
 
-    bulkDeleteNodes: (nodeIds: string[]) => {
+    bulkDeleteNodes: (nodeIds: string[], skipConfirm?: boolean) => {
+        if (!skipConfirm && !window.confirm(
+            `Delete ${nodeIds.length} node(s)? This can be undone via undo (up to 200 steps).`
+        )) return;
+
         const { nodes, edges } = get();
 
         if (DEBUG) {
@@ -597,7 +821,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             return;
         }
 
-        const OFFSET = 50; // Offset for duplicated nodes to avoid overlap
+        const OFFSET = BASE_UNIT; // Offset by one grid cell (56px) for duplicated nodes to keep them aligned
         const newNodes: AppNode[] = [];
 
         nodesToDuplicate.forEach(node => {
@@ -652,7 +876,11 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         if (DEBUG) console.log("[bulkApplyColor] Completed");
     },
 
-    fuseNodes: (nodeIds: string[]) => {
+    fuseNodes: (nodeIds: string[], skipConfirm?: boolean) => {
+        if (!skipConfirm && !window.confirm(
+            `Merge ${nodeIds.length} nodes into one fused note? The originals will be removed. This can be undone via undo (up to 200 steps).`
+        )) return;
+
         const { nodes, edges, currentParentId } = get();
         const nodesToFuse = nodes.filter(n => nodeIds.includes(n.id));
 
@@ -707,8 +935,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 isStandaloneBlock: true
             },
             style: {
-                width: MIN_FUSED_SIZE,
-                height: MIN_FUSED_SIZE
+                width: MIN_FUSED_SIZE
             },
             parentId: currentParentId || undefined
         };
@@ -720,29 +947,62 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         newNodes.push(fusedNode);
         if (DEBUG) console.log("[fuseNodes] Nodes after adding fused:", newNodes.length);
 
-        // Check for duplicates
-        const nodeIdSet = new Set(newNodes.map(n => n.id));
-        if (nodeIdSet.size !== newNodes.length) {
-            if (DEBUG) {
-                console.error("[fuseNodes] ERROR: Duplicate node IDs detected!");
-                const idCounts = new Map<string, number>();
-                newNodes.forEach(n => {
-                    idCounts.set(n.id, (idCounts.get(n.id) || 0) + 1);
-                });
-                idCounts.forEach((count, id) => {
-                    if (count > 1) {
-                        console.error("[fuseNodes] Duplicate ID:", id, "count:", count);
-                    }
-                });
+        // Deduplicate — ensure no duplicate IDs enter the store
+        const seenIds = new Set<string>();
+        const dedupedNodes: AppNode[] = [];
+        for (const n of newNodes) {
+            if (seenIds.has(n.id)) {
+                // Generate a fresh ID for the duplicate to prevent store corruption
+                dedupedNodes.push({ ...n, id: uuidv4() });
+                if (DEBUG) console.warn("[fuseNodes] Fixed duplicate ID:", n.id);
+            } else {
+                seenIds.add(n.id);
+                dedupedNodes.push(n);
             }
         }
 
         // Remove edges connected to deleted nodes
         const newEdges = edges.filter(e => !nodeIds.includes(e.source) && !nodeIds.includes(e.target));
 
-        set({ nodes: newNodes, edges: newEdges });
+        set({ nodes: dedupedNodes, edges: newEdges });
 
-        if (DEBUG) console.log("[fuseNodes] Completed - Final node count:", newNodes.length);
+        if (DEBUG) console.log("[fuseNodes] Completed - Final node count:", dedupedNodes.length);
+    },
+
+    linkSelectedNodes: (mainNodeId, targetNodeIds) => {
+        console.log("[linkSelectedNodes] Called with mainNodeId:", mainNodeId, "targetNodeIds:", targetNodeIds);
+        const { edges, currentParentId } = get();
+        const parentIdForEdge = currentParentId ?? null;
+        
+        const newEdges: Edge[] = [];
+        targetNodeIds.forEach(targetId => {
+            if (targetId === mainNodeId) return;
+            
+            // Check if an edge already exists from mainNodeId to targetId
+            const edgeExists = edges.some(e => 
+                (e.source === mainNodeId && e.target === targetId) ||
+                (e.source === targetId && e.target === mainNodeId)
+            );
+            
+            if (!edgeExists) {
+                newEdges.push({
+                    id: uuidv4(),
+                    source: mainNodeId,
+                    target: targetId,
+                    type: 'centered',
+                    data: { parentId: parentIdForEdge },
+                } as Edge);
+            }
+        });
+        
+        if (newEdges.length > 0) {
+            console.log("[linkSelectedNodes] Created new edges:", newEdges);
+            set({
+                edges: [...edges, ...newEdges]
+            });
+        } else {
+            console.log("[linkSelectedNodes] No new edges created (already existed or empty targets).");
+        }
     },
 
     hydrateCanvasFromContent: (nodeId: string) => {
@@ -938,10 +1198,8 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         let startY = margin;
         const startX = margin;
         
-        // Use a more generous grid for fused nodes
-        const gridColumnWidth = BASE_UNIT * 10;  // 560px (allows for gap between 432px cards)
-        const gridRowHeight = BASE_UNIT * 10;    // 560px
-        const maxColumns = 4;         // Max 4 per row for better visibility
+        // Use vertical layout for fused nodes (stacked under each other)
+        const verticalGap = BASE_UNIT;  // Gap between stacked fused notes
 
         if (children.length > 0) {
             const maxY = Math.max(
@@ -953,18 +1211,15 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         const newNodes: AppNode[] = sections.map((sectionBlocks, index) => {
             const newNodeId = uuidv4();
             
-            // Calculate grid position
-            const row = Math.floor(index / maxColumns);
-            const col = index % maxColumns;
-            
-            const x = startX + (col * gridColumnWidth);
-            const y = startY + (row * gridRowHeight);
+            // Stack vertically: each fused note placed below the previous one
+            const x = startX;
+            const y = startY + (index * MIN_FUSED_SIZE) + (index * verticalGap);
 
             return {
                 id: newNodeId,
                 type: 'fused-note',
                 position: { x, y },
-                style: { width: MIN_FUSED_SIZE, height: MIN_FUSED_SIZE },
+                style: { width: MIN_FUSED_SIZE },
                 data: {
                     content: sectionBlocks,
                     isStandaloneBlock: true
@@ -978,5 +1233,152 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         }));
 
         if (DEBUG) console.log("[hydrateCanvas] Created fused nodes for sections:", newNodes.map(n => n.id));
-    }
+    },
+
+    updateEdge: (id, updates) => {
+        set((state) => ({
+            edges: state.edges.map((e) => (e.id === id ? { ...e, ...updates } : e)),
+        }));
+    },
+
+    deleteEdge: (id) => {
+        set((state) => ({
+            edges: state.edges.filter((e) => e.id !== id),
+        }));
+    },
+
+    duplicateEdge: (id) => {
+        const edge = get().edges.find((e) => e.id === id);
+        if (edge) {
+            const newEdge = {
+                ...edge,
+                id: `edge-${uuidv4()}`,
+            };
+            set((state) => ({
+                edges: [...state.edges, newEdge],
+            }));
+        }
+    },
+
+    bringEdgeToFront: (id) => {
+        const edges = get().edges;
+        const edge = edges.find((e) => e.id === id);
+        if (edge) {
+            set({
+                edges: [...edges.filter((e) => e.id !== id), edge],
+            });
+        }
+    },
+
+    arrangeNodes: (nodeIds, mode) => {
+        const { nodes } = get();
+        const selected = nodes.filter(n => nodeIds.includes(n.id));
+        if (selected.length < 2) return;
+
+        const count = selected.length;
+
+        const getW = (n: typeof selected[0]) => (typeof n.style?.width === 'number' ? n.style.width : 432);
+        const getH = (n: typeof selected[0]) => (typeof n.style?.height === 'number' ? n.style.height : 432);
+
+        const bbox = selected.reduce((acc, n) => ({
+            minX: Math.min(acc.minX, n.position.x),
+            maxX: Math.max(acc.maxX, n.position.x + getW(n)),
+            minY: Math.min(acc.minY, n.position.y),
+            maxY: Math.max(acc.maxY, n.position.y + getH(n)),
+        }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
+
+        const centerX = (bbox.minX + bbox.maxX) / 2;
+        const centerY = (bbox.minY + bbox.maxY) / 2;
+        const gap = BASE_UNIT;
+
+        const positions: Record<string, { x: number; y: number }> = {};
+
+        switch (mode) {
+            case 'grid': {
+                const cols = Math.ceil(Math.sqrt(count));
+                const cellW = Math.max(...selected.map(getW));
+                const cellH = Math.max(...selected.map(getH));
+                const rows = Math.ceil(count / cols);
+                const gridW = cols * cellW + (cols - 1) * gap;
+                const gridH = rows * cellH + (rows - 1) * gap;
+                const ox = snapToGridValue(centerX - gridW / 2 + cellW / 2);
+                const oy = snapToGridValue(centerY - gridH / 2 + cellH / 2);
+
+                selected.forEach((node, i) => {
+                    const col = i % cols;
+                    const row = Math.floor(i / cols);
+                    positions[node.id] = {
+                        x: snapToGridValue(ox + col * (cellW + gap)),
+                        y: snapToGridValue(oy + row * (cellH + gap)),
+                    };
+                });
+                break;
+            }
+
+            case 'circle': {
+                const diagonals = selected.map(n => Math.sqrt(getW(n) ** 2 + getH(n) ** 2));
+                const maxDiag = Math.max(...diagonals);
+                const angleStep = (2 * Math.PI) / count;
+                const minRadius = count <= 2
+                    ? (maxDiag + gap)
+                    : (maxDiag + gap) / (2 * Math.sin(angleStep / 2));
+                const radius = snapToGridValue(Math.max(BASE_UNIT * 2, minRadius));
+
+                selected.forEach((node, i) => {
+                    const angle = -Math.PI / 2 + angleStep * i;
+                    positions[node.id] = {
+                        x: snapToGridValue(centerX + radius * Math.cos(angle) - getW(node) / 2),
+                        y: snapToGridValue(centerY + radius * Math.sin(angle) - getH(node) / 2),
+                    };
+                });
+                break;
+            }
+
+            case 'flow': {
+                const sorted = [...selected].sort((a, b) => (a.position.x + getW(a) / 2) - (b.position.x + getW(b) / 2));
+                const totalW = sorted.reduce((s, n) => s + getW(n), 0) + (count - 1) * gap;
+                let cx = snapToGridValue(centerX - totalW / 2);
+                sorted.forEach(node => {
+                    positions[node.id] = {
+                        x: snapToGridValue(cx),
+                        y: snapToGridValue(centerY - getH(node) / 2),
+                    };
+                    cx += getW(node) + gap;
+                });
+                break;
+            }
+
+            case 'horizontal-row': {
+                const sorted = [...selected].sort((a, b) => a.position.x - b.position.x);
+                const totalW = sorted.reduce((s, n) => s + getW(n), 0) + (count - 1) * gap;
+                let cx = snapToGridValue(centerX - totalW / 2);
+                sorted.forEach(node => {
+                    positions[node.id] = {
+                        x: snapToGridValue(cx),
+                        y: snapToGridValue(centerY - getH(node) / 2),
+                    };
+                    cx += getW(node) + gap;
+                });
+                break;
+            }
+
+            case 'vertical-column': {
+                const sorted = [...selected].sort((a, b) => a.position.y - b.position.y);
+                const totalH = sorted.reduce((s, n) => s + getH(n), 0) + (count - 1) * gap;
+                let cy = snapToGridValue(centerY - totalH / 2);
+                sorted.forEach(node => {
+                    positions[node.id] = {
+                        x: snapToGridValue(centerX - getW(node) / 2),
+                        y: snapToGridValue(cy),
+                    };
+                    cy += getH(node) + gap;
+                });
+                break;
+            }
+        }
+
+        set({
+            nodes: nodes.map(n => (positions[n.id] ? { ...n, position: positions[n.id] } : n)),
+        });
+    },
 });

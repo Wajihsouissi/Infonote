@@ -114,7 +114,7 @@ export const BlockItem = memo(function BlockItem({
             case 'toggle': return <ListBlock {...props} />;
             case 'callout': return <CalloutBlock {...props} />;
             case 'page': return <PageBlock {...props} />;
-            case 'container': return <ContainerBlock block={block} onUpdate={(data: Partial<Block>) => onUpdateBlock(block.id, data as any)} readOnly={readOnly} />;
+            case 'container': return <ContainerBlock block={block} onUpdate={(data: Partial<Block>) => onUpdateBlock(block.id, data as any)} readOnly={readOnly} nodeId={nodeId} />;
             case 'columns': return (
                 <ColumnsBlock 
                     block={block} 

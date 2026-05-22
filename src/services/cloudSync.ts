@@ -58,6 +58,27 @@ function ensureReady(userId: string | null): string {
     return userId;
 }
 
+/** Retry an async operation with exponential backoff. */
+async function withRetry<T>(
+    fn: () => Promise<T>,
+    maxRetries = 2,
+    baseDelayMs = 1000
+): Promise<T> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            return await fn();
+        } catch (err) {
+            lastError = err;
+            if (attempt < maxRetries) {
+                const delay = baseDelayMs * Math.pow(2, attempt);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+    throw lastError;
+}
+
 /** Convert an AppNode -> canvas_nodes row payload. */
 function nodeToRow(node: AppNode, userId: string): CanvasNodeRow {
     const style = (node as { style?: Record<string, unknown> }).style || {};
@@ -197,18 +218,20 @@ export async function saveCanvasToCloud(
         const edgeRows = edges.map((e) => edgeToRow(e, uid));
 
         // Upsert (chunked — Supabase handles a few thousand rows per request).
-        if (nodeRows.length > 0) {
-            const { error } = await supabase
-                .from('canvas_nodes')
-                .upsert(nodeRows, { onConflict: 'user_id,id' });
-            if (error) throw error;
-        }
-        if (edgeRows.length > 0) {
-            const { error } = await supabase
-                .from('canvas_edges')
-                .upsert(edgeRows, { onConflict: 'user_id,id' });
-            if (error) throw error;
-        }
+        await withRetry(async () => {
+            if (nodeRows.length > 0) {
+                const { error } = await supabase
+                    .from('canvas_nodes')
+                    .upsert(nodeRows, { onConflict: 'user_id,id' });
+                if (error) throw error;
+            }
+            if (edgeRows.length > 0) {
+                const { error } = await supabase
+                    .from('canvas_edges')
+                    .upsert(edgeRows, { onConflict: 'user_id,id' });
+                if (error) throw error;
+            }
+        });
 
         // Mirror deletes — remove rows that no longer exist locally. We fetch
         // the current ids and diff them client-side; this is robust regardless
@@ -216,12 +239,15 @@ export async function saveCanvasToCloud(
         const localNodeIds = new Set(nodeRows.map((r) => r.id));
         const localEdgeIds = new Set(edgeRows.map((r) => r.id));
 
-        const [existingNodes, existingEdges] = await Promise.all([
-            supabase.from('canvas_nodes').select('id').eq('user_id', uid),
-            supabase.from('canvas_edges').select('id').eq('user_id', uid),
-        ]);
-        if (existingNodes.error) throw existingNodes.error;
-        if (existingEdges.error) throw existingEdges.error;
+        const [existingNodes, existingEdges] = await withRetry(async () => {
+            const [nRes, eRes] = await Promise.all([
+                supabase.from('canvas_nodes').select('id').eq('user_id', uid),
+                supabase.from('canvas_edges').select('id').eq('user_id', uid),
+            ]);
+            if (nRes.error) throw nRes.error;
+            if (eRes.error) throw eRes.error;
+            return [nRes, eRes] as const;
+        });
 
         const nodeIdsToDelete = (existingNodes.data ?? [])
             .map((r: { id: string }) => r.id)
@@ -230,22 +256,24 @@ export async function saveCanvasToCloud(
             .map((r: { id: string }) => r.id)
             .filter((id: string) => !localEdgeIds.has(id));
 
-        if (nodeIdsToDelete.length > 0) {
-            const { error } = await supabase
-                .from('canvas_nodes')
-                .delete()
-                .eq('user_id', uid)
-                .in('id', nodeIdsToDelete);
-            if (error) throw error;
-        }
-        if (edgeIdsToDelete.length > 0) {
-            const { error } = await supabase
-                .from('canvas_edges')
-                .delete()
-                .eq('user_id', uid)
-                .in('id', edgeIdsToDelete);
-            if (error) throw error;
-        }
+        await withRetry(async () => {
+            if (nodeIdsToDelete.length > 0) {
+                const { error } = await supabase
+                    .from('canvas_nodes')
+                    .delete()
+                    .eq('user_id', uid)
+                    .in('id', nodeIdsToDelete);
+                if (error) throw error;
+            }
+            if (edgeIdsToDelete.length > 0) {
+                const { error } = await supabase
+                    .from('canvas_edges')
+                    .delete()
+                    .eq('user_id', uid)
+                    .in('id', edgeIdsToDelete);
+                if (error) throw error;
+            }
+        });
 
         return { ok: true, counts: { nodes: nodeRows.length, edges: edgeRows.length } };
     } catch (err) {
@@ -261,13 +289,15 @@ export async function loadCanvasFromCloud(userId: string | null): Promise<CloudL
     try {
         const uid = ensureReady(userId);
 
-        const [nodesRes, edgesRes] = await Promise.all([
-            supabase.from('canvas_nodes').select('*').eq('user_id', uid),
-            supabase.from('canvas_edges').select('*').eq('user_id', uid),
-        ]);
-
-        if (nodesRes.error) throw nodesRes.error;
-        if (edgesRes.error) throw edgesRes.error;
+        const [nodesRes, edgesRes] = await withRetry(async () => {
+            const [nRes, eRes] = await Promise.all([
+                supabase.from('canvas_nodes').select('*').eq('user_id', uid),
+                supabase.from('canvas_edges').select('*').eq('user_id', uid),
+            ]);
+            if (nRes.error) throw nRes.error;
+            if (eRes.error) throw eRes.error;
+            return [nRes, eRes] as const;
+        });
 
         const nodes = (nodesRes.data as CanvasNodeRow[] | null ?? []).map(rowToNode);
         const edges = (edgesRes.data as CanvasEdgeRow[] | null ?? []).map(rowToEdge);
