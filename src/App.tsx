@@ -6,6 +6,7 @@ import { LandingPage } from './features/landing/LandingPage';
 import { MarketplacePage } from './features/marketplace/MarketplacePage';
 import { LoginPage } from './features/auth/LoginPage';
 import { SignupPage } from './features/auth/SignupPage';
+import { OtpVerificationPage } from './features/auth/OtpVerificationPage';
 import { AdminDashboard } from './features/admin/AdminDashboard';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useStore } from './store/useStore';
@@ -23,6 +24,44 @@ function App() {
       setCurrentView('landing');
     }
   }, [isAuthLoading, isAuthenticated, currentView, setCurrentView]);
+
+  /**
+   * OAuth callback error capture.
+   *
+   * When Google (or any provider) bounces the user back to our origin with
+   * `?error=...&error_description=...` it means the handshake failed at the
+   * provider/Supabase layer (e.g. provider not enabled, redirect URL not
+   * allow-listed). Surface that to the user via console + an alert so they
+   * stop staring at a blank page.
+   */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const err = params.get('error') || hashParams.get('error');
+    const errDesc =
+      params.get('error_description') || hashParams.get('error_description');
+    if (err) {
+      console.error('[OAuth] callback error:', err, errDesc);
+      // Strip the error params from the URL so a refresh doesn't replay them.
+      const url = new URL(window.location.href);
+      ['error', 'error_description', 'error_code'].forEach((p) =>
+        url.searchParams.delete(p)
+      );
+      window.history.replaceState({}, document.title, url.pathname + url.search);
+      // Send the user to the login screen and show the message.
+      setCurrentView('login');
+      // Defer alert so React has time to mount the login view.
+      setTimeout(() => {
+        window.alert(
+          `Sign-in failed: ${errDesc || err}\n\n` +
+            'If you used Google or Facebook, make sure the provider is enabled ' +
+            'in your Supabase Dashboard \u2192 Authentication \u2192 Providers and ' +
+            'that this URL is in the Redirect URLs allow-list.'
+        );
+      }, 0);
+    }
+  }, [setCurrentView]);
 
   /**
    * Root-level auth session hydration.
@@ -81,6 +120,8 @@ function App() {
         return <LoginPage />;
       case 'signup':
         return <SignupPage />;
+      case 'otp-verify':
+        return <OtpVerificationPage />;
       case 'admin':
         return <AdminDashboard />;
       case 'canvas':

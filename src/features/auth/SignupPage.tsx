@@ -1,11 +1,19 @@
+/**
+ * SignupPage — real Supabase email/password and OAuth registration.
+ *
+ * No mock data, no localStorage shortcuts. Accounts are created in the
+ * Supabase Auth backend; the user_profiles row is populated automatically
+ * by the on-signup trigger defined in the migration.
+ */
 import React, { useState } from 'react';
-import { Rocket, Mail, Lock, Eye, EyeOff, User, ArrowLeft, UserPlus, Zap, GitBranch, Layers, Loader2, AlertCircle } from 'lucide-react';
+import { Rocket, Mail, Lock, Eye, EyeOff, User, ArrowLeft, UserPlus, Zap, GitBranch, Layers, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
+import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
 import styles from './AuthPage.module.css';
 
 export const SignupPage: React.FC = () => {
   const setCurrentView = useStore((state) => state.setCurrentView);
+  const setPendingVerificationEmail = useStore((state) => state.setPendingVerificationEmail);
   const hasEnteredApp = useStore((state) => state.hasEnteredApp);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm]   = useState(false);
@@ -18,11 +26,20 @@ export const SignupPage: React.FC = () => {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    setSuccessMessage(null);
+
+    if (!isSupabaseConfigured || !supabase) {
+      setError('Authentication is not configured. Please contact the administrator (missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY).');
+      return;
+    }
+
     const cleanEmail = email.trim().toLowerCase();
-    const cleanPassword = password.trim();
+    const cleanPassword = password;
     const cleanFirst = firstName.trim();
     const cleanLast = lastName.trim();
 
@@ -34,81 +51,50 @@ export const SignupPage: React.FC = () => {
       setError('Password must be at least 6 characters.');
       return;
     }
-    if (cleanPassword !== confirmPassword.trim()) {
-      setError('Passwords do not match');
+    if (cleanPassword !== confirmPassword) {
+      setError('Passwords do not match.');
       return;
     }
 
     setLoading(true);
-    setError(null);
-
-    // ── MOCK AUTH FLOW ──
-    if (!isSupabaseConfigured) {
-      setTimeout(() => {
-        try {
-          // Fetch existing mock users
-          const localUsersRaw = localStorage.getItem('chnk-it-mock-users');
-          const localUsers = localUsersRaw ? JSON.parse(localUsersRaw) : [];
-
-          // Check if email already registered
-          const emailExists = localUsers.some((u: any) => u.email.toLowerCase() === email.toLowerCase()) || 
-                              email.toLowerCase() === 'demo@chnkit.com' || 
-                              email.toLowerCase() === 'guest@chnkit.com';
-
-          if (emailExists) {
-            throw new Error('An account with this email already exists.');
-          }
-
-          // Create new user record
-          const newUser = {
-            id: `mock-user-${Date.now()}`,
-            email: email,
-            password: password,
-            displayName: `${firstName} ${lastName}`.trim()
-          };
-
-          // Save to mock users list
-          localUsers.push(newUser);
-          localStorage.setItem('chnk-it-mock-users', JSON.stringify(localUsers));
-
-          // Log user in automatically by creating a mock session
-          const sessionUser = {
-            id: newUser.id,
-            email: newUser.email,
-            displayName: newUser.displayName
-          };
-          localStorage.setItem('chnk-it-mock-session', JSON.stringify(sessionUser));
-
-          // Set user in Zustand store
-          useStore.getState().setAuthUser({
-            id: sessionUser.id,
-            email: sessionUser.email,
-            displayName: sessionUser.displayName
-          });
-
-          // Redirect to canvas
-          setCurrentView('canvas');
-        } catch (err) {
-          setError(err instanceof Error ? err.message : String(err));
-        } finally {
-          setLoading(false);
-        }
-      }, 1000); // 1000ms premium feeling loading transition
-      return;
-    }
-
     try {
-      const { error: signUpError } = await supabase.auth.signUp({
+      const displayName = `${cleanFirst} ${cleanLast}`.trim();
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
         password: cleanPassword,
         options: {
           data: {
-            display_name: `${cleanFirst} ${cleanLast}`.trim(),
-          }
-        }
+            display_name: displayName,
+            full_name: displayName,
+            first_name: cleanFirst,
+            last_name: cleanLast,
+          },
+          emailRedirectTo: window.location.origin,
+        },
       });
-      if (signUpError) throw signUpError;
-      setCurrentView('canvas');
+      if (signUpError) {
+        const msg = signUpError.message?.toLowerCase() || '';
+        if (msg.includes('already') || msg.includes('registered')) {
+          throw new Error('An account with this email already exists. Please sign in instead.');
+        }
+        throw signUpError;
+      }
+
+      // Two outcomes:
+      //  1) Email confirmation REQUIRED → data.session is null. Send the user
+      //     to the OTP verification screen so they can enter the 6-digit code
+      //     that Supabase emails (delivered via Resend SMTP).
+      //  2) Email confirmation DISABLED → data.session is non-null and
+      //     AuthProvider hydrates Zustand. Drop the user straight on canvas.
+      if (data.session) {
+        setCurrentView('canvas');
+      } else {
+        setPendingVerificationEmail(cleanEmail);
+        setSuccessMessage(
+          `We sent a 6-digit code to ${cleanEmail}. Enter it on the next screen to finish creating your account.`
+        );
+        setTimeout(() => setCurrentView('otp-verify'), 600);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -117,11 +103,37 @@ export const SignupPage: React.FC = () => {
   };
 
   const handleOAuth = async (provider: 'google' | 'facebook') => {
+    setError(null);
+    if (!isSupabaseConfigured || !supabase) {
+      setError('Authentication is not configured. Please contact the administrator (missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY).');
+      return;
+    }
+    setLoading(true);
     try {
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({ provider });
+      const redirectTo = getOAuthRedirectUrl();
+      // eslint-disable-next-line no-console
+      console.info('[OAuth] requesting redirectTo =', redirectTo);
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo,
+          queryParams:
+            provider === 'google'
+              ? { access_type: 'offline', prompt: 'select_account' }
+              : undefined,
+        },
+      });
       if (oauthError) throw oauthError;
+      // Browser is navigating away to the provider; AuthProvider will pick up
+      // the SIGNED_IN event when the user lands back on the origin.
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setLoading(false);
+      const raw = err instanceof Error ? err.message : String(err);
+      if (/provider.*not enabled|unsupported.*provider/i.test(raw)) {
+        setError(`The ${provider} provider is not enabled in Supabase. Open your Supabase Dashboard → Authentication → Providers and enable ${provider}.`);
+      } else {
+        setError(raw);
+      }
     }
   };
 
@@ -132,7 +144,6 @@ export const SignupPage: React.FC = () => {
       <div className={styles.leftPanel}>
         <div className={styles.gridDots} />
 
-        {/* Left Header with Back Button and Logo */}
         <div className={styles.leftHeader}>
           {hasEnteredApp && (
             <button className={styles.backButton} onClick={() => setCurrentView('landing')}>
@@ -146,7 +157,6 @@ export const SignupPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Hero content */}
         <div className={styles.leftHero}>
           <div className={styles.leftHeroTag}>
             <span />
@@ -175,7 +185,6 @@ export const SignupPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Social proof */}
         <div className={styles.leftFooter}>
           <div className={styles.leftAvatars}>
             <div className={styles.leftAvatar}>J</div>
@@ -192,15 +201,13 @@ export const SignupPage: React.FC = () => {
       {/* ── RIGHT PANEL ── */}
       <div className={styles.rightPanel}>
         <div className={styles.formContainer}>
-          {/* Header */}
           <div className={styles.cardHeader}>
             <h1 className={styles.title}>Create your account</h1>
             <p className={styles.subtitle}>Start organising your thoughts for free.</p>
           </div>
 
-          {/* Social signup */}
           <div className={styles.socialGroup}>
-            <button className={styles.socialButton} type="button" onClick={() => handleOAuth('google')}>
+            <button className={styles.socialButton} type="button" onClick={() => handleOAuth('google')} disabled={loading}>
               <svg className={styles.socialIcon} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -209,7 +216,7 @@ export const SignupPage: React.FC = () => {
               </svg>
               Google
             </button>
-            <button className={styles.socialButton} type="button" onClick={() => handleOAuth('facebook')}>
+            <button className={styles.socialButton} type="button" onClick={() => handleOAuth('facebook')} disabled={loading}>
               <svg className={styles.socialIcon} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" fill="#1877F2"/>
               </svg>
@@ -217,10 +224,8 @@ export const SignupPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Divider */}
           <div className={styles.divider}>or sign up with email</div>
 
-          {/* Error display */}
           {error && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '8px', fontSize: '13px', marginBottom: '16px' }}>
               <AlertCircle size={16} />
@@ -228,9 +233,14 @@ export const SignupPage: React.FC = () => {
             </div>
           )}
 
-          {/* Form */}
+          {successMessage && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', borderRadius: '8px', fontSize: '13px', marginBottom: '16px' }}>
+              <CheckCircle2 size={16} />
+              <span>{successMessage}</span>
+            </div>
+          )}
+
           <form className={styles.form} onSubmit={handleSignup}>
-            {/* First / Last name row */}
             <div className={styles.nameRow}>
               <div className={styles.fieldGroup}>
                 <label htmlFor="signup-firstname">First name</label>
@@ -268,7 +278,6 @@ export const SignupPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Email */}
             <div className={styles.fieldGroup}>
               <label htmlFor="signup-email">Email address</label>
               <div className={styles.inputWrap}>
@@ -287,7 +296,6 @@ export const SignupPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Password */}
             <div className={styles.fieldGroup}>
               <label htmlFor="signup-password">Password</label>
               <div className={styles.inputWrap}>
@@ -315,7 +323,6 @@ export const SignupPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Confirm password */}
             <div className={styles.fieldGroup}>
               <label htmlFor="signup-confirm">Confirm password</label>
               <div className={styles.inputWrap}>
@@ -343,7 +350,6 @@ export const SignupPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Submit */}
             <button type="submit" className={styles.submitButton} disabled={loading || !email || !password || !firstName || !lastName || !confirmPassword}>
               {loading ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />}
               Create account
@@ -360,7 +366,6 @@ export const SignupPage: React.FC = () => {
               </button>
             )}
 
-            {/* Terms */}
             <p className={styles.terms}>
               By creating an account you agree to our{' '}
               <button type="button">Terms of Service</button>

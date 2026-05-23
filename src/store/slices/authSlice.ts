@@ -20,6 +20,7 @@ const UNAUTHENTICATED_AUTH: AuthState = {
 export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set) => ({
     auth: { ...UNAUTHENTICATED_AUTH, isAuthLoading: true },
     isAuthModalOpen: false,
+    pendingVerificationEmail: null,
     setAuthUser: (user: AuthUser | null) =>
         set({
             auth: user
@@ -37,5 +38,12 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set) 
             auth: { ...state.auth, isAuthLoading: isLoading },
         })),
     setAuthModalOpen: (isOpen: boolean) => set({ isAuthModalOpen: isOpen }),
-    resetAuth: () => set({ auth: { ...UNAUTHENTICATED_AUTH }, isAuthModalOpen: false }),
+    setPendingVerificationEmail: (email: string | null) =>
+        set({ pendingVerificationEmail: email }),
+    resetAuth: () =>
+        set({
+            auth: { ...UNAUTHENTICATED_AUTH },
+            isAuthModalOpen: false,
+            pendingVerificationEmail: null,
+        }),
 });

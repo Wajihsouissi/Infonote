@@ -82,29 +82,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     useEffect(() => {
         if (!isSupabaseConfigured) {
-            const mockSessionRaw = localStorage.getItem('chnk-it-mock-session');
-            if (mockSessionRaw) {
-                try {
-                    const mockUser = JSON.parse(mockSessionRaw);
-                    setUser(mockUser);
-                    
-                    // Push to Zustand store
-                    const { setAuthUser } = useStore.getState();
-                    setAuthUser({
-                        id: mockUser.id,
-                        email: mockUser.email,
-                        displayName: mockUser.displayName
-                    });
-
-                    // Redirect if they are currently on login/signup to landing
-                    const { currentView, setCurrentView } = useStore.getState();
-                    if (currentView === 'login' || currentView === 'signup') {
-                        setCurrentView('landing');
-                    }
-                } catch (e) {
-                    console.error("Error loading mock session", e);
-                }
-            }
+            // No backend configured — nothing to hydrate. Mark loading complete
+            // so the UI can render the public/visitor experience.
             setLoading(false);
             useStore.getState().setAuthLoading(false);
             return;
@@ -144,24 +123,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [pushToStore]);
 
     const signOut = useCallback(async () => {
-        if (!isSupabaseConfigured) {
-            // Tear down local mock session
-            localStorage.removeItem('chnk-it-mock-session');
-            const { resetAuth, setCurrentView } = useStore.getState();
-            resetAuth();
-            setUser(null);
-            setCurrentView('landing');
-            return;
-        }
-        try {
-            await supabase.auth.signOut();
-        } finally {
-            // Always tear down local state even if the network call fails.
+        // Always tear down local state, even if the network call fails.
+        const finalize = () => {
+            // Belt-and-braces: purge any legacy mock session keys that may
+            // exist from earlier builds so they cannot resurrect a stale user.
+            try {
+                localStorage.removeItem('chnk-it-mock-session');
+                localStorage.removeItem('chnk-it-mock-users');
+            } catch {
+                // ignore storage errors (e.g. private browsing)
+            }
             const { resetAuth, setCurrentView } = useStore.getState();
             resetAuth();
             setUser(null);
             // Redirect back to the public homepage context.
             setCurrentView('landing');
+        };
+
+        if (!isSupabaseConfigured || !supabase) {
+            finalize();
+            return;
+        }
+        try {
+            await supabase.auth.signOut();
+        } catch (err) {
+            console.warn('[Auth] signOut network call failed; clearing local state anyway', err);
+        } finally {
+            finalize();
         }
     }, []);
 

@@ -1,11 +1,20 @@
+/**
+ * LoginPage — real Supabase email/password and OAuth authentication.
+ *
+ * No mock data, no localStorage shortcuts. All credentials are validated
+ * against the live Supabase Auth backend. Session persistence is handled
+ * by the Supabase client (localStorage token) plus AuthProvider's
+ * onAuthStateChange subscription.
+ */
 import React, { useState } from 'react';
 import { Rocket, Mail, Lock, Eye, EyeOff, User, ArrowLeft, LogIn, Zap, GitBranch, Layers, Loader2, AlertCircle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
+import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
 import styles from './AuthPage.module.css';
 
 export const LoginPage: React.FC = () => {
   const setCurrentView = useStore((state) => state.setCurrentView);
+  const setPendingVerificationEmail = useStore((state) => state.setPendingVerificationEmail);
   const hasEnteredApp = useStore((state) => state.hasEnteredApp);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
@@ -15,8 +24,15 @@ export const LoginPage: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    if (!isSupabaseConfigured || !supabase) {
+      setError('Authentication is not configured. Please contact the administrator (missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY).');
+      return;
+    }
+
     const cleanEmail = email.trim().toLowerCase();
-    const cleanPassword = password.trim();
+    const cleanPassword = password;
     if (!cleanEmail || !cleanPassword) {
       setError('Email and password are required.');
       return;
@@ -25,69 +41,43 @@ export const LoginPage: React.FC = () => {
       setError('Password must be at least 6 characters.');
       return;
     }
-    
+
     setLoading(true);
-    setError(null);
-    
-    // ── MOCK AUTH FLOW ──
-    if (!isSupabaseConfigured) {
-      setTimeout(() => {
-        try {
-          // Pre-populate standard demo accounts
-          const defaultUsers = [
-            { id: 'demo-user-id', email: 'demo@chnkit.com', password: 'password123', displayName: 'Demo User' },
-            { id: 'guest-user-id', email: 'guest@chnkit.com', password: 'password', displayName: 'Chnk it Guest' }
-          ];
-
-          // Fetch mock users from localStorage
-          const localUsersRaw = localStorage.getItem('chnk-it-mock-users');
-          const localUsers = localUsersRaw ? JSON.parse(localUsersRaw) : [];
-          
-          const allUsers = [...defaultUsers, ...localUsers];
-          const matchedUser = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-
-          if (!matchedUser) {
-            throw new Error('No account found with this email. Please sign up first!');
-          }
-
-          if (matchedUser.password !== password) {
-            throw new Error('Incorrect password. Please try again!');
-          }
-
-          // Create mock session
-          const sessionUser = {
-            id: matchedUser.id,
-            email: matchedUser.email,
-            displayName: matchedUser.displayName
-          };
-
-          localStorage.setItem('chnk-it-mock-session', JSON.stringify(sessionUser));
-          
-          // Set user in Zustand store
-          useStore.getState().setAuthUser({
-            id: sessionUser.id,
-            email: sessionUser.email,
-            displayName: sessionUser.displayName
-          });
-
-          // Trigger view update
-          setCurrentView('canvas');
-        } catch (err) {
-          setError(err instanceof Error ? err.message : String(err));
-        } finally {
-          setLoading(false);
-        }
-      }, 800); // 800ms loading feeling for high-fidelity response
-      return;
-    }
-    
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password: cleanPassword,
       });
-      if (signInError) throw signInError;
-      setCurrentView('canvas');
+      if (signInError) {
+        // Surface a friendly message for the most common case.
+        const msg = signInError.message?.toLowerCase() || '';
+        if (msg.includes('confirm') || msg.includes('not confirmed')) {
+          // Account exists but the email hasn't been verified yet → send the
+          // user to the OTP screen so they can finish the verification step.
+          setPendingVerificationEmail(cleanEmail);
+          // Trigger a fresh OTP so they don't have to dig through old mail.
+          try {
+            await supabase.auth.resend({
+              type: 'signup',
+              email: cleanEmail,
+              options: { emailRedirectTo: window.location.origin },
+            });
+          } catch {
+            // Non-fatal — OTP page also has a Resend button.
+          }
+          setCurrentView('otp-verify');
+          return;
+        }
+        if (msg.includes('invalid') || msg.includes('credentials')) {
+          throw new Error('Invalid email or password. If you just signed up, please check your inbox to confirm your email first.');
+        }
+        throw signInError;
+      }
+      // Session is now in place. AuthProvider will hydrate Zustand via
+      // onAuthStateChange. Navigate the user to the canvas.
+      if (data.session) {
+        setCurrentView('canvas');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -96,11 +86,46 @@ export const LoginPage: React.FC = () => {
   };
 
   const handleOAuth = async (provider: 'google' | 'facebook') => {
+    setError(null);
+    if (!isSupabaseConfigured || !supabase) {
+      setError('Authentication is not configured. Please contact the administrator (missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY).');
+      return;
+    }
+    setLoading(true);
     try {
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({ provider });
+      // Always send Google back to the EXACT URL the user started from.
+      // `getOAuthRedirectUrl()` returns `window.location.origin + pathname`
+      // so a dev server on :5173 stays on :5173 and prod on chnkit.com
+      // stays on chnkit.com. Never hardcode a port.
+      const redirectTo = getOAuthRedirectUrl();
+      // Diagnostic log — if you ever land on the wrong host after Google
+      // sign-in, check the browser console: this is the URL we asked for.
+      // If Supabase ignores it, the URL is missing from the Dashboard's
+      // Redirect URLs allow-list.
+      // eslint-disable-next-line no-console
+      console.info('[OAuth] requesting redirectTo =', redirectTo);
+
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo,
+          queryParams:
+            provider === 'google'
+              ? { access_type: 'offline', prompt: 'select_account' }
+              : undefined,
+        },
+      });
       if (oauthError) throw oauthError;
+      // Browser is now navigating away to the OAuth provider; nothing more to do.
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setLoading(false);
+      const raw = err instanceof Error ? err.message : String(err);
+      // Friendlier wording for the most common misconfiguration.
+      if (/provider.*not enabled|unsupported.*provider/i.test(raw)) {
+        setError(`The ${provider} provider is not enabled in Supabase. Open your Supabase Dashboard → Authentication → Providers and enable ${provider}.`);
+      } else {
+        setError(raw);
+      }
     }
   };
 
@@ -111,7 +136,6 @@ export const LoginPage: React.FC = () => {
       <div className={styles.leftPanel}>
         <div className={styles.gridDots} />
 
-        {/* Left Header with Back Button and Logo */}
         <div className={styles.leftHeader}>
           {hasEnteredApp && (
             <button className={styles.backButton} onClick={() => setCurrentView('landing')}>
@@ -125,7 +149,6 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Hero content */}
         <div className={styles.leftHero}>
           <div className={styles.leftHeroTag}>
             <span />
@@ -154,7 +177,6 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Social proof */}
         <div className={styles.leftFooter}>
           <div className={styles.leftAvatars}>
             <div className={styles.leftAvatar}>J</div>
@@ -171,15 +193,13 @@ export const LoginPage: React.FC = () => {
       {/* ── RIGHT PANEL ── */}
       <div className={styles.rightPanel}>
         <div className={styles.formContainer}>
-          {/* Header */}
           <div className={styles.cardHeader}>
             <h1 className={styles.title}>Welcome back</h1>
             <p className={styles.subtitle}>Sign in to your account to continue.</p>
           </div>
 
-          {/* Social login */}
           <div className={styles.socialGroup}>
-            <button className={styles.socialButton} onClick={() => handleOAuth('google')}>
+            <button className={styles.socialButton} type="button" onClick={() => handleOAuth('google')} disabled={loading}>
               <svg className={styles.socialIcon} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -188,7 +208,7 @@ export const LoginPage: React.FC = () => {
               </svg>
               Google
             </button>
-            <button className={styles.socialButton} onClick={() => handleOAuth('facebook')}>
+            <button className={styles.socialButton} type="button" onClick={() => handleOAuth('facebook')} disabled={loading}>
               <svg className={styles.socialIcon} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" fill="#1877F2"/>
               </svg>
@@ -196,10 +216,8 @@ export const LoginPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Divider */}
           <div className={styles.divider}>or continue with email</div>
 
-          {/* Error display */}
           {error && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '8px', fontSize: '13px', marginBottom: '16px' }}>
               <AlertCircle size={16} />
@@ -207,7 +225,6 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
-          {/* Form */}
           <form className={styles.form} onSubmit={handleLogin}>
             <div className={styles.fieldGroup}>
               <label htmlFor="login-email">Email address</label>
