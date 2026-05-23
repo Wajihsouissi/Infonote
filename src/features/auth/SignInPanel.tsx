@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { Mail, LogOut, Loader2, Lock } from 'lucide-react';
 import { supabase } from '../../services/supabase/client';
-import { useAuth } from './AuthProvider';
+import { useAuth } from './useAuth';
 
 type Props = {
     onSignedIn?: () => void;

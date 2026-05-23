@@ -9,7 +9,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LogOut, User as UserIcon, Layout, Shield } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { useAuth } from './AuthProvider';
+import { useAuth } from './useAuth';
 import styles from './ProfileMenu.module.css';
 
 type ProfileMenuProps = {

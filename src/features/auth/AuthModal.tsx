@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X, Mail, Lock, Eye, EyeOff, Loader2, LogIn, UserPlus, AlertCircle, CheckCircle2, LogOut } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { useAuth } from './AuthProvider';
+import { useAuth } from './useAuth';
 import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
 import styles from './AuthModal.module.css';
 

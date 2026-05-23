@@ -21,7 +21,7 @@ import {
     Loader2,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { useAuth } from './AuthProvider';
+import { useAuth } from './useAuth';
 import {
     connectNotion,
     importNotionPage,

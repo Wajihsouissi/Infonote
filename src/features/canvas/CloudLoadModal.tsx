@@ -150,7 +150,7 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
                     return false;
                 }
                 if (!n.type || typeof n.type !== 'string') {
-                    console.warn(`[CloudLoad] Filtering out node ${n.id}: invalid type`);
+                    console.warn('[CloudLoad] Filtering out node: invalid type');
                     return false;
                 }
                 return true;

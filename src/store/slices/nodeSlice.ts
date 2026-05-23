@@ -202,14 +202,14 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             position: snappedPosition,
             style: style || (type === 'fused-note' ? { width: MIN_FUSED_SIZE } : { width: 432, height: 432 }),
             data: {
-                label: initialData?.label || 'New Note',
+                label: (initialData?.label as string) || 'New Note',
                 content: '',
                 viewMode: 'expanded',
                 icon: 'FileText',
                 ...initialData
-            },
+            } as AppNode['data'],
             parentId: targetParentId,
-        };
+        } as AppNode;
 
         if (DEBUG) {
             console.log("[addNode] Creating node:", {
@@ -238,7 +238,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
     updateNodeData: (id, data) => {
         set({
             nodes: get().nodes.map((node) =>
-                node.id === id ? { ...node, data: { ...node.data, ...data } } : node
+                node.id === id ? ({ ...node, data: { ...node.data, ...data } } as AppNode) : node
             ),
         });
 
@@ -251,6 +251,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         // BIDIRECTIONAL SYNC: If updating a parent note's content, sync down to child nodes
         if (data.content && Array.isArray(data.content)) {
+            const parentContent = data.content as any[];
             const updatedNode = get().nodes.find(n => n.id === id);
             
             // Only sync down if this is a parent note (has children) AND we're NOT in that parent's canvas
@@ -269,11 +270,11 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                                     if (Array.isArray(childContent) && childContent.length > 0) {
                                         // Find matching blocks in parent content by ID
                                         const firstBlockId = childContent[0].id;
-                                        const matchingIndex = data.content.findIndex((b: any) => b.id === firstBlockId);
+                                        const matchingIndex = parentContent.findIndex((b: any) => b.id === firstBlockId);
                                         
                                         if (matchingIndex !== -1) {
                                             // Extract the corresponding blocks from parent
-                                            const updatedBlocks = data.content.slice(
+                                            const updatedBlocks = parentContent.slice(
                                                 matchingIndex,
                                                 matchingIndex + childContent.length
                                             );
@@ -633,7 +634,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
     extractPageFromBlock: (block, position, sourceNodeId) => {
         const { nodes, currentParentId } = get();
-        const linkedNodeId = block.metadata?.nodeId;
+        const linkedNodeId = (block.metadata as { nodeId?: string } | undefined)?.nodeId;
 
         let nodesToUpdate = nodes;
         if (sourceNodeId) {
@@ -679,14 +680,14 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 position: centeredPos,
                 style: iconStyle,
                 data: {
-                    label: block.content || 'Untitled Page',
+                    label: (block.content as string) || 'Untitled Page',
                     content: [],
                     viewMode: iconViewMode,
                     icon: 'FileText',
                     date: new Date().toISOString()
-                },
+                } as AppNode['data'],
                 parentId: currentParentId || undefined,
-            };
+            } as AppNode;
 
             set({
                 nodes: [...nodesToUpdate, newNode]
