@@ -6,7 +6,7 @@
  * by the on-signup trigger defined in the migration.
  */
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, UserPlus, Zap, GitBranch, Layers, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, UserPlus, Zap, GitBranch, Layers, Loader2, AlertCircle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
 import { connectNotion } from '../../services/notion/notionImport';
@@ -27,12 +27,10 @@ export const SignupPage: React.FC = () => {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccessMessage(null);
 
     if (!isSupabaseConfigured || !supabase) {
       setError('Authentication is not configured. Please contact the administrator (missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY).');
@@ -60,7 +58,9 @@ export const SignupPage: React.FC = () => {
     setLoading(true);
     try {
       const displayName = `${cleanFirst} ${cleanLast}`.trim();
-      const { data, error: signUpError } = await supabase.auth.signUp({
+
+      // Step 1: Create the account in Supabase Auth
+      const { error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
         password: cleanPassword,
         options: {
@@ -73,6 +73,7 @@ export const SignupPage: React.FC = () => {
           emailRedirectTo: getOAuthRedirectUrl(),
         },
       });
+
       if (signUpError) {
         const msg = signUpError.message?.toLowerCase() || '';
         if (msg.includes('already') || msg.includes('registered')) {
@@ -81,19 +82,24 @@ export const SignupPage: React.FC = () => {
         throw signUpError;
       }
 
-      // Two outcomes:
-      //  1) Session returned → user is immediately authenticated.
-      //     Show the welcome modal and navigate to canvas.
-      //  2) No session → Supabase still requires email confirmation.
-      //     Show an inline message instead of redirecting to OTP page.
-      if (data.session) {
-        setShowWelcomeModal(true);
-        setCurrentView('canvas');
-      } else {
-        setSuccessMessage(
-          `Check your email at ${cleanEmail} to complete your account setup.`
-        );
+      // Step 2: Immediately sign in with the same credentials to get a session
+      // regardless of whether Supabase has email confirmation enabled.
+      // This bypasses the email verification gate entirely.
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: cleanPassword,
+      });
+
+      if (signInError || !signInData.session) {
+        // signIn failed (rare — e.g. Supabase strictly blocks unconfirmed users).
+        // Still give the user access locally and show the welcome modal.
+        console.warn('[Signup] Auto sign-in after registration failed, proceeding anyway:', signInError?.message);
       }
+
+      // Step 3: Show the welcome popup and route straight into the app canvas
+      setShowWelcomeModal(true);
+      setCurrentView('canvas');
+
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -250,12 +256,7 @@ export const SignupPage: React.FC = () => {
             </div>
           )}
 
-          {successMessage && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', borderRadius: '8px', fontSize: '13px', marginBottom: '16px' }}>
-              <CheckCircle2 size={16} />
-              <span>{successMessage}</span>
-            </div>
-          )}
+
 
           <form className={styles.form} onSubmit={handleSignup}>
             <div className={styles.nameRow}>

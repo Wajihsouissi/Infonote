@@ -1,11 +1,13 @@
 /**
  * WelcomeModal — shown immediately after a successful new account sign-up.
  *
- * Auto-dismisses after 4 seconds or on "Get Started" click. Calls onClose
+ * Auto-dismisses after 5 seconds or on "Get Started" click. Calls onClose
  * in both cases so the parent can navigate to the canvas and clear state.
  */
 import React, { useEffect, useRef } from 'react';
+import { Sparkles, ArrowRight, Layers, Zap, GitBranch } from 'lucide-react';
 import styles from './WelcomeModal.module.css';
+import { useStore } from '../../store/useStore';
 
 interface WelcomeModalProps {
   isOpen: boolean;
@@ -13,20 +15,32 @@ interface WelcomeModalProps {
 }
 
 const FEATURES = [
-  { icon: '🎨', label: 'Canvas' },
-  { icon: '🧩', label: 'Blocks' },
-  { icon: '☁️', label: 'Cloud Sync' },
+  { icon: <Zap size={16} />, label: 'Infinite Canvas' },
+  { icon: <Layers size={16} />, label: 'Smart Blocks' },
+  { icon: <GitBranch size={16} />, label: 'Cloud Sync' },
 ];
 
 export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) => {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
+  const displayName = useStore((s) => s.auth.displayName);
+  const firstName = displayName?.split(' ')[0] ?? null;
 
   useEffect(() => {
     if (!isOpen) return;
-    // Auto-dismiss after 4 seconds
+    // Auto-dismiss after 5 seconds
     timerRef.current = setTimeout(() => {
       onClose();
-    }, 4000);
+    }, 5000);
+
+    // Animate the progress bar
+    if (progressRef.current) {
+      progressRef.current.style.transition = 'width 5s linear';
+      // Force reflow so the transition plays from 0
+      void progressRef.current.offsetWidth;
+      progressRef.current.style.width = '100%';
+    }
+
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
@@ -41,34 +55,37 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) =
 
   return (
     <div className={styles.backdrop} role="dialog" aria-modal="true" aria-label="Welcome to Infonote">
+      {/* Animated background orbs */}
+      <div className={styles.orb1} />
+      <div className={styles.orb2} />
+
       <div className={styles.card}>
+        {/* Progress bar at top */}
+        <div className={styles.progressTrack}>
+          <div ref={progressRef} className={styles.progressBar} style={{ width: '0%' }} />
+        </div>
+
         {/* Logo / Icon */}
         <div className={styles.iconWrapper}>
           <div className={styles.iconRing} />
           <div className={styles.iconInner}>
-            <img
-              src="/ChnkLogo.svg"
-              alt="Infonote"
-              style={{ width: 32, height: 32, filter: 'brightness(0) invert(1)' }}
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.display = 'none';
-                const parent = e.currentTarget.parentElement;
-                if (parent) parent.textContent = '✨';
-              }}
-            />
+            <Sparkles size={32} color="#ffffff" />
           </div>
         </div>
 
         {/* Heading */}
         <h2 className={styles.heading}>
-          Welcome to{' '}
-          <span className={styles.headingGrad}>Infonote!</span>
+          {firstName ? (
+            <>Hey <span className={styles.headingGrad}>{firstName}</span>,<br />welcome to Infonote!</>
+          ) : (
+            <>Welcome to{' '}<span className={styles.headingGrad}>Infonote!</span></>
+          )}
         </h2>
 
         {/* Subtext */}
         <p className={styles.subtext}>
-          Your workspace is ready.<br />
-          Let's build something great.
+          Your infinite canvas is ready.{' '}
+          <strong style={{ color: 'rgba(255,255,255,0.8)' }}>Let's build something brilliant.</strong>
         </p>
 
         {/* Feature badges */}
@@ -83,10 +100,11 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) =
 
         {/* CTA */}
         <button className={styles.ctaButton} type="button" onClick={handleGetStarted}>
-          Get Started →
+          Open My Canvas
+          <ArrowRight size={16} />
         </button>
 
-        <p className={styles.skipText}>Auto-continues in 4 seconds</p>
+        <p className={styles.skipText}>Auto-continues in 5 seconds</p>
       </div>
     </div>
   );

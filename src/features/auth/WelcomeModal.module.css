@@ -1,7 +1,7 @@
 @keyframes fadeInScale {
   from {
     opacity: 0;
-    transform: scale(0.92) translateY(12px);
+    transform: scale(0.88) translateY(20px);
   }
   to {
     opacity: 1;
@@ -15,171 +15,259 @@
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-8px); }
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-10px) rotate(1deg); }
+  66% { transform: translateY(-5px) rotate(-1deg); }
 }
 
 @keyframes pulse-ring {
-  0% { transform: scale(0.95); opacity: 0.7; }
-  50% { transform: scale(1.05); opacity: 0.3; }
-  100% { transform: scale(0.95); opacity: 0.7; }
+  0% { transform: scale(0.92); opacity: 0.8; }
+  50% { transform: scale(1.08); opacity: 0.25; }
+  100% { transform: scale(0.92); opacity: 0.8; }
 }
+
+@keyframes orb-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(40px, -30px) scale(1.15); }
+}
+
+@keyframes orb-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-30px, 40px) scale(1.1); }
+}
+
+@keyframes feature-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Background orbs ─────────────────────────────────────────── */
+
+.orb1 {
+  position: fixed;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.35) 0%, transparent 70%);
+  top: -100px;
+  left: -100px;
+  pointer-events: none;
+  animation: orb-drift-1 8s ease-in-out infinite;
+  z-index: 9998;
+}
+
+.orb2 {
+  position: fixed;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(79, 70, 229, 0.3) 0%, transparent 70%);
+  bottom: -80px;
+  right: -80px;
+  pointer-events: none;
+  animation: orb-drift-2 10s ease-in-out infinite;
+  z-index: 9998;
+}
+
+/* ─── Backdrop ────────────────────────────────────────────────── */
 
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
+
+/* ─── Card ────────────────────────────────────────────────────── */
 
 .card {
   position: relative;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 24px;
-  padding: 52px 60px 48px;
+  background: rgba(15, 15, 25, 0.85);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 28px;
+  padding: 0 0 44px;
   width: 100%;
   max-width: 480px;
   text-align: center;
-  animation: fadeInScale 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: fadeInScale 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
   box-shadow:
-    0 32px 64px rgba(0, 0, 0, 0.5),
+    0 40px 80px rgba(0, 0, 0, 0.6),
     0 0 0 1px rgba(255, 255, 255, 0.06) inset,
-    0 1px 0 rgba(255, 255, 255, 0.15) inset;
+    0 1px 0 rgba(255, 255, 255, 0.12) inset;
   overflow: hidden;
+  z-index: 9999;
 }
 
-/* Subtle purple-to-indigo glow behind the card */
+/* Gradient border glow */
 .card::before {
   content: '';
   position: absolute;
   inset: -1px;
-  border-radius: 25px;
-  background: linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(79, 70, 229, 0.15), transparent 60%);
+  border-radius: 29px;
+  background: linear-gradient(
+    135deg,
+    rgba(124, 58, 237, 0.5) 0%,
+    rgba(79, 70, 229, 0.3) 40%,
+    rgba(139, 92, 246, 0.15) 70%,
+    transparent 100%
+  );
   pointer-events: none;
   z-index: -1;
 }
 
-/* Top ambient light streak */
-.card::after {
-  content: '';
+/* ─── Progress bar ────────────────────────────────────────────── */
+
+.progressTrack {
   position: absolute;
   top: 0;
-  left: 15%;
-  right: 15%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  pointer-events: none;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 28px 28px 0 0;
+  overflow: hidden;
 }
+
+.progressBar {
+  height: 100%;
+  background: linear-gradient(90deg, #7c3aed, #6366f1, #a78bfa);
+  border-radius: inherit;
+  transition: none; /* JS controls this */
+}
+
+/* ─── Icon ────────────────────────────────────────────────────── */
 
 .iconWrapper {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 80px;
-  height: 80px;
-  margin: 0 auto 28px;
-  animation: float 3s ease-in-out infinite;
+  width: 88px;
+  height: 88px;
+  margin: 48px auto 28px;
+  animation: float 4s ease-in-out infinite;
 }
 
 .iconRing {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(124, 58, 237, 0.3), rgba(79, 70, 229, 0.2));
-  animation: pulse-ring 2.5s ease-in-out infinite;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.4), rgba(79, 70, 229, 0.25));
+  animation: pulse-ring 2.8s ease-in-out infinite;
 }
 
 .iconInner {
   position: relative;
-  width: 64px;
-  height: 64px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  width: 68px;
+  height: 68px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 60%, #6366f1 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32px;
   box-shadow:
-    0 8px 24px rgba(124, 58, 237, 0.5),
-    0 2px 8px rgba(0, 0, 0, 0.3);
+    0 12px 32px rgba(124, 58, 237, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.15) inset;
   z-index: 1;
 }
 
+/* ─── Text ────────────────────────────────────────────────────── */
+
 .heading {
-  font-size: 2rem;
+  font-size: 2.1rem;
   font-weight: 700;
   color: #ffffff;
-  margin: 0 0 12px;
-  letter-spacing: -0.02em;
+  margin: 0 0 14px;
+  letter-spacing: -0.025em;
   line-height: 1.2;
+  padding: 0 32px;
 }
 
 .headingGrad {
-  background: linear-gradient(135deg, #c4b5fd, #a5b4fc);
+  background: linear-gradient(135deg, #c4b5fd 0%, #a5b4fc 50%, #93c5fd 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  background-size: 200%;
+  animation: shimmer 3s linear infinite;
 }
 
 .subtext {
   font-size: 1rem;
-  color: rgba(255, 255, 255, 0.65);
-  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.65;
   margin: 0 0 36px;
+  padding: 0 40px;
 }
+
+/* ─── Feature badges ──────────────────────────────────────────── */
 
 .featureList {
   display: flex;
   justify-content: center;
-  gap: 24px;
+  gap: 16px;
   margin: 0 0 36px;
+  padding: 0 24px;
 }
 
 .featureItem {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  animation: feature-in 0.5s ease both;
 }
 
+.featureItem:nth-child(1) { animation-delay: 0.15s; }
+.featureItem:nth-child(2) { animation-delay: 0.25s; }
+.featureItem:nth-child(3) { animation-delay: 0.35s; }
+
 .featureIcon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.15);
+  border: 1px solid rgba(124, 58, 237, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  color: #a78bfa;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.featureItem:hover .featureIcon {
+  background: rgba(124, 58, 237, 0.3);
+  transform: translateY(-2px);
 }
 
 .featureLabel {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.45);
   font-weight: 500;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
+
+/* ─── CTA button ──────────────────────────────────────────────── */
 
 .ctaButton {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 15px 44px;
+  gap: 10px;
+  padding: 16px 52px;
   border: none;
   border-radius: 50px;
-  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 60%, #6366f1 100%);
   color: #ffffff;
   font-size: 16px;
   font-weight: 600;
@@ -187,8 +275,9 @@
   letter-spacing: 0.01em;
   transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
   box-shadow:
-    0 4px 20px rgba(124, 58, 237, 0.5),
-    0 1px 0 rgba(255, 255, 255, 0.15) inset;
+    0 6px 24px rgba(124, 58, 237, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    0 1px 0 rgba(255, 255, 255, 0.18) inset;
   overflow: hidden;
 }
 
@@ -196,26 +285,30 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+  background: linear-gradient(135deg, rgba(255,255,255,0.18), transparent 60%);
   border-radius: inherit;
   pointer-events: none;
 }
 
 .ctaButton:hover {
-  transform: translateY(-2px) scale(1.02);
+  transform: translateY(-3px) scale(1.03);
   box-shadow:
-    0 8px 28px rgba(124, 58, 237, 0.65),
-    0 1px 0 rgba(255, 255, 255, 0.2) inset;
-  filter: brightness(1.08);
+    0 12px 36px rgba(124, 58, 237, 0.7),
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 1px 0 rgba(255, 255, 255, 0.22) inset;
+  filter: brightness(1.1);
 }
 
 .ctaButton:active {
-  transform: translateY(0) scale(0.99);
+  transform: translateY(-1px) scale(0.99);
   transition-duration: 0.1s;
 }
 
+/* ─── Footer text ─────────────────────────────────────────────── */
+
 .skipText {
-  margin-top: 16px;
+  margin-top: 18px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.25);
+  letter-spacing: 0.01em;
 }
