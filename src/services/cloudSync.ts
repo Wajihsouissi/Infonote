@@ -381,6 +381,57 @@ export async function loadCanvasFromCloud(userId: string | null): Promise<CloudL
 }
 
 /**
+ * Append (additively) a batch of nodes to the user's cloud canvas.
+ *
+ * Unlike `saveCanvasToCloud`, this DOES NOT delete rows that are missing
+ * from the payload — it is a one-way merge designed for importers (Figma,
+ * templates, marketplace) where the user expects new content to land
+ * alongside whatever they already have.
+ *
+ * Conflict handling matches the regular save path:
+ *   - Rows are deduplicated client-side by id (last write wins).
+ *   - We upsert with `onConflict: 'user_id,id'` and
+ *     `ignoreDuplicates: false` so any row that happens to match an
+ *     existing primary key is overwritten in place. This is what avoids
+ *     PostgreSQL's HTTP 409 "ON CONFLICT cannot affect row a second time".
+ */
+export async function appendCanvasNodesToCloud(
+    userId: string | null,
+    nodes: AppNode[],
+): Promise<CloudSyncResult> {
+    try {
+        const uid = ensureReady(userId);
+        const nodeRows = dedupeById(nodes.map((n) => nodeToRow(n, uid)));
+        if (nodeRows.length === 0) {
+            return { ok: true, counts: { nodes: 0, edges: 0 } };
+        }
+
+        await withRetry(async () => {
+            const { error } = await supabase
+                .from('canvas_nodes')
+                .upsert(nodeRows, {
+                    onConflict: 'user_id,id',
+                    ignoreDuplicates: false,
+                });
+            if (error) {
+                // eslint-disable-next-line no-console
+                console.error('[cloudSync] figma append upsert failed', {
+                    message: error.message,
+                    details: (error as { details?: string }).details,
+                    hint: (error as { hint?: string }).hint,
+                    code: (error as { code?: string }).code,
+                });
+                throw error;
+            }
+        });
+
+        return { ok: true, counts: { nodes: nodeRows.length, edges: 0 } };
+    } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+}
+
+/**
  * Summarise the user's saved canvas without downloading every node body.
  *
  * This powers the "Reload Saved Data" picker — we want the user to see what

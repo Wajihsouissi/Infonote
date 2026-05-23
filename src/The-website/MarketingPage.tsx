@@ -509,7 +509,6 @@ export const MarketingPage: React.FC = () => {
                 onConnect={onConnect}
                 onNodeDragStop={onNodeDragStop}
                 onNodeDoubleClick={onNodeDoubleClick}
-                onPaneDoubleClick={drilledNode ? goBack : undefined}
                 nodeTypes={nodeTypes}
                 panOnDrag={false}
                 zoomOnScroll={false}

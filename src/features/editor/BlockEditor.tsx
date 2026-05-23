@@ -205,7 +205,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             if (nodeId) {
                 const storeState = useStore.getState();
                 const node = storeState.nodes.find(n => n.id === nodeId);
-                const freshBlocks = node?.data?.content;
+                const freshBlocks = (node?.data as { content?: unknown } | undefined)?.content;
                 // Node deleted or emptied — this editor should not steal focus
                 if (!node || !Array.isArray(freshBlocks) || freshBlocks.length === 0) {
                     return false;

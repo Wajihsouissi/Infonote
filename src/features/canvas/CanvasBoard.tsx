@@ -820,7 +820,6 @@ export function CanvasBoard() {
     // Drop handlers
     const { onDragOver, onDrop } = useCanvasDrop({
         updateNodeData,
-        setNodes,
         extractPageFromBlock,
     });
 

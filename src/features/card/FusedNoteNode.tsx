@@ -7,7 +7,7 @@ import { useStore } from '../../store/useStore';
 import type { Node } from '@xyflow/react';
 import styles from './FusedNoteNode.module.css';
 import { snapFusedDimensions, MIN_EXPANDED_SIZE } from '../../config/layout';
-import { toPastelColor, lightenColor, darkenColor } from '../../utils/colorUtils';
+import { toPastelColor, darkenColor } from '../../utils/colorUtils';
 
 export type FusedNoteNodeData = {
     content: any[];
@@ -60,7 +60,6 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
     // Convert color to pastel for better readability
     const displayColor = data.color ? toPastelColor(data.color, theme === 'light') : undefined;
-    const accentColor = data.color ? lightenColor(data.color, 15) : displayColor;
 
     // Dynamic styles for contrast
     const dynamicStyles = useMemo(() => {

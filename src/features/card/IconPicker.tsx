@@ -321,6 +321,5 @@ export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconP
 
 export function getIconByName(iconName: string): LucideIcon {
     const baseName = iconName ? iconName.split('::')[0] : '';
-    const found = iconMap[baseName];
-    return found ? found : Lightbulb;
+    return baseName && baseName in iconMap ? iconMap[baseName] : Lightbulb;
 }
