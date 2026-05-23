@@ -33,6 +33,41 @@
 }
 
 /* Top Right Toolbar */
+/* Main Container */
+.container {
+    width: 100vw;
+    height: 100vh;
+    background: var(--color-bg-base);
+    position: relative;
+    display: flex;
+    overflow: hidden;
+}
+
+/* Dual Panel Focus Backdrop */
+.dualPanelBackdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 40;
+    /* Below SidePanels (50) but above everything else */
+}
+
+/* Top Left Toolbar */
+.topLeftToolbar {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Top Right Toolbar */
 .topRightToolbar {
     position: absolute;
     top: 20px;
@@ -43,13 +78,13 @@
     backdrop-filter: blur(var(--backdrop-blur));
     -webkit-backdrop-filter: blur(var(--backdrop-blur));
     border: 1px solid var(--glass-border);
-    border-radius: 12px;
-    padding: 6px;
+    border-radius: 99px;
+    padding: 6px 8px;
     box-shadow: var(--glass-shadow);
 
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
 }
 
 .topRightSeparator {
@@ -188,32 +223,32 @@
 /* Toolbar Button */
 .toolbarBtn {
     background: transparent;
-    border: none;
-    border-radius: 8px;
+    border: 1px solid transparent;
+    border-radius: 50%;
     width: 36px;
     height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all var(--transition-fast);
-    color: var(--color-text-main);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    color: var(--color-text-muted);
 }
 
 .toolbarBtn:hover {
-    background: var(--glass-bg-hover);
+    background: rgba(139, 92, 246, 0.08);
     color: var(--color-primary);
-    transform: translateY(-1px);
+    transform: translateY(-2px) scale(1.05);
 }
 
 .toolbarBtnActive {
-    background: var(--color-primary-glow) !important;
+    background: rgba(139, 92, 246, 0.12) !important;
     color: var(--color-primary) !important;
-    border: 1px solid rgba(139, 92, 246, 0.2) !important;
+    border: 1px solid transparent !important;
 }
 
 .toolbarBtn:active {
-    transform: translateY(0);
+    transform: scale(0.95);
 }
 
 .modifierHint {

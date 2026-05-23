@@ -2,14 +2,14 @@
     display: flex;
     align-items: center;
     padding: 0 16px;
-    height: 44px;
+    height: 48px;
     box-sizing: border-box;
     background: var(--glass-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--glass-border);
-    border-radius: 12px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border-radius: 99px;
+    box-shadow: var(--glass-shadow);
     gap: 8px;
 }
 
@@ -26,8 +26,8 @@
 }
 
 .crumb {
-    background: none;
-    border: none;
+    background: transparent;
+    border: 1px solid transparent;
     color: var(--color-text-muted);
     font-size: 0.85rem;
     font-weight: 500;
@@ -35,21 +35,22 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 8px;
-    border-radius: 6px;
-    transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    padding: 6px 12px;
+    border-radius: 999px;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .crumb:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--color-text-main);
+    background: rgba(139, 92, 246, 0.08);
+    color: var(--color-primary);
+    transform: translateY(-1px) scale(1.02);
 }
 
 .crumb.active {
-    color: var(--color-primary-light);
+    color: var(--color-primary);
     cursor: default;
     font-weight: 600;
-    background: rgba(139, 92, 246, 0.1);
+    background: rgba(139, 92, 246, 0.12);
 }
 
 .levelBadge {

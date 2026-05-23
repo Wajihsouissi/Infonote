@@ -2,14 +2,14 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    padding: 4px 6px;
+    padding: 6px 8px;
     background: var(--glass-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--glass-border);
-    border-radius: 12px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    height: 44px;
+    border-radius: 99px;
+    box-shadow: var(--glass-shadow);
+    height: 48px;
     box-sizing: border-box;
 }
 
@@ -17,22 +17,24 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    /* Slightly smaller to match breadcrumb height */
-    height: 28px;
-    border: none;
+    width: 36px;
+    height: 36px;
+    border: 1px solid transparent;
     background: transparent;
     color: var(--color-text-muted);
-    /* Match crumb muted color */
-    border-radius: 6px;
+    border-radius: 50%;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .historyBtn:hover:not(:disabled) {
-    background: var(--glass-bg-hover);
-    color: var(--color-text-main);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    background: rgba(139, 92, 246, 0.08);
+    color: var(--color-primary);
+    transform: translateY(-2px) scale(1.05);
+}
+
+.historyBtn:active:not(:disabled) {
+    transform: scale(0.95);
 }
 
 .historyBtn:disabled {

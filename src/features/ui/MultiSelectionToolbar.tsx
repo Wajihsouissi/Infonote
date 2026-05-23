@@ -26,8 +26,40 @@ export function MultiSelectionToolbar() {
     const colorPickerRef = useRef<HTMLDivElement>(null);
     const layoutPopoverRef = useRef<HTMLDivElement>(null);
     const arrangeNodes = useStore(s => s.arrangeNodes);
+    const setNodes = useStore(s => s.setNodes);
 
     const selectedCount = selectedCanvasNodeIds.size;
+
+    const clearSelectionFully = useCallback(() => {
+        clearCanvasSelection();
+        setNodes(nds => nds.map(n => n.selected ? { ...n, selected: false } : n));
+    }, [clearCanvasSelection, setNodes]);
+
+    // Close on Escape or click away
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                clearSelectionFully();
+            }
+        };
+
+        const handleClickOutside = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            // Ignore if clicking inside the toolbar
+            if (target.closest(`.${styles.toolbar}`)) return;
+            // Ignore if clicking on a node (React Flow handles selection there)
+            if (target.closest('.react-flow__node')) return;
+            // Otherwise, clear selection
+            clearSelectionFully();
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [clearSelectionFully]);
 
     // Close color picker when clicking outside
     useEffect(() => {
@@ -66,10 +98,10 @@ export function MultiSelectionToolbar() {
     const confirmDelete = useCallback(() => {
         console.log('[MultiSelectionToolbar] Delete confirmed, calling bulkDeleteNodes with IDs:', Array.from(selectedCanvasNodeIds));
         bulkDeleteNodes(Array.from(selectedCanvasNodeIds));
-        clearCanvasSelection();
+        clearSelectionFully();
         setShowDeleteConfirm(false);
         console.log('[MultiSelectionToolbar] Delete completed, selection cleared');
-    }, [selectedCanvasNodeIds, bulkDeleteNodes, clearCanvasSelection]);
+    }, [selectedCanvasNodeIds, bulkDeleteNodes, clearSelectionFully]);
 
     const cancelDelete = useCallback(() => {
         console.log('[MultiSelectionToolbar] Delete cancelled by user');
@@ -79,8 +111,8 @@ export function MultiSelectionToolbar() {
     const handleBulkDuplicate = useCallback(() => {
         console.log('[MultiSelectionToolbar] Duplicate clicked, selected:', Array.from(selectedCanvasNodeIds));
         bulkDuplicateNodes(Array.from(selectedCanvasNodeIds));
-        clearCanvasSelection();
-    }, [selectedCanvasNodeIds, clearCanvasSelection, bulkDuplicateNodes]);
+        clearSelectionFully();
+    }, [selectedCanvasNodeIds, clearSelectionFully, bulkDuplicateNodes]);
 
     const handleBulkColor = useCallback((color: string) => {
         console.log('[MultiSelectionToolbar] Color clicked, color:', color, 'selected:', Array.from(selectedCanvasNodeIds));
@@ -91,8 +123,8 @@ export function MultiSelectionToolbar() {
     const handleFuseNodes = useCallback(() => {
         console.log('[MultiSelectionToolbar] Fuse clicked, selected:', Array.from(selectedCanvasNodeIds));
         fuseNodes(Array.from(selectedCanvasNodeIds));
-        clearCanvasSelection();
-    }, [selectedCanvasNodeIds, clearCanvasSelection, fuseNodes]);
+        clearSelectionFully();
+    }, [selectedCanvasNodeIds, clearSelectionFully, fuseNodes]);
 
     const handleRelease = useCallback(() => {
         const selectedId = Array.from(selectedCanvasNodeIds)[0];
@@ -101,8 +133,8 @@ export function MultiSelectionToolbar() {
         const centerY = window.innerHeight / 2;
         const flowCenter = screenToFlowPosition({ x: centerX, y: centerY });
         releaseNodeContentToBlocks(selectedId, flowCenter);
-        clearCanvasSelection();
-    }, [selectedCanvasNodeIds, releaseNodeContentToBlocks, clearCanvasSelection, screenToFlowPosition]);
+        clearSelectionFully();
+    }, [selectedCanvasNodeIds, releaseNodeContentToBlocks, clearSelectionFully, screenToFlowPosition]);
 
     const handleSelectConnected = useCallback(() => {
         const selectedId = Array.from(selectedCanvasNodeIds)[0];
@@ -318,7 +350,7 @@ export function MultiSelectionToolbar() {
                     <Tooltip label="Close" desc="Clear selection">
                         <button
                             className={styles.closeBtn}
-                            onClick={clearCanvasSelection}
+                            onClick={clearSelectionFully}
                         >
                             <X size={16} />
                         </button>

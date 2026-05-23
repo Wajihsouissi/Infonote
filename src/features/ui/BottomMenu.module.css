@@ -58,25 +58,25 @@
 }
 
 .closeSearchBtn {
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.05);
-    border: none;
+    background: transparent;
+    border: 1px solid transparent;
     color: var(--color-text-muted);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color 0.2s, color 0.2s, transform 0.2s;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     margin-right: 4px;
 }
 
 .closeSearchBtn:hover {
-    background: rgba(0, 0, 0, 0.1);
-    color: var(--color-text-main);
-    transform: scale(1.1);
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--color-danger);
+    transform: scale(1.1) rotate(90deg);
 }
 
 @keyframes slideIn {
@@ -93,8 +93,9 @@
 
 .separator {
     width: 1px;
-    height: 24px;
-    background: var(--color-border);
+    height: 20px;
+    background: var(--glass-border);
+    margin: 0 4px;
 }
 
 /* Magical Animations */
@@ -239,8 +240,8 @@
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: rgba(139, 92, 246, 0.02);
-    border: 1px solid var(--glass-border);
+    background: transparent;
+    border: 1px solid transparent;
     color: var(--color-text-muted);
     display: flex;
     align-items: center;
@@ -252,11 +253,9 @@
 }
 
 .iconBtn:hover {
-    background: rgba(139, 92, 246, 0.08); /* Premium purple tint */
-    border-color: var(--color-primary);
+    background: rgba(139, 92, 246, 0.08);
     color: var(--color-primary);
-    transform: translateY(-2px) scale(1.08);
-    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.15);
+    transform: translateY(-2px) scale(1.05);
 }
 
 .iconBtn:active {
@@ -427,9 +426,8 @@
 /* Active Bottom Menu Button Highlight */
 .iconBtnActive {
     background: rgba(139, 92, 246, 0.12) !important;
-    border-color: var(--color-primary) !important;
+    border-color: transparent !important;
     color: var(--color-primary) !important;
-    box-shadow: 0 0 12px rgba(139, 92, 246, 0.25);
     transform: scale(1.05);
 }
 

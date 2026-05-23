@@ -385,11 +385,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                     }}
                 />
             )}
-            {/* Top accent strip using the note color */}
-            <div
-                className={styles.accentStrip}
-                style={{ backgroundColor: accentColor || 'var(--color-primary)' }}
-            />
+
 
             {/* Conversion Button */}
             <button
