@@ -76,7 +76,7 @@ export function NoteExpandedContent({
         let sourceNodeId: string | null = null;
 
         try {
-            const rawData = e.dataTransfer.getData('application/infonote-block-data');
+            const rawData = e.dataTransfer.getData('application/chnk-it-block-data');
             if (rawData) {
                 const parsed = JSON.parse(rawData);
                 sourceNodeId = parsed.sourceNodeId || null;
@@ -90,7 +90,7 @@ export function NoteExpandedContent({
                 if (type) {
                     let metadata = undefined;
                     try {
-                        const metaJson = e.dataTransfer.getData('application/infonote-block-metadata');
+                        const metaJson = e.dataTransfer.getData('application/chnk-it-block-metadata');
                         if (metaJson) metadata = JSON.parse(metaJson);
                     } catch (e) { }
 
@@ -129,11 +129,11 @@ export function NoteExpandedContent({
                     }
                 }
 
-                if ((window as any).infonoteMultiDragCleanup) {
-                    (window as any).infonoteMultiDragCleanup();
-                    delete (window as any).infonoteMultiDragCleanup;
+                if ((window as any).chnkItMultiDragCleanup) {
+                    (window as any).chnkItMultiDragCleanup();
+                    delete (window as any).chnkItMultiDragCleanup;
                 }
-                window.dispatchEvent(new CustomEvent('infonote-clear-selection'));
+                window.dispatchEvent(new CustomEvent('chnk-it-clear-selection'));
             }
         }
     }, [data?.content, id, onUpdate]);
@@ -281,7 +281,7 @@ export function NoteExpandedContent({
                             }}
                             title="Show Metadata"
                         >
-                            <Eye size={20} />
+                            <Eye size={16} />
                         </button>
                         {onNavigate && (
                             <button

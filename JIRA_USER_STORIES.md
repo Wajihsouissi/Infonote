@@ -1,7 +1,7 @@
-# Infonote - Jira User Stories & Epics Documentation
+# Chnk it - Jira User Stories & Epics Documentation
 
 ## Project Overview
-**Infonote** is a spatial, infinite-canvas note-taking application built with React 19, TypeScript, and Vite. It provides a visual, spatial approach to organizing information through interconnected note cards on an infinite 2D plane with rich editing capabilities, task management, and Kanban board views.
+**Chnk it** is a spatial, infinite-canvas note-taking application built with React 19, TypeScript, and Vite. It provides a visual, spatial approach to organizing information through interconnected note cards on an infinite 2D plane with rich editing capabilities, task management, and Kanban board views.
 
 ---
 
@@ -186,7 +186,7 @@
 #### 2.3 Task Management Properties
 **As a** user  
 **I want to** manage task-related properties on notes  
-**So that** I can use Infonote for project management  
+**So that** I can use Chnk it for project management  
 
 **Acceptance Criteria:**
 - Set status: todo, in-progress, review, done
@@ -1082,7 +1082,7 @@
 
 #### 12.5 Mobile Support
 **As a** user  
-**I want to** use Infonote on my mobile device  
+**I want to** use Chnk it on my mobile device  
 **So that** I can access my notes on the go  
 
 **Acceptance Criteria:**
@@ -1234,7 +1234,7 @@ Summary,Description,Issue Type,Priority,Status,Labels,Epic Link
 ---
 
 *Document Generated: April 8, 2026*  
-*Project: Infonote v0.0.0*  
+*Project: Chnk it v0.0.0*  
 *Total Lines of Code: ~15,000+ (estimated)*  
 *Total Components: 80+*  
 *Total Features: 13 Epics*

@@ -3,7 +3,7 @@
 ## 1. User Expectations Report
 
 ### Overview
-Users interact with "Blocks" as the fundamental units of content within Infonote. A block represents any distinct piece of content—a paragraph, a heading, an image, a list item, etc. The block-based model allows for flexible, drag-and-drop organization similar to Notion.
+Users interact with "Blocks" as the fundamental units of content within Chnk it. A block represents any distinct piece of content—a paragraph, a heading, an image, a list item, etc. The block-based model allows for flexible, drag-and-drop organization similar to Notion.
 
 ### Key User Capabilities
 1.  **Content Creation**: Users expect to type naturally. Pressing `Enter` should create a new text block. They expect "Slash Commands" (`/`) to quickly insert special content types.

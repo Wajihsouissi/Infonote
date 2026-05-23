@@ -195,66 +195,60 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [selectedBlockIds.size, setSelectedBlockIds]);
 
-    // Listen for drag completion events to clear selection
+    // Listen for drag completion events — restore focus after native HTML5 drag blurs it
+    const dragClearedRef = useRef(false);
     useEffect(() => {
-        const handleDragClearSelection = () => {
-            console.log('Received drag clear selection event');
+        const tryFocusEditor = () => {
+            // Guard: if this editor's node no longer exists or has no content, do NOT
+            // attempt to restore focus — the node was likely the drag source and was
+            // deleted/emptied. Focusing a stale block ID would permanently jam focusId.
+            if (nodeId) {
+                const storeState = useStore.getState();
+                const node = storeState.nodes.find(n => n.id === nodeId);
+                const freshBlocks = node?.data?.content;
+                // Node deleted or emptied — this editor should not steal focus
+                if (!node || !Array.isArray(freshBlocks) || freshBlocks.length === 0) {
+                    return false;
+                }
+                caretPositionRef.current = 'end';
+                setFocusId(freshBlocks[0].id);
+                return true;
+            }
+            // No nodeId (standalone editor not linked to a canvas node): use local blocks
+            const firstBlock = blocksRef.current[0];
+            if (firstBlock) {
+                caretPositionRef.current = 'end';
+                setFocusId(firstBlock.id);
+                return true;
+            }
+            return false;
+        };
 
-            // Explicitly clear drag selection artifacts
+        const handleDragCleanup = (e: Event) => {
+            if (dragClearedRef.current) return;
+            dragClearedRef.current = true;
+            setTimeout(() => { dragClearedRef.current = false; }, 300);
+
             setDragSelection(null);
             setMouseDownBlock(null);
+            if (selectedBlockIds.size > 0) setSelectedBlockIds(new Set());
 
-            if (selectedBlockIds.size > 0) {
-                console.log('Clearing selection of', selectedBlockIds.size, 'blocks');
-                setSelectedBlockIds(new Set());
-                if (document.activeElement instanceof HTMLElement) {
-                    document.activeElement.blur();
-                }
-                editorRef.current?.focus();
+            // Only restore focus if this event is for this specific editor, or if it's a
+            // broadcast (no targetEditorId). Cross-editor drops broadcast without a target
+            // so we guard by checking the node still has content (in tryFocusEditor).
+            const detail = (e as CustomEvent).detail;
+            if (detail?.targetEditorId && detail.targetEditorId !== editorInstanceId.current) {
+                // Event is targeted at a different editor — skip focus restoration
+                return;
             }
+
+            // Restore focus — native HTML5 drag blurs the active element
+            tryFocusEditor();
         };
 
-        // Listen for both regular and multi-block cleanup events
-        window.addEventListener('infonote-clear-selection', handleDragClearSelection);
-
-        return () => {
-            window.removeEventListener('infonote-clear-selection', handleDragClearSelection);
-        };
-    }, [selectedBlockIds.size, setSelectedBlockIds, setDragSelection, setMouseDownBlock]);
-
-    // Listen specifically for multi-block drag cleanup
-    useEffect(() => {
-        const handleMultiDragClearSelection = () => {
-            console.log('Received multi-block drag clear selection event');
-            if (selectedBlockIds.size > 0) {
-                console.log('Clearing selection of', selectedBlockIds.size, 'blocks (multi-drag)');
-                setSelectedBlockIds(new Set());
-                if (document.activeElement instanceof HTMLElement) {
-                    document.activeElement.blur();
-                }
-                editorRef.current?.focus();
-            }
-        };
-
-        window.addEventListener('infonote-multi-drag-clear-selection', handleMultiDragClearSelection);
-
-        return () => {
-            window.removeEventListener('infonote-multi-drag-clear-selection', handleMultiDragClearSelection);
-        };
-    }, [selectedBlockIds.size, setSelectedBlockIds]);
-
-    // Additional cleanup: Clear selection when blocks are removed (happens during drag operations)
-    const prevBlocksLengthRef = useRef(blocks.length);
-
-    useEffect(() => {
-        if (blocks.length < prevBlocksLengthRef.current && selectedBlockIds.size > 0) {
-            // Blocks were removed and we had selection - likely from drag operation
-            console.log('Blocks removed, clearing selection');
-            setSelectedBlockIds(new Set());
-        }
-
-        prevBlocksLengthRef.current = blocks.length;
-    }, [blocks.length, selectedBlockIds.size, setSelectedBlockIds]);
+        window.addEventListener('chnk-it-clear-selection', handleDragCleanup);
+        return () => window.removeEventListener('chnk-it-clear-selection', handleDragCleanup);
+    }, [selectedBlockIds.size, setSelectedBlockIds, setDragSelection, setMouseDownBlock, nodeId]);
 
     // Auto-focus effect
     useEffect(() => {
@@ -348,8 +342,8 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 });
             }
         };
-        window.addEventListener('infonote-force-editor-sync', handleForceSync);
-        return () => window.removeEventListener('infonote-force-editor-sync', handleForceSync);
+        window.addEventListener('chnk-it-force-editor-sync', handleForceSync);
+        return () => window.removeEventListener('chnk-it-force-editor-sync', handleForceSync);
     }, [initialContent]);
 
     useEffect(() => {
@@ -357,7 +351,9 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
         const el = blockRefs.current[focusId];
         if (!el) {
-            // Element not in DOM yet — leave focusId set so we retry on next render
+            // Element not in DOM yet — clear focusId to avoid it getting permanently stuck.
+            // The drag-cleanup handler will re-call setFocusId if a retry is needed.
+            setFocusId(null);
             return;
         }
 
@@ -977,7 +973,17 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             setSelectedBlockIds(new Set([id]));
         }
 
-        setBlockMenuState({ x: e.clientX, y: e.clientY, blockId: id });
+        setBlockMenuState(prev => {
+            if (prev?.blockId === id) {
+                // If we are toggling it off, we should ideally clear the selection. 
+                // But we can't safely call setSelectedBlockIds from inside here without side-effects warning.
+                // We'll just close the menu. The selection will stay unless they click away.
+                // Or we can fire a timeout to clear it.
+                setTimeout(() => setSelectedBlockIds(new Set()), 0);
+                return null;
+            }
+            return { x: e.clientX, y: e.clientY, blockId: id };
+        });
     }, [promoteBlockHandles, setMouseDownBlock, setSelectedBlockIds, selectedBlockIdsRef]);
 
     const handleRegisterRef = useCallback((id: string, el: HTMLDivElement | null) => {
@@ -1010,20 +1016,24 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
     return (
         <div
-            data-infonote-block-editor
+            data-chnk-it-block-editor
             className={`${styles.editor} ${minimal ? styles.minimal : ''}`}
             ref={editorRef}
             tabIndex={-1}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onClick={(e) => handleEditorClick(e, wasDraggingRef.current)}
+            onPointerDown={(e) => {
+                if (e.ctrlKey) {
+                    e.stopPropagation();
+                }
+            }}
             onMouseDown={(e) => {
                 // Require Ctrl key for bulk selection
                 if (!e.ctrlKey) {
                     return;
                 }
-
-                // OTHERWISE: Start Block Selection (Margin/Gap click)
+                e.stopPropagation(); // Stop React Flow from grabbing the event for canvas selection
                 if (e.button === 0 && editorRef.current) {
                     wasDraggingRef.current = false;
                     // Start Selection
@@ -1139,7 +1149,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                 block={node.block}
                                 index={node.listIndex}
                                 hasChildren={node.hasChildren}
-                                isSelected={selectedBlockIds.size > 1 && selectedBlockIds.has(node.block.id)}
+                                isSelected={selectedBlockIds.has(node.block.id)}
                                 readOnly={currentReadOnly}
                                 nodeId={nodeId}
                                 hideBlockHandles={hideBlockHandles}
@@ -1153,7 +1163,11 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                 onMoveBlock={handleMoveBlock}
                                 onDragStart={handleDragStartWrapped}
                                 onMenuOpen={handleBlockMenuOpen}
-                                onSelectionClick={() => { }}
+                                onSelectionClick={() => {
+                                    if (selectedBlockIds.size > 0) {
+                                        setSelectedBlockIds(new Set());
+                                    }
+                                }}
                                 onSelectionMouseDown={handleSelectionMouseDown}
                                 onRegisterRef={handleRegisterRef}
                             />
@@ -1173,7 +1187,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                     block={node.block}
                                     index={node.listIndex}
                                     hasChildren={node.hasChildren}
-                                    isSelected={selectedBlockIds.size > 1 && selectedBlockIds.has(node.block.id)}
+                                    isSelected={selectedBlockIds.has(node.block.id)}
                                     readOnly={currentReadOnly}
                                     nodeId={nodeId}
                                     hideBlockHandles={hideBlockHandles}
@@ -1187,7 +1201,11 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                     onMoveBlock={handleMoveBlock}
                                     onDragStart={handleDragStartWrapped}
                                     onMenuOpen={handleBlockMenuOpen}
-                                    onSelectionClick={() => { }}
+                                    onSelectionClick={() => {
+                                        if (selectedBlockIds.size > 0) {
+                                            setSelectedBlockIds(new Set());
+                                        }
+                                    }}
                                     onSelectionMouseDown={handleSelectionMouseDown}
                                     onRegisterRef={handleRegisterRef}
                                 />
@@ -1226,7 +1244,15 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     y={blockMenuState.y}
                     // blockId={blockMenuState.blockId} // Passed via closure/state to onAction
                     currentType={blocks.find(b => b.id === blockMenuState.blockId)?.type || 'text'}
-                    onClose={() => setBlockMenuState(null)}
+                    onClose={() => {
+                        const targetId = blockMenuState.blockId;
+                        setBlockMenuState(prev => {
+                            if (prev?.blockId === targetId) {
+                                return null;
+                            }
+                            return prev;
+                        });
+                    }}
                     onAction={(action, value) => handleBlockMenuAction(blockMenuState.blockId, action, value)}
                 />
             )}

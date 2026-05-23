@@ -4,7 +4,7 @@
 
 ## 1️⃣ Document Metadata
 
-- **Project Name:** Infonote
+- **Project Name:** Chnk it
 - **Date:** 2026-04-11
 - **Prepared by:** TestSprite AI Team (Antigravity)
 

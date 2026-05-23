@@ -7,7 +7,7 @@
 import { useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../../../services/supabase/client';
 
-const SESSION_KEY = '__infonote_telemetry_sent';
+const SESSION_KEY = '__chnk_telemetry_sent';
 
 export function useSiteTelemetry(): void {
     useEffect(() => {

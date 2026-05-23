@@ -329,7 +329,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
                     activeResize.current = true;
                     document.body.style.cursor = 'nwse-resize';
-                    document.body.classList.add('infonote-resizing-active');
+                    document.body.classList.add('chnk-it-resizing-active');
 
 
                     const onMouseMove = (moveEvent: MouseEvent) => {
@@ -367,7 +367,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                     const onMouseUp = (upEvent: MouseEvent) => {
                         activeResize.current = false;
                         document.body.style.cursor = '';
-                        document.body.classList.remove('infonote-resizing-active');
+                        document.body.classList.remove('chnk-it-resizing-active');
                         window.removeEventListener('mousemove', onMouseMove);
                         window.removeEventListener('mouseup', onMouseUp);
 
@@ -502,14 +502,10 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                         value={isEditingMetadata ? editedData.description : (data.description || '')}
                         onChange={(e) => {
                             setEditedData({ ...editedData, description: e.target.value });
-                            e.target.style.height = 'auto';
-                            e.target.style.height = e.target.scrollHeight + 'px';
                         }}
                         onFocus={(e) => {
                             e.stopPropagation();
                             setIsEditingMetadata(true);
-                            e.target.style.height = 'auto';
-                            e.target.style.height = e.target.scrollHeight + 'px';
                         }}
                         onBlur={() => {
                             if (isEditingMetadata) {
@@ -519,6 +515,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                         onClick={(e) => e.stopPropagation()}
                         onPointerDown={(e) => e.stopPropagation()}
                         onMouseDown={(e) => e.stopPropagation()}
+                        onWheelCapture={(e) => e.stopPropagation()}
                         placeholder="Add description..."
                     />
                 </div>

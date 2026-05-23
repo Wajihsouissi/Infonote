@@ -35,12 +35,12 @@ export const LoginPage: React.FC = () => {
         try {
           // Pre-populate standard demo accounts
           const defaultUsers = [
-            { id: 'demo-user-id', email: 'demo@infonote.com', password: 'password123', displayName: 'Demo User' },
-            { id: 'guest-user-id', email: 'guest@infonote.com', password: 'password', displayName: 'Infonote Guest' }
+            { id: 'demo-user-id', email: 'demo@chnkit.com', password: 'password123', displayName: 'Demo User' },
+            { id: 'guest-user-id', email: 'guest@chnkit.com', password: 'password', displayName: 'Chnk it Guest' }
           ];
 
           // Fetch mock users from localStorage
-          const localUsersRaw = localStorage.getItem('infonote-mock-users');
+          const localUsersRaw = localStorage.getItem('chnk-it-mock-users');
           const localUsers = localUsersRaw ? JSON.parse(localUsersRaw) : [];
           
           const allUsers = [...defaultUsers, ...localUsers];
@@ -61,7 +61,7 @@ export const LoginPage: React.FC = () => {
             displayName: matchedUser.displayName
           };
 
-          localStorage.setItem('infonote-mock-session', JSON.stringify(sessionUser));
+          localStorage.setItem('chnk-it-mock-session', JSON.stringify(sessionUser));
           
           // Set user in Zustand store
           useStore.getState().setAuthUser({
@@ -121,7 +121,7 @@ export const LoginPage: React.FC = () => {
           )}
           <div className={styles.leftLogo}>
             <Rocket size={22} className={styles.leftLogoIcon} />
-            <span>Infonote</span>
+            <span>Chnk it</span>
           </div>
         </div>
 
@@ -136,7 +136,7 @@ export const LoginPage: React.FC = () => {
             <span className={styles.leftHeadlineGrad}>build brilliantly.</span>
           </h2>
           <p className={styles.leftSubtext}>
-            Infonote is your infinite canvas for ideas. Connect thoughts, structure knowledge, and collaborate in real time.
+            Chnk it is your infinite canvas for ideas. Connect thoughts, structure knowledge, and collaborate in real time.
           </p>
           <div className={styles.leftFeatures}>
             <div className={styles.leftFeature}>
@@ -163,7 +163,7 @@ export const LoginPage: React.FC = () => {
             <div className={styles.leftAvatar}>R</div>
           </div>
           <div className={styles.leftProofText}>
-            <strong>4,200+ teams</strong> already organising<br />their thoughts with Infonote
+            <strong>4,200+ teams</strong> already organising<br />their thoughts with Chnk it
           </div>
         </div>
       </div>

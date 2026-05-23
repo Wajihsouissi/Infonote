@@ -16,7 +16,7 @@ const memoryCache = new Map<string, LinkMetadata>();
 // Retrieve from localStorage cache on load
 const loadCacheFromStorage = (): Record<string, LinkMetadata> => {
     try {
-        const stored = localStorage.getItem('infonote_metadata_cache');
+        const stored = localStorage.getItem('chnk_metadata_cache');
         return stored ? JSON.parse(stored) : {};
     } catch (e) {
         console.error('Failed to load metadata cache from storage', e);
@@ -26,7 +26,7 @@ const loadCacheFromStorage = (): Record<string, LinkMetadata> => {
 
 const saveCacheToStorage = (cache: Record<string, LinkMetadata>) => {
     try {
-        localStorage.setItem('infonote_metadata_cache', JSON.stringify(cache));
+        localStorage.setItem('chnk_metadata_cache', JSON.stringify(cache));
     } catch (e) {
         console.error('Failed to save metadata cache to storage', e);
     }
@@ -119,7 +119,7 @@ export function detectProvider(urlStr: string): {
         return {
             provider: 'figma',
             isEmbeddable: true,
-            embedUrl: `https://www.figma.com/embed?embed_host=infonote&url=${encodeURIComponent(url)}`
+            embedUrl: `https://www.figma.com/embed?embed_host=chnk it&url=${encodeURIComponent(url)}`
         };
     }
 
@@ -306,7 +306,7 @@ function createFallbackMetadata(urlStr: string): LinkMetadata {
     return {
         url,
         title,
-        description: `Explore content from ${domain}. A seamless spatial experience on Infonote Canvas.`,
+        description: `Explore content from ${domain}. A seamless spatial experience on Chnk it Canvas.`,
         favicon: faviconUri,
         image: imageUri,
         provider,

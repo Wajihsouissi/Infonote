@@ -87,7 +87,7 @@ export const MarketplacePage: React.FC = () => {
               <ShoppingBag size={42} />
             </div>
             <h2>Coming Soon</h2>
-            <p>We are building a premium marketplace for high-quality Infonote templates, canvas modules, and custom workflows. Stay tuned!</p>
+            <p>We are building a premium marketplace for high-quality Chnk it templates, canvas modules, and custom workflows. Stay tuned!</p>
           </div>
         </div>
       </main>

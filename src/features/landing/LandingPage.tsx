@@ -37,7 +37,7 @@ export const LandingPage: React.FC = () => {
   useSiteTelemetry();
 
   const activeWorkspaceId = typeof window !== 'undefined'
-    ? localStorage.getItem('infonote.activeWorkspaceId') || undefined
+    ? localStorage.getItem('chnk it.activeWorkspaceId') || undefined
     : undefined;
 
   const { recentNotes } = useRecentlyViewed(activeWorkspaceId);
@@ -87,7 +87,7 @@ export const LandingPage: React.FC = () => {
         <div className={styles.logoSection}>
           <div className={styles.logo}>
             <Rocket className={styles.logoIcon} />
-            <span>Infonote</span>
+            <span>Chnk it</span>
           </div>
           <button
             className={styles.drawerCloseButton}
@@ -182,7 +182,7 @@ export const LandingPage: React.FC = () => {
             </button>
             <div className={styles.mobileLogo} onClick={() => setCurrentView('landing')}>
               <Rocket className={styles.logoIcon} size={18} />
-              <span>Infonote</span>
+              <span>Chnk it</span>
             </div>
           </div>
 

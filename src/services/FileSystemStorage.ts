@@ -32,7 +32,7 @@ declare global {
 
 export class FileSystemStorage {
     private directoryHandle: FileSystemDirectoryHandle | null = null;
-    private readonly DB_NAME = 'infonote-db';
+    private readonly DB_NAME = 'chnk-it-db';
     private readonly STORE_NAME = 'handles';
     private readonly KEY = 'project-dir';
 
@@ -139,7 +139,7 @@ export class FileSystemStorage {
             console.log('[Storage] Opening directory picker...');
             this.directoryHandle = await window.showDirectoryPicker({
                 mode: 'readwrite',
-                id: 'infonote-data',
+                id: 'chnk-it-data',
             });
             await this.saveHandleToIndexedDB(this.directoryHandle);
             console.log('[Storage] Directory selected:', this.directoryHandle.name);

@@ -1,4 +1,4 @@
-# Collaboration Guide for Infonote
+# Collaboration Guide for Chnk it
 
 This project is hosted on GitHub. Here is how you and your friend can work together.
 
@@ -9,8 +9,8 @@ Your friend needs to download the code to their computer. This is called "clonin
 1.  Open a terminal (Command Prompt or PowerShell).
 2.  Run this command:
     ```bash
-    git clone https://github.com/Wajihsouissi/Infonote.git
-    cd Infonote
+    git clone https://github.com/Wajihsouissi/Chnk it.git
+    cd Chnk it
     ```
 
 ## 2. Making Changes

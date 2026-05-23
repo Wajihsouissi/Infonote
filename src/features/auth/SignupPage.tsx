@@ -47,13 +47,13 @@ export const SignupPage: React.FC = () => {
       setTimeout(() => {
         try {
           // Fetch existing mock users
-          const localUsersRaw = localStorage.getItem('infonote-mock-users');
+          const localUsersRaw = localStorage.getItem('chnk-it-mock-users');
           const localUsers = localUsersRaw ? JSON.parse(localUsersRaw) : [];
 
           // Check if email already registered
           const emailExists = localUsers.some((u: any) => u.email.toLowerCase() === email.toLowerCase()) || 
-                              email.toLowerCase() === 'demo@infonote.com' || 
-                              email.toLowerCase() === 'guest@infonote.com';
+                              email.toLowerCase() === 'demo@chnkit.com' || 
+                              email.toLowerCase() === 'guest@chnkit.com';
 
           if (emailExists) {
             throw new Error('An account with this email already exists.');
@@ -69,7 +69,7 @@ export const SignupPage: React.FC = () => {
 
           // Save to mock users list
           localUsers.push(newUser);
-          localStorage.setItem('infonote-mock-users', JSON.stringify(localUsers));
+          localStorage.setItem('chnk-it-mock-users', JSON.stringify(localUsers));
 
           // Log user in automatically by creating a mock session
           const sessionUser = {
@@ -77,7 +77,7 @@ export const SignupPage: React.FC = () => {
             email: newUser.email,
             displayName: newUser.displayName
           };
-          localStorage.setItem('infonote-mock-session', JSON.stringify(sessionUser));
+          localStorage.setItem('chnk-it-mock-session', JSON.stringify(sessionUser));
 
           // Set user in Zustand store
           useStore.getState().setAuthUser({
@@ -142,7 +142,7 @@ export const SignupPage: React.FC = () => {
           )}
           <div className={styles.leftLogo}>
             <Rocket size={22} className={styles.leftLogoIcon} />
-            <span>Infonote</span>
+            <span>Chnk it</span>
           </div>
         </div>
 
@@ -157,7 +157,7 @@ export const SignupPage: React.FC = () => {
             <span className={styles.leftHeadlineGrad}>a better canvas.</span>
           </h2>
           <p className={styles.leftSubtext}>
-            Join thousands of creators, researchers, and teams who use Infonote to connect their thinking and build knowledge visually.
+            Join thousands of creators, researchers, and teams who use Chnk it to connect their thinking and build knowledge visually.
           </p>
           <div className={styles.leftFeatures}>
             <div className={styles.leftFeature}>
@@ -184,7 +184,7 @@ export const SignupPage: React.FC = () => {
             <div className={styles.leftAvatar}>R</div>
           </div>
           <div className={styles.leftProofText}>
-            <strong>4,200+ teams</strong> already organising<br />their thoughts with Infonote
+            <strong>4,200+ teams</strong> already organising<br />their thoughts with Chnk it
           </div>
         </div>
       </div>

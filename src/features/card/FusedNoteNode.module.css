@@ -248,6 +248,7 @@
 
 .handle {
     opacity: 0;
+    visibility: hidden;
     width: 10px !important;
     height: 10px !important;
     border-radius: 50%;
@@ -255,7 +256,6 @@
     border: 2px solid var(--bg-dark) !important;
     transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
     pointer-events: none;
-    /* Position at top-right */
     left: auto !important;
     right: -6px !important;
     top: -6px !important;
@@ -265,6 +265,7 @@
 
 .fusedNoteNode:hover .handle {
     opacity: 1;
+    visibility: visible;
     pointer-events: auto;
 }
 

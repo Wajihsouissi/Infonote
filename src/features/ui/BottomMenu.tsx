@@ -366,10 +366,10 @@ export function BottomMenu() {
             },
             sourceNodeId: null
         };
-        e.dataTransfer.setData('application/infonote-block-data', JSON.stringify(blockData));
+        e.dataTransfer.setData('application/chnk-it-block-data', JSON.stringify(blockData));
 
         if (metadata) {
-            e.dataTransfer.setData('application/infonote-block-metadata', JSON.stringify(metadata));
+            e.dataTransfer.setData('application/chnk-it-block-metadata', JSON.stringify(metadata));
         }
         e.dataTransfer.effectAllowed = 'copy';
     };
@@ -435,7 +435,7 @@ export function BottomMenu() {
                         <input
                             type="text"
                             className={styles.searchInput}
-                            placeholder="Search notes, blocks... (#tag status:todo)"
+                            placeholder="Search your notes"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             autoFocus

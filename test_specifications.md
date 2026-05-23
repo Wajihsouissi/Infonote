@@ -1,12 +1,12 @@
 # Test Specifications: Create Notes with Blocks
 
-**Project:** Infonote  
+**Project:** Chnk it  
 **Module:** Editor & Canvas  
 **Role:** QA Tester  
 **Date:** 2026-01-14
 
 ## Overview
-This document outlines the test specifications for verifying the functionality of creating notes and manipulating content blocks within the Infonote application. It covers note creation, block insertion, formatting, media handling, and interaction logic.
+This document outlines the test specifications for verifying the functionality of creating notes and manipulating content blocks within the Chnk it application. It covers note creation, block insertion, formatting, media handling, and interaction logic.
 
 ---
 

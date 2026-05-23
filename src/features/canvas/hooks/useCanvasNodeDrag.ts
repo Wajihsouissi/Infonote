@@ -59,7 +59,7 @@ export function useCanvasNodeDrag({
         document.querySelectorAll('[data-external-drop-target]').forEach(el => {
             (el as HTMLElement).removeAttribute('data-external-drop-target');
         });
-        document.body.classList.add('infonote-node-dragging');
+        document.body.classList.add('chnk-it-node-dragging');
     }, [setInteractionState, setNodes, selectedCanvasNodeIds]);
 
     const onNodeDrag = useCallback((event: React.MouseEvent, node: any) => {
@@ -216,7 +216,7 @@ export function useCanvasNodeDrag({
         document.querySelectorAll('[data-external-drop-target]').forEach(el => {
             (el as HTMLElement).removeAttribute('data-external-drop-target');
         });
-        document.body.classList.remove('infonote-node-dragging');
+        document.body.classList.remove('chnk-it-node-dragging');
 
         // FREE-FORM POSITIONING: preserve raw decimal coordinates produced by React Flow.
         // No grid snapping is applied — nodes float exactly where the cursor releases them.

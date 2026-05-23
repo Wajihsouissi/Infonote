@@ -54,7 +54,7 @@ export const BlockItem = memo(function BlockItem({
     onMoveBlock,
     onDragStart,
     onMenuOpen,
-    // onSelectionClick, // not used in implementation
+    onSelectionClick,
     onSelectionMouseDown,
     onRegisterRef,
     index, // New Prop
@@ -64,8 +64,20 @@ export const BlockItem = memo(function BlockItem({
 
     // Memoized wrapper handlers
     const handleWrapperMouseDown = useCallback((e: React.MouseEvent) => {
+        const target = e.target as HTMLElement;
+        const isInteractive = target.isContentEditable || 
+                              target.tagName === 'INPUT' || 
+                              target.tagName === 'TEXTAREA' || 
+                              target.closest('button') || 
+                              target.closest('a');
+                              
+        if (isInteractive) {
+            onSelectionClick(e as unknown as React.MouseEvent, block.id);
+            return;
+        }
+        
         onSelectionMouseDown(e, block.id);
-    }, [block.id, onSelectionMouseDown]);
+    }, [block.id, onSelectionMouseDown, onSelectionClick]);
 
     // Memoized block handlers
     const handleChange = useCallback((content: string, metadata?: any) => {

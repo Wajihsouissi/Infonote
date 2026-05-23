@@ -271,7 +271,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
         activeResize.current = true;
         document.body.style.cursor = 'nwse-resize';
-        document.body.classList.add('infonote-resizing-active');
+        document.body.classList.add('chnk-it-resizing-active');
 
         const onMouseMove = (moveEvent: MouseEvent) => {
             const deltaX = (moveEvent.clientX - startX) / zoom;
@@ -294,7 +294,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
         const onMouseUp = (upEvent: MouseEvent) => {
             activeResize.current = false;
             document.body.style.cursor = '';
-            document.body.classList.remove('infonote-resizing-active');
+            document.body.classList.remove('chnk-it-resizing-active');
             window.removeEventListener('mousemove', onMouseMove);
             window.removeEventListener('mouseup', onMouseUp);
 

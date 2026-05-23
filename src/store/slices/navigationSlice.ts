@@ -2,7 +2,7 @@ import type { StateCreator } from 'zustand';
 import type { AppState, NavigationSlice } from '../types';
 
 export const createNavigationSlice: StateCreator<AppState, [], [], NavigationSlice> = (set, get) => ({
-    currentParentId: typeof window !== 'undefined' ? localStorage.getItem('infonote-current-parent-id') : null,
+    currentParentId: typeof window !== 'undefined' ? localStorage.getItem('chnk-it-current-parent-id') : null,
     breadcrumbs: [{ id: null, label: 'Home' }],
     fullscreenId: null,
     sidePanelId: null, // Deprecated, kept for backward compatibility if any
@@ -15,7 +15,7 @@ export const createNavigationSlice: StateCreator<AppState, [], [], NavigationSli
 
         if (nodeId === null) {
             set({ currentParentId: null, breadcrumbs: [{ id: null, label: 'Home' }] });
-            if (typeof window !== 'undefined') localStorage.removeItem('infonote-current-parent-id');
+            if (typeof window !== 'undefined') localStorage.removeItem('chnk-it-current-parent-id');
             return;
         }
 
@@ -23,7 +23,7 @@ export const createNavigationSlice: StateCreator<AppState, [], [], NavigationSli
         if (!targetNode) return;
 
         // Persist to localStorage
-        if (typeof window !== 'undefined') localStorage.setItem('infonote-current-parent-id', nodeId);
+        if (typeof window !== 'undefined') localStorage.setItem('chnk-it-current-parent-id', nodeId);
 
         // Hydrate canvas from content if it's a note
         if (targetNode.type === 'note') {
@@ -62,7 +62,7 @@ export const createNavigationSlice: StateCreator<AppState, [], [], NavigationSli
         const exists = nodes.some(n => n.id === currentParentId);
         if (!exists) {
             set({ currentParentId: null, breadcrumbs: [{ id: null, label: 'Home' }] });
-            if (typeof window !== 'undefined') localStorage.removeItem('infonote-current-parent-id');
+            if (typeof window !== 'undefined') localStorage.removeItem('chnk-it-current-parent-id');
             return;
         }
 

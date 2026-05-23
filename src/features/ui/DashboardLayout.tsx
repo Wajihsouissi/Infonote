@@ -33,7 +33,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, titl
         <div className={styles.logoSection}>
           <div className={styles.logo} onClick={() => setCurrentView('landing')}>
             <Rocket className={styles.logoIcon} />
-            <span>Infonote</span>
+            <span>Chnk it</span>
           </div>
         </div>
 

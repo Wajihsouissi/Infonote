@@ -82,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     useEffect(() => {
         if (!isSupabaseConfigured) {
-            const mockSessionRaw = localStorage.getItem('infonote-mock-session');
+            const mockSessionRaw = localStorage.getItem('chnk-it-mock-session');
             if (mockSessionRaw) {
                 try {
                     const mockUser = JSON.parse(mockSessionRaw);
@@ -146,7 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const signOut = useCallback(async () => {
         if (!isSupabaseConfigured) {
             // Tear down local mock session
-            localStorage.removeItem('infonote-mock-session');
+            localStorage.removeItem('chnk-it-mock-session');
             const { resetAuth, setCurrentView } = useStore.getState();
             resetAuth();
             setUser(null);

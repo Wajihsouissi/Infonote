@@ -83,7 +83,7 @@ export function useBlockSelection({ editorRef, blocks, blocksRef, blockRefs }: S
         if (!dragSelection && !mouseDownBlock) return;
 
         const handleGlobalMouseMove = (e: MouseEvent) => {
-            if (document.body.classList.contains('infonote-block-dragging') || (window as any).infonoteBlockDragging) {
+            if (document.body.classList.contains('chnk-it-block-dragging') || (window as any).chnkItBlockDragging) {
                 return;
             }
             if (!editorRef.current) return;
@@ -151,7 +151,7 @@ export function useBlockSelection({ editorRef, blocks, blocksRef, blockRefs }: S
         };
 
         const handleGlobalMouseUp = (e: MouseEvent) => {
-            if (document.body.classList.contains('infonote-block-dragging') || (window as any).infonoteBlockDragging) {
+            if (document.body.classList.contains('chnk-it-block-dragging') || (window as any).chnkItBlockDragging) {
                 setDragSelection(null);
                 setMouseDownBlock(null);
                 setTimeout(() => { wasDraggingRef.current = false; }, 0);
@@ -198,6 +198,8 @@ export function useBlockSelection({ editorRef, blocks, blocksRef, blockRefs }: S
             if (target.closest('[data-portal="true"]') ||
                 target.closest('[data-radix-popper-content-wrapper]') ||
                 target.closest('[role="dialog"]') ||
+                target.closest('[role="menu"]') ||
+                target.closest('.block-menu') ||
                 target.closest('.modal') ||
                 target.closest('.popover') ||
                 target.closest('.dropdown') ||
@@ -205,7 +207,9 @@ export function useBlockSelection({ editorRef, blocks, blocksRef, blockRefs }: S
                 target.closest('.center-modal')) return;
 
             if (selectedBlockIdsRef.current.size > 0) {
-                setSelectedBlockIds(new Set());
+                setTimeout(() => {
+                    setSelectedBlockIds(new Set());
+                }, 0);
             }
         };
 

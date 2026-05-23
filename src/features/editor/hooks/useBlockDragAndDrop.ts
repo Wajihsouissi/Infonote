@@ -60,11 +60,15 @@ export function useBlockDragAndDrop({
             }
 
             // Trigger cleanup events
-            if ((window as any).infonoteMultiDragCleanup) {
-                (window as any).infonoteMultiDragCleanup();
-                delete (window as any).infonoteMultiDragCleanup;
+            if ((window as any).chnkItMultiDragCleanup) {
+                (window as any).chnkItMultiDragCleanup();
+                delete (window as any).chnkItMultiDragCleanup;
             }
-            window.dispatchEvent(new CustomEvent('infonote-clear-selection'));
+            // Signal SortableBlockWrapper.handleDragEnd that the drop was already handled.
+            (window as any).chnkItCrossEditorDropHandled = true;
+            (window as any).chnkItBlockDragging = false;
+            document.body.classList.remove('chnk-it-block-dragging');
+            window.dispatchEvent(new CustomEvent('chnk-it-clear-selection'));
         } else {
             console.log("[useBlockDragAndDrop] NOT removing from source - same node or no source");
         }
@@ -76,7 +80,7 @@ export function useBlockDragAndDrop({
         // Check for cross-editor or cross-node move via DataTransfer
         let isCrossEditor = false;
         if (dataTransfer) {
-            const sourceEditorId = dataTransfer.getData('application/infonote-editor-id');
+            const sourceEditorId = dataTransfer.getData('application/chnk-it-editor-id');
             if (sourceEditorId && sourceEditorId !== editorId) {
                 isCrossEditor = true;
             }
@@ -84,7 +88,7 @@ export function useBlockDragAndDrop({
 
         if (dataTransfer && !isCrossEditor) {
             try {
-                const rawData = dataTransfer.getData('application/infonote-block-data');
+                const rawData = dataTransfer.getData('application/chnk-it-block-data');
                 if (rawData) {
                     const parsed = JSON.parse(rawData);
                     const sourceNodeId = parsed.sourceNodeId;
@@ -114,7 +118,7 @@ export function useBlockDragAndDrop({
 
             if (dataTransfer) {
                 try {
-                    const rawData = dataTransfer.getData('application/infonote-block-data');
+                    const rawData = dataTransfer.getData('application/chnk-it-block-data');
                     if (rawData) {
                         const parsed = JSON.parse(rawData);
                         if (parsed.blocks) {
@@ -150,20 +154,27 @@ export function useBlockDragAndDrop({
                 blocksToMoveCount: blocksToMove.length
             });
 
-            const newBlocks = prev.filter(b => !sourceIds.includes(b.id));
-            const targetIndex = newBlocks.findIndex(b => b.id === targetId);
-
-            if (targetIndex === -1 && newBlocks.length > 0) {
-                console.warn("[useBlockDragAndDrop] Target ID not found in newBlocks", targetId);
-                return prev;
+            const originalTargetIndex = prev.findIndex(b => b.id === targetId);
+            if (originalTargetIndex === -1 && prev.length > 0) {
+                console.warn(`Target block ${targetId} not found, appending to end`);
+                const newBlocks = prev.filter(b => !sourceIds.includes(b.id));
+                newBlocks.push(...blocksToMove);
+                return newBlocks;
             }
 
-            const insertIndex = targetIndex === -1
-                ? newBlocks.length
-                : position === 'top' ? targetIndex : targetIndex + 1;
+            let insertIndex = originalTargetIndex;
+            if (position === 'bottom') insertIndex += 1;
 
-            const targetBlock = targetIndex !== -1 ? newBlocks[targetIndex] : null;
+            let removedBefore = 0;
+            for (let i = 0; i < insertIndex; i++) {
+                if (sourceIds.includes(prev[i].id)) removedBefore++;
+            }
 
+            const finalInsertIndex = insertIndex - removedBefore;
+            const newBlocks = prev.filter(b => !sourceIds.includes(b.id));
+            
+            const targetBlock = originalTargetIndex !== -1 ? prev[originalTargetIndex] : null;
+            
             // Notion-like behavior: If dropping on the bottom of an expanded toggle, 
             // make the moved blocks children of that toggle.
             const updatedBlocksToMove = blocksToMove.map(b => {
@@ -176,13 +187,13 @@ export function useBlockDragAndDrop({
                 return b;
             });
 
-            newBlocks.splice(insertIndex, 0, ...updatedBlocksToMove);
+            newBlocks.splice(finalInsertIndex, 0, ...updatedBlocksToMove);
             debouncedOnUpdate(newBlocks);
 
             // If it is a cross-editor drop, trigger source removal callback
-            if (isCrossEditor && typeof (window as any).infonoteRemoveDraggedBlocks === 'function') {
-                (window as any).infonoteRemoveDraggedBlocks(sourceIds);
-                (window as any).infonoteRemoveDraggedBlocks = null;
+            if (isCrossEditor && typeof (window as any).chnkItRemoveDraggedBlocks === 'function') {
+                (window as any).chnkItRemoveDraggedBlocks(sourceIds);
+                (window as any).chnkItRemoveDraggedBlocks = null;
             }
 
             return newBlocks;
@@ -192,16 +203,16 @@ export function useBlockDragAndDrop({
     const handleBlockDragStart = useCallback((e: React.DragEvent, block: Block) => {
         const isMulti = selectedBlockIds.has(block.id) && selectedBlockIds.size > 1;
         e.dataTransfer.effectAllowed = 'copyMove';
-        e.dataTransfer.setData('application/infonote-block-id', block.id);
+        e.dataTransfer.setData('application/chnk-it-block-id', block.id);
         e.dataTransfer.setData('application/reactflow-block-type', block.type);
-        e.dataTransfer.setData('application/infonote-editor-id', editorId);
+        e.dataTransfer.setData('application/chnk-it-editor-id', editorId);
 
         const blocksToDrag = isMulti
             ? blocks.filter(b => selectedBlockIds.has(b.id))
             : [block];
 
-        (window as any).infonoteRemoveDraggedBlocks = (ids: string[]) => {
-            console.log("[infonoteRemoveDraggedBlocks] Removing blocks from source:", ids);
+        (window as any).chnkItRemoveDraggedBlocks = (ids: string[]) => {
+            console.log("[chnkItRemoveDraggedBlocks] Removing blocks from source:", ids);
             setBlocks(prev => {
                 const newBlocks = prev.filter(b => !ids.includes(b.id));
                 debouncedOnUpdate(newBlocks);
@@ -209,22 +220,20 @@ export function useBlockDragAndDrop({
             });
         };
 
-        if (nodeId) {
-            e.dataTransfer.setData('application/infonote-block-data', JSON.stringify({
-                block,
-                blocks: blocksToDrag,
-                sourceNodeId: nodeId
-            }));
-        }
+        e.dataTransfer.setData('application/chnk-it-block-data', JSON.stringify({
+            block,
+            blocks: blocksToDrag,
+            sourceNodeId: nodeId || null
+        }));
 
         // Register global cleanup for multi-block drag operations
         if (isMulti) {
             console.log('Registering multi-block drag cleanup for', blocksToDrag.length, 'blocks');
-            (window as any).infonoteMultiDragCleanup = () => {
+            (window as any).chnkItMultiDragCleanup = () => {
                 console.log('Executing multi-block drag cleanup');
                 // Dispatch both events to ensure cleanup
-                const event1 = new CustomEvent('infonote-clear-selection');
-                const event2 = new CustomEvent('infonote-multi-drag-clear-selection');
+                const event1 = new CustomEvent('chnk-it-clear-selection');
+                const event2 = new CustomEvent('chnk-it-multi-drag-clear-selection');
                 window.dispatchEvent(event1);
                 window.dispatchEvent(event2);
             };
@@ -273,14 +282,14 @@ export function useBlockDragAndDrop({
 
         const type = e.dataTransfer.getData('application/reactflow-block-type') as BlockType;
         if (type) {
-            const sourceBlockId = e.dataTransfer.getData('application/infonote-block-id');
+            const sourceBlockId = e.dataTransfer.getData('application/chnk-it-block-id');
 
             // Parse block data to get source info
             let sourceNodeId: string | null = null;
             let blocksFromData: Block[] = [];
 
             try {
-                const rawData = e.dataTransfer.getData('application/infonote-block-data');
+                const rawData = e.dataTransfer.getData('application/chnk-it-block-data');
                 if (rawData) {
                     const parsed = JSON.parse(rawData);
                     sourceNodeId = parsed.sourceNodeId || null;
@@ -309,10 +318,10 @@ export function useBlockDragAndDrop({
                         setBlocks(blocksFromData);
                         debouncedOnUpdate(blocksFromData);
 
-                        const sourceEditorId = e.dataTransfer.getData('application/infonote-editor-id');
-                        if (sourceEditorId && sourceEditorId !== editorId && typeof (window as any).infonoteRemoveDraggedBlocks === 'function') {
-                            (window as any).infonoteRemoveDraggedBlocks(blocksFromData.map(b => b.id));
-                            (window as any).infonoteRemoveDraggedBlocks = null;
+                        const sourceEditorId = e.dataTransfer.getData('application/chnk-it-editor-id');
+                        if (sourceEditorId && sourceEditorId !== editorId && typeof (window as any).chnkItRemoveDraggedBlocks === 'function') {
+                            (window as any).chnkItRemoveDraggedBlocks(blocksFromData.map(b => b.id));
+                            (window as any).chnkItRemoveDraggedBlocks = null;
                         } else {
                             // Remove from source node if cross-node drop
                             removeBlocksFromSource(blocksFromData.map(b => b.id), sourceNodeId);
@@ -359,7 +368,7 @@ export function useBlockDragAndDrop({
                 // Fallback to type-based creation (new block from menu)
                 let metadata = undefined;
                 try {
-                    const metaJson = e.dataTransfer.getData('application/infonote-block-metadata');
+                    const metaJson = e.dataTransfer.getData('application/chnk-it-block-metadata');
                     if (metaJson) metadata = JSON.parse(metaJson);
                 } catch (err) { console.error("Failed to parse drop metadata", err); }
 

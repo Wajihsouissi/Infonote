@@ -99,7 +99,7 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
             });
 
             useStore.getState().updateNodeData(ownerNode.id, { content });
-            window.dispatchEvent(new CustomEvent('infonote-force-editor-sync'));
+            window.dispatchEvent(new CustomEvent('chnk-it-force-editor-sync'));
         }
     };
 
@@ -309,7 +309,7 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
             useStore.getState().updateNodeData(ownerNode.id, { content });
 
             // Dispatch custom force editor sync event so active editors immediately receive the new blocks list!
-            window.dispatchEvent(new CustomEvent('infonote-force-editor-sync'));
+            window.dispatchEvent(new CustomEvent('chnk-it-force-editor-sync'));
         }
     };
 
@@ -349,8 +349,8 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
                     setTimeout(() => {
                         const el = document.getElementById(targetNode.id);
                         if (el) {
-                            el.classList.add('infonote-highlight-flash');
-                            setTimeout(() => el.classList.remove('infonote-highlight-flash'), 1600);
+                            el.classList.add('chnk-it-highlight-flash');
+                            setTimeout(() => el.classList.remove('chnk-it-highlight-flash'), 1600);
                         }
                     }, 400);
                 } else {
@@ -370,8 +370,8 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
                             setTimeout(() => {
                                 const el = document.getElementById(freshTargetNode.id);
                                 if (el) {
-                                    el.classList.add('infonote-highlight-flash');
-                                    setTimeout(() => el.classList.remove('infonote-highlight-flash'), 1600);
+                                    el.classList.add('chnk-it-highlight-flash');
+                                    setTimeout(() => el.classList.remove('chnk-it-highlight-flash'), 1600);
                                 }
                             }, 400);
                         }
@@ -393,8 +393,8 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
                 const element = document.getElementById(`block-${blockId}`);
                 if (element) {
                     element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    element.classList.add('infonote-highlight-flash');
-                    setTimeout(() => element.classList.remove('infonote-highlight-flash'), 1600);
+                    element.classList.add('chnk-it-highlight-flash');
+                    setTimeout(() => element.classList.remove('chnk-it-highlight-flash'), 1600);
                 }
             } else if (
                 ownerNode.parentId === currentParentId || 
@@ -409,16 +409,16 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
 
                 const cardEl = document.getElementById(ownerNode.id);
                 if (cardEl) {
-                    cardEl.classList.add('infonote-highlight-flash');
-                    setTimeout(() => cardEl.classList.remove('infonote-highlight-flash'), 1600);
+                    cardEl.classList.add('chnk-it-highlight-flash');
+                    setTimeout(() => cardEl.classList.remove('chnk-it-highlight-flash'), 1600);
                 }
 
                 setTimeout(() => {
                     const element = document.getElementById(`block-${blockId}`);
                     if (element) {
                         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        element.classList.add('infonote-highlight-flash');
-                        setTimeout(() => element.classList.remove('infonote-highlight-flash'), 1600);
+                        element.classList.add('chnk-it-highlight-flash');
+                        setTimeout(() => element.classList.remove('chnk-it-highlight-flash'), 1600);
                     }
                 }, 500);
             } else {
@@ -438,16 +438,16 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
 
                         const cardEl = document.getElementById(freshOwnerNode.id);
                         if (cardEl) {
-                            cardEl.classList.add('infonote-highlight-flash');
-                            setTimeout(() => cardEl.classList.remove('infonote-highlight-flash'), 1600);
+                            cardEl.classList.add('chnk-it-highlight-flash');
+                            setTimeout(() => cardEl.classList.remove('chnk-it-highlight-flash'), 1600);
                         }
 
                         setTimeout(() => {
                             const element = document.getElementById(`block-${blockId}`);
                             if (element) {
                                 element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                element.classList.add('infonote-highlight-flash');
-                                setTimeout(() => element.classList.remove('infonote-highlight-flash'), 1600);
+                                element.classList.add('chnk-it-highlight-flash');
+                                setTimeout(() => element.classList.remove('chnk-it-highlight-flash'), 1600);
                             }
                         }, 500);
                     }
