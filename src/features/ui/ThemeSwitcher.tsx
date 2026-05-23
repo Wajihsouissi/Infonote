@@ -11,7 +11,7 @@ export function ThemeSwitcher() {
             className={styles.themeSwitcher}
             onClick={toggleTheme}
             aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            data-tooltip={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
         >
             <div className={styles.iconWrapper}>
                 {theme === 'dark' ? (

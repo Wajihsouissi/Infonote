@@ -855,7 +855,7 @@ export function CanvasBoard() {
                         ref={tocBtnRef}
                         className={`${styles.toolbarBtn} ${isTOCOpen ? styles.toolbarBtnActive : ''}`}
                         onClick={() => setTOCOpen(!isTOCOpen)}
-                        title={isTOCOpen ? "Close Outline" : "Open Outline"}
+                        data-tooltip={isTOCOpen ? "Close Outline" : "Open Outline"}
                         style={{ marginLeft: 6 }}
                     >
                         <ListCollapse size={18} />
@@ -864,7 +864,7 @@ export function CanvasBoard() {
                         ref={shortcutsBtnRef}
                         className={`${styles.toolbarBtn} ${isShortcutsPanelOpen ? styles.toolbarBtnActive : ''}`}
                         onClick={() => setShortcutsPanelOpen(!isShortcutsPanelOpen)}
-                        title={isShortcutsPanelOpen ? "Close Shortcuts" : "Keyboard Shortcuts (K)"}
+                        data-tooltip={isShortcutsPanelOpen ? "Close Shortcuts" : "Keyboard Shortcuts (K)"}
                         style={{ marginLeft: 6 }}
                     >
                         <Keyboard size={18} />
@@ -874,7 +874,7 @@ export function CanvasBoard() {
                             ref={metadataBtnRef}
                             className={`${styles.toolbarBtn} ${isMetadataOpen ? styles.toolbarBtnActive : ''}`}
                             onClick={() => setMetadataOpen(!isMetadataOpen)}
-                            title={isMetadataOpen ? "Close Metadata" : "Open Metadata"}
+                            data-tooltip={isMetadataOpen ? "Close Metadata" : "Open Metadata"}
                             style={{ marginLeft: 6 }}
                         >
                             <SlidersHorizontal size={18} />
