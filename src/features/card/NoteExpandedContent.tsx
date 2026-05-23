@@ -161,8 +161,9 @@ export function NoteExpandedContent({
             '--color-text-muted': '#6b7280',
             '--color-border': 'rgba(0,0,0,0.2)',
             '--glass-border': `${tableBorderColor}33`,
+            caretColor: '#1f2937',
             '--note-bg-dynamic': data.color,
-            '--note-area-bg': noteAreaBg, // Pastel background for note area
+            '--note-area-bg': noteAreaBg,
             '--table-bg': `${tableSurface}cc`,
             '--table-header-bg': `${tableHeaderSurface}ff`,
             '--table-row-hover-bg': `${tableHoverSurface}cc`,
@@ -172,6 +173,11 @@ export function NoteExpandedContent({
             '--table-border': `${tableBorderColor}33`,
             '--table-border-strong': `${tableBorderColor}55`,
             '--table-focus-ring': `${tableBorderColor}80`,
+            '--link-bg': `${tableBorderColor}15`,
+            '--link-bg-hover': `${tableBorderColor}25`,
+            '--link-border': `${tableBorderColor}25`,
+            '--link-border-hover': `${tableBorderColor}40`,
+            '--link-shadow': `${tableBorderColor}1a`,
         } as React.CSSProperties;
     }, [data.color]);
 
@@ -185,6 +191,7 @@ export function NoteExpandedContent({
         return {
             backgroundColor: bg,
             color: darkText,
+            caretColor: darkText,
             '--color-text-main': darkText,
             '--color-text-muted': mutedText,
             '--color-border': 'rgba(0,0,0,0.2)',

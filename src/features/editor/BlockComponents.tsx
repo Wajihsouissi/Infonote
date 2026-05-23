@@ -1,4 +1,4 @@
-import React, { useRef, useLayoutEffect, memo, useCallback } from 'react';
+import React, { useState, useRef, useLayoutEffect, memo, useCallback } from 'react';
 import { FileText, Trash2 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { renderContentWithLinks } from './pasteUtils';
@@ -477,6 +477,12 @@ export const CodeBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
 
 export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
     const rows: string[][] = block.metadata?.rows || [];
+    const savedWidths: number[] = block.metadata?.columnWidths || [];
+    const savedHeights: number[] = block.metadata?.rowHeights || [];
+
+    const tableRef = useRef<HTMLTableElement>(null);
+    const [activeResize, setActiveResize] = useState<{ type: 'col' | 'row'; index: number } | null>(null);
+    const dragData = useRef<{ type: 'col' | 'row'; index: number; startPos: number; startSize: number } | null>(null);
 
     const handleCellChange = (rowIndex: number, cellIndex: number, value: string) => {
         const newRows = rows.map((row, ri) =>
@@ -490,28 +496,177 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
     const addRow = () => {
         const colCount = rows.length > 0 ? rows[0].length : 2;
         const newRow = Array(colCount).fill('');
-        onChange(block.content, { ...block.metadata, rows: [...rows, newRow] });
+        const newHeights = savedHeights.length > 0 ? [...savedHeights, 0] : undefined;
+        onChange(block.content, { ...block.metadata, rows: [...rows, newRow], rowHeights: newHeights });
     };
 
     const addColumn = () => {
         const newRows = rows.map(row => [...row, '']);
-        onChange(block.content, { ...block.metadata, rows: newRows });
+        const newWidths = savedWidths.length > 0 ? [...savedWidths, 0] : undefined;
+        onChange(block.content, { ...block.metadata, rows: newRows, columnWidths: newWidths });
     };
 
     const deleteRow = (rowIndex: number) => {
         if (rows.length <= 1) return;
         const newRows = rows.filter((_, ri) => ri !== rowIndex);
-        onChange(block.content, { ...block.metadata, rows: newRows });
+        const newHeights = savedHeights.length > 0 ? savedHeights.filter((_, ri) => ri !== rowIndex) : undefined;
+        onChange(block.content, { ...block.metadata, rows: newRows, rowHeights: newHeights });
     };
 
     const deleteColumn = (colIndex: number) => {
         if (rows[0].length <= 1) return;
         const newRows = rows.map(row => row.filter((_, ci) => ci !== colIndex));
-        onChange(block.content, { ...block.metadata, rows: newRows });
+        const newWidths = savedWidths.length > 0 ? savedWidths.filter((_, ci) => ci !== colIndex) : undefined;
+        onChange(block.content, { ...block.metadata, rows: newRows, columnWidths: newWidths });
     };
 
+    const handleColResizeStart = (e: React.MouseEvent, colIndex: number) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const table = tableRef.current;
+        if (!table) return;
+
+        const ths = table.querySelectorAll('thead th');
+        const th = ths[colIndex] as HTMLElement;
+        if (!th) return;
+
+        const startWidth = th.getBoundingClientRect().width;
+        const startX = e.clientX;
+
+        dragData.current = { type: 'col', index: colIndex, startPos: startX, startSize: startWidth };
+        setActiveResize({ type: 'col', index: colIndex });
+
+        document.body.style.cursor = 'col-resize';
+        document.body.classList.add('chnk-it-resizing-active');
+
+        const onMouseMove = (moveEvent: MouseEvent) => {
+            const data = dragData.current;
+            if (!data || data.type !== 'col') return;
+
+            const diff = moveEvent.clientX - data.startPos;
+            const newWidth = Math.max(40, data.startSize + diff);
+
+            let colgroup = table.querySelector('colgroup');
+            if (!colgroup) {
+                colgroup = document.createElement('colgroup');
+                const colCount = rows[0]?.length || 2;
+                for (let i = 0; i < colCount; i++) {
+                    const col = document.createElement('col');
+                    colgroup.appendChild(col);
+                }
+                table.insertBefore(colgroup, table.firstChild);
+            }
+            const col = colgroup.children[data.index] as HTMLElement;
+            if (col) col.style.width = `${newWidth}px`;
+        };
+
+        const onMouseUp = () => {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+            document.body.style.cursor = '';
+            document.body.classList.remove('chnk-it-resizing-active');
+
+            const data = dragData.current;
+            if (data && data.type === 'col' && table) {
+                let colgroup = table.querySelector('colgroup');
+                if (!colgroup) {
+                    const ths = table.querySelectorAll('thead th');
+                    const newWidths: number[] = [];
+                    ths.forEach(th => {
+                        if ((th as HTMLElement).style.display !== 'none') {
+                            newWidths.push(Math.round((th as HTMLElement).getBoundingClientRect().width));
+                        }
+                    });
+                    if (newWidths.length > 0) {
+                        onChange(block.content, { ...block.metadata, columnWidths: newWidths });
+                    }
+                } else {
+                    const totalCells = rows[0]?.length || 0;
+                    const newWidths: number[] = [];
+                    for (let i = 0; i < totalCells && i < colgroup.children.length; i++) {
+                        const col = colgroup.children[i] as HTMLElement;
+                        const w = col.style.width ? parseInt(col.style.width) : 0;
+                        newWidths.push(w > 0 ? w : Math.round((col as any).getBoundingClientRect?.()?.width || 120));
+                    }
+                    if (newWidths.length > 0) {
+                        onChange(block.content, { ...block.metadata, columnWidths: newWidths });
+                    }
+                }
+            }
+
+            dragData.current = null;
+            setActiveResize(null);
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    };
+
+    const handleRowResizeStart = (e: React.MouseEvent, rowIndex: number) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const table = tableRef.current;
+        if (!table) return;
+
+        const allRows = table.querySelectorAll('thead tr, tbody tr');
+        const tr = allRows[rowIndex] as HTMLElement;
+        if (!tr) return;
+
+        const startHeight = tr.getBoundingClientRect().height;
+        const startY = e.clientY;
+
+        dragData.current = { type: 'row', index: rowIndex, startPos: startY, startSize: startHeight };
+        setActiveResize({ type: 'row', index: rowIndex });
+
+        document.body.style.cursor = 'row-resize';
+        document.body.classList.add('chnk-it-resizing-active');
+
+        const onMouseMove = (moveEvent: MouseEvent) => {
+            const data = dragData.current;
+            if (!data || data.type !== 'row') return;
+
+            const diff = moveEvent.clientY - data.startPos;
+            const newHeight = Math.max(30, data.startSize + diff);
+
+            const rows = table.querySelectorAll('thead tr, tbody tr');
+            const tr = rows[data.index] as HTMLElement;
+            if (tr) tr.style.height = `${newHeight}px`;
+        };
+
+        const onMouseUp = () => {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+            document.body.style.cursor = '';
+            document.body.classList.remove('chnk-it-resizing-active');
+
+            const data = dragData.current;
+            if (data && data.type === 'row' && table) {
+                const allRows = table.querySelectorAll('thead tr, tbody tr');
+                const newHeights: number[] = [];
+                allRows.forEach(row => {
+                    const h = (row as HTMLElement).style.height;
+                    const parsed = parseInt(h);
+                    newHeights.push(!isNaN(parsed) && parsed > 0 ? parsed : Math.round((row as HTMLElement).getBoundingClientRect().height));
+                });
+                if (newHeights.length > 0) {
+                    onChange(block.content, { ...block.metadata, rowHeights: newHeights });
+                }
+            }
+
+            dragData.current = null;
+            setActiveResize(null);
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    };
+
+    const hasWidths = savedWidths.length > 0 && savedWidths.some(w => w > 0);
+    const hasHeights = savedHeights.length > 0 && savedHeights.some(h => h > 0);
+
     if (rows.length === 0) {
-        // Empty table placeholder: create a 2x2 table
         const defaultRows = [['Header 1', 'Header 2'], ['', '']];
         onChange(block.content, { ...block.metadata, rows: defaultRows });
         return null;
@@ -519,9 +674,16 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
 
     return (
         <div className={styles.tableWrapper} contentEditable={false}>
-            <table className={styles.table}>
+            <table className={styles.table} ref={tableRef}>
+                {(hasWidths || hasHeights) && (
+                    <colgroup>
+                        {(rows[0] || []).map((_, ci) => (
+                            <col key={ci} style={{ width: savedWidths[ci] && savedWidths[ci] > 0 ? `${savedWidths[ci]}px` : undefined }} />
+                        ))}
+                    </colgroup>
+                )}
                 <thead>
-                    <tr>
+                    <tr style={{ height: savedHeights[0] && savedHeights[0] > 0 ? `${savedHeights[0]}px` : undefined }}>
                         {rows[0]?.map((cell, ci) => (
                             <th key={ci} className={styles.tableHeader}>
                                 <div className={styles.tableHeaderCellWrapper}>
@@ -542,14 +704,27 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
                                         </button>
                                     )}
                                 </div>
+                                {!readOnly && (
+                                    <div
+                                        className={`${styles.colResizeHandle} ${activeResize?.type === 'col' && activeResize?.index === ci ? styles.resizeActive : ''}`}
+                                        onMouseDown={(e) => handleColResizeStart(e, ci)}
+                                    />
+                                )}
                             </th>
                         ))}
-                        {!readOnly && <th className={styles.tableHeaderActionCell} />}
+                        {!readOnly && (
+                            <th className={styles.tableHeaderActionCell}>
+                                <div
+                                    className={`${styles.rowResizeHandle} ${activeResize?.type === 'row' && activeResize?.index === 0 ? styles.resizeActive : ''}`}
+                                    onMouseDown={(e) => handleRowResizeStart(e, 0)}
+                                />
+                            </th>
+                        )}
                     </tr>
                 </thead>
                 <tbody>
                     {rows.slice(1).map((row, ri) => (
-                        <tr key={ri + 1}>
+                        <tr key={ri + 1} style={{ height: savedHeights[ri + 1] && savedHeights[ri + 1] > 0 ? `${savedHeights[ri + 1]}px` : undefined }}>
                             {row.map((cell, ci) => (
                                 <td key={ci} className={styles.tableData}>
                                     <input
@@ -572,6 +747,10 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
                                             <Trash2 size={12} />
                                         </button>
                                     )}
+                                    <div
+                                        className={`${styles.rowResizeHandle} ${activeResize?.type === 'row' && activeResize?.index === ri + 1 ? styles.resizeActive : ''}`}
+                                        onMouseDown={(e) => handleRowResizeStart(e, ri + 1)}
+                                    />
                                 </td>
                             )}
                         </tr>

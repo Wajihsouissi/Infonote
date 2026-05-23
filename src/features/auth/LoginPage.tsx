@@ -7,7 +7,7 @@
  * onAuthStateChange subscription.
  */
 import React, { useState } from 'react';
-import { Rocket, Mail, Lock, Eye, EyeOff, User, ArrowLeft, LogIn, Zap, GitBranch, Layers, Loader2, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, LogIn, Zap, GitBranch, Layers, Loader2, AlertCircle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
 import styles from './AuthPage.module.css';
@@ -144,7 +144,7 @@ export const LoginPage: React.FC = () => {
             </button>
           )}
           <div className={styles.leftLogo}>
-            <Rocket size={22} className={styles.leftLogoIcon} />
+            <img src="/ChnkLogo.svg" alt="Chnk" style={{height: 24}} />
             <span>Chnk it</span>
           </div>
         </div>

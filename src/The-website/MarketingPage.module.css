@@ -1,0 +1,697 @@
+/* MarketingPage.module.css - Premium Hero Section */
+
+.pageContainer {
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--color-bg-base);
+  color: var(--color-text-main);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  position: relative;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Floating Glow Orbs */
+.orbBg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.orb {
+  position: fixed;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.25), transparent 70%);
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+  animation: orbFloat 20s ease-in-out infinite;
+}
+
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(40px, -30px) scale(1.05); }
+  50% { transform: translate(-20px, 40px) scale(0.95); }
+  75% { transform: translate(30px, -20px) scale(1.02); }
+}
+
+/* Floating Particles */
+.particle {
+  position: fixed;
+  border-radius: 50%;
+  background: rgba(139, 92, 246, 0.4);
+  pointer-events: none;
+  z-index: 1;
+  animation: particleFloat 6s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(139, 92, 246, 0.3), 0 0 12px rgba(139, 92, 246, 0.1);
+}
+
+@keyframes particleFloat {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.3;
+  }
+  25% {
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(-30px) scale(1.3);
+    opacity: 0.5;
+  }
+  75% {
+    opacity: 0.8;
+  }
+}
+
+/* Nav Bar */
+.topNav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 48px;
+  background: rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.navGlow {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.4), rgba(217, 70, 239, 0.4), transparent);
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  pointer-events: none;
+}
+
+.scrolled .navGlow {
+  opacity: 1;
+}
+
+.topNav.scrolled {
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom-color: rgba(139, 92, 246, 0.15);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.navLogo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.navLogoMark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(217, 70, 239, 0.1));
+  border: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+.navLogoText {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #fff, rgba(255, 255, 255, 0.7));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.navLink {
+  position: relative;
+  padding: 8px 18px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.navLink:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.navLink::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #8b5cf6, #d946ef);
+  border-radius: 2px;
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+}
+
+.navLink:hover::after {
+  width: 60%;
+}
+
+.navActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.navButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #8b5cf6, #d946ef);
+  border: none;
+  border-radius: 10px;
+  padding: 10px 22px;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.navButton::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #a78bfa, #f472b6);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  border-radius: inherit;
+}
+
+.navButton span {
+  position: relative;
+  z-index: 1;
+}
+
+.navButtonIcon {
+  position: relative;
+  z-index: 1;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.navButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(139, 92, 246, 0.35), 0 0 60px rgba(139, 92, 246, 0.1);
+}
+
+.navButton:hover::before {
+  opacity: 1;
+}
+
+.navButton:hover .navButtonIcon {
+  transform: translateX(3px);
+}
+
+.navButton:active {
+  transform: translateY(0);
+}
+
+/* Hero Content */
+.heroContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 100px 24px 120px;
+  position: relative;
+  z-index: 5;
+}
+
+/* Mock Browser Window */
+.browserFrame {
+  width: 90vw;
+  max-width: 1100px;
+  height: 65vh;
+  min-height: 550px;
+  background: var(--color-bg-surface);
+  border-radius: 16px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px var(--color-border), 0 0 80px rgba(139, 92, 246, 0.08);
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  animation: frameGlow 4s ease-in-out infinite;
+}
+
+@keyframes frameGlow {
+  0%, 100% { box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(139, 92, 246, 0.15), 0 0 80px rgba(139, 92, 246, 0.08); }
+  50% { box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(139, 92, 246, 0.25), 0 0 120px rgba(139, 92, 246, 0.15); }
+}
+
+/* Browser Top Bar */
+.browserTopBar {
+  height: 32px;
+  background: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  position: relative;
+  border-radius: 16px 16px 0 0;
+}
+
+.macButtons {
+  display: flex;
+  gap: 8px;
+  width: 60px;
+}
+
+.macDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.macRed { background: #ff5f56; }
+.macYellow { background: #ffbd2e; }
+.macGreen { background: #27c93f; }
+
+.browserSearch {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 400px;
+  height: 32px;
+  background: var(--color-bg-base);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+}
+
+.browserActions {
+  margin-left: auto;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #ff7b72;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* Breadcrumbs Area */
+.breadcrumbsArea {
+  padding: 12px 24px;
+  background: var(--color-bg-surface);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-main);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Canvas Area */
+.mockCanvas {
+  flex: 1;
+  background-color: #fafafa;
+  background-image: radial-gradient(#e5e5e5 1px, transparent 0);
+  background-size: 24px 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Expanded Main Card */
+.expandedCard {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 480px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #f0f0f0;
+  z-index: 10;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.cardHeaderIcon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+}
+
+.cardTitle {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111;
+  margin-bottom: 16px;
+}
+.cardContent {
+  font-size: 13px;
+  color: #555;
+  line-height: 1.6;
+}
+
+/* Image Card (Left) */
+.imageCard {
+  position: absolute;
+  top: 30%;
+  left: 15%;
+  transform: rotate(-3deg);
+  width: 280px;
+  background: white;
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  z-index: 12;
+}
+.imageCard img {
+  width: 100%;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+/* Medium Card (Bottom Left) */
+.mediumCard {
+  position: absolute;
+  top: 25%;
+  left: 80%;
+  transform: rotate(2deg);
+  width: 320px;
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  display: flex;
+  gap: 16px;
+  border: 1px solid #eee;
+  z-index: 11;
+}
+
+.mediumCardIcon {
+  width: 60px;
+  height: 60px;
+  background: #f3f0ff;
+  color: #8b5cf6;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  padding: 4px;
+}
+
+.mediumCardContent h4 {
+  font-size: 14px;
+  color: #111;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.mediumCardContent p {
+  font-size: 11px;
+  color: #666;
+  line-height: 1.4;
+}
+
+/* Right Media Card (FusedNote) */
+.mediaCard {
+  position: absolute;
+  top: 25%;
+  right: 15%;
+  transform: rotate(4deg);
+  width: 340px;
+  background: white;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.1);
+  z-index: 13;
+}
+.mediaCard img {
+  width: 100%;
+  border-radius: 8px;
+}
+
+/* Floating Create Prompt */
+.createPrompt {
+  position: absolute;
+  bottom: 30%;
+  right: 25%;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--backdrop-blur));
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 20;
+  border: 1px solid var(--glass-border);
+}
+
+.promptHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid var(--glass-border);
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.promptInput {
+  padding: 16px 20px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-main);
+  display: flex;
+  align-items: center;
+}
+
+.typingCursor {
+  display: inline-block;
+  width: 2px;
+  height: 22px;
+  background: #8b5cf6;
+  margin-left: 4px;
+  animation: blink 1s step-end infinite;
+}
+
+/* Custom purple mouse cursor for hovering and dragging cards on the marketing canvas */
+.pageContainer :global(.react-flow__node) {
+  cursor: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none'%3E%3Cdefs%3E%3ClinearGradient id='pointerGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23e9d5ff'/%3E%3Cstop offset='60%25' stop-color='%23a855f7'/%3E%3Cstop offset='100%25' stop-color='%237c3aed'/%3E%3C/linearGradient%3E%3Cfilter id='neonGlow' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeDropShadow dx='0' dy='2' stdDeviation='3' flood-color='%23d946ef' flood-opacity='0.95'/%3E%3CfeDropShadow dx='0' dy='0' stdDeviation='6' flood-color='%238b5cf6' flood-opacity='0.75'/%3E%3C/filter%3E%3Cfilter id='sparkleGlow'%3E%3CfeGaussianBlur stdDeviation='0.8' result='blur'/%3E%3CfeMerge%3E%3CfeMergeNode in='blur'/%3E%3CfeMergeNode in='SourceGraphic'/%3E%3C/feMerge%3E%3C/filter%3E%3C/defs%3E%3Cg filter='url(%23neonGlow)'%3E%3Cpath d='M8 4l12 36 8.5-12.5L40 22 8 4z' fill='url(%23pointerGrad)' stroke='%23ffffff' stroke-width='2' stroke-linejoin='round'/%3E%3C/g%3E%3Cpath d='M 33,6 L 35,9 L 39,10 L 35,11 L 33,14 L 31,11 L 27,10 L 31,9 Z' fill='%23ffffff' filter='url(%23sparkleGlow)'/%3E%3Cpath d='M 12,36 L 13,38 L 15,39 L 13,40 L 12,42 L 11,40 L 9,39 L 11,38 Z' fill='%2367e8f9' filter='url(%23sparkleGlow)'/%3E%3C/svg%3E") 8 4, pointer !important;
+}
+
+/* Also apply custom cursor to the whole ReactFlow view while actively dragging a card */
+.pageContainer :global(.react-flow.dragging),
+.pageContainer :global(.react-flow__viewport.dragging) {
+  cursor: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none'%3E%3Cdefs%3E%3ClinearGradient id='pointerGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23e9d5ff'/%3E%3Cstop offset='60%25' stop-color='%23a855f7'/%3E%3Cstop offset='100%25' stop-color='%237c3aed'/%3E%3C/linearGradient%3E%3Cfilter id='neonGlow' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeDropShadow dx='0' dy='2' stdDeviation='3' flood-color='%23d946ef' flood-opacity='0.95'/%3E%3CfeDropShadow dx='0' dy='0' stdDeviation='6' flood-color='%238b5cf6' flood-opacity='0.75'/%3E%3C/filter%3E%3Cfilter id='sparkleGlow'%3E%3CfeGaussianBlur stdDeviation='0.8' result='blur'/%3E%3CfeMerge%3E%3CfeMergeNode in='blur'/%3E%3CfeMergeNode in='SourceGraphic'/%3E%3C/feMerge%3E%3C/filter%3E%3C/defs%3E%3Cg filter='url(%23neonGlow)'%3E%3Cpath d='M8 4l12 36 8.5-12.5L40 22 8 4z' fill='url(%23pointerGrad)' stroke='%23ffffff' stroke-width='2' stroke-linejoin='round'/%3E%3C/g%3E%3Cpath d='M 33,6 L 35,9 L 39,10 L 35,11 L 33,14 L 31,11 L 27,10 L 31,9 Z' fill='%23ffffff' filter='url(%23sparkleGlow)'/%3E%3Cpath d='M 12,36 L 13,38 L 15,39 L 13,40 L 12,42 L 11,40 L 9,39 L 11,38 Z' fill='%2367e8f9' filter='url(%23sparkleGlow)'/%3E%3C/svg%3E") 8 4, pointer !important;
+}
+
+/* Bottom Toolbar */
+.bottomToolbar {
+  position: absolute;
+  bottom: 0px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  gap: 8px;
+  z-index: 30;
+}
+
+.toolbarBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  background: transparent;
+  transition: 0.2s;
+}
+
+.toolbarBtn:hover {
+  background: #f0f0f0;
+}
+
+.toolbarBtn.primary {
+  background: #8b5cf6;
+  color: white;
+}
+
+.zoomControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 16px;
+  padding-left: 16px;
+  border-left: 1px solid #eee;
+  font-size: 13px;
+  font-weight: 500;
+  color: #444;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Allow nodes to render outside the react-flow viewport bounds */
+:global(.react-flow) {
+  overflow: visible !important;
+}
+:global(.react-flow__viewport) {
+  overflow: visible !important;
+}
+
+/* Rotations for the outer card wrappers */
+.cardInsights > div,
+.cardNewNote > div,
+.cardDesignAssets > div,
+.cardImageBlock > div,
+.cardFusedNote > div,
+.blockBulletList > div,
+.blockText > div,
+.blockVideo > div {
+  transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
+  transform-origin: center;
+}
+
+.cardInsights > div {
+  transform: rotate(1.5deg);
+}
+
+.cardNewNote > div {
+  transform: rotate(-4deg);
+}
+
+.cardDesignAssets > div {
+  transform: rotate(3deg);
+}
+
+.cardImageBlock > div {
+  transform: rotate(-3deg);
+}
+
+.cardFusedNote > div {
+  transform: rotate(2deg);
+}
+
+.blockBulletList > div {
+  transform: rotate(-2.5deg);
+}
+
+.blockText > div {
+  transform: rotate(1deg);
+}
+
+.blockVideo > div {
+  transform: rotate(-1.5deg);
+}
+
+.pageContainer :global(.react-flow__node).blockVideo > div {
+  pointer-events: auto !important;
+}
+
+.playButton:hover {
+  transform: scale(1.1) !important;
+}
+
+/* Picked up state when card is actively dragged by the user */
+:global(.react-flow__node.dragging) > div {
+  transform: rotate(0deg) scale(1.04) !important;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.55) !important;
+}
+
+/* Elastic snap-back animation when card is released */
+:global(.react-flow__node):not(:global(.dragging)) {
+  transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Make all card contents completely read-only, non-selectable, and block input hovers, excluding the handles so connections can be drawn */
+.pageContainer :global(.react-flow__node) *:not(:global(.react-flow__handle)) {
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+/* Style ReactFlow connection lines (edges) with premium flowing animations and neon glows */
+.pageContainer :global(.react-flow__edge-path) {
+  stroke-width: 3px !important;
+  stroke-dasharray: 8, 6 !important;
+  animation: dashFlow 1.2s linear infinite, neonPulse 2s ease-in-out infinite !important;
+}
+
+@keyframes dashFlow {
+  from {
+    stroke-dashoffset: 28;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes neonPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 3px rgba(168, 85, 247, 0.8)) drop-shadow(0 0 6px rgba(217, 70, 239, 0.5));
+    stroke: #ff77ff !important;
+  }
+  50% {
+    filter: drop-shadow(0 0 6px rgba(168, 85, 247, 1)) drop-shadow(0 0 12px rgba(217, 70, 239, 0.8)) drop-shadow(0 0 18px rgba(139, 92, 246, 0.6));
+    stroke: #c084fc !important;
+  }
+}

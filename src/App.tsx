@@ -3,6 +3,7 @@ import { ReactFlowProvider } from '@xyflow/react';
 import { Loader2 } from 'lucide-react';
 import { CanvasBoard } from './features/canvas/CanvasBoard';
 import { LandingPage } from './features/landing/LandingPage';
+import { MarketingPage } from './The-website/MarketingPage';
 import { MarketplacePage } from './features/marketplace/MarketplacePage';
 import { LoginPage } from './features/auth/LoginPage';
 import { SignupPage } from './features/auth/SignupPage';
@@ -111,6 +112,11 @@ function App() {
   }
 
   const renderContent = () => {
+    // If we're on the /website native URL path, override and show the marketing page
+    if (typeof window !== 'undefined' && window.location.pathname === '/website') {
+      return <MarketingPage />;
+    }
+
     switch (currentView) {
       case 'landing':
         return <LandingPage />;

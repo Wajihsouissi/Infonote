@@ -11,7 +11,6 @@ import {
   Settings,
   Clock,
   Star,
-  Rocket,
   Sun,
   Moon,
   Menu,
@@ -86,7 +85,7 @@ export const LandingPage: React.FC = () => {
       <aside className={`${styles.sidebar} ${isMobileMenuOpen ? styles.sidebarOpen : ''}`}>
         <div className={styles.logoSection}>
           <div className={styles.logo}>
-            <Rocket className={styles.logoIcon} />
+            <img src="/ChnkLogo.svg" alt="Chnk" style={{height: 28}} />
             <span>Chnk it</span>
           </div>
           <button
@@ -181,7 +180,7 @@ export const LandingPage: React.FC = () => {
               {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
             <div className={styles.mobileLogo} onClick={() => setCurrentView('landing')}>
-              <Rocket className={styles.logoIcon} size={18} />
+              <img src="/ChnkLogo.svg" alt="Chnk" style={{height: 22}} />
               <span>Chnk it</span>
             </div>
           </div>

@@ -466,6 +466,7 @@
 }
 
 .tableHeader {
+    position: relative;
     background: var(--table-header-bg, rgba(255, 255, 255, 0.06));
     border-bottom: 2px solid var(--table-border-strong, var(--glass-border, rgba(255, 255, 255, 0.12)));
     padding: 0;
@@ -553,12 +554,14 @@
 }
 
 .tableHeaderActionCell {
+    position: relative;
     width: 36px;
     background: var(--table-header-bg, rgba(255, 255, 255, 0.06));
     border-bottom: 2px solid var(--table-border-strong, var(--glass-border, rgba(255, 255, 255, 0.12)));
 }
 
 .tableActionCell {
+    position: relative;
     width: 36px;
     text-align: center;
     border-bottom: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.06)));
@@ -620,6 +623,42 @@
     background: var(--table-btn-hover-bg, rgba(255, 255, 255, 0.08));
     color: var(--color-text-main);
     border-color: var(--table-focus-ring, var(--color-primary, rgba(139, 92, 246, 0.4)));
+}
+
+/* Column Resize Handle */
+.colResizeHandle {
+    position: absolute;
+    right: -3px;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: col-resize;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.colResizeHandle:hover,
+.colResizeHandle.resizeActive {
+    opacity: 1;
+    background: var(--color-primary);
+}
+
+/* Row Resize Handle */
+.rowResizeHandle {
+    position: absolute;
+    bottom: -3px;
+    left: 0;
+    right: 0;
+    height: 6px;
+    cursor: row-resize;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.rowResizeHandle:hover,
+.rowResizeHandle.resizeActive {
+    opacity: 1;
+    background: var(--color-primary);
 }
 
 /* Divider */
@@ -1359,15 +1398,10 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    /* Matched PageBlock */
     background: rgba(255, 255, 255, 0.05);
-    /* Matched PageBlock */
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    /* Matched PageBlock */
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
     border-radius: 6px;
-    /* Matched PageBlock */
     padding: 4px 8px;
-    /* Matched PageBlock (slightly adj for inline) */
     margin: 0 4px;
     color: var(--color-text-main);
     text-decoration: none;
@@ -1377,19 +1411,17 @@
     transition: background-color 0.2s, color 0.2s, border-color 0.2s;
     vertical-align: middle;
     white-space: nowrap;
-    /* Prevent breaking inside chip */
 }
 
 .inlinePageChip:hover {
     background: rgba(255, 255, 255, 0.1);
-    border-color: var(--color-primary);
+    border-color: var(--color-text-muted);
     text-decoration: none;
 }
 
 .inlinePageIcon {
     font-size: 1em;
-    color: var(--color-primary);
-    /* Matched PageBlock */
+    color: var(--color-text-muted);
     opacity: 0.8;
 }
 

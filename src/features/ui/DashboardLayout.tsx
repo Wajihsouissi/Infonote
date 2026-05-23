@@ -7,9 +7,8 @@ import {
   LogIn, 
   Search, 
   Settings, 
-  Clock, 
-  Star, 
-  Rocket,
+  Clock,
+  Star,
   Sun,
   Moon
 } from 'lucide-react';
@@ -32,7 +31,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, titl
       <aside className={styles.sidebar}>
         <div className={styles.logoSection}>
           <div className={styles.logo} onClick={() => setCurrentView('landing')}>
-            <Rocket className={styles.logoIcon} />
+            <img src="/ChnkLogo.svg" alt="Chnk" style={{height: 28}} />
             <span>Chnk it</span>
           </div>
         </div>

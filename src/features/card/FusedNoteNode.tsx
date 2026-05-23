@@ -74,7 +74,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
         return {
             '--color-text-main': darkText,
             '--color-text-muted': mutedText,
-            '--color-border': `${borderColor}40`, // 40% opacity
+            '--color-border': `${borderColor}40`,
             '--glass-border': `${borderColor}40`,
             '--icon-color': darkText,
             '--note-bg-dynamic': data.color,
@@ -87,7 +87,13 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             '--table-border': `${borderColor}33`,
             '--table-border-strong': `${borderColor}55`,
             '--table-focus-ring': `${borderColor}80`,
+            '--link-bg': `${borderColor}15`,
+            '--link-bg-hover': `${borderColor}25`,
+            '--link-border': `${borderColor}25`,
+            '--link-border-hover': `${borderColor}40`,
+            '--link-shadow': `${darkText}1a`,
             color: darkText,
+            caretColor: darkText,
         } as React.CSSProperties;
     }, [displayColor, data.color]);
 
