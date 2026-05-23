@@ -50,14 +50,27 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
         storage: { ...state.storage, cloudError: err }
     })),
     loadGraph: (nodes, edges) => {
-        console.log('loadGraph called with:', { nodesCount: nodes.length, edgesCount: edges.length });
+        // Guard: nodes must be an array
+        if (!Array.isArray(nodes)) {
+            console.warn('[storageSlice] loadGraph called with non-array nodes, ignoring.');
+            return;
+        }
 
-        // Snapshot current state before overwriting (for data-loss recovery)
+        // Default edges to empty array if undefined/null
+        const safeEdges = Array.isArray(edges) ? edges : [];
+
+        // Safety cap: limit nodes to 500 to prevent performance issues
+        const cappedNodes = nodes.slice(0, 500);
+        if (nodes.length > 500) {
+            console.warn(`[storageSlice] Trimming nodes from ${nodes.length} to 500 (safety cap).`);
+        }
+
+        // Snapshot current state BEFORE overwriting (for data-loss recovery)
         const prevNodes = get().nodes;
         const prevEdges = get().edges;
 
         // Validate and sanitize nodes
-        const validNodes = nodes.map(node => {
+        const validNodes = cappedNodes.map(node => {
             // Basic structure check
             if (!node || typeof node !== 'object') return null;
             if (!node.id || !node.type) return null;
@@ -73,16 +86,16 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
             const newNode = { ...node };
             if (newNode.type === 'note' || newNode.type === 'fused-note') {
                 // Ensure content is an array
-                const noteContent = (newNode.data as any).content;
+                const noteData = newNode.data as Record<string, unknown>;
+                const noteContent = noteData.content;
                 if (!Array.isArray(noteContent)) {
                     console.warn(`[storageSlice] Node ${newNode.id} (${newNode.type}) content is not an array. Type: ${typeof noteContent}`);
 
                     if (typeof noteContent === 'string') {
-                        console.log(`[storageSlice] Converting legacy string content for node ${newNode.id}`);
-                        (newNode.data as any).content = [{ id: uuidv4(), type: 'text', content: noteContent }];
+                        noteData.content = [{ id: uuidv4(), type: 'text', content: noteContent }];
                     } else if (!noteContent) {
                         // null or undefined
-                        (newNode.data as any).content = [];
+                        noteData.content = [];
                     } else {
                         // It's some other object/truthy value. Keep it but warn? 
                         // Or wrap it?
@@ -91,13 +104,13 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
                         // For now, let's assuming it MIGHT be valid but strangely typed, so we default to empty but log heavily.
                         // Actually, let's try to preserve it in a 'raw' field if we wipe it?
                         console.error(`[storageSlice] Unknown content format for node ${newNode.id}. Resetting to empty. Original:`, noteContent);
-                        (newNode.data as any)._lostContent = noteContent; // Backup
-                        (newNode.data as any).content = [];
+                        noteData._lostContent = noteContent; // Backup
+                        noteData.content = [];
                     }
                 } else {
                     // Content is valid array
-                    if ((newNode.data as any).content.length > 0) {
-                        // console.log(`[storageSlice] Node ${newNode.id} loaded with ${(newNode.data as any).content.length} blocks`);
+                    if ((noteData.content as unknown[]).length > 0) {
+                        // console.log(`[storageSlice] Node ${newNode.id} loaded with ${(noteData.content as unknown[]).length} blocks`);
                     }
                 }
             }
@@ -105,13 +118,11 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
         }).filter(n => n !== null) as AppNode[];
 
         // Validate edges
-        const validEdges = edges.filter(edge => {
+        const validEdges = safeEdges.filter(edge => {
             if (!edge || typeof edge !== 'object') return false;
             if (!edge.id || !edge.source || !edge.target) return false;
             return true;
         });
-
-        console.log(`Validated: ${validNodes.length}/${nodes.length} nodes, ${validEdges.length}/${edges.length} edges`);
 
         set((state) => ({
             nodes: validNodes,
@@ -120,6 +131,8 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
                 ...state.storage,
                 backupNodes: prevNodes,
                 backupEdges: prevEdges,
+                cloudLastSaved: new Date().toLocaleTimeString(),
+                cloudError: null,
             },
         }));
 

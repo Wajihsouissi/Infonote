@@ -22,6 +22,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     isTOCOpen: false,
     isShortcutsPanelOpen: false,
     isLinkingMode: false,
+    showWelcomeModal: false,
 
     setActiveIconMenuId: (id) => set({ activeIconMenuId: id }),
     setKanbanModalOpen: (isOpen) => set({ isKanbanModalOpen: isOpen, editingKanbanId: isOpen ? get().editingKanbanId : null }),
@@ -170,4 +171,5 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
         }));
     },
     setHasEnteredApp: (val: boolean) => set({ hasEnteredApp: val }),
+    setShowWelcomeModal: (v: boolean) => set({ showWelcomeModal: v }),
 });

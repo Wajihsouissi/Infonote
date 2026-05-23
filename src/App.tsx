@@ -7,9 +7,9 @@ import { MarketingPage } from './The-website/MarketingPage';
 import { MarketplacePage } from './features/marketplace/MarketplacePage';
 import { LoginPage } from './features/auth/LoginPage';
 import { SignupPage } from './features/auth/SignupPage';
-import { OtpVerificationPage } from './features/auth/OtpVerificationPage';
 import { ProfilePage } from './features/auth/ProfilePage';
 import { AdminDashboard } from './features/admin/AdminDashboard';
+import { WelcomeModal } from './features/auth/WelcomeModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useStore } from './store/useStore';
 import { supabase, isSupabaseConfigured } from './services/supabase/client';
@@ -19,6 +19,8 @@ function App() {
   const setCurrentView = useStore((state) => state.setCurrentView);
   const isAuthenticated = useStore((state) => state.auth.isAuthenticated);
   const isAuthLoading = useStore((state) => state.auth.isAuthLoading);
+  const showWelcomeModal = useStore((state) => state.showWelcomeModal);
+  const setShowWelcomeModal = useStore((state) => state.setShowWelcomeModal);
 
   // Auto-redirect authenticated users from login/signup views to landing/dashboard
   useEffect(() => {
@@ -46,11 +48,7 @@ function App() {
     if (err) {
       console.error('[OAuth] callback error:', err, errDesc);
       // Strip the error params from the URL so a refresh doesn't replay them.
-      const url = new URL(window.location.href);
-      ['error', 'error_description', 'error_code'].forEach((p) =>
-        url.searchParams.delete(p)
-      );
-      window.history.replaceState({}, document.title, url.pathname + url.search);
+      window.history.replaceState({}, '', window.location.pathname);
       // Send the user to the login screen and show the message.
       setCurrentView('login');
       // Defer alert so React has time to mount the login view.
@@ -127,8 +125,6 @@ function App() {
         return <LoginPage />;
       case 'signup':
         return <SignupPage />;
-      case 'otp-verify':
-        return <OtpVerificationPage />;
       case 'admin':
         return <AdminDashboard />;
       case 'profile':
@@ -147,6 +143,13 @@ function App() {
   return (
     <ErrorBoundary>
       {renderContent()}
+      <WelcomeModal
+        isOpen={showWelcomeModal}
+        onClose={() => {
+          setShowWelcomeModal(false);
+          setCurrentView('canvas');
+        }}
+      />
     </ErrorBoundary>
   );
 }

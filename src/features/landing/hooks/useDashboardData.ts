@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../services/supabase/client';
-import { useAuth } from '../../auth/AuthProvider';
+import { useAuth } from '../../auth/useAuth';
 
 export interface RecentlyViewedNote {
   id: string;

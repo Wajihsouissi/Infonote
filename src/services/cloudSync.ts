@@ -75,8 +75,11 @@ function ensureReady(userId: string | null): string {
     if (!isSupabaseConfigured) {
         throw new Error('Supabase is not configured (missing VITE_SUPABASE_* env).');
     }
-    if (!userId) {
-        throw new Error('You must be signed in to use cloud sync.');
+    if (!supabase) {
+        throw new Error('Supabase client is not initialized.');
+    }
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+        throw new Error('User not authenticated');
     }
     return userId;
 }
@@ -120,7 +123,7 @@ function nodeToRow(node: AppNode, userId: string): CanvasNodeRow {
         null;
 
     // Capture everything React Flow may track aside from typed columns.
-    const data_json: Record<string, unknown> = {
+    const rawDataJson: Record<string, unknown> = {
         data: node.data ?? {},
         style: restStyle,
         // Preserve any extra optional fields without listing them all.
@@ -130,6 +133,17 @@ function nodeToRow(node: AppNode, userId: string): CanvasNodeRow {
         selectable: (node as { selectable?: boolean }).selectable,
         deletable: (node as { deletable?: boolean }).deletable,
     };
+
+    // Sanitize: ensure data_json is serializable (no circular references).
+    let data_json: Record<string, unknown>;
+    try {
+        JSON.stringify(rawDataJson);
+        data_json = rawDataJson;
+    } catch {
+        // Circular reference or non-serializable data — fall back to safe default.
+        console.error(`[cloudSync] data_json serialization failed for node ${node.id}, using empty object`);
+        data_json = {};
+    }
 
     return {
         id: String(node.id),
@@ -146,7 +160,7 @@ function nodeToRow(node: AppNode, userId: string): CanvasNodeRow {
 
 /** Convert an Edge -> canvas_edges row payload. */
 function edgeToRow(edge: Edge, userId: string): CanvasEdgeRow {
-    const data_json: Record<string, unknown> = {
+    const rawDataJson: Record<string, unknown> = {
         data: edge.data ?? {},
         type: edge.type,
         animated: edge.animated,
@@ -157,6 +171,17 @@ function edgeToRow(edge: Edge, userId: string): CanvasEdgeRow {
         markerEnd: edge.markerEnd ?? null,
         markerStart: edge.markerStart ?? null,
     };
+
+    // Sanitize: ensure data_json is serializable (no circular references).
+    let data_json: Record<string, unknown>;
+    try {
+        JSON.stringify(rawDataJson);
+        data_json = rawDataJson;
+    } catch {
+        console.error(`[cloudSync] data_json serialization failed for edge ${edge.id}, using empty object`);
+        data_json = {};
+    }
+
     return {
         id: String(edge.id),
         user_id: userId,
@@ -275,7 +300,6 @@ export async function saveCanvasToCloud(
                         ignoreDuplicates: false,
                     });
                 if (error) {
-                    // eslint-disable-next-line no-console
                     console.error('[cloudSync] node upsert failed', {
                         message: error.message,
                         details: (error as { details?: string }).details,
@@ -293,7 +317,6 @@ export async function saveCanvasToCloud(
                         ignoreDuplicates: false,
                     });
                 if (error) {
-                    // eslint-disable-next-line no-console
                     console.error('[cloudSync] edge upsert failed', {
                         message: error.message,
                         details: (error as { details?: string }).details,
@@ -371,8 +394,8 @@ export async function loadCanvasFromCloud(userId: string | null): Promise<CloudL
             return [nRes, eRes] as const;
         });
 
-        const nodes = (nodesRes.data as CanvasNodeRow[] | null ?? []).map(rowToNode);
-        const edges = (edgesRes.data as CanvasEdgeRow[] | null ?? []).map(rowToEdge);
+        const nodes = ((nodesRes.data as CanvasNodeRow[] | null) ?? []).map(rowToNode);
+        const edges = ((edgesRes.data as CanvasEdgeRow[] | null) ?? []).map(rowToEdge);
 
         return { ok: true, nodes, edges };
     } catch (err) {
@@ -414,7 +437,6 @@ export async function appendCanvasNodesToCloud(
                     ignoreDuplicates: false,
                 });
             if (error) {
-                // eslint-disable-next-line no-console
                 console.error('[cloudSync] figma append upsert failed', {
                     message: error.message,
                     details: (error as { details?: string }).details,

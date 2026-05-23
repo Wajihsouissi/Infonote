@@ -8,24 +8,11 @@
  * - Exposes a sign-out helper that destroys the remote session, resets the
  *   Zustand auth slice, and redirects back to the public landing context.
  */
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
 import { useStore } from '../../store/useStore';
-
-type AuthContextValue = {
-    user: User | null;
-    loading: boolean;
-    configured: boolean;
-    signOut: () => Promise<void>;
-};
-
-const AuthContext = createContext<AuthContextValue>({
-    user: null,
-    loading: true,
-    configured: false,
-    signOut: async () => {},
-});
+import { AuthContext } from './AuthContext';
 
 type ProfileRow = {
     id: string;
@@ -68,16 +55,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             resetAuth();
             return;
         }
-        const profile = await fetchProfileRow(u.id);
-        const metaName =
-            (u.user_metadata?.display_name as string | undefined) ??
-            (u.user_metadata?.full_name as string | undefined) ??
-            null;
-        setAuthUser({
-            id: u.id,
-            email: profile?.email ?? u.email ?? null,
-            displayName: profile?.display_name ?? metaName ?? null,
-        });
+        try {
+            const profile = await fetchProfileRow(u.id);
+            const metaName =
+                (u.user_metadata?.display_name as string | undefined) ??
+                (u.user_metadata?.full_name as string | undefined) ??
+                null;
+            setAuthUser({
+                id: u.id,
+                email: profile?.email ?? u.email ?? null,
+                displayName: profile?.display_name ?? metaName ?? null,
+            });
+        } catch (err) {
+            // Profile fetch failed — still set auth with basic session data
+            // so the user is not blocked from using the app.
+            console.error('[Auth] profile fetch failed, using basic session data', err);
+            setAuthUser({
+                id: u.id,
+                email: u.email ?? null,
+                displayName:
+                    (u.user_metadata?.display_name as string | undefined) ??
+                    (u.user_metadata?.full_name as string | undefined) ??
+                    null,
+            });
+        }
     }, []);
 
     useEffect(() => {
@@ -111,7 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             (_event: AuthChangeEvent, session: Session | null) => {
                 const nextUser = session?.user ?? null;
                 setUser(nextUser);
-                // fire-and-forget; pushToStore handles its own errors
+                // fire-and-forget; pushToStore handles its own errors via try/catch
                 void pushToStore(nextUser);
             }
         );
@@ -160,6 +161,3 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 };
 
-export function useAuth(): AuthContextValue {
-    return useContext(AuthContext);
-}

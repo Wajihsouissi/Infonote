@@ -4,7 +4,7 @@ import { useStore } from '../../store/useStore';
 import { connectBackend, disconnectBackend, getActiveBackendKind } from '../../services/StorageManager';
 import { fileSystemStorage } from '../../services/FileSystemStorage';
 import { saveCanvasToCloud } from '../../services/cloudSync';
-import { useAuth } from '../auth/AuthProvider';
+import { useAuth } from '../auth/useAuth';
 import { SignInPanel } from '../auth/SignInPanel';
 import styles from './StorageControls.module.css';
 

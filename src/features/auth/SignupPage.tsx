@@ -9,11 +9,12 @@ import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, UserPlus, Zap, GitBranch, Layers, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
+import { connectNotion } from '../../services/notion/notionImport';
 import styles from './AuthPage.module.css';
 
 export const SignupPage: React.FC = () => {
   const setCurrentView = useStore((state) => state.setCurrentView);
-  const setPendingVerificationEmail = useStore((state) => state.setPendingVerificationEmail);
+  const setShowWelcomeModal = useStore((state) => state.setShowWelcomeModal);
   const hasEnteredApp = useStore((state) => state.hasEnteredApp);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm]   = useState(false);
@@ -81,19 +82,17 @@ export const SignupPage: React.FC = () => {
       }
 
       // Two outcomes:
-      //  1) Email confirmation REQUIRED → data.session is null. Send the user
-      //     to the OTP verification screen so they can enter the 6-digit code
-      //     that Supabase emails (delivered via Resend SMTP).
-      //  2) Email confirmation DISABLED → data.session is non-null and
-      //     AuthProvider hydrates Zustand. Drop the user straight on canvas.
+      //  1) Session returned → user is immediately authenticated.
+      //     Show the welcome modal and navigate to canvas.
+      //  2) No session → Supabase still requires email confirmation.
+      //     Show an inline message instead of redirecting to OTP page.
       if (data.session) {
+        setShowWelcomeModal(true);
         setCurrentView('canvas');
       } else {
-        setPendingVerificationEmail(cleanEmail);
         setSuccessMessage(
-          `We sent a 6-digit code to ${cleanEmail}. Enter it on the next screen to finish creating your account.`
+          `Check your email at ${cleanEmail} to complete your account setup.`
         );
-        setTimeout(() => setCurrentView('otp-verify'), 600);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -111,7 +110,6 @@ export const SignupPage: React.FC = () => {
     setLoading(true);
     try {
       const redirectTo = getOAuthRedirectUrl();
-      // eslint-disable-next-line no-console
       console.info('[OAuth] requesting redirectTo =', redirectTo);
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider,
@@ -231,6 +229,15 @@ export const SignupPage: React.FC = () => {
                 <path d="M0 28.5A9.5 9.5 0 0 0 9.5 38H19V19H9.5A9.5 9.5 0 0 0 0 28.5z" fill="#A259FF"/>
               </svg>
               Figma
+            </button>
+            <button className={styles.socialButton} type="button" onClick={async () => { setError(null); setLoading(true); const result = await connectNotion(); if (!result.ok) { setError(result.error); } setLoading(false); }} disabled={loading}>
+              <svg className={styles.socialIcon} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="100" height="100" rx="12" fill="white"/>
+                <path d="M27 22h35l10 10v46H27V22z" fill="white" stroke="#000" strokeWidth="4"/>
+                <path d="M60 22v10h10" fill="none" stroke="#000" strokeWidth="4"/>
+                <path d="M35 42h30M35 54h30M35 66h20" stroke="#000" strokeWidth="4" strokeLinecap="round"/>
+              </svg>
+              Notion
             </button>
           </div>
 

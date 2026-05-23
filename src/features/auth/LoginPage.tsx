@@ -10,11 +10,11 @@ import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, LogIn, Zap, GitBranch, Layers, Loader2, AlertCircle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
+import { connectNotion } from '../../services/notion/notionImport';
 import styles from './AuthPage.module.css';
 
 export const LoginPage: React.FC = () => {
   const setCurrentView = useStore((state) => state.setCurrentView);
-  const setPendingVerificationEmail = useStore((state) => state.setPendingVerificationEmail);
   const hasEnteredApp = useStore((state) => state.hasEnteredApp);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
@@ -52,24 +52,10 @@ export const LoginPage: React.FC = () => {
         // Surface a friendly message for the most common case.
         const msg = signInError.message?.toLowerCase() || '';
         if (msg.includes('confirm') || msg.includes('not confirmed')) {
-          // Account exists but the email hasn't been verified yet → send the
-          // user to the OTP screen so they can finish the verification step.
-          setPendingVerificationEmail(cleanEmail);
-          // Trigger a fresh OTP so they don't have to dig through old mail.
-          try {
-            await supabase.auth.resend({
-              type: 'signup',
-              email: cleanEmail,
-              options: { emailRedirectTo: getOAuthRedirectUrl() },
-            });
-          } catch {
-            // Non-fatal — OTP page also has a Resend button.
-          }
-          setCurrentView('otp-verify');
-          return;
+          throw new Error('Your email address has not been confirmed yet. Please check your inbox and confirm your email before signing in.');
         }
         if (msg.includes('invalid') || msg.includes('credentials')) {
-          throw new Error('Invalid email or password. If you just signed up, please check your inbox to confirm your email first.');
+          throw new Error('Invalid email or password.');
         }
         throw signInError;
       }
@@ -102,7 +88,6 @@ export const LoginPage: React.FC = () => {
       // sign-in, check the browser console: this is the URL we asked for.
       // If Supabase ignores it, the URL is missing from the Dashboard's
       // Redirect URLs allow-list.
-      // eslint-disable-next-line no-console
       console.info('[OAuth] requesting redirectTo =', redirectTo);
 
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
@@ -223,6 +208,15 @@ export const LoginPage: React.FC = () => {
                 <path d="M0 28.5A9.5 9.5 0 0 0 9.5 38H19V19H9.5A9.5 9.5 0 0 0 0 28.5z" fill="#A259FF"/>
               </svg>
               Figma
+            </button>
+            <button className={styles.socialButton} type="button" onClick={async () => { setError(null); setLoading(true); const result = await connectNotion(); if (!result.ok) { setError(result.error); } setLoading(false); }} disabled={loading}>
+              <svg className={styles.socialIcon} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="100" height="100" rx="12" fill="white"/>
+                <path d="M27 22h35l10 10v46H27V22z" fill="white" stroke="#000" strokeWidth="4"/>
+                <path d="M60 22v10h10" fill="none" stroke="#000" strokeWidth="4"/>
+                <path d="M35 42h30M35 54h30M35 66h20" stroke="#000" strokeWidth="4" strokeLinecap="round"/>
+              </svg>
+              Notion
             </button>
           </div>
 

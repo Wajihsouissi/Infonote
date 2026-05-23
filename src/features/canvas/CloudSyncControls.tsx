@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState } from 'react';
 import { Cloud, CloudDownload, Undo2, Loader2, CheckCircle2, AlertCircle, LogIn } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { saveCanvasToCloud } from '../../services/cloudSync';
@@ -35,10 +35,9 @@ export function CloudSyncControls() {
     const [loadModalOpen, setLoadModalOpen] = useState(false);
 
     // Detect if a cloud reload backup exists in localStorage
-    const [hasCloudBackup, setHasCloudBackup] = useState(false);
-    useEffect(() => {
-        setHasCloudBackup(localStorage.getItem('chnk-it-cloud-reload-backup') !== null);
-    }, []);
+    const [hasCloudBackup, setHasCloudBackup] = useState(
+        () => localStorage.getItem('chnk-it-cloud-reload-backup') !== null
+    );
 
     const flashStatus = useCallback((next: Status, ms = 2400) => {
         setStatus(next);

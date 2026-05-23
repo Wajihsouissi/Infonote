@@ -61,6 +61,17 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
     const [metadata, setMetadata] = useState<CloudSnapshotMetadata | null>(null);
     const [status, setStatus] = useState<Status>({ kind: 'idle' });
 
+    // Track open transitions for render-time state reset (avoids setState in effect)
+    const [prevOpen, setPrevOpen] = useState(false);
+    if (open && !prevOpen) {
+        setPrevOpen(true);
+        setMetadata(null);
+        setStatus({ kind: 'fetching' });
+    }
+    if (!open && prevOpen) {
+        setPrevOpen(false);
+    }
+
     const refresh = useCallback(async () => {
         setStatus({ kind: 'fetching' });
         const res = await fetchCloudMetadata(userId);
@@ -76,8 +87,18 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
     // latest state of their cloud data.
     useEffect(() => {
         if (!open) return;
-        refresh();
-    }, [open, refresh]);
+        let cancelled = false;
+        fetchCloudMetadata(userId).then(res => {
+            if (cancelled) return;
+            if (res.ok) {
+                setMetadata(res.metadata);
+                setStatus({ kind: 'idle' });
+            } else {
+                setStatus({ kind: 'error', message: res.error });
+            }
+        });
+        return () => { cancelled = true; };
+    }, [open, userId]);
 
     // Close on Escape — standard modal UX.
     useEffect(() => {
@@ -110,8 +131,58 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
         setStatus({ kind: 'loading' });
         const res = await loadCanvasFromCloud(userId);
         if (res.ok) {
-            loadGraph(res.nodes, res.edges);
-            onLoaded?.({ nodes: res.nodes.length, edges: res.edges.length });
+            // Validate returned nodes: must have id (non-empty string),
+            // position with numeric x and y, and type (string).
+            const validNodes = res.nodes.filter((n) => {
+                if (!n || typeof n !== 'object') return false;
+                if (!n.id || typeof n.id !== 'string' || n.id.trim() === '') {
+                    console.warn('[CloudLoad] Filtering out node with invalid id');
+                    return false;
+                }
+                if (
+                    !n.position ||
+                    typeof n.position.x !== 'number' ||
+                    typeof n.position.y !== 'number' ||
+                    Number.isNaN(n.position.x) ||
+                    Number.isNaN(n.position.y)
+                ) {
+                    console.warn(`[CloudLoad] Filtering out node ${n.id}: invalid position`);
+                    return false;
+                }
+                if (!n.type || typeof n.type !== 'string') {
+                    console.warn(`[CloudLoad] Filtering out node ${n.id}: invalid type`);
+                    return false;
+                }
+                return true;
+            });
+
+            // Validate edges: must have id, source, target — all non-empty strings.
+            const validEdges = res.edges.filter((e) => {
+                if (!e || typeof e !== 'object') return false;
+                if (!e.id || typeof e.id !== 'string' || e.id.trim() === '') {
+                    console.warn('[CloudLoad] Filtering out edge with invalid id');
+                    return false;
+                }
+                if (!e.source || typeof e.source !== 'string' || e.source.trim() === '') {
+                    console.warn(`[CloudLoad] Filtering out edge ${e.id}: invalid source`);
+                    return false;
+                }
+                if (!e.target || typeof e.target !== 'string' || e.target.trim() === '') {
+                    console.warn(`[CloudLoad] Filtering out edge ${e.id}: invalid target`);
+                    return false;
+                }
+                return true;
+            });
+
+            if (validNodes.length === 0) {
+                setStatus({
+                    kind: 'error',
+                    message: 'No valid saved data found.',
+                });
+                return;
+            }
+            loadGraph(validNodes, validEdges);
+            onLoaded?.({ nodes: validNodes.length, edges: validEdges.length });
             setStatus({ kind: 'idle' });
             onClose();
         } else {

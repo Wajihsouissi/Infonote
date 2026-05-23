@@ -18,10 +18,10 @@
  */
 import { createClient } from '@supabase/supabase-js';
 
-const url = import.meta.env.VITE_SUPABASE_URL;
+const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 // Accept either the legacy `VITE_SUPABASE_ANON_KEY` or the new
 // `VITE_SUPABASE_PUBLISHABLE_KEY` (same JWT, just renamed).
-const key =
+const key: string | undefined =
     import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
     import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -32,13 +32,16 @@ const hasPlaceholders =
 
 const isValidUrl = url && (url.startsWith('http://') || url.startsWith('https://'));
 
-export const isSupabaseConfigured = Boolean(url && key && !hasPlaceholders && isValidUrl);
+export const isSupabaseConfigured = Boolean(
+    url && typeof url === 'string' && url.trim() !== '' &&
+    key && typeof key === 'string' && key.trim() !== '' &&
+    !hasPlaceholders && isValidUrl
+);
 
 if (!isSupabaseConfigured) {
     console.warn(
-        '[Supabase] Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY ' +
-        '(VITE_SUPABASE_ANON_KEY also accepted). Cloud storage and auth will be ' +
-        'disabled. Create a .env file in the project root with these variables.'
+        '[Supabase] Supabase not configured — missing or invalid VITE_SUPABASE_URL / ' +
+        'VITE_SUPABASE_PUBLISHABLE_KEY. Cloud storage and auth will be disabled.'
     );
 }
 
@@ -79,14 +82,12 @@ export function getOAuthRedirectUrl(): string {
     // Production override — set this to https://chnkit.com in your
     // hosting environment (Vercel → Settings → Environment Variables).
     const configured = import.meta.env.VITE_SITE_URL as string | undefined;
-    if (configured && /^https?:\/\//i.test(configured)) {
+    if (configured && typeof configured === 'string' && /^https?:\/\//i.test(configured)) {
         // Strip any trailing slash so it composes cleanly with paths later.
         return configured.replace(/\/+$/, '') + '/';
     }
     if (typeof window === 'undefined') return '';
-    // origin + pathname strips any stale query/hash but preserves the
-    // sub-path the user landed on (so deep-link auth works).
-    const { origin, pathname } = window.location;
-    return origin + pathname;
+    // Fallback: use window.location.origin so it works on any dev port or deployment.
+    return window.location.origin + '/';
 }
 

@@ -31,8 +31,10 @@ const RESEND_COOLDOWN_SEC = 30;
 
 export const OtpVerificationPage: React.FC = () => {
     const setCurrentView = useStore((s) => s.setCurrentView);
-    const pendingEmail = useStore((s) => s.pendingVerificationEmail);
-    const setPendingVerificationEmail = useStore((s) => s.setPendingVerificationEmail);
+    // OTP flow is deprecated — these fields have been removed from the store.
+    // This page is kept for reference but is no longer reachable via routing.
+    const pendingEmail: string | null = null;
+    const setPendingVerificationEmail = (_email: string | null) => {};
 
     const [digits, setDigits] = useState<string[]>(() => Array(OTP_LENGTH).fill(''));
     const [loading, setLoading] = useState(false);

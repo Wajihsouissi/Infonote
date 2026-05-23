@@ -18,14 +18,14 @@ export interface NodeSlice {
     setNodes: (nodes: AppNode[] | ((nodes: AppNode[]) => AppNode[])) => void;
     onEdgesChange: (changes: EdgeChange[]) => void;
     onConnect: (connection: Connection) => void;
-    addNode: (type: 'note' | 'block' | 'fused-note' | 'kanban', position: { x: number; y: number }, initialData?: any, style?: React.CSSProperties, parentId?: string, customId?: string) => void;
-    updateNodeData: (id: string, data: any) => void;
+    addNode: (type: 'note' | 'block' | 'fused-note' | 'kanban', position: { x: number; y: number }, initialData?: Record<string, unknown>, style?: React.CSSProperties, parentId?: string, customId?: string) => void;
+    updateNodeData: (id: string, data: Record<string, unknown>) => void;
     updateNode: (id: string, updates: Partial<AppNode>) => void;
-    splitNode: (nodeId: string, splitBlockId: string, currentBlocks?: any[], skipConfirm?: boolean) => void;
+    splitNode: (nodeId: string, splitBlockId: string, currentBlocks?: unknown[], skipConfirm?: boolean) => void;
     releaseNodeContentToBlocks: (nodeId: string, centerPosition?: { x: number; y: number }, skipConfirm?: boolean) => void;
-    extractPageFromBlock: (block: any, position: { x: number; y: number }, sourceNodeId?: string) => void;
+    extractPageFromBlock: (block: Record<string, unknown>, position: { x: number; y: number }, sourceNodeId?: string) => void;
     createPageFromText: (text: string, position?: { x: number; y: number }) => string;
-    savePageContent: (parentId: string, content: any[], transientNodeIds: string[]) => void;
+    savePageContent: (parentId: string, content: unknown[], transientNodeIds: string[]) => void;
     syncParentContent: (parentId: string) => void;
     bulkDeleteNodes: (nodeIds: string[], skipConfirm?: boolean) => void;
     bulkDuplicateNodes: (nodeIds: string[]) => void;
@@ -92,7 +92,7 @@ export interface StorageSlice {
     restoreFromBackup: () => void;
 }
 
-export type AppView = 'landing' | 'canvas' | 'marketplace' | 'login' | 'signup' | 'otp-verify' | 'admin' | 'profile';
+export type AppView = 'landing' | 'canvas' | 'marketplace' | 'login' | 'signup' | 'admin' | 'profile';
 
 export interface AuthUser {
     id: string;
@@ -111,16 +111,9 @@ export interface AuthState {
 export interface AuthSlice {
     auth: AuthState;
     isAuthModalOpen: boolean;
-    /**
-     * Email address that has just signed up and is waiting for an OTP to be
-     * entered on the verification screen. Persisted in the store so the OTP
-     * page can reload safely without losing context.
-     */
-    pendingVerificationEmail: string | null;
     setAuthUser: (user: AuthUser | null) => void;
     setAuthLoading: (isLoading: boolean) => void;
     setAuthModalOpen: (isOpen: boolean) => void;
-    setPendingVerificationEmail: (email: string | null) => void;
     /** Reset auth slice back to its unauthenticated default. */
     resetAuth: () => void;
 }
@@ -168,6 +161,8 @@ export interface UISlice {
     selectedEdgeIds: Set<string>;
     setSelectedEdgeIds: (ids: Set<string>) => void;
     toggleCanvasEdgeSelection: (id: string) => void;
+    showWelcomeModal: boolean;
+    setShowWelcomeModal: (v: boolean) => void;
 }
 
 export type AppState = NodeSlice & NavigationSlice & StorageSlice & UISlice & AuthSlice;

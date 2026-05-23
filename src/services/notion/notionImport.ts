@@ -22,7 +22,7 @@ import {
     type NotionConvertOptions,
 } from './notionConverter';
 import { appendCanvasNodesToCloud } from '../cloudSync';
-import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../supabase/client';
+import { supabase, isSupabaseConfigured } from '../supabase/client';
 import type { AppNode } from '../../types';
 
 export type NotionImportResult =
@@ -53,21 +53,18 @@ const DEFAULT_NOTION_VERSION = '2022-06-28';
  * browser is navigated away to Notion; on return, AuthProvider's
  * onAuthStateChange listener picks up the session and Zustand hydrates.
  *
- * `redirectTo` always equals `getOAuthRedirectUrl()` — which honours
- * VITE_SITE_URL in production and falls back to `window.location.origin`
- * locally, so the user lands on the canvas they came from.
+ * `redirectTo` uses `window.location.origin` directly so the user always
+ * returns to the active browser window regardless of environment.
  */
 export async function connectNotion(): Promise<{ ok: true } | { ok: false; error: string }> {
     if (!isSupabaseConfigured || !supabase) {
         return {
             ok: false,
-            error:
-                'Authentication is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY).',
+            error: 'Supabase not configured',
         };
     }
     try {
-        const redirectTo = getOAuthRedirectUrl();
-        // eslint-disable-next-line no-console
+        const redirectTo = window.location.origin;
         console.info('[NotionOAuth] requesting redirectTo =', redirectTo);
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'notion',
