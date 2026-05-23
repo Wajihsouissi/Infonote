@@ -60,7 +60,7 @@ export const LoginPage: React.FC = () => {
             await supabase.auth.resend({
               type: 'signup',
               email: cleanEmail,
-              options: { emailRedirectTo: window.location.origin },
+              options: { emailRedirectTo: getOAuthRedirectUrl() },
             });
           } catch {
             // Non-fatal — OTP page also has a Resend button.

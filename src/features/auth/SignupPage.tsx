@@ -69,7 +69,7 @@ export const SignupPage: React.FC = () => {
             first_name: cleanFirst,
             last_name: cleanLast,
           },
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: getOAuthRedirectUrl(),
         },
       });
       if (signUpError) {

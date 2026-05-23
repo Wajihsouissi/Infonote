@@ -24,7 +24,7 @@ import {
     RefreshCw,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
+import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
 import styles from './AuthPage.module.css';
 
 const OTP_LENGTH = 6;
@@ -211,7 +211,7 @@ export const OtpVerificationPage: React.FC = () => {
             const { error: resendError } = await supabase.auth.resend({
                 type: 'signup',
                 email: pendingEmail,
-                options: { emailRedirectTo: window.location.origin },
+                options: { emailRedirectTo: getOAuthRedirectUrl() },
             });
             if (resendError) throw resendError;
             setInfo(`A new code has been sent to ${pendingEmail}.`);

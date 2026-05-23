@@ -62,18 +62,27 @@ export const supabase = isSupabaseConfigured
 /**
  * Resolves the OAuth redirect URL we send to Supabase.
  *
- * ALWAYS returns the URL the user is *currently* browsing on (origin +
- * pathname), so Google bounces them back to the same dev/preview/prod host
- * they started from. Never hardcode a port — a dev server may be on 5173,
- * 4173, 3000, or anything else.
+ * Resolution order:
+ *   1. `VITE_SITE_URL` env var (e.g. https://chnkit.com) — use this in
+ *      production hosting so Google ALWAYS bounces back to your real
+ *      domain even if the user clicked from a preview / staging origin.
+ *   2. `window.location.origin` — fallback for local dev so the redirect
+ *      lands wherever Vite is currently serving (5173, 4173, etc.).
  *
- * IMPORTANT: this URL must also be added to the Supabase Dashboard's
- * "Redirect URLs" allow-list (Authentication → URL Configuration). If it
- * isn't, Supabase silently falls back to the configured Site URL — which
- * is what causes the dreaded "localhost:3000 refused to connect" screen
+ * IMPORTANT: whichever URL this returns must also be on the Supabase
+ * Dashboard's "Redirect URLs" allow-list (Authentication → URL
+ * Configuration). If it isn't, Supabase silently falls back to the Site
+ * URL — the cause of the classic "this site can't be reached" screen
  * after a successful Google sign-in.
  */
 export function getOAuthRedirectUrl(): string {
+    // Production override — set this to https://chnkit.com in your
+    // hosting environment (Vercel → Settings → Environment Variables).
+    const configured = import.meta.env.VITE_SITE_URL as string | undefined;
+    if (configured && /^https?:\/\//i.test(configured)) {
+        // Strip any trailing slash so it composes cleanly with paths later.
+        return configured.replace(/\/+$/, '') + '/';
+    }
     if (typeof window === 'undefined') return '';
     // origin + pathname strips any stale query/hash but preserves the
     // sub-path the user landed on (so deep-link auth works).
