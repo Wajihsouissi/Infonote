@@ -1,5 +1,5 @@
 /**
- * Centralized layout constants and utility functions for the Infonote grid system.
+ * Centralized layout constants and utility functions for the Chnk it grid system.
  * BASE_UNIT is 56px.
  * SNAP_STEP is 112px (2 * BASE_UNIT).
  * GRID_GAP is 16px.

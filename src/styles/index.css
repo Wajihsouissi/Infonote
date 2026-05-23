@@ -235,13 +235,13 @@ body {
 }
 
 /* Global override for dragging nodes (CanvasBoard) */
-.infonote-node-dragging * {
+.chnk-it-node-dragging * {
   cursor: grabbing !important;
 }
 
 /* Global override for resizing nodes */
-.infonote-resizing-active,
-.infonote-resizing-active * {
+.chnk-it-resizing-active,
+.chnk-it-resizing-active * {
   cursor: nwse-resize !important;
   transition: none !important;
 }
@@ -252,7 +252,7 @@ body {
 }
 
 /* Premium Highlight Flash Animation for Outline/TOC Navigation */
-@keyframes infonoteHighlightFlash {
+@keyframes chnkItHighlightFlash {
   0% {
     background-color: var(--color-primary-glow);
     box-shadow: 0 0 0 2px var(--color-primary), 0 0 16px var(--color-primary-glow);
@@ -270,8 +270,8 @@ body {
   }
 }
 
-.infonote-highlight-flash {
-  animation: infonoteHighlightFlash 1.6s cubic-bezier(0.16, 1, 0.3, 1) !important;
+.chnk-it-highlight-flash {
+  animation: chnkItHighlightFlash 1.6s cubic-bezier(0.16, 1, 0.3, 1) !important;
   border-radius: 6px;
   position: relative;
   z-index: 10;
@@ -289,11 +289,12 @@ body {
   box-shadow: 0 0 0 2px var(--color-primary), 0 0 20px rgba(139, 92, 246, 0.5) !important;
 }
 
-/* Ensure the connection source handles are hidden by default and only appear on hover */
+/* Source handles hidden by default — shown only on NoteCard hover (handled in NoteCard.module.css) */
 .topRightHandle,
 .react-flow__handle-source,
 .react-flow__handle.source {
   opacity: 0 !important;
+  visibility: hidden !important;
   pointer-events: none !important;
   z-index: 3000 !important;
   top: 8px !important;
@@ -307,7 +308,6 @@ body {
   background: var(--handle-glass-bg) !important;
   backdrop-filter: blur(4px) !important;
   -webkit-backdrop-filter: blur(4px) !important;
-  opacity: 0.15 !important; /* Soft base glass presence */
   border: 1.5px solid var(--handle-glass-border) !important;
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3), 0 2px 6px var(--handle-glass-shadow) !important;
   transition: opacity 0.25s ease, background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
@@ -317,7 +317,8 @@ body {
 .react-flow__node:hover .topRightHandle,
 .react-flow__node:hover .react-flow__handle-source,
 .react-flow__node:hover .react-flow__handle.source {
-  opacity: 0.8 !important; /* Elegant glassy presence on node hover */
+  opacity: 0.8 !important;
+  visibility: visible !important;
   pointer-events: auto !important;
 }
 
@@ -500,4 +501,51 @@ body {
 .react-flow.is-linking-mode .react-flow__nodesselection-rect,
 .react-flow.is-linking-mode .react-flow__selection {
   pointer-events: none !important;
+}
+
+/* Global Custom Tooltip Styling */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 8px); /* Default positioning below */
+  left: 50%;
+  transform: translateX(-50%) translateY(-5px);
+  background: rgba(15, 17, 23, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #e2e8f0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 100000;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+[data-tooltip]:hover::before {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Variant for top placement */
+[data-tooltip-position="top"]::before {
+  top: auto;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(5px);
+}
+
+[data-tooltip-position="top"]:hover::before {
+  transform: translateX(-50%) translateY(0);
 }

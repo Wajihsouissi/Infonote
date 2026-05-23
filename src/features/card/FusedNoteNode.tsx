@@ -74,7 +74,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
         return {
             '--color-text-main': darkText,
             '--color-text-muted': mutedText,
-            '--color-border': `${borderColor}40`, // 40% opacity
+            '--color-border': `${borderColor}40`,
             '--glass-border': `${borderColor}40`,
             '--icon-color': darkText,
             '--note-bg-dynamic': data.color,
@@ -87,7 +87,13 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             '--table-border': `${borderColor}33`,
             '--table-border-strong': `${borderColor}55`,
             '--table-focus-ring': `${borderColor}80`,
+            '--link-bg': `${borderColor}15`,
+            '--link-bg-hover': `${borderColor}25`,
+            '--link-border': `${borderColor}25`,
+            '--link-border-hover': `${borderColor}40`,
+            '--link-shadow': `${darkText}1a`,
             color: darkText,
+            caretColor: darkText,
         } as React.CSSProperties;
     }, [displayColor, data.color]);
 
@@ -271,7 +277,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
         activeResize.current = true;
         document.body.style.cursor = 'nwse-resize';
-        document.body.classList.add('infonote-resizing-active');
+        document.body.classList.add('chnk-it-resizing-active');
 
         const onMouseMove = (moveEvent: MouseEvent) => {
             const deltaX = (moveEvent.clientX - startX) / zoom;
@@ -294,7 +300,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
         const onMouseUp = (upEvent: MouseEvent) => {
             activeResize.current = false;
             document.body.style.cursor = '';
-            document.body.classList.remove('infonote-resizing-active');
+            document.body.classList.remove('chnk-it-resizing-active');
             window.removeEventListener('mousemove', onMouseMove);
             window.removeEventListener('mouseup', onMouseUp);
 
@@ -385,11 +391,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                     }}
                 />
             )}
-            {/* Top accent strip using the note color */}
-            <div
-                className={styles.accentStrip}
-                style={{ backgroundColor: accentColor || 'var(--color-primary)' }}
-            />
+
 
             {/* Conversion Button */}
             <button

@@ -50,7 +50,7 @@ export const supabase = isSupabaseConfigured
     ? createClient(url!, key!, {
           auth: {
               storage: localStorage,
-              storageKey: 'infonote-auth-token',
+              storageKey: 'chnk-it-auth-token',
               autoRefreshToken: true,
               persistSession: true,
               detectSessionInUrl: true,

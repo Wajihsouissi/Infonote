@@ -6,7 +6,7 @@
  * by the on-signup trigger defined in the migration.
  */
 import React, { useState } from 'react';
-import { Rocket, Mail, Lock, Eye, EyeOff, User, ArrowLeft, UserPlus, Zap, GitBranch, Layers, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, UserPlus, Zap, GitBranch, Layers, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
 import styles from './AuthPage.module.css';
@@ -152,8 +152,8 @@ export const SignupPage: React.FC = () => {
             </button>
           )}
           <div className={styles.leftLogo}>
-            <Rocket size={22} className={styles.leftLogoIcon} />
-            <span>Infonote</span>
+            <img src="/ChnkLogo.svg" alt="Chnk" style={{height: 24}} />
+            <span>Chnk it</span>
           </div>
         </div>
 
@@ -167,7 +167,7 @@ export const SignupPage: React.FC = () => {
             <span className={styles.leftHeadlineGrad}>a better canvas.</span>
           </h2>
           <p className={styles.leftSubtext}>
-            Join thousands of creators, researchers, and teams who use Infonote to connect their thinking and build knowledge visually.
+            Join thousands of creators, researchers, and teams who use Chnk it to connect their thinking and build knowledge visually.
           </p>
           <div className={styles.leftFeatures}>
             <div className={styles.leftFeature}>
@@ -193,7 +193,7 @@ export const SignupPage: React.FC = () => {
             <div className={styles.leftAvatar}>R</div>
           </div>
           <div className={styles.leftProofText}>
-            <strong>4,200+ teams</strong> already organising<br />their thoughts with Infonote
+            <strong>4,200+ teams</strong> already organising<br />their thoughts with Chnk it
           </div>
         </div>
       </div>

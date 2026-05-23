@@ -1,18 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import {
-    FileText, Heart, Star, Bookmark, Calendar, Clock,
-    Target, Zap, Lightbulb, Rocket, Flag, Trophy,
-    Coffee, Music, Camera, Book, Briefcase, Code,
-    Palette, Sparkles, Sun, Moon, Cloud, Umbrella,
-    Gift, Home, Mail, Phone, Settings, User,
-    CheckCircle, AlertCircle, Info, XCircle, HelpCircle,
-    TrendingUp, Activity, BarChart, PieChart, Database,
-    Folder, File, Image, Video, Search, Upload,
-    type LucideIcon
-} from 'lucide-react';
+import { Search, Upload, XCircle, Lightbulb, Link, type LucideIcon } from 'lucide-react';
 import styles from './IconPicker.module.css';
-import { CardIcon } from './iconMap';
+import { CardIcon, iconRegistry, iconMap, defaultIconName } from './iconMap';
 
 interface IconPickerProps {
     currentIcon: string;
@@ -21,62 +11,55 @@ interface IconPickerProps {
     isAbsolute?: boolean;
 }
 
-const iconOptions: { icon: LucideIcon; name: string; iconName: string }[] = [
-    { icon: FileText, name: 'Document', iconName: 'FileText' },
-    { icon: Heart, name: 'Heart', iconName: 'Heart' },
-    { icon: Star, name: 'Star', iconName: 'Star' },
-    { icon: Bookmark, name: 'Bookmark', iconName: 'Bookmark' },
-    { icon: Calendar, name: 'Calendar', iconName: 'Calendar' },
-    { icon: Clock, name: 'Clock', iconName: 'Clock' },
-    { icon: Target, name: 'Target', iconName: 'Target' },
-    { icon: Zap, name: 'Lightning', iconName: 'Zap' },
-    { icon: Lightbulb, name: 'Idea', iconName: 'Lightbulb' },
-    { icon: Rocket, name: 'Rocket', iconName: 'Rocket' },
-    { icon: Flag, name: 'Flag', iconName: 'Flag' },
-    { icon: Trophy, name: 'Trophy', iconName: 'Trophy' },
-    { icon: Coffee, name: 'Coffee', iconName: 'Coffee' },
-    { icon: Music, name: 'Music', iconName: 'Music' },
-    { icon: Camera, name: 'Camera', iconName: 'Camera' },
-    { icon: Book, name: 'Book', iconName: 'Book' },
-    { icon: Briefcase, name: 'Work', iconName: 'Briefcase' },
-    { icon: Code, name: 'Code', iconName: 'Code' },
-    { icon: Palette, name: 'Art', iconName: 'Palette' },
-    { icon: Sparkles, name: 'Sparkles', iconName: 'Sparkles' },
-    { icon: Sun, name: 'Sun', iconName: 'Sun' },
-    { icon: Moon, name: 'Moon', iconName: 'Moon' },
-    { icon: Cloud, name: 'Cloud', iconName: 'Cloud' },
-    { icon: Umbrella, name: 'Umbrella', iconName: 'Umbrella' },
-    { icon: Gift, name: 'Gift', iconName: 'Gift' },
-    { icon: Home, name: 'Home', iconName: 'Home' },
-    { icon: Mail, name: 'Mail', iconName: 'Mail' },
-    { icon: Phone, name: 'Phone', iconName: 'Phone' },
-    { icon: Settings, name: 'Settings', iconName: 'Settings' },
-    { icon: User, name: 'User', iconName: 'User' },
-    { icon: CheckCircle, name: 'Check', iconName: 'CheckCircle' },
-    { icon: AlertCircle, name: 'Alert', iconName: 'AlertCircle' },
-    { icon: Info, name: 'Info', iconName: 'Info' },
-    { icon: XCircle, name: 'Error', iconName: 'XCircle' },
-    { icon: HelpCircle, name: 'Help', iconName: 'HelpCircle' },
-    { icon: TrendingUp, name: 'Growth', iconName: 'TrendingUp' },
-    { icon: Activity, name: 'Activity', iconName: 'Activity' },
-    { icon: BarChart, name: 'Chart', iconName: 'BarChart' },
-    { icon: PieChart, name: 'Pie Chart', iconName: 'PieChart' },
-    { icon: Database, name: 'Database', iconName: 'Database' },
-    { icon: Folder, name: 'Folder', iconName: 'Folder' },
-    { icon: File, name: 'File', iconName: 'File' },
-    { icon: Image, name: 'Image', iconName: 'Image' },
-    { icon: Video, name: 'Video', iconName: 'Video' },
+const colorSwatches = [
+    { name: 'Default', value: '' }, // Empty uses category color
+    { name: 'Slate', value: '#94a3b8' },
+    { name: 'Red', value: '#ef4444' },
+    { name: 'Orange', value: '#f97316' },
+    { name: 'Amber', value: '#f59e0b' },
+    { name: 'Yellow', value: '#eab308' },
+    { name: 'Emerald', value: '#10b981' },
+    { name: 'Cyan', value: '#06b6d4' },
+    { name: 'Blue', value: '#3b82f6' },
+    { name: 'Indigo', value: '#6366f1' },
+    { name: 'Purple', value: '#8b5cf6' },
+    { name: 'Pink', value: '#ec4899' },
+    { name: 'Rose', value: '#f43f5e' },
 ];
 
 export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconPickerProps) {
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeTab, setActiveTab] = useState<'icons' | 'custom'>('icons');
+    
+    const isCustomCurrent = currentIcon && (
+        currentIcon.startsWith('data:image/') || 
+        currentIcon.startsWith('http://') || 
+        currentIcon.startsWith('https://')
+    );
+
+    // Extract current selected color from string format `IconName::#Color`
+    const initialBaseName = currentIcon && !isCustomCurrent ? currentIcon.split('::')[0] : '';
+    const initialColor = (currentIcon && !isCustomCurrent && currentIcon.includes('::')) ? currentIcon.split('::')[1] : '';
+    
+    const [selectedIconBaseName, setSelectedIconBaseName] = useState<string>(initialBaseName);
+    const [selectedColor, setSelectedColor] = useState<string>(initialColor);
+
+    const handleSaveAndClose = () => {
+        if (selectedIconBaseName) {
+            const resultString = selectedColor ? `${selectedIconBaseName}::${selectedColor}` : selectedIconBaseName;
+            if (resultString !== currentIcon) {
+                onSelect(resultString);
+            }
+        }
+        onClose();
+    };
 
     useEffect(() => {
         if (isAbsolute) return;
 
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
-                onClose();
+                handleSaveAndClose();
             }
         };
 
@@ -84,12 +67,31 @@ export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconP
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [isAbsolute, onClose]);
+    }, [isAbsolute, handleSaveAndClose]);
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+    const [dragOver, setDragOver] = useState(false);
+    const [imageUrlInput, setImageUrlInput] = useState('');
 
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragOver(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragOver(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragOver(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) {
+            processFile(file);
+        }
+    };
+
+    const processFile = (file: File) => {
         if (!file.type.startsWith('image/')) {
             alert('Please select an image file.');
             return;
@@ -136,73 +138,176 @@ export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconP
         reader.readAsDataURL(file);
     };
 
-    const isCustomCurrent = currentIcon && (
-        currentIcon.startsWith('data:image/') || 
-        currentIcon.startsWith('http://') || 
-        currentIcon.startsWith('https://')
-    );
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            processFile(file);
+        }
+    };
 
-    const filteredIcons = iconOptions.filter(({ name }) =>
-        name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredIcons = useMemo(() => {
+        return iconRegistry.filter(({ name }) =>
+            name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [searchTerm]);
+
+    const groupedIcons = useMemo(() => {
+        const groups: Record<string, typeof iconRegistry> = {};
+        filteredIcons.forEach(icon => {
+            if (!groups[icon.category]) {
+                groups[icon.category] = [];
+            }
+            groups[icon.category].push(icon);
+        });
+        return groups;
+    }, [filteredIcons]);
 
     const pickerContent = (
-        <div className={`${styles.overlay} ${isAbsolute ? styles.overlayAbsolute : ''}`} onClick={onClose}>
+        <div className={`${styles.overlay} ${isAbsolute ? styles.overlayAbsolute : ''}`} onClick={handleSaveAndClose}>
             <div className={`${styles.modal} ${isAbsolute ? styles.modalAbsolute : ''}`} onClick={(e) => e.stopPropagation()}>
                 <div className={styles.header}>
-                    <h3>Choose an Icon</h3>
-                    <button className={styles.closeBtn} onClick={onClose} aria-label="Close icon picker">
+                    <div className={styles.tabs}>
+                        <button 
+                            className={`${styles.tabBtn} ${activeTab === 'icons' ? styles.tabActive : ''}`}
+                            onClick={() => setActiveTab('icons')}
+                        >
+                            Icons
+                        </button>
+                        <button 
+                            className={`${styles.tabBtn} ${activeTab === 'custom' ? styles.tabActive : ''}`}
+                            onClick={() => setActiveTab('custom')}
+                        >
+                            Custom
+                        </button>
+                    </div>
+                    <button className={styles.closeBtn} onClick={handleSaveAndClose} aria-label="Close icon picker">
                         <XCircle size={18} />
                     </button>
                 </div>
 
-                <div className={styles.searchBox}>
-                    <Search size={14} />
-                    <input
-                        type="text"
-                        placeholder="Search icons..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        autoFocus
-                    />
-                </div>
-
-                <div className={styles.uploadRow}>
-                    <label className={styles.uploadArea}>
-                        <Upload size={16} />
-                        <span>Upload Custom Image</span>
-                        <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageUpload}
-                            style={{ display: 'none' }}
-                        />
-                    </label>
-                    {isCustomCurrent && (
-                        <div className={styles.currentCustomPreview}>
-                            <span className={styles.previewLabel}>Current:</span>
-                            <div className={styles.previewWrapper}>
-                                <CardIcon icon={currentIcon} size={24} />
-                            </div>
+                {activeTab === 'icons' && (
+                    <>
+                        <div className={styles.colorSwatches}>
+                            {colorSwatches.map(swatch => (
+                                <button
+                                    key={swatch.name}
+                                    className={`${styles.swatch} ${selectedColor === swatch.value ? styles.swatchSelected : ''} ${swatch.value === '' ? styles.swatchDefault : ''}`}
+                                    style={{ backgroundColor: swatch.value || 'var(--color-bg-light)' }}
+                                    onClick={() => setSelectedColor(swatch.value)}
+                                    data-tooltip={swatch.name}
+                                    data-tooltip-position="top"
+                                    aria-label={`Select color ${swatch.name}`}
+                                />
+                            ))}
                         </div>
-                    )}
-                </div>
+                        
+                        <div className={styles.searchBox}>
+                            <Search size={14} />
+                            <input
+                                type="text"
+                                placeholder="Search icons..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                autoFocus
+                            />
+                        </div>
 
-                <div className={styles.iconGrid}>
-                    {filteredIcons.map(({ icon: Icon, name, iconName }) => (
-                        <button
-                            key={name}
-                            className={`${styles.iconOption} ${currentIcon === iconName ? styles.selected : ''}`}
-                            onClick={() => {
-                                onSelect(iconName);
-                                onClose();
-                            }}
-                            title={name}
+                        <div className={styles.categoriesContainer}>
+                            {Object.entries(groupedIcons).map(([category, icons]) => (
+                                <div key={category} className={styles.categorySection}>
+                                    <div className={styles.categoryHeader}>{category}</div>
+                                    <div className={styles.iconGrid}>
+                                        {icons.map(({ name, iconName, color }) => {
+                                            const IconComponent = iconMap[iconName] || iconMap[defaultIconName];
+                                            const finalColor = selectedColor || color;
+                                            return (
+                                                <button
+                                                    key={iconName}
+                                                    className={`${styles.iconOption} ${selectedIconBaseName === iconName ? styles.selected : ''}`}
+                                                    onClick={() => setSelectedIconBaseName(iconName)}
+                                                    data-tooltip={name}
+                                                    data-tooltip-position="top"
+                                                    style={{ color: finalColor }}
+                                                >
+                                                    <IconComponent size={20} />
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
+
+                {activeTab === 'custom' && (
+                    <div className={styles.customTabContent}>
+                        <div 
+                            className={`${styles.uploadAreaBig} ${dragOver ? styles.dragOver : ''}`}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
                         >
-                            <Icon size={20} />
-                        </button>
-                    ))}
-                </div>
+                            <Upload size={32} className={styles.uploadIconBig} />
+                            <span className={styles.uploadTextMain}>Drag and drop an image here</span>
+                            <span className={styles.uploadTextSub}>or click to browse your files</span>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                                style={{ display: 'none' }}
+                                id="customImageUpload"
+                            />
+                            <label htmlFor="customImageUpload" className={styles.uploadButtonLabel}>Select File</label>
+                        </div>
+                        
+                        <div className={styles.urlInputRow}>
+                            <Link size={14} />
+                            <input 
+                                type="text" 
+                                placeholder="Or paste an image URL..." 
+                                value={imageUrlInput}
+                                onChange={(e) => setImageUrlInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && imageUrlInput) {
+                                        onSelect(imageUrlInput);
+                                        onClose();
+                                    }
+                                }}
+                            />
+                            <button 
+                                className={styles.urlApplyBtn}
+                                onClick={() => {
+                                    if (imageUrlInput) {
+                                        onSelect(imageUrlInput);
+                                        onClose();
+                                    }
+                                }}
+                                disabled={!imageUrlInput}
+                            >
+                                Apply
+                            </button>
+                        </div>
+
+                        {isCustomCurrent && (
+                            <div className={styles.currentCustomPreviewBig}>
+                                <span className={styles.previewLabelBig}>Current Custom Icon</span>
+                                <div className={styles.previewWrapperLargeCentered}>
+                                    <CardIcon icon={currentIcon} size={64} />
+                                </div>
+                                <button 
+                                    className={styles.removeCustomBtn}
+                                    onClick={() => {
+                                        onSelect(defaultIconName);
+                                        onClose();
+                                    }}
+                                >
+                                    <XCircle size={14} /> Remove Custom Icon
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -215,6 +320,7 @@ export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconP
 }
 
 export function getIconByName(iconName: string): LucideIcon {
-    const found = iconOptions.find(opt => opt.iconName === iconName);
-    return found ? found.icon : Lightbulb;
+    const baseName = iconName ? iconName.split('::')[0] : '';
+    const found = iconMap[baseName];
+    return found ? found : Lightbulb;
 }

@@ -45,10 +45,26 @@
     cursor: pointer;
 }
 
-.sortableWrapper:has(.heading1),
-.sortableWrapper:has(.heading2),
-.sortableWrapper:has(.heading3) {
-    align-items: center;
+.sortableWrapper:has(.heading1) .dragHandle {
+    margin-top: 10px;
+}
+.sortableWrapper:has(.heading2) .dragHandle {
+    margin-top: 6px;
+}
+.sortableWrapper:has(.heading3) .dragHandle {
+    margin-top: 4px;
+}
+.sortableWrapper:has(.quoteWrapper) .dragHandle {
+    margin-top: 6px; /* 4px + 2px quote padding */
+}
+.sortableWrapper:has(.calloutWrapper) .dragHandle {
+    margin-top: 22px; /* 2px margin + 16px padding + 4px text offset */
+}
+.sortableWrapper:has(.mediaWrapper) .dragHandle {
+    margin-top: 2px; /* flush with top of media wrapper margin */
+}
+.sortableWrapper:has(.tableWrapper) .dragHandle {
+    margin-top: 10px; /* 2px margin + 8px cell padding */
 }
 
 .dragHandle {
@@ -60,6 +76,7 @@
     flex-shrink: 0;
     width: 18px;
     height: 20px;
+    margin-top: 4px; /* Default for standard text blocks */
 
     cursor: grab;
     color: var(--color-text-muted);
@@ -175,8 +192,8 @@
     line-height: 1.55;
     /* Balanced line height for density and readability */
     min-height: 24px;
-    display: flex;
-    align-items: center;
+    padding: 2px 0;
+    display: block;
     flex-grow: 1;
     /* Take up remaining space in flex containers like callout */
 }
@@ -220,7 +237,7 @@
 }
 
 .todoCheckbox {
-    margin-top: 6px;
+    margin-top: 7px;
     cursor: pointer;
 }
 
@@ -242,7 +259,7 @@
 
 .mediaWrapper {
     width: 100%;
-    margin: 8px 0;
+    margin: 2px 0;
     position: relative;
     padding: 0;
     /* Removed padding */
@@ -345,7 +362,7 @@
 }
 
 .listBullet {
-    margin-top: 6px;
+    margin-top: 4px;
     font-size: 1.2rem;
     line-height: 1;
     color: var(--color-text-main);
@@ -353,7 +370,7 @@
 }
 
 .listNumber {
-    margin-top: 6px;
+    margin-top: 3px;
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--color-text-muted);
@@ -368,7 +385,7 @@
 }
 
 .toggleTriangle {
-    margin-top: 8px;
+    margin-top: 9px;
     width: 0;
     height: 0;
     border-top: 5px solid transparent;
@@ -400,7 +417,7 @@
     padding: 16px;
     border-radius: 12px;
     border-left: 4px solid var(--color-primary);
-    margin: 12px 0;
+    margin: 2px 0;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
@@ -409,7 +426,7 @@
     align-items: center;
     justify-content: center;
     padding: 4px;
-    margin: -2px 0 0 -4px;
+    margin: 0 0 0 -4px;
     /* Adjust alignment to sit nicely */
     flex-shrink: 0;
     user-select: none;
@@ -435,7 +452,7 @@
 /* Table Block */
 .tableWrapper {
     width: 100%;
-    margin: 8px 0;
+    margin: 2px 0;
     border-radius: 10px;
     overflow: hidden;
     border: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.1)));
@@ -449,6 +466,7 @@
 }
 
 .tableHeader {
+    position: relative;
     background: var(--table-header-bg, rgba(255, 255, 255, 0.06));
     border-bottom: 2px solid var(--table-border-strong, var(--glass-border, rgba(255, 255, 255, 0.12)));
     padding: 0;
@@ -536,12 +554,14 @@
 }
 
 .tableHeaderActionCell {
+    position: relative;
     width: 36px;
     background: var(--table-header-bg, rgba(255, 255, 255, 0.06));
     border-bottom: 2px solid var(--table-border-strong, var(--glass-border, rgba(255, 255, 255, 0.12)));
 }
 
 .tableActionCell {
+    position: relative;
     width: 36px;
     text-align: center;
     border-bottom: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.06)));
@@ -603,6 +623,42 @@
     background: var(--table-btn-hover-bg, rgba(255, 255, 255, 0.08));
     color: var(--color-text-main);
     border-color: var(--table-focus-ring, var(--color-primary, rgba(139, 92, 246, 0.4)));
+}
+
+/* Column Resize Handle */
+.colResizeHandle {
+    position: absolute;
+    right: -3px;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: col-resize;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.colResizeHandle:hover,
+.colResizeHandle.resizeActive {
+    opacity: 1;
+    background: var(--color-primary);
+}
+
+/* Row Resize Handle */
+.rowResizeHandle {
+    position: absolute;
+    bottom: -3px;
+    left: 0;
+    right: 0;
+    height: 6px;
+    cursor: row-resize;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.rowResizeHandle:hover,
+.rowResizeHandle.resizeActive {
+    opacity: 1;
+    background: var(--color-primary);
 }
 
 /* Divider */
@@ -1342,15 +1398,10 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    /* Matched PageBlock */
     background: rgba(255, 255, 255, 0.05);
-    /* Matched PageBlock */
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    /* Matched PageBlock */
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
     border-radius: 6px;
-    /* Matched PageBlock */
     padding: 4px 8px;
-    /* Matched PageBlock (slightly adj for inline) */
     margin: 0 4px;
     color: var(--color-text-main);
     text-decoration: none;
@@ -1360,19 +1411,17 @@
     transition: background-color 0.2s, color 0.2s, border-color 0.2s;
     vertical-align: middle;
     white-space: nowrap;
-    /* Prevent breaking inside chip */
 }
 
 .inlinePageChip:hover {
     background: rgba(255, 255, 255, 0.1);
-    border-color: var(--color-primary);
+    border-color: var(--color-text-muted);
     text-decoration: none;
 }
 
 .inlinePageIcon {
     font-size: 1em;
-    color: var(--color-primary);
-    /* Matched PageBlock */
+    color: var(--color-text-muted);
     opacity: 0.8;
 }
 
@@ -1487,8 +1536,8 @@
 }
 
 /* Expand drop hit-test zone during dragging with zero layout shift */
-:global(body.infonote-block-dragging) .sortableWrapper::before,
-:global(body.infonote-node-dragging) .sortableWrapper::before {
+:global(body.chnk-it-block-dragging) .sortableWrapper::before,
+:global(body.chnk-it-node-dragging) .sortableWrapper::before {
     content: '';
     position: absolute;
     top: -8px;

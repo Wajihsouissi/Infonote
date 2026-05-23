@@ -46,6 +46,7 @@ export type NoteData = {
 
     // View State
     showMetadata?: boolean;
+    hideHoverMenu?: boolean;
 };
 
 export type NoteNode = Node<NoteData, 'note'> & { parentId?: string | null };

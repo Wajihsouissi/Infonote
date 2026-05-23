@@ -34,7 +34,7 @@ export function CloudSyncControls() {
     // Detect if a cloud reload backup exists in localStorage
     const [hasCloudBackup, setHasCloudBackup] = useState(false);
     useEffect(() => {
-        setHasCloudBackup(localStorage.getItem('infonote-cloud-reload-backup') !== null);
+        setHasCloudBackup(localStorage.getItem('chnk-it-cloud-reload-backup') !== null);
     }, []);
 
     const flashStatus = useCallback((next: Status, ms = 2400) => {
@@ -99,7 +99,7 @@ export function CloudSyncControls() {
                 edges: current.edges,
                 timestamp: Date.now(),
             };
-            localStorage.setItem('infonote-cloud-reload-backup', JSON.stringify(backup));
+            localStorage.setItem('chnk-it-cloud-reload-backup', JSON.stringify(backup));
         } catch {
             // Backup is best-effort; localStorage may be full
         }
@@ -119,7 +119,7 @@ export function CloudSyncControls() {
 
     const handleRestoreBackup = useCallback(() => {
         try {
-            const raw = localStorage.getItem('infonote-cloud-reload-backup');
+            const raw = localStorage.getItem('chnk-it-cloud-reload-backup');
             if (!raw) {
                 flashStatus({ kind: 'error', message: 'No cloud reload backup found.' });
                 return;
@@ -134,11 +134,11 @@ export function CloudSyncControls() {
             );
             if (!confirmed) return;
             loadGraph(backup.nodes, backup.edges);
-            localStorage.removeItem('infonote-cloud-reload-backup');
+            localStorage.removeItem('chnk-it-cloud-reload-backup');
             setHasCloudBackup(false);
             flashStatus({ kind: 'success', message: 'Restored from cloud reload backup.' });
         } catch {
-            localStorage.removeItem('infonote-cloud-reload-backup');
+            localStorage.removeItem('chnk-it-cloud-reload-backup');
             setHasCloudBackup(false);
             flashStatus({ kind: 'error', message: 'Failed to restore backup. It has been cleared.' });
         }

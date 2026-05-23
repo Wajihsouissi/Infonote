@@ -1,8 +1,8 @@
-# Infonote - Information Architecture
+# Chnk it - Information Architecture
 
 ## 📋 Project Overview
 
-**Infonote** is an infinite canvas note-taking application built with React, TypeScript, and Vite. It provides a visual, spatial approach to organizing information through interconnected note cards on an infinite canvas.
+**Chnk it** is an infinite canvas note-taking application built with React, TypeScript, and Vite. It provides a visual, spatial approach to organizing information through interconnected note cards on an infinite canvas.
 
 ### Tech Stack
 - **Framework**: React 19.2.0 + TypeScript
@@ -21,7 +21,7 @@
 ### Application Structure
 
 ```
-Infonote/
+Chnk it/
 ├── src/
 │   ├── App.tsx                    # Root component with ReactFlowProvider
 │   ├── main.tsx                   # Application entry point

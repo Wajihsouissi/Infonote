@@ -175,7 +175,7 @@ export const StorageControls: React.FC = () => {
                 className={localClassName}
                 onClick={handleLocalClick}
                 disabled={isConnecting}
-                title={localTitle}
+                data-tooltip={localTitle}
             >
                 {localIcon}
             </button>
@@ -184,7 +184,7 @@ export const StorageControls: React.FC = () => {
                 className={cloudClassName}
                 onClick={handleCloudClick}
                 disabled={isConnecting || !configured || isSavingCloud}
-                title={cloudTitle}
+                data-tooltip={cloudTitle}
             >
                 {cloudIcon}
             </button>

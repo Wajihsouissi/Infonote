@@ -1,7 +1,7 @@
 .themeSwitcher {
     background: transparent;
-    border: none;
-    border-radius: 8px;
+    border: 1px solid transparent;
+    border-radius: 50%;
 
     width: 36px;
     height: 36px;
@@ -11,18 +11,18 @@
     justify-content: center;
 
     cursor: pointer;
-    transition: all var(--transition-fast);
-    color: var(--color-text-main);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    color: var(--color-text-muted);
 }
 
 .themeSwitcher:hover {
-    background: var(--glass-bg-hover);
+    background: rgba(139, 92, 246, 0.08);
     color: var(--color-primary);
-    transform: translateY(-1px);
+    transform: translateY(-2px) scale(1.05);
 }
 
 .themeSwitcher:active {
-    transform: translateY(0);
+    transform: scale(0.95);
 }
 
 .iconWrapper {

@@ -214,7 +214,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
 
         activeResize.current = true;
         document.body.style.cursor = 'ew-resize';
-        document.body.classList.add('infonote-resizing-active');
+        document.body.classList.add('chnk-it-resizing-active');
 
         const onMouseMove = (moveEvent: MouseEvent) => {
             const deltaX = (moveEvent.clientX - startX) / zoom;
@@ -233,7 +233,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
         const onMouseUp = () => {
             activeResize.current = false;
             document.body.style.cursor = '';
-            document.body.classList.remove('infonote-resizing-active');
+            document.body.classList.remove('chnk-it-resizing-active');
             window.removeEventListener('mousemove', onMouseMove);
             window.removeEventListener('mouseup', onMouseUp);
         };

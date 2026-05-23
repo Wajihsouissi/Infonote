@@ -7,7 +7,7 @@
  * onAuthStateChange subscription.
  */
 import React, { useState } from 'react';
-import { Rocket, Mail, Lock, Eye, EyeOff, User, ArrowLeft, LogIn, Zap, GitBranch, Layers, Loader2, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, LogIn, Zap, GitBranch, Layers, Loader2, AlertCircle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
 import styles from './AuthPage.module.css';
@@ -144,8 +144,8 @@ export const LoginPage: React.FC = () => {
             </button>
           )}
           <div className={styles.leftLogo}>
-            <Rocket size={22} className={styles.leftLogoIcon} />
-            <span>Infonote</span>
+            <img src="/ChnkLogo.svg" alt="Chnk" style={{height: 24}} />
+            <span>Chnk it</span>
           </div>
         </div>
 
@@ -159,7 +159,7 @@ export const LoginPage: React.FC = () => {
             <span className={styles.leftHeadlineGrad}>build brilliantly.</span>
           </h2>
           <p className={styles.leftSubtext}>
-            Infonote is your infinite canvas for ideas. Connect thoughts, structure knowledge, and collaborate in real time.
+            Chnk it is your infinite canvas for ideas. Connect thoughts, structure knowledge, and collaborate in real time.
           </p>
           <div className={styles.leftFeatures}>
             <div className={styles.leftFeature}>
@@ -185,7 +185,7 @@ export const LoginPage: React.FC = () => {
             <div className={styles.leftAvatar}>R</div>
           </div>
           <div className={styles.leftProofText}>
-            <strong>4,200+ teams</strong> already organising<br />their thoughts with Infonote
+            <strong>4,200+ teams</strong> already organising<br />their thoughts with Chnk it
           </div>
         </div>
       </div>

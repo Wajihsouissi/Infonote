@@ -72,5 +72,5 @@ export default defineConfig([
   },
 ])
 ```
-# Infonote
+# Chnk it
 noote taking app

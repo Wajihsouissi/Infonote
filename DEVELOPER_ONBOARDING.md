@@ -1,9 +1,9 @@
-# Developer Onboarding: Infonote
+# Developer Onboarding: Chnk it
 
-Welcome to the **Infonote** project! This document is designed to get any new developer up to speed quickly on the codebase, architecture, and core paradigms of the application.
+Welcome to the **Chnk it** project! This document is designed to get any new developer up to speed quickly on the codebase, architecture, and core paradigms of the application.
 
-## 🎯 What is Infonote?
-Infonote is a spatial, infinite-canvas note-taking application. Instead of standard lists or folders, users interact with cards representing notes on an infinite 2D plane. Notes can contain rich text (block format), metadata, and even other notes inside them (hierarchical navigation).
+## 🎯 What is Chnk it?
+Chnk it is a spatial, infinite-canvas note-taking application. Instead of standard lists or folders, users interact with cards representing notes on an infinite 2D plane. Notes can contain rich text (block format), metadata, and even other notes inside them (hierarchical navigation).
 
 ---
 
@@ -52,7 +52,7 @@ src/
 
 ## 🧠 Core Mental Models
 
-Understanding how Infonote renders data is critical. There are three major domains:
+Understanding how Chnk it renders data is critical. There are three major domains:
 
 ### 1. Canvas & React Flow
 Every note starts as a `Node` rendered via React Flow. The screen is essentially an infinite coordinate system where each node has `x` and `y` properties. The user can drag them, resize them (snaps to a 56px grid), and connect them with edges.

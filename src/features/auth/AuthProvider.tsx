@@ -128,8 +128,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Belt-and-braces: purge any legacy mock session keys that may
             // exist from earlier builds so they cannot resurrect a stale user.
             try {
-                localStorage.removeItem('infonote-mock-session');
-                localStorage.removeItem('infonote-mock-users');
+                localStorage.removeItem('chnk-it-mock-session');
+                localStorage.removeItem('chnk-it-mock-users');
             } catch {
                 // ignore storage errors (e.g. private browsing)
             }

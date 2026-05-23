@@ -149,10 +149,10 @@ export function renderContentWithLinks(content: string): string {
     return content.replace(pattern, (match, label, markdownUrl, rawUrl) => {
         if (label) {
             const href = markdownUrl.startsWith('http') ? markdownUrl : 'https://' + markdownUrl;
-            return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="editor-inline-link" style="color: var(--color-primary, #6366f1); text-decoration: underline; font-weight: 500;">${label}</a>`;
+            return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="editor-inline-link" style="color: var(--color-text-muted); text-decoration: underline; font-weight: 500;">${label}</a>`;
         } else if (rawUrl) {
             const href = rawUrl.startsWith('http') ? rawUrl : 'https://' + rawUrl;
-            return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="editor-inline-link" style="color: var(--color-primary, #6366f1); text-decoration: underline; font-weight: 500;">${rawUrl}</a>`;
+            return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="editor-inline-link" style="color: var(--color-text-muted); text-decoration: underline; font-weight: 500;">${rawUrl}</a>`;
         }
         return match;
     });

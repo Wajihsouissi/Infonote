@@ -146,11 +146,13 @@
     z-index: 100 !important;
     transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease !important;
     opacity: 0 !important;
+    visibility: hidden !important;
     pointer-events: none !important;
 }
 
 .card:hover .topRightHandle {
     opacity: 1 !important;
+    visibility: visible !important;
     pointer-events: auto !important;
 }
 
@@ -276,6 +278,8 @@
 
 .mediumView {
     gap: 4px;
+    flex: 1;
+    min-height: 0;
 }
 
 /* Header: Icon + Title Row - MATCHING minimalHeader but Compact */
@@ -344,14 +348,34 @@
     opacity: 0.8;
     color: var(--color-text-muted);
     width: 100%;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     outline: none;
     resize: none;
     font-family: inherit;
     line-height: 1.4;
     transition: background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
     cursor: text;
-    overflow: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+}
+
+.mediumDescInput::-webkit-scrollbar {
+    width: 4px;
+}
+
+.mediumDescInput::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.mediumDescInput::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+}
+
+.mediumDescInput::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-muted);
 }
 
 .mediumDescInput:hover {
@@ -1249,10 +1273,17 @@
     transform: translateY(0);
 }
 
-/* In the minimalHeader, always show the pill */
+/* In the minimalHeader, hide the pill by default — show on header hover */
 .minimalHeader .controlsGroup {
-    opacity: 1 !important;
+    opacity: 0;
     transform: none !important;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.minimalHeader:hover .controlsGroup {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .controlBtn {
@@ -1276,7 +1307,7 @@
     background: rgba(0, 0, 0, 0.07);
     opacity: 1;
     transform: scale(1.08);
-    color: var(--control-btn-hover-color, var(--color-text-main));
+    color: var(--color-text-main);
 }
 
 :global(.dark) .controlBtn:hover {
@@ -1284,9 +1315,9 @@
 }
 
 .controlBtn.active {
-    background: var(--control-btn-active-bg, rgba(139, 92, 246, 0.15));
+    background: rgba(0, 0, 0, 0.07);
     border-color: transparent;
-    color: var(--control-btn-active-color, var(--color-primary));
+    color: var(--color-text-main);
     opacity: 1;
 }
 

@@ -8,7 +8,6 @@ import { BASE_UNIT, MIN_FUSED_SIZE, ICON_SIZE, snapToGridValue, GRID_GAP } from 
 
 interface UseCanvasDropOptions {
     updateNodeData: (id: string, data: any) => void;
-    setNodes: (updater: (nodes: AppNode[]) => AppNode[]) => void;
     extractPageFromBlock: (block: any, position: { x: number; y: number }, sourceNodeId?: string) => void;
 }
 
@@ -18,7 +17,6 @@ interface UseCanvasDropOptions {
  */
 export function useCanvasDrop({
     updateNodeData,
-    setNodes,
     extractPageFromBlock,
 }: UseCanvasDropOptions) {
     const { screenToFlowPosition, getIntersectingNodes, deleteElements, getViewport } = useReactFlow();
@@ -27,7 +25,7 @@ export function useCanvasDrop({
         const { centerPanelId, fullscreenId } = useStore.getState();
         if (centerPanelId || fullscreenId) {
             const isDraggingBlock = event.dataTransfer.types.includes('application/reactflow-block-type') || 
-                                    event.dataTransfer.types.includes('application/infonote-block-data');
+                                    event.dataTransfer.types.includes('application/chnk-it-block-data');
             if (!isDraggingBlock) return;
         }
 
@@ -37,10 +35,10 @@ export function useCanvasDrop({
 
     const onDrop = useCallback(
         (event: React.DragEvent) => {
-            const { centerPanelId, fullscreenId, currentParentId, nodes } = useStore.getState();
+            const { centerPanelId, fullscreenId, currentParentId } = useStore.getState();
 
             const type = event.dataTransfer.getData('application/reactflow-block-type') as BlockType;
-            const blockDataJson = event.dataTransfer.getData('application/infonote-block-data');
+            const blockDataJson = event.dataTransfer.getData('application/chnk-it-block-data');
 
             if (centerPanelId || fullscreenId) {
                 if (!type && !blockDataJson) return;
@@ -48,7 +46,7 @@ export function useCanvasDrop({
 
             // Check if the drop landed inside a node's BlockEditor
             const target = event.target as HTMLElement;
-            const isInsideBlockEditor = !!target.closest('[data-infonote-block-editor]');
+            const isInsideBlockEditor = !!target.closest('[data-chnk-it-block-editor]');
 
             // Parse block data to check if this is a cross-node block transfer
             let hasSourceNode = false;
@@ -105,7 +103,7 @@ export function useCanvasDrop({
             } else if (type) {
                 let metadata = undefined;
                 try {
-                    const metaJson = event.dataTransfer.getData('application/infonote-block-metadata');
+                    const metaJson = event.dataTransfer.getData('application/chnk-it-block-metadata');
                     if (metaJson) metadata = JSON.parse(metaJson);
                 } catch (e) { console.error("Failed to parse metadata", e); }
 
@@ -141,25 +139,15 @@ export function useCanvasDrop({
                 });
 
                 if (targetNode.type === 'block') {
-                    updateNodeData(targetNode.id, {
-                        content: [...currentContent, ...blocksToAdd]
+                    useStore.getState().updateNode(targetNode.id, {
+                        type: 'fused-note' as const,
+                        style: { ...targetNode.style, height: undefined }
                     });
-
-                    const updatedNodes = nodes.map((n: AppNode) => {
-                        if (n.id === targetNode.id) {
-                            return {
-                                ...n,
-                                type: 'fused-note' as const,
-                                style: { ...n.style, height: undefined }
-                            } as AppNode;
-                        }
-                        return n;
-                    });
-                    setNodes(() => updatedNodes);
                 }
 
                 if (sourceNodeId) {
-                    const sourceNode = nodes.find((n: AppNode) => n.id === sourceNodeId);
+                    const { nodes: currentNodes } = useStore.getState();
+                    const sourceNode = currentNodes.find((n: AppNode) => n.id === sourceNodeId);
                     if (sourceNode && Array.isArray((sourceNode.data as any).content)) {
                         const draggedBlockIds = blocksToAdd.map(b => b.id);
                         let newContent = (sourceNode.data as any).content.filter((b: any) => !draggedBlockIds.includes(b.id));
@@ -174,11 +162,12 @@ export function useCanvasDrop({
                 // Adding new node to canvas
                 if (blocksToAdd.length === 1 && blocksToAdd[0].type === 'page') {
                     extractPageFromBlock(blocksToAdd[0], position, sourceNodeId || undefined);
-                    if ((window as any).infonoteMultiDragCleanup) {
-                        (window as any).infonoteMultiDragCleanup();
-                        delete (window as any).infonoteMultiDragCleanup;
+                    if ((window as any).chnkItMultiDragCleanup) {
+                        (window as any).chnkItMultiDragCleanup();
+                        delete (window as any).chnkItMultiDragCleanup;
                     }
-                    window.dispatchEvent(new CustomEvent('infonote-clear-selection'));
+                    (window as any).chnkItCrossEditorDropHandled = true;
+                    window.dispatchEvent(new CustomEvent('chnk-it-clear-selection'));
                     return;
                 }
 
@@ -223,7 +212,8 @@ export function useCanvasDrop({
                 }));
 
                 if (sourceNodeId) {
-                    const sourceNode = nodes.find((n: AppNode) => n.id === sourceNodeId);
+                    const { nodes: freshNodes } = useStore.getState();
+                    const sourceNode = freshNodes.find((n: AppNode) => n.id === sourceNodeId);
                     if (sourceNode && Array.isArray((sourceNode.data as any).content)) {
                         const draggedBlockIds = blocksToAdd.map(b => b.id);
                         let newContent = (sourceNode.data as any).content.filter((b: any) => !draggedBlockIds.includes(b.id));
@@ -236,13 +226,18 @@ export function useCanvasDrop({
                 }
             }
 
-            if ((window as any).infonoteMultiDragCleanup) {
-                (window as any).infonoteMultiDragCleanup();
-                delete (window as any).infonoteMultiDragCleanup;
+            if ((window as any).chnkItMultiDragCleanup) {
+                (window as any).chnkItMultiDragCleanup();
+                delete (window as any).chnkItMultiDragCleanup;
             }
-            window.dispatchEvent(new CustomEvent('infonote-clear-selection'));
+            // Signal SortableBlockWrapper.handleDragEnd that the drop was already handled
+            // here so it doesn't double-dispatch chnk-it-clear-selection.
+            (window as any).chnkItCrossEditorDropHandled = true;
+            (window as any).chnkItBlockDragging = false;
+            document.body.classList.remove('chnk-it-block-dragging');
+            window.dispatchEvent(new CustomEvent('chnk-it-clear-selection'));
         },
-        [screenToFlowPosition, updateNodeData, getIntersectingNodes, deleteElements, setNodes, extractPageFromBlock, getViewport],
+        [screenToFlowPosition, updateNodeData, getIntersectingNodes, deleteElements, extractPageFromBlock, getViewport],
     );
 
     return {

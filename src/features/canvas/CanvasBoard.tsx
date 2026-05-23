@@ -108,7 +108,20 @@ export function CanvasBoard() {
     const isBoxSelectingRef = useRef(false);
     const modifierKeys = useModifierKeys();
     const [isInEditableField, setIsInEditableField] = useState(false);
+    const [isHoveringEditor, setIsHoveringEditor] = useState(false);
     const [isFocusArmed, setIsFocusArmed] = useState(false);
+
+    useEffect(() => {
+        const handleMouseOver = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (target) {
+                const isEditor = !!target.closest('[data-chnk-it-block-editor]');
+                setIsHoveringEditor(prev => prev !== isEditor ? isEditor : prev);
+            }
+        };
+        window.addEventListener('mouseover', handleMouseOver);
+        return () => window.removeEventListener('mouseover', handleMouseOver);
+    }, []);
     const isFocusArmedRef = useRef(false);
     const focusArmTimeoutRef = useRef<number | null>(null);
     
@@ -156,6 +169,8 @@ export function CanvasBoard() {
 
 
     const blurActiveEditable = useCallback(() => {
+        // Never blur during/just after a drag — let the editor's cleanup handler restore focus
+        if ((window as any).chnkItBlockDragging) return false;
         const el = document.activeElement as HTMLElement | null;
         if (!el) return false;
         const isEditable = el.tagName === 'INPUT' ||
@@ -340,6 +355,9 @@ export function CanvasBoard() {
         };
 
         const handlePointerDown = (e: PointerEvent) => {
+            // Don't blur during/just after a block drag — let the cleanup handler restore focus
+            if ((window as any).chnkItBlockDragging) return;
+
             const target = e.target as HTMLElement | null;
             if (target) {
                 const nodeEl = target.closest('.react-flow__node');
@@ -363,11 +381,22 @@ export function CanvasBoard() {
             blurActiveEditable();
         };
 
+        const handleGlobalDragEnd = () => {
+            if ((window as any).chnkItBlockDragging || document.body.classList.contains('chnk-it-block-dragging')) {
+                console.log("[CanvasBoard] Global dragend fallback cleanup executed");
+                (window as any).chnkItBlockDragging = false;
+                document.body.classList.remove('chnk-it-block-dragging');
+                document.body.classList.remove('chnk-it-node-dragging');
+            }
+        };
+
         window.addEventListener('keydown', handleKeyDown, { capture: true });
         document.addEventListener('pointerdown', handlePointerDown, { capture: true });
+        window.addEventListener('dragend', handleGlobalDragEnd, { capture: true });
         return () => {
             window.removeEventListener('keydown', handleKeyDown, true);
             document.removeEventListener('pointerdown', handlePointerDown, true);
+            window.removeEventListener('dragend', handleGlobalDragEnd, true);
         };
     }, [blurActiveEditable, isInEditableField]);
 
@@ -772,7 +801,7 @@ export function CanvasBoard() {
 
     // Recently viewed tracking
     const activeWorkspaceId = typeof window !== 'undefined' 
-        ? localStorage.getItem('infonote.activeWorkspaceId') || '' 
+        ? localStorage.getItem('chnk it.activeWorkspaceId') || '' 
         : '';
     const { trackNoteView } = useRecentlyViewed(activeWorkspaceId);
 
@@ -826,7 +855,7 @@ export function CanvasBoard() {
                         ref={tocBtnRef}
                         className={`${styles.toolbarBtn} ${isTOCOpen ? styles.toolbarBtnActive : ''}`}
                         onClick={() => setTOCOpen(!isTOCOpen)}
-                        title={isTOCOpen ? "Close Outline" : "Open Outline"}
+                        data-tooltip={isTOCOpen ? "Close Outline" : "Open Outline"}
                         style={{ marginLeft: 6 }}
                     >
                         <ListCollapse size={18} />
@@ -835,7 +864,7 @@ export function CanvasBoard() {
                         ref={shortcutsBtnRef}
                         className={`${styles.toolbarBtn} ${isShortcutsPanelOpen ? styles.toolbarBtnActive : ''}`}
                         onClick={() => setShortcutsPanelOpen(!isShortcutsPanelOpen)}
-                        title={isShortcutsPanelOpen ? "Close Shortcuts" : "Keyboard Shortcuts (K)"}
+                        data-tooltip={isShortcutsPanelOpen ? "Close Shortcuts" : "Keyboard Shortcuts (K)"}
                         style={{ marginLeft: 6 }}
                     >
                         <Keyboard size={18} />
@@ -845,7 +874,7 @@ export function CanvasBoard() {
                             ref={metadataBtnRef}
                             className={`${styles.toolbarBtn} ${isMetadataOpen ? styles.toolbarBtnActive : ''}`}
                             onClick={() => setMetadataOpen(!isMetadataOpen)}
-                            title={isMetadataOpen ? "Close Metadata" : "Open Metadata"}
+                            data-tooltip={isMetadataOpen ? "Close Metadata" : "Open Metadata"}
                             style={{ marginLeft: 6 }}
                         >
                             <SlidersHorizontal size={18} />
@@ -959,7 +988,7 @@ export function CanvasBoard() {
                     }}
                     selectionOnDrag={true}
                     panOnDrag={true}
-                    selectionKeyCode="Control"
+                    selectionKeyCode={isHoveringEditor ? null : "Control"}
                     multiSelectionKeyCode="Shift"
                     selectionMode={SelectionMode.Partial}
                     // Performance optimizations

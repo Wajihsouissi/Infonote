@@ -113,7 +113,7 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
     }, [onClose]);
 
     const handleClearCanvas = useCallback(() => {
-        const targetIds = nodes.filter(n => n.parentId === currentParentId).map(n => n.id);
+        const targetIds = nodes.filter(n => (n.parentId || null) === (currentParentId || null)).map(n => n.id);
         if (targetIds.length > 0) {
             bulkDeleteNodes(targetIds, true);
             clearCanvasSelection();
@@ -124,8 +124,8 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
     const selectByType = useCallback((type?: string) => {
         const parentCtx = currentParentId || null;
         const filtered = type
-            ? nodes.filter(n => n.parentId === parentCtx && n.type === type)
-            : nodes.filter(n => n.parentId === parentCtx);
+            ? nodes.filter(n => (n.parentId || null) === parentCtx && n.type === type)
+            : nodes.filter(n => (n.parentId || null) === parentCtx);
         const targetIds = new Set(filtered.map(n => n.id));
         setSelectedCanvasNodeIds(targetIds);
         const changes = nodes.map(n => ({
@@ -150,32 +150,32 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
         <div className={styles.overlay}>
             <div ref={menuRef}>
                 <div className={styles.menu} style={{ left: menuX, top: menuY }}>
-                    <div className={styles.menuItem} onClick={() => setActiveSubmenu(activeSubmenu === 'add-block' ? null : 'add-block')}>
+                    <div className={styles.menuItem} onMouseEnter={() => setActiveSubmenu('add-block')} onClick={() => setActiveSubmenu(activeSubmenu === 'add-block' ? null : 'add-block')}>
                         <span className={styles.itemContent}><Type size={16} /><span>Add Block</span></span>
                         <ChevronRight size={14} className={styles.chevron} />
                     </div>
 
-                    <div className={styles.menuItem} onClick={handlePaste}>
+                    <div className={styles.menuItem} onMouseEnter={() => setActiveSubmenu(null)} onClick={handlePaste}>
                         <span className={styles.itemContent}><ClipboardPaste size={16} /><span>Paste from clipboard</span></span>
                     </div>
 
-                    <div className={styles.menuItem} onClick={() => setActiveSubmenu(activeSubmenu === 'select' ? null : 'select')}>
+                    <div className={styles.menuItem} onMouseEnter={() => setActiveSubmenu('select')} onClick={() => setActiveSubmenu(activeSubmenu === 'select' ? null : 'select')}>
                         <span className={styles.itemContent}><Crosshair size={16} /><span>Select</span></span>
                         <ChevronRight size={14} className={styles.chevron} />
                     </div>
 
                     <div className={styles.divider} />
 
-                    <div className={styles.menuItem} onClick={handleScreenshot}>
+                    <div className={styles.menuItem} onMouseEnter={() => setActiveSubmenu(null)} onClick={handleScreenshot}>
                         <span className={styles.itemContent}><Camera size={16} /><span>Screenshot canvas</span></span>
                     </div>
 
                     {!showClearConfirm ? (
-                        <div className={`${styles.menuItem} ${styles.dangerItem}`} onClick={() => setShowClearConfirm(true)}>
+                        <div className={`${styles.menuItem} ${styles.dangerItem}`} onMouseEnter={() => setActiveSubmenu(null)} onClick={() => setShowClearConfirm(true)}>
                             <span className={styles.itemContent}><Trash2 size={16} /><span>Clear canvas</span></span>
                         </div>
                     ) : (
-                        <div className={styles.confirmItem}>
+                        <div className={styles.confirmItem} onMouseEnter={() => setActiveSubmenu(null)}>
                             <span className={styles.confirmText}>Clear all nodes?</span>
                             <div className={styles.confirmActions}>
                                 <button className={styles.confirmBtn} onClick={handleClearCanvas}>Yes</button>

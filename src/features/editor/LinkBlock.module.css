@@ -34,8 +34,8 @@
 
 .bookmarkCard:hover {
     transform: translateY(-2px);
-    border-color: var(--color-primary, #6366f1);
-    box-shadow: 0 6px 24px rgba(99, 102, 241, 0.15);
+    border-color: var(--color-text-muted);
+    box-shadow: 0 6px 24px var(--link-shadow, rgba(99, 102, 241, 0.15));
     background: rgba(255, 255, 255, 0.06);
 }
 
@@ -59,7 +59,7 @@
 .bookmarkTitle {
     font-size: 14px;
     font-weight: 600;
-    color: var(--color-text, #ffffff);
+    color: var(--color-text-main);
     margin: 0 0 6px 0;
     white-space: nowrap;
     overflow: hidden;
@@ -68,13 +68,9 @@
     transition: color 0.15s ease;
 }
 
-:global(.light-theme) .bookmarkTitle {
-    color: #111827;
-}
-
 .bookmarkDesc {
     font-size: 12px;
-    color: var(--color-text-secondary, #9ca3af);
+    color: var(--color-text-muted);
     margin: 0 0 10px 0;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -82,10 +78,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: 1.5;
-}
-
-:global(.light-theme) .bookmarkDesc {
-    color: #4b5563;
 }
 
 .bookmarkMeta {
@@ -112,7 +104,7 @@
 .bookmarkDomain {
     font-size: 11px;
     font-weight: 500;
-    color: var(--color-text-secondary, #9ca3af);
+    color: var(--color-text-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -315,7 +307,7 @@
     gap: 8px;
     font-size: 11px;
     font-weight: 600;
-    color: var(--color-text-secondary, #9ca3af);
+    color: var(--color-text-muted);
     letter-spacing: 0.05em;
 }
 
@@ -369,7 +361,7 @@
 
 .embedFallbackText {
     font-size: 12px;
-    color: var(--color-text-secondary, #9ca3af);
+    color: var(--color-text-muted);
     max-width: 280px;
 }
 
@@ -381,9 +373,9 @@
     gap: 6px;
     padding: 3px 8px;
     border-radius: 6px;
-    background: rgba(99, 102, 241, 0.08);
-    border: 1px solid rgba(99, 102, 241, 0.15);
-    color: var(--color-primary, #6366f1);
+    background: var(--link-bg, rgba(99, 102, 241, 0.08));
+    border: 1px solid var(--link-border, rgba(99, 102, 241, 0.15));
+    color: var(--color-text-muted);
     font-size: 14px;
     font-weight: 500;
     text-decoration: none;
@@ -393,9 +385,9 @@
 }
 
 .textLinkWrapper:hover {
-    background: rgba(99, 102, 241, 0.15);
-    border-color: rgba(99, 102, 241, 0.3);
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+    background: var(--link-bg-hover, rgba(99, 102, 241, 0.15));
+    border-color: var(--link-border-hover, rgba(99, 102, 241, 0.3));
+    box-shadow: 0 2px 8px var(--link-shadow, rgba(99, 102, 241, 0.1));
 }
 
 .textLinkLabel {
@@ -486,7 +478,7 @@
 
 .controlBtn:hover {
     background: rgba(255, 255, 255, 0.08);
-    color: var(--color-text, #ffffff);
+    color: var(--color-text-main);
 }
 
 :global(.light-theme) .controlBtn:hover {
@@ -495,8 +487,8 @@
 }
 
 .controlBtnActive {
-    color: var(--color-primary, #6366f1) !important;
-    background: rgba(99, 102, 241, 0.1) !important;
+    color: var(--color-text-muted) !important;
+    background: var(--link-bg, rgba(99, 102, 241, 0.1)) !important;
 }
 
 
@@ -554,7 +546,7 @@
 
 .dropdownItem:hover {
     background: rgba(255, 255, 255, 0.05);
-    color: var(--color-text, #ffffff);
+    color: var(--color-text-main);
 }
 
 :global(.light-theme) .dropdownItem:hover {
@@ -563,8 +555,8 @@
 }
 
 .dropdownItemActive {
-    color: var(--color-primary, #6366f1) !important;
-    background: rgba(99, 102, 241, 0.06) !important;
+    color: var(--color-text-muted) !important;
+    background: var(--link-bg, rgba(99, 102, 241, 0.06)) !important;
 }
 
 .dropdownSeparator {
@@ -602,9 +594,9 @@
 
 .inputWrapper:focus-within {
     border-style: solid;
-    border-color: var(--color-primary, #6366f1);
+    border-color: var(--color-text-muted);
     background: rgba(255, 255, 255, 0.04);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    box-shadow: 0 0 0 3px var(--link-shadow, rgba(99, 102, 241, 0.15));
 }
 
 :global(.light-theme) .inputWrapper:focus-within {
@@ -620,14 +612,10 @@
     flex: 1;
     border: none;
     background: transparent;
-    color: var(--color-text, #ffffff);
+    color: var(--color-text-main);
     font-family: inherit;
     font-size: 13px;
     outline: none;
-}
-
-:global(.light-theme) .inputField {
-    color: #111827;
 }
 
 .inputField::placeholder {

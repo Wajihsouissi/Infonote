@@ -12,7 +12,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
         draggedNodeId: null,
         dropTarget: null
     },
-    theme: (localStorage.getItem('infonote-theme') as 'light' | 'dark') || 'dark',
+    theme: (localStorage.getItem('chnk-it-theme') as 'light' | 'dark') || 'dark',
     currentView: 'login',
     hasEnteredApp: false,
     selectedCanvasNodeIds: new Set<string>(),
@@ -42,7 +42,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
         requestAnimationFrame(() => {
             set({ theme: newTheme });
             document.documentElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('infonote-theme', newTheme);
+            localStorage.setItem('chnk-it-theme', newTheme);
 
             setTimeout(() => {
                 document.documentElement.classList.remove('theme-transitioning');

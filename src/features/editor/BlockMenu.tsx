@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Trash2, Copy, Type, Palette, ArrowRight, Heading1, Heading2, Heading3, CheckSquare, Quote, List, ListOrdered, Code, Link, ChevronDown } from 'lucide-react';
 import styles from './BlockEditor.module.css';
@@ -44,19 +44,61 @@ export function BlockMenu({ x, y, currentType, onClose, onAction }: BlockMenuPro
     const menuRef = useRef<HTMLDivElement>(null);
     const [activeSubMenu, setActiveSubMenu] = useState<'turnInto' | 'color' | null>(null);
     const [colorTab, setColorTab] = useState<'text' | 'background'>('text');
+    const [positionedCoords, setPositionedCoords] = useState<{ x: number; y: number } | null>(null);
 
-    // Close on click outside
+    useLayoutEffect(() => {
+        if (!menuRef.current) return;
+
+        const menuWidth = menuRef.current.offsetWidth || 270;
+        const menuHeight = menuRef.current.offsetHeight || 300;
+
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        // Dynamic vertical (y) positioning
+        let finalY = y;
+        if (y > viewportHeight / 2) {
+            // Mouse is in the bottom half: open on top of the mouse
+            finalY = y - menuHeight - 8;
+        } else {
+            // Mouse is in the top half: open under the mouse
+            finalY = y + 8;
+        }
+
+        // Dynamic horizontal (x) positioning
+        // Avoid overlapping the block (which is on the right of the handle).
+        // Try to open to the left of the handle click.
+        let finalX = x - menuWidth - 8;
+        if (finalX < 8) {
+            // Not enough space on the left: open to the right of the handle click
+            finalX = Math.min(x + 16, viewportWidth - menuWidth - 8);
+        }
+
+        // Constrain coords to keep the menu fully within the viewport bounds
+        finalY = Math.max(8, Math.min(finalY, viewportHeight - menuHeight - 8));
+        finalX = Math.max(8, Math.min(finalX, viewportWidth - menuWidth - 8));
+
+        setPositionedCoords({ x: finalX, y: finalY });
+    }, [x, y]);
+
+    // Close on click outside or Esc key
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
-            // Check if click is inside main menu OR any submenu
-            // Since submenus are likely portals or children, simple contains check might need refinement 
-            // but if they are children of this div, strict contains works.
             if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setTimeout(onClose, 0);
+            }
+        };
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
                 onClose();
             }
         };
         document.addEventListener('mousedown', handleClickOutside, { capture: true });
-        return () => document.removeEventListener('mousedown', handleClickOutside, { capture: true });
+        document.addEventListener('keydown', handleKeyDown, { capture: true });
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside, { capture: true });
+            document.removeEventListener('keydown', handleKeyDown, { capture: true });
+        };
     }, [onClose]);
 
     const handleMainAction = (action: 'duplicate' | 'delete') => {
@@ -80,7 +122,7 @@ export function BlockMenu({ x, y, currentType, onClose, onAction }: BlockMenuPro
         };
 
         return (
-            <div className={styles.slashMenu} style={subMenuStyle}>
+            <div className={`${styles.slashMenu} block-menu`} role="menu" style={subMenuStyle}>
                 {activeSubMenu === 'turnInto' && (
                     <>
                         <div className={styles.menuHeader}>Turn into</div>
@@ -161,8 +203,17 @@ export function BlockMenu({ x, y, currentType, onClose, onAction }: BlockMenuPro
 
     return createPortal(
         <div
-            className={styles.slashMenu}
-            style={{ top: y, left: x, overflow: 'visible' }} // Allow submenu to overflow
+            className={`${styles.slashMenu} block-menu`}
+            role="menu"
+            style={{
+                top: positionedCoords ? positionedCoords.y : y,
+                left: positionedCoords ? positionedCoords.x : x,
+                visibility: positionedCoords ? 'visible' : 'hidden',
+                opacity: positionedCoords ? 1 : 0,
+                overflow: 'visible',
+                transform: positionedCoords ? 'scale(1)' : 'scale(0.95)',
+                transition: 'opacity 0.12s cubic-bezier(0.16, 1, 0.3, 1), transform 0.12s cubic-bezier(0.16, 1, 0.3, 1)',
+            }} // Allow submenu to overflow, measure off-screen/invisible initially
             ref={menuRef}
             onMouseDown={(e) => e.stopPropagation()}
         >

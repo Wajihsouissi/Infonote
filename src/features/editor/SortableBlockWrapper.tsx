@@ -36,10 +36,10 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
 
         // Register cleanup function for when drag ends
         // This will clear selection in the source editor
-        (window as any).infonoteDragCleanup = () => {
+        (window as any).chnkItDragCleanup = () => {
             console.log('Executing drag cleanup function');
             // Clear selection in the parent BlockEditor component
-            const event = new CustomEvent('infonote-clear-selection');
+            const event = new CustomEvent('chnk-it-clear-selection');
             window.dispatchEvent(event);
         };
         console.log('Registered drag cleanup function for block:', block.id);
@@ -51,10 +51,10 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         } else {
             // Fallback (Legacy/Simple behavior)
             e.dataTransfer.effectAllowed = 'copyMove';
-            e.dataTransfer.setData('application/infonote-block-id', block.id);
+            e.dataTransfer.setData('application/chnk-it-block-id', block.id);
             e.dataTransfer.setData('application/reactflow-block-type', block.type);
             if (nodeId) {
-                e.dataTransfer.setData('application/infonote-block-data', JSON.stringify({
+                e.dataTransfer.setData('application/chnk-it-block-data', JSON.stringify({
                     block,
                     sourceNodeId: nodeId
                 }));
@@ -66,8 +66,8 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         // causes the browser to immediately cancel the drag. Delaying layout changes to the
         // next tick allows the browser to successfully start the native drag gesture.
         setTimeout(() => {
-            document.body.classList.add('infonote-block-dragging');
-            (window as any).infonoteBlockDragging = true;
+            document.body.classList.add('chnk-it-block-dragging');
+            (window as any).chnkItBlockDragging = true;
             if (ref.current) {
                 ref.current.classList.add(styles.dragging);
             }
@@ -77,35 +77,51 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
     const handleDragEnd = () => {
         if (ref.current) ref.current.classList.remove(styles.dragging);
         setDropIndication(null);
-        document.body.classList.remove('infonote-block-dragging');
-        (window as any).infonoteBlockDragging = false;
+        document.body.classList.remove('chnk-it-block-dragging');
 
-        // Execute both regular and multi-block cleanup
-        const regularCleanup = (window as any).infonoteDragCleanup;
-        const multiCleanup = (window as any).infonoteMultiDragCleanup;
+        const regularCleanup = (window as any).chnkItDragCleanup;
+        const multiCleanup = (window as any).chnkItMultiDragCleanup;
 
-        if (regularCleanup) {
-            try {
-                console.log('Executing regular drag cleanup for block:', block?.id);
-                regularCleanup();
-            } catch (error) {
-                console.warn('Error during regular drag cleanup:', error);
+        // Check if a cross-editor drop already happened (canvas onDrop dispatched the event).
+        // If so, skip calling cleanup again to avoid double-dispatch of chnk-it-clear-selection.
+        const crossEditorDropAlreadyHandled = (window as any).chnkItCrossEditorDropHandled;
+        (window as any).chnkItCrossEditorDropHandled = false;
+
+        if (!crossEditorDropAlreadyHandled) {
+            // Only call multiCleanup if present (it handles both single and multi)
+            if (multiCleanup) {
+                try {
+                    console.log('Executing multi-drag cleanup');
+                    multiCleanup();
+                } catch (error) {
+                    console.warn('Error during multi-drag cleanup:', error);
+                }
+                (window as any).chnkItMultiDragCleanup = undefined;
+            } else if (regularCleanup) {
+                try {
+                    console.log('Executing regular drag cleanup for block:', block?.id);
+                    regularCleanup();
+                } catch (error) {
+                    console.warn('Error during regular drag cleanup:', error);
+                }
             }
-            (window as any).infonoteDragCleanup = undefined;
+        } else {
+            // Cross-editor drop already handled — just clean up refs
+            (window as any).chnkItMultiDragCleanup = undefined;
         }
 
-        if (multiCleanup) {
-            try {
-                console.log('Executing multi-drag cleanup');
-                multiCleanup();
-            } catch (error) {
-                console.warn('Error during multi-drag cleanup:', error);
-            }
-            (window as any).infonoteMultiDragCleanup = undefined;
-        }
+        (window as any).chnkItDragCleanup = undefined;
 
-        if (!regularCleanup && !multiCleanup) {
-            console.log('No drag cleanup functions found for block:', block?.id);
+        // Clear the dragging flag immediately if a cross-editor drop finished
+        // (the drop already happened, so no risk of CanvasBoard stealing focus).
+        // Only delay if it was a same-editor reorder so the drop target can
+        // receive the pointer-down without being misidentified as a canvas click.
+        if (crossEditorDropAlreadyHandled) {
+            (window as any).chnkItBlockDragging = false;
+        } else {
+            setTimeout(() => {
+                (window as any).chnkItBlockDragging = false;
+            }, 100);
         }
     };
 
@@ -129,7 +145,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
     const handleDrop = (e: React.DragEvent) => {
         if (readOnly) return;
 
-        const sourceBlockId = e.dataTransfer.getData('application/infonote-block-id');
+        const sourceBlockId = e.dataTransfer.getData('application/chnk-it-block-id');
         const type = e.dataTransfer.getData('application/reactflow-block-type');
 
         if ((sourceBlockId || type) && onMoveBlock) {

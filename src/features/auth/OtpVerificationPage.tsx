@@ -14,7 +14,6 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    Rocket,
     ArrowLeft,
     Loader2,
     AlertCircle,
@@ -237,7 +236,7 @@ export const OtpVerificationPage: React.FC = () => {
                         Back to sign up
                     </button>
                     <div className={styles.leftLogo}>
-                        <Rocket size={22} className={styles.leftLogoIcon} />
+                        <img src="/ChnkLogo.svg" alt="Chnk" style={{height: 24}} />
                         <span>Infonote</span>
                     </div>
                 </div>

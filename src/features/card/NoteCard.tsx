@@ -75,9 +75,15 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
         return {
             '--color-text-main': darkText,
             '--color-text-muted': mutedText,
-            '--color-border': `${borderColor}40`, // 40% opacity
+            '--color-border': `${borderColor}40`,
             '--glass-border': `${borderColor}40`,
             '--icon-color': darkText,
+            '--link-bg': `${borderColor}15`,
+            '--link-bg-hover': `${borderColor}25`,
+            '--link-border': `${borderColor}25`,
+            '--link-border-hover': `${borderColor}40`,
+            '--link-shadow': `${darkText}1a`,
+            caretColor: darkText,
         } as React.CSSProperties;
     }, [displayColor]);
 
@@ -329,7 +335,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
                     activeResize.current = true;
                     document.body.style.cursor = 'nwse-resize';
-                    document.body.classList.add('infonote-resizing-active');
+                    document.body.classList.add('chnk-it-resizing-active');
 
 
                     const onMouseMove = (moveEvent: MouseEvent) => {
@@ -367,7 +373,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                     const onMouseUp = (upEvent: MouseEvent) => {
                         activeResize.current = false;
                         document.body.style.cursor = '';
-                        document.body.classList.remove('infonote-resizing-active');
+                        document.body.classList.remove('chnk-it-resizing-active');
                         window.removeEventListener('mousemove', onMouseMove);
                         window.removeEventListener('mouseup', onMouseUp);
 
@@ -406,22 +412,23 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                 </svg>
             </div>
 
-            {/* Floating Hover Menu - Hide in Chromeless mode */}
-            {/* Floating Hover Menu */}
-            <div className={styles.hoverMenu}>
-                <button className={styles.menuBtn} onClick={handleLeftSidePeak} title="Side Panel (Left)">
-                    <PanelLeft size={16} />
-                </button>
-                <button className={styles.menuBtn} onClick={handleFullScreen} title="Full Screen">
-                    <Monitor size={16} />
-                </button>
-                <button className={styles.menuBtn} onClick={handleCenterPeak} title="Center Peak">
-                    <Scan size={16} />
-                </button>
-                <button className={styles.menuBtn} onClick={handleSidePeak} title="Side Panel (Right)">
-                    <PanelRight size={16} />
-                </button>
-            </div>
+            {/* Floating Hover Menu - Hide in Chromeless mode or when specifically requested */}
+            {!data.hideHoverMenu && (
+                <div className={styles.hoverMenu}>
+                    <button className={styles.menuBtn} onClick={handleLeftSidePeak} title="Side Panel (Left)">
+                        <PanelLeft size={16} />
+                    </button>
+                    <button className={styles.menuBtn} onClick={handleFullScreen} title="Full Screen">
+                        <Monitor size={16} />
+                    </button>
+                    <button className={styles.menuBtn} onClick={handleCenterPeak} title="Center Peak">
+                        <Scan size={16} />
+                    </button>
+                    <button className={styles.menuBtn} onClick={handleSidePeak} title="Side Panel (Right)">
+                        <PanelRight size={16} />
+                    </button>
+                </div>
+            )}
 
             <Handle 
                 type="target" 
@@ -502,14 +509,10 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                         value={isEditingMetadata ? editedData.description : (data.description || '')}
                         onChange={(e) => {
                             setEditedData({ ...editedData, description: e.target.value });
-                            e.target.style.height = 'auto';
-                            e.target.style.height = e.target.scrollHeight + 'px';
                         }}
                         onFocus={(e) => {
                             e.stopPropagation();
                             setIsEditingMetadata(true);
-                            e.target.style.height = 'auto';
-                            e.target.style.height = e.target.scrollHeight + 'px';
                         }}
                         onBlur={() => {
                             if (isEditingMetadata) {
@@ -519,6 +522,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                         onClick={(e) => e.stopPropagation()}
                         onPointerDown={(e) => e.stopPropagation()}
                         onMouseDown={(e) => e.stopPropagation()}
+                        onWheelCapture={(e) => e.stopPropagation()}
                         placeholder="Add description..."
                     />
                 </div>

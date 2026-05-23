@@ -178,7 +178,7 @@ export function SlashMenu({ anchorRect, filter, onSelect, onClose, nodeColor, th
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-                onClose();
+                setTimeout(onClose, 0);
             }
         };
         document.addEventListener('mousedown', handleClickOutside, { capture: true });
