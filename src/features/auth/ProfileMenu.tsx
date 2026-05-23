@@ -101,7 +101,10 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
                         type="button"
                         role="menuitem"
                         className={styles.menuItem}
-                        onClick={() => setOpen(false)}
+                        onClick={() => {
+                            setOpen(false);
+                            useStore.getState().setCurrentView('profile');
+                        }}
                     >
                         <UserIcon size={15} />
                         <span>Profile</span>
@@ -120,20 +123,25 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
                         <span>Admin</span>
                     </button>
 
-                    {onOpenCanvas && (
-                        <button
-                            type="button"
-                            role="menuitem"
-                            className={styles.menuItem}
-                            onClick={() => {
-                                setOpen(false);
+                    <button
+                        type="button"
+                        role="menuitem"
+                        className={styles.menuItem}
+                        onClick={() => {
+                            setOpen(false);
+                            // Prefer the parent-supplied handler (e.g. for any
+                            // pre-navigation cleanup) but always fall back to a
+                            // direct view switch so the button is never inert.
+                            if (onOpenCanvas) {
                                 onOpenCanvas();
-                            }}
-                        >
-                            <Layout size={15} />
-                            <span>Open Canvas</span>
-                        </button>
-                    )}
+                            } else {
+                                useStore.getState().setCurrentView('canvas');
+                            }
+                        }}
+                    >
+                        <Layout size={15} />
+                        <span>Open Canvas</span>
+                    </button>
 
                     <button
                         type="button"

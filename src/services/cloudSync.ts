@@ -28,6 +28,29 @@ export type CloudLoadResult =
     | { ok: true; nodes: AppNode[]; edges: Edge[] }
     | { ok: false; error: string };
 
+/** Lightweight metadata used to render the "Reload Saved Data" picker. */
+export interface CloudPageSummary {
+    /** Node id of the root-level page (parent_id IS NULL). */
+    id: string;
+    /** Best-effort human-readable title from data_json. Falls back to id. */
+    title: string;
+    /** Number of descendants belonging to this page. */
+    childCount: number;
+    /** ISO timestamp of last update for the page node. */
+    updatedAt: string | null;
+}
+
+export interface CloudSnapshotMetadata {
+    nodeCount: number;
+    edgeCount: number;
+    lastUpdated: string | null;
+    pages: CloudPageSummary[];
+}
+
+export type CloudMetadataResult =
+    | { ok: true; metadata: CloudSnapshotMetadata }
+    | { ok: false; error: string };
+
 interface CanvasNodeRow {
     id: string;
     user_id: string;
@@ -203,8 +226,28 @@ function rowToEdge(row: CanvasEdgeRow): Edge {
 }
 
 /**
+ * Deduplicate rows by id (last write wins).
+ *
+ * Why: PostgreSQL throws an error — surfaced by PostgREST as HTTP 409
+ * "ON CONFLICT DO UPDATE command cannot affect row a second time" —
+ * if the same primary key appears more than once in a single upsert
+ * payload. This happens easily after duplicate node operations or when
+ * React state has stale copies. Stripping duplicates client-side makes
+ * the upsert idempotent and predictable.
+ */
+function dedupeById<T extends { id: string }>(rows: T[]): T[] {
+    const map = new Map<string, T>();
+    for (const row of rows) {
+        if (!row.id) continue; // skip rows with no id
+        map.set(row.id, row);   // later entries overwrite earlier ones
+    }
+    return Array.from(map.values());
+}
+
+/**
  * Save the current canvas snapshot to the user's cloud rows. Performs a true
- * sync: upserts incoming rows, then deletes anything no longer in state.
+ * sync: upserts incoming rows (overwriting existing entries with same id),
+ * then deletes anything no longer in state.
  */
 export async function saveCanvasToCloud(
     userId: string | null,
@@ -214,22 +257,51 @@ export async function saveCanvasToCloud(
     try {
         const uid = ensureReady(userId);
 
-        const nodeRows = nodes.map((n) => nodeToRow(n, uid));
-        const edgeRows = edges.map((e) => edgeToRow(e, uid));
+        // Build payloads, then dedupe — prevents the "409 ON CONFLICT cannot
+        // affect row a second time" error when state has duplicate ids.
+        const nodeRows = dedupeById(nodes.map((n) => nodeToRow(n, uid)));
+        const edgeRows = dedupeById(edges.map((e) => edgeToRow(e, uid)));
 
-        // Upsert (chunked — Supabase handles a few thousand rows per request).
+        // Upsert in chunks. `onConflict: 'user_id,id'` matches the composite
+        // PRIMARY KEY in 0001_init.sql; `ignoreDuplicates: false` makes
+        // Supabase MERGE the incoming row into the existing one (overwrite),
+        // which is exactly the behaviour the user expects from "Save Cloud".
         await withRetry(async () => {
             if (nodeRows.length > 0) {
                 const { error } = await supabase
                     .from('canvas_nodes')
-                    .upsert(nodeRows, { onConflict: 'user_id,id' });
-                if (error) throw error;
+                    .upsert(nodeRows, {
+                        onConflict: 'user_id,id',
+                        ignoreDuplicates: false,
+                    });
+                if (error) {
+                    // eslint-disable-next-line no-console
+                    console.error('[cloudSync] node upsert failed', {
+                        message: error.message,
+                        details: (error as { details?: string }).details,
+                        hint: (error as { hint?: string }).hint,
+                        code: (error as { code?: string }).code,
+                    });
+                    throw error;
+                }
             }
             if (edgeRows.length > 0) {
                 const { error } = await supabase
                     .from('canvas_edges')
-                    .upsert(edgeRows, { onConflict: 'user_id,id' });
-                if (error) throw error;
+                    .upsert(edgeRows, {
+                        onConflict: 'user_id,id',
+                        ignoreDuplicates: false,
+                    });
+                if (error) {
+                    // eslint-disable-next-line no-console
+                    console.error('[cloudSync] edge upsert failed', {
+                        message: error.message,
+                        details: (error as { details?: string }).details,
+                        hint: (error as { hint?: string }).hint,
+                        code: (error as { code?: string }).code,
+                    });
+                    throw error;
+                }
             }
         });
 
@@ -303,6 +375,105 @@ export async function loadCanvasFromCloud(userId: string | null): Promise<CloudL
         const edges = (edgesRes.data as CanvasEdgeRow[] | null ?? []).map(rowToEdge);
 
         return { ok: true, nodes, edges };
+    } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+}
+
+/**
+ * Summarise the user's saved canvas without downloading every node body.
+ *
+ * This powers the "Reload Saved Data" picker — we want the user to see what
+ * they're about to overwrite (page count, last-update timestamp, root pages
+ * with titles) BEFORE we yank the canvas out from under them.
+ */
+export async function fetchCloudMetadata(
+    userId: string | null,
+): Promise<CloudMetadataResult> {
+    try {
+        const uid = ensureReady(userId);
+
+        // Pull only the columns we need to render the picker. Supabase will
+        // return [] (not error) if the user has nothing saved yet.
+        type NodeMeta = {
+            id: string;
+            type: string;
+            parent_id: string | null;
+            data_json: Record<string, unknown> | null;
+            updated_at: string | null;
+        };
+
+        const [nodesRes, edgesCountRes] = await withRetry(async () => {
+            const [nRes, eRes] = await Promise.all([
+                supabase
+                    .from('canvas_nodes')
+                    .select('id, type, parent_id, data_json, updated_at')
+                    .eq('user_id', uid),
+                supabase
+                    .from('canvas_edges')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('user_id', uid),
+            ]);
+            if (nRes.error) throw nRes.error;
+            if (eRes.error) throw eRes.error;
+            return [nRes, eRes] as const;
+        });
+
+        const allNodes = (nodesRes.data as NodeMeta[] | null) ?? [];
+        const edgeCount = edgesCountRes.count ?? 0;
+
+        // Find each user's most recent updated_at to act as "last saved".
+        const lastUpdated = allNodes.reduce<string | null>((acc, n) => {
+            if (!n.updated_at) return acc;
+            if (!acc || n.updated_at > acc) return n.updated_at;
+            return acc;
+        }, null);
+
+        // Count children per parent so the picker can show "42 cards" etc.
+        const childCounts = new Map<string, number>();
+        for (const n of allNodes) {
+            if (!n.parent_id) continue;
+            childCounts.set(n.parent_id, (childCounts.get(n.parent_id) ?? 0) + 1);
+        }
+
+        // Roots = nodes with no parent. These are the user's "projects/pages".
+        const roots = allNodes.filter((n) => !n.parent_id);
+        const pages: CloudPageSummary[] = roots.map((n) => {
+            const data = (n.data_json ?? {}) as { data?: Record<string, unknown> };
+            const inner = (data.data ?? {}) as Record<string, unknown>;
+            const rawTitle =
+                (inner.title as string | undefined) ??
+                (inner.name as string | undefined) ??
+                (inner.label as string | undefined) ??
+                (inner.text as string | undefined) ??
+                '';
+            const title = (typeof rawTitle === 'string' && rawTitle.trim())
+                ? rawTitle.trim().slice(0, 80)
+                : `${n.type || 'Item'} · ${n.id.slice(0, 6)}`;
+            return {
+                id: n.id,
+                title,
+                childCount: childCounts.get(n.id) ?? 0,
+                updatedAt: n.updated_at,
+            };
+        });
+
+        // Newest first — helpful default ordering for the picker.
+        pages.sort((a, b) => {
+            const ta = a.updatedAt ?? '';
+            const tb = b.updatedAt ?? '';
+            return tb.localeCompare(ta);
+        });
+
+        return {
+            ok: true,
+            metadata: {
+                nodeCount: allNodes.length,
+                edgeCount,
+                lastUpdated,
+                pages,
+            },
+        };
     } catch (err) {
         return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }

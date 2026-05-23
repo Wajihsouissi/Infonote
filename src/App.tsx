@@ -8,6 +8,7 @@ import { MarketplacePage } from './features/marketplace/MarketplacePage';
 import { LoginPage } from './features/auth/LoginPage';
 import { SignupPage } from './features/auth/SignupPage';
 import { OtpVerificationPage } from './features/auth/OtpVerificationPage';
+import { ProfilePage } from './features/auth/ProfilePage';
 import { AdminDashboard } from './features/admin/AdminDashboard';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useStore } from './store/useStore';
@@ -130,6 +131,8 @@ function App() {
         return <OtpVerificationPage />;
       case 'admin':
         return <AdminDashboard />;
+      case 'profile':
+        return <ProfilePage />;
       case 'canvas':
         return (
           <ReactFlowProvider>
