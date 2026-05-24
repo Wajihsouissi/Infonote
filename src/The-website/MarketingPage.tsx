@@ -1107,7 +1107,7 @@ export const MarketingPage: React.FC = () => {
                    </filter>
                  </defs>
                  <path id="linearToCanvasPath" d="M 280 230 C 340 230, 360 170, 430 170" stroke="url(#cyanBeam)" strokeWidth="2" strokeDasharray="4 4" fill="none" strokeLinecap="round">
-                   <animate attributeName="stroke-dashoffset" from="8" to="0" dur="0.8s" repeatCount="indefinite" linear="true" />
+                   <animate attributeName="stroke-dashoffset" from="8" to="0" dur="0.8s" repeatCount="indefinite" />
                  </path>
                  {/* Flying data particle */}
                  <circle r="4" fill="#fff" filter="url(#glowFlow)">
