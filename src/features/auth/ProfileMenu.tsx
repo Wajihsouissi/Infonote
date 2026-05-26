@@ -64,8 +64,8 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
     const handleSignOut = useCallback(async () => {
         setOpen(false);
         await signOut();
-        // Safety fallback: ensure view resets to login even if AuthProvider's redirect doesn't fire
-        useStore.getState().setCurrentView('login');
+        // Safety fallback: ensure view resets to marketing even if AuthProvider's redirect doesn't fire
+        useStore.getState().setCurrentView('marketing');
     }, [signOut]);
 
     if (!auth.isAuthenticated) return null;

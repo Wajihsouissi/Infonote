@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Sparkles, Type, Image, X, Loader2 } from 'lucide-react';
-import { generateTextWithGemini, generateImageUrl } from '../../services/aiService';
+import { generateText, generateImage, parseMultiCardIntent, generateMultipleCardContents, streamText, generateCanvasCards } from '../../services/aiService';
 import { saveCanvasToCloud } from '../../services/cloudSync';
 import { useStore } from '../../store/useStore';
 
@@ -15,10 +15,12 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    const [streamingText, setStreamingText] = useState('');
     const panelRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
     const updateNodeData = useStore(s => s.updateNodeData);
+    const addNode = useStore(s => s.addNode);
 
     // Focus input on mount
     useEffect(() => {
@@ -53,66 +55,166 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
         }
     }, []);
 
-    const handleGenerateText = useCallback(async () => {
-        if (!prompt.trim()) return;
+    const handleMultiCardGenerate = useCallback(async (count: number, topic: string) => {
         setIsGeneratingText(true);
         setError(null);
         setSuccess(null);
+        try {
+            const cards = await generateMultipleCardContents(topic, count);
 
-        const result = await generateTextWithGemini(prompt);
+            // Anchor position: offset to the right of the current node
+            const currentNode = useStore.getState().nodes.find(n => n.id === nodeId);
+            const baseX = (currentNode?.position.x ?? 0) + 480;
+            const baseY = currentNode?.position.y ?? 100;
 
-        if (result.ok) {
-            // Get current node data to preserve existing content
-            const node = useStore.getState().nodes.find(n => n.id === nodeId);
-            const existingContent = Array.isArray((node?.data as any)?.content)
-                ? (node?.data as any).content
-                : [];
+            const COLS = 4;
+            const COL_WIDTH = 320;
+            const ROW_HEIGHT = 280;
 
-            // Split generated text into paragraphs and create blocks
-            const paragraphs = result.text.split('\n').filter((p: string) => p.trim());
-            const newBlocks = paragraphs.map((text: string) => ({
-                id: crypto.randomUUID(),
-                type: text.startsWith('#') ? 'heading' : 'text',
-                content: text.replace(/^#+\s*/, ''),
-            }));
-
-            updateNodeData(nodeId, {
-                content: [...existingContent, ...newBlocks],
-                updatedAt: new Date().toISOString(),
+            cards.forEach((card, index) => {
+                const col = index % COLS;
+                const row = Math.floor(index / COLS);
+                addNode(
+                    'note',
+                    { x: baseX + col * COL_WIDTH, y: baseY + row * ROW_HEIGHT },
+                    {
+                        label: card.title,
+                        content: [{ id: crypto.randomUUID(), type: 'text', content: card.content }],
+                        viewMode: 'medium',
+                        icon: 'Sparkles',
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                    },
+                    { width: 208, height: 208 }
+                );
             });
 
-            setSuccess('Text generated successfully!');
-            // Trigger cloud save after state update
+            setSuccess(`Generated ${cards.length} cards about "${topic}"!`);
             setTimeout(() => triggerCloudSave(), 100);
-        } else {
-            setError(result.error);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Multi-card generation failed');
+        } finally {
+            setIsGeneratingText(false);
+        }
+    }, [nodeId, addNode, triggerCloudSave]);
+
+    const handleCanvasCardGenerate = useCallback(async () => {
+        setIsGeneratingText(true);
+        setError(null);
+        setSuccess(null);
+        try {
+            const currentNode = useStore.getState().nodes.find(n => n.id === nodeId);
+            const baseX = (currentNode?.position?.x ?? 100) + 380;
+            const baseY = currentNode?.position?.y ?? 100;
+
+            const cards = await generateCanvasCards(prompt, baseX, baseY);
+
+            cards.forEach((card) => {
+                addNode(
+                    'note',
+                    { x: card.x, y: card.y },
+                    {
+                        label: card.title,
+                        content: [{ id: crypto.randomUUID(), type: 'text', content: card.content }],
+                        color: card.color,
+                        viewMode: 'medium',
+                        icon: 'Sparkles',
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                    },
+                    { width: 208, height: 208 }
+                );
+            });
+
+            setSuccess(`Created ${cards.length} cards on canvas!`);
+            setTimeout(() => triggerCloudSave(), 200);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Canvas card generation failed');
+        } finally {
+            setIsGeneratingText(false);
+        }
+    }, [prompt, nodeId, addNode, triggerCloudSave]);
+
+    const handleGenerateText = useCallback(async () => {
+        if (!prompt.trim()) return;
+
+        // Check for multi-card generation intent first
+        const multiIntent = parseMultiCardIntent(prompt);
+        if (multiIntent) {
+            await handleMultiCardGenerate(multiIntent.count, multiIntent.topic);
+            return;
         }
 
-        setIsGeneratingText(false);
-    }, [prompt, nodeId, updateNodeData, triggerCloudSave]);
+        // Check for structured canvas card generation (e.g. "create 5 red cards about space")
+        const canvasMatch = prompt.match(/(?:create|make|generate)\s+\d+\s+(?:\w+\s+)?cards?\s+(?:about|on|for|containing)/i);
+        if (canvasMatch) {
+            await handleCanvasCardGenerate();
+            return;
+        }
+
+        // Standard single-card streaming text generation
+        setIsGeneratingText(true);
+        setError(null);
+        setSuccess(null);
+        setStreamingText('');
+        let fullText = '';
+        // Stable block ID for live updates during streaming
+        const streamBlockId = crypto.randomUUID();
+
+        try {
+            for await (const chunk of streamText(prompt)) {
+                fullText += chunk;
+                setStreamingText(fullText);
+                // Live-update the node content as text streams in
+                updateNodeData(nodeId, {
+                    content: [{ id: streamBlockId, type: 'text', content: fullText }],
+                    updatedAt: new Date().toISOString(),
+                });
+            }
+            setSuccess('Text generated!');
+            triggerCloudSave();
+        } catch {
+            // Fallback to non-streaming if stream fails
+            try {
+                const generatedText = await generateText(prompt);
+                const paragraphs = generatedText.split('\n').filter((p: string) => p.trim());
+                const newBlocks = paragraphs.map((line: string) => ({
+                    id: crypto.randomUUID(),
+                    type: line.startsWith('#') ? 'heading' : 'text',
+                    content: line.replace(/^#+\s*/, ''),
+                }));
+                updateNodeData(nodeId, {
+                    content: newBlocks,
+                    updatedAt: new Date().toISOString(),
+                });
+                setSuccess('Text generated successfully!');
+                setTimeout(() => triggerCloudSave(), 100);
+            } catch (fallbackErr) {
+                setError(fallbackErr instanceof Error ? fallbackErr.message : 'Text generation failed');
+            }
+        } finally {
+            setIsGeneratingText(false);
+            setStreamingText('');
+        }
+    }, [prompt, nodeId, updateNodeData, triggerCloudSave, handleMultiCardGenerate, handleCanvasCardGenerate]);
 
     const handleGenerateImage = useCallback(async () => {
         if (!prompt.trim()) return;
         setIsGeneratingImage(true);
         setError(null);
         setSuccess(null);
-
-        const result = generateImageUrl(prompt);
-
-        if (result.ok) {
-            updateNodeData(nodeId, {
-                coverImage: result.imageUrl,
-                updatedAt: new Date().toISOString(),
-            });
-
-            setSuccess('Image generated! Loading preview...');
+        try {
+            const imageUrl = await generateImage(prompt);
+            // Update node with the image URL
+            updateNodeData(nodeId, { coverImage: imageUrl });
+            setSuccess('Image generated successfully!');
             // Trigger cloud save
             setTimeout(() => triggerCloudSave(), 100);
-        } else {
-            setError(result.error);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Image generation failed');
+        } finally {
+            setIsGeneratingImage(false);
         }
-
-        setIsGeneratingImage(false);
     }, [prompt, nodeId, updateNodeData, triggerCloudSave]);
 
     const isGenerating = isGeneratingText || isGeneratingImage;
@@ -160,7 +262,7 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
                 ref={inputRef}
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe what you want to generate..."
+                placeholder="Describe what to generate... or try 'create 5 cards about dogs'"
                 disabled={isGenerating}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {

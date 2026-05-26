@@ -54,7 +54,7 @@ async function ensureUserProfile(user: { id: string; email?: string; user_metada
                 email: user.email || '',
                 display_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User',
                 account_status: 'active',
-            }, { onConflict: 'id', ignoreDuplicates: true });
+            }, { onConflict: 'id', ignoreDuplicates: false });
 
         if (error) {
             console.warn('[AuthProvider] ensureUserProfile failed:', error.message);
@@ -217,7 +217,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             resetAuth();
             setUser(null);
             // Redirect back to the public homepage context.
-            setCurrentView('landing');
+            setCurrentView('marketing');
         };
 
         if (!isSupabaseConfigured || !supabase) {

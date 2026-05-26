@@ -140,7 +140,7 @@ function App() {
           </ReactFlowProvider>
         );
       default:
-        return <LandingPage />;
+        return isAuthenticated ? <LandingPage /> : <MarketingPage />;
     }
   };
 
