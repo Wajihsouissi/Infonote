@@ -8,7 +8,7 @@ import { MarketplacePage } from './features/marketplace/MarketplacePage';
 import { LoginPage } from './features/auth/LoginPage';
 import { SignupPage } from './features/auth/SignupPage';
 import { ProfilePage } from './features/auth/ProfilePage';
-import { AdminDashboard } from './features/admin/AdminDashboard';
+import AdminGate from './features/admin/AdminGate';
 import { WelcomeModal } from './features/auth/WelcomeModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useStore } from './store/useStore';
@@ -22,9 +22,9 @@ function App() {
   const showWelcomeModal = useStore((state) => state.showWelcomeModal);
   const setShowWelcomeModal = useStore((state) => state.setShowWelcomeModal);
 
-  // Auto-redirect authenticated users from login/signup views to landing/dashboard
+  // Auto-redirect authenticated users from login/signup/marketing views to landing/dashboard
   useEffect(() => {
-    if (!isAuthLoading && isAuthenticated && (currentView === 'login' || currentView === 'signup')) {
+    if (!isAuthLoading && isAuthenticated && (currentView === 'login' || currentView === 'signup' || currentView === 'marketing')) {
       setCurrentView('landing');
     }
   }, [isAuthLoading, isAuthenticated, currentView, setCurrentView]);
@@ -111,11 +111,6 @@ function App() {
   }
 
   const renderContent = () => {
-    // If we're on the /website native URL path, override and show the marketing page
-    if (typeof window !== 'undefined' && window.location.pathname === '/website') {
-      return <MarketingPage />;
-    }
-
     switch (currentView) {
       case 'landing':
         return <LandingPage />;
@@ -125,10 +120,12 @@ function App() {
         return <LoginPage />;
       case 'signup':
         return <SignupPage />;
-      case 'admin':
-        return <AdminDashboard />;
+      case 'ctrl-vault-9x7k':
+        return <AdminGate />;
       case 'profile':
         return <ProfilePage />;
+      case 'marketing':
+        return <MarketingPage />;
       case 'canvas':
         return (
           <ReactFlowProvider>

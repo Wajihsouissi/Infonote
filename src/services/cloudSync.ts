@@ -28,6 +28,14 @@ export type CloudLoadResult =
     | { ok: true; nodes: AppNode[]; edges: Edge[] }
     | { ok: false; error: string };
 
+/**
+ * Module-level mutex to prevent concurrent saves from racing.
+ * When one save is in progress, subsequent calls wait for it to finish
+ * before starting their own operation — this eliminates the 409 conflict
+ * error caused by overlapping upsert batches hitting the same PK rows.
+ */
+let _saveLock: Promise<CloudSyncResult> | null = null;
+
 /** Lightweight metadata used to render the "Reload Saved Data" picker. */
 export interface CloudPageSummary {
     /** Node id of the root-level page (parent_id IS NULL). */
@@ -279,6 +287,31 @@ export async function saveCanvasToCloud(
     nodes: AppNode[],
     edges: Edge[],
 ): Promise<CloudSyncResult> {
+    // Serialize saves: if a save is already in flight, wait for it first.
+    // This prevents two concurrent upserts from hitting PostgreSQL with
+    // overlapping (user_id, id) pairs that trigger 409 conflicts.
+    if (_saveLock) {
+        await _saveLock.catch(() => {}); // ignore errors from the prior save
+    }
+
+    const promise = _saveCanvasToCloudImpl(userId, nodes, edges);
+    _saveLock = promise;
+
+    try {
+        return await promise;
+    } finally {
+        // Only clear the lock if it's still pointing to OUR promise.
+        if (_saveLock === promise) {
+            _saveLock = null;
+        }
+    }
+}
+
+async function _saveCanvasToCloudImpl(
+    userId: string | null,
+    nodes: AppNode[],
+    edges: Edge[],
+): Promise<CloudSyncResult> {
     try {
         const uid = ensureReady(userId);
 
@@ -369,6 +402,13 @@ export async function saveCanvasToCloud(
                 if (error) throw error;
             }
         });
+
+        // Update user's last_active_at for inactivity tracking
+        supabase
+            .from('user_profiles')
+            .update({ last_active_at: new Date().toISOString() })
+            .eq('id', uid)
+            .then(() => {}); // fire-and-forget, don't block save
 
         return { ok: true, counts: { nodes: nodeRows.length, edges: edgeRows.length } };
     } catch (err) {

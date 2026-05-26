@@ -39,6 +39,54 @@ async function fetchProfileRow(userId: string): Promise<ProfileRow | null> {
     }
 }
 
+/**
+ * Ensure the authenticated user has at least one workspace.
+ * Creates a default "My Workspace" if none exists, and persists the ID to localStorage.
+ */
+async function ensureWorkspace(userId: string): Promise<void> {
+    try {
+        const storageKey = 'chnk it.activeWorkspaceId';
+        // Check if we already have a cached workspace ID
+        const cached = localStorage.getItem(storageKey);
+        if (cached) return;
+
+        // Query existing workspaces
+        const { data, error } = await supabase
+            .from('workspaces')
+            .select('id')
+            .eq('owner_id', userId)
+            .limit(1);
+
+        if (error) {
+            console.warn('[workspace] Failed to query workspaces:', error.message);
+            return;
+        }
+
+        if (data && data.length > 0) {
+            localStorage.setItem(storageKey, data[0].id);
+            return;
+        }
+
+        // No workspace exists — create one
+        const { data: created, error: insertErr } = await supabase
+            .from('workspaces')
+            .insert({ owner_id: userId, name: 'My Workspace' })
+            .select('id')
+            .single();
+
+        if (insertErr) {
+            console.warn('[workspace] Failed to create workspace:', insertErr.message);
+            return;
+        }
+
+        if (created) {
+            localStorage.setItem(storageKey, created.id);
+        }
+    } catch (err) {
+        console.warn('[workspace] Provisioning error:', err);
+    }
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState<boolean>(isSupabaseConfigured);
@@ -100,6 +148,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const sessionUser = data.session?.user ?? null;
             setUser(sessionUser);
             await pushToStore(sessionUser);
+            if (sessionUser) {
+                void ensureWorkspace(sessionUser.id);
+            }
             setLoading(false);
         }).catch(() => {
             if (!cancelled) {
@@ -114,6 +165,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(nextUser);
                 // fire-and-forget; pushToStore handles its own errors via try/catch
                 void pushToStore(nextUser);
+                if (nextUser) {
+                    void ensureWorkspace(nextUser.id);
+                }
             }
         );
 

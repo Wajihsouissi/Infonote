@@ -25,6 +25,7 @@ type AdminUser = {
     display_name: string | null;
     created_at: string;
     account_status: string;
+    last_active_at: string | null;
 };
 
 type Metric = { metric: string; value: number };
@@ -42,6 +43,7 @@ export const AdminDashboard: React.FC = () => {
     const [, setLoadingMetrics] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [showInactiveOnly, setShowInactiveOnly] = useState(false);
 
     const isAuthenticated = auth.isAuthenticated;
 
@@ -112,6 +114,16 @@ export const AdminDashboard: React.FC = () => {
     const totalVisits = metrics.find((m) => m.metric === 'total_visits')?.value ?? 0;
     const uniqueVisitors = metrics.find((m) => m.metric === 'unique_visitors')?.value ?? 0;
     const todayVisits = metrics.find((m) => m.metric === 'today_visits')?.value ?? 0;
+
+    const filteredUsers = useMemo(() => {
+        if (!showInactiveOnly) return users;
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        return users.filter(u => {
+            if (!u.last_active_at) return true; // Never active = inactive
+            return new Date(u.last_active_at) < thirtyDaysAgo;
+        });
+    }, [users, showInactiveOnly]);
 
     const maxDailyVisits = useMemo(() => {
         if (!dailyTraffic.length) return 1;
@@ -206,6 +218,25 @@ export const AdminDashboard: React.FC = () => {
                         {loadingUsers && <Loader2 size={14} className={styles.spinner} />}
                     </div>
 
+                    <div style={{ marginBottom: 12 }}>
+                        <button
+                            onClick={() => setShowInactiveOnly(v => !v)}
+                            style={{
+                                padding: '8px 16px',
+                                borderRadius: '8px',
+                                border: showInactiveOnly ? '1px solid #f87171' : '1px solid rgba(255,255,255,0.1)',
+                                background: showInactiveOnly ? 'rgba(248,113,113,0.15)' : 'rgba(255,255,255,0.05)',
+                                color: showInactiveOnly ? '#f87171' : 'rgba(255,255,255,0.7)',
+                                fontSize: '13px',
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s',
+                            }}
+                        >
+                            {showInactiveOnly ? `Showing Inactive (${filteredUsers.length})` : 'Show Inactive (30+ days)'}
+                        </button>
+                    </div>
+
                     <div className={styles.tableWrap}>
                         <table className={styles.table}>
                             <thead>
@@ -214,19 +245,20 @@ export const AdminDashboard: React.FC = () => {
                                     <th>Email</th>
                                     <th>Display Name</th>
                                     <th>Created</th>
+                                    <th>Last Active</th>
                                     <th>Status</th>
                                     <th style={{ textAlign: 'right' }}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {users.length === 0 && !loadingUsers ? (
+                                {filteredUsers.length === 0 && !loadingUsers ? (
                                     <tr>
-                                        <td colSpan={6} className={styles.emptyState}>
-                                            No registered users found.
+                                        <td colSpan={7} className={styles.emptyState}>
+                                            {showInactiveOnly ? 'No inactive users found.' : 'No registered users found.'}
                                         </td>
                                     </tr>
                                 ) : (
-                                    users.map((u) => (
+                                    filteredUsers.map((u) => (
                                         <tr key={u.id}>
                                             <td className={styles.idCell} title={u.id}>
                                                 {u.id}
@@ -234,6 +266,7 @@ export const AdminDashboard: React.FC = () => {
                                             <td>{u.email}</td>
                                             <td>{u.display_name || '—'}</td>
                                             <td>{new Date(u.created_at).toLocaleDateString()}</td>
+                                            <td>{u.last_active_at ? new Date(u.last_active_at).toLocaleDateString() : 'Never'}</td>
                                             <td>
                                                 <span
                                                     className={`${styles.statusBadge} ${

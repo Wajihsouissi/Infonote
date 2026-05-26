@@ -7,7 +7,7 @@
  * resets the store and redirects to the public landing context.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LogOut, User as UserIcon, Layout, Shield } from 'lucide-react';
+import { LogOut, User as UserIcon, Layout } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { useAuth } from './useAuth';
 import styles from './ProfileMenu.module.css';
@@ -64,6 +64,8 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
     const handleSignOut = useCallback(async () => {
         setOpen(false);
         await signOut();
+        // Safety fallback: ensure view resets to login even if AuthProvider's redirect doesn't fire
+        useStore.getState().setCurrentView('login');
     }, [signOut]);
 
     if (!auth.isAuthenticated) return null;
@@ -101,42 +103,36 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
                         type="button"
                         role="menuitem"
                         className={styles.menuItem}
-                        onClick={() => {
+                        onClick={(e) => {
+                            e.stopPropagation();
                             setOpen(false);
-                            useStore.getState().setCurrentView('profile');
+                            queueMicrotask(() => {
+                                useStore.getState().setCurrentView('profile');
+                            });
                         }}
                     >
                         <UserIcon size={15} />
                         <span>Profile</span>
                     </button>
 
-                    <button
-                        type="button"
-                        role="menuitem"
-                        className={styles.menuItem}
-                        onClick={() => {
-                            setOpen(false);
-                            useStore.getState().setCurrentView('admin');
-                        }}
-                    >
-                        <Shield size={15} />
-                        <span>Admin</span>
-                    </button>
 
                     <button
                         type="button"
                         role="menuitem"
                         className={styles.menuItem}
-                        onClick={() => {
+                        onClick={(e) => {
+                            e.stopPropagation();
                             setOpen(false);
-                            // Prefer the parent-supplied handler (e.g. for any
-                            // pre-navigation cleanup) but always fall back to a
-                            // direct view switch so the button is never inert.
-                            if (onOpenCanvas) {
-                                onOpenCanvas();
-                            } else {
-                                useStore.getState().setCurrentView('canvas');
-                            }
+                            queueMicrotask(() => {
+                                // Prefer the parent-supplied handler (e.g. for any
+                                // pre-navigation cleanup) but always fall back to a
+                                // direct view switch so the button is never inert.
+                                if (onOpenCanvas) {
+                                    onOpenCanvas();
+                                } else {
+                                    useStore.getState().setCurrentView('canvas');
+                                }
+                            });
                         }}
                     >
                         <Layout size={15} />
@@ -147,7 +143,10 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
                         type="button"
                         role="menuitem"
                         className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                        onClick={handleSignOut}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleSignOut();
+                        }}
                     >
                         <LogOut size={15} />
                         <span>Deconnexion</span>

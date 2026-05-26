@@ -349,6 +349,7 @@ export const MarketingPage: React.FC = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState([] as any[]);
   const [drilledNode, setDrilledNode] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const setCurrentView = useStore((state) => state.setCurrentView);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -462,7 +463,10 @@ export const MarketingPage: React.FC = () => {
           <a className={styles.navLink}>Resources</a>
         </div>
         <div className={styles.navActions}>
-          <button className={styles.navButton}>
+          <button className={styles.navLink} onClick={() => setCurrentView('login')} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+            Log In
+          </button>
+          <button className={styles.navButton} onClick={() => setCurrentView('signup')}>
             <span>Get Started Free</span>
             <ArrowRight size={16} className={styles.navButtonIcon} />
           </button>

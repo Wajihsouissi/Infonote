@@ -58,7 +58,11 @@ export function useRecentlyViewed(workspaceId?: string) {
 
   const trackNoteView = useCallback(async (nodeId: string, nodeTitle: string, nodeType: string, activeWorkspaceId: string) => {
     if (!user) return;
-    
+    if (!activeWorkspaceId) {
+      console.warn('[recentlyViewed] No workspace ID available, skipping tracking');
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('recently_viewed_notes')

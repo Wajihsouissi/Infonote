@@ -13,7 +13,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
         dropTarget: null
     },
     theme: (localStorage.getItem('chnk-it-theme') as 'light' | 'dark') || 'dark',
-    currentView: 'login',
+    currentView: 'marketing',
     hasEnteredApp: false,
     selectedCanvasNodeIds: new Set<string>(),
     selectedEdgeId: null,

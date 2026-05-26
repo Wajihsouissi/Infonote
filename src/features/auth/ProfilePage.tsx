@@ -7,7 +7,7 @@
  * local store. No mock data — every value here comes from auth.users /
  * user_metadata that Supabase returned on sign-in.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import {
     ArrowLeft,
     LogOut,
@@ -19,9 +19,14 @@ import {
     Database,
     FileText,
     Loader2,
+    Save,
+    CheckCircle,
+    AlertCircle,
+    Pencil,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { useAuth } from './useAuth';
+import { supabase } from '../../services/supabase/client';
 import {
     connectNotion,
     importNotionPage,
@@ -41,12 +46,80 @@ function deriveInitials(name: string | null, email: string | null): string {
 export const ProfilePage: React.FC = () => {
     const auth = useStore((s) => s.auth);
     const setCurrentView = useStore((s) => s.setCurrentView);
+    const setAuthUser = useStore((s) => s.setAuthUser);
     const { signOut } = useAuth();
 
     const initials = useMemo(
         () => deriveInitials(auth.displayName, auth.email),
         [auth.displayName, auth.email],
     );
+
+    // ─── Editable Profile Fields ───────────────────────────────────────
+    const [displayName, setDisplayName] = useState(auth.displayName || '');
+    const [workspaceName, setWorkspaceName] = useState('');
+    const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
+    const [profileFeedback, setProfileFeedback] = useState<
+        { kind: 'success' | 'error'; text: string } | null
+    >(null);
+
+    // Load workspace name from Supabase on mount
+    useEffect(() => {
+        const wsId = localStorage.getItem('chnk it.activeWorkspaceId');
+        if (!wsId) return;
+        setWorkspaceId(wsId);
+        (async () => {
+            const { data, error } = await supabase
+                .from('workspaces')
+                .select('name')
+                .eq('id', wsId)
+                .single();
+            if (!error && data) {
+                setWorkspaceName(data.name || '');
+            }
+        })();
+    }, []);
+
+    // Sync display name from store if it changes externally
+    useEffect(() => {
+        setDisplayName(auth.displayName || '');
+    }, [auth.displayName]);
+
+    const handleSaveProfile = useCallback(async () => {
+        if (!auth.userId) return;
+        setSaving(true);
+        setProfileFeedback(null);
+        try {
+            // Save display name
+            const { error: nameError } = await supabase
+                .from('user_profiles')
+                .update({ display_name: displayName.trim() })
+                .eq('id', auth.userId);
+            if (nameError) throw new Error(`Display name: ${nameError.message}`);
+
+            // Save workspace name if we have a workspace
+            if (workspaceId && workspaceName.trim()) {
+                const { error: wsError } = await supabase
+                    .from('workspaces')
+                    .update({ name: workspaceName.trim() })
+                    .eq('id', workspaceId);
+                if (wsError) throw new Error(`Workspace name: ${wsError.message}`);
+            }
+
+            // Update Zustand auth store with new display name
+            setAuthUser({
+                id: auth.userId,
+                email: auth.email ?? null,
+                displayName: displayName.trim(),
+            });
+
+            setProfileFeedback({ kind: 'success', text: 'Profile updated successfully.' });
+        } catch (err: any) {
+            setProfileFeedback({ kind: 'error', text: err.message || 'Failed to save changes.' });
+        } finally {
+            setSaving(false);
+        }
+    }, [auth.userId, auth.email, displayName, workspaceId, workspaceName, setAuthUser]);
 
     // Notion integration state — lives only on this screen, no need to
     // pollute the global store. The token is held in component memory only;
@@ -213,18 +286,104 @@ export const ProfilePage: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Profile Settings — editable fields */}
+                <div style={card}>
+                    <h2 style={sectionTitle}>
+                        <Pencil size={14} style={{ marginRight: 8, opacity: 0.7 }} />
+                        Profile Settings
+                    </h2>
+
+                    <div style={{ marginBottom: 16 }}>
+                        <label style={editableLabel}>Display Name</label>
+                        <input
+                            type="text"
+                            value={displayName}
+                            onChange={(e) => setDisplayName(e.target.value)}
+                            placeholder="Enter your display name"
+                            style={inputStyle}
+                        />
+                    </div>
+
+                    <div style={{ marginBottom: 16 }}>
+                        <label style={editableLabel}>Workspace Name</label>
+                        <input
+                            type="text"
+                            value={workspaceName}
+                            onChange={(e) => setWorkspaceName(e.target.value)}
+                            placeholder={workspaceId ? 'Enter workspace name' : 'No workspace linked'}
+                            disabled={!workspaceId}
+                            style={{ ...inputStyle, opacity: workspaceId ? 1 : 0.5 }}
+                        />
+                        {!workspaceId && (
+                            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 4, marginBottom: 0 }}>
+                                No active workspace found in local storage.
+                            </p>
+                        )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                        <div style={{ ...fieldBox, flex: 1 }}>
+                            <div style={fieldLabel}><Mail size={12} /><span>Email</span></div>
+                            <div style={fieldValue}>{auth.email || '—'}</div>
+                        </div>
+                        <div style={{ ...fieldBox, flex: 1 }}>
+                            <div style={fieldLabel}><BadgeCheck size={12} /><span>User ID</span></div>
+                            <div style={{ ...fieldValue, fontFamily: '"JetBrains Mono", monospace', fontSize: 12 }}>
+                                {auth.userId || '—'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={handleSaveProfile}
+                        disabled={saving}
+                        style={{
+                            ...btnRow,
+                            marginTop: 8,
+                            background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                            justifyContent: 'center',
+                            border: 'none',
+                            opacity: saving ? 0.7 : 1,
+                            boxShadow: '0 6px 20px rgba(99,102,241,0.3)',
+                        }}
+                    >
+                        {saving ? (
+                            <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                            <Save size={16} />
+                        )}
+                        <span>{saving ? 'Saving…' : 'Save Changes'}</span>
+                    </button>
+
+                    {profileFeedback && (
+                        <div
+                            style={{
+                                marginTop: 12,
+                                padding: '10px 14px',
+                                borderRadius: 8,
+                                fontSize: 13,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                background:
+                                    profileFeedback.kind === 'success'
+                                        ? 'rgba(34,197,94,0.1)'
+                                        : 'rgba(239,68,68,0.1)',
+                                color: profileFeedback.kind === 'success' ? '#22c55e' : '#ef4444',
+                                border: `1px solid ${profileFeedback.kind === 'success' ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)'}`,
+                            }}
+                        >
+                            {profileFeedback.kind === 'success' ? <CheckCircle size={15} /> : <AlertCircle size={15} />}
+                            {profileFeedback.text}
+                        </div>
+                    )}
+                </div>
+
                 {/* Account actions */}
                 <div style={card}>
                     <h2 style={sectionTitle}>Account actions</h2>
-                    <button
-                        type="button"
-                        onClick={() => setCurrentView('admin')}
-                        style={{ ...btnRow }}
-                    >
-                        <Shield size={16} />
-                        <span style={{ flex: 1, textAlign: 'left' }}>Open Admin Dashboard</span>
-                        <span style={{ opacity: 0.5, fontSize: 12 }}>›</span>
-                    </button>
+
                     <button
                         type="button"
                         onClick={() => setCurrentView('marketplace')}
@@ -530,6 +689,16 @@ const modeButtonActive: React.CSSProperties = {
     background: 'rgba(99,102,241,0.18)',
     border: '1px solid rgba(99,102,241,0.45)',
     color: '#fff',
+};
+
+const editableLabel: React.CSSProperties = {
+    display: 'block',
+    fontSize: 12,
+    fontWeight: 600,
+    color: 'rgba(255,255,255,0.6)',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
 };
 
 /** Inline Notion glyph — stays scoped to ProfilePage to avoid icon-set bloat. */

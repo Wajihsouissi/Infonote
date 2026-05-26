@@ -1,6 +1,6 @@
 import { memo, useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
-import { Scan, PanelRight, PanelLeft, Monitor } from 'lucide-react';
+import { Scan, PanelRight, PanelLeft, Monitor, Sparkles } from 'lucide-react';
 import styles from './NoteCard.module.css';
 import type { NoteNode } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -9,6 +9,7 @@ import { defaultIconName, CardIcon } from './iconMap';
 import { NoteExpandedContent } from './NoteExpandedContent';
 
 import { CoverPicker } from './CoverPicker';
+import { AIGeneratePanel } from './AIGeneratePanel';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { calculateNoteLayout } from '../../config/layout';
 import { toPastelColor, darkenColor } from '../../utils/colorUtils';
@@ -90,6 +91,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     // Editing state
     const [isEditingMetadata, setIsEditingMetadata] = useState(false);
     const [showCoverPicker, setShowCoverPicker] = useState(false);
+    const [showAIPanel, setShowAIPanel] = useState(false);
     // Metadata visibility state for Expanded view is now derived from data.showMetadata
 
 
@@ -415,6 +417,16 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             {/* Floating Hover Menu - Hide in Chromeless mode or when specifically requested */}
             {!data.hideHoverMenu && (
                 <div className={styles.hoverMenu}>
+                    <button
+                        className={styles.menuBtn}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setShowAIPanel(v => !v);
+                        }}
+                        title="Generate with AI"
+                    >
+                        <Sparkles size={16} />
+                    </button>
                     <button className={styles.menuBtn} onClick={handleLeftSidePeak} title="Side Panel (Left)">
                         <PanelLeft size={16} />
                     </button>
@@ -428,6 +440,12 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                         <PanelRight size={16} />
                     </button>
                 </div>
+            )}
+            {showAIPanel && (
+                <AIGeneratePanel
+                    nodeId={id}
+                    onClose={() => setShowAIPanel(false)}
+                />
             )}
 
             <Handle 

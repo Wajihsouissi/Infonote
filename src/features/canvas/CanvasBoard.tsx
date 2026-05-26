@@ -803,10 +803,11 @@ export function CanvasBoard() {
     const activeWorkspaceId = typeof window !== 'undefined' 
         ? localStorage.getItem('chnk it.activeWorkspaceId') || '' 
         : '';
-    const { trackNoteView } = useRecentlyViewed(activeWorkspaceId);
+    const { trackNoteView } = useRecentlyViewed(activeWorkspaceId || undefined);
 
     useEffect(() => {
-        if (currentParentId && activeParentNode && activeWorkspaceId) {
+        if (!activeWorkspaceId) return; // workspace not yet provisioned
+        if (currentParentId && activeParentNode) {
             const data = activeParentNode.data as Record<string, any>;
             trackNoteView(
                 activeParentNode.id, 
@@ -814,8 +815,18 @@ export function CanvasBoard() {
                 activeParentNode.type || 'unknown', 
                 activeWorkspaceId
             );
+        } else if (nodes.length > 0) {
+            // Track a general canvas visit with the first node as representative
+            const firstNode = nodes[0];
+            const data = firstNode.data as Record<string, any>;
+            trackNoteView(
+                firstNode.id,
+                (data?.title as string) || 'Canvas',
+                firstNode.type || 'canvas',
+                activeWorkspaceId
+            );
         }
-    }, [currentParentId, activeParentNode, activeWorkspaceId, trackNoteView]);
+    }, [currentParentId, activeParentNode, activeWorkspaceId, trackNoteView, nodes]);
 
     // Drop handlers
     const { onDragOver, onDrop } = useCanvasDrop({
