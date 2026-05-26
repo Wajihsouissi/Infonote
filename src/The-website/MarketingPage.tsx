@@ -350,6 +350,7 @@ export const MarketingPage: React.FC = () => {
   const [activeAccordion, setActiveAccordion] = useState(0);
   const [activeStep, setActiveStep] = useState(0);
   const stepRefs = useRef<(HTMLDivElement | null)[]>([null, null, null]);
+  const setCurrentView = useStore((state) => state.setCurrentView);
 
   // Intersection observer to track which step visual is currently in view
   useEffect(() => {
@@ -759,7 +760,10 @@ export const MarketingPage: React.FC = () => {
           <a className={styles.navLink}>Resources</a>
         </div>
         <div className={styles.navActions}>
-          <button className={styles.navButton}>
+          <button className={styles.navLink} onClick={() => setCurrentView('login')} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+            Log In
+          </button>
+          <button className={styles.navButton} onClick={() => setCurrentView('signup')}>
             <span>Get Started Free</span>
             <ArrowRight size={16} className={styles.navButtonIcon} />
           </button>

@@ -160,7 +160,7 @@ export const LandingPage: React.FC = () => {
             </div>
             <span>{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
           </button>
-          <button className={styles.settingsButton} onClick={() => setIsMobileMenuOpen(false)}>
+          <button className={styles.settingsButton} onClick={() => { setCurrentView('profile'); setIsMobileMenuOpen(false); }}>
             <Settings size={18} />
             <span>Settings</span>
           </button>

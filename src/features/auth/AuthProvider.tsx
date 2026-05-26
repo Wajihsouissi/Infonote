@@ -39,6 +39,79 @@ async function fetchProfileRow(userId: string): Promise<ProfileRow | null> {
     }
 }
 
+/**
+ * Ensure a `user_profiles` row exists for the authenticated user.
+ * The DB trigger on auth.users normally handles this, but race conditions
+ * or external sign-up flows may skip it — so we upsert defensively here.
+ */
+async function ensureUserProfile(user: { id: string; email?: string; user_metadata?: any }): Promise<void> {
+    if (!isSupabaseConfigured) return;
+    try {
+        const { error } = await supabase
+            .from('user_profiles')
+            .upsert({
+                id: user.id,
+                email: user.email || '',
+                display_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+                account_status: 'active',
+            }, { onConflict: 'id', ignoreDuplicates: false });
+
+        if (error) {
+            console.warn('[AuthProvider] ensureUserProfile failed:', error.message);
+        }
+    } catch (err) {
+        console.warn('[AuthProvider] ensureUserProfile error:', err);
+    }
+}
+
+/**
+ * Ensure the authenticated user has at least one workspace.
+ * Creates a default "My Workspace" if none exists, and persists the ID to localStorage.
+ */
+async function ensureWorkspace(userId: string): Promise<void> {
+    try {
+        const storageKey = 'chnk it.activeWorkspaceId';
+        // Check if we already have a cached workspace ID
+        const cached = localStorage.getItem(storageKey);
+        if (cached) return;
+
+        // Query existing workspaces
+        const { data, error } = await supabase
+            .from('workspaces')
+            .select('id')
+            .eq('owner_id', userId)
+            .limit(1);
+
+        if (error) {
+            console.warn('[workspace] Failed to query workspaces:', error.message);
+            return;
+        }
+
+        if (data && data.length > 0) {
+            localStorage.setItem(storageKey, data[0].id);
+            return;
+        }
+
+        // No workspace exists — create one
+        const { data: created, error: insertErr } = await supabase
+            .from('workspaces')
+            .insert({ owner_id: userId, name: 'My Workspace' })
+            .select('id')
+            .single();
+
+        if (insertErr) {
+            console.warn('[workspace] Failed to create workspace:', insertErr.message);
+            return;
+        }
+
+        if (created) {
+            localStorage.setItem(storageKey, created.id);
+        }
+    } catch (err) {
+        console.warn('[workspace] Provisioning error:', err);
+    }
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState<boolean>(isSupabaseConfigured);
@@ -100,6 +173,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const sessionUser = data.session?.user ?? null;
             setUser(sessionUser);
             await pushToStore(sessionUser);
+            if (sessionUser) {
+                void ensureUserProfile(sessionUser).then(() => ensureWorkspace(sessionUser.id));
+            }
             setLoading(false);
         }).catch(() => {
             if (!cancelled) {
@@ -114,6 +190,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(nextUser);
                 // fire-and-forget; pushToStore handles its own errors via try/catch
                 void pushToStore(nextUser);
+                if (nextUser) {
+                    void ensureUserProfile(nextUser).then(() => ensureWorkspace(nextUser.id));
+                }
             }
         );
 
@@ -138,7 +217,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             resetAuth();
             setUser(null);
             // Redirect back to the public homepage context.
-            setCurrentView('landing');
+            setCurrentView('marketing');
         };
 
         if (!isSupabaseConfigured || !supabase) {
