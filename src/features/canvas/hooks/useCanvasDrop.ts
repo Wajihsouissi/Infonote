@@ -141,7 +141,7 @@ export function useCanvasDrop({
                 if (targetNode.type === 'block') {
                     useStore.getState().updateNode(targetNode.id, {
                         type: 'fused-note' as const,
-                        style: { ...targetNode.style, height: undefined }
+                        style: { ...targetNode.style, width: MIN_FUSED_SIZE, height: 208 }
                     });
                 }
 
@@ -202,7 +202,7 @@ export function useCanvasDrop({
                     },
                     style: {
                         width: BLOCK_WIDTH,
-                        height: blocksToAdd.length > 1 ? undefined : BLOCK_HEIGHT
+                        height: blocksToAdd.length > 1 ? 208 : BLOCK_HEIGHT
                     },
                     parentId: targetParentId,
                 };

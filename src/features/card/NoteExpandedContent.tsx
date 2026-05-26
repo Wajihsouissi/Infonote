@@ -325,6 +325,11 @@ export function NoteExpandedContent({
                 onMouseDown={(e) => {
                     e.stopPropagation();
                 }}
+                onClick={(e) => {
+                    if (e.target === e.currentTarget && nodeId) {
+                        window.dispatchEvent(new CustomEvent('chnk-it-editor-bg-click', { detail: { nodeId } }));
+                    }
+                }}
                 ref={contentRef}
                 onDrop={handleAreaDrop}
                 onDragOver={(e) => {

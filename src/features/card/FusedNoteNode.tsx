@@ -412,6 +412,11 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 onMouseDown={(e) => {
                     e.stopPropagation();
                 }}
+                onClick={(e) => {
+                    if (e.target === e.currentTarget) {
+                        window.dispatchEvent(new CustomEvent('chnk-it-editor-bg-click', { detail: { nodeId: id } }));
+                    }
+                }}
                 style={contentStyle}
             >
                 <BlockEditor

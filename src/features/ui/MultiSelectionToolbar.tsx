@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import {
     Trash2, Copy, Palette, Layers, X, ArrowUpRight, ArrowRight, GitBranch,
-    Grid3x3, CircleDot, ArrowRightLeft, Columns2, Rows2,
+    Grid3x3, CircleDot, ArrowRightLeft, Columns2, Rows2, Network,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { Tooltip } from './Tooltip';
@@ -21,7 +21,6 @@ export function MultiSelectionToolbar() {
     const isLinkingMode = useStore(s => s.isLinkingMode);
     const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
     const [showColorPicker, setShowColorPicker] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showLayoutPopover, setShowLayoutPopover] = useState(false);
     const colorPickerRef = useRef<HTMLDivElement>(null);
     const layoutPopoverRef = useRef<HTMLDivElement>(null);
@@ -92,21 +91,9 @@ export function MultiSelectionToolbar() {
     // Get bulk action handlers from store
     const handleBulkDelete = useCallback(() => {
         console.log('[MultiSelectionToolbar] Delete clicked, selected:', Array.from(selectedCanvasNodeIds));
-        setShowDeleteConfirm(true);
-    }, [selectedCanvasNodeIds]);
-
-    const confirmDelete = useCallback(() => {
-        console.log('[MultiSelectionToolbar] Delete confirmed, calling bulkDeleteNodes with IDs:', Array.from(selectedCanvasNodeIds));
         bulkDeleteNodes(Array.from(selectedCanvasNodeIds));
         clearSelectionFully();
-        setShowDeleteConfirm(false);
-        console.log('[MultiSelectionToolbar] Delete completed, selection cleared');
     }, [selectedCanvasNodeIds, bulkDeleteNodes, clearSelectionFully]);
-
-    const cancelDelete = useCallback(() => {
-        console.log('[MultiSelectionToolbar] Delete cancelled by user');
-        setShowDeleteConfirm(false);
-    }, []);
 
     const handleBulkDuplicate = useCallback(() => {
         console.log('[MultiSelectionToolbar] Duplicate clicked, selected:', Array.from(selectedCanvasNodeIds));
@@ -142,7 +129,7 @@ export function MultiSelectionToolbar() {
         selectConnectedCanvasNodes(selectedId);
     }, [selectedCanvasNodeIds, selectConnectedCanvasNodes]);
 
-    const handleArrange = useCallback((mode: 'grid' | 'circle' | 'flow' | 'horizontal-row' | 'vertical-column') => {
+    const handleArrange = useCallback((mode: 'grid' | 'circle' | 'flow' | 'horizontal-row' | 'vertical-column' | 'mindmap-horizontal' | 'mindmap-vertical') => {
         arrangeNodes(Array.from(selectedCanvasNodeIds), mode);
         setShowLayoutPopover(false);
     }, [selectedCanvasNodeIds, arrangeNodes]);
@@ -153,6 +140,8 @@ export function MultiSelectionToolbar() {
         { mode: 'flow', label: 'Flow', desc: 'Left-to-right reading order', icon: <ArrowRightLeft size={18} /> },
         { mode: 'horizontal-row', label: 'Horizontal Row', desc: 'Evenly spaced in a single row', icon: <Columns2 size={18} /> },
         { mode: 'vertical-column', label: 'Vertical Column', desc: 'Evenly spaced in a single column', icon: <Rows2 size={18} /> },
+        { mode: 'mindmap-horizontal', label: 'Mindmap (Horz)', desc: 'Horizontal tree structure', icon: <GitBranch size={18} /> },
+        { mode: 'mindmap-vertical', label: 'Mindmap (Vert)', desc: 'Vertical tree structure', icon: <Network size={18} /> },
     ] as const;
 
     const colors = [
@@ -183,29 +172,6 @@ export function MultiSelectionToolbar() {
                         <button
                             className={styles.actionBtn}
                             onClick={() => setIsLinkingMode(false)}
-                        >
-                            <X size={16} />
-                            <span>Cancel</span>
-                        </button>
-                    </div>
-                </div>
-            ) : showDeleteConfirm ? (
-                // Delete Confirmation UI
-                <div className={styles.confirmContainer}>
-                    <span className={styles.confirmText}>
-                        Delete {selectedCount} item{selectedCount > 1 ? 's' : ''}?
-                    </span>
-                    <div className={styles.confirmActions}>
-                        <button
-                            className={`${styles.actionBtn} ${styles.delete}`}
-                            onClick={confirmDelete}
-                        >
-                            <Trash2 size={16} />
-                            <span>Confirm</span>
-                        </button>
-                        <button
-                            className={styles.actionBtn}
-                            onClick={cancelDelete}
                         >
                             <X size={16} />
                             <span>Cancel</span>

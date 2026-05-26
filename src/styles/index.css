@@ -496,10 +496,10 @@ body {
   }
 }
 
-/* Disable selection box pointer events during linking mode to allow clicking the nodes underneath */
-.react-flow.is-linking-mode .react-flow__nodesselection,
-.react-flow.is-linking-mode .react-flow__nodesselection-rect,
-.react-flow.is-linking-mode .react-flow__selection {
+/* Disable selection box pointer events to allow clicking the nodes underneath to deselect them */
+.react-flow .react-flow__nodesselection,
+.react-flow .react-flow__nodesselection-rect,
+.react-flow .react-flow__selection {
   pointer-events: none !important;
 }
 

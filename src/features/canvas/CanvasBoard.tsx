@@ -6,6 +6,7 @@ import {
     SelectionMode,
     useReactFlow,
     Panel,
+    Background,
 } from '@xyflow/react';
 import { NoteCard } from '../card/NoteCard';
 import { BlockNode } from '../block/BlockNode';
@@ -30,7 +31,7 @@ import { CanvasContextMenu } from './CanvasContextMenu';
 import { CloudSyncControls } from './CloudSyncControls';
 import { CenteredEdge } from './CenteredEdge';
 import { CustomConnectionLine } from './CustomConnectionLine';
-import { BASE_UNIT } from '../../config/layout';
+import { BASE_UNIT, GRID_GAP } from '../../config/layout';
 import { AuthModal } from '../auth/AuthModal';
 import { useStore } from '../../store/useStore';
 import { v4 as uuidv4 } from 'uuid';
@@ -202,7 +203,7 @@ export function CanvasBoard() {
     const addNode = useStore(s => s.addNode);
 
     // Focus viewport when parent changes
-    const { fitView, screenToFlowPosition, getViewport, setViewport } = useReactFlow();
+    const { fitView, screenToFlowPosition, getViewport, setViewport, setCenter } = useReactFlow();
 
     const keysPressed = useRef<{ [key: string]: boolean }>({});
     const animationFrameId = useRef<number | null>(null);
@@ -216,6 +217,21 @@ export function CanvasBoard() {
         setViewportRef.current = setViewport;
         screenToFlowPositionRef.current = screenToFlowPosition;
     }, [getViewport, setViewport, screenToFlowPosition]);
+
+    useEffect(() => {
+        const handlePanToNode = (e: Event) => {
+            const customEvent = e as CustomEvent<{ id: string }>;
+            const nodeId = customEvent.detail?.id;
+            if (!nodeId) return;
+            const node = useStore.getState().nodes.find(n => n.id === nodeId);
+            if (node) {
+                const zoom = getViewportRef.current().zoom;
+                setCenter(node.position.x + 150, node.position.y + 100, { zoom, duration: 400 });
+            }
+        };
+        window.addEventListener('panToNode', handlePanToNode);
+        return () => window.removeEventListener('panToNode', handlePanToNode);
+    }, [setCenter]);
 
     useEffect(() => {
         const zoomFactorPerFrame = 1.015;
@@ -300,7 +316,7 @@ export function CanvasBoard() {
                 if (selectedCanvasNodeIds.size >= 2) {
                     setIsLinkingMode(!isLinkingMode);
                 }
-            } else if (e.key === 'd') {
+            } else if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
                 e.preventDefault();
                 if (selectedCanvasNodeIds.size > 0) {
                     bulkDuplicateNodes(Array.from(selectedCanvasNodeIds));
@@ -637,7 +653,8 @@ export function CanvasBoard() {
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     const el = document.querySelector(`#block-${newBlock.id} [contenteditable="true"]`) as HTMLElement | null;
-                    el?.focus();
+                    el?.focus({ preventScroll: true });
+                    window.dispatchEvent(new CustomEvent('panToNode', { detail: { id: nodeId } }));
                 });
             });
         };
@@ -946,8 +963,9 @@ export function CanvasBoard() {
                             const nextIds = useStore.getState().selectedCanvasNodeIds;
                             applySelectedIdsToNodes(nextIds);
                         } else {
-                            const currentIds = useStore.getState().selectedCanvasNodeIds;
-                            applySelectedIdsToNodes(currentIds);
+                            const nextIds = new Set([node.id]);
+                            setSelectedCanvasNodeIds(nextIds);
+                            applySelectedIdsToNodes(nextIds);
                         }
                     }}
                     onEdgeClick={(e, edge) => {
@@ -1006,8 +1024,20 @@ export function CanvasBoard() {
                     autoPanOnNodeDrag={false}
                     connectOnClick={false}
                     deleteKeyCode={['Delete', 'Backspace']}
+                    onNodesDelete={(deletedNodes) => {
+                        const ids = deletedNodes.map(n => n.id);
+                        if (ids.length > 0) {
+                            useStore.getState().bulkDeleteNodes(ids);
+                        }
+                    }}
+                    onEdgesDelete={(deletedEdges) => {
+                        deletedEdges.forEach(e => {
+                            useStore.getState().deleteEdge(e.id);
+                        });
+                    }}
                 >
                     <CanvasSlashMenu />
+                    <Background variant="dots" gap={BASE_UNIT} offset={-GRID_GAP / 2} size={1.5} color="var(--color-border)" style={{ opacity: 0.8 }} />
                     <Panel position="top-center">
                         <CloudSyncControls />
                     </Panel>

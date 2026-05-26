@@ -511,14 +511,26 @@ function handleFusionDrop(targetNode: any, node: any, event: React.MouseEvent, s
 
     const isStandalone = (node.data as any).isStandaloneBlock || (targetNode.data as any).isStandaloneBlock;
 
+    // Default fused note size: 8 units wide × 4 units tall (432×208)
+    const DEFAULT_FUSED_WIDTH = 432; // 8 * 56 - 16
+    const DEFAULT_FUSED_HEIGHT = 208; // 4 * 56 - 16
+
     setNodes((nds: AppNode[]) => {
         const filtered = nds.filter(n => n.id !== node.id);
         return filtered.map(n => {
             if (n.id === targetNode.id) {
+                // If target already is a fused-note with manual dimensions, keep them;
+                // otherwise apply the 8×4 default
+                const currentWidth = n.style?.width as number | undefined;
+                const currentHeight = n.style?.height as number | undefined;
+                const isAlreadyFused = n.type === 'fused-note';
+                const keepWidth = isAlreadyFused && typeof currentWidth === 'number' ? currentWidth : DEFAULT_FUSED_WIDTH;
+                const keepHeight = isAlreadyFused && typeof currentHeight === 'number' ? currentHeight : DEFAULT_FUSED_HEIGHT;
+
                 return {
                     ...n,
                     type: 'fused-note',
-                    style: { ...n.style, height: 'auto' },
+                    style: { ...n.style, width: keepWidth, height: keepHeight },
                     data: {
                         ...n.data,
                         content: newContent,

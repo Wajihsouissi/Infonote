@@ -188,7 +188,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 if (document.activeElement instanceof HTMLElement) {
                     document.activeElement.blur();
                 }
-                editorRef.current?.focus();
+                editorRef.current?.focus({ preventScroll: true });
             }
         };
         document.addEventListener('keydown', handleKeyDown);
@@ -357,7 +357,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             return;
         }
 
-        el.focus();
+        el.focus({ preventScroll: true });
 
         const pos = caretPositionRef.current;
 
@@ -593,13 +593,12 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
             const currentBlock = blocksRef.current.find(b => b.id === id);
 
-            // Intercept for Fused Node Conversion
-            if (nodeId && blocksRef.current.length >= 2) {
+            // Intercept Enter on standalone Canvas Block
+            if (nodeId) {
                 const store = useStore.getState();
                 const node = store.nodes.find(n => n.id === nodeId);
                 if (node && node.type === 'block') {
-                    // We manually split the block here so we can update the store synchronously
-                    // before ReactFlow unmounts this BlockEditor.
+                    // Create a new block node on the canvas directly below this one
                     const caretOffset = getCaretOffset();
                     const textBefore = content.substring(0, caretOffset);
                     const textAfter = content.substring(caretOffset);
@@ -609,69 +608,89 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         : 'text';
                     const indent = currentBlock?.indent || 0;
 
-                    const newId = uuidv4();
+                    // Update current node's content
+                    const newBlocks = [...blocksRef.current];
+                    const index = newBlocks.findIndex(b => b.id === id);
+                    if (index !== -1) {
+                        newBlocks[index] = { ...newBlocks[index], content: textBefore };
+                        setBlocks(newBlocks);
+                        debouncedOnUpdate(newBlocks);
+                    }
+
+                    // Create new node below
+                    const newNodeId = uuidv4();
+                    const newBlockId = uuidv4();
                     const newBlock: Block = {
-                        id: newId,
+                        id: newBlockId,
                         type: typeToCreate,
                         content: textAfter,
                         indent: indent
                     };
 
-                    const index = blocksRef.current.findIndex(b => b.id === id);
-                    const newBlocks = [...blocksRef.current];
-                    if (index !== -1) {
-                        newBlocks[index] = { ...newBlocks[index], content: textBefore };
-                        newBlocks.splice(index + 1, 0, newBlock);
+                    const parentId = node.parentId || undefined;
+                    
+                    const nodesInColumn = store.nodes.filter(n => 
+                        n.type === 'block' && 
+                        (n.data as any)?.isStandaloneBlock && 
+                        Math.abs(n.position.x - node.position.x) < 10 &&
+                        n.parentId === parentId
+                    );
+
+                    let position: { x: number, y: number };
+
+                    if (nodesInColumn.length >= 5) {
+                        // Start a new column to the right
+                        const topY = Math.min(...nodesInColumn.map(n => n.position.y));
+                        position = {
+                            x: node.position.x + (Number(node.style?.width) || 300) + 16,
+                            y: topY
+                        };
                     } else {
-                        newBlocks.push(newBlock);
+                        // Position exactly below it, plus GRID_GAP (16)
+                        position = { 
+                            x: node.position.x, 
+                            y: node.position.y + (Number(node.style?.height) || 100) + 16 
+                        };
                     }
 
-                    // Atomic update: change data + type + style in a single set() call
-                    // to prevent the intermediate state where type='block' but content has 2+ blocks
-                    store.setNodes((prev: any[]) => prev.map((n: any) => {
-                        if (n.id !== nodeId) return n;
-                        return {
-                            ...n,
-                            type: 'fused-note',
-                            data: {
-                                ...n.data,
-                                content: newBlocks,
-                                lastFusedAt: Date.now(),
-                                isStandaloneBlock: true
-                            },
-                            style: {
-                                ...n.style,
-                                width: MIN_FUSED_SIZE,
-                                height: undefined
-                            }
-                        };
-                    }));
+                    store.addNode(
+                        'block',
+                        position,
+                        { content: [newBlock], isStandaloneBlock: true },
+                        { width: node.style?.width || 300, height: node.style?.height || 100 },
+                        parentId,
+                        newNodeId
+                    );
 
-                    // Focus the new block after render
+                    // Deselect current and select new
+                    store.setNodes((nodes) => nodes.map(n => ({
+                        ...n,
+                        selected: n.id === newNodeId
+                    })));
+                    store.setSelectedCanvasNodeIds(new Set([newNodeId]));
+
+                    // Focus the new block
                     setTimeout(() => {
-                        const node = store.nodes.find(n => n.id === nodeId);
-                        if (node) {
-                            const el = document.getElementById('block-' + newId)?.querySelector('[contenteditable="true"]');
-                            if (el instanceof HTMLElement) {
-                                el.focus();
-                                try {
-                                    const selection = window.getSelection();
-                                    const range = document.createRange();
-                                    range.selectNodeContents(el);
-                                    range.collapse(false);
-                                    selection?.removeAllRanges();
-                                    selection?.addRange(range);
-                                } catch (e) {
-                                    console.warn("Error focusing new block after fusion swap:", e);
-                                }
+                        const el = document.getElementById('block-' + newBlockId)?.querySelector('[contenteditable="true"]');
+                        if (el instanceof HTMLElement) {
+                            el.focus({ preventScroll: true });
+                            window.dispatchEvent(new CustomEvent('panToNode', { detail: { id: newNodeId } }));
+                            try {
+                                const selection = window.getSelection();
+                                const range = document.createRange();
+                                range.selectNodeContents(el);
+                                range.collapse(true);
+                                selection?.removeAllRanges();
+                                selection?.addRange(range);
+                            } catch (e) {
+                                console.warn("Error focusing new canvas block:", e);
                             }
                         }
-                    }, 100);
- 
-                    return; // Skip default addition
+                    }, 50);
+
+                    return;
                 }
             }
-
 
             if (currentBlock) {
                 const caretOffset = getCaretOffset();
@@ -829,7 +848,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         setSelectedBlockIds(newSelection);
                         // Blur text to show block selection clearly?
                         if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-                        editorRef.current?.focus(); // Focus container to capture next arrows
+                        editorRef.current?.focus({ preventScroll: true }); // Focus container to capture next arrows
                     }
                 }
             } else {
@@ -875,7 +894,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         newSelection.add(blocksRef.current[currentIndex + 1].id);
                         setSelectedBlockIds(newSelection);
                         if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-                        editorRef.current?.focus();
+                        editorRef.current?.focus({ preventScroll: true });
                     }
                 }
             } else {
@@ -926,7 +945,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 const allIds = new Set(blocksRef.current.map(b => b.id));
                 setSelectedBlockIds(allIds);
                 if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-                editorRef.current?.focus();
+                editorRef.current?.focus({ preventScroll: true });
             }
             // else let browser select all text (default)
         } else if ((e.ctrlKey || e.metaKey) && e.key === 'Delete') {

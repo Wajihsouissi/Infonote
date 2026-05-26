@@ -144,15 +144,60 @@ export const NAMED_COLORS: Record<string, string> = {
     "#1E944A": "Eucalyptus",
 };
 
-// Helper to convert hex to RGB
-function hexToRgb(hex: string) {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+
+export const normalizeHex = (value: string) => {
+    const trimmed = value.trim();
+    const withHash = trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
+    if (withHash.length === 4) {
+        return `#${withHash[1]}${withHash[1]}${withHash[2]}${withHash[2]}${withHash[3]}${withHash[3]}`.toUpperCase();
+    }
+    return withHash.toUpperCase();
+};
+
+export const hexToRgb = (hex: string) => {
+    const normalized = normalizeHex(hex);
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(normalized);
     return result ? {
         r: parseInt(result[1], 16),
         g: parseInt(result[2], 16),
         b: parseInt(result[3], 16)
     } : { r: 0, g: 0, b: 0 };
-}
+};
+
+export const rgbToHex = (r: number, g: number, b: number) => {
+    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+};
+
+export const rgbToRgbaString = (rgb: { r: number; g: number; b: number }, alpha = 1) => {
+    return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+};
+
+export const rgbToHslString = (rgb: { r: number; g: number; b: number }) => {
+    const r = rgb.r / 255;
+    const g = rgb.g / 255;
+    const b = rgb.b / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const delta = max - min;
+
+    let h = 0;
+    if (delta) {
+        if (max === r) {
+            h = ((g - b) / delta) % 6;
+        } else if (max === g) {
+            h = (b - r) / delta + 2;
+        } else {
+            h = (r - g) / delta + 4;
+        }
+    }
+    h = Math.round(h * 60);
+    if (h < 0) h += 360;
+
+    const l = (max + min) / 2;
+    const s = delta === 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+
+    return `hsl(${h}, ${Math.round(s * 100)}%, ${Math.round(l * 100)}%)`;
+};
 
 // Find nearest named color
 export function getNearestColorName(hex: string): string {

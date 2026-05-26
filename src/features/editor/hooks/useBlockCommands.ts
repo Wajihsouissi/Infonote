@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import type { Block, BlockType } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { parseFiles, parseTextOrHtml } from '../pasteUtils';
@@ -24,7 +24,8 @@ export function useBlockCommands({
     setFocusId,
     setSelectedBlockIds,
     selectedBlockIds,
-    checkForSplit
+    checkForSplit,
+    nodeId
 }: BlockCommandsProps) {
 
     const addBlock = useCallback((afterId: string, type: BlockType = 'text', initialIndent: number = 0, initialMetadata?: any) => {
@@ -511,6 +512,17 @@ export function useBlockCommands({
             }
         }
     }, [editorRef, selectedBlockIds, blocksRef, setFocusId, addBlock, setBlocks, setSelectedBlockIds]);
+
+    useEffect(() => {
+        if (!nodeId) return;
+        const handleBgClick = (e: any) => {
+            if (e.detail.nodeId === nodeId) {
+                handleEditorClick({ target: editorRef.current, preventDefault: () => {} } as any, false);
+            }
+        };
+        window.addEventListener('chnk-it-editor-bg-click', handleBgClick);
+        return () => window.removeEventListener('chnk-it-editor-bg-click', handleBgClick);
+    }, [nodeId, handleEditorClick, editorRef]);
 
     return {
         addBlock,

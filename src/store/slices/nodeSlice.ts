@@ -7,7 +7,7 @@ import {
 } from '@xyflow/react';
 import { v4 as uuidv4 } from 'uuid';
 import type { AppNode } from '../../types';
-import { MIN_FUSED_SIZE, BASE_UNIT, snapToGridValue, ICON_SIZE } from '../../config/layout';
+import { MIN_FUSED_SIZE, BASE_UNIT, snapToGridValue, ICON_SIZE, GRID_GAP } from '../../config/layout';
 import { computeParentContentUpdate } from '../contentSync';
 import type { AppState, NodeSlice } from '../types';
 
@@ -604,7 +604,8 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 isStandaloneBlock: true
             } as any,
             style: {
-                width: MIN_FUSED_SIZE
+                width: MIN_FUSED_SIZE,
+                height: 208
             },
             parentId: sourceNode.parentId
         };
@@ -783,10 +784,6 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
     },
 
     bulkDeleteNodes: (nodeIds: string[], skipConfirm?: boolean) => {
-        if (!skipConfirm && !window.confirm(
-            `Delete ${nodeIds.length} node(s)? This can be undone via undo (up to 200 steps).`
-        )) return;
-
         const { nodes, edges } = get();
 
         if (DEBUG) {
@@ -824,12 +821,16 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         const OFFSET = BASE_UNIT; // Offset by one grid cell (56px) for duplicated nodes to keep them aligned
         const newNodes: AppNode[] = [];
+        const newIds = new Set<string>();
 
         nodesToDuplicate.forEach(node => {
             if (DEBUG) console.log("[bulkDuplicateNodes] Duplicating node:", node.id, "type:", node.type);
+            const newId = uuidv4();
+            newIds.add(newId);
             const newNode = {
                 ...node,
-                id: uuidv4(),
+                id: newId,
+                selected: true,
                 position: {
                     x: node.position.x + OFFSET,
                     y: node.position.y + OFFSET
@@ -847,7 +848,13 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         if (DEBUG) console.log("[bulkDuplicateNodes] Created", newNodes.length, "new nodes");
 
-        set((state) => ({ nodes: [...state.nodes, ...newNodes] }));
+        set((state) => ({ 
+            nodes: [
+                ...state.nodes.map(n => ({ ...n, selected: false })), 
+                ...newNodes
+            ],
+            selectedCanvasNodeIds: newIds
+        }));
 
         if (DEBUG) console.log("[bulkDuplicateNodes] Completed");
     },
@@ -936,7 +943,8 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 isStandaloneBlock: true
             },
             style: {
-                width: MIN_FUSED_SIZE
+                width: MIN_FUSED_SIZE,
+                height: 208
             },
             parentId: currentParentId || undefined
         };
@@ -1220,7 +1228,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 id: newNodeId,
                 type: 'fused-note',
                 position: { x, y },
-                style: { width: MIN_FUSED_SIZE },
+                style: { width: MIN_FUSED_SIZE, height: 208 }, // 8x4 default
                 data: {
                     content: sectionBlocks,
                     isStandaloneBlock: true
@@ -1278,8 +1286,8 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         const count = selected.length;
 
-        const getW = (n: typeof selected[0]) => (typeof n.style?.width === 'number' ? n.style.width : 432);
-        const getH = (n: typeof selected[0]) => (typeof n.style?.height === 'number' ? n.style.height : 432);
+        const getW = (n: typeof selected[0]) => n.measured?.width ?? (typeof n.style?.width === 'number' ? n.style.width : 432);
+        const getH = (n: typeof selected[0]) => n.measured?.height ?? (typeof n.style?.height === 'number' ? n.style.height : 432);
 
         const bbox = selected.reduce((acc, n) => ({
             minX: Math.min(acc.minX, n.position.x),
@@ -1287,6 +1295,9 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             minY: Math.min(acc.minY, n.position.y),
             maxY: Math.max(acc.maxY, n.position.y + getH(n)),
         }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
+
+        const getGridW = (n: typeof selected[0]) => Math.ceil(getW(n) / BASE_UNIT) * BASE_UNIT;
+        const getGridH = (n: typeof selected[0]) => Math.ceil(getH(n) / BASE_UNIT) * BASE_UNIT;
 
         const centerX = (bbox.minX + bbox.maxX) / 2;
         const centerY = (bbox.minY + bbox.maxY) / 2;
@@ -1297,13 +1308,13 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         switch (mode) {
             case 'grid': {
                 const cols = Math.ceil(Math.sqrt(count));
-                const cellW = Math.max(...selected.map(getW));
-                const cellH = Math.max(...selected.map(getH));
+                const cellW = Math.max(...selected.map(getGridW));
+                const cellH = Math.max(...selected.map(getGridH));
                 const rows = Math.ceil(count / cols);
                 const gridW = cols * cellW + (cols - 1) * gap;
                 const gridH = rows * cellH + (rows - 1) * gap;
-                const ox = snapToGridValue(centerX - gridW / 2 + cellW / 2);
-                const oy = snapToGridValue(centerY - gridH / 2 + cellH / 2);
+                const ox = snapToGridValue(centerX - gridW / 2);
+                const oy = snapToGridValue(centerY - gridH / 2);
 
                 selected.forEach((node, i) => {
                     const col = i % cols;
@@ -1317,7 +1328,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             }
 
             case 'circle': {
-                const diagonals = selected.map(n => Math.sqrt(getW(n) ** 2 + getH(n) ** 2));
+                const diagonals = selected.map(n => Math.sqrt(getGridW(n) ** 2 + getGridH(n) ** 2));
                 const maxDiag = Math.max(...diagonals);
                 const angleStep = (2 * Math.PI) / count;
                 const minRadius = count <= 2
@@ -1337,42 +1348,92 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
             case 'flow': {
                 const sorted = [...selected].sort((a, b) => (a.position.x + getW(a) / 2) - (b.position.x + getW(b) / 2));
-                const totalW = sorted.reduce((s, n) => s + getW(n), 0) + (count - 1) * gap;
+                const totalW = sorted.reduce((s, n) => s + getGridW(n), 0) + (count - 1) * gap;
                 let cx = snapToGridValue(centerX - totalW / 2);
                 sorted.forEach(node => {
                     positions[node.id] = {
                         x: snapToGridValue(cx),
                         y: snapToGridValue(centerY - getH(node) / 2),
                     };
-                    cx += getW(node) + gap;
+                    cx += getGridW(node) + gap;
                 });
                 break;
             }
 
             case 'horizontal-row': {
                 const sorted = [...selected].sort((a, b) => a.position.x - b.position.x);
-                const totalW = sorted.reduce((s, n) => s + getW(n), 0) + (count - 1) * gap;
+                const totalW = sorted.reduce((s, n) => s + getGridW(n), 0) + (count - 1) * gap;
                 let cx = snapToGridValue(centerX - totalW / 2);
                 sorted.forEach(node => {
                     positions[node.id] = {
                         x: snapToGridValue(cx),
                         y: snapToGridValue(centerY - getH(node) / 2),
                     };
-                    cx += getW(node) + gap;
+                    cx += getGridW(node) + gap;
                 });
                 break;
             }
 
             case 'vertical-column': {
                 const sorted = [...selected].sort((a, b) => a.position.y - b.position.y);
-                const totalH = sorted.reduce((s, n) => s + getH(n), 0) + (count - 1) * gap;
+                const totalH = sorted.reduce((s, n) => s + getGridH(n), 0) + (count - 1) * gap;
                 let cy = snapToGridValue(centerY - totalH / 2);
                 sorted.forEach(node => {
                     positions[node.id] = {
                         x: snapToGridValue(centerX - getW(node) / 2),
                         y: snapToGridValue(cy),
                     };
-                    cy += getH(node) + gap;
+                    cy += getGridH(node) + gap;
+                });
+                break;
+            }
+
+            case 'mindmap-horizontal': {
+                const sorted = [...selected].sort((a, b) => a.position.x - b.position.x);
+                const root = sorted[0];
+                const children = sorted.slice(1);
+                const maxChildW = children.length > 0 ? Math.max(...children.map(getGridW)) : 0;
+                const totalChildrenH = children.reduce((s, n) => s + getGridH(n), 0) + Math.max(0, children.length - 1) * gap;
+                
+                const cx = snapToGridValue(centerX - (getGridW(root) + gap + maxChildW) / 2);
+                positions[root.id] = {
+                    x: cx,
+                    y: snapToGridValue(centerY - getH(root) / 2),
+                };
+
+                const cxChildren = cx + getGridW(root) + gap;
+                let cy = snapToGridValue(centerY - totalChildrenH / 2);
+                children.forEach(child => {
+                    positions[child.id] = {
+                        x: cxChildren,
+                        y: snapToGridValue(cy),
+                    };
+                    cy += getGridH(child) + gap;
+                });
+                break;
+            }
+
+            case 'mindmap-vertical': {
+                const sorted = [...selected].sort((a, b) => a.position.y - b.position.y);
+                const root = sorted[0];
+                const children = sorted.slice(1);
+                const maxChildH = children.length > 0 ? Math.max(...children.map(getGridH)) : 0;
+                const totalChildrenW = children.reduce((s, n) => s + getGridW(n), 0) + Math.max(0, children.length - 1) * gap;
+                
+                const cy = snapToGridValue(centerY - (getGridH(root) + gap + maxChildH) / 2);
+                positions[root.id] = {
+                    x: snapToGridValue(centerX - getW(root) / 2),
+                    y: cy,
+                };
+
+                const cyChildren = cy + getGridH(root) + gap;
+                let cx = snapToGridValue(centerX - totalChildrenW / 2);
+                children.forEach(child => {
+                    positions[child.id] = {
+                        x: snapToGridValue(cx),
+                        y: cyChildren,
+                    };
+                    cx += getGridW(child) + gap;
                 });
                 break;
             }

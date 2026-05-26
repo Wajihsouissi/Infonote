@@ -4,7 +4,6 @@
     display: block;
     /* Use block to wrap tightly */
     background: var(--glass-bg);
-    background-image: linear-gradient(to right, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
     backdrop-filter: blur(var(--backdrop-blur));
     -webkit-backdrop-filter: blur(var(--backdrop-blur));
     border: 1px solid var(--glass-border);
@@ -131,21 +130,30 @@
     background: rgba(255, 255, 255, 0.1);
 }
 
+.fusedNoteNode:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    /* Subtle glow intensity */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
 .fusedNoteNode.selected {
     border-color: var(--color-primary, #60A5FA);
     box-shadow: 0 0 0 1px var(--color-primary, #60A5FA);
 }
 
+.fusedNoteNode.selected:hover {
+    border-color: var(--color-primary, #60A5FA);
+    box-shadow: 0 0 0 1px var(--color-primary, #60A5FA), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
 .fusedNoteNode.multiSelected {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px var(--color-primary), 0 0 20px rgba(139, 92, 246, 0.5);
-    background: rgba(139, 92, 246, 0.08);
 }
 
-.fusedNoteNode:hover {
-    border-color: rgba(255, 255, 255, 0.3);
-    /* Subtle glow intensity */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+.fusedNoteNode.multiSelected:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary), 0 4px 16px rgba(139, 92, 246, 0.6);
 }
 
 .content {

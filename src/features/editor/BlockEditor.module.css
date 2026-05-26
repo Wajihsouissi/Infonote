@@ -137,6 +137,7 @@
 }
 
 .block {
+    position: relative;
     outline: none;
     border-radius: 4px;
     padding: 0;
@@ -165,10 +166,10 @@
 
 .block[data-is-empty="true"]:before {
     content: attr(data-placeholder);
+    position: absolute;
     color: var(--color-text-muted);
     opacity: 0.35;
     pointer-events: none;
-    display: block;
     transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -1130,11 +1131,16 @@
 /* Color Block */
 .colorBlockWrapper {
     position: relative;
-    width: 100%;
-    aspect-ratio: 4 / 5;
-    min-height: 200px;
+    border-radius: 20px;
     margin: 8px 0;
-    background: transparent;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    flex-shrink: 0;
+}
+
+.colorBlockWrapper:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .colorBlockCard {
@@ -1200,8 +1206,8 @@
     align-items: flex-start;
     gap: 6px;
     padding: 8px 10px;
-    background: #ffffff;
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: var(--color-bg-surface, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
     border-radius: 10px;
     cursor: pointer;
     transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
@@ -1210,14 +1216,14 @@
 .colorCodeButton:hover {
     transform: translateY(-1px);
     box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
-    border-color: rgba(0, 0, 0, 0.16);
+    border-color: var(--color-text-muted, rgba(255, 255, 255, 0.2));
 }
 
 .colorCodeLabel {
     font-size: 0.65rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: #6b7280;
+    color: var(--color-text-muted, #9ca3af);
 }
 
 .colorCodeValueRow {
@@ -1231,13 +1237,13 @@
 .colorCodeValue {
     font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
     font-size: 0.78rem;
-    color: #111827;
+    color: var(--color-text-main, #ffffff);
 }
 
 .colorCodeIcon {
     width: 14px;
     height: 14px;
-    color: #6b7280;
+    color: var(--color-text-muted, #9ca3af);
 }
 
 .colorCodeIconActive {
@@ -1294,17 +1300,17 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    background: #ffffff;
-    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    background: var(--color-bg-surface, rgba(255, 255, 255, 0.05));
+    border-top: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
 }
 
 .colorInputModeSelect {
     width: 100%;
     padding: 8px 10px;
-    background: #f3f4f6;
-    border: 1px solid #e5e7eb;
+    background: var(--color-bg-elevated, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
     border-radius: 6px;
-    color: #111827;
+    color: var(--color-text-main, #ffffff);
     font-size: 0.85rem;
     font-weight: 500;
     cursor: pointer;
@@ -1312,13 +1318,18 @@
 }
 
 .colorInputModeSelect:hover {
-    border-color: #d1d5db;
+    border-color: var(--color-text-muted, rgba(255, 255, 255, 0.3));
 }
 
 .colorInputModeSelect:focus {
     outline: none;
     border-color: #8b5cf6;
     box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.colorInputModeSelect option {
+    background: #1a1b23;
+    color: #ffffff;
 }
 
 .colorInputRow {
@@ -1336,9 +1347,9 @@
 }
 
 .colorInput {
-    background: #f3f4f6;
-    border: 1px solid #e5e7eb;
-    color: #111827;
+    background: var(--color-bg-elevated, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+    color: var(--color-text-main, #ffffff);
     padding: 6px;
     border-radius: 6px;
     width: 100%;
@@ -1348,7 +1359,7 @@
 
 .colorInputLabel {
     font-size: 0.7rem;
-    color: #6b7280;
+    color: var(--color-text-muted, #9ca3af);
 }
 
 

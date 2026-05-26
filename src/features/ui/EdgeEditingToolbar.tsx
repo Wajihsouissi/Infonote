@@ -26,7 +26,6 @@ export function EdgeEditingToolbar() {
     const setSelectedEdgeId = useStore((s) => s.setSelectedEdgeId);
 
     const [showColorPicker, setShowColorPicker] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showStyleMenu, setShowStyleMenu] = useState(false);
     const colorPickerRef = useRef<HTMLDivElement>(null);
     const styleMenuRef = useRef<HTMLDivElement>(null);
@@ -178,49 +177,16 @@ export function EdgeEditingToolbar() {
     };
 
     const handleDeleteClick = () => {
-        setShowDeleteConfirm(true);
-    };
-
-    const confirmDelete = () => {
         selectedEdges.forEach(edge => {
             deleteEdge(edge.id);
         });
         setSelectedEdgeId(null);
-        setShowDeleteConfirm(false);
-    };
-
-    const cancelDelete = () => {
-        setShowDeleteConfirm(false);
     };
 
     return (
         <div className={styles.toolbar}>
-            {showDeleteConfirm ? (
-                // Delete Confirmation Overlay
-                <div className={styles.confirmContainer}>
-                    <span className={styles.confirmText}>
-                        Delete this connection?
-                    </span>
-                    <div className={styles.confirmActions}>
-                        <button
-                            className={`${styles.actionBtn} ${styles.delete}`}
-                            onClick={confirmDelete}
-                        >
-                            <Trash2 size={15} />
-                            <span>Confirm</span>
-                        </button>
-                        <button
-                            className={styles.actionBtn}
-                            onClick={cancelDelete}
-                        >
-                            <X size={15} />
-                            <span>Cancel</span>
-                        </button>
-                    </div>
-                </div>
-            ) : (
-                // Full glassmorphic edge editor controls
-                <>
+            {/* Full glassmorphic edge editor controls */}
+            <>
                     <div className={styles.selectionInfo}>
                         <div className={styles.glowDot} style={{ backgroundColor: activeColor && activeColor !== 'transparent' ? activeColor : 'var(--color-primary)' } as React.CSSProperties} />
                         <span>{isMultiSelect ? `${selectedEdges.length} Edges Selected` : 'Edge Selected'}</span>
@@ -491,7 +457,6 @@ export function EdgeEditingToolbar() {
                         <X size={15} />
                     </button>
                 </>
-            )}
         </div>
     );
 }

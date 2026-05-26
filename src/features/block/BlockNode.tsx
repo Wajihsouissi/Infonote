@@ -1,14 +1,15 @@
 import { memo, useState, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
-import { StickyNote } from 'lucide-react';
+import { StickyNote, Copy, Check } from 'lucide-react';
 import { BlockEditor } from '../editor/BlockEditor';
+import { ColorBlockModal } from '../editor/ColorBlockModal';
 
 import { useStore } from '../../store/useStore';
 
 import type { NoteNode } from '../../types';
 import styles from './BlockNode.module.css';
 import { toPastelColor, darkenColor } from '../../utils/colorUtils';
-import { snapMediaDimensions, MIN_EXPANDED_SIZE } from '../../config/layout';
+import { snapMediaDimensions, MIN_EXPANDED_SIZE, ICON_SIZE } from '../../config/layout';
 import { v4 as uuidv4 } from 'uuid';
 
 // BlockNode is a "headless" or "chromeless" text unit.
@@ -25,11 +26,22 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const clearCanvasSelection = useStore(s => s.clearCanvasSelection);
     const setNodesStore = useStore(s => s.setNodes);
     const [isHoveredLinking, setIsHoveredLinking] = useState(false);
+    const [isHoveredColorBlock, setIsHoveredColorBlock] = useState(false);
+    const [colorModalOpen, setColorModalOpen] = useState(false);
+    const [copiedHex, setCopiedHex] = useState(false);
+    const colorOriginalRef = useRef<string>('');
 
     const isMultiSelected = selectedCanvasNodeIds.has(id);
 
+    const isSingleMedia = Array.isArray(data.content) && data.content.length === 1 && (data.content[0].type === 'image' || data.content[0].type === 'video' || data.content[0].type === 'file');
+    const isSingleLink = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'link';
+    const isSingleColor = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'color';
+    const singleColorValue = isSingleColor ? (data.content?.[0]?.content || '#1E944A') : undefined;
+    const isColumns = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'columns';
+    const isResizable = isSingleMedia || isSingleLink;
+
     // Convert color to pastel for better readability
-    const displayColor = data.color ? toPastelColor(data.color, theme === 'light') : undefined;
+    const displayColor = singleColorValue || (data.color ? toPastelColor(data.color, theme === 'light') : undefined);
     // Dynamic styles for contrast
     const dynamicStyles = useMemo(() => {
         if (!displayColor) return {};
@@ -56,36 +68,33 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             '--table-focus-ring': `${borderColor}80`,
         } as React.CSSProperties;
     }, [displayColor]);
-    const isSingleMedia = Array.isArray(data.content) && data.content.length === 1 && (data.content[0].type === 'image' || data.content[0].type === 'video' || data.content[0].type === 'file');
-    const isSingleLink = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'link';
-    const isSingleColor = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'color';
-    const isColumns = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'columns';
-    const isResizable = isSingleMedia || isSingleLink;
 
     useLayoutEffect(() => {
         setNodes(nodes => nodes.map(n => {
             if (n.id === id) {
-                const needsHeightAuto = n.style?.height !== 'auto';
-                const needsWidthAuto = !isResizable && !isColumns && n.style?.width !== 'auto';
+                const needsHeightAuto = !isSingleColor && n.style?.height !== 'auto';
+                const needsWidthAuto = !isResizable && !isColumns && !isSingleColor && n.style?.width !== 'auto';
                 const needsResizableWidthInit = isResizable && (n.style?.width === 'auto' || n.style?.width === undefined);
                 const needsColumnsWidthInit = isColumns && (n.style?.width === 'auto' || n.style?.width === undefined);
+                const needsColorInit = isSingleColor && (n.style?.width !== ICON_SIZE || n.style?.height !== ICON_SIZE);
                 
-                if (needsHeightAuto || needsWidthAuto || needsResizableWidthInit || needsColumnsWidthInit) {
+                if (needsHeightAuto || needsWidthAuto || needsResizableWidthInit || needsColumnsWidthInit || needsColorInit) {
                     return { 
                         ...n, 
                         style: { 
                             ...n.style, 
-                            height: 'auto', 
+                            ...(needsHeightAuto ? { height: 'auto' } : {}), 
                             ...(needsWidthAuto ? { width: 'auto' } : {}),
                             ...(needsResizableWidthInit ? { width: isSingleLink ? 320 : 208 } : {}),
-                            ...(needsColumnsWidthInit ? { width: 550 } : {})
+                            ...(needsColumnsWidthInit ? { width: 550 } : {}),
+                            ...(needsColorInit ? { width: ICON_SIZE, height: ICON_SIZE } : {})
                         } 
                     };
                 }
             }
             return n;
         }));
-    }, [id, setNodes, isResizable, isColumns, isSingleLink]);
+    }, [id, setNodes, isResizable, isColumns, isSingleLink, isSingleColor]);
 
 
 
@@ -98,104 +107,42 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const handleConvertToCard = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
 
-        const { nodes, edges, setNodes, onEdgesChange } = useStore.getState();
+        const { nodes, setNodes } = useStore.getState();
         const thisNode = nodes.find(n => n.id === id);
         if (!thisNode) return;
 
         const blockColor = (thisNode.data as any).color;
         const blockContent = (thisNode.data as any).content;
-
-        const parentId = thisNode.parentId;
-        if (!parentId) {
-            setNodes((currentNodes) => currentNodes.map(n => {
-                if (n.id === id) {
-                    return {
-                        ...n,
-                        type: 'note',
-                        data: {
-                            label: (Array.isArray(blockContent) && blockContent[0]?.content) || 'Created Note',
-                            viewMode: 'expanded',
-                            content: blockContent,
-                            description: '',
-                            date: new Date().toISOString(),
-                            color: blockColor,
-                            showMetadata: false
-                        },
-                        style: {
-                            ...n.style,
-                            width: MIN_EXPANDED_SIZE,
-                            height: MIN_EXPANDED_SIZE,
-                        }
-                    } as any;
-                }
-                return n;
-            }));
-            return;
+        
+        let label = 'Created Note';
+        if (Array.isArray(blockContent) && blockContent[0]?.content && typeof blockContent[0].content === 'string') {
+            const stripped = blockContent[0].content.replace(/<[^>]+>/g, '').trim();
+            if (stripped) label = stripped;
         }
 
-        const parentNode = nodes.find(n => n.id === parentId);
-        if (!parentNode) return;
-
-        const parentContent = (parentNode.data as any).content;
-        if (!Array.isArray(parentContent)) return;
-
-        const myBlocks = Array.isArray(blockContent) ? blockContent : [];
-        if (myBlocks.length === 0) return;
-
-        const firstBlockId = myBlocks[0].id;
-        const startIndex = parentContent.findIndex((b: any) => b.id === firstBlockId);
-        if (startIndex === -1) return;
-
-        // Remove edges connected to this block node
-        const connectedEdgeIds = edges.filter(e => e.source === id || e.target === id).map(e => e.id);
-        if (connectedEdgeIds.length > 0) {
-            onEdgesChange(connectedEdgeIds.map(eId => ({ type: 'remove' as const, id: eId })));
-        }
-
-        const newNodeId = uuidv4();
-        const newNode = {
-            id: newNodeId,
-            type: 'note',
-            parentId: parentId,
-            position: thisNode.position,
-            data: {
-                label: myBlocks[0].content || 'New Note',
-                content: myBlocks,
-                viewMode: 'expanded',
-                date: new Date().toISOString(),
-                color: blockColor,
-                showMetadata: false
-            },
-            style: { width: MIN_EXPANDED_SIZE, height: MIN_EXPANDED_SIZE },
-            zIndex: 10
-        };
-
-        const pageBlock = {
-            id: uuidv4(),
-            type: 'page',
-            content: myBlocks[0].content || 'New Note',
-            metadata: { nodeId: newNodeId }
-        };
-
-        setNodes((currentNodes) => {
-            const parentNode = currentNodes.find(n => n.id === parentId);
-            if (!parentNode) return currentNodes;
-
-            const oldContent = (parentNode.data as any).content || [];
-            const newParentContent = [...oldContent];
-            const currentStartIndex = newParentContent.findIndex((b: any) => b.id === firstBlockId);
-
-            if (currentStartIndex !== -1) {
-                newParentContent.splice(currentStartIndex, myBlocks.length, pageBlock);
-            } else {
-                return currentNodes;
+        setNodes((currentNodes) => currentNodes.map(n => {
+            if (n.id === id) {
+                return {
+                    ...n,
+                    type: 'note',
+                    data: {
+                        label,
+                        viewMode: 'expanded',
+                        content: blockContent,
+                        description: '',
+                        date: new Date().toISOString(),
+                        color: blockColor,
+                        showMetadata: false
+                    },
+                    style: {
+                        ...n.style,
+                        width: MIN_EXPANDED_SIZE,
+                        height: MIN_EXPANDED_SIZE,
+                    }
+                } as any;
             }
-
-            return currentNodes.filter(n => n.id !== id && n.id !== parentId).concat([
-                { ...parentNode, data: { ...parentNode.data, content: newParentContent } } as any,
-                newNode as any
-            ]);
-        });
+            return n;
+        }));
     }, [id]);
 
     const activeResize = useRef(false);
@@ -253,6 +200,85 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 ...dynamicStyles
             }}
         >
+            {/* Canvas color block: transparent click overlay to open modal without fighting ReactFlow drag */}
+            {isSingleColor && !isLinkingMode && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        inset: 0,
+                        width: '100%',
+                        height: '100%',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        zIndex: 10,
+                        borderRadius: 'inherit',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'flex-end',
+                        padding: '12px'
+                    }}
+                    onMouseEnter={() => setIsHoveredColorBlock(true)}
+                    onMouseLeave={() => setIsHoveredColorBlock(false)}
+                    onMouseDown={(e) => {
+                        // Stop propagation so ReactFlow doesn't hijack this as a drag start
+                        e.stopPropagation();
+                    }}
+                    onClick={() => {
+                        colorOriginalRef.current = singleColorValue || '#1E944A';
+                        setColorModalOpen(true);
+                    }}
+                    title="Edit color"
+                >
+                    <div 
+                        style={{
+                            background: 'rgba(0, 0, 0, 0.4)',
+                            backdropFilter: 'blur(4px)',
+                            color: '#fff',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '0.75rem',
+                            fontFamily: 'monospace',
+                            alignSelf: 'center',
+                            cursor: 'copy',
+                            transition: 'all 0.2s',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            opacity: isHoveredColorBlock || copiedHex ? 1 : 0,
+                            pointerEvents: isHoveredColorBlock || copiedHex ? 'auto' : 'none',
+                            transform: isHoveredColorBlock || copiedHex ? 'translateY(0)' : 'translateY(4px)'
+                        }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(singleColorValue || '#1E944A');
+                            setCopiedHex(true);
+                            setTimeout(() => setCopiedHex(false), 2000);
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.6)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.4)'}
+                    >
+                        {copiedHex ? <Check size={12} /> : <Copy size={12} />}
+                        {copiedHex ? 'Copied!' : (singleColorValue || '#1E944A').toUpperCase()}
+                    </div>
+                </div>
+            )}
+
+            {colorModalOpen && isSingleColor && (
+                <ColorBlockModal
+                    color={singleColorValue || '#1E944A'}
+                    originalColor={colorOriginalRef.current}
+                    metadata={(data.content as any[])?.[0]?.metadata}
+                    onChange={(newColor, newMeta) => {
+                        const newBlocks = (data.content as any[]).map((b: any, i: number) =>
+                            i === 0 ? { ...b, content: newColor, metadata: newMeta } : b
+                        );
+                        updateNodeData(id, { content: newBlocks });
+                    }}
+                    onClose={() => setColorModalOpen(false)}
+                />
+            )}
+
             {isLinkingMode && (
                 <div
                     style={{

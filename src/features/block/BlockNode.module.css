@@ -41,23 +41,29 @@
     color: var(--color-primary) !important;
 }
 
+.blockNode:hover {
+    background: var(--glass-bg-hover);
+    border-color: rgba(255, 255, 255, 0.25);
+    transform: translateY(-1px);
+    box-shadow: var(--glass-shadow);
+}
+
 .blockNode.selected {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 1px var(--color-primary), var(--glass-shadow);
-    background: var(--glass-bg-hover);
+}
+
+.blockNode.selected:hover {
+    box-shadow: 0 0 0 1px var(--color-primary), 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .blockNode.multiSelected {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px var(--color-primary), 0 0 20px rgba(139, 92, 246, 0.5);
-    background: rgba(139, 92, 246, 0.08);
 }
 
-.blockNode:hover {
-    background: var(--glass-bg-hover);
-    border-color: var(--color-primary);
-    transform: translateY(-1px);
-    box-shadow: var(--glass-shadow);
+.blockNode.multiSelected:hover {
+    box-shadow: 0 0 0 3px var(--color-primary), 0 4px 16px rgba(139, 92, 246, 0.6);
 }
 
 .content {
@@ -131,17 +137,19 @@
 }
 
 .colorBlockNode {
+    position: relative;
     display: flex;
     align-items: flex-start;
     background: transparent;
     border: none;
-    border-radius: 0;
+    border-radius: 20px;
     padding: 0;
     width: 100%;
-    height: auto;
+    height: 100%;
     box-sizing: border-box;
-    transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), border-radius 0.2s ease;
     box-shadow: none;
+    overflow: hidden;
 }
 
 .colorBlockNode:hover {
