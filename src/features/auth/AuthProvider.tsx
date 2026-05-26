@@ -40,6 +40,31 @@ async function fetchProfileRow(userId: string): Promise<ProfileRow | null> {
 }
 
 /**
+ * Ensure a `user_profiles` row exists for the authenticated user.
+ * The DB trigger on auth.users normally handles this, but race conditions
+ * or external sign-up flows may skip it — so we upsert defensively here.
+ */
+async function ensureUserProfile(user: { id: string; email?: string; user_metadata?: any }): Promise<void> {
+    if (!isSupabaseConfigured) return;
+    try {
+        const { error } = await supabase
+            .from('user_profiles')
+            .upsert({
+                id: user.id,
+                email: user.email || '',
+                display_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+                account_status: 'active',
+            }, { onConflict: 'id', ignoreDuplicates: true });
+
+        if (error) {
+            console.warn('[AuthProvider] ensureUserProfile failed:', error.message);
+        }
+    } catch (err) {
+        console.warn('[AuthProvider] ensureUserProfile error:', err);
+    }
+}
+
+/**
  * Ensure the authenticated user has at least one workspace.
  * Creates a default "My Workspace" if none exists, and persists the ID to localStorage.
  */
@@ -149,7 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(sessionUser);
             await pushToStore(sessionUser);
             if (sessionUser) {
-                void ensureWorkspace(sessionUser.id);
+                void ensureUserProfile(sessionUser).then(() => ensureWorkspace(sessionUser.id));
             }
             setLoading(false);
         }).catch(() => {
@@ -166,7 +191,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 // fire-and-forget; pushToStore handles its own errors via try/catch
                 void pushToStore(nextUser);
                 if (nextUser) {
-                    void ensureWorkspace(nextUser.id);
+                    void ensureUserProfile(nextUser).then(() => ensureWorkspace(nextUser.id));
                 }
             }
         );

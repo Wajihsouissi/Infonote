@@ -22,6 +22,13 @@ function App() {
   const showWelcomeModal = useStore((state) => state.showWelcomeModal);
   const setShowWelcomeModal = useStore((state) => state.setShowWelcomeModal);
 
+  // URL-based route detection (e.g. direct navigation to /wajihadmin)
+  useEffect(() => {
+    if (window.location.pathname === '/wajihadmin') {
+      setCurrentView('wajihadmin');
+    }
+  }, [setCurrentView]);
+
   // Auto-redirect authenticated users from login/signup/marketing views to landing/dashboard
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated && (currentView === 'login' || currentView === 'signup' || currentView === 'marketing')) {
@@ -120,7 +127,7 @@ function App() {
         return <LoginPage />;
       case 'signup':
         return <SignupPage />;
-      case 'ctrl-vault-9x7k':
+      case 'wajihadmin':
         return <AdminGate />;
       case 'profile':
         return <ProfilePage />;

@@ -92,7 +92,7 @@ export interface StorageSlice {
     restoreFromBackup: () => void;
 }
 
-export type AppView = 'landing' | 'canvas' | 'marketplace' | 'login' | 'signup' | 'ctrl-vault-9x7k' | 'profile' | 'marketing';
+export type AppView = 'landing' | 'canvas' | 'marketplace' | 'login' | 'signup' | 'wajihadmin' | 'profile' | 'marketing';
 
 export interface AuthUser {
     id: string;
