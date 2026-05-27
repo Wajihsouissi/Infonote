@@ -379,7 +379,6 @@
 
 .mediumDescInput:hover {
     background: rgba(255, 255, 255, 0.03);
-    height: 100%;
 }
 
 .mediumDescInput:focus {
@@ -387,6 +386,50 @@
     box-shadow: 0 0 0 1px var(--color-primary);
     opacity: 1;
     color: var(--color-text-main);
+}
+
+.mediumDescContainer {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    width: 100%;
+}
+
+.summarizeBtn {
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    opacity: 0.5;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 0;
+}
+
+.summarizeBtn:hover:not(:disabled) {
+    background: rgba(167, 139, 250, 0.1);
+    border-color: rgba(167, 139, 250, 0.2);
+    color: #a78bfa;
+    opacity: 1;
+    transform: scale(1.05);
+}
+
+.summarizeBtn:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+    background: transparent;
+    border-color: transparent;
+    color: var(--color-text-muted);
 }
 
 /* Category Pill */

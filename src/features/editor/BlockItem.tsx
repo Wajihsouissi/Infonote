@@ -3,7 +3,7 @@ import { SortableBlockWrapper } from './SortableBlockWrapper';
 import {
     TextBlock, HeadingBlock, TodoBlock, QuoteBlock, ImageBlock, ListBlock, CalloutBlock,
     DividerBlock, PageBlock, ContainerBlock, VideoBlock, FileBlock, ColumnsBlock, CodeBlock,
-    TableBlock
+    TableBlock, AIBlock
 } from './BlockComponents';
 import { ColorBlock } from './ColorBlock';
 import { LinkBlock } from './LinkBlock';
@@ -144,6 +144,7 @@ export const BlockItem = memo(function BlockItem({
             case 'code': return <CodeBlock {...props} />;
             case 'color': return <ColorBlock {...props} />;
             case 'link': return <LinkBlock {...props} />;
+            case 'ai': return <AIBlock {...props} />;
             default: return <TextBlock {...props} />;
         }
     };

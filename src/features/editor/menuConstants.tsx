@@ -19,7 +19,8 @@ import {
     LayoutGrid,
     Code,
     Palette,
-    Link
+    Link,
+    Sparkles
 } from 'lucide-react';
 import type { BlockType } from './types';
 
@@ -33,6 +34,9 @@ export interface MenuItem {
 }
 
 export const MENU_ITEMS: MenuItem[] = [
+    // AI Generation
+    { label: 'Generate with AI', description: 'Ask AI to write for you', type: 'ai', icon: Sparkles, keywords: ['ai', 'generate', 'magic', 'write'] },
+
     // Basic Text
     { label: 'Text', description: 'Plain text paragraph', type: 'text', icon: Type, keywords: ['p', 'paragraph'] },
     { label: 'Heading 1', description: 'Big section heading', type: 'heading1', icon: Heading1, keywords: ['h1', 'title', 'big'] },

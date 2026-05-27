@@ -2,13 +2,19 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import {
     Trash2, Copy, Palette, Layers, X, ArrowUpRight, ArrowRight, GitBranch,
-    Grid3x3, CircleDot, ArrowRightLeft, Columns2, Rows2, Network,
+    Grid3x3, CircleDot, ArrowRightLeft, Columns2, Rows2, Network, Sparkles,
+    Search,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { Tooltip } from './Tooltip';
 import styles from './MultiSelectionToolbar.module.css';
 
-export function MultiSelectionToolbar() {
+interface MultiSelectionToolbarProps {
+    onOpenAI?: () => void;
+    onOpenSearch?: () => void;
+}
+
+export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelectionToolbarProps) {
     const { screenToFlowPosition } = useReactFlow();
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
     const clearCanvasSelection = useStore(s => s.clearCanvasSelection);
@@ -187,6 +193,28 @@ export function MultiSelectionToolbar() {
                     </div>
 
                     <div className={styles.actions}>
+                        {onOpenAI && (
+                            <Tooltip label="Ask AI" desc="Use AI to edit/modify selected cards">
+                                <button
+                                    className={`${styles.actionBtn} ${styles.aiBtn}`}
+                                    onClick={onOpenAI}
+                                >
+                                    <Sparkles size={16} />
+                                </button>
+                            </Tooltip>
+                        )}
+
+                        {onOpenSearch && (
+                            <Tooltip label="AI Search" desc="Search your cards and notes">
+                                <button
+                                    className={`${styles.actionBtn} ${styles.searchBtn}`}
+                                    onClick={onOpenSearch}
+                                >
+                                    <Search size={16} />
+                                </button>
+                            </Tooltip>
+                        )}
+
                         <Tooltip label="Duplicate" desc="Duplicate selected items">
                             <button
                                 className={styles.actionBtn}

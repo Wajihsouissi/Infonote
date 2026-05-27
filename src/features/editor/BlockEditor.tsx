@@ -358,6 +358,14 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         }
 
         el.focus({ preventScroll: true });
+        
+        // Ensure the newly focused block is fully visible within the scrolling container
+        try {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (e) {
+            // Safari/older browser fallback
+            el.scrollIntoView({ block: 'center' });
+        }
 
         const pos = caretPositionRef.current;
 
@@ -409,6 +417,34 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         caretPositionRef.current = null;
         setFocusId(null);
     }, [focusId, blocks]);
+
+    useEffect(() => {
+        const handleAIGenerate = (e: Event) => {
+            const customEvent = e as CustomEvent;
+            const { id, content } = customEvent.detail;
+            
+            import('./pasteUtils').then(({ parsePlainText }) => {
+                const parsedBlocks = parsePlainText(content);
+                if (parsedBlocks.length === 0) return;
+                
+                setBlocks(prev => {
+                    const index = prev.findIndex(b => b.id === id);
+                    if (index === -1) return prev;
+                    
+                    const indent = prev[index].indent || 0;
+                    const formattedBlocks = parsedBlocks.map(b => ({ ...b, indent }));
+                    
+                    const newBlocks = [...prev];
+                    newBlocks.splice(index, 1, ...formattedBlocks);
+                    debouncedOnUpdate(newBlocks);
+                    return newBlocks;
+                });
+                setTimeout(() => setFocusId(parsedBlocks[parsedBlocks.length - 1].id), 50);
+            });
+        };
+        window.addEventListener('chnk-it-ai-generate', handleAIGenerate);
+        return () => window.removeEventListener('chnk-it-ai-generate', handleAIGenerate);
+    }, [setBlocks, debouncedOnUpdate, setFocusId]);
 
     const updateBlock = useCallback((id: string, contentOrPatch: string | Partial<Block>, metadata?: any) => {
         setBlocks(prev => {

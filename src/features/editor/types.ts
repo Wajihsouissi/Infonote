@@ -19,7 +19,8 @@ export type BlockType =
     | 'columns'
     | 'code'
     | 'color'
-    | 'link';
+    | 'link'
+    | 'ai';
 
 export type Block = {
     id: string;

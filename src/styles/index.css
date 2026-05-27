@@ -51,7 +51,7 @@
   --ui-border-low: rgba(255, 255, 255, 0.05);
 
   /* Context Specific Overrides */
-  --modal-bg: var(--glass-bg);
+  --modal-bg: var(--color-bg-surface);
   --note-bg: transparent;
 
   /* React Flow - Uses Glass System */

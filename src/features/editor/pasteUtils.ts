@@ -249,9 +249,10 @@ function parseExactLinkLine(trimmedLine: string): ExtractedLink | null {
  * Parse plain text content, with Markdown detection for ChatGPT-style output.
  * Handles headings, lists, code fences, tables, blockquotes, dividers, etc.
  */
-function parsePlainText(text: string): Block[] {
+export function parsePlainText(text: string): Block[] {
+    const cleanText = text.replace(/\*\*/g, '');
     const blocks: Block[] = [];
-    const lines = text.split(/\r\n|\r|\n/);
+    const lines = cleanText.split(/\r\n|\r|\n/);
 
     let i = 0;
     while (i < lines.length) {

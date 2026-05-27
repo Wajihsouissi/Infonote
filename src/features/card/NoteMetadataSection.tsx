@@ -60,6 +60,10 @@ export function NoteMetadataSection({
                         onBlur={onBlur}
                         onClick={(e) => e.stopPropagation()}
                         onMouseDownCapture={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            e.currentTarget.select();
+                        }}
                         placeholder="Untitled Page"
                     />
                 </div>
@@ -79,6 +83,10 @@ export function NoteMetadataSection({
                         onBlur={onBlur}
                         onClick={(e) => e.stopPropagation()}
                         onMouseDownCapture={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            e.currentTarget.select();
+                        }}
                         rows={1}
                         placeholder="Add a description..."
                     />

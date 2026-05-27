@@ -139,6 +139,218 @@
     }
 }
 
+/* AI Magical Mode Styles */
+.aiContainer {
+    display: flex;
+    align-items: center;
+    width: 520px;
+    height: 100%;
+    gap: 8px;
+    position: relative;
+    border-radius: 99px;
+    background: linear-gradient(90deg, rgba(139, 92, 246, 0.05), rgba(217, 70, 239, 0.1), rgba(139, 92, 246, 0.05));
+    background-size: 200% 100%;
+    animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards, magicalGradient 3s linear infinite;
+    box-shadow: inset 0 0 10px rgba(168, 85, 247, 0.15), 0 0 20px rgba(168, 85, 247, 0.1);
+    border: 1px solid rgba(168, 85, 247, 0.4);
+    padding: 0 6px;
+}
+
+.aiInput {
+    flex: 1;
+    height: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--color-text-main);
+    font-size: 16px;
+    padding: 0 4px;
+    font-family: inherit;
+    text-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
+}
+
+.aiInput::placeholder {
+    color: #a855f7;
+    opacity: 0.7;
+}
+
+.aiIconBtn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(217, 70, 239, 0.1));
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    color: #c084fc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);
+    animation: magicalPulse 3s infinite;
+}
+
+.aiIconBtn:hover {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(217, 70, 239, 0.25));
+    color: #e879f9;
+    transform: translateY(-2px) scale(1.1);
+    box-shadow: 0 0 25px rgba(168, 85, 247, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.2);
+    border-color: rgba(217, 70, 239, 0.5);
+    animation: none;
+}
+
+.aiIconBtn:active {
+    transform: scale(0.95);
+}
+
+.aiIconBtn:hover svg {
+    animation: sparkleSpin 4s linear infinite;
+}
+
+.aiSendBtn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #c084fc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.aiSendBtn:hover {
+    background: rgba(168, 85, 247, 0.15);
+    color: #e879f9;
+    transform: scale(1.1) translateX(2px);
+}
+
+.modeToggleBtn {
+    background: transparent;
+    border: none;
+    padding: 6px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.modeToggleBtn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.1);
+}
+
+.aiModeSwitcher {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 99px;
+    padding: 2px;
+    gap: 2px;
+}
+
+.modeActiveText {
+    background: rgba(168, 85, 247, 0.15);
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
+}
+
+.modeActiveImage {
+    background: rgba(14, 165, 233, 0.15);
+    box-shadow: 0 0 10px rgba(14, 165, 233, 0.2);
+}
+
+/* AI Image Mode Styles (Cyan/Teal Theme) */
+.aiImageContainer {
+    display: flex;
+    align-items: center;
+    width: 520px;
+    height: 100%;
+    gap: 8px;
+    position: relative;
+    border-radius: 99px;
+    background: linear-gradient(90deg, rgba(14, 165, 233, 0.05), rgba(45, 212, 191, 0.1), rgba(14, 165, 233, 0.05));
+    background-size: 200% 100%;
+    animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards, magicalGradient 3s linear infinite;
+    box-shadow: inset 0 0 10px rgba(14, 165, 233, 0.15), 0 0 20px rgba(14, 165, 233, 0.1);
+    border: 1px solid rgba(14, 165, 233, 0.4);
+    padding: 0 6px;
+}
+
+.aiImageInput {
+    flex: 1;
+    height: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--color-text-main);
+    font-size: 16px;
+    padding: 0 4px;
+    font-family: inherit;
+    text-shadow: 0 0 10px rgba(14, 165, 233, 0.2);
+}
+
+.aiImageInput::placeholder {
+    color: #38bdf8;
+    opacity: 0.7;
+}
+
+.aiImageIconBtn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.1), rgba(45, 212, 191, 0.1));
+    border: 1px solid rgba(14, 165, 233, 0.3);
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 0 0 15px rgba(14, 165, 233, 0.2);
+}
+
+.aiImageIconBtn:hover {
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.25), rgba(45, 212, 191, 0.25));
+    color: #7dd3fc;
+    transform: translateY(-2px) scale(1.1);
+    box-shadow: 0 0 25px rgba(14, 165, 233, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.2);
+    border-color: rgba(45, 212, 191, 0.5);
+}
+
+.aiImageIconBtn:active {
+    transform: scale(0.95);
+}
+
+.aiImageSendBtn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.aiImageSendBtn:hover {
+    background: rgba(14, 165, 233, 0.15);
+    color: #7dd3fc;
+    transform: scale(1.1) translateX(2px);
+}
+
 .mainAddBtn {
     width: 48px;
     height: 48px;

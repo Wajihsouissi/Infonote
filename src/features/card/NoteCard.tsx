@@ -1,6 +1,6 @@
 import { memo, useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
-import { Scan, PanelRight, PanelLeft, Monitor, Sparkles } from 'lucide-react';
+import { Scan, PanelRight, PanelLeft, Monitor, Sparkles, Loader2 } from 'lucide-react';
 import styles from './NoteCard.module.css';
 import type { NoteNode } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -10,9 +10,11 @@ import { NoteExpandedContent } from './NoteExpandedContent';
 
 import { CoverPicker } from './CoverPicker';
 import { AIGeneratePanel } from './AIGeneratePanel';
+import { AISkeletonCard } from './AISkeletonCard';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { calculateNoteLayout } from '../../config/layout';
 import { toPastelColor, darkenColor } from '../../utils/colorUtils';
+import { generateText } from '../../services/aiService';
 
 export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<NoteNode>) => {
     const { setNodes, getViewport } = useReactFlow();
@@ -92,6 +94,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     const [isEditingMetadata, setIsEditingMetadata] = useState(false);
     const [showCoverPicker, setShowCoverPicker] = useState(false);
     const [showAIPanel, setShowAIPanel] = useState(false);
+    const [isSummarizing, setIsSummarizing] = useState(false);
     // Metadata visibility state for Expanded view is now derived from data.showMetadata
 
 
@@ -165,6 +168,29 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
         e.stopPropagation();
         setActiveIconMenuId(id);
     }, [id, setActiveIconMenuId]);
+
+    const handleSummarize = useCallback(async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        
+        const contentBlocks = data.content as any[];
+        if (!contentBlocks || contentBlocks.length === 0) return;
+        
+        const textContent = contentBlocks.map(b => b.content).join('\n');
+        if (!textContent.trim()) return;
+
+        setIsSummarizing(true);
+        try {
+            const prompt = `Summarize the following content in exactly two lines, followed by a few bullet points:\n\n${textContent}`;
+            const summary = await generateText(prompt);
+            setEditedData(prev => ({ ...prev, description: summary }));
+            updateNodeData(id, { description: summary });
+        } catch (error) {
+            console.error("Failed to summarize:", error);
+        } finally {
+            setIsSummarizing(false);
+        }
+    }, [data.content, id, updateNodeData]);
 
     const cardRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -496,6 +522,10 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                         onClick={(e) => e.stopPropagation()}
                         onPointerDown={(e) => e.stopPropagation()}
                         onMouseDown={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            e.currentTarget.select();
+                        }}
                     />
                 </div>
             )}
@@ -520,29 +550,47 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                             onClick={(e) => e.stopPropagation()}
                             onPointerDown={(e) => e.stopPropagation()}
                             onMouseDown={(e) => e.stopPropagation()}
+                            onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                e.currentTarget.select();
+                            }}
                         />
                     </div>
-                    <textarea
-                        className={`${styles.mediumDescInput} nodrag`}
-                        value={isEditingMetadata ? editedData.description : (data.description || '')}
-                        onChange={(e) => {
-                            setEditedData({ ...editedData, description: e.target.value });
-                        }}
-                        onFocus={(e) => {
-                            e.stopPropagation();
-                            setIsEditingMetadata(true);
-                        }}
-                        onBlur={() => {
-                            if (isEditingMetadata) {
-                                handleSaveMetadata();
-                            }
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onWheelCapture={(e) => e.stopPropagation()}
-                        placeholder="Add description..."
-                    />
+                    <div className={styles.mediumDescContainer}>
+                        <textarea
+                            className={`${styles.mediumDescInput} nodrag`}
+                            value={isEditingMetadata ? editedData.description : (data.description || '')}
+                            onChange={(e) => {
+                                setEditedData({ ...editedData, description: e.target.value });
+                            }}
+                            onFocus={(e) => {
+                                e.stopPropagation();
+                                setIsEditingMetadata(true);
+                            }}
+                            onBlur={() => {
+                                if (isEditingMetadata) {
+                                    handleSaveMetadata();
+                                }
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onWheelCapture={(e) => e.stopPropagation()}
+                            onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                e.currentTarget.select();
+                            }}
+                            placeholder="Add description..."
+                        />
+                        <button 
+                            className={styles.summarizeBtn}
+                            onClick={handleSummarize}
+                            disabled={isSummarizing || !data.content || (data.content as any[]).length === 0}
+                            title="Auto-summarize content"
+                        >
+                            {isSummarizing ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -550,14 +598,18 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             {viewMode === 'expanded' && (
                 <div className={styles.expandedView} key="expanded">
                     <ErrorBoundary>
-                        <NoteExpandedContent
-                            id={id}
-                            data={data}
-                            onUpdate={updateNodeData}
-                            contentRef={contentRef}
-                            nodeId={id}
-                            selectionIslandPortalId={`selection-island-${id}`}
-                        />
+                        {(data as any).isAISkeleton ? (
+                            <AISkeletonCard />
+                        ) : (
+                            <NoteExpandedContent
+                                id={id}
+                                data={data}
+                                onUpdate={updateNodeData}
+                                contentRef={contentRef}
+                                nodeId={id}
+                                selectionIslandPortalId={`selection-island-${id}`}
+                            />
+                        )}
                     </ErrorBoundary>
                 </div>
             )}

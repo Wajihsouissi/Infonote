@@ -7,6 +7,7 @@ import {
     useReactFlow,
     Panel,
     Background,
+    BackgroundVariant,
 } from '@xyflow/react';
 import { NoteCard } from '../card/NoteCard';
 import { BlockNode } from '../block/BlockNode';
@@ -1048,7 +1049,7 @@ export function CanvasBoard() {
                     }}
                 >
                     <CanvasSlashMenu />
-                    <Background variant="dots" gap={BASE_UNIT} offset={-GRID_GAP / 2} size={1.5} color="var(--color-border)" style={{ opacity: 0.8 }} />
+                    <Background variant={BackgroundVariant.Dots} gap={BASE_UNIT} offset={-GRID_GAP / 2} size={1.5} color="var(--color-border)" style={{ opacity: 0.8 }} />
                     <Panel position="top-center">
                         <CloudSyncControls />
                     </Panel>

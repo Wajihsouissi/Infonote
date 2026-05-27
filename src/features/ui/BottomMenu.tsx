@@ -11,7 +11,11 @@ import {
     Flag,
     CheckCircle,
     Table2,
-    Clock
+    Clock,
+    Sparkles,
+    Send,
+    ImagePlus,
+    Loader2
 } from 'lucide-react';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useReactFlow } from '@xyflow/react';
@@ -23,6 +27,8 @@ import { snapToGridValue } from '../../config/layout';
 import { parseSearchQuery } from './searchUtils';
 import { MultiSelectionToolbar } from './MultiSelectionToolbar';
 import { EdgeEditingToolbar } from './EdgeEditingToolbar';
+import { generateCanvasCards, generateImage, parseStructuredAction, generateText } from '../../services/aiService';
+import { parsePlainText } from '../editor/pasteUtils';
 
 export function BottomMenu() {
     // Atomic Selectors
@@ -40,9 +46,13 @@ export function BottomMenu() {
     const { screenToFlowPosition } = useReactFlow();
     const [isSearchMode, setIsSearchMode] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [isAIMode, setIsAIMode] = useState(false);
+    const [aiQuery, setAiQuery] = useState('');
+    const [aiModeType, setAiModeType] = useState<'text' | 'image'>('text');
     const [showFilters, setShowFilters] = useState(false);
     const [activeMenu, setActiveMenu] = useState<'views' | 'blocks' | null>(null);
     const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
+    const [aiError, setAiError] = useState<string | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const handleAddNoteRef = useRef<() => void>(() => {});
 
@@ -55,21 +65,28 @@ export function BottomMenu() {
         }
     }, [activeMenu]);
 
-    // Click-away listener to dismiss active menus when clicking outside
+    // Click-away listener to dismiss active menus and modes when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
                 setActiveMenu(null);
+                if (isAIMode) {
+                    setIsAIMode(false);
+                }
+                if (isSearchMode) {
+                    setIsSearchMode(false);
+                    setShowFilters(false);
+                }
             }
         };
 
-        if (activeMenu) {
+        if (activeMenu || isAIMode || isSearchMode) {
             document.addEventListener('mousedown', handleClickOutside, true);
         }
         return () => {
             document.removeEventListener('mousedown', handleClickOutside, true);
         };
-    }, [activeMenu]);
+    }, [activeMenu, isAIMode, isSearchMode]);
 
     // Handle keyboard navigation inside the open menu
     useEffect(() => {
@@ -190,6 +207,31 @@ export function BottomMenu() {
                     setSearchQuery('');
                 } else {
                     setIsSearchMode(true);
+                    setIsAIMode(false);
+                }
+            } else if (e.key === 'j' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                if (isAIMode && aiModeType === 'text') {
+                    setIsAIMode(false);
+                    setAiQuery('');
+                    setAiError(null);
+                } else {
+                    setIsAIMode(true);
+                    setAiModeType('text');
+                    setIsSearchMode(false);
+                    setAiError(null);
+                }
+            } else if (e.key === 'i' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                if (isAIMode && aiModeType === 'image') {
+                    setIsAIMode(false);
+                    setAiQuery('');
+                    setAiError(null);
+                } else {
+                    setIsAIMode(true);
+                    setAiModeType('image');
+                    setIsSearchMode(false);
+                    setAiError(null);
                 }
             } else if (e.key === 'n' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
@@ -354,6 +396,230 @@ export function BottomMenu() {
     };
     handleAddNoteRef.current = handleAddNote;
 
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    const handleAISubmit = async () => {
+        if (!aiQuery.trim() || isGenerating) return;
+        setIsGenerating(true);
+        setAiError(null);
+        const query = aiQuery.trim();
+        try {
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2;
+            const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
+
+             if (aiModeType === 'text') {
+                 if (selectedCanvasNodeIds.size > 0) {
+                     const selectedIds = Array.from(selectedCanvasNodeIds);
+                     for (const nodeId of selectedIds) {
+                         const node = nodes.find(n => n.id === nodeId);
+                         if (node && node.type === 'note') {
+                             const nodeTitle = node.data.label || 'Untitled';
+                             const nodeDescription = node.data.description || '';
+                             
+                             const contentBlocks = node.data.content as any[];
+                             const contentText = Array.isArray(contentBlocks)
+                                 ? contentBlocks.map(b => b.content).join('\n')
+                                 : '';
+ 
+                             const prompt = `You are editing an existing note card.
+ Here is the card's current title: "${nodeTitle}"
+ Here is the card's current description: "${nodeDescription}"
+ Here is the card's current body content:
+ "${contentText}"
+ 
+ The user has given the following instruction to modify this card:
+ "${query}"
+ 
+ Respond ONLY with a valid JSON object matching this structure. Do not include markdown, code blocks, or explanations.
+ {
+   "title": "...", // updated title if the user asked to change the title, or the same title
+   "description": "...", // updated description (2-line summary with bullet points) based on the user's instructions and body text
+   "content": "..." // updated full body content based on the user's instructions (e.g. translate, add details, edit, format, outline, etc.)
+ }`;
+ 
+                             const responseText = await generateText(prompt);
+                             const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+                             if (jsonMatch) {
+                                 try {
+                                     const result = JSON.parse(jsonMatch[0]);
+                                     const parsedBlocks = parsePlainText(result.content || contentText);
+                                     updateNodeData(nodeId, {
+                                         label: result.title || nodeTitle,
+                                         description: result.description || nodeDescription,
+                                         content: parsedBlocks.length > 0 ? parsedBlocks : [
+                                             { id: uuidv4(), type: 'text', content: result.content || contentText }
+                                         ]
+                                     });
+                                 } catch (e) {
+                                     console.error("Failed to parse AI update result JSON:", e);
+                                     const parsedBlocks = parsePlainText(responseText);
+                                     updateNodeData(nodeId, {
+                                         content: parsedBlocks.length > 0 ? parsedBlocks : [
+                                             { id: uuidv4(), type: 'text', content: responseText }
+                                         ]
+                                     });
+                                 }
+                             } else {
+                                 const parsedBlocks = parsePlainText(responseText);
+                                 updateNodeData(nodeId, {
+                                     content: parsedBlocks.length > 0 ? parsedBlocks : [
+                                         { id: uuidv4(), type: 'text', content: responseText }
+                                     ]
+                                 });
+                             }
+                         }
+                     }
+                     setAiQuery('');
+                     setIsAIMode(false);
+                     return;
+                 }
+ 
+                 const selectedNode = nodes.find(n => n.selected);
+                 let activeNodeColor: string | undefined = selectedNode ? (selectedNode.data as any).color : undefined;
+                 if (!activeNodeColor) {
+                     const coloredNodes = nodes.filter(n => n.type === 'note' && (n.data as any).color);
+                     if (coloredNodes.length > 0) {
+                         activeNodeColor = (coloredNodes[Math.floor(Math.random() * coloredNodes.length)].data as any).color;
+                     }
+                 }
+
+                 // Spawn a skeleton loading node
+                 const skeletonId = uuidv4();
+                 addNode(
+                     'note',
+                     findNonOverlappingPosition(flowPos, { width: 432, height: 432 }),
+                     {
+                         label: 'AI is thinking...',
+                         content: [{ id: uuidv4(), type: 'text', content: 'Generating your structured request...' }],
+                         color: activeNodeColor || undefined,
+                         viewMode: 'expanded',
+                         showMetadata: false,
+                         icon: 'Sparkles',
+                         isAISkeleton: true,
+                     },
+                     { width: 432, height: 432 },
+                     currentParentId || undefined,
+                     skeletonId
+                 );
+
+                 try {
+                     const actions = await parseStructuredAction(query);
+                     
+                     // Remove skeleton node
+                     useStore.getState().setNodes(nds => nds.filter(n => n.id !== skeletonId));
+
+                     actions.forEach((action, idx) => {
+                         const width = action.type === 'kanban' ? 700 : 432;
+                         const height = action.type === 'kanban' ? 500 : 432;
+     
+                         const position = findNonOverlappingPosition(
+                             {
+                                 x: flowPos.x + (idx % 3) * 340,
+                                 y: flowPos.y + Math.floor(idx / 3) * 260
+                             },
+                             { width, height }
+                         );
+     
+                         if (action.type === 'note') {
+                             const parsedBlocks = parsePlainText(action.content || '');
+                             addNode(
+                                 'note',
+                                 position,
+                                 {
+                                     label: action.title,
+                                     content: parsedBlocks.length > 0 ? parsedBlocks : [{ id: uuidv4(), type: 'text', content: action.content || '' }],
+                                     color: action.color || activeNodeColor || undefined,
+                                     viewMode: 'expanded',
+                                     showMetadata: false,
+                                     icon: 'Sparkles',
+                                     createdAt: new Date().toISOString(),
+                                     updatedAt: new Date().toISOString(),
+                                 },
+                                 { width: 432, height: 432 },
+                                 currentParentId || undefined
+                             );
+                         } else if (action.type === 'kanban') {
+                             const viewMode = action.viewMode || 'board';
+                             const BOARD_WIDTH = viewMode === 'timeline' ? 800 : viewMode === 'calendar' ? 800 : 700;
+                             const BOARD_HEIGHT = viewMode === 'calendar' ? 600 : viewMode === 'timeline' ? 400 : 500;
+                             
+                             addNode(
+                                 'kanban',
+                                 position,
+                                 {
+                                     label: action.title || 'Board',
+                                     columns: action.columns && action.columns.length > 0 ? action.columns : [
+                                         { id: 'todo', label: 'To Do', statusValue: 'todo', color: '#ef4444' },
+                                         { id: 'in-progress', label: 'In Progress', statusValue: 'in-progress', color: '#f59e0b' },
+                                         { id: 'done', label: 'Done', statusValue: 'done', color: '#22c55e' }
+                                     ],
+                                     viewMode: viewMode,
+                                     createdAt: new Date().toISOString(),
+                                     updatedAt: new Date().toISOString(),
+                                 },
+                                 { width: BOARD_WIDTH, height: BOARD_HEIGHT },
+                                 currentParentId || undefined
+                             );
+                         }
+                     });
+                     setAiQuery('');
+                     setIsAIMode(false);
+                 } catch (err) {
+                     // Clean up skeleton on failure
+                     useStore.getState().setNodes(nds => nds.filter(n => n.id !== skeletonId));
+                     throw err;
+                 }
+            } else {
+                const imageUrl = await generateImage(query);
+                const BLOCK_WIDTH = 380;
+                const BLOCK_HEIGHT = 450;
+                const position = findNonOverlappingPosition(flowPos, {
+                    width: BLOCK_WIDTH,
+                    height: BLOCK_HEIGHT
+                });
+                addNode(
+                    'block',
+                    position,
+                    {
+                        content: [
+                            { 
+                                id: uuidv4(), 
+                                type: 'image', 
+                                content: imageUrl, 
+                                metadata: { 
+                                    prompt: query, 
+                                    width: 350, 
+                                    alignment: 'center' 
+                                } 
+                            },
+                            { 
+                                id: uuidv4(), 
+                                type: 'text', 
+                                content: `Prompt: "${query}"`, 
+                                metadata: { 
+                                    textColor: '#c084fc' 
+                                } 
+                            }
+                        ],
+                        isStandaloneBlock: true,
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                    },
+                    { width: BLOCK_WIDTH, height: BLOCK_HEIGHT },
+                    currentParentId || undefined
+                );
+                setAiQuery('');
+                setIsAIMode(false);
+            }
+        } catch (error) {
+            console.error("AI Generation failed:", error);
+            setAiError("AI Generation failed. Please try again.");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     const handleDragStart = (e: React.DragEvent, type: string, metadata?: any) => {
         e.dataTransfer.setData('application/reactflow-block-type', type);
 
@@ -418,10 +684,93 @@ export function BottomMenu() {
     return (
         <>
             <div ref={menuRef} className={styles.bottomMenu}>
-                {selectedCanvasNodeIds.size > 0 ? (
-                    <MultiSelectionToolbar />
-                ) : hasSelectedEdges ? (
-                    <EdgeEditingToolbar />
+                {isAIMode ? (
+                    <div style={{ position: 'relative', display: 'flex', width: '100%' }}>
+                        {aiError && (
+                            <div style={{
+                                position: 'absolute',
+                                bottom: '100%',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                marginBottom: '12px',
+                                background: 'rgba(239, 68, 68, 0.95)',
+                                color: 'white',
+                                padding: '8px 16px',
+                                borderRadius: '8px',
+                                fontSize: '13px',
+                                fontWeight: 500,
+                                whiteSpace: 'nowrap',
+                                pointerEvents: 'none',
+                                animation: 'fadeIn 0.2s ease-out'
+                            }}>
+                                {aiError}
+                            </div>
+                        )}
+                        <div className={aiModeType === 'text' ? styles.aiContainer : styles.aiImageContainer}>
+                        <div className={styles.aiModeSwitcher}>
+                            <button 
+                                className={`${styles.modeToggleBtn} ${aiModeType === 'text' ? styles.modeActiveText : ''}`}
+                                onClick={() => !isGenerating && setAiModeType('text')}
+                                disabled={isGenerating}
+                                title="Text Generation"
+                            >
+                                {isGenerating && aiModeType === 'text' ? (
+                                    <Loader2 size={16} className="animate-spin text-purple-400" />
+                                ) : (
+                                    <Sparkles size={16} color={aiModeType === 'text' ? "#c084fc" : "gray"} />
+                                )}
+                            </button>
+                            <button 
+                                className={`${styles.modeToggleBtn} ${aiModeType === 'image' ? styles.modeActiveImage : ''}`}
+                                onClick={() => !isGenerating && setAiModeType('image')}
+                                disabled={isGenerating}
+                                title="Image Generation"
+                            >
+                                {isGenerating && aiModeType === 'image' ? (
+                                    <Loader2 size={16} className="animate-spin text-sky-400" />
+                                ) : (
+                                    <ImagePlus size={16} color={aiModeType === 'image' ? "#38bdf8" : "gray"} />
+                                )}
+                            </button>
+                        </div>
+                        <input
+                            type="text"
+                            className={aiModeType === 'text' ? styles.aiInput : styles.aiImageInput}
+                            placeholder={
+                                isGenerating 
+                                    ? "AI is dreaming up your request..." 
+                                    : aiModeType === 'text' 
+                                        ? selectedCanvasNodeIds.size > 0 
+                                            ? `Ask AI to modify the selected card...` 
+                                            : "Ask AI to generate, summarize, or edit..." 
+                                        : "Describe an image to generate..."
+                            }
+                            value={aiQuery}
+                            onChange={(e) => setAiQuery(e.target.value)}
+                            disabled={isGenerating}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    handleAISubmit();
+                                } else if (e.key === 'Escape' && !isGenerating) {
+                                    setIsAIMode(false);
+                                }
+                            }}
+                            autoFocus
+                        />
+                        <button
+                            className={aiModeType === 'text' ? styles.aiSendBtn : styles.aiImageSendBtn}
+                            onClick={handleAISubmit}
+                            disabled={isGenerating || !aiQuery.trim()}
+                            title={isGenerating ? "AI is processing" : aiModeType === 'text' ? "Send to AI" : "Generate Image"}
+                        >
+                            {isGenerating ? (
+                                <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                                <Send size={16} />
+                            )}
+                        </button>
+                    </div>
+                    </div>
                 ) : isSearchMode ? (
                     <div className={styles.searchContainer}>
                         <SearchResults
@@ -548,12 +897,26 @@ export function BottomMenu() {
                             </div>
                         )}
                     </div>
+                ) : selectedCanvasNodeIds.size > 0 ? (
+                    <MultiSelectionToolbar 
+                        onOpenAI={() => { setIsAIMode(true); setAiModeType('text'); }} 
+                        onOpenSearch={() => setIsSearchMode(true)}
+                    />
+                ) : hasSelectedEdges ? (
+                    <EdgeEditingToolbar />
                 ) : (
                     <>
                         <button
+                            className={styles.aiIconBtn}
+                            onClick={() => { setIsAIMode(true); setAiModeType('text'); }}
+                            title="Ask AI (Ctrl+J)"
+                        >
+                            <Sparkles size={20} />
+                        </button>
+                        <button
                             className={styles.iconBtn}
                             onClick={() => setIsSearchMode(true)}
-                            title="Search"
+                            title="Search (Ctrl+F)"
                         >
                             <Search size={20} />
                         </button>

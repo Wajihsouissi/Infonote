@@ -274,6 +274,10 @@ export function NoteExpandedContent({
                             onPointerDown={(e) => e.stopPropagation()}
                             onMouseDown={(e) => e.stopPropagation()}
                             onClick={(e) => e.stopPropagation()}
+                            onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                e.currentTarget.select();
+                            }}
                             className={`${styles.minimalTitleInput} nodrag`}
                             placeholder="Untitled"
                         />

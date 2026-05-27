@@ -1,5 +1,5 @@
 import React, { useState, useRef, useLayoutEffect, memo, useCallback } from 'react';
-import { FileText, Trash2 } from 'lucide-react';
+import { FileText, Trash2, Sparkles, Loader2 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { renderContentWithLinks } from './pasteUtils';
 import pageStyles from './PageBlock.module.css'; // Import page styles
@@ -9,6 +9,7 @@ export { ContainerBlock, ColumnsBlock };
 import type { Block } from './types';
 import styles from './BlockEditor.module.css';
 import { IconPicker, getIconByName } from '../card/IconPicker';
+import { generateText } from '../../services/aiService';
 // Lazy load PDFViewer
 const PDFViewer = React.lazy(() => import('../ui/PDFViewer').then(module => ({ default: module.PDFViewer })));
 import ReactDOM from 'react-dom';
@@ -793,6 +794,56 @@ export const PageBlock = memo(({ block }: BlockProps) => {
         >
             <FileText size={16} className={pageStyles.pageIcon} />
             <span className={pageStyles.pageTitle}>{title}</span>
+        </div>
+    );
+});
+
+export const AIBlock = memo(({ block, readOnly }: BlockProps) => {
+    const [prompt, setPrompt] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleGenerate = async () => {
+        if (!prompt.trim() || isGenerating) return;
+        setIsGenerating(true);
+        setError(null);
+        try {
+            const systemPrompt = `You are a writing assistant in an infinite canvas note-taking app. The user wants you to write something inline in their note.
+Respond with raw markdown only. Do not wrap it in a code block. Keep it concise, high-quality, and directly address the prompt: ${prompt}`;
+            
+            const response = await generateText(systemPrompt);
+            
+            window.dispatchEvent(new CustomEvent('chnk-it-ai-generate', { detail: { id: block.id, content: response } }));
+        } catch (e) {
+            setError('Failed to generate. Please try again.');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'rgba(139, 92, 246, 0.1)', borderRadius: '8px', border: '1px solid rgba(139, 92, 246, 0.3)', margin: '8px 0' }} contentEditable={false}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#c084fc', fontSize: '13px', fontWeight: 600 }}>
+                <Sparkles size={16} /> AI Generation
+            </div>
+            {error && <div style={{ color: '#ef4444', fontSize: '12px' }}>{error}</div>}
+            <div style={{ display: 'flex', gap: '8px' }}>
+                <input 
+                    autoFocus
+                    value={prompt}
+                    onChange={e => setPrompt(e.target.value)}
+                    onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleGenerate();
+                        }
+                    }}
+                    placeholder="Tell AI what to write..."
+                    style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--color-text-main)', outline: 'none', fontSize: '14px' }}
+                    disabled={isGenerating || readOnly}
+                />
+                {isGenerating ? <Loader2 size={16} className="animate-spin" color="#c084fc" /> : null}
+            </div>
         </div>
     );
 });
