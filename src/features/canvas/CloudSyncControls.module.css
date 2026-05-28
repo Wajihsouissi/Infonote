@@ -92,3 +92,31 @@
     background: rgba(239, 68, 68, 0.12);
     border: 1px solid rgba(239, 68, 68, 0.25);
 }
+
+.statusPill.offline {
+    color: #f97316;
+    background: rgba(249, 115, 22, 0.12);
+    border: 1px solid rgba(249, 115, 22, 0.25);
+}
+
+.dirtyDot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #facc15;
+    box-shadow: 0 0 4px rgba(250, 204, 21, 0.6);
+    margin-left: 2px;
+    flex-shrink: 0;
+}
+
+.warning {
+    color: #f97316;
+    background: rgba(249, 115, 22, 0.1);
+    border-color: rgba(249, 115, 22, 0.3);
+}
+
+.warning:hover:not(:disabled) {
+    background: rgba(249, 115, 22, 0.18);
+    border-color: #f97316;
+}

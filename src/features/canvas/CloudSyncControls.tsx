@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { Cloud, CloudDownload, Undo2, Loader2, CheckCircle2, AlertCircle, LogIn } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Cloud, CloudDownload, Undo2, Loader2, CheckCircle2, AlertCircle, LogIn, WifiOff } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { saveCanvasToCloud } from '../../services/cloudSync';
 import { isSupabaseConfigured } from '../../services/supabase/client';
@@ -34,6 +34,23 @@ export function CloudSyncControls() {
     // Controls visibility of the new "Reload Saved Data" picker modal.
     const [loadModalOpen, setLoadModalOpen] = useState(false);
 
+    // Offline detection
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+    useEffect(() => {
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
+
+    // Cloud dirty state
+    const isCloudDirty = useStore((s) => s.storage.isCloudDirty);
+
     // Detect if a cloud reload backup exists in localStorage
     const [hasCloudBackup, setHasCloudBackup] = useState(
         () => localStorage.getItem('chnk-it-cloud-reload-backup') !== null
@@ -49,6 +66,10 @@ export function CloudSyncControls() {
     }, []);
 
     const handleSave = useCallback(async () => {
+        if (!isOnline) {
+            flashStatus({ kind: 'error', message: "You're offline. Connect to the internet to sync." });
+            return;
+        }
         if (!isSupabaseConfigured) {
             flashStatus({ kind: 'error', message: 'Cloud is not configured.' });
             return;
@@ -75,7 +96,7 @@ export function CloudSyncControls() {
             if (setCloudError) setCloudError(errMsg);
             flashStatus({ kind: 'error', message: errMsg });
         }
-    }, [isAuthenticated, userId, setAuthModalOpen, flashStatus, setCloudLastSaved, setCloudDirty, setCloudError]);
+    }, [isAuthenticated, isOnline, userId, setAuthModalOpen, flashStatus, setCloudLastSaved, setCloudDirty, setCloudError]);
 
     const handleReload = useCallback(async () => {
         if (!isSupabaseConfigured) {
@@ -127,6 +148,12 @@ export function CloudSyncControls() {
 
     return (
         <div className={styles.wrap} role="group" aria-label="Cloud sync">
+            {!isOnline && (
+                <div className={`${styles.statusPill} ${styles.offline}`} role="status">
+                    <WifiOff size={12} />
+                    <span>Offline</span>
+                </div>
+            )}
             {hasCloudBackup && (
                 <button
                     type="button"
@@ -142,21 +169,24 @@ export function CloudSyncControls() {
                 type="button"
                 className={`${styles.btn} ${styles.primary}`}
                 onClick={handleSave}
-                disabled={busy}
-                title={isAuthenticated ? 'Save the canvas to your cloud account' : 'Sign in to enable cloud sync'}
+                disabled={busy || !isOnline}
+                title={!isOnline ? 'You are offline' : isAuthenticated ? 'Save the canvas to your cloud account' : 'Sign in to enable cloud sync'}
             >
                 {saving ? <Loader2 size={14} className="animate-spin" />
                     : !isAuthenticated ? <LogIn size={14} />
                     : <Cloud size={14} />}
                 <span>{saving ? 'Saving…' : 'Save Cloud'}</span>
+                {isCloudDirty && status.kind === 'idle' && isOnline && isAuthenticated && (
+                    <span className={styles.dirtyDot} title="Unsaved changes" />
+                )}
             </button>
 
             <button
                 type="button"
                 className={`${styles.btn} ${styles.secondary}`}
                 onClick={handleReload}
-                disabled={busy}
-                title={isAuthenticated ? 'Reload the canvas from cloud' : 'Sign in to enable cloud sync'}
+                disabled={busy || !isOnline}
+                title={!isOnline ? 'You are offline' : isAuthenticated ? 'Reload the canvas from cloud' : 'Sign in to enable cloud sync'}
             >
                 {loadingFromCloud ? <Loader2 size={14} className="animate-spin" />
                     : !isAuthenticated ? <LogIn size={14} />

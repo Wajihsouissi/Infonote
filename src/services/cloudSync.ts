@@ -411,8 +411,13 @@ async function _saveCanvasToCloudImpl(
             .then(() => {}); // fire-and-forget, don't block save
 
         return { ok: true, counts: { nodes: nodeRows.length, edges: edgeRows.length } };
-    } catch (err) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        // Detect network-specific errors
+        if (!navigator.onLine || message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('fetch')) {
+            return { ok: false, error: 'You are offline. Changes will be saved when you reconnect.' };
+        }
+        return { ok: false, error: message };
     }
 }
 

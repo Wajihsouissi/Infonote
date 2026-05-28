@@ -141,6 +141,15 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             }
         }
 
+        // Mark cloud dirty on structural or position changes (not select/dimensions)
+        const hasMeaningfulChange = filteredChanges.some(
+            (c: any) => c.type === 'remove' || c.type === 'add' || c.type === 'replace' ||
+                (c.type === 'position' && c.dragging === false)
+        );
+        if (hasMeaningfulChange) {
+            get().setCloudDirty?.(true);
+        }
+
         // Optimization: Sync parent content on structural changes OR position changes (to update order)
         const hasStructuralChange = filteredChanges.some(c => c.type === 'remove' || c.type === 'add' || c.type === 'dimensions');
         const hasFinishedDragging = filteredChanges.some(c => c.type === 'position' && c.dragging === false);
@@ -158,12 +167,18 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             : nodesOrUpdater;
 
         set({ nodes: nextNodes });
+        get().setCloudDirty?.(true);
     },
 
     onEdgesChange: (changes) => {
         set({
             edges: applyEdgeChanges(changes, get().edges),
         });
+        // Mark dirty on edge removal/addition
+        const hasMeaningfulEdgeChange = changes.some(c => c.type === 'remove' || c.type === 'add' || c.type === 'replace');
+        if (hasMeaningfulEdgeChange) {
+            get().setCloudDirty?.(true);
+        }
     },
 
     onConnect: (connection) => {
@@ -185,6 +200,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         set({
             edges: addEdge(newEdge, get().edges),
         });
+        get().setCloudDirty?.(true);
     },
 
     addNode: (type, position, initialData, style, parentId, customId) => {
@@ -228,6 +244,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             }
             return { nodes: [...state.nodes, newNode] };
         });
+        get().setCloudDirty?.(true);
 
         if (targetParentId) {
             if (DEBUG) console.log("[addNode] Scheduling syncParentContent for:", targetParentId);
@@ -241,6 +258,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 node.id === id ? ({ ...node, data: { ...node.data, ...data } } as AppNode) : node
             ),
         });
+        get().setCloudDirty?.(true);
 
         const { currentParentId } = get();
         
@@ -337,6 +355,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 node.id === id ? { ...node, ...updates } as AppNode : node
             ),
         }));
+        get().setCloudDirty?.(true);
     },
 
     releaseNodeContentToBlocks: (nodeId: string, centerPosition?: { x: number; y: number }, skipConfirm?: boolean) => {
@@ -554,6 +573,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             nodes: [...newNodesBase, ...newNodes],
             edges: [...newEdgesBase, ...newEdges]
         });
+        get().setCloudDirty?.(true);
 
         if (currentParentId) {
             scheduleParentSync(currentParentId, () => get().syncParentContent(currentParentId));
@@ -625,6 +645,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             ],
             edges: [...edges, newEdge]
         });
+        get().setCloudDirty?.(true);
 
         // Sync parent content if we are splitInside a child canvas
         if (sourceNode.parentId) {
@@ -674,6 +695,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                     return n;
                 }) as AppNode[]
             });
+            get().setCloudDirty?.(true);
         } else {
             const newNode: AppNode = {
                 id: uuidv4(),
@@ -693,6 +715,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             set({
                 nodes: [...nodesToUpdate, newNode]
             });
+            get().setCloudDirty?.(true);
         }
     },
 
@@ -722,6 +745,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         set({
             nodes: [...nodes, newNode]
         });
+        get().setCloudDirty?.(true);
 
         return newId;
     },
@@ -732,6 +756,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 .map((node) => node.id === parentId ? { ...node, data: { ...node.data, content } } : node)
                 .filter((node) => !transientNodeIds.includes(node.id))
         }) as Partial<AppState>);
+        get().setCloudDirty?.(true);
     },
 
     syncParentContent: (parentId: string) => {
@@ -801,6 +826,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         }
 
         set({ nodes: newNodes, edges: newEdges });
+        get().setCloudDirty?.(true);
 
         if (DEBUG) console.log("[bulkDeleteNodes] Completed");
     },
@@ -855,6 +881,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             ],
             selectedCanvasNodeIds: newIds
         }));
+        get().setCloudDirty?.(true);
 
         if (DEBUG) console.log("[bulkDuplicateNodes] Completed");
     },
@@ -880,6 +907,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 return n;
             })
         }));
+        get().setCloudDirty?.(true);
 
         if (DEBUG) console.log("[bulkApplyColor] Completed");
     },
@@ -974,6 +1002,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         const newEdges = edges.filter(e => !nodeIds.includes(e.source) && !nodeIds.includes(e.target));
 
         set({ nodes: dedupedNodes, edges: newEdges });
+        get().setCloudDirty?.(true);
 
         if (DEBUG) console.log("[fuseNodes] Completed - Final node count:", dedupedNodes.length);
     },
@@ -1009,6 +1038,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             set({
                 edges: [...edges, ...newEdges]
             });
+            get().setCloudDirty?.(true);
         } else {
             console.log("[linkSelectedNodes] No new edges created (already existed or empty targets).");
         }
@@ -1240,6 +1270,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         set(state => ({
             nodes: [...state.nodes, ...newNodes]
         }));
+        get().setCloudDirty?.(true);
 
         if (DEBUG) console.log("[hydrateCanvas] Created fused nodes for sections:", newNodes.map(n => n.id));
     },
@@ -1248,12 +1279,14 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         set((state) => ({
             edges: state.edges.map((e) => (e.id === id ? { ...e, ...updates } : e)),
         }));
+        get().setCloudDirty?.(true);
     },
 
     deleteEdge: (id) => {
         set((state) => ({
             edges: state.edges.filter((e) => e.id !== id),
         }));
+        get().setCloudDirty?.(true);
     },
 
     duplicateEdge: (id) => {
@@ -1266,6 +1299,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             set((state) => ({
                 edges: [...state.edges, newEdge],
             }));
+            get().setCloudDirty?.(true);
         }
     },
 
@@ -1276,6 +1310,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             set({
                 edges: [...edges.filter((e) => e.id !== id), edge],
             });
+            get().setCloudDirty?.(true);
         }
     },
 
@@ -1442,5 +1477,6 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         set({
             nodes: nodes.map(n => (positions[n.id] ? { ...n, position: positions[n.id] } : n)),
         });
+        get().setCloudDirty?.(true);
     },
 });
