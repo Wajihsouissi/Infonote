@@ -2199,125 +2199,204 @@
   z-index: 5;
 }
 
+/* Massive background glow behind the entire accordion section */
+.accordionSection::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120vw;
+  height: 800px;
+  background: radial-gradient(ellipse at center, rgba(168, 85, 247, 0.08) 0%, rgba(6, 182, 212, 0.05) 30%, transparent 70%);
+  z-index: -1;
+  pointer-events: none;
+  filter: blur(60px);
+}
+
 .accordionHeader {
   text-align: center;
-  margin-bottom: 64px;
+  margin-bottom: 80px;
+  position: relative;
 }
 
 .accordionTitle {
-  font-size: clamp(32px, 5vw, 48px);
+  font-size: clamp(36px, 5vw, 56px);
   font-weight: 800;
-  letter-spacing: -0.03em;
-  margin: 0 0 16px;
-  background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.6) 100%);
+  letter-spacing: -0.04em;
+  margin: 0 0 20px;
+  background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.5) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 4px 20px rgba(255,255,255,0.1));
 }
 
 .accordionSubtitle {
   font-size: 18px;
-  color: rgba(255, 255, 255, 0.5);
-  max-width: 600px;
+  color: rgba(255, 255, 255, 0.6);
+  max-width: 650px;
   margin: 0 auto;
-  line-height: 1.6;
+  line-height: 1.7;
+  font-weight: 400;
 }
 
 .accordionContainer {
   display: flex;
   gap: 16px;
-  height: 540px;
+  height: 560px;
   width: 100%;
+  perspective: 1000px;
 }
 
 .accordionItem {
   position: relative;
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(10, 5, 15, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.03);
   cursor: pointer;
   overflow: hidden;
-  transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  /* Switched from width/all to explicit flex transition with a buttery-smooth bezier */
+  transition: flex 0.8s cubic-bezier(0.33, 1, 0.68, 1), transform 0.6s cubic-bezier(0.33, 1, 0.68, 1), background-color 0.6s ease, box-shadow 0.6s ease;
   display: flex;
   flex-direction: column;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+@keyframes trimLightFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.accordionItem::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: 24px;
+  padding: 1px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.5), rgba(255,255,255,0.05));
+  background-size: 200% 100%;
+  animation: trimLightFlow 4s ease-in-out infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.3;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
 }
 
 .accordionItem:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(20, 15, 30, 0.6);
+  transform: translateY(-4px);
+  box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 30px rgba(255,255,255,0.03);
+}
+
+.accordionItem:hover::before {
+  opacity: 0.8;
 }
 
 .accordionItem.active {
-  flex: 1;
-  background: rgba(25, 25, 28, 0.9);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 30px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+  flex: 1 1 0%;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
   cursor: default;
+  transform: none;
+}
+
+.accordionItem.active::before {
+  opacity: 1;
+  background: linear-gradient(90deg, rgba(168, 85, 247, 0.2), rgba(6, 182, 212, 0.6), rgba(236, 72, 153, 0.2));
+  background-size: 200% 100%;
+  animation: trimLightFlow 3s ease-in-out infinite;
 }
 
 .accordionItem.inactive {
-  width: 80px;
+  flex: 0 0 80px;
+  transform: scale(0.98);
+}
+
+.accordionItem.inactive:hover {
+  transform: scale(0.98) translateY(-4px);
 }
 
 /* Expanded Content */
 .accordionContent {
-  padding: 40px;
+  padding: 40px 48px;
   opacity: 0;
-  transition: opacity 0.4s ease;
-  transition-delay: 0.2s;
+  transform: translateX(20px);
+  transition: opacity 0.6s cubic-bezier(0.33, 1, 0.68, 1), transform 0.6s cubic-bezier(0.33, 1, 0.68, 1);
+  transition-delay: 0s;
   display: flex;
   flex-direction: column;
   height: 100%;
+  position: relative;
+  z-index: 2;
 }
 
 .accordionItem.inactive .accordionContent {
   opacity: 0;
+  transform: translateX(20px);
   pointer-events: none;
   visibility: hidden;
   position: absolute;
+  transition-delay: 0s;
 }
 
 .accordionItem.active .accordionContent {
   opacity: 1;
+  transform: translateX(0);
+  transition-delay: 0.3s;
 }
 
 .accHeaderRow {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 32px;
 }
 
 .accIconBox {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 28px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: inset 0 0 20px rgba(255,255,255,0.05);
 }
 
 .accTitle {
-  font-size: 32px;
-  font-weight: 700;
+  font-size: 36px;
+  font-weight: 800;
   color: #fff;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  margin-bottom: 8px;
+  background: linear-gradient(90deg, #fff, rgba(255,255,255,0.7));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .accDesc {
   font-size: 16px;
-  line-height: 1.6;
+  line-height: 1.7;
   color: rgba(255,255,255,0.6);
-  margin-bottom: 32px;
-  max-width: 600px;
+  max-width: 500px;
 }
 
 .accImageWrapper {
   flex: 1;
-  border-radius: 16px;
-  overflow: hidden;
   position: relative;
-  border: 1px solid rgba(255,255,255,0.1);
   min-height: 200px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  overflow: visible;
 }
 
 .accImage {
@@ -2333,9 +2412,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 40px 0;
+  padding: 48px 0;
   opacity: 1;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.4s ease;
+  z-index: 2;
 }
 
 .accordionItem.active .accordionSidebar {
@@ -2345,22 +2425,31 @@
 
 .accVerticalText {
   writing-mode: vertical-rl;
-  font-size: 16px;
-  font-weight: 500;
-  color: rgba(255,255,255,0.5);
-  letter-spacing: 0.05em;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: monospace;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
   margin-bottom: auto;
   white-space: nowrap;
+  transition: color 0.3s ease, text-shadow 0.3s ease;
 }
 
 .accSidebarIcon {
-  color: rgba(255,255,255,0.5);
-  margin-top: 24px;
+  color: rgba(255,255,255,0.4);
+  margin-top: 32px;
+  transition: color 0.3s ease, filter 0.3s ease;
 }
 
-.accordionItem:hover .accVerticalText,
+.accordionItem:hover .accVerticalText {
+  color: rgba(255,255,255,0.9);
+  text-shadow: 0 0 12px rgba(255,255,255,0.3);
+}
+
 .accordionItem:hover .accSidebarIcon {
-  color: rgba(255,255,255,0.8);
+  color: rgba(255,255,255,0.9);
+  filter: drop-shadow(0 0 8px rgba(255,255,255,0.5));
 }
 
 /* ── How It Works Walkthrough Section ── */
@@ -2831,5 +2920,201 @@
 
   .wtVisualColumn {
     width: 100%;
+  }
+}
+
+/* ── CTA Section ── */
+.ctaSection {
+  padding: 120px 24px;
+  display: block;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: radial-gradient(circle at center, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
+  z-index: 5;
+  flex-shrink: 0;
+}
+
+.ctaContainer {
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.ctaTitle {
+  font-size: clamp(2.5rem, 5vw, 3.5rem);
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 24px;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+}
+
+.ctaHighlight {
+  background: linear-gradient(to right, #a78bfa, #c026d3);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+.ctaButtonPrimary {
+  background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%) !important;
+  color: #fff !important;
+  border: none !important;
+  box-shadow: 0 8px 24px rgba(168, 85, 247, 0.4), inset 0 1px 1px rgba(255,255,255,0.2) !important;
+}
+
+.ctaButtonPrimary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(168, 85, 247, 0.6), inset 0 1px 1px rgba(255,255,255,0.3) !important;
+}
+
+.ctaButtonSecondary {
+  background: rgba(255,255,255,0.05) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+}
+
+.ctaButtonSecondary:hover {
+  background: rgba(255,255,255,0.1) !important;
+}
+
+.ctaDesc {
+  font-size: 1.25rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 48px;
+  line-height: 1.6;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ctaButtonGroup {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+@media (max-width: 600px) {
+  .ctaButtonGroup {
+    flex-direction: column;
+  }
+}
+
+/* ── Footer Section ── */
+.footerSection {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(10, 5, 20, 0.95);
+  padding: 80px 24px 40px;
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  display: block;
+  flex-shrink: 0;
+}
+
+.footerContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 40px;
+  margin-bottom: 60px;
+}
+
+.footerBrand {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.footerLogo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footerDesc {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  max-width: 300px;
+}
+
+.footerColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.footerColTitle {
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.footerLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.footerLink {
+  color: rgba(255, 255, 255, 0.5);
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: color 0.2s ease;
+}
+
+.footerLink:hover {
+  color: #a78bfa;
+}
+
+.footerBottom {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-top: 32px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.9rem;
+}
+
+.footerSocials {
+  display: flex;
+  gap: 16px;
+}
+
+.footerSocialLink {
+  color: rgba(255, 255, 255, 0.4);
+  transition: color 0.2s ease;
+}
+
+.footerSocialLink:hover {
+  color: #fff;
+}
+
+@media (max-width: 900px) {
+  .footerContainer {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .footerContainer {
+    grid-template-columns: 1fr;
+  }
+  .footerBottom {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
   }
 }

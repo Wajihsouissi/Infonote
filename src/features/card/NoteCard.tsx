@@ -9,7 +9,7 @@ import { defaultIconName, CardIcon } from './iconMap';
 import { NoteExpandedContent } from './NoteExpandedContent';
 
 import { CoverPicker } from './CoverPicker';
-import { AIGeneratePanel } from './AIGeneratePanel';
+
 import { AISkeletonCard } from './AISkeletonCard';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { calculateNoteLayout } from '../../config/layout';
@@ -93,7 +93,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     // Editing state
     const [isEditingMetadata, setIsEditingMetadata] = useState(false);
     const [showCoverPicker, setShowCoverPicker] = useState(false);
-    const [showAIPanel, setShowAIPanel] = useState(false);
+
     const [isSummarizing, setIsSummarizing] = useState(false);
     // Metadata visibility state for Expanded view is now derived from data.showMetadata
 
@@ -443,16 +443,6 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             {/* Floating Hover Menu - Hide in Chromeless mode or when specifically requested */}
             {!data.hideHoverMenu && (
                 <div className={styles.hoverMenu}>
-                    <button
-                        className={styles.menuBtn}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setShowAIPanel(v => !v);
-                        }}
-                        title="Generate with AI"
-                    >
-                        <Sparkles size={16} />
-                    </button>
                     <button className={styles.menuBtn} onClick={handleLeftSidePeak} title="Side Panel (Left)">
                         <PanelLeft size={16} />
                     </button>
@@ -467,12 +457,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                     </button>
                 </div>
             )}
-            {showAIPanel && (
-                <AIGeneratePanel
-                    nodeId={id}
-                    onClose={() => setShowAIPanel(false)}
-                />
-            )}
+
 
             <Handle 
                 type="target" 
@@ -503,14 +488,45 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             {viewMode === 'icon' && (
                 <div className={styles.iconView} key="icon">
                     <button
-                        className={styles.iconButton}
+                        className={`${styles.iconButton} nodrag`}
                         onClick={handleIconClick}
                         title="Change icon"
                     >
-                        <CardIcon icon={data.icon || defaultIconName} size={32} />
+                        <CardIcon icon={(isEditingMetadata ? editedData.icon : data.icon) || defaultIconName} size={32} />
                     </button>
                     <input
                         className={`${styles.iconTextInput} nodrag`}
+                        value={isEditingMetadata ? editedData.label : data.label}
+                        onChange={(e) => setEditedData({ ...editedData, label: e.target.value })}
+                        onFocus={() => setIsEditingMetadata(true)}
+                        onBlur={() => {
+                            if (isEditingMetadata) {
+                                handleSaveMetadata();
+                            }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            e.currentTarget.select();
+                        }}
+                    />
+                </div>
+            )}
+
+            {/* View 1.5: Title View - Icon + Text (Horizontal) */}
+            {viewMode === 'titleview' && (
+                <div className={styles.titleView} key="titleview">
+                    <button
+                        className={`${styles.iconButton} nodrag`}
+                        onClick={handleIconClick}
+                        title="Change icon"
+                    >
+                        <CardIcon icon={(isEditingMetadata ? editedData.icon : data.icon) || defaultIconName} size={24} />
+                    </button>
+                    <input
+                        className={`${styles.titleViewInput} nodrag`}
                         value={isEditingMetadata ? editedData.label : data.label}
                         onChange={(e) => setEditedData({ ...editedData, label: e.target.value })}
                         onFocus={() => setIsEditingMetadata(true)}

@@ -353,6 +353,20 @@ export function parsePlainText(text: string): Block[] {
             continue;
         }
 
+        // --- Todo / Checkbox ---
+        const todoMatch = trimmed.match(/^[-*•]?\s*\[([ xX]?)\]\s(.*)/);
+        if (todoMatch) {
+            const isChecked = todoMatch[1]?.toLowerCase() === 'x';
+            blocks.push({
+                id: uuidv4(),
+                type: 'todo',
+                content: todoMatch[2],
+                ...(isChecked ? { metadata: { checked: true } } : {})
+            });
+            i++;
+            continue;
+        }
+
         // --- Bullet List ---
         if (trimmed.startsWith('- ') || trimmed.startsWith('* ') || trimmed.startsWith('• ')) {
             const prefixLen = trimmed.startsWith('• ') ? 2 : 2;
@@ -371,27 +385,6 @@ export function parsePlainText(text: string): Block[] {
                 id: uuidv4(),
                 type: 'numbered',
                 content: trimmed.replace(/^\d+\.\s/, '')
-            });
-            i++;
-            continue;
-        }
-
-        // --- Todo / Checkbox ---
-        if (trimmed.startsWith('[] ') || trimmed.startsWith('[ ] ')) {
-            blocks.push({
-                id: uuidv4(),
-                type: 'todo',
-                content: trimmed.replace(/^\[ ?\]\s/, '')
-            });
-            i++;
-            continue;
-        }
-        if (trimmed.startsWith('[x] ') || trimmed.startsWith('[X] ')) {
-            blocks.push({
-                id: uuidv4(),
-                type: 'todo',
-                content: trimmed.substring(4),
-                metadata: { checked: true }
             });
             i++;
             continue;

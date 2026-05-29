@@ -8,14 +8,15 @@
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow, 0 12px 32px 0 rgba(0, 0, 0, 0.3));
-    border-radius: 99px;
+    border-radius: 32px;
     padding: 6px;
     display: flex;
     align-items: center;
     gap: 12px;
     z-index: 45;
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    height: 60px;
+    min-height: 60px;
+    height: auto;
     box-sizing: border-box;
     overflow: visible;
 }
@@ -140,33 +141,50 @@
 }
 
 /* AI Magical Mode Styles */
+.bottomMenuAIText {
+    padding: 0;
+    border: 1px solid rgba(168, 85, 247, 0.4);
+    background: linear-gradient(90deg, rgba(139, 92, 246, 0.1), rgba(217, 70, 239, 0.15), rgba(139, 92, 246, 0.1));
+    background-size: 200% 100%;
+    animation: magicalGradient 3s linear infinite;
+    box-shadow: inset 0 0 10px rgba(168, 85, 247, 0.15), 0 0 20px rgba(168, 85, 247, 0.1), var(--glass-shadow, 0 12px 32px 0 rgba(0, 0, 0, 0.3));
+}
+
+.bottomMenuAIText:hover {
+    background: linear-gradient(90deg, rgba(139, 92, 246, 0.15), rgba(217, 70, 239, 0.2), rgba(139, 92, 246, 0.15));
+    border: 1px solid rgba(168, 85, 247, 0.6);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(168, 85, 247, 0.4);
+}
+
 .aiContainer {
     display: flex;
     align-items: center;
     width: 520px;
-    height: 100%;
+    min-height: 100%;
+    height: auto;
     gap: 8px;
     position: relative;
-    border-radius: 99px;
-    background: linear-gradient(90deg, rgba(139, 92, 246, 0.05), rgba(217, 70, 239, 0.1), rgba(139, 92, 246, 0.05));
-    background-size: 200% 100%;
-    animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards, magicalGradient 3s linear infinite;
-    box-shadow: inset 0 0 10px rgba(168, 85, 247, 0.15), 0 0 20px rgba(168, 85, 247, 0.1);
-    border: 1px solid rgba(168, 85, 247, 0.4);
-    padding: 0 6px;
+    border-radius: 32px;
+    padding: 10px 12px;
+    animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .aiInput {
     flex: 1;
-    height: 100%;
     background: transparent;
     border: none;
     outline: none;
     color: var(--color-text-main);
-    font-size: 16px;
-    padding: 0 4px;
+    font-size: 14px;
+    padding: 8px 4px;
     font-family: inherit;
     text-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
+    resize: none;
+    overflow-y: auto;
+    line-height: 1.5;
+    min-height: 38px;
+    max-height: 80px;
+    margin: 0;
 }
 
 .aiInput::placeholder {
@@ -251,7 +269,7 @@
     display: flex;
     align-items: center;
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 99px;
+    border-radius: 32px;
     padding: 2px;
     gap: 2px;
 }
@@ -267,33 +285,50 @@
 }
 
 /* AI Image Mode Styles (Cyan/Teal Theme) */
+.bottomMenuAIImage {
+    padding: 0;
+    border: 1px solid rgba(14, 165, 233, 0.4);
+    background: linear-gradient(90deg, rgba(14, 165, 233, 0.1), rgba(45, 212, 191, 0.15), rgba(14, 165, 233, 0.1));
+    background-size: 200% 100%;
+    animation: magicalGradient 3s linear infinite;
+    box-shadow: inset 0 0 10px rgba(14, 165, 233, 0.15), 0 0 20px rgba(14, 165, 233, 0.1), var(--glass-shadow, 0 12px 32px 0 rgba(0, 0, 0, 0.3));
+}
+
+.bottomMenuAIImage:hover {
+    background: linear-gradient(90deg, rgba(14, 165, 233, 0.15), rgba(45, 212, 191, 0.2), rgba(14, 165, 233, 0.15));
+    border: 1px solid rgba(14, 165, 233, 0.6);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(14, 165, 233, 0.4);
+}
+
 .aiImageContainer {
     display: flex;
     align-items: center;
     width: 520px;
-    height: 100%;
+    min-height: 100%;
+    height: auto;
     gap: 8px;
     position: relative;
-    border-radius: 99px;
-    background: linear-gradient(90deg, rgba(14, 165, 233, 0.05), rgba(45, 212, 191, 0.1), rgba(14, 165, 233, 0.05));
-    background-size: 200% 100%;
-    animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards, magicalGradient 3s linear infinite;
-    box-shadow: inset 0 0 10px rgba(14, 165, 233, 0.15), 0 0 20px rgba(14, 165, 233, 0.1);
-    border: 1px solid rgba(14, 165, 233, 0.4);
-    padding: 0 6px;
+    border-radius: 32px;
+    padding: 10px 12px;
+    animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .aiImageInput {
     flex: 1;
-    height: 100%;
     background: transparent;
     border: none;
     outline: none;
     color: var(--color-text-main);
-    font-size: 16px;
-    padding: 0 4px;
+    font-size: 14px;
+    padding: 8px 4px;
     font-family: inherit;
     text-shadow: 0 0 10px rgba(14, 165, 233, 0.2);
+    resize: none;
+    overflow-y: auto;
+    line-height: 1.5;
+    min-height: 38px;
+    max-height: 80px;
+    margin: 0;
 }
 
 .aiImageInput::placeholder {

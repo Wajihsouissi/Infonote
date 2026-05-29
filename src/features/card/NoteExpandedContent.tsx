@@ -27,6 +27,7 @@ interface NoteExpandedContentProps {
     onClose?: () => void;
     onNavigate?: () => void; // Navigate to nested canvas
     selectionIslandPortalId?: string; // Portal target for selection island
+    flatCorners?: boolean; // Remove border radius
 }
 
 export function NoteExpandedContent({
@@ -37,7 +38,8 @@ export function NoteExpandedContent({
     nodeId,
     onClose,
     onNavigate,
-    selectionIslandPortalId
+    selectionIslandPortalId,
+    flatCorners
 }: NoteExpandedContentProps) {
     // Use data state (persistent) or fallback to false
     const showMetadata = data.showMetadata ?? false;
@@ -213,7 +215,10 @@ export function NoteExpandedContent({
         <div
             className={styles.expandedView}
             ref={containerRef}
-            style={dynamicStyles}
+            style={{
+                ...dynamicStyles,
+                ...(flatCorners ? { borderRadius: 0 } : {})
+            }}
         >
             {showMetadata ? (
                 <>
@@ -225,6 +230,7 @@ export function NoteExpandedContent({
                         setShowMetadata={setShowMetadata}
                         onCoverClick={() => setShowCoverPicker(true)}
                         onClose={onClose}
+                        flatCorners={flatCorners}
                     />
 
                     {/* Metadata Section (Icon + Title + Desc) */}
@@ -258,7 +264,10 @@ export function NoteExpandedContent({
                 </>
             ) : (
                 /* Minimal Header (When Hidden) */
-                <div className={`${styles.minimalHeader} custom-drag-handle`} style={headerStyle}>
+                <div className={`${styles.minimalHeader} custom-drag-handle`} style={{
+                    ...headerStyle,
+                    ...(flatCorners ? { borderRadius: 0 } : {})
+                }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
                         <CardIcon icon={data.icon || defaultIconName} size={20} />
                         <input

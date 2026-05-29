@@ -1,7 +1,8 @@
+import { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { BlockEditor } from '../editor/BlockEditor';
-import styles from './SidePanel.module.css';
 import { NoteExpandedContent } from '../card/NoteExpandedContent';
+import { SidePeek } from './SidePeek';
 
 interface SidePanelProps {
     nodeId: string | null;
@@ -14,34 +15,57 @@ export function SidePanel({ nodeId, side, onClose }: SidePanelProps) {
     const nodes = useStore(s => s.nodes);
     const updateNodeData = useStore(s => s.updateNodeData);
 
-    if (!nodeId) return null;
+    const [cachedNodeId, setCachedNodeId] = useState<string | null>(nodeId);
 
-    const activeNode = nodes.find(n => n.id === nodeId);
+    // Keep the last valid nodeId around so we can animate out smoothly
+    useEffect(() => {
+        if (nodeId) {
+            setCachedNodeId(nodeId);
+        }
+    }, [nodeId]);
+
+    const activeNode = nodes.find(n => n.id === (nodeId || cachedNodeId));
+
+    // If we have nothing to render at all, return early
     if (!activeNode) return null;
 
+    const currentId = nodeId || cachedNodeId;
+
     return (
-        <div className={`${styles.panel} ${side === 'left' ? styles.panelLeft : styles.panelRight}`}>
-            <div style={{ height: '100%', width: '100%', overflow: 'hidden' }}>
+        <SidePeek
+            isOpen={!!nodeId}
+            onClose={onClose}
+            side={side}
+            width="40vw"
+            hideHeader={true}
+        >
+            <div style={{ 
+                height: '100%', 
+                width: '100%', 
+                overflow: 'hidden',
+                backgroundColor: (activeNode.data as any).color || 'var(--color-bg-base)'
+            }}>
                 {activeNode.type === 'note' ? (
                     <NoteExpandedContent
-                        id={nodeId}
-                        nodeId={nodeId}
+                        id={currentId!}
+                        nodeId={currentId!}
                         data={activeNode.data as any}
                         onUpdate={updateNodeData}
                         onClose={onClose}
+                        flatCorners={true}
                     />
                 ) : (
-                    <div className={styles.content}>
+                    <div style={{ height: '100%', padding: '20px', overflowY: 'auto' }}>
                         <BlockEditor
-                            key={nodeId}
-                            nodeId={nodeId}
+                            key={currentId!}
+                            nodeId={currentId!}
                             initialContent={(activeNode.data as any).content}
-                            onUpdate={(blocks) => updateNodeData(nodeId, { content: blocks })}
+                            onUpdate={(blocks) => updateNodeData(currentId!, { content: blocks })}
                             autoFocus={true}
                         />
                     </div>
                 )}
             </div>
-        </div>
+        </SidePeek>
     );
 }

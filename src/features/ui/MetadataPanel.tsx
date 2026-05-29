@@ -8,6 +8,7 @@ import { CustomSelect } from './CustomSelect';
 import { CustomDatePicker } from './CustomDatePicker';
 import type { NoteData } from '../../types';
 import styles from './MetadataPanel.module.css';
+import { SidePeek } from './SidePeek';
 
 interface MetadataPanelProps {
     nodeId: string | null | undefined;
@@ -64,46 +65,8 @@ export function MetadataPanel({ nodeId, isOpen, onClose, buttonRef }: MetadataPa
         }
     }, [data, isEditing]);
 
-    // Close on click outside
-    useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-            if (!isOpen) return;
-
-            // Make sure the clicked element is not inside the panel container,
-            // nor is it the toggle button in the toolbar.
-            const clickedInsidePanel = panelRef.current?.contains(e.target as Node);
-            const clickedOnButton = buttonRef?.current?.contains(e.target as Node);
-
-            if (!clickedInsidePanel && !clickedOnButton) {
-                onClose();
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [isOpen, onClose, buttonRef]);
-
-    // Close on Esc key press
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (isOpen && e.key === 'Escape') {
-                onClose();
-            }
-        };
-
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen, onClose]);
-
     if (!node || node.type !== 'note') {
-        // Return a collapsed container to preserve CSS transition smoothness
-        return (
-            <div
-                ref={panelRef}
-                className={`${styles.panel} ${styles.panelClosed}`}
-                style={{ width: 0 }}
-            />
-        );
+        return <SidePeek isOpen={false} onClose={onClose} title="Properties" />;
     }
 
     const handleSave = () => {
@@ -125,25 +88,17 @@ export function MetadataPanel({ nodeId, isOpen, onClose, buttonRef }: MetadataPa
         setShowIconPicker(false);
     };
 
-    const showPanel = isOpen && !!node;
-
     return (
-        <div
-            ref={panelRef}
-            className={`${styles.panel} ${showPanel ? styles.panelOpen : styles.panelClosed}`}
+        <SidePeek
+            isOpen={isOpen && !!node}
+            onClose={onClose}
+            side="right"
+            title="Properties"
+            width="45vw"
+            buttonRef={buttonRef}
         >
-            {/* Sticky Header */}
-            <div className={styles.header}>
-                <div className={styles.headerLeft}>
-                    <span className={styles.headerTitle}>Properties</span>
-                </div>
-                <button className={styles.closeBtn} onClick={onClose} title="Close Panel">
-                    <X size={18} />
-                </button>
-            </div>
-
             {/* Scrollable Content */}
-            <div className={styles.scrollContent}>
+            <div className={styles.contentWrapper}>
                 {/* Cover Image */}
                 <div className={styles.coverSection}>
                     {editedData.coverImage ? (
@@ -276,6 +231,6 @@ export function MetadataPanel({ nodeId, isOpen, onClose, buttonRef }: MetadataPa
                     isAbsolute={true}
                 />
             )}
-        </div>
+        </SidePeek>
     );
 }

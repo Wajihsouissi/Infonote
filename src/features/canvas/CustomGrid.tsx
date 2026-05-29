@@ -1,19 +1,39 @@
 import { memo } from 'react';
 import { useViewport } from '@xyflow/react';
-import { BASE_UNIT } from '../../config/layout';
+import { BASE_UNIT, GRID_GAP } from '../../config/layout';
 
 /**
- * CustomGrid that renders a soft rounded squares pattern.
- * Synchronized with the React Flow viewport for seamless panning and zooming.
+ * CustomGrid that renders a professional layout grid.
+ * Instead of a single dot, it renders a 4-dot cluster at every gutter intersection,
+ * perfectly framing the exact visual boundaries of the nodes (which are BASE_UNIT - GRID_GAP wide).
  */
 export const CustomGrid = memo(() => {
     const { x, y, zoom } = useViewport();
     
-    // We use a CSS-based approach with an SVG data URI for performance and sharp rendering.
-    // The pattern consists of a 40x40 rounded square inside a 56x56 cell (matches BASE_UNIT).
+    const scaledGap = BASE_UNIT * zoom;
+    const scaledSize = 1.5 * zoom; // Smaller dots for a softer look
     
+    // Calculate precise modulo offset
+    const offsetX = x % scaledGap;
+    const offsetY = y % scaledGap;
+
+    // Node block size is 40px (56 - 16). The gutter is 16px.
+    // We want points exactly at the boundaries: 0 and 40 in flow space.
+    // To avoid SVG clipping at the edges, we shift the pattern origin by 20.
+    const blockWidth = BASE_UNIT - GRID_GAP;
+    const shift = (blockWidth / 2) * zoom; // 20 * zoom
+
+    // Pattern origin
+    const patternX = offsetX + shift;
+    const patternY = offsetY + shift;
+
+    // Points inside the pattern cell (relative to the shifted origin)
+    // p1 maps to flow coordinate 40. p2 maps to flow coordinate 56 (which is 0).
+    const p1 = shift;
+    const p2 = shift + GRID_GAP * zoom;
+
     return (
-        <div 
+        <svg
             style={{
                 position: 'absolute',
                 top: 0,
@@ -22,12 +42,27 @@ export const CustomGrid = memo(() => {
                 height: '100%',
                 pointerEvents: 'none',
                 zIndex: -1,
-                backgroundPosition: `${x}px ${y}px`,
-                backgroundSize: `${BASE_UNIT * zoom}px ${BASE_UNIT * zoom}`,
-                // Very soft purple rounded squares (rx=12)
-                backgroundImage: `url("data:image/svg+xml,%3Csvg width='56' height='56' viewBox='0 0 56 56' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='8' y='8' width='40' height='40' rx='12' fill='rgba(139, 92, 246, 0.04)'/%3E%3C/svg%3E")`,
-                backgroundRepeat: 'repeat',
+                opacity: 0.25 // Reduced opacity for a softer appearance
             }}
-        />
+        >
+            <pattern
+                id="pro-modular-grid"
+                x={patternX}
+                y={patternY}
+                width={scaledGap}
+                height={scaledGap}
+                patternUnits="userSpaceOnUse"
+            >
+                {/* Top-Left of gutter (Bottom-Right of previous node) */}
+                <rect x={p1 - scaledSize / 2} y={p1 - scaledSize / 2} width={scaledSize} height={scaledSize} fill="var(--color-border)" rx="0.5" />
+                {/* Top-Right of gutter (Bottom-Left of next node) */}
+                <rect x={p2 - scaledSize / 2} y={p1 - scaledSize / 2} width={scaledSize} height={scaledSize} fill="var(--color-border)" rx="0.5" />
+                {/* Bottom-Left of gutter (Top-Right of node below) */}
+                <rect x={p1 - scaledSize / 2} y={p2 - scaledSize / 2} width={scaledSize} height={scaledSize} fill="var(--color-border)" rx="0.5" />
+                {/* Bottom-Right of gutter (Top-Left of next node below) */}
+                <rect x={p2 - scaledSize / 2} y={p2 - scaledSize / 2} width={scaledSize} height={scaledSize} fill="var(--color-border)" rx="0.5" />
+            </pattern>
+            <rect width="100%" height="100%" fill="url(#pro-modular-grid)" />
+        </svg>
     );
 });

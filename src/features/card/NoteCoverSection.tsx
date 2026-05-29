@@ -7,6 +7,7 @@ interface NoteCoverSectionProps {
     setShowMetadata: (show: boolean) => void;
     onCoverClick: () => void;
     onClose?: () => void;
+    flatCorners?: boolean;
 }
 
 /**
@@ -19,9 +20,14 @@ export function NoteCoverSection({
     setShowMetadata,
     onCoverClick,
     onClose,
+    flatCorners,
 }: NoteCoverSectionProps) {
     return (
-        <div className={`${styles.coverImage} custom-drag-handle`} onClick={onCoverClick}>
+        <div 
+            className={`${styles.coverImage} custom-drag-handle`} 
+            onClick={onCoverClick}
+            style={flatCorners ? { borderRadius: 0 } : undefined}
+        >
             {coverImage ? (
                 <img src={coverImage} alt="Cover" loading="lazy" />
             ) : (

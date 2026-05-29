@@ -18,31 +18,50 @@ export async function generateText(prompt: string): Promise<string> {
     return String(response);
 }
 
-/**
- * Generate an image using Puter's free image generation.
- * Returns a blob URL usable as an img src.
- */
 export async function generateImage(prompt: string): Promise<string> {
     try {
-        const imgElement = await puter.ai.txt2img(prompt);
-        const rawImg: any = imgElement;
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Timeout")), 20000)
+        );
+        const imgElement: any = await Promise.race([
+            puter.ai.txt2img(prompt),
+            timeoutPromise
+        ]);
 
-        // If it's already a string URL
-        if (typeof rawImg === 'string' && rawImg.trim() !== '') {
-            return rawImg;
-        }
+        if (imgElement instanceof HTMLImageElement || imgElement.tagName === 'IMG') {
+            // Ensure the image is fully loaded before drawing
+            await new Promise((resolve, reject) => {
+                if (imgElement.complete) {
+                    resolve(null);
+                } else {
+                    imgElement.onload = resolve;
+                    imgElement.onerror = reject;
+                }
+            });
 
-        // Safely extract src from the element/object, avoiding prototype/context issues
-        if (rawImg && typeof rawImg === 'object') {
-            const src = rawImg.src || rawImg.url || rawImg.href;
-            if (typeof src === 'string' && src.trim() !== '' && !src.startsWith('[object')) {
-                return src;
+            // Draw to canvas to extract base64 data URL
+            const canvas = document.createElement('canvas');
+            canvas.width = imgElement.naturalWidth || imgElement.width || 512;
+            canvas.height = imgElement.naturalHeight || imgElement.height || 512;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(imgElement, 0, 0);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                if (dataUrl && dataUrl.length > 50) {
+                    return dataUrl;
+                }
             }
+            return imgElement.src;
         }
 
-        throw new Error("Puter returned an invalid or empty image response");
+        if (typeof imgElement === 'string') return imgElement;
+        if (imgElement && imgElement.src) return imgElement.src;
+        if (imgElement && imgElement.url) return imgElement.url;
+
+        throw new Error("Puter returned an invalid image response");
     } catch (e) {
-        console.warn("Puter image generation failed, falling back to Pollinations AI:", e);
+        console.warn("Puter image generation failed:", e);
+        // Fallback to pollinations but with different domain format
         const encodedPrompt = encodeURIComponent(prompt);
         const seed = Math.floor(Math.random() * 1000000);
         return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=512&nologo=true&seed=${seed}`;
@@ -189,77 +208,94 @@ Return exactly ${count} items. No explanations outside the JSON array.`;
 }
 
 export interface AIStructuredAction {
-    type: 'note' | 'kanban';
+    type: 'note' | 'kanban' | 'fused-note' | 'mindmap';
     title: string;
     content?: string;
     viewMode?: 'board' | 'table' | 'calendar' | 'timeline';
     columns?: Array<{ id: string; label: string; statusValue: string; color: string }>;
     color?: string;
+    nodes?: Array<{ id: string; label: string; parentId?: string }>;
 }
 
 /**
  * Parse structured action instructions from user's natural language prompts.
- * Understands intents to create multiple note cards, kanban boards, timelines, calendars, and tables.
+ * Understands intents to create multiple note cards, kanban boards, timelines, calendars, tables, fused notes, and mindmaps.
  */
-export async function parseStructuredAction(prompt: string): Promise<AIStructuredAction[]> {
+export async function parseStructuredAction(prompt: string, context?: string): Promise<AIStructuredAction[]> {
     const systemPrompt = `You are a structured intent parser for Infonote, an infinite canvas note-taking app.
 Analyze the user's request and parse it into an array of actions.
-The request might ask to:
-- Create several note cards: e.g. "create 3 cards with productivity tips", "notes on dogs"
-- Create a kanban board: e.g. "create a kanban board for project launch with columns backlog, writing, review, live"
-- Create a table: e.g. "create a table for budget tracking"
-- Create a timeline: e.g. "timeline for marketing campaign"
-- Create a calendar: e.g. "calendar of events for may"
+The user might ask to:
+- Create note cards: e.g. "create 3 cards with productivity tips"
+- Create a kanban board, table, or timeline: e.g. "kanban board for project launch"
+- Create a fused note or document: e.g. "create a fusednote with a to do list"
+- Create a mindmap: e.g. "mindmap of artificial intelligence"
 
-Respond ONLY with a valid JSON array of action objects. Do not include markdown, code blocks, or text outside the JSON.
+${context ? `[CURRENT CANVAS CONTEXT]\n${context}\nUse this context to inform your response if the user refers to existing topics.\n` : ''}
+First, briefly outline your plan for the content in <think> tags.
+Then, respond ONLY with a valid JSON array of action objects. Do not include markdown, code blocks, or text outside the JSON (except for the <think> tags at the beginning).
 Each action object must have:
-- "type": "note" | "kanban"
-- "title": Title of the card/board (e.g. short, descriptive name)
-- If type is "note":
-  - "content": In-depth, highly detailed, and comprehensive body content based on the user's topic/request. 
-    Use markdown extensively to structure it: headers (##, ###), bullet lists, code blocks, quote/callout blocks, and todo lists. 
-    Make the response rich and comprehensive (at least 3-4 detailed paragraphs or equivalent modular sections).
-  - "color": Optional background hex color. If provided, you MUST choose ONLY from this exact premium preset palette: #8b5cf6, #ec4899, #f59e0b, #10b981, #3b82f6, #ef4444, #06b6d4, #6366f1
+- "type": "note" | "kanban" | "fused-note" | "mindmap"
+- "title": Title of the card/board/doc/mindmap
+- If type is "note" or "fused-note":
+  - "content": In-depth, highly detailed, and comprehensive body content. Use markdown extensively (headers, bullet lists, quote blocks, and task lists like '- [ ] Task'). Make "fused-note" content especially long and structured.
+  - "color": Optional background hex color. MUST choose ONLY from: #8b5cf6, #ec4899, #f59e0b, #10b981, #3b82f6, #ef4444, #06b6d4, #6366f1
 - If type is "kanban":
-  - "viewMode": "board" | "table" | "calendar" | "timeline" (based on what they requested, e.g. "board" for standard kanban, "table" for table, etc. Default is "board")
-  - "columns": An array of column objects, each having:
-    - "id": a unique string slug (e.g. "todo", "in-progress", "done")
-    - "label": human-readable name (e.g. "To Do", "In Progress", "Done")
-    - "statusValue": match the id (e.g. "todo", "in-progress", "done")
-    - "color": hex color for column indicator (e.g. "#ef4444", "#f59e0b", "#22c55e")
+  - "viewMode": "board" | "table" | "calendar" | "timeline"
+  - "columns": Array of objects: {"id": "slug", "label": "Name", "statusValue": "slug", "color": "#hex"}
+- If type is "mindmap":
+  - "nodes": Array of objects representing the mindmap graph: {"id": "unique-string", "label": "Short Title", "parentId": "id-of-parent-node-if-any"} (Do not include parentId for the root node)
 
-Example request: "create 3 cards with space facts and a kanban board for research"
-Example response:
+Example JSON response:
 [
-  {"type": "note", "title": "The Milky Way", "content": "The Milky Way galaxy is about 100,000 light-years across and contains billions of stars.", "color": "#8b5cf6"},
-  {"type": "note", "title": "Black Holes", "content": "Black holes are regions of space where gravity is so strong that not even light can escape.", "color": "#ec4899"},
-  {"type": "note", "title": "Mars Exploration", "content": "Mars is a primary target for space exploration due to evidence of past liquid water.", "color": "#10b981"},
+  {"type": "note", "title": "The Milky Way", "content": "The Milky Way galaxy is...", "color": "#8b5cf6"},
+  {"type": "fused-note", "title": "Project Launch Doc", "content": "## Goals\\n- [ ] Task 1\\n- [ ] Task 2", "color": "#10b981"},
+  {
+    "type": "mindmap",
+    "title": "AI Concepts",
+    "nodes": [
+      {"id": "root", "label": "AI Concepts"},
+      {"id": "ml", "label": "Machine Learning", "parentId": "root"},
+      {"id": "dl", "label": "Deep Learning", "parentId": "ml"}
+    ]
+  },
   {
     "type": "kanban",
-    "title": "Space Research Board",
+    "title": "Space Research",
     "viewMode": "board",
-    "columns": [
-      {"id": "todo", "label": "To Do", "statusValue": "todo", "color": "#ef4444"},
-      {"id": "in-progress", "label": "In Progress", "statusValue": "in-progress", "color": "#f59e0b"},
-      {"id": "done", "label": "Done", "statusValue": "done", "color": "#22c55e"}
-    ]
+    "columns": [{"id": "todo", "label": "To Do", "statusValue": "todo", "color": "#ef4444"}]
   }
-]
+]`;
 
-User request: "${prompt}"`;
+    // We use clear XML-style tags to separate system instructions from user prompt
+    const fullPrompt = `<system>\n${systemPrompt}\n</system>\n\n<user>\n${prompt}\n</user>`;
 
-    const responseText = await generateText(systemPrompt);
-    const jsonStr = extractJsonFromString(responseText, 'array');
+    let responseText = await generateText(fullPrompt);
+    let jsonStr = extractJsonFromString(responseText, 'array');
+    
+    // Retry logic if no valid JSON array was found
     if (!jsonStr) {
-        // Fallback: If no structured JSON, parse as a single note card using the text directly as content
-        return [
-            {
-                type: 'note',
-                title: prompt.length > 20 ? prompt.substring(0, 17) + '...' : prompt,
-                content: responseText,
-                color: '#1a1a2e'
+        try {
+            const retryPrompt = `${fullPrompt}\n\n<assistant>\n${responseText}\n</assistant>\n\n<user>\nThis JSON was invalid or missing. Please fix the syntax errors and return ONLY the valid JSON array without any markdown wrappers or text.\n</user>`;
+            let retryResponse = await generateText(retryPrompt);
+            jsonStr = extractJsonFromString(retryResponse, 'array');
+            if (jsonStr) {
+                responseText = retryResponse;
             }
-        ];
+        } catch (retryErr) {
+            console.error("Retry failed:", retryErr);
+        }
+    }
+
+    const cleanResponseText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+
+    if (!jsonStr) {
+        // Fallback: If still no structured JSON, parse as a single note card
+        return [{
+            type: 'note',
+            title: prompt.length > 20 ? prompt.substring(0, 17) + '...' : prompt,
+            content: cleanResponseText,
+            color: '#1a1a2e'
+        }];
     }
 
     try {
@@ -267,13 +303,11 @@ User request: "${prompt}"`;
         return parsed;
     } catch (e) {
         console.error("Failed to parse structured actions:", e);
-        return [
-            {
-                type: 'note',
-                title: 'AI Generated Card',
-                content: responseText,
-                color: '#1a1a2e'
-            }
-        ];
+        return [{
+            type: 'note',
+            title: 'AI Generated Card',
+            content: cleanResponseText,
+            color: '#1a1a2e'
+        }];
     }
 }

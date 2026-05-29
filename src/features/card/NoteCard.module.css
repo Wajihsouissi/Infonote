@@ -266,6 +266,46 @@
     box-shadow: 0 0 0 1px var(--color-primary);
 }
 
+/* 1.5 Title View */
+.titleView {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 8px 12px;
+    width: 100%;
+    height: 100%;
+    flex: 1;
+    gap: 4px;
+    animation: fadeIn 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+.titleViewInput {
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 0px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-main);
+    width: 100%;
+    outline: none;
+    transition: background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    cursor: text;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.titleViewInput:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.titleViewInput:focus {
+    background: rgba(139, 92, 246, 0.05);
+    box-shadow: 0 0 0 1px var(--color-primary);
+}
+
 /* 2. Medium View */
 .medium {
     padding: 8px;

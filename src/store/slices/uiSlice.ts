@@ -22,6 +22,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     isTOCOpen: false,
     isShortcutsPanelOpen: false,
     isLinkingMode: false,
+    chunkItNodeId: null,
     showWelcomeModal: false,
 
     setActiveIconMenuId: (id) => set({ activeIconMenuId: id }),
@@ -172,4 +173,5 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     },
     setHasEnteredApp: (val: boolean) => set({ hasEnteredApp: val }),
     setShowWelcomeModal: (v: boolean) => set({ showWelcomeModal: v }),
+    setChunkItNodeId: (id: string | null) => set({ chunkItNodeId: id }),
 });

@@ -13,7 +13,7 @@ export type NoteData = {
     label: string;
     type?: 'text' | 'image' | 'task';
     content?: string | any[];
-    viewMode?: 'icon' | 'medium' | 'expanded' | 'chromeless';
+    viewMode?: 'icon' | 'medium' | 'expanded' | 'chromeless' | 'titleview';
     icon?: string; // Lucide icon name
     description?: string;
     category?: string; // Allow legacy or keep as string

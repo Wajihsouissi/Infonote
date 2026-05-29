@@ -1,6 +1,6 @@
 import { memo, useState, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
-import { StickyNote, Copy, Check } from 'lucide-react';
+import { StickyNote, Copy, Check, Loader2 } from 'lucide-react';
 import { BlockEditor } from '../editor/BlockEditor';
 import { ColorBlockModal } from '../editor/ColorBlockModal';
 
@@ -127,7 +127,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     type: 'note',
                     data: {
                         label,
-                        viewMode: 'expanded',
+                        viewMode: 'titleview',
                         content: blockContent,
                         description: '',
                         date: new Date().toISOString(),
@@ -136,8 +136,8 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     },
                     style: {
                         ...n.style,
-                        width: MIN_EXPANDED_SIZE,
-                        height: MIN_EXPANDED_SIZE,
+                        width: 208,
+                        height: 56,
                     }
                 } as any;
             }
@@ -190,6 +190,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     };
 
     const baseClassName = isSingleColor ? styles.colorBlockNode : styles.blockNode;
+    const isSkeleton = (data as any).isAISkeleton;
 
     return (
         <div
@@ -342,18 +343,33 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
 
             <div 
                 className={styles.content}
+                style={isSkeleton ? { 
+                    opacity: 0.8, 
+                    animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '100%'
+                } : undefined}
             >
-                <BlockEditor
-                    initialContent={data.content}
-                    readOnly={false}
-                    minimal={true}
-                    onUpdate={handleUpdate}
-                    nodeId={id}
-                    mode="atomic"
-                    hideBlockHandles={false}
-                    disableMediaControls={true}
-                    promoteBlockHandles={true}
-                />
+                {isSkeleton ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-primary, #8b5cf6)', fontWeight: 'bold', fontSize: '14px' }}>
+                        <Loader2 className="animate-spin" size={16} /> 
+                        {Array.isArray(data.content) ? data.content[0]?.content : 'Generating...'}
+                    </div>
+                ) : (
+                    <BlockEditor
+                        initialContent={data.content}
+                        readOnly={false}
+                        minimal={true}
+                        onUpdate={handleUpdate}
+                        nodeId={id}
+                        mode="atomic"
+                        hideBlockHandles={false}
+                        disableMediaControls={true}
+                        promoteBlockHandles={true}
+                    />
+                )}
             </div>
 
             <Handle 

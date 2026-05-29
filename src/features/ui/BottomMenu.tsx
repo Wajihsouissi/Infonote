@@ -413,7 +413,7 @@ export function BottomMenu() {
                      const selectedIds = Array.from(selectedCanvasNodeIds);
                      for (const nodeId of selectedIds) {
                          const node = nodes.find(n => n.id === nodeId);
-                         if (node && node.type === 'note') {
+                         if (node && (node.type === 'note' || node.type === 'block' || node.type === 'fused-note')) {
                              const nodeTitle = node.data.label || 'Untitled';
                              const nodeDescription = node.data.description || '';
                              
@@ -422,13 +422,13 @@ export function BottomMenu() {
                                  ? contentBlocks.map(b => b.content).join('\n')
                                  : '';
  
-                             const prompt = `You are editing an existing note card.
- Here is the card's current title: "${nodeTitle}"
- Here is the card's current description: "${nodeDescription}"
- Here is the card's current body content:
+                             const prompt = `You are editing an existing node.
+ Here is the node's current title (if applicable): "${nodeTitle}"
+ Here is the node's current description (if applicable): "${nodeDescription}"
+ Here is the node's current body content:
  "${contentText}"
  
- The user has given the following instruction to modify this card:
+ The user has given the following instruction to modify this node:
  "${query}"
  
  Respond ONLY with a valid JSON object matching this structure. Do not include markdown, code blocks, or explanations.
@@ -440,34 +440,39 @@ export function BottomMenu() {
  
                              const responseText = await generateText(prompt);
                              const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+                             let updateData: any = {};
+                             
                              if (jsonMatch) {
                                  try {
                                      const result = JSON.parse(jsonMatch[0]);
                                      const parsedBlocks = parsePlainText(result.content || contentText);
-                                     updateNodeData(nodeId, {
-                                         label: result.title || nodeTitle,
-                                         description: result.description || nodeDescription,
+                                     updateData = {
                                          content: parsedBlocks.length > 0 ? parsedBlocks : [
                                              { id: uuidv4(), type: 'text', content: result.content || contentText }
                                          ]
-                                     });
+                                     };
+                                     if (node.type === 'note') {
+                                         updateData.label = result.title || nodeTitle;
+                                         updateData.description = result.description || nodeDescription;
+                                     }
                                  } catch (e) {
                                      console.error("Failed to parse AI update result JSON:", e);
                                      const parsedBlocks = parsePlainText(responseText);
-                                     updateNodeData(nodeId, {
+                                     updateData = {
                                          content: parsedBlocks.length > 0 ? parsedBlocks : [
                                              { id: uuidv4(), type: 'text', content: responseText }
                                          ]
-                                     });
+                                     };
                                  }
                              } else {
                                  const parsedBlocks = parsePlainText(responseText);
-                                 updateNodeData(nodeId, {
+                                 updateData = {
                                      content: parsedBlocks.length > 0 ? parsedBlocks : [
                                          { id: uuidv4(), type: 'text', content: responseText }
                                      ]
-                                 });
+                                 };
                              }
+                             updateNodeData(nodeId, updateData);
                          }
                      }
                      setAiQuery('');
@@ -484,34 +489,89 @@ export function BottomMenu() {
                      }
                  }
 
-                 // Spawn a skeleton loading node
+                 // Spawn skeleton loading node(s)
+                 const isMindmapQuery = query.toLowerCase().includes('mindmap') || query.toLowerCase().includes('mind map');
                  const skeletonId = uuidv4();
-                 addNode(
-                     'note',
-                     findNonOverlappingPosition(flowPos, { width: 432, height: 432 }),
-                     {
-                         label: 'AI is thinking...',
-                         content: [{ id: uuidv4(), type: 'text', content: 'Generating your structured request...' }],
-                         color: activeNodeColor || undefined,
-                         viewMode: 'expanded',
-                         showMetadata: false,
-                         icon: 'Sparkles',
-                         isAISkeleton: true,
-                     },
-                     { width: 432, height: 432 },
-                     currentParentId || undefined,
-                     skeletonId
-                 );
+                 
+                 if (isMindmapQuery) {
+                     const rootPos = findNonOverlappingPosition(flowPos, { width: 260, height: 80 });
+                     const skelNodes: any[] = [{
+                         id: skeletonId,
+                         type: 'block',
+                         position: rootPos,
+                         style: { width: 260, height: 80 },
+                         data: { 
+                             content: [{ id: uuidv4(), type: 'heading2', content: 'AI is thinking...' }],
+                             isStandaloneBlock: true,
+                             isAISkeleton: true
+                         },
+                         parentId: currentParentId || undefined
+                     }];
+                     const skelEdges: any[] = [];
+                     
+                     for (let i = 0; i < 3; i++) {
+                         const childId = uuidv4();
+                         const angle = (i * 2 * Math.PI) / 3;
+                         skelNodes.push({
+                             id: childId,
+                             type: 'block',
+                             position: { 
+                                 x: rootPos.x + 200 * Math.cos(angle), 
+                                 y: rootPos.y + 200 * Math.sin(angle) 
+                             },
+                             style: { width: 220, height: 70 },
+                             data: { 
+                                 content: [{ id: uuidv4(), type: 'text', content: 'Generating...' }],
+                                 isStandaloneBlock: true,
+                                 isAISkeleton: true
+                             },
+                             parentId: currentParentId || undefined
+                         });
+                         skelEdges.push({
+                             id: `skel-${skeletonId}-${childId}`,
+                             source: skeletonId,
+                             target: childId,
+                             type: 'centered',
+                             data: { parentId: currentParentId ?? null }
+                         });
+                     }
+                     useStore.getState().setNodes(prev => [...prev, ...skelNodes]);
+                     useStore.setState((prev: any) => ({ edges: [...prev.edges, ...skelEdges] }));
+                 } else {
+                     addNode(
+                         'note',
+                         findNonOverlappingPosition(flowPos, { width: 432, height: 432 }),
+                         {
+                             label: 'AI is thinking...',
+                             content: [{ id: uuidv4(), type: 'text', content: 'Generating your structured request...' }],
+                             color: activeNodeColor || undefined,
+                             viewMode: 'expanded',
+                             showMetadata: false,
+                             icon: 'Sparkles',
+                             isAISkeleton: true,
+                         },
+                         { width: 432, height: 432 },
+                         currentParentId || undefined,
+                         skeletonId
+                     );
+                 }
 
                  try {
-                     const actions = await parseStructuredAction(query);
+                     const currentNodes = useStore.getState().nodes;
+                     const siblingNodes = currentNodes.filter(n => n.parentId === (currentParentId || null));
+                     const contextString = siblingNodes.length > 0 
+                         ? `Existing nodes on canvas: ` + siblingNodes.map(n => `${(n.data as any).label || 'Untitled'} (${n.type})`).join(', ')
+                         : '';
+
+                     const actions = await parseStructuredAction(query, contextString);
                      
-                     // Remove skeleton node
-                     useStore.getState().setNodes(nds => nds.filter(n => n.id !== skeletonId));
+                     // Remove skeleton node(s) and edges
+                     useStore.getState().setNodes(nds => nds.filter(n => !(n.data as any).isAISkeleton));
+                     useStore.setState((prev: any) => ({ edges: prev.edges.filter((e: any) => !e.id.startsWith('skel-')) }));
 
                      actions.forEach((action, idx) => {
-                         const width = action.type === 'kanban' ? 700 : 432;
-                         const height = action.type === 'kanban' ? 500 : 432;
+                         const width = action.type === 'kanban' ? 700 : action.type === 'fused-note' ? 800 : 432;
+                         const height = action.type === 'kanban' ? 500 : action.type === 'fused-note' ? 600 : 432;
      
                          const position = findNonOverlappingPosition(
                              {
@@ -536,7 +596,19 @@ export function BottomMenu() {
                                      createdAt: new Date().toISOString(),
                                      updatedAt: new Date().toISOString(),
                                  },
-                                 { width: 432, height: 432 },
+                                 { width, height },
+                                 currentParentId || undefined
+                             );
+                         } else if (action.type === 'fused-note') {
+                             const markdownContent = `# ${action.title}\n\n${action.content || ''}`;
+                             const parsedBlocks = parsePlainText(markdownContent);
+                             addNode(
+                                 'fused-note',
+                                 position,
+                                 {
+                                     content: parsedBlocks.length > 0 ? parsedBlocks : [{ id: uuidv4(), type: 'text', content: markdownContent }]
+                                 },
+                                 { width, height },
                                  currentParentId || undefined
                              );
                          } else if (action.type === 'kanban') {
@@ -561,19 +633,94 @@ export function BottomMenu() {
                                  { width: BOARD_WIDTH, height: BOARD_HEIGHT },
                                  currentParentId || undefined
                              );
+                         } else if (action.type === 'mindmap') {
+                             if (!action.nodes || action.nodes.length === 0) return;
+                             
+                             const newNodes: any[] = [];
+                             const newEdges: any[] = [];
+                             
+                             // Build node hierarchy
+                             const nodeMap = new Map(action.nodes.map(n => [n.id, n]));
+                             const childrenMap = new Map<string, any[]>();
+                             action.nodes.forEach(n => {
+                                 if (n.parentId) {
+                                     if (!childrenMap.has(n.parentId)) childrenMap.set(n.parentId, []);
+                                     childrenMap.get(n.parentId)!.push(n);
+                                 }
+                             });
+                             
+                             const rootNode = action.nodes.find(n => !n.parentId) || action.nodes[0];
+                             
+                             const buildTree = (nodeId: string, cx: number, cy: number, depth: number, arcStart: number, arcEnd: number) => {
+                                 const node = nodeMap.get(nodeId);
+                                 if (!node) return;
+                             
+                                 // Create node
+                                 newNodes.push({
+                                     id: node.id,
+                                     type: 'block',
+                                     position: { x: cx, y: cy },
+                                     style: depth === 0 ? { width: 260, height: 80 } : { width: 220, height: 70 },
+                                     data: { 
+                                         content: [{ id: uuidv4(), type: depth === 0 ? 'heading2' : 'text', content: node.label }],
+                                         isStandaloneBlock: true
+                                     },
+                                     parentId: currentParentId || undefined
+                                 });
+                             
+                                 // Create edge from parent
+                                 if (node.parentId) {
+                                     newEdges.push({
+                                         id: `e-${node.parentId}-${node.id}`,
+                                         source: node.parentId,
+                                         target: node.id,
+                                         type: 'centered',
+                                         data: { parentId: currentParentId ?? null }
+                                     });
+                                 }
+                             
+                                 // Process children
+                                 const children = childrenMap.get(nodeId) || [];
+                                 if (children.length > 0) {
+                                     const radius = depth === 0 ? Math.max(300, children.length * 60) : 250;
+                                     const totalArc = arcEnd - arcStart;
+                                     const step = totalArc / children.length;
+                                     
+                                     children.forEach((child, i) => {
+                                         const childAngle = arcStart + (i + 0.5) * step;
+                                         const childX = cx + radius * Math.cos(childAngle);
+                                         const childY = cy + radius * Math.sin(childAngle);
+                                         
+                                         // Padding prevents child sub-trees from perfectly touching
+                                         const padding = step * 0.05;
+                                         buildTree(child.id, childX, childY, depth + 1, arcStart + i * step + padding, arcStart + (i + 1) * step - padding);
+                                     });
+                                 }
+                             };
+                             
+                             if (rootNode) {
+                                 buildTree(rootNode.id, position.x, position.y, 0, 0, 2 * Math.PI);
+                             }
+                             
+                             // Push to store
+                             useStore.getState().setNodes(prev => [...prev, ...newNodes]);
+                             if (newEdges.length > 0) {
+                                 useStore.setState((prev: any) => ({ edges: [...prev.edges, ...newEdges] }));
+                             }
                          }
                      });
                      setAiQuery('');
                      setIsAIMode(false);
                  } catch (err) {
                      // Clean up skeleton on failure
-                     useStore.getState().setNodes(nds => nds.filter(n => n.id !== skeletonId));
+                     useStore.getState().setNodes(nds => nds.filter(n => !(n.data as any).isAISkeleton));
+                     useStore.setState((prev: any) => ({ edges: prev.edges.filter((e: any) => !e.id.startsWith('skel-')) }));
                      throw err;
                  }
             } else {
                 const imageUrl = await generateImage(query);
                 const BLOCK_WIDTH = 380;
-                const BLOCK_HEIGHT = 450;
+                const BLOCK_HEIGHT = 380;
                 const position = findNonOverlappingPosition(flowPos, {
                     width: BLOCK_WIDTH,
                     height: BLOCK_HEIGHT
@@ -589,16 +736,8 @@ export function BottomMenu() {
                                 content: imageUrl, 
                                 metadata: { 
                                     prompt: query, 
-                                    width: 350, 
+                                    width: 380, 
                                     alignment: 'center' 
-                                } 
-                            },
-                            { 
-                                id: uuidv4(), 
-                                type: 'text', 
-                                content: `Prompt: "${query}"`, 
-                                metadata: { 
-                                    textColor: '#c084fc' 
                                 } 
                             }
                         ],
@@ -683,7 +822,7 @@ export function BottomMenu() {
 
     return (
         <>
-            <div ref={menuRef} className={styles.bottomMenu}>
+            <div ref={menuRef} className={`${styles.bottomMenu} ${isAIMode ? (aiModeType === 'text' ? styles.bottomMenuAIText : styles.bottomMenuAIImage) : ''}`}>
                 {isAIMode ? (
                     <div style={{ position: 'relative', display: 'flex', width: '100%' }}>
                         {aiError && (
@@ -733,8 +872,7 @@ export function BottomMenu() {
                                 )}
                             </button>
                         </div>
-                        <input
-                            type="text"
+                        <textarea
                             className={aiModeType === 'text' ? styles.aiInput : styles.aiImageInput}
                             placeholder={
                                 isGenerating 
@@ -746,15 +884,21 @@ export function BottomMenu() {
                                         : "Describe an image to generate..."
                             }
                             value={aiQuery}
-                            onChange={(e) => setAiQuery(e.target.value)}
+                            onChange={(e) => {
+                                setAiQuery(e.target.value);
+                                e.target.style.height = 'auto';
+                                e.target.style.height = `${e.target.scrollHeight}px`;
+                            }}
                             disabled={isGenerating}
                             onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
                                     handleAISubmit();
                                 } else if (e.key === 'Escape' && !isGenerating) {
                                     setIsAIMode(false);
                                 }
                             }}
+                            rows={1}
                             autoFocus
                         />
                         <button

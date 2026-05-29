@@ -140,6 +140,7 @@ export interface UISlice {
     isTOCOpen: boolean;
     isShortcutsPanelOpen: boolean;
     isLinkingMode: boolean;
+    chunkItNodeId: string | null;
     setActiveIconMenuId: (id: string | null) => void;
     setKanbanModalOpen: (isOpen: boolean) => void;
     setEditingKanbanId: (id: string | null) => void;
@@ -163,6 +164,7 @@ export interface UISlice {
     toggleCanvasEdgeSelection: (id: string) => void;
     showWelcomeModal: boolean;
     setShowWelcomeModal: (v: boolean) => void;
+    setChunkItNodeId: (id: string | null) => void;
 }
 
 export type AppState = NodeSlice & NavigationSlice & StorageSlice & UISlice & AuthSlice;

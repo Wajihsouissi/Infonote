@@ -32,6 +32,8 @@ import { CanvasContextMenu } from './CanvasContextMenu';
 import { CloudSyncControls } from './CloudSyncControls';
 import { CenteredEdge } from './CenteredEdge';
 import { CustomConnectionLine } from './CustomConnectionLine';
+import { CustomGrid } from './CustomGrid';
+import { ChunkItModal } from '../card/ChunkItModal';
 import { BASE_UNIT, GRID_GAP } from '../../config/layout';
 import { AuthModal } from '../auth/AuthModal';
 import { useStore } from '../../store/useStore';
@@ -1049,7 +1051,7 @@ export function CanvasBoard() {
                     }}
                 >
                     <CanvasSlashMenu />
-                    <Background variant={BackgroundVariant.Dots} gap={BASE_UNIT} offset={-GRID_GAP / 2} size={1.5} color="var(--color-border)" style={{ opacity: 0.8 }} />
+                    <CustomGrid />
                     <Panel position="top-center">
                         <CloudSyncControls />
                     </Panel>
@@ -1083,6 +1085,8 @@ export function CanvasBoard() {
                 onClose={() => setShortcutsPanelOpen(false)}
                 buttonRef={shortcutsBtnRef}
             />
+
+            <ChunkItModal />
 
             {/* Dual Panel Backdrop (only when both sides are open) */}
             {rightSidePanelId && leftSidePanelId && (

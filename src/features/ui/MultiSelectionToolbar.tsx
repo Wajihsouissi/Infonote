@@ -3,7 +3,7 @@ import { useReactFlow } from '@xyflow/react';
 import {
     Trash2, Copy, Palette, Layers, X, ArrowUpRight, ArrowRight, GitBranch,
     Grid3x3, CircleDot, ArrowRightLeft, Columns2, Rows2, Network, Sparkles,
-    Search,
+    Search, Eye, AppWindow, Maximize, Minus, AlignLeft, Scissors
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { Tooltip } from './Tooltip';
@@ -26,12 +26,16 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
     const selectConnectedCanvasNodes = useStore(s => s.selectConnectedCanvasNodes);
     const isLinkingMode = useStore(s => s.isLinkingMode);
     const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
+    const setNodes = useStore(s => s.setNodes);
+    const setChunkItNodeId = useStore(s => s.setChunkItNodeId);
+    
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [showLayoutPopover, setShowLayoutPopover] = useState(false);
+    const [showViewsPopover, setShowViewsPopover] = useState(false);
     const colorPickerRef = useRef<HTMLDivElement>(null);
     const layoutPopoverRef = useRef<HTMLDivElement>(null);
+    const viewsPopoverRef = useRef<HTMLDivElement>(null);
     const arrangeNodes = useStore(s => s.arrangeNodes);
-    const setNodes = useStore(s => s.setNodes);
 
     const selectedCount = selectedCanvasNodeIds.size;
 
@@ -94,6 +98,20 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showLayoutPopover]);
 
+    // Close views popover when clicking outside
+    useEffect(() => {
+        if (!showViewsPopover) return;
+
+        const handleClickOutside = (event: MouseEvent) => {
+            if (viewsPopoverRef.current && !viewsPopoverRef.current.contains(event.target as Node)) {
+                setShowViewsPopover(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showViewsPopover]);
+
     // Get bulk action handlers from store
     const handleBulkDelete = useCallback(() => {
         console.log('[MultiSelectionToolbar] Delete clicked, selected:', Array.from(selectedCanvasNodeIds));
@@ -139,6 +157,25 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
         arrangeNodes(Array.from(selectedCanvasNodeIds), mode);
         setShowLayoutPopover(false);
     }, [selectedCanvasNodeIds, arrangeNodes]);
+
+    const handleSetViewMode = useCallback((mode: string) => {
+        setNodes(nodes => nodes.map(n => {
+            if (selectedCanvasNodeIds.has(n.id) && n.type === 'note') {
+                let w = n.style?.width; let h = n.style?.height;
+                if (mode === 'icon') { w = 96; h = 96; }
+                else if (mode === 'titleview') { w = 208; h = 56; }
+                else if (mode === 'medium') { w = 208; h = 208; }
+                else if (mode === 'expanded') { w = 432; h = 432; }
+                return {
+                    ...n,
+                    style: { ...n.style, width: w, height: h },
+                    data: { ...n.data, viewMode: mode }
+                } as any;
+            }
+            return n;
+        }));
+        setShowViewsPopover(false);
+    }, [selectedCanvasNodeIds, setNodes]);
 
     const layoutOptions: { mode: typeof handleArrange extends (mode: infer M) => void ? M : never; label: string; desc: string; icon: React.ReactNode }[] = [
         { mode: 'grid', label: 'Grid', desc: 'Arrange in rows and columns', icon: <Grid3x3 size={18} /> },
@@ -215,6 +252,17 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
                             </Tooltip>
                         )}
 
+                        {selectedCount === 1 && Array.from(selectedCanvasNodeIds)[0] && (
+                            <Tooltip label="Chunk it" desc="Split card content into multiple pieces">
+                                <button
+                                    className={styles.actionBtn}
+                                    onClick={() => setChunkItNodeId(Array.from(selectedCanvasNodeIds)[0])}
+                                >
+                                    <Scissors size={16} />
+                                </button>
+                            </Tooltip>
+                        )}
+
                         <Tooltip label="Duplicate" desc="Duplicate selected items">
                             <button
                                 className={styles.actionBtn}
@@ -251,6 +299,45 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
                                                 )}
                                             </button>
                                         ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className={styles.layoutTrigger} ref={viewsPopoverRef}>
+                            <Tooltip label="View Mode" desc="Change card view mode">
+                                <button
+                                    className={styles.actionBtn}
+                                    onClick={() => setShowViewsPopover(!showViewsPopover)}
+                                >
+                                    <Eye size={16} />
+                                </button>
+                            </Tooltip>
+
+                            {showViewsPopover && (
+                                <div className={styles.layoutPopover} style={{ minWidth: '150px' }}>
+                                    <div className={styles.layoutLabel}>View Mode</div>
+                                    <div className={styles.layoutGrid} style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                                        <Tooltip label="Icon" desc="Icon only">
+                                            <button className={styles.layoutOption} onClick={() => handleSetViewMode('icon')}>
+                                                <Minus size={18} />
+                                            </button>
+                                        </Tooltip>
+                                        <Tooltip label="Title" desc="Icon + Title">
+                                            <button className={styles.layoutOption} onClick={() => handleSetViewMode('titleview')}>
+                                                <AlignLeft size={18} />
+                                            </button>
+                                        </Tooltip>
+                                        <Tooltip label="Medium" desc="Medium card">
+                                            <button className={styles.layoutOption} onClick={() => handleSetViewMode('medium')}>
+                                                <AppWindow size={18} />
+                                            </button>
+                                        </Tooltip>
+                                        <Tooltip label="Expanded" desc="Expanded card">
+                                            <button className={styles.layoutOption} onClick={() => handleSetViewMode('expanded')}>
+                                                <Maximize size={18} />
+                                            </button>
+                                        </Tooltip>
                                     </div>
                                 </div>
                             )}

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { createPortal } from 'react-dom';
 
@@ -36,11 +36,12 @@ interface BlockEditorProps {
     selectionIslandPortalId?: string; // Portal target for selection island
     syncUpdate?: boolean; // Instantly push updates to parent without debouncing
     editorId?: string; // Stable identifier for drag-and-drop tracking
+    renderBetweenBlocks?: (index: number) => React.ReactNode;
 }
 
 import { memo } from 'react';
 
-export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles, disableMediaControls, promoteBlockHandles, selectionIslandPortalId, syncUpdate, editorId }: BlockEditorProps) {
+export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles, disableMediaControls, promoteBlockHandles, selectionIslandPortalId, syncUpdate, editorId, renderBetweenBlocks }: BlockEditorProps) {
     const editorRef = useRef<HTMLDivElement>(null);
     const editorInstanceId = useRef(editorId || `editor-${uuidv4()}`);
     const nodeColor = useStore(s => (s.nodes.find(n => n.id === nodeId)?.data as any)?.color);
@@ -56,7 +57,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
     // Focus State
     const [focusId, setFocusId] = useState<string | null>(null);
-    const caretPositionRef = useRef<'start' | 'end' | number | null>(null);
+    const caretPositionRef = useRef<'start' | 'end' | number | { x: number, line: 'last' | 'first', fallbackOffset: number } | null>(null);
     const blockRefs = useRef<{ [key: string]: HTMLElement | null }>({});
     const autoFocusDoneRef = useRef(false);
 
@@ -373,14 +374,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             const selection = window.getSelection();
             const range = document.createRange();
 
-            if (pos === 'start') {
-                range.selectNodeContents(el);
-                range.collapse(true);
-            } else if (pos === 'end') {
-                range.selectNodeContents(el);
-                range.collapse(false);
-            } else if (typeof pos === 'number') {
-                // Walk text nodes to find the correct offset position
+            const setCaretByOffset = (targetOffset: number) => {
                 const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
                 let textNode = walker.nextNode();
                 let currentOffset = 0;
@@ -388,8 +382,8 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
                 while (textNode) {
                     const nodeLength = textNode.textContent?.length || 0;
-                    if (currentOffset + nodeLength >= pos) {
-                        range.setStart(textNode, pos - currentOffset);
+                    if (currentOffset + nodeLength >= targetOffset) {
+                        range.setStart(textNode, targetOffset - currentOffset);
                         range.collapse(true);
                         found = true;
                         break;
@@ -402,14 +396,58 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     range.selectNodeContents(el);
                     range.collapse(false);
                 }
+            };
+
+            if (pos === 'start') {
+                range.selectNodeContents(el);
+                range.collapse(true);
+                selection?.removeAllRanges();
+                selection?.addRange(range);
+            } else if (pos === 'end') {
+                range.selectNodeContents(el);
+                range.collapse(false);
+                selection?.removeAllRanges();
+                selection?.addRange(range);
+            } else if (typeof pos === 'object' && pos !== null && 'x' in pos) {
+                const rect = el.getBoundingClientRect();
+                const x = pos.x;
+                const y = pos.line === 'last' ? rect.bottom - 10 : rect.top + 10;
+                let rangeFromPoint: Range | null = null;
+                
+                try {
+                    if (typeof document.caretRangeFromPoint === 'function') {
+                        rangeFromPoint = document.caretRangeFromPoint(x, y);
+                    } else if (typeof (document as any).caretPositionFromPoint === 'function') {
+                        const caretPos = (document as any).caretPositionFromPoint(x, y);
+                        if (caretPos) {
+                            rangeFromPoint = document.createRange();
+                            rangeFromPoint.setStart(caretPos.offsetNode, caretPos.offset);
+                            rangeFromPoint.collapse(true);
+                        }
+                    }
+                } catch (e) {
+                    // Ignore
+                }
+                
+                if (rangeFromPoint && el.contains(rangeFromPoint.commonAncestorContainer)) {
+                    selection?.removeAllRanges();
+                    selection?.addRange(rangeFromPoint);
+                } else {
+                    setCaretByOffset(pos.fallbackOffset);
+                    selection?.removeAllRanges();
+                    selection?.addRange(range);
+                }
+            } else if (typeof pos === 'number') {
+                setCaretByOffset(pos);
+                selection?.removeAllRanges();
+                selection?.addRange(range);
             } else {
                 // default to end
                 range.selectNodeContents(el);
                 range.collapse(false);
+                selection?.removeAllRanges();
+                selection?.addRange(range);
             }
-
-            selection?.removeAllRanges();
-            selection?.addRange(range);
         } catch (e) {
             console.warn('Failed to set caret position', e);
         }
@@ -621,6 +659,21 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 }
             }
             return 0;
+        };
+
+        const getCaretX = () => {
+            const selection = window.getSelection();
+            if (selection && selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                const rect = range.getBoundingClientRect();
+                if (rect.width === 0 && rect.height === 0) {
+                    const rects = range.getClientRects();
+                    if (rects.length > 0) return rects[0].left;
+                } else {
+                    return rect.left;
+                }
+            }
+            return null;
         };
 
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -912,7 +965,13 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         }
 
                         if (prevVisibleIndex >= 0) {
-                            caretPositionRef.current = 'end';
+                            const x = getCaretX();
+                            const fallbackOffset = getCaretOffset();
+                            if (x !== null) {
+                                caretPositionRef.current = { x, line: 'last', fallbackOffset };
+                            } else {
+                                caretPositionRef.current = fallbackOffset;
+                            }
                             setFocusId(blocksRef.current[prevVisibleIndex].id);
                         }
                     }
@@ -958,7 +1017,13 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         }
 
                         if (nextVisibleIndex < blocksRef.current.length) {
-                            caretPositionRef.current = 'start';
+                            const x = getCaretX();
+                            const fallbackOffset = getCaretOffset();
+                            if (x !== null) {
+                                caretPositionRef.current = { x, line: 'first', fallbackOffset };
+                            } else {
+                                caretPositionRef.current = fallbackOffset;
+                            }
                             setFocusId(blocksRef.current[nextVisibleIndex].id);
                         }
                     }
@@ -1150,7 +1215,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         }
                     }
 
-                    visibleBlocks.push({ block, listIndex, hasChildren });
+                    visibleBlocks.push({ block, listIndex, hasChildren, originalIndex: index });
                 });
 
                 interface RenderNode {
@@ -1158,6 +1223,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     block: Block;
                     listIndex?: number;
                     hasChildren?: boolean;
+                    originalIndex: number;
                     children: RenderNode[];
                 }
 
@@ -1178,6 +1244,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                             block: item.block,
                             listIndex: item.listIndex,
                             hasChildren: item.hasChildren,
+                            originalIndex: item.originalIndex,
                             children: []
                         };
 
@@ -1199,46 +1266,8 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     const currentReadOnly = readOnly || forceReadOnly;
                     if (node.type === 'block') {
                         return (
-                            <BlockItem
-                                key={node.block.id}
-                                block={node.block}
-                                index={node.listIndex}
-                                hasChildren={node.hasChildren}
-                                isSelected={selectedBlockIds.has(node.block.id)}
-                                readOnly={currentReadOnly}
-                                nodeId={nodeId}
-                                hideBlockHandles={hideBlockHandles}
-                                promoteBlockHandles={promoteBlockHandles}
-                                disableMediaControls={disableMediaControls}
-                                parentToggleIndent={parentToggleIndent}
-                                minimal={minimal}
-                                onUpdateBlock={updateBlock}
-                                onKeyDown={handleKeyDown}
-                                onPaste={handleBlockPaste}
-                                onMoveBlock={handleMoveBlock}
-                                onDragStart={handleDragStartWrapped}
-                                onMenuOpen={handleBlockMenuOpen}
-                                onSelectionClick={() => {
-                                    if (selectedBlockIds.size > 0) {
-                                        setSelectedBlockIds(new Set());
-                                    }
-                                }}
-                                onSelectionMouseDown={handleSelectionMouseDown}
-                                onRegisterRef={handleRegisterRef}
-                            />
-                        );
-                    } else {
-                        const showChildren = node.children && node.children.length > 0;
-                        const relativeIndent = Math.max(0, (node.block.indent || 0) - (parentToggleIndent || 0));
-                        const isCollapsed = node.block.metadata?.isCollapsed;
-                        return (
-                            <div 
-                                key={node.block.id} 
-                                className={styles.toggleGroupContainer}
-                                style={{ marginLeft: `${relativeIndent * 24}px` }}
-                            >
+                            <React.Fragment key={node.block.id}>
                                 <BlockItem
-                                    key={node.block.id}
                                     block={node.block}
                                     index={node.listIndex}
                                     hasChildren={node.hasChildren}
@@ -1248,7 +1277,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                     hideBlockHandles={hideBlockHandles}
                                     promoteBlockHandles={promoteBlockHandles}
                                     disableMediaControls={disableMediaControls}
-                                    parentToggleIndent={node.block.indent || 0}
+                                    parentToggleIndent={parentToggleIndent}
                                     minimal={minimal}
                                     onUpdateBlock={updateBlock}
                                     onKeyDown={handleKeyDown}
@@ -1264,12 +1293,53 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                     onSelectionMouseDown={handleSelectionMouseDown}
                                     onRegisterRef={handleRegisterRef}
                                 />
-                                {showChildren && !isCollapsed && (
-                                    <div className={styles.toggleChildrenContainer}>
-                                        {node.children.map(child => renderNode(child, node.block.indent || 0, currentReadOnly))}
-                                    </div>
-                                )}
-                            </div>
+                                {renderBetweenBlocks && node.originalIndex < blocks.length - 1 && renderBetweenBlocks(node.originalIndex)}
+                            </React.Fragment>
+                        );
+                    } else {
+                        const showChildren = node.children && node.children.length > 0;
+                        const relativeIndent = Math.max(0, (node.block.indent || 0) - (parentToggleIndent || 0));
+                        const isCollapsed = node.block.metadata?.isCollapsed;
+                        return (
+                            <React.Fragment key={node.block.id}>
+                                <div 
+                                    className={styles.toggleGroupContainer}
+                                    style={{ marginLeft: `${relativeIndent * 24}px` }}
+                                >
+                                    <BlockItem
+                                        block={node.block}
+                                        index={node.listIndex}
+                                        hasChildren={node.hasChildren}
+                                        isSelected={selectedBlockIds.has(node.block.id)}
+                                        readOnly={currentReadOnly}
+                                        nodeId={nodeId}
+                                        hideBlockHandles={hideBlockHandles}
+                                        promoteBlockHandles={promoteBlockHandles}
+                                        disableMediaControls={disableMediaControls}
+                                        parentToggleIndent={node.block.indent || 0}
+                                        minimal={minimal}
+                                        onUpdateBlock={updateBlock}
+                                        onKeyDown={handleKeyDown}
+                                        onPaste={handleBlockPaste}
+                                        onMoveBlock={handleMoveBlock}
+                                        onDragStart={handleDragStartWrapped}
+                                        onMenuOpen={handleBlockMenuOpen}
+                                        onSelectionClick={() => {
+                                            if (selectedBlockIds.size > 0) {
+                                                setSelectedBlockIds(new Set());
+                                            }
+                                        }}
+                                        onSelectionMouseDown={handleSelectionMouseDown}
+                                        onRegisterRef={handleRegisterRef}
+                                    />
+                                    {showChildren && !isCollapsed && (
+                                        <div className={styles.toggleChildrenContainer}>
+                                            {node.children.map(child => renderNode(child, node.block.indent || 0, currentReadOnly))}
+                                        </div>
+                                    )}
+                                </div>
+                                {renderBetweenBlocks && node.originalIndex < blocks.length - 1 && renderBetweenBlocks(node.originalIndex)}
+                            </React.Fragment>
                         );
                     }
                 };
