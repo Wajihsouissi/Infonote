@@ -237,10 +237,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 localStorage.removeItem('chnk-it-mock-session');
                 localStorage.removeItem('chnk-it-mock-users');
+                localStorage.removeItem('chnk-it-auth-token');
                 localStorage.removeItem('chnk it.activeWorkspaceId');
                 if (user?.id) {
                     localStorage.removeItem(`chnk-it.activeWorkspaceId.${user.id}`);
                 }
+                Object.keys(localStorage).forEach((key) => {
+                    const normalized = key.toLowerCase();
+                    if (normalized.includes('supabase') && normalized.includes('auth')) {
+                        localStorage.removeItem(key);
+                    }
+                });
             } catch {
                 // ignore storage errors (e.g. private browsing)
             }
@@ -248,6 +255,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             resetAuth();
             setUser(null);
             // Redirect back to the public homepage context.
+            if (typeof window !== 'undefined') {
+                window.history.replaceState({}, '', '/');
+            }
             setCurrentView('marketing');
         };
 
@@ -256,7 +266,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return;
         }
         try {
-            await supabase.auth.signOut();
+            await supabase.auth.signOut({ scope: 'global' });
         } catch (err) {
             console.warn('[Auth] signOut network call failed; clearing local state anyway', err);
         } finally {

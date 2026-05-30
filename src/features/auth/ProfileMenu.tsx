@@ -64,7 +64,8 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
     const handleSignOut = useCallback(async () => {
         setOpen(false);
         await signOut();
-        // Safety fallback: ensure view resets to marketing even if AuthProvider's redirect doesn't fire
+        // Safety fallback: ensure the URL and view reset even if the context
+        // cleanup is interrupted by the browser.
         window.history.pushState({}, '', '/');
         useStore.getState().setCurrentView('marketing');
     }, [signOut]);
@@ -149,7 +150,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
                         }}
                     >
                         <LogOut size={15} />
-                        <span>Deconnexion</span>
+                        <span>Log out</span>
                     </button>
                 </div>
             )}

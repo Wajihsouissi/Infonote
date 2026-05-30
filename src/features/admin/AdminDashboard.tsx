@@ -14,6 +14,8 @@ import {
     Loader2,
     AlertCircle,
     Activity,
+    Search,
+    RefreshCw,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
@@ -32,7 +34,11 @@ type Metric = { metric: string; value: number };
 
 type DailyTraffic = { day: string; visits: number };
 
-export const AdminDashboard: React.FC = () => {
+type AdminDashboardProps = {
+    ownerEmail: string;
+};
+
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ ownerEmail }) => {
     const setCurrentView = useStore((s) => s.setCurrentView);
     const auth = useStore((s) => s.auth);
 
@@ -44,6 +50,7 @@ export const AdminDashboard: React.FC = () => {
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [showInactiveOnly, setShowInactiveOnly] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const isAuthenticated = auth.isAuthenticated;
 
@@ -116,14 +123,27 @@ export const AdminDashboard: React.FC = () => {
     const todayVisits = metrics.find((m) => m.metric === 'today_visits')?.value ?? 0;
 
     const filteredUsers = useMemo(() => {
-        if (!showInactiveOnly) return users;
+        const query = searchQuery.trim().toLowerCase();
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         return users.filter(u => {
-            if (!u.last_active_at) return true; // Never active = inactive
-            return new Date(u.last_active_at) < thirtyDaysAgo;
+            const inactive = !u.last_active_at || new Date(u.last_active_at) < thirtyDaysAgo;
+            if (showInactiveOnly && !inactive) return false;
+            if (!query) return true;
+            return [
+                u.email,
+                u.display_name ?? '',
+                u.id,
+                u.account_status,
+            ].some(value => value.toLowerCase().includes(query));
         });
-    }, [users, showInactiveOnly]);
+    }, [users, showInactiveOnly, searchQuery]);
+
+    const inactiveCount = useMemo(() => {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        return users.filter(u => !u.last_active_at || new Date(u.last_active_at) < thirtyDaysAgo).length;
+    }, [users]);
 
     const maxDailyVisits = useMemo(() => {
         if (!dailyTraffic.length) return 1;
@@ -150,7 +170,10 @@ export const AdminDashboard: React.FC = () => {
             <header className={styles.header}>
                 <div className={styles.headerLeft}>
                     <Shield size={20} style={{ color: 'var(--color-primary, #8b5cf6)' }} />
-                    <span className={styles.headerTitle}>Admin Dashboard</span>
+                    <div>
+                        <span className={styles.headerTitle}>Admin Dashboard</span>
+                        <span className={styles.ownerLabel}>{ownerEmail}</span>
+                    </div>
                 </div>
                 <button className={styles.backButton} onClick={() => setCurrentView('landing')}>
                     <ArrowLeft size={14} />
@@ -171,6 +194,10 @@ export const AdminDashboard: React.FC = () => {
                     <div className={styles.statCard}>
                         <div className={styles.statLabel}>Total Users</div>
                         <div className={styles.statValue}>{totalUsers}</div>
+                    </div>
+                    <div className={styles.statCard}>
+                        <div className={styles.statLabel}>Inactive 30+ Days</div>
+                        <div className={styles.statValue}>{inactiveCount}</div>
                     </div>
                     <div className={styles.statCard}>
                         <div className={styles.statLabel}>Total Visits</div>
@@ -218,22 +245,29 @@ export const AdminDashboard: React.FC = () => {
                         {loadingUsers && <Loader2 size={14} className={styles.spinner} />}
                     </div>
 
-                    <div style={{ marginBottom: 12 }}>
+                    <div className={styles.tableToolbar}>
+                        <div className={styles.searchBox}>
+                            <Search size={15} />
+                            <input
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search email, display name, status, or user id"
+                                aria-label="Search user accounts"
+                            />
+                        </div>
                         <button
                             onClick={() => setShowInactiveOnly(v => !v)}
-                            style={{
-                                padding: '8px 16px',
-                                borderRadius: '8px',
-                                border: showInactiveOnly ? '1px solid #f87171' : '1px solid rgba(255,255,255,0.1)',
-                                background: showInactiveOnly ? 'rgba(248,113,113,0.15)' : 'rgba(255,255,255,0.05)',
-                                color: showInactiveOnly ? '#f87171' : 'rgba(255,255,255,0.7)',
-                                fontSize: '13px',
-                                fontWeight: 500,
-                                cursor: 'pointer',
-                                transition: 'all 0.15s',
-                            }}
+                            className={`${styles.filterBtn} ${showInactiveOnly ? styles.filterBtnActive : ''}`}
                         >
-                            {showInactiveOnly ? `Showing Inactive (${filteredUsers.length})` : 'Show Inactive (30+ days)'}
+                            {showInactiveOnly ? `Showing Inactive (${filteredUsers.length})` : `Show Inactive (${inactiveCount})`}
+                        </button>
+                        <button
+                            onClick={fetchData}
+                            className={styles.filterBtn}
+                            disabled={loadingUsers}
+                        >
+                            <RefreshCw size={14} className={loadingUsers ? styles.spinner : undefined} />
+                            Refresh
                         </button>
                     </div>
 

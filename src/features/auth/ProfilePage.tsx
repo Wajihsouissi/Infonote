@@ -186,6 +186,12 @@ export const ProfilePage: React.FC = () => {
         }
     };
 
+    const handleLogout = useCallback(async () => {
+        await signOut();
+        window.history.replaceState({}, '', '/');
+        setCurrentView('marketing');
+    }, [signOut, setCurrentView]);
+
     if (!auth.isAuthenticated) {
         // Defensive guard — if a logged-out user somehow lands here, send
         // them back to the public homepage instead of rendering empty UI.
@@ -402,13 +408,11 @@ export const ProfilePage: React.FC = () => {
                     </button>
                     <button
                         type="button"
-                        onClick={async () => {
-                            await signOut();
-                        }}
+                        onClick={handleLogout}
                         style={{ ...btnRow, color: '#fca5a5' }}
                     >
                         <LogOut size={16} />
-                        <span style={{ flex: 1, textAlign: 'left' }}>Sign out (Deconnexion)</span>
+                        <span style={{ flex: 1, textAlign: 'left' }}>Log out</span>
                         <span style={{ opacity: 0.5, fontSize: 12 }}>›</span>
                     </button>
                 </div>

@@ -1,108 +1,119 @@
-import { useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
+import { Loader2, ShieldAlert } from 'lucide-react';
 import { AdminDashboard } from './AdminDashboard';
+import { useStore } from '../../store/useStore';
+import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
 
-const ADMIN_SESSION_KEY = 'infonote_admin_session';
+const OWNER_EMAIL = 'mohebawichewi9@gmail.com';
 
-// Admin credentials (in production, these would be server-validated)
-const ADMIN_USERNAME = 'owner';
-const ADMIN_PASSWORD = 'Inf0note$ecure2024!';
+type GateState =
+    | { kind: 'checking' }
+    | { kind: 'allowed' }
+    | { kind: 'denied'; reason: string };
 
 export default function AdminGate() {
-    const [authenticated, setAuthenticated] = useState(() => {
-        return sessionStorage.getItem(ADMIN_SESSION_KEY) === 'active';
-    });
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
+    const setCurrentView = useStore((s) => s.setCurrentView);
+    const [state, setState] = useState<GateState>({ kind: 'checking' });
 
-    const handleLogin = useCallback((e: React.FormEvent) => {
-        e.preventDefault();
-        if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-            sessionStorage.setItem(ADMIN_SESSION_KEY, 'active');
-            setAuthenticated(true);
-            setError('');
-        } else {
-            setError('Invalid credentials');
-            setPassword('');
-        }
-    }, [username, password]);
+    useEffect(() => {
+        let cancelled = false;
 
-    if (authenticated) {
-        return <AdminDashboard />;
+        const redirectHome = () => {
+            window.history.replaceState({}, '', '/');
+            setCurrentView('marketing');
+        };
+
+        const verifyOwner = async () => {
+            if (!isSupabaseConfigured || !supabase) {
+                setState({ kind: 'denied', reason: 'Supabase is not configured.' });
+                window.setTimeout(redirectHome, 900);
+                return;
+            }
+
+            const { data: authData, error: authError } = await supabase.auth.getUser();
+            const activeUser = authData.user;
+            if (cancelled) return;
+
+            if (authError || !activeUser) {
+                setState({ kind: 'denied', reason: 'Owner session required.' });
+                window.setTimeout(redirectHome, 900);
+                return;
+            }
+
+            const { data: profile, error: profileError } = await supabase
+                .from('user_profiles')
+                .select('email')
+                .eq('id', activeUser.id)
+                .maybeSingle();
+
+            if (cancelled) return;
+
+            const profileEmail = typeof profile?.email === 'string' ? profile.email : '';
+            const sessionEmail = activeUser.email ?? '';
+            const verifiedEmail = (profileEmail || sessionEmail).trim().toLowerCase();
+
+            if (profileError || verifiedEmail !== OWNER_EMAIL) {
+                setState({ kind: 'denied', reason: 'Owner account required.' });
+                window.setTimeout(redirectHome, 900);
+                return;
+            }
+
+            setState({ kind: 'allowed' });
+        };
+
+        void verifyOwner();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [setCurrentView]);
+
+    if (state.kind === 'allowed') {
+        return <AdminDashboard ownerEmail={OWNER_EMAIL} />;
     }
 
     return (
-        <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100vh',
-            background: '#0a0a0f',
-        }}>
-            <form onSubmit={handleLogin} style={{
+        <div
+            style={{
+                minHeight: '100vh',
                 display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-                padding: '32px',
-                borderRadius: '12px',
-                background: '#1a1a2e',
-                border: '1px solid #2a2a3e',
-                width: '320px',
-            }}>
-                <h2 style={{ color: '#fff', margin: 0, fontSize: '18px', textAlign: 'center' }}>
-                    System Access
-                </h2>
-                {error && (
-                    <p style={{ color: '#ef4444', margin: 0, fontSize: '13px', textAlign: 'center' }}>
-                        {error}
-                    </p>
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: '#f6f4ef',
+                color: '#161616',
+                fontFamily: '"Poppins", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                padding: 24,
+            }}
+        >
+            <div
+                style={{
+                    width: 'min(420px, 100%)',
+                    border: '1px solid rgba(22,22,22,0.1)',
+                    background: 'rgba(255,255,255,0.78)',
+                    boxShadow: '0 18px 60px rgba(20, 20, 20, 0.08)',
+                    borderRadius: 12,
+                    padding: 28,
+                    textAlign: 'center',
+                }}
+            >
+                {state.kind === 'checking' ? (
+                    <>
+                        <Loader2 size={28} className="animate-spin" style={{ margin: '0 auto 14px', color: '#2563eb' }} />
+                        <h1 style={{ fontSize: 18, margin: 0 }}>Verifying owner session</h1>
+                        <p style={{ margin: '8px 0 0', color: 'rgba(22,22,22,0.58)', fontSize: 13 }}>
+                            Checking the active Supabase profile before opening operations.
+                        </p>
+                    </>
+                ) : (
+                    <>
+                        <ShieldAlert size={30} style={{ margin: '0 auto 14px', color: '#dc2626' }} />
+                        <h1 style={{ fontSize: 18, margin: 0 }}>Access denied</h1>
+                        <p style={{ margin: '8px 0 0', color: 'rgba(22,22,22,0.58)', fontSize: 13 }}>
+                            {state.reason}
+                        </p>
+                    </>
                 )}
-                <input
-                    type="text"
-                    placeholder="Username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    autoComplete="off"
-                    style={{
-                        padding: '10px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid #3a3a4e',
-                        background: '#0f0f1a',
-                        color: '#fff',
-                        fontSize: '14px',
-                        outline: 'none',
-                    }}
-                />
-                <input
-                    type="password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="off"
-                    style={{
-                        padding: '10px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid #3a3a4e',
-                        background: '#0f0f1a',
-                        color: '#fff',
-                        fontSize: '14px',
-                        outline: 'none',
-                    }}
-                />
-                <button type="submit" style={{
-                    padding: '10px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    background: '#7c3aed',
-                    color: '#fff',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    marginTop: '4px',
-                }}>
-                    Authenticate
-                </button>
-            </form>
+            </div>
         </div>
     );
 }

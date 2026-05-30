@@ -33,7 +33,7 @@ begin
         join pg_namespace n on n.oid = p.pronamespace
         where n.nspname = 'public'
           and p.proname = 'is_workspace_member'
-          and pg_get_function_identity_arguments(p.oid) = 'uuid, uuid'
+          and oidvectortypes(p.proargtypes) = 'uuid, uuid'
     ) then
         execute $fn$
             create function public.is_workspace_member(_workspace_id uuid, _user_id uuid)
@@ -50,6 +50,64 @@ begin
                 );
             $body$;
         $fn$;
+    end if;
+end $$;
+
+-- Some earlier project revisions created public.workspaces(owner_id) with a
+-- foreign key to public.profiles(id), while the current app uses
+-- public.user_profiles(id). If that legacy profiles table exists, mirror any
+-- missing auth users into it before inserting workspaces so the existing FK is
+-- satisfied.
+do $$
+declare
+    insert_columns text := 'id';
+    select_values text := 'u.id';
+begin
+    if to_regclass('public.profiles') is not null then
+        if exists (
+            select 1
+            from information_schema.columns
+            where table_schema = 'public'
+              and table_name = 'profiles'
+              and column_name = 'email'
+        ) then
+            insert_columns := insert_columns || ', email';
+            select_values := select_values || ', coalesce(u.email, '''')';
+        end if;
+
+        if exists (
+            select 1
+            from information_schema.columns
+            where table_schema = 'public'
+              and table_name = 'profiles'
+              and column_name = 'created_at'
+        ) then
+            insert_columns := insert_columns || ', created_at';
+            select_values := select_values || ', coalesce(u.created_at, now())';
+        end if;
+
+        if exists (
+            select 1
+            from information_schema.columns
+            where table_schema = 'public'
+              and table_name = 'profiles'
+              and column_name = 'updated_at'
+        ) then
+            insert_columns := insert_columns || ', updated_at';
+            select_values := select_values || ', now()';
+        end if;
+
+        execute format(
+            'insert into public.profiles (%s)
+             select %s
+             from auth.users u
+             where not exists (
+                 select 1 from public.profiles p where p.id = u.id
+             )
+             on conflict (id) do nothing',
+            insert_columns,
+            select_values
+        );
     end if;
 end $$;
 
