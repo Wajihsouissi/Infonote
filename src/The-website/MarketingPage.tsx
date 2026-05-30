@@ -1,5 +1,5 @@
 import React, { useCallback, memo, useEffect, useState, useRef } from 'react';
-import { motion, useMotionValue } from 'motion/react';
+import { motion } from 'motion/react';
 import { createPortal } from 'react-dom';
 import { ReactFlow, ReactFlowProvider, Background, useNodesState, useEdgesState, addEdge, Handle, Position } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -20,10 +20,7 @@ import {
   HardDrive,
   Database,
   FileText,
-  Kanban,
-  Play,
-  Tag,
-  Users
+  Kanban
 } from 'lucide-react';
 import styles from './MarketingPage.module.css';
 import mindmapVisual from '../assets/mindmap_visual.png';
@@ -34,10 +31,6 @@ import { BlockNode } from '../features/block/BlockNode';
 import { BottomMenu } from '../features/ui/BottomMenu';
 import { Breadcrumbs } from '../features/navigation/Breadcrumbs';
 import { useStore } from '../store/useStore';
-import { AgileWorkflowsSvg } from './components/AgileWorkflowsSvg';
-import { MindmappingSvg } from './components/MindmappingSvg';
-import { ZettelkastenSvg } from './components/ZettelkastenSvg';
-import { SecondBrainSvg } from './components/SecondBrainSvg';
 
 const ImageBlockComponent = memo(({ data }: any) => {
   return (
@@ -387,7 +380,213 @@ export const MarketingPage: React.FC = () => {
       icon: <Database />,
       color: "#f97316",
       svg: (
-        <SecondBrainSvg />
+        <svg viewBox="0 0 800 400" style={{ width: '100%', height: '100%', background: 'transparent' }}>
+          <defs>
+            {/* Cinematic Multi-layered Bloom Glow */}
+            <filter id="para-glow-heavy" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="blurOuter" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blurMedium" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blurInner" />
+              <feMerge>
+                <feMergeNode in="blurOuter" />
+                <feMergeNode in="blurMedium" />
+                <feMergeNode in="blurInner" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            
+            {/* Subtler Bloom for smaller elements */}
+            <filter id="para-glow-light" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blurOuter" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blurInner" />
+              <feMerge>
+                <feMergeNode in="blurOuter" />
+                <feMergeNode in="blurInner" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+
+            {/* Rich multi-color ambient hub aura */}
+            <radialGradient id="para-hub-glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#f97316" stopOpacity="0.5"/>
+              <stop offset="40%" stopColor="#f43f5e" stopOpacity="0.15"/>
+              <stop offset="100%" stopColor="#f97316" stopOpacity="0"/>
+            </radialGradient>
+            <linearGradient id="para-line-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#f97316" stopOpacity="0.8"/>
+              <stop offset="50%" stopColor="#f59e0b" stopOpacity="0.2"/>
+              <stop offset="100%" stopColor="#f97316" stopOpacity="0.8"/>
+            </linearGradient>
+            <pattern id="para-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+              <rect width="20" height="20" fill="none" />
+              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(249, 115, 22, 0.05)" strokeWidth="0.5"/>
+            </pattern>
+          </defs>
+
+          {/* Background Technical Grid */}
+          <rect width="100%" height="100%" fill="url(#para-grid)" />
+
+          {/* Central Routing Hub Glow */}
+          <circle cx="400" cy="200" r="160" fill="url(#para-hub-glow)">
+             <animate attributeName="opacity" values="0.3;0.8;0.3" dur="5s" repeatCount="indefinite" />
+          </circle>
+
+          {/* --- DATA ARTERIES --- */}
+          <g fill="none" stroke="url(#para-line-grad)" strokeWidth="1.5" strokeLinecap="round">
+            {/* To Projects */}
+            <path d="M 400 200 C 400 100, 330 100, 260 100" />
+            {/* To Areas */}
+            <path d="M 400 200 C 400 300, 330 300, 260 300" />
+            {/* To Resources */}
+            <path d="M 400 200 C 400 100, 470 100, 540 100" />
+            {/* To Archives */}
+            <path d="M 400 200 C 400 300, 470 300, 540 300" />
+          </g>
+
+          {/* Animated Flow Packets */}
+          <g fill="#fff" filter="url(#para-glow-light)">
+            {/* P-Flow */}
+            <circle cx="0" cy="0" r="2.5">
+              <animateMotion path="M 260 100 C 330 100, 400 100, 400 200" dur="1.2s" repeatCount="indefinite" />
+            </circle>
+            {/* A-Flow */}
+            <circle cx="0" cy="0" r="2.5">
+              <animateMotion path="M 260 300 C 330 300, 400 300, 400 200" dur="2.5s" repeatCount="indefinite" />
+            </circle>
+            {/* R-Flow */}
+            <circle cx="0" cy="0" r="2.5">
+              <animateMotion path="M 540 100 C 470 100, 400 100, 400 200" dur="1.8s" repeatCount="indefinite" />
+            </circle>
+            {/* Arch-Flow */}
+            <circle cx="0" cy="0" r="2">
+              <animateMotion path="M 400 200 C 400 300, 470 300, 540 300" dur="4s" repeatCount="indefinite" />
+            </circle>
+          </g>
+
+          {/* --- CENTRAL HUB (THE BRAIN) --- */}
+          <g transform="translate(400, 200)">
+            <g>
+              <animateTransform attributeName="transform" type="scale" values="1;1.05;1" dur="4s" repeatCount="indefinite" />
+              
+              {/* Glowing Brain SVG */}
+              <g transform="scale(3) translate(-12, -13)" strokeLinecap="round" strokeLinejoin="round">
+                {/* Dark Structural Fill (NO FILTER) */}
+                <g fill="rgba(20,5,0,0.9)" stroke="none">
+                  <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
+                  <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
+                </g>
+                
+                {/* Glowing Stroke Only */}
+                <g fill="none" stroke="#f97316" strokeWidth="1" filter="url(#para-glow-heavy)">
+                  <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
+                  <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
+                  <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4" />
+                  <path d="M17.599 6.5a3 3 0 0 0 .399-1.375" />
+                  <path d="M6.003 5.125A3 3 0 0 0 6.401 6.5" />
+                  <path d="M3.477 10.896a4 4 0 0 1 .585-.396" />
+                  <path d="M19.938 10.5a4 4 0 0 1 .585.396" />
+                  <path d="M6 18a4 4 0 0 1-1.967-.516" />
+                  <path d="M19.967 17.484A4 4 0 0 1 18 18" />
+                </g>
+              </g>
+              
+              {/* Animated inner neural stem */}
+              <g transform="scale(3) translate(-12, -13)" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="2 4">
+                <animate attributeName="stroke-dashoffset" values="6;0" dur="1s" repeatCount="indefinite" />
+                <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4" />
+              </g>
+            </g>
+
+          </g>
+
+          {/* --- [P] PROJECTS QUADRANT (Top Left) --- */}
+          <g transform="translate(180, 100)">
+            <g>
+              <animateTransform attributeName="transform" type="translate" values="0,0; 0,-4; 0,0" dur="3s" repeatCount="indefinite" />
+              {/* Glass Card */}
+              <rect x="-80" y="-40" width="160" height="80" rx="8" fill="rgba(15,5,10,0.95)" style={{ backdropFilter: 'blur(8px)' }} />
+              <rect x="-80" y="-40" width="160" height="80" rx="8" fill="none" stroke="#f43f5e" strokeWidth="1.5" filter="url(#para-glow-light)" />
+              {/* Header */}
+              <rect x="-80" y="-40" width="160" height="24" rx="8" fill="rgba(244,63,94,0.15)" />
+              <text x="-70" y="-24" fill="#fbcfe8" fontSize="11" fontWeight="bold" fontFamily="monospace" letterSpacing="1.5">[P] PROJECTS</text>
+              <circle cx="65" cy="-28" r="4" fill="#f43f5e" filter="url(#para-glow-light)">
+                <animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite" />
+              </circle>
+              {/* Visuals: Active Tasks */}
+              <rect x="-65" y="-4" width="90" height="6" rx="3" fill="#f43f5e" opacity="0.9" filter="url(#para-glow-light)" />
+              <rect x="-65" y="10" width="120" height="6" rx="3" fill="#f43f5e" opacity="0.5" />
+              <rect x="-65" y="24" width="70" height="6" rx="3" fill="#f43f5e" opacity="0.3" />
+              {/* Vertical timeline */}
+              <line x1="-72" y1="-2" x2="-72" y2="26" stroke="#f43f5e" strokeWidth="2" strokeDasharray="2 2" />
+            </g>
+          </g>
+
+          {/* --- [A] AREAS QUADRANT (Bottom Left) --- */}
+          <g transform="translate(180, 300)">
+            <g>
+              <animateTransform attributeName="transform" type="translate" values="0,0; 0,3; 0,0" dur="4.5s" repeatCount="indefinite" />
+              {/* Glass Card */}
+              <rect x="-80" y="-40" width="160" height="80" rx="8" fill="rgba(15,10,5,0.95)" style={{ backdropFilter: 'blur(8px)' }} />
+              <rect x="-80" y="-40" width="160" height="80" rx="8" fill="none" stroke="#f59e0b" strokeWidth="1.5" filter="url(#para-glow-light)" />
+              {/* Header */}
+              <rect x="-80" y="-40" width="160" height="24" rx="8" fill="rgba(245,158,11,0.15)" />
+              <text x="-70" y="-24" fill="#fef3c7" fontSize="11" fontWeight="bold" fontFamily="monospace" letterSpacing="1.5">[A] AREAS</text>
+              {/* Visuals: Pillars / Foundations */}
+              <circle cx="-50" cy="12" r="16" fill="none" stroke="#f59e0b" strokeWidth="2.5" filter="url(#para-glow-light)" />
+              <circle cx="-50" cy="12" r="8" fill="#f59e0b" opacity="0.6" />
+              <circle cx="0" cy="12" r="16" fill="none" stroke="#f59e0b" strokeWidth="2.5" filter="url(#para-glow-light)" />
+              <circle cx="0" cy="12" r="8" fill="#f59e0b" opacity="0.6" />
+              <circle cx="50" cy="12" r="16" fill="none" stroke="#f59e0b" strokeWidth="2.5" opacity="0.4" />
+            </g>
+          </g>
+
+          {/* --- [R] RESOURCES QUADRANT (Top Right) --- */}
+          <g transform="translate(620, 100)">
+            <g>
+              <animateTransform attributeName="transform" type="translate" values="0,0; 0,-3; 0,0" dur="3.8s" repeatCount="indefinite" />
+              {/* Glass Card */}
+              <rect x="-80" y="-40" width="160" height="80" rx="8" fill="rgba(5,15,20,0.95)" style={{ backdropFilter: 'blur(8px)' }} />
+              <rect x="-80" y="-40" width="160" height="80" rx="8" fill="none" stroke="#06b6d4" strokeWidth="1.5" filter="url(#para-glow-light)" />
+              {/* Header */}
+              <rect x="-80" y="-40" width="160" height="24" rx="8" fill="rgba(6,182,212,0.15)" />
+              <text x="-70" y="-24" fill="#cffafe" fontSize="11" fontWeight="bold" fontFamily="monospace" letterSpacing="1.5">[R] RESOURCES</text>
+              {/* Visuals: Data Grid */}
+              <g fill="#06b6d4">
+                <rect x="-65" y="-5" width="20" height="12" rx="2" opacity="0.9" filter="url(#para-glow-light)" />
+                <rect x="-40" y="-5" width="20" height="12" rx="2" opacity="0.5" />
+                <rect x="-15" y="-5" width="20" height="12" rx="2" opacity="0.3" />
+                <rect x="10" y="-5" width="20" height="12" rx="2" opacity="0.7" />
+                <rect x="35" y="-5" width="20" height="12" rx="2" opacity="0.4" />
+                <rect x="-65" y="12" width="20" height="12" rx="2" opacity="0.2" />
+                <rect x="-40" y="12" width="20" height="12" rx="2" opacity="0.8" filter="url(#para-glow-light)" />
+                <rect x="-15" y="12" width="20" height="12" rx="2" opacity="0.6" />
+                <rect x="10" y="12" width="20" height="12" rx="2" opacity="0.2" />
+                <rect x="35" y="12" width="20" height="12" rx="2" opacity="0.5" />
+              </g>
+            </g>
+          </g>
+
+          {/* --- [A] ARCHIVES QUADRANT (Bottom Right) --- */}
+          <g transform="translate(620, 300)">
+            <g>
+              <animateTransform attributeName="transform" type="translate" values="0,0; 0,2; 0,0" dur="6s" repeatCount="indefinite" />
+              {/* Glass Card */}
+              <rect x="-80" y="-40" width="160" height="80" rx="8" fill="rgba(10,10,15,0.95)" style={{ backdropFilter: 'blur(8px)' }} />
+              <rect x="-80" y="-40" width="160" height="80" rx="8" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1" strokeDasharray="4 4" filter="url(#para-glow-light)" />
+              {/* Header */}
+              <rect x="-80" y="-40" width="160" height="24" rx="8" fill="rgba(255,255,255,0.05)" />
+              <text x="-70" y="-24" fill="rgba(255,255,255,0.8)" fontSize="11" fontWeight="bold" fontFamily="monospace" letterSpacing="1.5">[A] ARCHIVES</text>
+              {/* Visuals: Cold Storage Stacks */}
+              <g fill="rgba(255,255,255,0.1)">
+                <rect x="-60" y="-5" width="120" height="8" rx="2" />
+                <rect x="-60" y="8" width="120" height="8" rx="2" />
+                <rect x="-60" y="21" width="120" height="8" rx="2" />
+              </g>
+              <line x1="-50" y1="-1" x2="-20" y2="-1" stroke="#fff" strokeWidth="2" opacity="0.5" filter="url(#para-glow-light)" />
+              <line x1="-50" y1="12" x2="10" y2="12" stroke="#fff" strokeWidth="2" opacity="0.4" filter="url(#para-glow-light)" />
+            </g>
+          </g>
+        </svg>
       )
     },
     {
@@ -396,7 +595,203 @@ export const MarketingPage: React.FC = () => {
       icon: <Link2 />,
       color: "#06b6d4",
       svg: (
-        <ZettelkastenSvg />
+        <svg viewBox="0 0 800 400" style={{ width: '100%', height: '100%', background: 'transparent' }}>
+          <defs>
+            {/* Cinematic Multi-layered Bloom Glow */}
+            <filter id="zk-glow-heavy" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="blurOuter" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blurMedium" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blurInner" />
+              <feMerge>
+                <feMergeNode in="blurOuter" />
+                <feMergeNode in="blurMedium" />
+                <feMergeNode in="blurInner" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            
+            {/* Subtler Bloom for smaller elements */}
+            <filter id="zk-glow-light" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blurOuter" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blurInner" />
+              <feMerge>
+                <feMergeNode in="blurOuter" />
+                <feMergeNode in="blurInner" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+
+            {/* Cyan/Teal Ambient Aura */}
+            <radialGradient id="zk-hub-glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.4"/>
+              <stop offset="50%" stopColor="#3b82f6" stopOpacity="0.1"/>
+              <stop offset="100%" stopColor="#06b6d4" stopOpacity="0"/>
+            </radialGradient>
+            
+            <linearGradient id="zk-line-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.8"/>
+              <stop offset="50%" stopColor="#3b82f6" stopOpacity="0.3"/>
+              <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.8"/>
+            </linearGradient>
+
+            <pattern id="zk-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+              <rect width="20" height="20" fill="none" />
+              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(6, 182, 212, 0.05)" strokeWidth="0.5"/>
+            </pattern>
+          </defs>
+
+          {/* Background Technical Grid */}
+          <rect width="100%" height="100%" fill="url(#zk-grid)" />
+
+          {/* Central Network Glow */}
+          <circle cx="420" cy="200" r="200" fill="url(#zk-hub-glow)">
+            <animate attributeName="opacity" values="0.3;0.7;0.3" dur="6s" repeatCount="indefinite" />
+          </circle>
+
+          {/* --- ORGANIC SYNAPSE CONNECTIONS --- */}
+          <g fill="none" stroke="url(#zk-line-grad)" strokeWidth="1.5" strokeLinecap="round">
+            {/* Fleeting -> Permanent */}
+            <path d="M 180 100 C 260 100, 260 180, 340 180" />
+            {/* Literature -> Permanent */}
+            <path d="M 180 300 C 260 300, 260 220, 340 220" />
+            {/* Permanent <-> Index */}
+            <path d="M 500 180 C 580 180, 580 120, 640 120" />
+            {/* Permanent -> Output */}
+            <path d="M 500 220 C 580 220, 580 280, 640 280" />
+          </g>
+
+          {/* Animated Flow Packets (Bidirectional) */}
+          <g fill="#fff" filter="url(#zk-glow-light)">
+            {/* Flow to Permanent */}
+            <circle cx="0" cy="0" r="2.5">
+              <animateMotion path="M 180 100 C 260 100, 260 180, 340 180" dur="1.5s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="0" cy="0" r="2.5">
+              <animateMotion path="M 180 300 C 260 300, 260 220, 340 220" dur="2s" repeatCount="indefinite" />
+            </circle>
+            {/* Outgoing to Index / Output */}
+            <circle cx="0" cy="0" r="2.5">
+              <animateMotion path="M 500 180 C 580 180, 580 120, 640 120" dur="1.8s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="0" cy="0" r="2.5">
+              <animateMotion path="M 500 220 C 580 220, 580 280, 640 280" dur="2.2s" repeatCount="indefinite" />
+            </circle>
+            {/* Reverse Index to Permanent (Bidirectional) */}
+            <circle cx="0" cy="0" r="2">
+              <animateMotion path="M 640 120 C 580 120, 580 180, 500 180" dur="1.4s" begin="0.5s" repeatCount="indefinite" />
+            </circle>
+          </g>
+
+          {/* --- [Z] FLEETING (Top Left) --- */}
+          <g transform="translate(100, 100)">
+            <g>
+              <animateTransform attributeName="transform" type="translate" values="0,0; 0,-3; 0,0" dur="3s" repeatCount="indefinite" />
+              <rect x="-80" y="-30" width="160" height="60" rx="6" fill="rgba(6,182,212,0.05)" stroke="#06b6d4" strokeWidth="1" strokeDasharray="2 4" style={{ backdropFilter: 'blur(8px)' }} />
+              <rect x="-80" y="-30" width="160" height="20" rx="6" fill="rgba(6,182,212,0.15)" />
+              <text x="-70" y="-17" fill="#06b6d4" fontSize="10" fontWeight="bold" fontFamily="monospace" letterSpacing="1">[Z] FLEETING</text>
+              <path d="M -65 5 L -45 5 M -65 15 L -25 15" stroke="#06b6d4" strokeWidth="2" strokeLinecap="round" opacity="0.6"/>
+            </g>
+          </g>
+
+          {/* --- [Z] LITERATURE (Bottom Left) --- */}
+          <g transform="translate(100, 300)">
+            <g>
+              <animateTransform attributeName="transform" type="translate" values="0,0; 0,3; 0,0" dur="4s" repeatCount="indefinite" />
+              <rect x="-80" y="-30" width="160" height="60" rx="6" fill="rgba(6,182,212,0.05)" stroke="#06b6d4" strokeWidth="1.5" style={{ backdropFilter: 'blur(8px)' }} />
+              <rect x="-80" y="-30" width="160" height="20" rx="6" fill="rgba(6,182,212,0.15)" />
+              <text x="-70" y="-17" fill="#06b6d4" fontSize="10" fontWeight="bold" fontFamily="monospace" letterSpacing="1">[Z] LITERATURE</text>
+              <path d="M -65 5 L -15 5 M -65 15 L 5 15 M 15 5 L 25 5" stroke="#06b6d4" strokeWidth="2" strokeLinecap="round" opacity="0.8"/>
+            </g>
+          </g>
+
+          {/* --- [Z] INDEX / MOC (Top Right) --- */}
+          <g transform="translate(720, 120)">
+            <g>
+              <animateTransform attributeName="transform" type="translate" values="0,0; 0,-2; 0,0" dur="4.5s" repeatCount="indefinite" />
+              <rect x="-80" y="-35" width="160" height="70" rx="6" fill="rgba(59,130,246,0.05)" stroke="#3b82f6" strokeWidth="1.5" style={{ backdropFilter: 'blur(8px)' }} />
+              <rect x="-80" y="-35" width="160" height="20" rx="6" fill="rgba(59,130,246,0.15)" />
+              <text x="-70" y="-22" fill="#3b82f6" fontSize="10" fontWeight="bold" fontFamily="monospace" letterSpacing="1">[Z] M.O.C</text>
+              {/* Mini Map Visual */}
+              <circle cx="-50" cy="5" r="3" fill="#3b82f6" />
+              <circle cx="-30" cy="-5" r="3" fill="#3b82f6" />
+              <circle cx="-30" cy="15" r="3" fill="#3b82f6" />
+              <path d="M -50 5 L -30 -5 M -50 5 L -30 15" stroke="#3b82f6" strokeWidth="1.5" />
+            </g>
+          </g>
+
+          {/* --- [Z] OUTPUT (Bottom Right) --- */}
+          <g transform="translate(720, 280)">
+            <g>
+              <animateTransform attributeName="transform" type="translate" values="0,0; 0,2; 0,0" dur="3.5s" repeatCount="indefinite" />
+              <rect x="-80" y="-30" width="160" height="60" rx="6" fill="rgba(255,255,255,0.05)" stroke="#fff" strokeWidth="1" strokeDasharray="2 2" style={{ backdropFilter: 'blur(8px)' }} />
+              <rect x="-80" y="-30" width="160" height="20" rx="6" fill="rgba(255,255,255,0.1)" />
+              <text x="-70" y="-17" fill="#fff" fontSize="10" fontWeight="bold" fontFamily="monospace" letterSpacing="1">[Z] OUTPUT</text>
+              <path d="M -65 10 L 25 10 M 15 5 L 25 10 L 15 15" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </g>
+          </g>
+
+          {/* --- [Z] PERMANENT NOTES (Central Cluster) --- */}
+          <g transform="translate(420, 200)">
+             <g>
+                <animateTransform attributeName="transform" type="translate" values="0,0; 0,-4; 0,0" dur="5s" repeatCount="indefinite" />
+                
+                {/* Outer Ambient Glass Layer */}
+                <rect x="-85" y="-65" width="170" height="130" rx="16" fill="rgba(6,182,212,0.03)" stroke="rgba(6,182,212,0.3)" strokeWidth="1" style={{ backdropFilter: 'blur(4px)' }} />
+                
+                {/* Inner Ambient Glow (Behind nodes) */}
+                <circle cx="0" cy="0" r="40" fill="#06b6d4" opacity="0.15" filter="url(#zk-glow-heavy)" />
+                
+                {/* Heavy Inner Core Background (No Filter!) */}
+                <rect x="-70" y="-50" width="140" height="100" rx="12" fill="rgba(5,10,20,0.95)" />
+                {/* Heavy Inner Core Border (Glow Filter!) */}
+                <rect x="-70" y="-50" width="140" height="100" rx="12" fill="none" stroke="#06b6d4" strokeWidth="2" filter="url(#zk-glow-heavy)" />
+                
+                {/* Internal Atomic Constellation */}
+                <g>
+                  {/* Organic Neural Connections (Glowing) */}
+                  <g fill="none" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" opacity="0.8" filter="url(#zk-glow-light)">
+                    <path d="M -35 -20 C -10 -20, -10 20, 35 20" strokeDasharray="2 4" />
+                    <path d="M -35 20 C -10 20, -10 -20, 35 -20" strokeDasharray="2 4" />
+                    <path d="M -35 -20 L -35 20" strokeDasharray="2 4" opacity="0.5" />
+                    <path d="M 35 -20 L 35 20" strokeDasharray="2 4" opacity="0.5" />
+                  </g>
+                  
+                  {/* Node: Alpha */}
+                  <circle cx="-35" cy="-20" r="14" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" strokeWidth="1" />
+                  <circle cx="-35" cy="-20" r="4" fill="#06b6d4" filter="url(#zk-glow-light)" />
+                  
+                  {/* Node: Beta */}
+                  <circle cx="-35" cy="20" r="12" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" strokeWidth="1" />
+                  <circle cx="-35" cy="20" r="3" fill="#3b82f6" filter="url(#zk-glow-light)" />
+                  
+                  {/* Node: Gamma */}
+                  <circle cx="35" cy="-20" r="12" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" strokeWidth="1" />
+                  <circle cx="35" cy="-20" r="3" fill="#3b82f6" filter="url(#zk-glow-light)" />
+                  
+                  {/* Node: Delta */}
+                  <circle cx="35" cy="20" r="16" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" strokeWidth="1" />
+                  <circle cx="35" cy="20" r="5" fill="#06b6d4" filter="url(#zk-glow-light)" />
+                </g>
+
+                {/* Core Header */}
+                <rect x="-60" y="-60" width="120" height="20" fill="rgba(0,0,0,0.8)" rx="4" />
+                <text x="0" y="-47" fill="#cffafe" fontSize="10" fontWeight="bold" fontFamily="monospace" textAnchor="middle" letterSpacing="1">PERMANENT_NOTES</text>
+             </g>
+          </g>
+          
+          {/* Floating Data Particles */}
+          <g fill="#06b6d4" filter="url(#zk-glow-light)">
+            <circle cx="300" cy="160" r="3">
+               <animate attributeName="opacity" values="0.2;1;0.2" dur="2s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="550" cy="240" r="4">
+               <animate attributeName="opacity" values="1;0.2;1" dur="3.5s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="500" cy="130" r="2">
+               <animate attributeName="opacity" values="0.1;0.9;0.1" dur="1.8s" repeatCount="indefinite" />
+            </circle>
+          </g>
+        </svg>
       )
     },
     {
@@ -405,7 +800,197 @@ export const MarketingPage: React.FC = () => {
       icon: <Target />,
       color: "#ec4899",
       svg: (
-        <MindmappingSvg />
+        <svg viewBox="0 0 800 400" style={{ width: '100%', height: '100%', background: 'transparent' }}>
+          <defs>
+            {/* Cinematic Multi-layered Bloom Glow */}
+            <filter id="mm-glow-heavy" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="blurOuter" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blurMedium" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blurInner" />
+              <feMerge>
+                <feMergeNode in="blurOuter" />
+                <feMergeNode in="blurMedium" />
+                <feMergeNode in="blurInner" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            
+            <filter id="mm-glow-light" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blurOuter" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blurInner" />
+              <feMerge>
+                <feMergeNode in="blurOuter" />
+                <feMergeNode in="blurInner" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+
+            <radialGradient id="mm-hub-glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#f472b6" stopOpacity="0.3"/>
+              <stop offset="50%" stopColor="#d946ef" stopOpacity="0.1"/>
+              <stop offset="100%" stopColor="#d946ef" stopOpacity="0"/>
+            </radialGradient>
+            
+            <linearGradient id="mm-line-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#d946ef" stopOpacity="0.8"/>
+              <stop offset="50%" stopColor="#c026d3" stopOpacity="0.4"/>
+              <stop offset="100%" stopColor="#d946ef" stopOpacity="0.8"/>
+            </linearGradient>
+
+            <pattern id="mm-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+              <rect width="20" height="20" fill="none" />
+              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(217, 70, 239, 0.05)" strokeWidth="0.5"/>
+            </pattern>
+          </defs>
+
+          {/* Background Grid */}
+          <rect width="100%" height="100%" fill="url(#mm-grid)" />
+
+          {/* Central Hub Aura */}
+          <circle cx="400" cy="200" r="180" fill="url(#mm-hub-glow)">
+             <animate attributeName="opacity" values="0.2;0.6;0.2" dur="6s" repeatCount="indefinite" />
+          </circle>
+
+          {/* --- ORGANIC BRANCHING CONNECTIONS --- */}
+          <g fill="none" stroke="url(#mm-line-grad)" strokeWidth="1.5" strokeLinecap="round">
+            {/* Center to Level 1 */}
+            <path d="M 400 200 C 330 200, 310 120, 240 120" />
+            <path d="M 400 200 C 330 200, 310 280, 240 280" />
+            <path d="M 400 200 C 470 200, 490 120, 560 120" />
+            <path d="M 400 200 C 470 200, 490 280, 560 280" />
+
+            {/* Level 1 to Level 2 (Left) */}
+            <path d="M 240 120 C 180 120, 160 70, 100 70" opacity="0.4" />
+            <path d="M 240 120 C 180 120, 160 170, 100 170" opacity="0.4" />
+            <path d="M 240 280 C 180 280, 160 230, 100 230" opacity="0.4" />
+            <path d="M 240 280 C 180 280, 160 330, 100 330" opacity="0.4" />
+
+            {/* Level 1 to Level 2 (Right) */}
+            <path d="M 560 120 C 620 120, 640 70, 700 70" opacity="0.4" />
+            <path d="M 560 120 C 620 120, 640 170, 700 170" opacity="0.4" />
+            <path d="M 560 280 C 620 280, 640 230, 700 230" opacity="0.4" />
+            <path d="M 560 280 C 620 280, 640 330, 700 330" opacity="0.4" />
+          </g>
+
+          {/* Animated Flow Packets (Radiating outward) */}
+          <g fill="#fff" filter="url(#mm-glow-light)">
+            {/* To Level 1 */}
+            <circle cx="0" cy="0" r="2.5">
+              <animateMotion path="M 400 200 C 330 200, 310 120, 240 120" dur="1.5s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="0" cy="0" r="2.5">
+              <animateMotion path="M 400 200 C 330 200, 310 280, 240 280" dur="1.8s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="0" cy="0" r="2.5">
+              <animateMotion path="M 400 200 C 470 200, 490 120, 560 120" dur="1.6s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="0" cy="0" r="2.5">
+              <animateMotion path="M 400 200 C 470 200, 490 280, 560 280" dur="1.9s" repeatCount="indefinite" />
+            </circle>
+            
+            {/* To Level 2 (Selected branches) */}
+            <circle cx="0" cy="0" r="1.5">
+              <animateMotion path="M 240 120 C 180 120, 160 70, 100 70" dur="1s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="0" cy="0" r="1.5">
+              <animateMotion path="M 560 280 C 620 280, 640 330, 700 330" dur="1.2s" repeatCount="indefinite" />
+            </circle>
+          </g>
+
+          {/* --- [M] CENTRAL ROOT NODE --- */}
+          <g transform="translate(400, 200)">
+            <g>
+              <animateTransform attributeName="transform" type="scale" values="1;1.05;1" dur="4s" repeatCount="indefinite" />
+              {/* Outer structural bounds */}
+              <circle cx="0" cy="0" r="70" fill="rgba(15,5,20,0.95)" />
+              <circle cx="0" cy="0" r="70" fill="none" stroke="#d946ef" strokeWidth="1" strokeDasharray="2 4" filter="url(#mm-glow-heavy)" />
+              
+              {/* Inner glowing core ring */}
+              <circle cx="0" cy="0" r="35" fill="none" stroke="#f472b6" strokeWidth="1.5" filter="url(#mm-glow-heavy)" opacity="0.7" />
+              
+              {/* Core Crosshairs */}
+              <path d="M -15 0 L 15 0 M 0 -15 L 0 15" stroke="#f472b6" strokeWidth="1" opacity="0.5" filter="url(#mm-glow-light)" />
+              <circle cx="0" cy="0" r="6" fill="#f472b6" filter="url(#mm-glow-light)" />
+              
+              {/* Elegant Centered Header */}
+              <rect x="-45" y="-9" width="90" height="18" fill="rgba(10,0,15,0.9)" rx="9" stroke="#d946ef" strokeWidth="0.5" />
+              <text x="0" y="3" fill="#fdf4ff" fontSize="8.5" fontWeight="bold" fontFamily="monospace" textAnchor="middle" letterSpacing="1.5">CORE_CONCEPT</text>
+            </g>
+          </g>
+
+          {/* --- [M] BRANCH A (Top Left) --- */}
+          <g transform="translate(220, 120)">
+            <g>
+              <animateTransform attributeName="transform" type="translate" values="0,0; 0,-3; 0,0" dur="3s" repeatCount="indefinite" />
+              <rect x="-65" y="-30" width="130" height="60" rx="8" fill="rgba(15,5,20,0.95)" style={{ backdropFilter: 'blur(8px)' }} />
+              <rect x="-65" y="-30" width="130" height="60" rx="8" fill="none" stroke="#d946ef" strokeWidth="1.5" filter="url(#mm-glow-light)" />
+              <rect x="-65" y="-30" width="130" height="22" rx="8" fill="rgba(217, 70, 239, 0.15)" />
+              <text x="-55" y="-15" fill="#fdf4ff" fontSize="9" fontWeight="bold" fontFamily="monospace" letterSpacing="1">[M] IDEATION</text>
+              {/* Inner Content Details */}
+              <circle cx="-50" cy="10" r="4" fill="#f472b6" filter="url(#mm-glow-light)" />
+              <rect x="-35" y="6" width="50" height="3" rx="1.5" fill="#e879f9" opacity="0.9" />
+              <rect x="-35" y="13" width="30" height="3" rx="1.5" fill="#e879f9" opacity="0.4" />
+            </g>
+          </g>
+
+          {/* --- [M] BRANCH B (Bottom Left) --- */}
+          <g transform="translate(220, 280)">
+            <g>
+              <animateTransform attributeName="transform" type="translate" values="0,0; 0,3; 0,0" dur="4.5s" repeatCount="indefinite" />
+              <rect x="-65" y="-30" width="130" height="60" rx="8" fill="rgba(15,5,20,0.95)" style={{ backdropFilter: 'blur(8px)' }} />
+              <rect x="-65" y="-30" width="130" height="60" rx="8" fill="none" stroke="#d946ef" strokeWidth="1.5" strokeDasharray="2 4" filter="url(#mm-glow-light)" />
+              <rect x="-65" y="-30" width="130" height="22" rx="8" fill="rgba(217, 70, 239, 0.15)" />
+              <text x="-55" y="-15" fill="#fdf4ff" fontSize="9" fontWeight="bold" fontFamily="monospace" letterSpacing="1">[M] SYNTHESIS</text>
+              <circle cx="-50" cy="10" r="4" fill="#f472b6" filter="url(#mm-glow-light)" />
+              <rect x="-35" y="6" width="60" height="3" rx="1.5" fill="#e879f9" opacity="0.9" />
+              <rect x="-35" y="13" width="20" height="3" rx="1.5" fill="#e879f9" opacity="0.4" />
+            </g>
+          </g>
+
+          {/* --- [M] BRANCH C (Top Right) --- */}
+          <g transform="translate(580, 120)">
+            <g>
+              <animateTransform attributeName="transform" type="translate" values="0,0; 0,-2; 0,0" dur="3.8s" repeatCount="indefinite" />
+              <rect x="-65" y="-30" width="130" height="60" rx="8" fill="rgba(15,5,20,0.95)" style={{ backdropFilter: 'blur(8px)' }} />
+              <rect x="-65" y="-30" width="130" height="60" rx="8" fill="none" stroke="#d946ef" strokeWidth="1.5" strokeDasharray="2 4" filter="url(#mm-glow-light)" />
+              <rect x="-65" y="-30" width="130" height="22" rx="8" fill="rgba(217, 70, 239, 0.15)" />
+              <text x="-55" y="-15" fill="#fdf4ff" fontSize="9" fontWeight="bold" fontFamily="monospace" letterSpacing="1">[M] EXECUTION</text>
+              <circle cx="-50" cy="10" r="4" fill="#f472b6" filter="url(#mm-glow-light)" />
+              <rect x="-35" y="6" width="40" height="3" rx="1.5" fill="#e879f9" opacity="0.9" />
+              <rect x="-35" y="13" width="45" height="3" rx="1.5" fill="#e879f9" opacity="0.4" />
+            </g>
+          </g>
+
+          {/* --- [M] BRANCH D (Bottom Right) --- */}
+          <g transform="translate(580, 280)">
+            <g>
+              <animateTransform attributeName="transform" type="translate" values="0,0; 0,2; 0,0" dur="5s" repeatCount="indefinite" />
+              <rect x="-65" y="-30" width="130" height="60" rx="8" fill="rgba(15,5,20,0.95)" style={{ backdropFilter: 'blur(8px)' }} />
+              <rect x="-65" y="-30" width="130" height="60" rx="8" fill="none" stroke="#d946ef" strokeWidth="1.5" filter="url(#mm-glow-light)" />
+              <rect x="-65" y="-30" width="130" height="22" rx="8" fill="rgba(217, 70, 239, 0.15)" />
+              <text x="-55" y="-15" fill="#fdf4ff" fontSize="9" fontWeight="bold" fontFamily="monospace" letterSpacing="1">[M] ARCHIVE</text>
+              <circle cx="-50" cy="10" r="4" fill="#f472b6" filter="url(#mm-glow-light)" />
+              <rect x="-35" y="6" width="30" height="3" rx="1.5" fill="#e879f9" opacity="0.9" />
+              <rect x="-35" y="13" width="55" height="3" rx="1.5" fill="#e879f9" opacity="0.4" />
+            </g>
+          </g>
+
+          {/* --- LEVEL 2 LEAF NODES --- */}
+          <g>
+             {/* Left Leaves */}
+             <circle cx="100" cy="70" r="6" fill="#d946ef" filter="url(#mm-glow-light)" />
+             <circle cx="100" cy="170" r="6" fill="#c026d3" opacity="0.8" />
+             <circle cx="100" cy="230" r="6" fill="#c026d3" opacity="0.8" />
+             <circle cx="100" cy="330" r="6" fill="#d946ef" filter="url(#mm-glow-light)" />
+             
+             {/* Right Leaves */}
+             <circle cx="700" cy="70" r="6" fill="#d946ef" filter="url(#mm-glow-light)" />
+             <circle cx="700" cy="170" r="6" fill="#c026d3" opacity="0.8" />
+             <circle cx="700" cy="230" r="6" fill="#c026d3" opacity="0.8" />
+             <circle cx="700" cy="330" r="6" fill="#d946ef" filter="url(#mm-glow-light)" />
+          </g>
+          
+        </svg>
       )
     },
     {
@@ -414,7 +999,241 @@ export const MarketingPage: React.FC = () => {
       icon: <Kanban />,
       color: "#8b5cf6",
       svg: (
-        <AgileWorkflowsSvg />
+        <svg viewBox="0 0 800 400" style={{ width: '100%', height: '100%', background: 'transparent' }}>
+          <defs>
+            {/* Cinematic Multi-layered Bloom Glow */}
+            <filter id="aw-glow-heavy" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="blurOuter" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blurMedium" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blurInner" />
+              <feMerge>
+                <feMergeNode in="blurOuter" />
+                <feMergeNode in="blurMedium" />
+                <feMergeNode in="blurInner" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            
+            <filter id="aw-glow-light" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blurOuter" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blurInner" />
+              <feMerge>
+                <feMergeNode in="blurOuter" />
+                <feMergeNode in="blurInner" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            
+            <linearGradient id="aw-flow-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.2"/>
+              <stop offset="50%" stopColor="#c4b5fd" stopOpacity="0.8"/>
+              <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.2"/>
+            </linearGradient>
+
+            <radialGradient id="aw-col-glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.25"/>
+              <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0"/>
+            </radialGradient>
+            
+            <pattern id="aw-dot-grid" width="30" height="30" patternUnits="userSpaceOnUse">
+              <circle cx="15" cy="15" r="1" fill="#8b5cf6" opacity="0.2" />
+            </pattern>
+          </defs>
+
+          {/* Background Grid */}
+          <rect width="100%" height="100%" fill="url(#aw-dot-grid)" />
+
+          {/* Connective Data Bridges */}
+          <g fill="none" stroke="url(#aw-flow-grad)" strokeWidth="2" opacity="0.6">
+            <path d="M 260 140 C 290 140, 290 140, 320 140" />
+            <path d="M 260 250 C 290 250, 290 250, 320 250" />
+            <path d="M 480 160 C 510 160, 510 160, 540 160" />
+            <path d="M 480 270 C 510 270, 510 270, 540 270" />
+          </g>
+
+          {/* Animated Bridge Flows */}
+          <g fill="none" stroke="#fff" strokeWidth="1.5" strokeDasharray="4 16" opacity="0.7">
+            <path d="M 260 140 C 290 140, 290 140, 320 140">
+              <animate attributeName="stroke-dashoffset" values="20;0" dur="1s" repeatCount="indefinite" />
+            </path>
+            <path d="M 260 250 C 290 250, 290 250, 320 250">
+              <animate attributeName="stroke-dashoffset" values="20;0" dur="1.2s" repeatCount="indefinite" />
+            </path>
+            <path d="M 480 160 C 510 160, 510 160, 540 160">
+              <animate attributeName="stroke-dashoffset" values="20;0" dur="0.8s" repeatCount="indefinite" />
+            </path>
+            <path d="M 480 270 C 510 270, 510 270, 540 270">
+              <animate attributeName="stroke-dashoffset" values="20;0" dur="1.4s" repeatCount="indefinite" />
+            </path>
+          </g>
+
+          {/* Flow Packets */}
+          <g fill="#fff" filter="url(#aw-glow-light)">
+            <circle cx="0" cy="0" r="2.5">
+              <animateMotion path="M 260 140 C 290 140, 290 140, 320 140" dur="1.5s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="0" cy="0" r="2.5">
+              <animateMotion path="M 480 160 C 510 160, 510 160, 540 160" dur="1.8s" repeatCount="indefinite" />
+            </circle>
+          </g>
+
+          {/* Columns */}
+          {/* Backlog Column */}
+          <g transform="translate(100, 60)">
+            <rect x="0" y="0" width="160" height="280" rx="16" fill="rgba(15,5,25,0.8)" style={{ backdropFilter: 'blur(8px)' }} />
+            <rect x="0" y="0" width="160" height="280" rx="16" fill="none" stroke="#8b5cf6" strokeWidth="1.5" opacity="0.3" filter="url(#aw-glow-light)" />
+            
+            <rect x="20" y="45" width="120" height="2" fill="none" stroke="#8b5cf6" strokeWidth="1" strokeDasharray="2 4" opacity="0.6" />
+            <text x="80" y="32" fill="#f3e8ff" fontSize="10" fontWeight="bold" fontFamily="monospace" textAnchor="middle" letterSpacing="1">[K] BACKLOG</text>
+            
+            {/* Cards */}
+            <g transform="translate(20, 70)">
+              <g>
+                <animateTransform attributeName="transform" type="translate" values="0,0; 0,-2; 0,0" dur="4s" repeatCount="indefinite" />
+                <rect x="0" y="0" width="120" height="70" rx="8" fill="rgba(20,10,35,0.95)" />
+                <rect x="0" y="0" width="120" height="70" rx="8" fill="none" stroke="#a78bfa" strokeWidth="1" filter="url(#aw-glow-light)" opacity="0.5" />
+                <rect x="15" y="15" width="40" height="6" rx="3" fill="#ec4899" filter="url(#aw-glow-light)" />
+                <rect x="15" y="32" width="80" height="4" rx="2" fill="#fff" opacity="0.7" />
+                <rect x="15" y="44" width="60" height="4" rx="2" fill="#fff" opacity="0.3" />
+                <circle cx="100" cy="55" r="5" fill="#ec4899" filter="url(#aw-glow-light)" />
+              </g>
+            </g>
+            
+            <g transform="translate(20, 160)">
+              <g>
+                <animateTransform attributeName="transform" type="translate" values="0,0; 0,2; 0,0" dur="5s" repeatCount="indefinite" />
+                <rect x="0" y="0" width="120" height="70" rx="8" fill="rgba(20,10,35,0.95)" />
+                <rect x="0" y="0" width="120" height="70" rx="8" fill="none" stroke="#8b5cf6" strokeWidth="1" opacity="0.3" />
+                <rect x="15" y="15" width="50" height="6" rx="3" fill="#3b82f6" filter="url(#aw-glow-light)" />
+                <rect x="15" y="32" width="90" height="4" rx="2" fill="#fff" opacity="0.6" />
+                <rect x="15" y="44" width="70" height="4" rx="2" fill="#fff" opacity="0.2" />
+                <circle cx="100" cy="55" r="5" fill="#3b82f6" filter="url(#aw-glow-light)" />
+              </g>
+            </g>
+          </g>
+
+          {/* Active / In Progress Column (Center) */}
+          <g transform="translate(320, 50)">
+            {/* Massive background aura */}
+            <circle cx="80" cy="150" r="140" fill="url(#aw-col-glow)">
+               <animate attributeName="opacity" values="0.4;0.8;0.4" dur="4s" repeatCount="indefinite" />
+            </circle>
+
+            {/* Main structural box */}
+            <rect x="0" y="0" width="160" height="300" rx="16" fill="rgba(15,5,25,0.9)" style={{ backdropFilter: 'blur(8px)' }} />
+            
+            {/* High-tech Corner Brackets */}
+            <path d="M 0 30 L 0 16 Q 0 0 16 0 L 30 0" fill="none" stroke="#a78bfa" strokeWidth="2" filter="url(#aw-glow-heavy)" />
+            <path d="M 160 30 L 160 16 Q 160 0 144 0 L 130 0" fill="none" stroke="#a78bfa" strokeWidth="2" filter="url(#aw-glow-heavy)" />
+            <path d="M 0 270 L 0 284 Q 0 300 16 300 L 30 300" fill="none" stroke="#a78bfa" strokeWidth="2" filter="url(#aw-glow-heavy)" />
+            <path d="M 160 270 L 160 284 Q 160 300 144 300 L 130 300" fill="none" stroke="#a78bfa" strokeWidth="2" filter="url(#aw-glow-heavy)" />
+            
+            {/* Faint inner border */}
+            <rect x="0" y="0" width="160" height="300" rx="16" fill="none" stroke="#c4b5fd" strokeWidth="1" opacity="0.3" />
+
+            {/* Separator */}
+            <rect x="20" y="55" width="120" height="2" fill="none" stroke="#c4b5fd" strokeWidth="1.5" strokeDasharray="2 4" />
+            
+            {/* Active Spinner next to Header */}
+            <g transform="translate(25, 38)">
+              <animateTransform attributeName="transform" type="rotate" values="0;360" dur="3s" repeatCount="indefinite" />
+              <circle cx="0" cy="0" r="5" fill="none" stroke="#c4b5fd" strokeWidth="1.5" strokeDasharray="6 4" filter="url(#aw-glow-light)" />
+              <circle cx="0" cy="0" r="2" fill="#c4b5fd" filter="url(#aw-glow-light)" />
+            </g>
+            <text x="85" y="42" fill="#f3e8ff" fontSize="11" fontWeight="bold" fontFamily="monospace" textAnchor="middle" letterSpacing="1.5">[K] IN_PROGRESS</text>
+            
+            {/* --- DETAILED ACTIVE CARD --- */}
+            <g transform="translate(10, 80)">
+              <g>
+                <animateTransform attributeName="transform" type="translate" values="0,0; 0,-3; 0,0" dur="4.5s" repeatCount="indefinite" />
+                
+                {/* Outer scanning bounding box */}
+                <rect x="0" y="0" width="140" height="130" rx="10" fill="rgba(30,15,50,0.6)" stroke="#8b5cf6" strokeWidth="1" strokeDasharray="4 6">
+                   <animate attributeName="stroke-dashoffset" values="20;0" dur="2s" repeatCount="indefinite" />
+                </rect>
+                
+                {/* Main Card Body */}
+                <rect x="5" y="5" width="130" height="120" rx="8" fill="rgba(25,10,40,0.95)" />
+                <rect x="5" y="5" width="130" height="120" rx="8" fill="none" stroke="#c4b5fd" strokeWidth="1.5" filter="url(#aw-glow-light)" />
+                
+                {/* Priority Tag */}
+                <rect x="15" y="15" width="45" height="8" rx="4" fill="#fbbf24" filter="url(#aw-glow-light)" />
+                <rect x="65" y="15" width="25" height="8" rx="4" fill="rgba(139,92,246,0.3)" />
+                
+                {/* Title lines */}
+                <rect x="15" y="32" width="100" height="4" rx="2" fill="#fff" opacity="0.9" />
+                <rect x="15" y="42" width="70" height="4" rx="2" fill="#fff" opacity="0.6" />
+                
+                {/* Mini Sparkline Chart */}
+                <g transform="translate(15, 60)">
+                  <rect x="0" y="-10" width="110" height="30" rx="4" fill="rgba(0,0,0,0.4)" />
+                  <path d="M 5 15 L 20 10 L 40 18 L 60 5 L 80 12 L 105 2" fill="none" stroke="#a78bfa" strokeWidth="1.5" filter="url(#aw-glow-light)" />
+                  <circle cx="105" cy="2" r="2.5" fill="#c4b5fd" filter="url(#aw-glow-light)" />
+                </g>
+                
+                {/* Bottom Metadata row */}
+                <g transform="translate(15, 105)">
+                  {/* Progress bar */}
+                  <rect x="0" y="4" width="70" height="4" rx="2" fill="#fff" opacity="0.2" />
+                  <rect x="0" y="4" width="45" height="4" rx="2" fill="#a78bfa" filter="url(#aw-glow-light)" />
+                  
+                  {/* Avatars */}
+                  <circle cx="95" cy="6" r="6" fill="#3b82f6" />
+                  <circle cx="105" cy="6" r="6" fill="#ec4899" />
+                  <circle cx="105" cy="6" r="6" fill="none" stroke="#190a28" strokeWidth="1.5" />
+                </g>
+              </g>
+            </g>
+
+            {/* Secondary Active Task (Smaller) */}
+            <g transform="translate(10, 230)">
+               <g>
+                <animateTransform attributeName="transform" type="translate" values="0,0; 0,2; 0,0" dur="5s" repeatCount="indefinite" />
+                <rect x="5" y="0" width="130" height="50" rx="8" fill="rgba(25,10,40,0.95)" />
+                <rect x="5" y="0" width="130" height="50" rx="8" fill="none" stroke="#a78bfa" strokeWidth="1" opacity="0.6" />
+                
+                <rect x="15" y="12" width="30" height="6" rx="3" fill="#a78bfa" filter="url(#aw-glow-light)" />
+                <rect x="15" y="26" width="80" height="3" rx="1.5" fill="#fff" opacity="0.7" />
+                <rect x="15" y="35" width="50" height="3" rx="1.5" fill="#fff" opacity="0.4" />
+                
+                <circle cx="120" cy="25" r="4" fill="#fbbf24" filter="url(#aw-glow-light)" />
+               </g>
+            </g>
+
+          </g>
+
+          {/* Completed Column */}
+          <g transform="translate(540, 60)">
+            <rect x="0" y="0" width="160" height="280" rx="16" fill="rgba(5,15,10,0.8)" style={{ backdropFilter: 'blur(8px)' }} />
+            <rect x="0" y="0" width="160" height="280" rx="16" fill="none" stroke="#10b981" strokeWidth="1.5" opacity="0.4" filter="url(#aw-glow-light)" />
+            
+            <rect x="20" y="45" width="120" height="2" fill="none" stroke="#10b981" strokeWidth="1" strokeDasharray="2 4" opacity="0.6" />
+            <text x="80" y="32" fill="#d1fae5" fontSize="10" fontWeight="bold" fontFamily="monospace" textAnchor="middle" letterSpacing="1">[K] COMPLETED</text>
+            
+            {/* Completed Cards */}
+            <g transform="translate(20, 70)" opacity="0.8">
+              <g>
+                <animateTransform attributeName="transform" type="translate" values="0,0; 0,-1.5; 0,0" dur="6s" repeatCount="indefinite" />
+                <rect x="0" y="0" width="120" height="60" rx="8" fill="rgba(10,25,15,0.95)" />
+                <rect x="0" y="0" width="120" height="60" rx="8" fill="none" stroke="#34d399" strokeWidth="1.5" filter="url(#aw-glow-light)" opacity="0.7" />
+                <path d="M 12 30 L 22 40 L 42 20" fill="none" stroke="#34d399" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" filter="url(#aw-glow-light)" />
+                <rect x="55" y="24" width="50" height="4" rx="2" fill="#fff" opacity="0.6" />
+                <rect x="55" y="34" width="30" height="4" rx="2" fill="#fff" opacity="0.3" />
+              </g>
+            </g>
+            
+            <g transform="translate(20, 150)" opacity="0.6">
+              <g>
+                <animateTransform attributeName="transform" type="translate" values="0,0; 0,1.5; 0,0" dur="5.5s" repeatCount="indefinite" />
+                <rect x="0" y="0" width="120" height="60" rx="8" fill="rgba(10,25,15,0.95)" />
+                <rect x="0" y="0" width="120" height="60" rx="8" fill="none" stroke="#10b981" strokeWidth="1" opacity="0.5" filter="url(#aw-glow-light)" />
+                <path d="M 12 30 L 22 40 L 42 20" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                <rect x="55" y="24" width="45" height="4" rx="2" fill="#fff" opacity="0.4" />
+                <rect x="55" y="34" width="20" height="4" rx="2" fill="#fff" opacity="0.2" />
+              </g>
+            </g>
+          </g>
+        </svg>
       )
     }
   ];
@@ -503,47 +1322,31 @@ export const MarketingPage: React.FC = () => {
       <div className={styles.particle} style={{ left: '30%', top: '10%', width: 2, height: 2, animationDelay: '-4.5s', animationDuration: '6.5s' }} />
       <div className={styles.particle} style={{ left: '80%', top: '85%', width: 3, height: 3, animationDelay: '-7.5s', animationDuration: '7.5s' }} />
 
-      {/* Dynamic Island Navigation */}
-      <motion.nav 
-        className={styles.dynamicIsland}
-        initial={{ y: -100, x: '-50%', opacity: 0, scale: 0.9 }}
-        animate={{ y: scrolled ? 12 : 24, x: '-50%', opacity: 1, scale: 1 }}
-        transition={{ type: "spring", stiffness: 400, damping: 25 }}
-        onMouseMove={(e: React.MouseEvent<HTMLElement>) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          e.currentTarget.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
-          e.currentTarget.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
-        }}
-        whileHover={{ scale: 1.02 }}
-      >
-        <div className={styles.diLogo}>
-          <div className={styles.diLogoMark}>
-            <img src="/ChnkLogo.svg" alt="Infonote" style={{height: 14}} />
+      {/* Top Navigation */}
+      <nav className={`${styles.topNav} ${scrolled ? styles.scrolled : ''}`}>
+        <div className={styles.navGlow} />
+        <div className={styles.navLogo}>
+          <div className={styles.navLogoMark}>
+            <img src="/ChnkLogo.svg" alt="Chnk" style={{height: 22}} />
           </div>
-          <span className={styles.diLogoText}>Infonote</span>
+          <span className={styles.navLogoText}>Infonote</span>
         </div>
-        
-        <div className={styles.diLinks}>
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className={styles.diLinkBtn}>
-            <Play size={14} className={styles.diIcon} />
-            <span>Watch film</span>
-          </motion.button>
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className={styles.diLinkBtn}>
-            <Tag size={14} className={styles.diIcon} />
-            <span>Pricing</span>
-          </motion.button>
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className={styles.diLinkBtn}>
-            <Users size={14} className={styles.diIcon} />
-            <span>About us</span>
-          </motion.button>
+        <div className={styles.navLinks}>
+          <a className={styles.navLink}>Features</a>
+          <a className={styles.navLink}>Use Cases</a>
+          <a className={styles.navLink}>Pricing</a>
+          <a className={styles.navLink}>Resources</a>
         </div>
-        
-        <div className={styles.diActions}>
-          <button className={styles.diLoginText} onClick={() => setCurrentView('login')}>
-            Login
+        <div className={styles.navActions}>
+          <button className={styles.navLink} onClick={() => setCurrentView('login')} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+            Log In
+          </button>
+          <button className={styles.navButton} onClick={() => setCurrentView('signup')}>
+            <span>Get Started Free</span>
+            <ArrowRight size={16} className={styles.navButtonIcon} />
           </button>
         </div>
-      </motion.nav>
+      </nav>
 
       {/* Hero Section */}
       <section className={styles.heroContent}>
