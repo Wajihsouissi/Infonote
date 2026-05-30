@@ -56,6 +56,7 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
     onLoaded,
 }) => {
     const userId = useStore((s) => s.auth.userId);
+    const workspaceId = useStore((s) => s.auth.activeWorkspaceId);
     const loadGraph = useStore((s) => s.loadGraph);
 
     const [metadata, setMetadata] = useState<CloudSnapshotMetadata | null>(null);
@@ -74,21 +75,21 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
 
     const refresh = useCallback(async () => {
         setStatus({ kind: 'fetching' });
-        const res = await fetchCloudMetadata(userId);
+        const res = await fetchCloudMetadata(userId, workspaceId);
         if (res.ok) {
             setMetadata(res.metadata);
             setStatus({ kind: 'idle' });
         } else {
             setStatus({ kind: 'error', message: res.error });
         }
-    }, [userId]);
+    }, [userId, workspaceId]);
 
     // Fetch metadata each time the modal opens so the user always sees the
     // latest state of their cloud data.
     useEffect(() => {
         if (!open) return;
         let cancelled = false;
-        fetchCloudMetadata(userId).then(res => {
+        fetchCloudMetadata(userId, workspaceId).then(res => {
             if (cancelled) return;
             if (res.ok) {
                 setMetadata(res.metadata);
@@ -98,7 +99,7 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
             }
         });
         return () => { cancelled = true; };
-    }, [open, userId]);
+    }, [open, userId, workspaceId]);
 
     // Close on Escape — standard modal UX.
     useEffect(() => {
@@ -129,7 +130,7 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
         }
 
         setStatus({ kind: 'loading' });
-        const res = await loadCanvasFromCloud(userId);
+        const res = await loadCanvasFromCloud(userId, workspaceId);
         if (res.ok) {
             // Validate returned nodes: must have id (non-empty string),
             // position with numeric x and y, and type (string).
@@ -188,7 +189,7 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
         } else {
             setStatus({ kind: 'error', message: res.error });
         }
-    }, [userId, loadGraph, onLoaded, onClose]);
+    }, [userId, workspaceId, loadGraph, onLoaded, onClose]);
 
     if (!open) return null;
 

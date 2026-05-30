@@ -39,6 +39,8 @@ export interface NotionImportOptions extends NotionConvertOptions {
     accessToken: string;
     /** Authenticated Supabase user id. */
     userId: string | null;
+    /** Active workspace id that scopes canvas_nodes rows. */
+    workspaceId: string | null;
     /** Notion-Version header. Defaults to the latest stable release. */
     notionVersion?: string;
 }
@@ -177,7 +179,7 @@ export async function importNotionPage(
             offset,
             keepSourceIds: options.keepSourceIds,
         });
-        return persist(nodes, skipped, options.userId);
+        return persist(nodes, skipped, options.userId, options.workspaceId);
     } catch (err) {
         return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }
@@ -204,7 +206,7 @@ export async function importNotionDatabase(
             offset,
             keepSourceIds: options.keepSourceIds,
         });
-        return persist(nodes, skipped, options.userId);
+        return persist(nodes, skipped, options.userId, options.workspaceId);
     } catch (err) {
         return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }
@@ -245,6 +247,7 @@ async function persist(
     nodes: AppNode[],
     skipped: number,
     userId: string | null,
+    workspaceId: string | null,
 ): Promise<NotionImportResult> {
     if (nodes.length === 0) {
         return {
@@ -252,7 +255,7 @@ async function persist(
             error: 'No supported Notion content was found in the response.',
         };
     }
-    const saveResult = await appendCanvasNodesToCloud(userId, nodes);
+    const saveResult = await appendCanvasNodesToCloud(userId, workspaceId, nodes);
     if (!saveResult.ok) {
         return { ok: false, error: saveResult.error };
     }

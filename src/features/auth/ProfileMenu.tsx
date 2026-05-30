@@ -65,8 +65,15 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
         setOpen(false);
         await signOut();
         // Safety fallback: ensure view resets to marketing even if AuthProvider's redirect doesn't fire
+        window.history.pushState({}, '', '/');
         useStore.getState().setCurrentView('marketing');
     }, [signOut]);
+
+    const navigateTo = useCallback((path: string, view: 'profile' | 'canvas') => {
+        setOpen(false);
+        window.history.pushState({}, '', path);
+        useStore.getState().setCurrentView(view);
+    }, []);
 
     if (!auth.isAuthenticated) return null;
 
@@ -105,10 +112,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
                         className={styles.menuItem}
                         onClick={(e) => {
                             e.stopPropagation();
-                            setOpen(false);
-                            queueMicrotask(() => {
-                                useStore.getState().setCurrentView('profile');
-                            });
+                            navigateTo('/profile', 'profile');
                         }}
                     >
                         <UserIcon size={15} />
@@ -123,16 +127,12 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
                         onClick={(e) => {
                             e.stopPropagation();
                             setOpen(false);
-                            queueMicrotask(() => {
-                                // Prefer the parent-supplied handler (e.g. for any
-                                // pre-navigation cleanup) but always fall back to a
-                                // direct view switch so the button is never inert.
-                                if (onOpenCanvas) {
-                                    onOpenCanvas();
-                                } else {
-                                    useStore.getState().setCurrentView('canvas');
-                                }
-                            });
+                            window.history.pushState({}, '', '/canvas');
+                            if (onOpenCanvas) {
+                                onOpenCanvas();
+                            } else {
+                                useStore.getState().setCurrentView('canvas');
+                            }
                         }}
                     >
                         <Layout size={15} />

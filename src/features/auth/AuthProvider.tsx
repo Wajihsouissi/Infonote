@@ -68,12 +68,26 @@ async function ensureUserProfile(user: { id: string; email?: string; user_metada
  * Ensure the authenticated user has at least one workspace.
  * Creates a default "My Workspace" if none exists, and persists the ID to localStorage.
  */
-async function ensureWorkspace(userId: string): Promise<void> {
+async function ensureWorkspace(userId: string): Promise<string | null> {
     try {
-        const storageKey = 'chnk it.activeWorkspaceId';
-        // Check if we already have a cached workspace ID
-        const cached = localStorage.getItem(storageKey);
-        if (cached) return;
+        const legacyStorageKey = 'chnk it.activeWorkspaceId';
+        const userStorageKey = `chnk-it.activeWorkspaceId.${userId}`;
+        const cached = localStorage.getItem(userStorageKey) || localStorage.getItem(legacyStorageKey);
+        if (cached) {
+            const { data: cachedWorkspace, error: cachedError } = await supabase
+                .from('workspaces')
+                .select('id')
+                .eq('id', cached)
+                .eq('owner_id', userId)
+                .maybeSingle();
+            if (!cachedError && cachedWorkspace?.id) {
+                localStorage.setItem(userStorageKey, cachedWorkspace.id);
+                localStorage.setItem(legacyStorageKey, cachedWorkspace.id);
+                return cachedWorkspace.id;
+            }
+            localStorage.removeItem(userStorageKey);
+            localStorage.removeItem(legacyStorageKey);
+        }
 
         // Query existing workspaces
         const { data, error } = await supabase
@@ -84,12 +98,13 @@ async function ensureWorkspace(userId: string): Promise<void> {
 
         if (error) {
             console.warn('[workspace] Failed to query workspaces:', error.message);
-            return;
+            return null;
         }
 
         if (data && data.length > 0) {
-            localStorage.setItem(storageKey, data[0].id);
-            return;
+            localStorage.setItem(userStorageKey, data[0].id);
+            localStorage.setItem(legacyStorageKey, data[0].id);
+            return data[0].id;
         }
 
         // No workspace exists — create one
@@ -101,14 +116,18 @@ async function ensureWorkspace(userId: string): Promise<void> {
 
         if (insertErr) {
             console.warn('[workspace] Failed to create workspace:', insertErr.message);
-            return;
+            return null;
         }
 
         if (created) {
-            localStorage.setItem(storageKey, created.id);
+            localStorage.setItem(userStorageKey, created.id);
+            localStorage.setItem(legacyStorageKey, created.id);
+            return created.id;
         }
+        return null;
     } catch (err) {
         console.warn('[workspace] Provisioning error:', err);
+        return null;
     }
 }
 
@@ -174,7 +193,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(sessionUser);
             await pushToStore(sessionUser);
             if (sessionUser) {
-                void ensureUserProfile(sessionUser).then(() => ensureWorkspace(sessionUser.id));
+                void ensureUserProfile(sessionUser)
+                    .then(() => ensureWorkspace(sessionUser.id))
+                    .then((workspaceId) => {
+                        if (workspaceId) useStore.getState().setAuthWorkspace(workspaceId);
+                    });
             }
             setLoading(false);
         }).catch(() => {
@@ -191,7 +214,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 // fire-and-forget; pushToStore handles its own errors via try/catch
                 void pushToStore(nextUser);
                 if (nextUser) {
-                    void ensureUserProfile(nextUser).then(() => ensureWorkspace(nextUser.id));
+                    void ensureUserProfile(nextUser)
+                        .then(() => ensureWorkspace(nextUser.id))
+                        .then((workspaceId) => {
+                            if (workspaceId) useStore.getState().setAuthWorkspace(workspaceId);
+                        });
                 }
             }
         );
@@ -210,6 +237,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 localStorage.removeItem('chnk-it-mock-session');
                 localStorage.removeItem('chnk-it-mock-users');
+                localStorage.removeItem('chnk it.activeWorkspaceId');
+                if (user?.id) {
+                    localStorage.removeItem(`chnk-it.activeWorkspaceId.${user.id}`);
+                }
             } catch {
                 // ignore storage errors (e.g. private browsing)
             }
@@ -231,7 +262,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } finally {
             finalize();
         }
-    }, []);
+    }, [user?.id]);
 
     return (
         <AuthContext.Provider value={{ user, loading, configured: isSupabaseConfigured, signOut }}>

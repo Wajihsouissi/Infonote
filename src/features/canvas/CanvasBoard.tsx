@@ -39,6 +39,8 @@ import { AuthModal } from '../auth/AuthModal';
 import { useStore } from '../../store/useStore';
 import { v4 as uuidv4 } from 'uuid';
 import { isUrl } from '../editor/pasteUtils';
+import { loadCanvasFromCloud } from '../../services/cloudSync';
+import { isSupabaseConfigured } from '../../services/supabase/client';
 
 // Hooks
 import {
@@ -135,6 +137,14 @@ export function CanvasBoard() {
     const [justFocused, setJustFocused] = useState(false);
     const justFocusedTimeoutRef = useRef<number | null>(null);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+    const loadedCloudWorkspaceRef = useRef<string | null>(null);
+    const authUserId = useStore(s => s.auth.userId);
+    const activeWorkspaceId = useStore(s => s.auth.activeWorkspaceId);
+    const isAuthenticated = useStore(s => s.auth.isAuthenticated);
+    const loadGraph = useStore(s => s.loadGraph);
+    const setCloudLastSaved = useStore(s => s.setCloudLastSaved);
+    const setCloudDirty = useStore(s => s.setCloudDirty);
+    const setCloudError = useStore(s => s.setCloudError);
 
     // Viewport culling and visible nodes
     const { visibleNodes, handleViewportChange } = useCanvasViewport({
@@ -819,10 +829,34 @@ export function CanvasBoard() {
         [nodes, currentParentId]
     );
 
+    useEffect(() => {
+        if (!isSupabaseConfigured || !isAuthenticated || !authUserId || !activeWorkspaceId) return;
+        const loadKey = `${authUserId}:${activeWorkspaceId}`;
+        if (loadedCloudWorkspaceRef.current === loadKey) return;
+        loadedCloudWorkspaceRef.current = loadKey;
+
+        let cancelled = false;
+        (async () => {
+            setCloudError(null);
+            const result = await loadCanvasFromCloud(authUserId, activeWorkspaceId);
+            if (cancelled) return;
+            if (result.ok) {
+                loadGraph(result.nodes, result.edges);
+                setCloudLastSaved(new Date().toLocaleTimeString());
+                setCloudDirty(false);
+                setCloudError(null);
+            } else {
+                loadedCloudWorkspaceRef.current = null;
+                setCloudError(result.error);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [authUserId, activeWorkspaceId, isAuthenticated, loadGraph, setCloudLastSaved, setCloudDirty, setCloudError]);
+
     // Recently viewed tracking
-    const activeWorkspaceId = typeof window !== 'undefined' 
-        ? localStorage.getItem('chnk it.activeWorkspaceId') || '' 
-        : '';
     const { trackNoteView } = useRecentlyViewed(activeWorkspaceId || undefined);
 
     useEffect(() => {

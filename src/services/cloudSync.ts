@@ -62,6 +62,7 @@ export type CloudMetadataResult =
 interface CanvasNodeRow {
     id: string;
     user_id: string;
+    workspace_id: string;
     parent_id: string | null;
     type: string;
     x_pos: number;
@@ -74,12 +75,13 @@ interface CanvasNodeRow {
 interface CanvasEdgeRow {
     id: string;
     user_id: string;
+    workspace_id: string;
     source_id: string;
     target_id: string;
     data_json: Record<string, unknown>;
 }
 
-function ensureReady(userId: string | null): string {
+async function ensureReady(userId: string | null, workspaceId: string | null): Promise<{ userId: string; workspaceId: string }> {
     if (!isSupabaseConfigured) {
         throw new Error('Supabase is not configured (missing VITE_SUPABASE_* env).');
     }
@@ -89,7 +91,30 @@ function ensureReady(userId: string | null): string {
     if (!userId || typeof userId !== 'string' || userId.trim() === '') {
         throw new Error('User not authenticated');
     }
-    return userId;
+    if (!workspaceId || typeof workspaceId !== 'string' || workspaceId.trim() === '') {
+        throw new Error('No active workspace selected.');
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user) {
+        throw new Error('User not authenticated');
+    }
+    if (authData.user.id !== userId) {
+        throw new Error('Authenticated user does not match the requested cloud user.');
+    }
+
+    const { data: workspace, error: workspaceError } = await supabase
+        .from('workspaces')
+        .select('id')
+        .eq('id', workspaceId)
+        .eq('owner_id', userId)
+        .maybeSingle();
+    if (workspaceError) throw workspaceError;
+    if (!workspace?.id) {
+        throw new Error('Unauthorized workspace access blocked.');
+    }
+
+    return { userId, workspaceId };
 }
 
 /** Retry an async operation with exponential backoff. */
@@ -114,7 +139,7 @@ async function withRetry<T>(
 }
 
 /** Convert an AppNode -> canvas_nodes row payload. */
-function nodeToRow(node: AppNode, userId: string): CanvasNodeRow {
+function nodeToRow(node: AppNode, userId: string, workspaceId: string): CanvasNodeRow {
     const style = (node as { style?: Record<string, unknown> }).style || {};
     const { width: styleWidth, height: styleHeight, ...restStyle } = style as {
         width?: number | string;
@@ -156,6 +181,7 @@ function nodeToRow(node: AppNode, userId: string): CanvasNodeRow {
     return {
         id: String(node.id),
         user_id: userId,
+        workspace_id: workspaceId,
         parent_id: (node as { parentId?: string | null }).parentId ?? null,
         type: node.type ?? 'block',
         x_pos: node.position?.x ?? 0,
@@ -167,7 +193,7 @@ function nodeToRow(node: AppNode, userId: string): CanvasNodeRow {
 }
 
 /** Convert an Edge -> canvas_edges row payload. */
-function edgeToRow(edge: Edge, userId: string): CanvasEdgeRow {
+function edgeToRow(edge: Edge, userId: string, workspaceId: string): CanvasEdgeRow {
     const rawDataJson: Record<string, unknown> = {
         data: edge.data ?? {},
         type: edge.type,
@@ -193,6 +219,7 @@ function edgeToRow(edge: Edge, userId: string): CanvasEdgeRow {
     return {
         id: String(edge.id),
         user_id: userId,
+        workspace_id: workspaceId,
         source_id: edge.source,
         target_id: edge.target,
         data_json,
@@ -284,6 +311,7 @@ function dedupeById<T extends { id: string }>(rows: T[]): T[] {
  */
 export async function saveCanvasToCloud(
     userId: string | null,
+    workspaceId: string | null,
     nodes: AppNode[],
     edges: Edge[],
 ): Promise<CloudSyncResult> {
@@ -294,7 +322,7 @@ export async function saveCanvasToCloud(
         await _saveLock.catch(() => {}); // ignore errors from the prior save
     }
 
-    const promise = _saveCanvasToCloudImpl(userId, nodes, edges);
+    const promise = _saveCanvasToCloudImpl(userId, workspaceId, nodes, edges);
     _saveLock = promise;
 
     try {
@@ -309,16 +337,17 @@ export async function saveCanvasToCloud(
 
 async function _saveCanvasToCloudImpl(
     userId: string | null,
+    workspaceId: string | null,
     nodes: AppNode[],
     edges: Edge[],
 ): Promise<CloudSyncResult> {
     try {
-        const uid = ensureReady(userId);
+        const { userId: uid, workspaceId: wid } = await ensureReady(userId, workspaceId);
 
         // Build payloads, then dedupe — prevents the "409 ON CONFLICT cannot
         // affect row a second time" error when state has duplicate ids.
-        const nodeRows = dedupeById(nodes.map((n) => nodeToRow(n, uid)));
-        const edgeRows = dedupeById(edges.map((e) => edgeToRow(e, uid)));
+        const nodeRows = dedupeById(nodes.map((n) => nodeToRow(n, uid, wid)));
+        const edgeRows = dedupeById(edges.map((e) => edgeToRow(e, uid, wid)));
 
         // Upsert in chunks. `onConflict: 'user_id,id'` matches the composite
         // PRIMARY KEY in 0001_init.sql; `ignoreDuplicates: false` makes
@@ -329,7 +358,7 @@ async function _saveCanvasToCloudImpl(
                 const { error } = await supabase
                     .from('canvas_nodes')
                     .upsert(nodeRows, {
-                        onConflict: 'user_id,id',
+                        onConflict: 'user_id,workspace_id,id',
                         ignoreDuplicates: false,
                     });
                 if (error) {
@@ -346,7 +375,7 @@ async function _saveCanvasToCloudImpl(
                 const { error } = await supabase
                     .from('canvas_edges')
                     .upsert(edgeRows, {
-                        onConflict: 'user_id,id',
+                        onConflict: 'user_id,workspace_id,id',
                         ignoreDuplicates: false,
                     });
                 if (error) {
@@ -369,8 +398,8 @@ async function _saveCanvasToCloudImpl(
 
         const [existingNodes, existingEdges] = await withRetry(async () => {
             const [nRes, eRes] = await Promise.all([
-                supabase.from('canvas_nodes').select('id').eq('user_id', uid),
-                supabase.from('canvas_edges').select('id').eq('user_id', uid),
+                supabase.from('canvas_nodes').select('id').eq('user_id', uid).eq('workspace_id', wid),
+                supabase.from('canvas_edges').select('id').eq('user_id', uid).eq('workspace_id', wid),
             ]);
             if (nRes.error) throw nRes.error;
             if (eRes.error) throw eRes.error;
@@ -390,6 +419,7 @@ async function _saveCanvasToCloudImpl(
                     .from('canvas_nodes')
                     .delete()
                     .eq('user_id', uid)
+                    .eq('workspace_id', wid)
                     .in('id', nodeIdsToDelete);
                 if (error) throw error;
             }
@@ -398,6 +428,7 @@ async function _saveCanvasToCloudImpl(
                     .from('canvas_edges')
                     .delete()
                     .eq('user_id', uid)
+                    .eq('workspace_id', wid)
                     .in('id', edgeIdsToDelete);
                 if (error) throw error;
             }
@@ -425,14 +456,14 @@ async function _saveCanvasToCloudImpl(
  * Fetch the entire canvas for the active user and return it ready for
  * `loadGraph(nodes, edges)`.
  */
-export async function loadCanvasFromCloud(userId: string | null): Promise<CloudLoadResult> {
+export async function loadCanvasFromCloud(userId: string | null, workspaceId: string | null): Promise<CloudLoadResult> {
     try {
-        const uid = ensureReady(userId);
+        const { userId: uid, workspaceId: wid } = await ensureReady(userId, workspaceId);
 
         const [nodesRes, edgesRes] = await withRetry(async () => {
             const [nRes, eRes] = await Promise.all([
-                supabase.from('canvas_nodes').select('*').eq('user_id', uid),
-                supabase.from('canvas_edges').select('*').eq('user_id', uid),
+                supabase.from('canvas_nodes').select('*').eq('user_id', uid).eq('workspace_id', wid),
+                supabase.from('canvas_edges').select('*').eq('user_id', uid).eq('workspace_id', wid),
             ]);
             if (nRes.error) throw nRes.error;
             if (eRes.error) throw eRes.error;
@@ -465,11 +496,12 @@ export async function loadCanvasFromCloud(userId: string | null): Promise<CloudL
  */
 export async function appendCanvasNodesToCloud(
     userId: string | null,
+    workspaceId: string | null,
     nodes: AppNode[],
 ): Promise<CloudSyncResult> {
     try {
-        const uid = ensureReady(userId);
-        const nodeRows = dedupeById(nodes.map((n) => nodeToRow(n, uid)));
+        const { userId: uid, workspaceId: wid } = await ensureReady(userId, workspaceId);
+        const nodeRows = dedupeById(nodes.map((n) => nodeToRow(n, uid, wid)));
         if (nodeRows.length === 0) {
             return { ok: true, counts: { nodes: 0, edges: 0 } };
         }
@@ -478,7 +510,7 @@ export async function appendCanvasNodesToCloud(
             const { error } = await supabase
                 .from('canvas_nodes')
                 .upsert(nodeRows, {
-                    onConflict: 'user_id,id',
+                    onConflict: 'user_id,workspace_id,id',
                     ignoreDuplicates: false,
                 });
             if (error) {
@@ -507,9 +539,10 @@ export async function appendCanvasNodesToCloud(
  */
 export async function fetchCloudMetadata(
     userId: string | null,
+    workspaceId: string | null,
 ): Promise<CloudMetadataResult> {
     try {
-        const uid = ensureReady(userId);
+        const { userId: uid, workspaceId: wid } = await ensureReady(userId, workspaceId);
 
         // Pull only the columns we need to render the picker. Supabase will
         // return [] (not error) if the user has nothing saved yet.
@@ -526,11 +559,13 @@ export async function fetchCloudMetadata(
                 supabase
                     .from('canvas_nodes')
                     .select('id, type, parent_id, data_json, updated_at')
-                    .eq('user_id', uid),
+                    .eq('user_id', uid)
+                    .eq('workspace_id', wid),
                 supabase
                     .from('canvas_edges')
                     .select('id', { count: 'exact', head: true })
-                    .eq('user_id', uid),
+                    .eq('user_id', uid)
+                    .eq('workspace_id', wid),
             ]);
             if (nRes.error) throw nRes.error;
             if (eRes.error) throw eRes.error;

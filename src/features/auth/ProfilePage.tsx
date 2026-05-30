@@ -65,7 +65,7 @@ export const ProfilePage: React.FC = () => {
 
     // Load workspace name from Supabase on mount
     useEffect(() => {
-        const wsId = localStorage.getItem('chnk it.activeWorkspaceId');
+        const wsId = auth.activeWorkspaceId || localStorage.getItem('chnk it.activeWorkspaceId');
         if (!wsId) return;
         setWorkspaceId(wsId);
         (async () => {
@@ -78,7 +78,7 @@ export const ProfilePage: React.FC = () => {
                 setWorkspaceName(data.name || '');
             }
         })();
-    }, []);
+    }, [auth.activeWorkspaceId]);
 
     // Sync display name from store if it changes externally
     useEffect(() => {
@@ -169,6 +169,7 @@ export const ProfilePage: React.FC = () => {
             const result = await fn(id, {
                 accessToken: notionToken.trim(),
                 userId: auth.userId,
+                workspaceId: auth.activeWorkspaceId,
             });
             if (!result.ok) {
                 setNotionFeedback({ kind: 'error', text: result.error });
@@ -216,7 +217,10 @@ export const ProfilePage: React.FC = () => {
                 >
                     <button
                         type="button"
-                        onClick={() => setCurrentView('landing')}
+                        onClick={() => {
+                            window.history.pushState({}, '', '/');
+                            setCurrentView('landing');
+                        }}
                         style={btnGhost}
                     >
                         <ArrowLeft size={16} />
@@ -224,7 +228,10 @@ export const ProfilePage: React.FC = () => {
                     </button>
                     <button
                         type="button"
-                        onClick={() => setCurrentView('canvas')}
+                        onClick={() => {
+                            window.history.pushState({}, '', '/canvas');
+                            setCurrentView('canvas');
+                        }}
                         style={btnPrimary}
                     >
                         <Layout size={16} />

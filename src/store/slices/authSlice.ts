@@ -5,6 +5,7 @@ const UNAUTHENTICATED_AUTH: AuthState = {
     userId: null,
     email: null,
     displayName: null,
+    activeWorkspaceId: null,
     isAuthenticated: false,
     isAuthLoading: false,
 };
@@ -21,17 +22,23 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set) 
     auth: { ...UNAUTHENTICATED_AUTH, isAuthLoading: true },
     isAuthModalOpen: false,
     setAuthUser: (user: AuthUser | null) =>
-        set({
+        set((state) => ({
             auth: user
                 ? {
                       userId: user.id,
                       email: user.email ?? null,
                       displayName: user.displayName ?? null,
+                      activeWorkspaceId:
+                          state.auth.userId === user.id ? state.auth.activeWorkspaceId : null,
                       isAuthenticated: true,
                       isAuthLoading: false,
                   }
                 : { ...UNAUTHENTICATED_AUTH },
-        }),
+        })),
+    setAuthWorkspace: (workspaceId: string | null) =>
+        set((state) => ({
+            auth: { ...state.auth, activeWorkspaceId: workspaceId },
+        })),
     setAuthLoading: (isLoading: boolean) =>
         set((state) => ({
             auth: { ...state.auth, isAuthLoading: isLoading },

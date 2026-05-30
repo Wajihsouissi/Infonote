@@ -40,6 +40,8 @@ export interface FigmaImportOptions extends FigmaConvertOptions {
     accessToken?: string;
     /** Authenticated Supabase user id. */
     userId: string | null;
+    /** Active workspace id that scopes canvas_nodes rows. */
+    workspaceId: string | null;
 }
 
 /**
@@ -123,7 +125,7 @@ export async function importFigmaFromJson(
     // exact path the spec asks for: "pass the final array directly into
     // our Supabase canvas_nodes table using an upsert command so they
     // save automatically to the cloud without error 409 conflicts".
-    const saveResult = await appendCanvasNodesToCloud(options.userId, nodes);
+    const saveResult = await appendCanvasNodesToCloud(options.userId, options.workspaceId, nodes);
     if (!saveResult.ok) {
         return { ok: false, error: saveResult.error };
     }

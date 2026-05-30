@@ -8,6 +8,7 @@ import { MarketplacePage } from './features/marketplace/MarketplacePage';
 import { LoginPage } from './features/auth/LoginPage';
 import { SignupPage } from './features/auth/SignupPage';
 import { ProfilePage } from './features/auth/ProfilePage';
+import { UpdatePasswordPage } from './features/auth/UpdatePasswordPage';
 import AdminGate from './features/admin/AdminGate';
 import { WelcomeModal } from './features/auth/WelcomeModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -24,8 +25,21 @@ function App() {
 
   // URL-based route detection (e.g. direct navigation to /wajihadmin)
   useEffect(() => {
-    if (window.location.pathname === '/wajihadmin') {
+    const path = window.location.pathname.replace(/\/+$/, '') || '/';
+    if (path === '/wajihadmin') {
       setCurrentView('wajihadmin');
+    } else if (path.includes('admin')) {
+      setCurrentView('not-found');
+    } else if (path === '/profile') {
+      setCurrentView('profile');
+    } else if (path === '/canvas') {
+      setCurrentView('canvas');
+    } else if (path === '/login') {
+      setCurrentView('login');
+    } else if (path === '/signup') {
+      setCurrentView('signup');
+    } else if (path === '/update-password') {
+      setCurrentView('update-password');
     }
   }, [setCurrentView]);
 
@@ -131,6 +145,17 @@ function App() {
         return <AdminGate />;
       case 'profile':
         return <ProfilePage />;
+      case 'update-password':
+        return <UpdatePasswordPage />;
+      case 'not-found':
+        return (
+          <div className="min-h-screen flex items-center justify-center bg-[#090a0f] text-white">
+            <div className="text-center">
+              <h1 className="text-3xl font-semibold mb-2">404</h1>
+              <p className="text-white/60">Page not found.</p>
+            </div>
+          </div>
+        );
       case 'marketing':
         return <MarketingPage />;
       case 'canvas':

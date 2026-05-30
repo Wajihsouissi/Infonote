@@ -50,8 +50,8 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
     const triggerCloudSave = useCallback(async () => {
         const { nodes, edges, auth } = useStore.getState();
         const userId = auth.userId;
-        if (userId) {
-            await saveCanvasToCloud(userId, nodes, edges);
+        if (userId && auth.activeWorkspaceId) {
+            await saveCanvasToCloud(userId, auth.activeWorkspaceId, nodes, edges);
         }
     }, []);
 

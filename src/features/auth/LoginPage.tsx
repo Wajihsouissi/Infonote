@@ -7,7 +7,7 @@
  * onAuthStateChange subscription.
  */
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, LogIn, Zap, GitBranch, Layers, Loader2, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, LogIn, Zap, GitBranch, Layers, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
 import { connectNotion } from '../../services/notion/notionImport';
@@ -20,11 +20,14 @@ export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
 
     if (!isSupabaseConfigured || !supabase) {
       setError('Authentication is not configured. Please contact the administrator (missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY).');
@@ -68,6 +71,39 @@ export const LoginPage: React.FC = () => {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    setError(null);
+    setSuccess(null);
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setError('Enter your email address before requesting a reset link.');
+      return;
+    }
+
+    if (!isSupabaseConfigured || !supabase) {
+      setError('Authentication is not configured. Please contact the administrator (missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY).');
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      const redirectTo =
+        typeof window !== 'undefined'
+          ? `${window.location.origin}/update-password`
+          : 'http://localhost:5173/update-password';
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo,
+      });
+      if (resetError) throw resetError;
+      setSuccess('Reset link sent to your email!');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send reset link.');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -228,6 +264,12 @@ export const LoginPage: React.FC = () => {
               <span>{error}</span>
             </div>
           )}
+          {success && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(34, 197, 94, 0.12)', color: '#22c55e', borderRadius: '8px', fontSize: '13px', marginBottom: '16px' }}>
+              <CheckCircle2 size={16} />
+              <span>{success}</span>
+            </div>
+          )}
 
           <form className={styles.form} onSubmit={handleLogin}>
             <div className={styles.fieldGroup}>
@@ -274,8 +316,13 @@ export const LoginPage: React.FC = () => {
               </div>
             </div>
 
-            <button type="button" className={styles.forgotLink}>
-              Forgot your password?
+            <button
+              type="button"
+              className={styles.forgotLink}
+              onClick={handleForgotPassword}
+              disabled={loading || resetLoading}
+            >
+              {resetLoading ? 'Sending reset link...' : 'Forgot your password?'}
             </button>
 
             <button type="submit" className={styles.submitButton} disabled={loading || !email || !password}>

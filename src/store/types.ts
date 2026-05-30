@@ -92,7 +92,7 @@ export interface StorageSlice {
     restoreFromBackup: () => void;
 }
 
-export type AppView = 'landing' | 'canvas' | 'marketplace' | 'login' | 'signup' | 'wajihadmin' | 'profile' | 'marketing';
+export type AppView = 'landing' | 'canvas' | 'marketplace' | 'login' | 'signup' | 'wajihadmin' | 'profile' | 'marketing' | 'update-password' | 'not-found';
 
 export interface AuthUser {
     id: string;
@@ -104,6 +104,7 @@ export interface AuthState {
     userId: string | null;
     email: string | null;
     displayName: string | null;
+    activeWorkspaceId: string | null;
     isAuthenticated: boolean;
     isAuthLoading: boolean;
 }
@@ -112,6 +113,7 @@ export interface AuthSlice {
     auth: AuthState;
     isAuthModalOpen: boolean;
     setAuthUser: (user: AuthUser | null) => void;
+    setAuthWorkspace: (workspaceId: string | null) => void;
     setAuthLoading: (isLoading: boolean) => void;
     setAuthModalOpen: (isOpen: boolean) => void;
     /** Reset auth slice back to its unauthenticated default. */

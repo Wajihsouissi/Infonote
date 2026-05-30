@@ -98,7 +98,8 @@ export const StorageControls: React.FC = () => {
         if (setCloudError) setCloudError(null);
         try {
             const { nodes, edges } = useStore.getState();
-            const result = await saveCanvasToCloud(user.id, nodes, edges);
+            const workspaceId = useStore.getState().auth.activeWorkspaceId;
+            const result = await saveCanvasToCloud(user.id, workspaceId, nodes, edges);
             if (result.ok) {
                 const timeStr = new Date().toLocaleTimeString();
                 if (setCloudLastSaved) setCloudLastSaved(timeStr);

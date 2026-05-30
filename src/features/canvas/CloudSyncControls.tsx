@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Cloud, CloudDownload, Undo2, Loader2, CheckCircle2, AlertCircle, LogIn, WifiOff } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { saveCanvasToCloud } from '../../services/cloudSync';
@@ -21,6 +21,7 @@ type Status =
  */
 export function CloudSyncControls() {
     const userId = useStore((s) => s.auth.userId);
+    const workspaceId = useStore((s) => s.auth.activeWorkspaceId);
     const isAuthenticated = useStore((s) => s.auth.isAuthenticated);
     const setAuthModalOpen = useStore((s) => s.setAuthModalOpen);
     const loadGraph = useStore((s) => s.loadGraph);
@@ -50,6 +51,8 @@ export function CloudSyncControls() {
 
     // Cloud dirty state
     const isCloudDirty = useStore((s) => s.storage.isCloudDirty);
+    const cloudLastSaved = useStore((s) => s.storage.cloudLastSaved);
+    const autoSaveTimerRef = useRef<number | null>(null);
 
     // Detect if a cloud reload backup exists in localStorage
     const [hasCloudBackup, setHasCloudBackup] = useState(
@@ -78,10 +81,14 @@ export function CloudSyncControls() {
             setAuthModalOpen(true);
             return;
         }
+        if (!workspaceId) {
+            flashStatus({ kind: 'error', message: 'No active workspace selected.' });
+            return;
+        }
 
         setStatus({ kind: 'saving' });
         const { nodes, edges } = useStore.getState();
-        const result = await saveCanvasToCloud(userId, nodes, edges);
+        const result = await saveCanvasToCloud(userId, workspaceId, nodes, edges);
         if (result.ok) {
             const timeStr = new Date().toLocaleTimeString();
             if (setCloudLastSaved) setCloudLastSaved(timeStr);
@@ -96,7 +103,7 @@ export function CloudSyncControls() {
             if (setCloudError) setCloudError(errMsg);
             flashStatus({ kind: 'error', message: errMsg });
         }
-    }, [isAuthenticated, isOnline, userId, setAuthModalOpen, flashStatus, setCloudLastSaved, setCloudDirty, setCloudError]);
+    }, [isAuthenticated, isOnline, userId, workspaceId, setAuthModalOpen, flashStatus, setCloudLastSaved, setCloudDirty, setCloudError]);
 
     const handleReload = useCallback(async () => {
         if (!isSupabaseConfigured) {
@@ -107,11 +114,36 @@ export function CloudSyncControls() {
             setAuthModalOpen(true);
             return;
         }
+        if (!workspaceId) {
+            flashStatus({ kind: 'error', message: 'No active workspace selected.' });
+            return;
+        }
         // Open the modal — it fetches metadata, lists saved pages, and
         // performs the load when the user confirms. No more silent
         // window.confirm() prompt.
         setLoadModalOpen(true);
-    }, [isAuthenticated, setAuthModalOpen, flashStatus]);
+    }, [isAuthenticated, workspaceId, setAuthModalOpen, flashStatus]);
+
+    useEffect(() => {
+        if (autoSaveTimerRef.current) {
+            window.clearTimeout(autoSaveTimerRef.current);
+            autoSaveTimerRef.current = null;
+        }
+        if (!isCloudDirty || !isOnline || !isSupabaseConfigured || !isAuthenticated || !userId || !workspaceId) {
+            return;
+        }
+
+        autoSaveTimerRef.current = window.setTimeout(() => {
+            void handleSave();
+        }, 1200);
+
+        return () => {
+            if (autoSaveTimerRef.current) {
+                window.clearTimeout(autoSaveTimerRef.current);
+                autoSaveTimerRef.current = null;
+            }
+        };
+    }, [isCloudDirty, isOnline, isAuthenticated, userId, workspaceId, handleSave]);
 
     const handleRestoreBackup = useCallback(() => {
         try {
@@ -151,7 +183,13 @@ export function CloudSyncControls() {
             {!isOnline && (
                 <div className={`${styles.statusPill} ${styles.offline}`} role="status">
                     <WifiOff size={12} />
-                    <span>Offline</span>
+                    <span>Offline - Sync Failed</span>
+                </div>
+            )}
+            {isOnline && status.kind === 'idle' && cloudLastSaved && !isCloudDirty && isAuthenticated && (
+                <div className={`${styles.statusPill} ${styles.success}`} role="status">
+                    <CheckCircle2 size={12} />
+                    <span>Saved</span>
                 </div>
             )}
             {hasCloudBackup && (
@@ -197,7 +235,7 @@ export function CloudSyncControls() {
             {status.kind === 'success' && (
                 <div className={`${styles.statusPill} ${styles.success}`} role="status">
                     <CheckCircle2 size={12} />
-                    <span>{status.message}</span>
+                    <span>Saved</span>
                 </div>
             )}
             {status.kind === 'error' && (
