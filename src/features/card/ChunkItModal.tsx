@@ -5,6 +5,29 @@ import { v4 as uuidv4 } from 'uuid';
 import styles from './ChunkItModal.module.css';
 import { BlockEditor } from '../editor/BlockEditor';
 import { MIN_EXPANDED_SIZE } from '../../config/layout';
+import type { AppNode } from '../../types';
+import type { Edge } from '@xyflow/react';
+
+type ChunkableNode = Exclude<AppNode, { type: 'kanban' }>;
+
+const isChunkableNode = (node: AppNode | null | undefined): node is ChunkableNode => {
+    return !!node && node.type !== 'kanban' && 'content' in node.data && Array.isArray(node.data.content);
+};
+
+const getNodeColor = (node: ChunkableNode): string | undefined => {
+    return node.type === 'note' ? node.data.color : undefined;
+};
+
+const withChunkedContent = (node: ChunkableNode, content: any[]): AppNode => {
+    switch (node.type) {
+        case 'note':
+            return { ...node, data: { ...node.data, content } };
+        case 'block':
+            return { ...node, data: { ...node.data, content } };
+        case 'fused-note':
+            return { ...node, data: { ...node.data, content } };
+    }
+};
 
 export const ChunkItModal: React.FC = () => {
     const chunkItNodeId = useStore(s => s.chunkItNodeId);
@@ -21,7 +44,7 @@ export const ChunkItModal: React.FC = () => {
     }, [chunkItNodeId, nodes]);
 
     const blocks = useMemo(() => {
-        if (!targetNode || !targetNode.data || !Array.isArray(targetNode.data.content)) return [];
+        if (!isChunkableNode(targetNode)) return [];
         return targetNode.data.content as any[];
     }, [targetNode]);
 
@@ -66,20 +89,21 @@ export const ChunkItModal: React.FC = () => {
     }, [blocks, cutIndices]);
 
     const handleExtractMindMap = useCallback(() => {
-        if (!targetNode) return;
+        if (!isChunkableNode(targetNode)) return;
+        const sourceNode = targetNode;
         const chunks = getChunks();
         if (chunks.length <= 1) {
             handleClose();
             return;
         }
 
-        const newNodes: any[] = [];
-        const newEdges: any[] = [];
+        const newNodes: AppNode[] = [];
+        const newEdges: Edge[] = [];
 
         // Distribute chunks in a circle around the original node
         const radius = 400;
-        const centerX = targetNode.position.x;
-        const centerY = targetNode.position.y;
+        const centerX = sourceNode.position.x;
+        const centerY = sourceNode.position.y;
         
         // We will keep the first chunk in the original node, and spawn new nodes for the rest
         const originalChunk = chunks[0];
@@ -93,10 +117,10 @@ export const ChunkItModal: React.FC = () => {
             const newNodeId = uuidv4();
             const label = chunk[0]?.content ? chunk[0].content.replace(/<[^>]+>/g, '').trim().substring(0, 30) : 'Chunk';
 
-            const newNode = {
+            const newNode: AppNode = {
                 id: newNodeId,
                 type: 'note',
-                parentId: targetNode.parentId,
+                parentId: sourceNode.parentId,
                 position: { x: centerX + offsetX, y: centerY + offsetY },
                 data: {
                     label: label || 'Chunk',
@@ -104,7 +128,7 @@ export const ChunkItModal: React.FC = () => {
                     content: chunk,
                     description: '',
                     date: new Date().toISOString(),
-                    color: targetNode.data.color || undefined,
+                    color: getNodeColor(sourceNode),
                     showMetadata: false
                 },
                 style: {
@@ -114,9 +138,9 @@ export const ChunkItModal: React.FC = () => {
                 selected: false
             };
 
-            const newEdge = {
+            const newEdge: Edge = {
                 id: uuidv4(),
-                source: targetNode.id,
+                source: sourceNode.id,
                 target: newNodeId,
                 type: 'smoothstep',
                 animated: true,
@@ -128,28 +152,16 @@ export const ChunkItModal: React.FC = () => {
         });
 
         // Update store atomically
-        useStore.setState(state => {
-            const updatedOriginalNode = {
-                ...targetNode,
-                data: {
-                    ...targetNode.data,
-                    content: originalChunk
-                }
-            };
-            
-            const nextNodes = state.nodes.map(n => n.id === targetNode.id ? updatedOriginalNode : n).concat(newNodes as any);
-            const nextEdges = state.edges.concat(newEdges as any);
-            
-            return {
-                ...state,
-                nodes: nextNodes,
-                edges: nextEdges
-            };
+        setNodes(state => {
+            const updatedOriginalNode = withChunkedContent(sourceNode, originalChunk);
+
+            return state.map(n => n.id === sourceNode.id ? updatedOriginalNode : n).concat(newNodes);
         });
+        useStore.setState(state => ({ edges: state.edges.concat(newEdges) }));
 
         // Use built-in arrangeNodes for beautiful layout
         setTimeout(() => {
-            const nodeIds = [targetNode.id, ...newNodes.map(n => n.id)];
+            const nodeIds = [sourceNode.id, ...newNodes.map(n => n.id)];
             useStore.getState().arrangeNodes(nodeIds, 'mindmap-horizontal');
         }, 50);
 
@@ -157,14 +169,15 @@ export const ChunkItModal: React.FC = () => {
     }, [targetNode, getChunks, handleClose]);
 
     const handleFuseInPlace = useCallback(() => {
-        if (!targetNode) return;
+        if (!isChunkableNode(targetNode)) return;
+        const sourceNode = targetNode;
         const chunks = getChunks();
         if (chunks.length <= 1) {
             handleClose();
             return;
         }
 
-        const newNodes: any[] = [];
+        const newNodes: AppNode[] = [];
         const newPageBlocks: any[] = [];
 
         // The first chunk stays inline. The remaining chunks become fused nested notes.
@@ -175,10 +188,10 @@ export const ChunkItModal: React.FC = () => {
             const newNodeId = uuidv4();
             const label = chunk[0]?.content ? chunk[0].content.replace(/<[^>]+>/g, '').trim().substring(0, 30) : 'Chunk';
 
-            const newNode = {
+            const newNode: AppNode = {
                 id: newNodeId,
                 type: 'note',
-                parentId: targetNode.id,
+                parentId: sourceNode.id,
                 position: { x: 50 + (i * 20), y: 50 + (i * 20) }, // Slight offset
                 data: {
                     label: label || 'Chunk',
@@ -186,7 +199,7 @@ export const ChunkItModal: React.FC = () => {
                     content: chunk,
                     description: '',
                     date: new Date().toISOString(),
-                    color: targetNode.data.color || undefined,
+                    color: getNodeColor(sourceNode),
                     showMetadata: false
                 },
                 style: {
@@ -207,23 +220,12 @@ export const ChunkItModal: React.FC = () => {
             newPageBlocks.push(pageBlock);
         });
 
-        useStore.setState(state => {
+        setNodes(state => {
             const newContent = [...originalChunk, ...newPageBlocks];
             
-            const updatedOriginalNode = {
-                ...targetNode,
-                data: {
-                    ...targetNode.data,
-                    content: newContent
-                }
-            };
-            
-            const nextNodes = state.nodes.map(n => n.id === targetNode.id ? updatedOriginalNode : n).concat(newNodes as any);
-            
-            return {
-                ...state,
-                nodes: nextNodes
-            };
+            const updatedOriginalNode = withChunkedContent(sourceNode, newContent);
+
+            return state.map(n => n.id === sourceNode.id ? updatedOriginalNode : n).concat(newNodes);
         });
 
         handleClose();

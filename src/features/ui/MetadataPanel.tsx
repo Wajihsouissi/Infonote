@@ -66,7 +66,7 @@ export function MetadataPanel({ nodeId, isOpen, onClose, buttonRef }: MetadataPa
     }, [data, isEditing]);
 
     if (!node || node.type !== 'note') {
-        return <SidePeek isOpen={false} onClose={onClose} title="Properties" />;
+        return <SidePeek isOpen={false} onClose={onClose} title="Properties">{null}</SidePeek>;
     }
 
     const handleSave = () => {

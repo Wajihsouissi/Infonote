@@ -1189,7 +1189,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             }}
         >
             {(() => {
-                const visibleBlocks: { block: Block, listIndex?: number, hasChildren?: boolean }[] = [];
+                const visibleBlocks: { block: Block, listIndex?: number, hasChildren?: boolean, originalIndex: number }[] = [];
 
                 blocks.forEach((block, index) => {
                     // Calculate List Index for numbered blocks

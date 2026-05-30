@@ -414,10 +414,10 @@ export function BottomMenu() {
                      for (const nodeId of selectedIds) {
                          const node = nodes.find(n => n.id === nodeId);
                          if (node && (node.type === 'note' || node.type === 'block' || node.type === 'fused-note')) {
-                             const nodeTitle = node.data.label || 'Untitled';
-                             const nodeDescription = node.data.description || '';
+                             const nodeTitle = node.type === 'note' ? node.data.label : 'Untitled';
+                             const nodeDescription = node.type === 'note' ? node.data.description || '' : '';
                              
-                             const contentBlocks = node.data.content as any[];
+                             const contentBlocks = node.data.content;
                              const contentText = Array.isArray(contentBlocks)
                                  ? contentBlocks.map(b => b.content).join('\n')
                                  : '';
