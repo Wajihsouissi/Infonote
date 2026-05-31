@@ -244,13 +244,23 @@ function escapeRegExp(string: string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function escapeHtml(string: string) {
+    return string
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 /**
  * Highlights matches in text with <strong> tags.
  */
 export function highlightMatch(text: string, term: string): string {
-    if (!term) return text;
-    const regex = new RegExp(`(${escapeRegExp(term)})`, 'gi');
-    return text.replace(regex, '<strong>$1</strong>');
+    const safeText = escapeHtml(text);
+    if (!term) return safeText;
+    const regex = new RegExp(`(${escapeRegExp(escapeHtml(term))})`, 'gi');
+    return safeText.replace(regex, '<strong>$1</strong>');
 }
 
 /**

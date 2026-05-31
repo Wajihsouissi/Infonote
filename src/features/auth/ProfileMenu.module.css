@@ -3,6 +3,7 @@
     display: inline-flex;
     align-items: center;
     gap: 10px;
+    z-index: 9999;
 }
 
 .greeting {
@@ -58,7 +59,7 @@
     border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
     border-radius: 14px;
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.32), 0 2px 8px rgba(0, 0, 0, 0.18);
-    z-index: 1200;
+    z-index: 9999;
     transform-origin: top right;
     animation: profileDropdownIn 0.16s cubic-bezier(0.2, 0.8, 0.4, 1);
 }

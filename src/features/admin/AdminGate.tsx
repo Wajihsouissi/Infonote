@@ -40,19 +40,10 @@ export default function AdminGate() {
                 return;
             }
 
-            const { data: profile, error: profileError } = await supabase
-                .from('user_profiles')
-                .select('email')
-                .eq('id', activeUser.id)
-                .maybeSingle();
-
-            if (cancelled) return;
-
-            const profileEmail = typeof profile?.email === 'string' ? profile.email : '';
             const sessionEmail = activeUser.email ?? '';
-            const verifiedEmail = (profileEmail || sessionEmail).trim().toLowerCase();
+            const verifiedEmail = sessionEmail.trim().toLowerCase();
 
-            if (profileError || verifiedEmail !== OWNER_EMAIL) {
+            if (verifiedEmail !== OWNER_EMAIL) {
                 setState({ kind: 'denied', reason: 'Owner account required.' });
                 window.setTimeout(redirectHome, 900);
                 return;

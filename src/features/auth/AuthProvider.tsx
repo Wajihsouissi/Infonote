@@ -54,7 +54,7 @@ async function ensureUserProfile(user: { id: string; email?: string; user_metada
                 email: user.email || '',
                 display_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User',
                 account_status: 'active',
-            }, { onConflict: 'id', ignoreDuplicates: false });
+            }, { onConflict: 'id', ignoreDuplicates: true });
 
         if (error) {
             console.warn('[AuthProvider] ensureUserProfile failed:', error.message);
@@ -155,7 +155,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 null;
             setAuthUser({
                 id: u.id,
-                email: profile?.email ?? u.email ?? null,
+                email: u.email ?? profile?.email ?? null,
                 displayName: profile?.display_name ?? metaName ?? null,
             });
         } catch (err) {

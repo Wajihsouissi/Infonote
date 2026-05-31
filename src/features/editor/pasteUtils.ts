@@ -139,6 +139,26 @@ export function isUrl(str: string): boolean {
     return urlPattern.test(trimmed);
 }
 
+function escapeHtml(value: string): string {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function toSafeHttpUrl(value: string): string | null {
+    const normalized = value.startsWith('www.') ? `https://${value}` : value;
+    try {
+        const parsed = new URL(normalized);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+        return parsed.href;
+    } catch {
+        return null;
+    }
+}
+
 export function renderContentWithLinks(content: string): string {
     if (!content) return '';
     // Match:
@@ -146,16 +166,36 @@ export function renderContentWithLinks(content: string): string {
     // 2. Raw URLs: http://, https://, or www.
     const pattern = /\[([^\]]+)\]\(((?:https?:\/\/|www\.)[^\s()<>]+(?:\([\w\d]+\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))\)|((?:https?:\/\/|www\.)[^\s()<>]+(?:\([\w\d]+\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))/gi;
     
-    return content.replace(pattern, (match, label, markdownUrl, rawUrl) => {
+    let result = '';
+    let lastIndex = 0;
+    content.replace(pattern, (match, label, markdownUrl, rawUrl, offset) => {
+        result += escapeHtml(content.slice(lastIndex, offset));
+        lastIndex = offset + match.length;
+
         if (label) {
-            const href = markdownUrl.startsWith('http') ? markdownUrl : 'https://' + markdownUrl;
-            return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="editor-inline-link" style="color: var(--color-text-muted); text-decoration: underline; font-weight: 500;">${label}</a>`;
-        } else if (rawUrl) {
-            const href = rawUrl.startsWith('http') ? rawUrl : 'https://' + rawUrl;
-            return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="editor-inline-link" style="color: var(--color-text-muted); text-decoration: underline; font-weight: 500;">${rawUrl}</a>`;
+            const href = toSafeHttpUrl(markdownUrl);
+            if (!href) {
+                result += escapeHtml(match);
+                return match;
+            }
+            result += `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" class="editor-inline-link" style="color: var(--color-text-muted); text-decoration: underline; font-weight: 500;">${escapeHtml(label)}</a>`;
+            return match;
         }
+
+        if (rawUrl) {
+            const href = toSafeHttpUrl(rawUrl);
+            if (!href) {
+                result += escapeHtml(match);
+                return match;
+            }
+            result += `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" class="editor-inline-link" style="color: var(--color-text-muted); text-decoration: underline; font-weight: 500;">${escapeHtml(rawUrl)}</a>`;
+            return match;
+        }
+        result += escapeHtml(match);
         return match;
     });
+    result += escapeHtml(content.slice(lastIndex));
+    return result;
 }
 
 // 2. Handle Text/HTML - SYNC
