@@ -11,6 +11,7 @@ import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, LogIn, Zap, GitBranch, Layers
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
 import { connectNotion } from '../../services/notion/notionImport';
+import { getActiveSession, getFriendlyAuthError, isEmailRegistered } from './authFlow';
 import styles from './AuthPage.module.css';
 
 export const LoginPage: React.FC = () => {
@@ -58,17 +59,22 @@ export const LoginPage: React.FC = () => {
           throw new Error('Your email address has not been confirmed yet. Please check your inbox and confirm your email before signing in.');
         }
         if (msg.includes('invalid') || msg.includes('credentials')) {
+          const registered = await isEmailRegistered(cleanEmail);
+          if (registered) {
+            throw new Error('Invalid email or password. If you just created this account, check your inbox and confirm your email before signing in.');
+          }
           throw new Error('Invalid email or password.');
         }
         throw signInError;
       }
       // Session is now in place. AuthProvider will hydrate Zustand via
       // onAuthStateChange. Navigate the user to the canvas.
-      if (data.session) {
+      const activeSession = data.session ?? await getActiveSession();
+      if (activeSession) {
         setCurrentView('canvas');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(getFriendlyAuthError(err));
     } finally {
       setLoading(false);
     }

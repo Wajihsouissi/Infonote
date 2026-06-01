@@ -2,6 +2,13 @@ import React, { useCallback, useState } from 'react';
 import { Mail, LogOut, Loader2, Lock } from 'lucide-react';
 import { supabase } from '../../services/supabase/client';
 import { useAuth } from './useAuth';
+import {
+    EMAIL_IN_USE_MESSAGE,
+    getActiveSession,
+    getFriendlyAuthError,
+    isDuplicateSignupResponse,
+    isEmailRegistered,
+} from './authFlow';
 
 type Props = {
     onSignedIn?: () => void;
@@ -43,24 +50,48 @@ export const SignInPanel: React.FC<Props> = ({ onSignedIn, compact }) => {
 
         try {
             if (mode === 'signup') {
-                const { error: signUpError } = await supabase.auth.signUp({
+                const alreadyRegistered = await isEmailRegistered(cleanEmail);
+                if (alreadyRegistered) throw new Error(EMAIL_IN_USE_MESSAGE);
+
+                const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
                     email: cleanEmail,
                     password: cleanPassword,
                 });
                 if (signUpError) throw signUpError;
-                setMessage('Account created! You are now signed in.');
+                if (isDuplicateSignupResponse(signUpData)) throw new Error(EMAIL_IN_USE_MESSAGE);
+
+                let activeSession = signUpData.session ?? await getActiveSession();
+                if (!activeSession) {
+                    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                        email: cleanEmail,
+                        password: cleanPassword,
+                    });
+                    if (signInError) throw signInError;
+                    activeSession = signInData.session ?? await getActiveSession();
+                }
+
+                if (!activeSession) {
+                    setMessage('Account created. Please confirm your email before signing in.');
+                    return;
+                }
+
+                setMessage('Account created. You are now signed in.');
                 onSignedIn?.();
             } else {
-                const { error: signInError } = await supabase.auth.signInWithPassword({
+                const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
                     email: cleanEmail,
                     password: cleanPassword,
                 });
                 if (signInError) throw signInError;
+                const activeSession = signInData.session ?? await getActiveSession();
+                if (!activeSession) {
+                    throw new Error('Unable to start a signed-in session. Please try again.');
+                }
                 setMessage('Successfully signed in.');
                 onSignedIn?.();
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : String(err));
+            setError(getFriendlyAuthError(err));
         } finally {
             setLoading(false);
         }

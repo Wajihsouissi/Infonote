@@ -3,6 +3,13 @@ import { X, Mail, Lock, Eye, EyeOff, Loader2, LogIn, UserPlus, AlertCircle, Chec
 import { useStore } from '../../store/useStore';
 import { useAuth } from './useAuth';
 import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
+import {
+    EMAIL_IN_USE_MESSAGE,
+    getActiveSession,
+    getFriendlyAuthError,
+    isDuplicateSignupResponse,
+    isEmailRegistered,
+} from './authFlow';
 import styles from './AuthModal.module.css';
 
 type Mode = 'signin' | 'signup';
@@ -86,13 +93,34 @@ export const AuthModal: React.FC = () => {
         setSubmitting(true);
         try {
             if (mode === 'signup') {
+                const alreadyRegistered = await isEmailRegistered(email);
+                if (alreadyRegistered) throw new Error(EMAIL_IN_USE_MESSAGE);
+
                 const { data, error: signUpError } = await supabase.auth.signUp({
                     email,
                     password: form.password,
                 });
                 if (signUpError) throw signUpError;
+                if (isDuplicateSignupResponse(data)) throw new Error(EMAIL_IN_USE_MESSAGE);
                 // Supabase returns user even if email confirmation is required.
-                if (data.session) {
+                let activeSession = data.session ?? await getActiveSession();
+                if (!activeSession) {
+                    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                        email,
+                        password: form.password,
+                    });
+                    if (signInError) {
+                        const friendly = getFriendlyAuthError(signInError);
+                        if (friendly.toLowerCase().includes('confirm')) {
+                            setSuccess('Account created. Check your inbox to confirm your email, then sign in.');
+                            return;
+                        }
+                        throw signInError;
+                    }
+                    activeSession = signInData.session ?? await getActiveSession();
+                }
+
+                if (activeSession) {
                     setSuccess('Account created. You are now signed in.');
                     setTimeout(() => setOpen(false), 700);
                 } else if (data.user) {
@@ -101,24 +129,20 @@ export const AuthModal: React.FC = () => {
                     setSuccess('Account created.');
                 }
             } else {
-                const { error: signInError } = await supabase.auth.signInWithPassword({
+                const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
                     email,
                     password: form.password,
                 });
                 if (signInError) throw signInError;
+                const activeSession = signInData.session ?? await getActiveSession();
+                if (!activeSession) {
+                    throw new Error('Unable to start a signed-in session. Please try again.');
+                }
                 setSuccess('Signed in.');
                 setTimeout(() => setOpen(false), 400);
             }
         } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            // Normalise a few common Supabase strings for clarity.
-            if (/already registered/i.test(msg) || /already exists/i.test(msg)) {
-                setError('An account with that email already exists. Try signing in.');
-            } else if (/invalid login credentials/i.test(msg)) {
-                setError('Invalid email or password.');
-            } else {
-                setError(msg);
-            }
+            setError(getFriendlyAuthError(err));
         } finally {
             setSubmitting(false);
         }

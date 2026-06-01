@@ -6,10 +6,17 @@
  * by the on-signup trigger defined in the migration.
  */
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, UserPlus, Zap, GitBranch, Layers, Loader2, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, UserPlus, Zap, GitBranch, Layers, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
 import { connectNotion } from '../../services/notion/notionImport';
+import {
+  EMAIL_IN_USE_MESSAGE,
+  getActiveSession,
+  getFriendlyAuthError,
+  isDuplicateSignupResponse,
+  isEmailRegistered,
+} from './authFlow';
 import styles from './AuthPage.module.css';
 
 export const SignupPage: React.FC = () => {
@@ -27,10 +34,12 @@ export const SignupPage: React.FC = () => {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
 
     if (!isSupabaseConfigured || !supabase) {
       setError('Authentication is not configured. Please contact the administrator (missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY).');
@@ -58,9 +67,13 @@ export const SignupPage: React.FC = () => {
     setLoading(true);
     try {
       const displayName = `${cleanFirst} ${cleanLast}`.trim();
+      const alreadyRegistered = await isEmailRegistered(cleanEmail);
+      if (alreadyRegistered) {
+        throw new Error(EMAIL_IN_USE_MESSAGE);
+      }
 
       // Step 1: Create the account in Supabase Auth
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
         password: cleanPassword,
         options: {
@@ -75,33 +88,45 @@ export const SignupPage: React.FC = () => {
       });
 
       if (signUpError) {
-        const msg = signUpError.message?.toLowerCase() || '';
-        if (msg.includes('already') || msg.includes('registered')) {
-          throw new Error('An account with this email already exists. Please sign in instead.');
-        }
         throw signUpError;
+      }
+      if (isDuplicateSignupResponse(signUpData)) {
+        throw new Error(EMAIL_IN_USE_MESSAGE);
       }
 
       // Step 2: Immediately sign in with the same credentials to get a session
-      // regardless of whether Supabase has email confirmation enabled.
-      // This bypasses the email verification gate entirely.
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password: cleanPassword,
-      });
+      // when the Supabase project allows email/password sessions immediately.
+      let activeSession = signUpData.session;
+      activeSession = activeSession ?? await getActiveSession();
+      if (!activeSession) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password: cleanPassword,
+        });
 
-      if (signInError || !signInData.session) {
-        // signIn failed (rare — e.g. Supabase strictly blocks unconfirmed users).
-        // Still give the user access locally and show the welcome modal.
-        console.warn('[Signup] Auto sign-in after registration failed, proceeding anyway:', signInError?.message);
+        if (signInError) {
+          const friendly = getFriendlyAuthError(signInError);
+          if (friendly.toLowerCase().includes('confirm')) {
+            setSuccess('Account created. Please confirm your email before signing in.');
+            return;
+          }
+          throw signInError;
+        }
+        activeSession = signInData.session;
+      }
+
+      if (!activeSession) {
+        setSuccess('Account created. Please check your email to confirm your account, then sign in.');
+        return;
       }
 
       // Step 3: Show the welcome popup and route straight into the app canvas
+      // only after a real Supabase session exists in browser storage.
       setShowWelcomeModal(true);
       setCurrentView('canvas');
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(getFriendlyAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -253,6 +278,12 @@ export const SignupPage: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '8px', fontSize: '13px', marginBottom: '16px' }}>
               <AlertCircle size={16} />
               <span>{error}</span>
+            </div>
+          )}
+          {success && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(34, 197, 94, 0.12)', color: '#22c55e', borderRadius: '8px', fontSize: '13px', marginBottom: '16px' }}>
+              <CheckCircle2 size={16} />
+              <span>{success}</span>
             </div>
           )}
 
