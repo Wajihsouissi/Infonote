@@ -4,6 +4,7 @@ import { supabase } from '../../services/supabase/client';
 import { useAuth } from './useAuth';
 import {
     EMAIL_IN_USE_MESSAGE,
+    activateAuthenticatedSession,
     getActiveSession,
     getFriendlyAuthError,
     isDuplicateSignupResponse,
@@ -75,6 +76,7 @@ export const SignInPanel: React.FC<Props> = ({ onSignedIn, compact }) => {
                     return;
                 }
 
+                await activateAuthenticatedSession(activeSession);
                 setMessage('Account created. You are now signed in.');
                 onSignedIn?.();
             } else {
@@ -87,6 +89,7 @@ export const SignInPanel: React.FC<Props> = ({ onSignedIn, compact }) => {
                 if (!activeSession) {
                     throw new Error('Unable to start a signed-in session. Please try again.');
                 }
+                await activateAuthenticatedSession(activeSession);
                 setMessage('Successfully signed in.');
                 onSignedIn?.();
             }

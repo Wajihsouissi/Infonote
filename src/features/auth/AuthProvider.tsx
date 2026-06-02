@@ -232,8 +232,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const signOut = useCallback(async () => {
         // Always tear down local state, even if the network call fails.
         const finalize = () => {
-            // Belt-and-braces: purge any legacy mock session keys that may
-            // exist from earlier builds so they cannot resurrect a stale user.
+            // Belt-and-braces: purge legacy app session keys so they cannot
+            // resurrect a stale visitor/user state after Supabase signs out.
             try {
                 localStorage.removeItem('chnk-it-mock-session');
                 localStorage.removeItem('chnk-it-mock-users');
@@ -242,12 +242,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (user?.id) {
                     localStorage.removeItem(`chnk-it.activeWorkspaceId.${user.id}`);
                 }
-                Object.keys(localStorage).forEach((key) => {
-                    const normalized = key.toLowerCase();
-                    if (normalized.includes('supabase') && normalized.includes('auth')) {
-                        localStorage.removeItem(key);
-                    }
-                });
             } catch {
                 // ignore storage errors (e.g. private browsing)
             }
@@ -269,6 +263,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await supabase.auth.signOut({ scope: 'global' });
         } catch (err) {
             console.warn('[Auth] signOut network call failed; clearing local state anyway', err);
+            try {
+                await supabase.auth.signOut({ scope: 'local' });
+            } catch {
+                // Local cleanup continues in finalize.
+            }
         } finally {
             finalize();
         }

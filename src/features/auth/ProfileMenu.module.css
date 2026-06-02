@@ -110,10 +110,16 @@
     border-radius: 8px;
     cursor: pointer;
     transition: background 0.12s ease, color 0.12s ease;
+    pointer-events: auto;
 }
 
 .menuItem:hover {
     background: rgba(255, 255, 255, 0.06);
+}
+
+.menuItem:disabled {
+    cursor: wait;
+    opacity: 0.7;
 }
 
 .menuItem:focus-visible {

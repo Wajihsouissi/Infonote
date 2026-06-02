@@ -5,6 +5,7 @@ import { useAuth } from './useAuth';
 import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
 import {
     EMAIL_IN_USE_MESSAGE,
+    activateAuthenticatedSession,
     getActiveSession,
     getFriendlyAuthError,
     isDuplicateSignupResponse,
@@ -121,6 +122,7 @@ export const AuthModal: React.FC = () => {
                 }
 
                 if (activeSession) {
+                    await activateAuthenticatedSession(activeSession);
                     setSuccess('Account created. You are now signed in.');
                     setTimeout(() => setOpen(false), 700);
                 } else if (data.user) {
@@ -138,6 +140,7 @@ export const AuthModal: React.FC = () => {
                 if (!activeSession) {
                     throw new Error('Unable to start a signed-in session. Please try again.');
                 }
+                await activateAuthenticatedSession(activeSession);
                 setSuccess('Signed in.');
                 setTimeout(() => setOpen(false), 400);
             }

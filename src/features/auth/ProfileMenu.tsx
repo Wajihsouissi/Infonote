@@ -32,6 +32,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
     const auth = useStore((s) => s.auth);
     const { signOut } = useAuth();
     const [open, setOpen] = useState(false);
+    const [isSigningOut, setIsSigningOut] = useState(false);
     const wrapperRef = useRef<HTMLDivElement | null>(null);
 
     const displayLabel = useMemo(() => {
@@ -62,13 +63,19 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
     }, [open]);
 
     const handleSignOut = useCallback(async () => {
+        if (isSigningOut) return;
+        setIsSigningOut(true);
         setOpen(false);
-        await signOut();
-        // Safety fallback: ensure the URL and view reset even if the context
-        // cleanup is interrupted by the browser.
-        window.history.pushState({}, '', '/');
-        useStore.getState().setCurrentView('marketing');
-    }, [signOut]);
+        try {
+            await signOut();
+        } finally {
+            // Safety fallback: ensure the URL and view reset even if the context
+            // cleanup is interrupted by the browser.
+            window.history.replaceState({}, '', '/');
+            useStore.getState().setCurrentView('marketing');
+            setIsSigningOut(false);
+        }
+    }, [isSigningOut, signOut]);
 
     const navigateTo = useCallback((path: string, view: 'profile' | 'canvas') => {
         setOpen(false);
@@ -144,13 +151,19 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
                         type="button"
                         role="menuitem"
                         className={`${styles.menuItem} ${styles.menuItemDanger}`}
+                        disabled={isSigningOut}
+                        onPointerDown={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            void handleSignOut();
+                        }}
                         onClick={(e) => {
                             e.stopPropagation();
-                            handleSignOut();
+                            void handleSignOut();
                         }}
                     >
                         <LogOut size={15} />
-                        <span>Log out</span>
+                        <span>{isSigningOut ? 'Logging out...' : 'Log out'}</span>
                     </button>
                 </div>
             )}

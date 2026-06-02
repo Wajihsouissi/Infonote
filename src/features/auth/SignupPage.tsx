@@ -12,6 +12,7 @@ import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../servi
 import { connectNotion } from '../../services/notion/notionImport';
 import {
   EMAIL_IN_USE_MESSAGE,
+  activateAuthenticatedSession,
   getActiveSession,
   getFriendlyAuthError,
   isDuplicateSignupResponse,
@@ -122,6 +123,7 @@ export const SignupPage: React.FC = () => {
 
       // Step 3: Show the welcome popup and route straight into the app canvas
       // only after a real Supabase session exists in browser storage.
+      await activateAuthenticatedSession(activeSession);
       setShowWelcomeModal(true);
       setCurrentView('canvas');
 

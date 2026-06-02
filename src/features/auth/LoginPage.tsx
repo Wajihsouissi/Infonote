@@ -11,7 +11,7 @@ import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, LogIn, Zap, GitBranch, Layers
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
 import { connectNotion } from '../../services/notion/notionImport';
-import { getActiveSession, getFriendlyAuthError, isEmailRegistered } from './authFlow';
+import { activateAuthenticatedSession, getActiveSession, getFriendlyAuthError, isEmailRegistered } from './authFlow';
 import styles from './AuthPage.module.css';
 
 export const LoginPage: React.FC = () => {
@@ -71,7 +71,10 @@ export const LoginPage: React.FC = () => {
       // onAuthStateChange. Navigate the user to the canvas.
       const activeSession = data.session ?? await getActiveSession();
       if (activeSession) {
+        await activateAuthenticatedSession(activeSession);
         setCurrentView('canvas');
+      } else {
+        throw new Error('Unable to start a signed-in session. Please try again.');
       }
     } catch (err) {
       setError(getFriendlyAuthError(err));
