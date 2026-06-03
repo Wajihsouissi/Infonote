@@ -32,10 +32,10 @@ export function useRecentlyViewed(workspaceId?: string) {
     setLoading(true);
     try {
       let query = supabase
-        .from('recently_viewed_notes')
-        .select('*')
+        .from('canvas_nodes')
+        .select('id, type, data_json, updated_at')
         .eq('user_id', user.id)
-        .order('last_opened_at', { ascending: false })
+        .order('updated_at', { ascending: false })
         .limit(5);
         
       if (workspaceId) {
@@ -44,7 +44,26 @@ export function useRecentlyViewed(workspaceId?: string) {
 
       const { data, error } = await query;
       if (error) throw error;
-      setRecentNotes(data as RecentlyViewedNote[]);
+      
+      const mappedNotes = (data || []).map((row: any) => {
+        const inner = (row.data_json?.data || {}) as Record<string, unknown>;
+        const rawTitle = inner.label || inner.title || inner.name || inner.text || '';
+        const title = (typeof rawTitle === 'string' && rawTitle.trim())
+          ? rawTitle.trim()
+          : 'Untitled Node';
+          
+        return {
+          id: row.id,
+          user_id: user.id,
+          workspace_id: workspaceId || '',
+          node_id: row.id,
+          node_title: title,
+          node_type: row.type,
+          last_opened_at: row.updated_at
+        };
+      });
+      
+      setRecentNotes(mappedNotes as RecentlyViewedNote[]);
     } catch (err) {
       console.error('Failed to fetch recently viewed notes:', err);
     } finally {

@@ -18,6 +18,7 @@ export interface NodeSlice {
     setNodes: (nodes: AppNode[] | ((nodes: AppNode[]) => AppNode[])) => void;
     onEdgesChange: (changes: EdgeChange[]) => void;
     onConnect: (connection: Connection) => void;
+    onReconnect: (oldEdge: Edge, newConnection: Connection) => void;
     addNode: (type: 'note' | 'block' | 'fused-note' | 'kanban', position: { x: number; y: number }, initialData?: Record<string, unknown>, style?: React.CSSProperties, parentId?: string, customId?: string) => void;
     updateNodeData: (id: string, data: Record<string, unknown>) => void;
     updateNode: (id: string, updates: Partial<AppNode>) => void;

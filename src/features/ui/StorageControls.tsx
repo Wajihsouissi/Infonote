@@ -353,36 +353,15 @@ export const StorageControls: React.FC = () => {
                 {localIcon}
             </button>
 
-            <button
-                className={cloudClassName}
-                onClick={handleCloudClick}
-                disabled={isConnecting || !configured || isSavingCloud}
-                data-tooltip={cloudTitle}
-            >
-                {cloudIcon}
-            </button>
-
-            {showAuthPopover && (
-                <div
-                    ref={authPopoverRef}
-                    style={{
-                        position: 'absolute',
-                        top: 'calc(100% + 8px)',
-                        right: 0,
-                        background: 'var(--color-surface, #fff)',
-                        border: '1px solid var(--color-border, #e5e7eb)',
-                        borderRadius: 8,
-                        boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                        zIndex: 1000,
-                    }}
+            {user && (
+                <button
+                    className={cloudClassName}
+                    onClick={handleCloudClick}
+                    disabled={isConnecting || !configured || isSavingCloud}
+                    data-tooltip={cloudTitle}
                 >
-                    <SignInPanel
-                        compact
-                        onSignedIn={() => {
-                            setShowAuthPopover(false);
-                        }}
-                    />
-                </div>
+                    {cloudIcon}
+                </button>
             )}
 
             <CloudSyncModal 

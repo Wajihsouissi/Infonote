@@ -21,6 +21,7 @@ export function useCanvasStoreSelectors() {
     const onNodesChange = useStore(useCallback(s => s.onNodesChange, []));
     const onEdgesChange = useStore(useCallback(s => s.onEdgesChange, []));
     const onConnect = useStore(useCallback(s => s.onConnect, []));
+    const onReconnect = useStore(useCallback(s => s.onReconnect, []));
     const addNode = useStore(useCallback(s => s.addNode, []));
     const setNodes = useStore(useCallback(s => s.setNodes, []));
     const updateNodeData = useStore(useCallback(s => s.updateNodeData, []));
@@ -49,6 +50,7 @@ export function useCanvasStoreSelectors() {
         onNodesChange,
         onEdgesChange,
         onConnect,
+        onReconnect,
         addNode,
         setNodes,
         updateNodeData,

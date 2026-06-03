@@ -4,6 +4,7 @@ import {
     addEdge,
     applyNodeChanges,
     applyEdgeChanges,
+    reconnectEdge,
 } from '@xyflow/react';
 import { v4 as uuidv4 } from 'uuid';
 import type { AppNode } from '../../types';
@@ -203,6 +204,13 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         get().setCloudDirty?.(true);
     },
 
+    onReconnect: (oldEdge, newConnection) => {
+        set({
+            edges: reconnectEdge(oldEdge, newConnection, get().edges),
+        });
+        get().setCloudDirty?.(true);
+    },
+
     addNode: (type, position, initialData, style, parentId, customId) => {
         const { currentParentId } = get();
         const targetParentId = parentId !== undefined ? parentId : (currentParentId || undefined);
@@ -359,9 +367,6 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
     },
 
     releaseNodeContentToBlocks: (nodeId: string, centerPosition?: { x: number; y: number }, skipConfirm?: boolean) => {
-        if (!skipConfirm && !window.confirm(
-            'Release this node\'s content as individual blocks? The source node will be replaced.'
-        )) return;
 
         const { nodes, edges, currentParentId } = get();
         const sourceNode = nodes.find(n => n.id === nodeId);

@@ -72,6 +72,7 @@ export function CanvasBoard() {
         theme,
         onNodesChange,
         onConnect,
+        onReconnect,
         setNodes,
         updateNodeData,
         setInteractionState,
@@ -967,6 +968,7 @@ export function CanvasBoard() {
                     edges={visibleEdges}
                     onNodesChange={onNodesChange}
                     onConnect={onConnect}
+                    onReconnect={onReconnect}
                     isValidConnection={isValidConnection}
                     nodeTypes={nodeTypes}
                     edgeTypes={edgeTypes}

@@ -115,15 +115,28 @@ function App() {
 
   if (isAuthLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#090a0f] text-white relative overflow-hidden">
+      <div 
+        style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          minHeight: '100vh', 
+          width: '100%',
+          backgroundColor: '#090a0f', 
+          color: 'white', 
+          position: 'relative', 
+          overflow: 'hidden' 
+        }}
+      >
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-[#8b5cf6]/20 blur-[100px] pointer-events-none" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-[#06b6d4]/20 blur-[100px] pointer-events-none" />
-        <div className="flex flex-col items-center gap-4 z-10">
-          <div className="relative w-16 h-16 flex items-center justify-center">
-            <div className="absolute inset-0 rounded-full border-4 border-[#8b5cf6]/20 animate-pulse" />
-            <Loader2 className="animate-spin text-[#8b5cf6] relative" size={36} />
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', zIndex: 10 }}>
+          <div style={{ position: 'relative', width: '4rem', height: '4rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '4px solid rgba(139, 92, 246, 0.2)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+            <Loader2 style={{ animation: 'spin 1s linear infinite', position: 'relative', color: '#8b5cf6' }} size={36} />
           </div>
-          <span className="text-sm font-semibold tracking-wider uppercase text-purple-200/60 animate-pulse">
+          <span style={{ fontSize: '0.875rem', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'rgba(233, 213, 255, 0.6)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>
             Syncing Secure Session...
           </span>
         </div>

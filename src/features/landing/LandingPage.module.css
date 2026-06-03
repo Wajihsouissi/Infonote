@@ -1245,124 +1245,391 @@
   border-radius: 50%;
   background: var(--color-primary);
 }
-
-/* ── Quick Start Section ──────────────────────────── */
-.quickStartSection {
-  margin-bottom: 56px;
-  animation: fadeSlideUp 0.6s 0.15s ease-out both;
+/* ── Prominent Global Search ────────────────────────── */
+.heroSearchContainer {
+  margin-top: 32px;
+  max-width: 500px;
+  width: 100%;
+  position: relative;
+  animation: fadeSlideUp 0.6s 0.1s ease-out both;
 }
 
-.cardGrid {
+.heroSearchBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--backdrop-blur));
+  padding: 12px 16px;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  transition: all var(--transition-fast);
+}
+
+.heroSearchBar:focus-within {
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.15);
+}
+
+.heroSearchIcon {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.heroSearchBar input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--color-text-main);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  outline: none;
+}
+
+.heroSearchBar input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+.heroSearchKbd {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  background: rgba(0,0,0,0.1);
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--color-text-muted);
+}
+
+.heroSearchResults {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: var(--glass-bg);
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(24px);
+  border-radius: 12px;
+  padding: 8px;
+  z-index: 50;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.searchResultItem {
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.searchResultItem:hover {
+  background: var(--ui-hover);
+}
+
+.searchResultTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-main);
+  margin-bottom: 4px;
+}
+
+.searchResultSnippet {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.searchState {
+  padding: 12px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* ── Daily Tip ────────────────────────────────────── */
+.dailyTipSection {
+  margin-bottom: 48px;
+  animation: fadeSlideUp 0.6s 0.2s ease-out both;
+}
+
+.dailyTipCard {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(6, 182, 212, 0.05));
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tipHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-primary);
+}
+
+.tipIcon {
+  color: #f59e0b;
+}
+
+.tipText {
+  font-size: 14px;
+  color: var(--color-text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.tipTextIcon {
+  color: var(--color-text-muted);
+  display: flex;
+}
+
+/* ── Guided Hub Grid ──────────────────────────────── */
+.hubGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 32px;
+  margin-bottom: 56px;
+  animation: fadeSlideUp 0.6s 0.3s ease-out both;
+}
+
+.hubMain {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.hubSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.sectionHeader h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--color-text-main);
+}
+
+.sectionHeader p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.textButton {
+  background: transparent;
+  border: none;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.textButton:hover {
+  text-decoration: underline;
+}
+
+/* ── Mini-Tutorials ───────────────────────────────── */
+.tutorialGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 
-.actionCard {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 24px;
-  border-radius: 16px;
-  border: 1px solid var(--glass-border);
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--backdrop-blur));
-  -webkit-backdrop-filter: blur(var(--backdrop-blur));
+.tutorialCard {
   cursor: pointer;
-  text-align: left;
-  font-family: var(--font-sans);
-  color: var(--color-text-main);
-  transition: all var(--transition-smooth);
+}
+
+.videoPlaceholder {
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
-  overflow: hidden;
+  margin-bottom: 12px;
+  transition: all var(--transition-fast);
+  border: 1px solid var(--glass-border);
 }
 
-.actionCard::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  background: linear-gradient(135deg,
-    rgba(139, 92, 246, 0.04) 0%,
-    rgba(6, 182, 212, 0.02) 100%);
-  transition: opacity var(--transition-smooth);
-  pointer-events: none;
+.videoPlaceholder[data-color="blue"] { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+.videoPlaceholder[data-color="purple"] { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+.videoPlaceholder[data-color="amber"] { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+
+.tutorialCard:hover .videoPlaceholder {
+  transform: scale(1.02);
+  border-color: currentColor;
 }
 
-.actionCard:hover {
-  border-color: rgba(139, 92, 246, 0.25);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+.playIcon {
+  opacity: 0.8;
+  transition: opacity var(--transition-fast);
 }
 
-.actionCard:hover::before {
+.tutorialCard:hover .playIcon {
   opacity: 1;
 }
 
-.actionCard:active {
-  transform: translateY(0);
+.duration {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
 }
 
-.cardArrow {
-  color: var(--color-text-muted);
-  transition: transform 0.2s ease, color 0.2s ease;
-  margin-left: auto;
+.tutorialCard h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text-main);
 }
 
-.actionCard:hover .cardArrow {
-  transform: translateX(4px);
-  color: var(--color-primary);
+/* ── Templates ────────────────────────────────────── */
+.templateGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
 }
 
-.cardIcon {
-  width: 44px;
-  height: 44px;
+.templateCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
   border-radius: 12px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+.templateCard:hover {
+  background: var(--ui-hover);
+  border-color: rgba(139, 92, 246, 0.3);
+  transform: translateY(-2px);
+}
+
+.templateIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.cardIcon[data-accent="primary"] {
-  background: rgba(139, 92, 246, 0.12);
-  color: var(--color-primary);
+.templateIcon[data-color="primary"] { background: rgba(139, 92, 246, 0.15); color: var(--color-primary); }
+.templateIcon[data-color="secondary"] { background: rgba(6, 182, 212, 0.15); color: var(--color-secondary); }
+.templateIcon[data-color="amber"] { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+
+.templateInfo {
+  flex: 1;
 }
 
-.cardIcon[data-accent="secondary"] {
-  background: rgba(6, 182, 212, 0.12);
-  color: var(--color-secondary);
-}
-
-.cardIcon[data-accent="amber"] {
-  background: rgba(245, 158, 11, 0.12);
-  color: #f59e0b;
-}
-
-.cardBody h3 {
-  font-size: 15px;
-  font-weight: 700;
+.templateInfo h3 {
+  font-size: 14px;
+  font-weight: 600;
   margin: 0 0 4px;
-  letter-spacing: -0.2px;
+  color: var(--color-text-main);
 }
 
-.cardBody p {
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--color-text-muted);
+.templateInfo p {
+  font-size: 12px;
   margin: 0;
+  color: var(--color-text-muted);
 }
 
-/* ── Recent Notes Section ──────────────────────────── */
-.recentSection {
-  margin-bottom: 56px;
-  animation: fadeSlideUp 0.6s 0.3s ease-out both;
+.templateArrow {
+  color: var(--color-text-muted);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: all var(--transition-fast);
 }
 
-.noteGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+.templateCard:hover .templateArrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ── Recent Activity ──────────────────────────────── */
+.hubSidebar {
+  border-left: 1px solid var(--glass-border);
+  padding-left: 32px;
+}
+
+.activityFeed {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.activityItem {
+  display: flex;
   gap: 12px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background var(--transition-fast);
+  margin-left: -8px;
+}
+
+.activityItem:hover {
+  background: var(--ui-hover);
+}
+
+.activityDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-secondary);
+  margin-top: 6px;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.1);
+}
+
+.activityContent {
+  flex: 1;
+}
+
+.activityContent p {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--color-text-main);
+  line-height: 1.4;
+}
+
+.activityTime {
+  font-size: 11px;
+  color: var(--color-text-muted);
 }
 
 .noteCard {
@@ -1412,6 +1679,17 @@
   flex-shrink: 0;
 }
 
+.emptyActivity {
+  text-align: center;
+  padding: 24px 0;
+  color: var(--color-text-muted);
+}
+
+.emptyActivityIcon {
+  opacity: 0.3;
+  margin-bottom: 8px;
+}
+
 /* ── Shortcuts Footer ──────────────────────────────── */
 .shortcutsFooter {
   display: flex;
@@ -1452,7 +1730,20 @@
   color: var(--color-text-muted);
 }
 
-/* ── Responsive: Hero & Cards ─────────────────────── */
+/* ── Responsive: Hero & Hub ─────────────────────── */
+@media (max-width: 900px) {
+  .hubGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .hubSidebar {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--glass-border);
+    padding-top: 32px;
+  }
+}
+
 @media (max-width: 768px) {
   .heroTitle {
     font-size: 30px;
@@ -1463,11 +1754,11 @@
     margin-bottom: 40px;
   }
 
-  .cardGrid {
+  .tutorialGrid {
     grid-template-columns: 1fr;
   }
 
-  .noteGrid {
+  .templateGrid {
     grid-template-columns: 1fr;
   }
 
