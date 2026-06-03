@@ -6,6 +6,7 @@ import { fileSystemStorage } from '../../services/FileSystemStorage';
 import { saveCanvasToCloud } from '../../services/cloudSync';
 import { useAuth } from '../auth/useAuth';
 import { SignInPanel } from '../auth/SignInPanel';
+import { CloudLoadModal } from '../canvas/CloudLoadModal';
 import styles from './StorageControls.module.css';
 
 /**
@@ -18,6 +19,7 @@ export const StorageControls: React.FC = () => {
     const setStorageStatus = useStore(s => s.setStorageStatus);
     const loadGraph = useStore(s => s.loadGraph);
     const { user, configured, loading: authLoading } = useAuth();
+    const workspaceId = useStore(s => s.auth.activeWorkspaceId);
 
     // Store setters for dynamic status
     const setCloudLastSaved = useStore(s => s.setCloudLastSaved);
@@ -27,14 +29,47 @@ export const StorageControls: React.FC = () => {
 
     const [isConnecting, setIsConnecting] = useState(false);
     const [isSavingCloud, setIsSavingCloud] = useState(false);
+    
     const [showAuthPopover, setShowAuthPopover] = useState(false);
-    const popoverRef = useRef<HTMLDivElement>(null);
+    const authPopoverRef = useRef<HTMLDivElement>(null);
 
-    // Close the popover when clicking outside.
+    const [showCloudPopover, setShowCloudPopover] = useState(false);
+    const cloudPopoverRef = useRef<HTMLDivElement>(null);
+    const [loadModalOpen, setLoadModalOpen] = useState(false);
+
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
+    
+    // Autosync logic
+    const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useState(
+        () => localStorage.getItem(`chnk-it-cloud-autosync-${workspaceId || 'default'}`) === 'true'
+    );
+    const autoSaveTimerRef = useRef<number | null>(null);
+
+    // Backup restore logic
+    const [hasCloudBackup, setHasCloudBackup] = useState(
+        () => localStorage.getItem('chnk-it-cloud-reload-backup') !== null
+    );
+
+    useEffect(() => {
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
+
+    useEffect(() => {
+        setIsAutoSyncEnabled(localStorage.getItem(`chnk-it-cloud-autosync-${workspaceId || 'default'}`) === 'true');
+    }, [workspaceId]);
+
+    // Close the auth popover when clicking outside.
     useEffect(() => {
         if (!showAuthPopover) return;
         const onDocClick = (e: MouseEvent) => {
-            if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+            if (authPopoverRef.current && !authPopoverRef.current.contains(e.target as Node)) {
                 setShowAuthPopover(false);
             }
         };
@@ -42,19 +77,29 @@ export const StorageControls: React.FC = () => {
         return () => document.removeEventListener('mousedown', onDocClick);
     }, [showAuthPopover]);
 
+    // Close the cloud popover when clicking outside.
+    useEffect(() => {
+        if (!showCloudPopover) return;
+        const onDocClick = (e: MouseEvent) => {
+            if (cloudPopoverRef.current && !cloudPopoverRef.current.contains(e.target as Node)) {
+                setShowCloudPopover(false);
+            }
+        };
+        document.addEventListener('mousedown', onDocClick);
+        return () => document.removeEventListener('mousedown', onDocClick);
+    }, [showCloudPopover]);
+
     const activeKind = storage.isConnected ? getActiveBackendKind() : null;
 
     const runConnect = useCallback(async (kind: 'filesystem', forceNew = false) => {
         setIsConnecting(true);
         if (setLocalError) setLocalError(null);
         try {
-            // If forcing a new folder, clear the stored handle and disconnect first
             if (forceNew) {
                 await fileSystemStorage.clearStoredHandle();
                 await disconnectBackend(setStorageStatus);
             }
 
-            // If currently connected to supabase (legacy), disconnect first.
             if (storage.isConnected && activeKind && activeKind !== kind) {
                 await disconnectBackend(setStorageStatus);
             }
@@ -84,21 +129,26 @@ export const StorageControls: React.FC = () => {
         void runConnect('filesystem', alreadySaved);
     }, [runConnect]);
 
-    const handleCloudClick = useCallback(async () => {
+    const performCloudSave = useCallback(async () => {
+        if (!isOnline) {
+            if (setCloudError) setCloudError("You're offline. Connect to the internet to sync.");
+            return;
+        }
         if (!configured) {
             if (setCloudError) setCloudError('Supabase is not configured. Check environmental variables.');
             return;
         }
-        if (!user) {
-            setShowAuthPopover(v => !v);
-            return;
+        if (!user || !workspaceId) return;
+
+        if (!isAutoSyncEnabled) {
+            setIsAutoSyncEnabled(true);
+            localStorage.setItem(`chnk-it-cloud-autosync-${workspaceId}`, 'true');
         }
 
         setIsSavingCloud(true);
         if (setCloudError) setCloudError(null);
         try {
             const { nodes, edges } = useStore.getState();
-            const workspaceId = useStore.getState().auth.activeWorkspaceId;
             const result = await saveCanvasToCloud(user.id, workspaceId, nodes, edges);
             if (result.ok) {
                 const timeStr = new Date().toLocaleTimeString();
@@ -114,7 +164,60 @@ export const StorageControls: React.FC = () => {
         } finally {
             setIsSavingCloud(false);
         }
-    }, [configured, user, setCloudLastSaved, setCloudDirty, setCloudError]);
+    }, [isOnline, configured, user, workspaceId, isAutoSyncEnabled, setCloudLastSaved, setCloudDirty, setCloudError]);
+
+    const handleCloudClick = useCallback(() => {
+        if (!configured) {
+            if (setCloudError) setCloudError('Supabase is not configured. Check environmental variables.');
+            return;
+        }
+        if (!user) {
+            setShowAuthPopover(v => !v);
+            return;
+        }
+        setShowCloudPopover(v => !v);
+    }, [configured, user, setCloudError]);
+
+    const handleRestoreBackup = useCallback(() => {
+        try {
+            const raw = localStorage.getItem('chnk-it-cloud-reload-backup');
+            if (!raw) return;
+            const backup = JSON.parse(raw);
+            if (!backup.nodes || !backup.edges) return;
+            const confirmed = window.confirm(
+                `Restore canvas from backup saved at ${new Date(backup.timestamp).toLocaleString()}?`
+            );
+            if (!confirmed) return;
+            loadGraph(backup.nodes, backup.edges);
+            localStorage.removeItem('chnk-it-cloud-reload-backup');
+            setHasCloudBackup(false);
+            setShowCloudPopover(false);
+        } catch {
+            localStorage.removeItem('chnk-it-cloud-reload-backup');
+            setHasCloudBackup(false);
+        }
+    }, [loadGraph]);
+
+    useEffect(() => {
+        if (autoSaveTimerRef.current) {
+            window.clearTimeout(autoSaveTimerRef.current);
+            autoSaveTimerRef.current = null;
+        }
+        if (!isAutoSyncEnabled || !storage.isCloudDirty || !isOnline || !configured || !user || !workspaceId) {
+            return;
+        }
+
+        autoSaveTimerRef.current = window.setTimeout(() => {
+            void performCloudSave();
+        }, 1200);
+
+        return () => {
+            if (autoSaveTimerRef.current) {
+                window.clearTimeout(autoSaveTimerRef.current);
+                autoSaveTimerRef.current = null;
+            }
+        };
+    }, [isAutoSyncEnabled, storage.isCloudDirty, isOnline, configured, user, workspaceId, performCloudSave]);
 
     // Local folder button state
     const localStatus = 
@@ -150,9 +253,9 @@ export const StorageControls: React.FC = () => {
         : !user ? 'Sign in to connect & save to cloud'
         : isSavingCloud ? 'Saving to cloud...'
         : cloudStatus === 'error' ? `Cloud Sync Error: ${storage.cloudError}`
-        : cloudStatus === 'not-synced' ? `Cloud Save: Unsynced changes exist! Click to save (Last synced: ${storage.cloudLastSaved || 'Never'})`
+        : cloudStatus === 'not-synced' ? `Cloud Save: Unsynced changes exist! (Last synced: ${storage.cloudLastSaved || 'Never'})`
         : cloudStatus === 'synced' ? `Cloud Save: Synced to cloud (Last synced: ${storage.cloudLastSaved})`
-        : 'Never saved to cloud. Click to save snapshot.';
+        : 'Cloud Sync Menu';
 
     const localClassName = `${styles.iconBtn} ` + (
         isConnecting ? styles.saving :
@@ -192,7 +295,7 @@ export const StorageControls: React.FC = () => {
 
             {showAuthPopover && (
                 <div
-                    ref={popoverRef}
+                    ref={authPopoverRef}
                     style={{
                         position: 'absolute',
                         top: 'calc(100% + 8px)',
@@ -212,6 +315,70 @@ export const StorageControls: React.FC = () => {
                     />
                 </div>
             )}
+
+            {showCloudPopover && (
+                <div
+                    ref={cloudPopoverRef}
+                    style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 8px)',
+                        right: 0,
+                        background: 'var(--bg-panel, #1e1e1e)',
+                        border: '1px solid var(--glass-border, rgba(255, 255, 255, 0.1))',
+                        borderRadius: 8,
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                        zIndex: 1000,
+                        padding: '12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                        minWidth: '200px',
+                        color: 'var(--color-text, #fff)'
+                    }}
+                >
+                    <button 
+                        style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid rgba(139, 92, 246, 0.5)', background: 'rgba(139, 92, 246, 0.15)', color: 'var(--color-primary-light, #c4b5fd)', cursor: 'pointer', textAlign: 'left', fontWeight: 'bold' }}
+                        onClick={() => { performCloudSave(); setShowCloudPopover(false); }}
+                    >
+                        Save to Cloud
+                    </button>
+                    <button 
+                        style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--glass-border, rgba(255, 255, 255, 0.1))', background: 'transparent', color: 'var(--color-text, #fff)', cursor: 'pointer', textAlign: 'left' }}
+                        onClick={() => { setLoadModalOpen(true); setShowCloudPopover(false); }}
+                    >
+                        Reload Saved Data
+                    </button>
+                    {hasCloudBackup && (
+                        <button 
+                            style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.5)', background: 'rgba(245, 158, 11, 0.15)', color: 'var(--color-warning-light, #fcd34d)', cursor: 'pointer', textAlign: 'left' }}
+                            onClick={handleRestoreBackup}
+                        >
+                            Restore Backup
+                        </button>
+                    )}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 4px', fontSize: '0.9em', cursor: 'pointer' }}>
+                        <input 
+                            type="checkbox" 
+                            checked={isAutoSyncEnabled} 
+                            onChange={(e) => {
+                                setIsAutoSyncEnabled(e.target.checked);
+                                if (workspaceId) {
+                                    localStorage.setItem(`chnk-it-cloud-autosync-${workspaceId}`, e.target.checked ? 'true' : 'false');
+                                }
+                            }} 
+                        />
+                        Auto-sync to cloud
+                    </label>
+                </div>
+            )}
+
+            <CloudLoadModal
+                open={loadModalOpen}
+                onClose={() => setLoadModalOpen(false)}
+                onLoaded={(counts) => {
+                    setHasCloudBackup(localStorage.getItem('chnk-it-cloud-reload-backup') !== null);
+                }}
+            />
         </div>
     );
 };

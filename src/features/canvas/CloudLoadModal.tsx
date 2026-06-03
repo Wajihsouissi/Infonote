@@ -12,6 +12,7 @@
  * no mock, no fake delays.
  */
 import React, { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
     X,
     CloudDownload,
@@ -200,7 +201,7 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
         metadata && metadata.nodeCount === 0 && metadata.edgeCount === 0,
     );
 
-    return (
+    const modalContent = (
         <div style={overlay} role="dialog" aria-modal="true" aria-label="Load saved cloud data">
             <div style={modal} onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
@@ -351,6 +352,8 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
             </div>
         </div>
     );
+
+    return createPortal(modalContent, document.body);
 };
 
 /** Compact stat tile used at the top of the modal body. */

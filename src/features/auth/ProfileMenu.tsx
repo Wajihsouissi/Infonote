@@ -1,21 +1,16 @@
 /**
  * ProfileMenu — authenticated user avatar + dropdown.
- *
- * Reads identity exclusively from the global Zustand auth slice (which is
- * hydrated from the live Supabase session by AuthProvider). Sign out runs
- * the real `supabase.auth.signOut()` call via AuthProvider, which also
- * resets the store and redirects to the public landing context.
+ * Rewritten for maximum robustness. Uses a transparent fixed overlay
+ * to handle outside clicks securely.
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { LogOut, User as UserIcon, Layout } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { useAuth } from './useAuth';
 import styles from './ProfileMenu.module.css';
 
 type ProfileMenuProps = {
-    /** Show the inline greeting next to the avatar. Default true. */
     showGreeting?: boolean;
-    /** Optional secondary action; if omitted, only the sign-out item is shown. */
     onOpenCanvas?: () => void;
 };
 
@@ -33,7 +28,6 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
     const { signOut } = useAuth();
     const [open, setOpen] = useState(false);
     const [isSigningOut, setIsSigningOut] = useState(false);
-    const wrapperRef = useRef<HTMLDivElement | null>(null);
 
     const displayLabel = useMemo(() => {
         return auth.displayName || auth.email || 'Account';
@@ -44,24 +38,6 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
         [auth.displayName, auth.email]
     );
 
-    // Close on outside click / Escape — keeps the dropdown well-behaved.
-    useEffect(() => {
-        if (!open) return;
-        const handleClick = (e: MouseEvent) => {
-            if (!wrapperRef.current) return;
-            if (!wrapperRef.current.contains(e.target as Node)) setOpen(false);
-        };
-        const handleKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') setOpen(false);
-        };
-        document.addEventListener('mousedown', handleClick);
-        document.addEventListener('keydown', handleKey);
-        return () => {
-            document.removeEventListener('mousedown', handleClick);
-            document.removeEventListener('keydown', handleKey);
-        };
-    }, [open]);
-
     const handleSignOut = useCallback(async () => {
         if (isSigningOut) return;
         setIsSigningOut(true);
@@ -69,8 +45,6 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
         try {
             await signOut();
         } finally {
-            // Safety fallback: ensure the URL and view reset even if the context
-            // cleanup is interrupted by the browser.
             window.history.replaceState({}, '', '/');
             useStore.getState().setCurrentView('marketing');
             setIsSigningOut(false);
@@ -86,7 +60,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
     if (!auth.isAuthenticated) return null;
 
     return (
-        <div ref={wrapperRef} className={styles.wrapper}>
+        <div className={styles.wrapper}>
             {showGreeting && (
                 <span className={styles.greeting}>
                     Welcome back, {displayLabel}
@@ -104,68 +78,74 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ showGreeting = true, o
             </button>
 
             {open && (
-                <div role="menu" className={styles.dropdown}>
-                    <div className={styles.profileHeader}>
-                        <span className={styles.profileName}>
-                            {auth.displayName || 'Signed in'}
-                        </span>
-                        {auth.email && (
-                            <span className={styles.profileEmail}>{auth.email}</span>
-                        )}
-                    </div>
-
-                    <button
-                        type="button"
-                        role="menuitem"
-                        className={styles.menuItem}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            navigateTo('/profile', 'profile');
-                        }}
-                    >
-                        <UserIcon size={15} />
-                        <span>Profile</span>
-                    </button>
-
-
-                    <button
-                        type="button"
-                        role="menuitem"
-                        className={styles.menuItem}
+                <>
+                    {/* Robust click-outside overlay */}
+                    <div 
+                        className={styles.overlay} 
                         onClick={(e) => {
                             e.stopPropagation();
                             setOpen(false);
-                            window.history.pushState({}, '', '/canvas');
-                            if (onOpenCanvas) {
-                                onOpenCanvas();
-                            } else {
-                                useStore.getState().setCurrentView('canvas');
-                            }
-                        }}
-                    >
-                        <Layout size={15} />
-                        <span>Open Canvas</span>
-                    </button>
+                        }} 
+                        aria-hidden="true" 
+                    />
+                    
+                    <div role="menu" className={styles.dropdown}>
+                        <div className={styles.profileHeader}>
+                            <span className={styles.profileName}>
+                                {auth.displayName || 'Signed in'}
+                            </span>
+                            {auth.email && (
+                                <span className={styles.profileEmail}>{auth.email}</span>
+                            )}
+                        </div>
 
-                    <button
-                        type="button"
-                        role="menuitem"
-                        className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                        disabled={isSigningOut}
-                        onPointerDown={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            void handleSignOut();
-                        }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            void handleSignOut();
-                        }}
-                    >
-                        <LogOut size={15} />
-                        <span>{isSigningOut ? 'Logging out...' : 'Log out'}</span>
-                    </button>
-                </div>
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className={styles.menuItem}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                navigateTo('/profile', 'profile');
+                            }}
+                        >
+                            <UserIcon size={15} />
+                            <span>Profile</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className={styles.menuItem}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setOpen(false);
+                                window.history.pushState({}, '', '/canvas');
+                                if (onOpenCanvas) {
+                                    onOpenCanvas();
+                                } else {
+                                    useStore.getState().setCurrentView('canvas');
+                                }
+                            }}
+                        >
+                            <Layout size={15} />
+                            <span>Open Canvas</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className={`${styles.menuItem} ${styles.menuItemDanger}`}
+                            disabled={isSigningOut}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                void handleSignOut();
+                            }}
+                        >
+                            <LogOut size={15} />
+                            <span>{isSigningOut ? 'Logging out...' : 'Log out'}</span>
+                        </button>
+                    </div>
+                </>
             )}
         </div>
     );

@@ -29,7 +29,7 @@ import { ModifierKeyIndicator } from '../ui/ModifierKeyIndicator';
 import { KanbanNodeComponent } from '../kanban/KanbanNode';
 import { CanvasSlashMenu } from './CanvasSlashMenu';
 import { CanvasContextMenu } from './CanvasContextMenu';
-import { CloudSyncControls } from './CloudSyncControls';
+
 import { CenteredEdge } from './CenteredEdge';
 import { CustomConnectionLine } from './CustomConnectionLine';
 import { CustomGrid } from './CustomGrid';
@@ -1087,7 +1087,7 @@ export function CanvasBoard() {
                     <CanvasSlashMenu />
                     <CustomGrid />
                     <Panel position="top-center">
-                        <CloudSyncControls />
+
                     </Panel>
                     <Panel position="bottom-right" className={styles.bottomRightControls}>
                         <MiniMap

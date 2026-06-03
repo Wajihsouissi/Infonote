@@ -11,8 +11,8 @@ export const CustomGrid = memo(() => {
     const { x, y, zoom } = useViewport();
     
     const scaledGap = BASE_UNIT * zoom;
-    const scaledSize = 1.5 * zoom; // Smaller dots for a softer look
-    
+    const scaledSize = 2 * zoom; // Slightly larger dots for better visibility
+
     // Calculate precise modulo offset
     const offsetX = x % scaledGap;
     const offsetY = y % scaledGap;
@@ -42,7 +42,7 @@ export const CustomGrid = memo(() => {
                 height: '100%',
                 pointerEvents: 'none',
                 zIndex: -1,
-                opacity: 0.25 // Reduced opacity for a softer appearance
+                opacity: 0.45 // Increased opacity to make grid points more visible but not too harsh
             }}
         >
             <pattern

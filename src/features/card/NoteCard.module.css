@@ -1245,8 +1245,7 @@
 /* Floating Hover Menu */
 .hoverMenu {
     position: absolute;
-    top: -44px;
-    /* Float above the card */
+    top: -46px;
     left: 50%;
     transform: translateX(-50%) translateY(10px);
     background: var(--glass-bg);
@@ -1254,17 +1253,44 @@
     -webkit-backdrop-filter: blur(var(--backdrop-blur));
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
-    border-radius: 99px;
-    /* Capsule shape */
-    padding: 4px 8px;
+    border-radius: 12px;
+    padding: 4px 6px;
     display: flex;
     align-items: center;
     gap: 4px;
     height: 40px;
     opacity: 0;
     pointer-events: none;
-    transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
     z-index: 2000;
+}
+
+.menuDivider {
+    width: 1px;
+    height: 20px;
+    background: var(--glass-border);
+    margin: 0 4px;
+}
+
+.neonOpenBtn {
+    background: linear-gradient(135deg, var(--color-primary, #8b5cf6), #6366f1) !important;
+    color: white !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    width: 32px !important;
+    height: 32px !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.neonOpenBtn:hover {
+    transform: translateY(-1px) scale(1.05) !important;
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.2) !important;
+    filter: brightness(1.1);
 }
 
 /* Invisible bridge to prevent menu from closing when moving mouse between card and menu */
