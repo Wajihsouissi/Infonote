@@ -283,7 +283,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                 height: '100%',
                 // Ensure the card fills the resized node area
                 boxSizing: 'border-box',
-                backgroundColor: displayColor || undefined,
+                backgroundColor: viewMode !== 'expanded' ? (displayColor || undefined) : undefined,
                 ...dynamicStyles
             }}
         >

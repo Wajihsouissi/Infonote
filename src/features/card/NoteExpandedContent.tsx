@@ -8,7 +8,7 @@ import { defaultIconName, CardIcon } from './iconMap';
 import type { NoteNode } from '../../types';
 import { useStore } from '../../store/useStore';
 import { CoverPicker } from './CoverPicker';
-import { lightenColor, darkenColor } from '../../utils/colorUtils';
+import { lightenColor, darkenColor, toPastelColor } from '../../utils/colorUtils';
 import { SkeletonLoader } from './SkeletonLoader';
 
 // Extracted components and hooks
@@ -47,6 +47,9 @@ export function NoteExpandedContent({
     const setShowMetadata = useCallback((show: boolean) => {
         onUpdate(id, { showMetadata: show });
     }, [id, onUpdate]);
+
+    const theme = useStore(s => s.theme);
+    const displayColor = data.color ? toPastelColor(data.color, theme === 'light') : undefined;
 
     // Lazy rendering hook
     const { hasRendered, containerRef } = useLazyRender();
@@ -152,64 +155,69 @@ export function NoteExpandedContent({
     // Dynamic color styles
     const dynamicStyles = useMemo(() => {
         if (!data.color) return {};
-        const noteAreaBg = lightenColor(data.color, 70); // Very light pastel for note area
-        const tableSurface = lightenColor(data.color, 84);
-        const tableHeaderSurface = lightenColor(data.color, 78);
-        const tableHoverSurface = lightenColor(data.color, 81);
-        const tableFocusSurface = lightenColor(data.color, 74);
         const tableBorderColor = darkenColor(data.color, 55);
         return {
-            '--color-text-main': '#1f2937',
-            '--color-text-muted': '#6b7280',
-            '--color-border': 'rgba(0,0,0,0.2)',
             '--glass-border': `${tableBorderColor}33`,
-            caretColor: '#1f2937',
             '--note-bg-dynamic': data.color,
-            '--note-area-bg': noteAreaBg,
-            '--table-bg': `${tableSurface}cc`,
-            '--table-header-bg': `${tableHeaderSurface}ff`,
-            '--table-row-hover-bg': `${tableHoverSurface}cc`,
-            '--table-cell-focus-bg': `${tableFocusSurface}cc`,
-            '--table-controls-bg': `${tableSurface}e6`,
-            '--table-btn-hover-bg': `${tableHeaderSurface}cc`,
-            '--table-border': `${tableBorderColor}33`,
-            '--table-border-strong': `${tableBorderColor}55`,
-            '--table-focus-ring': `${tableBorderColor}80`,
-            '--link-bg': `${tableBorderColor}15`,
-            '--link-bg-hover': `${tableBorderColor}25`,
-            '--link-border': `${tableBorderColor}25`,
-            '--link-border-hover': `${tableBorderColor}40`,
-            '--link-shadow': `${tableBorderColor}1a`,
         } as React.CSSProperties;
     }, [data.color]);
 
     const headerStyle = useMemo(() => {
-        if (!data.color) return {};
-        const bg = lightenColor(data.color, 15);
-        const darkText = darkenColor(data.color, 50); // Dark shade for icons/labels
-        const mutedText = darkenColor(data.color, 35); // Slightly lighter for muted text
-        const activeBg = lightenColor(data.color, 40); // Lighter background for active state
-        const btnBg = darkenColor(data.color, 15); // Slightly darker background for buttons
+        if (!displayColor) return {};
+        const bg = displayColor;
+        const darkText = darkenColor(displayColor, 80); // Dark shade for icons/labels
+        const mutedText = darkenColor(displayColor, 65); // Slightly lighter for muted text
+        const activeBg = darkenColor(displayColor, 15); // Darker background for active state
         return {
             backgroundColor: bg,
             color: darkText,
             caretColor: darkText,
             '--color-text-main': darkText,
             '--color-text-muted': mutedText,
-            '--color-border': 'rgba(0,0,0,0.2)',
+            '--color-border': 'rgba(0,0,0,0.1)',
             // Control button default state
-            '--control-btn-bg': `${btnBg}40`, // Semi-transparent darker shade
-            '--control-btn-border': `${darkText}50`, // Semi-transparent dark border
-            '--control-btn-shadow': '0 2px 8px rgba(0, 0, 0, 0.15)',
+            '--control-btn-bg': `transparent`,
+            '--control-btn-border': `${darkText}30`,
+            '--control-btn-shadow': 'none',
             // Control button hover state
             '--control-btn-hover-border': darkText,
             '--control-btn-hover-color': darkText,
             // Control button active state
-            '--control-btn-active-bg': activeBg,
+            '--control-btn-active-bg': `${darkText}15`,
             '--control-btn-active-border': darkText,
             '--control-btn-active-color': darkText,
         } as React.CSSProperties;
-    }, [data.color]);
+    }, [displayColor]);
+
+    const noteAreaStyles = useMemo(() => {
+        if (!data.color) return { backgroundColor: 'transparent' };
+        
+        // Reset the text colors back to the default theme so the block editor
+        // looks exactly like an uncolored card, matching global theme.
+        const isDark = theme !== 'light';
+        return {
+            backgroundColor: 'transparent',
+            boxShadow: `
+                inset 4px 0 12px -6px ${data.color}15,
+                inset -4px 0 12px -6px ${data.color}15,
+                inset 0 -6px 12px -6px ${data.color}15,
+                inset 1px 0 0 0 ${data.color}10,
+                inset -1px 0 0 0 ${data.color}10,
+                inset 0 -1px 0 0 ${data.color}10
+            `.trim().replace(/\s+/g, ' '),
+            '--color-text-main': isDark ? '#f3f4f6' : '#1f2937',
+            '--color-border': isDark ? '#333645' : '#e5e7eb',
+            '--glass-border': isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)',
+            '--icon-color': isDark ? '#f3f4f6' : '#1f2937',
+            caretColor: isDark ? '#f3f4f6' : '#1f2937',
+            // Reset links to prevent them from inheriting NoteCard tints
+            '--link-bg': 'initial',
+            '--link-bg-hover': 'initial',
+            '--link-border': 'initial',
+            '--link-border-hover': 'initial',
+            '--link-shadow': 'initial',
+        } as React.CSSProperties;
+    }, [data.color, theme]);
 
     return (
         <div
@@ -221,7 +229,7 @@ export function NoteExpandedContent({
             }}
         >
             {showMetadata ? (
-                <>
+                <div style={{ backgroundColor: displayColor || undefined, borderTopLeftRadius: flatCorners ? 0 : '12px', borderTopRightRadius: flatCorners ? 0 : '12px', flexShrink: 0 }}>
 
                     {/* Cover Section */}
                     <NoteCoverSection
@@ -261,7 +269,7 @@ export function NoteExpandedContent({
                         data={data}
                         onUpdate={(updates) => onUpdate(id, updates)}
                     />
-                </>
+                </div>
             ) : (
                 /* Minimal Header (When Hidden) */
                 <div className={`${styles.minimalHeader} custom-drag-handle`} style={{
@@ -269,7 +277,16 @@ export function NoteExpandedContent({
                     ...(flatCorners ? { borderRadius: 0 } : {})
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-                        <CardIcon icon={data.icon || defaultIconName} size={20} />
+                        <div
+                            className={`${styles.minimalIconButton} nodrag`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleIconClick(e);
+                            }}
+                            title="Change Icon"
+                        >
+                            <CardIcon icon={data.icon || defaultIconName} size={20} />
+                        </div>
                         <input
                             type="text"
                             value={editedData.label}
@@ -331,6 +348,7 @@ export function NoteExpandedContent({
             {/* Note Area */}
             <div
                 className={`${styles.noteArea} nodrag`}
+                style={noteAreaStyles}
                 onWheelCapture={(e) => e.stopPropagation()}
                 onPointerDown={(e) => {
                     e.stopPropagation();

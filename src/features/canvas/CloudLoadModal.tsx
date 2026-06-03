@@ -30,6 +30,7 @@ import {
     type CloudSnapshotMetadata,
 } from '../../services/cloudSync';
 import { useStore } from '../../store/useStore';
+import { History } from 'lucide-react';
 
 type Status =
     | { kind: 'idle' }
@@ -42,6 +43,8 @@ interface CloudLoadModalProps {
     onClose: () => void;
     /** Called on successful load with counts so caller can flash a toast. */
     onLoaded?: (counts: { nodes: number; edges: number }) => void;
+    hasCloudBackup?: boolean;
+    onRestoreBackup?: () => void;
 }
 
 function formatTimestamp(iso: string | null): string {
@@ -55,6 +58,8 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
     open,
     onClose,
     onLoaded,
+    hasCloudBackup,
+    onRestoreBackup,
 }) => {
     const userId = useStore((s) => s.auth.userId);
     const workspaceId = useStore((s) => s.auth.activeWorkspaceId);
@@ -332,6 +337,18 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
                         <span>Refresh</span>
                     </button>
                     <div style={{ flex: 1 }} />
+                    
+                    {hasCloudBackup && onRestoreBackup && (
+                        <button 
+                            type="button" 
+                            onClick={onRestoreBackup} 
+                            style={{ ...btnGhost, color: '#fcd34d', border: '1px solid rgba(252, 211, 77, 0.2)', marginRight: 8, display: 'flex', alignItems: 'center', gap: 6 }}
+                        >
+                            <History size={14} />
+                            <span>Restore Backup</span>
+                        </button>
+                    )}
+
                     <button type="button" onClick={onClose} style={btnGhost}>
                         Cancel
                     </button>

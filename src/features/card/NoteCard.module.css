@@ -1442,7 +1442,7 @@
     justify-content: space-between;
     /* Space between title and controls */
     gap: 12px;
-    padding: 12px 24px;
+    padding: 6px 20px;
     background: var(--glass-bg-hover);
     border-bottom: 1px solid var(--glass-border);
     border-radius: 12px 12px 0 0;
@@ -1617,10 +1617,25 @@
 }
 
 .iconButton:hover,
-.expandedIconButton:hover {
+.expandedIconButton:hover,
+.minimalIconButton:hover {
     border-color: var(--color-primary);
     background: rgba(139, 92, 246, 0.1);
     transform: scale(1.05);
+}
+
+.minimalIconButton {
+    background: transparent;
+    border: 1px dashed transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--color-text-main);
+    padding: 2px;
 }
 
 /* Placeholder styles */

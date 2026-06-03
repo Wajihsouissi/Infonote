@@ -13,6 +13,7 @@ import { useStore } from '../store/useStore';
 let isInitialized = false;
 let saveTimeout: number | null = null;
 let isRestoring = false;
+let autoReconnectPromise: Promise<void> | null = null;
 
 let activeBackend: GraphBackend = fileSystemBackend;
 
@@ -47,7 +48,7 @@ export function initStorageManager(
 
     // Auto-reconnect the file-system backend on startup (Supabase cloud mode
     // requires an explicit sign-in + connect click).
-    autoReconnect();
+    autoReconnectPromise = autoReconnect();
 
     // Subscribe to store changes for auto-save.
     subscribe(
@@ -123,6 +124,10 @@ async function autoReconnect(): Promise<void> {
     }
 }
 
+export function getAutoReconnectPromise(): Promise<void> {
+    return autoReconnectPromise || Promise.resolve();
+}
+
 async function performSave(): Promise<void> {
     if (!storeCallbacks || !activeBackend.isConnected) return;
 
@@ -183,6 +188,7 @@ export async function connectBackend(
         getState: () => { nodes: any[]; edges: any[] };
         loadGraph: (nodes: any[], edges: any[]) => void;
         setStorageStatus: (connected: boolean, dirName: string | null) => void;
+        mode?: 'load' | 'save';
     }
 ): Promise<{ success: boolean; error?: string }> {
     if (kind !== 'filesystem') {
@@ -203,9 +209,23 @@ export async function connectBackend(
         }
         activeBackend = backend;
 
+        const state = useStore.getState();
+
+        if (ctx.mode === 'save') {
+            // Force save the current state without loading
+            const currentState = ctx.getState();
+            await backend.save({ nodes: currentState.nodes, edges: currentState.edges });
+            const timeStr = new Date().toLocaleTimeString();
+            
+            if (state.setLocalLastSaved) state.setLocalLastSaved(timeStr);
+            if (state.setLocalDirty) state.setLocalDirty(false);
+            if (state.setLocalError) state.setLocalError(null);
+            ctx.setStorageStatus(true, backend.displayName ?? 'Local Folder');
+            return { success: true };
+        }
+
         const data = await backend.load();
         const timeStr = new Date().toLocaleTimeString();
-        const state = useStore.getState();
 
         if (data && data.nodes.length > 0) {
             isRestoring = true;
