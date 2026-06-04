@@ -1310,34 +1310,82 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         }
 
         const positions = new Map<string, {x: number, y: number}>();
-        let currentY = startY;
+        
+        const MAX_ITEMS_PER_ROW = 4;
 
-        const layoutSubtree = (node: Chunk, x: number, y: number): number => {
-            positions.set(node.id, { x: snapToGridValue(x), y: snapToGridValue(y) });
-            
+        const layoutSubtree = (node: Chunk, x: number, y: number): { w: number, h: number } => {
             const nodeChildren = childrenMap.get(node.id) || [];
             const nodeH = node.type === 'block' ? getNodeStyle(node.blocks[0]).height : getFusedNoteStyle(node.blocks).height;
+            const nodeW = node.type === 'block' ? getNodeStyle(node.blocks[0]).width : MIN_FUSED_SIZE;
             
             if (nodeChildren.length === 0) {
-                return nodeH + VERTICAL_SPACING;
+                positions.set(node.id, { x: snapToGridValue(x), y: snapToGridValue(y) });
+                return { w: nodeW + HORIZONTAL_SPACING, h: nodeH + VERTICAL_SPACING };
             }
 
-            let childY = y;
-            let totalHeight = 0;
-            const nodeW = node.type === 'block' ? getNodeStyle(node.blocks[0]).width : MIN_FUSED_SIZE;
-
+            const rows: { children: Chunk[], h: number, w: number }[] = [];
+            let currentRow: Chunk[] = [];
+            
             nodeChildren.forEach(child => {
-                const childHeight = layoutSubtree(child, x + nodeW + HORIZONTAL_SPACING, childY);
-                childY += childHeight;
-                totalHeight += childHeight;
+                if (currentRow.length >= MAX_ITEMS_PER_ROW) {
+                    rows.push({ children: currentRow, h: 0, w: 0 });
+                    currentRow = [];
+                }
+                currentRow.push(child);
+            });
+            if (currentRow.length > 0) {
+                rows.push({ children: currentRow, h: 0, w: 0 });
+            }
+
+            let childY = y + nodeH + VERTICAL_SPACING;
+            let maxTotalWidth = 0;
+
+            rows.forEach(row => {
+                let childX = x;
+                let rowWidth = 0;
+                let rowHeight = 0;
+
+                row.children.forEach(child => {
+                    const childDim = layoutSubtree(child, childX, childY);
+                    childX += childDim.w;
+                    rowWidth += childDim.w;
+                    if (childDim.h > rowHeight) rowHeight = childDim.h;
+                });
+
+                row.w = rowWidth;
+                row.h = rowHeight;
+                
+                childY += rowHeight;
+                if (rowWidth > maxTotalWidth) maxTotalWidth = rowWidth;
             });
             
-            return Math.max(totalHeight, nodeH + VERTICAL_SPACING);
+            const actualTotalWidth = maxTotalWidth > 0 ? maxTotalWidth - HORIZONTAL_SPACING : 0;
+            const parentX = x + actualTotalWidth / 2 - nodeW / 2;
+            
+            positions.set(node.id, { x: snapToGridValue(parentX), y: snapToGridValue(y) });
+            
+            return {
+                w: Math.max(nodeW + HORIZONTAL_SPACING, maxTotalWidth),
+                h: childY - y
+            };
         };
 
+        let currentX = startX;
+        let currentY = startY;
+        let itemsInRow = 0;
+        let maxRowHeight = 0;
+
         roots.forEach(root => {
-            const h = layoutSubtree(root, startX, currentY);
-            currentY += h + VERTICAL_SPACING;
+            if (itemsInRow >= MAX_ITEMS_PER_ROW) {
+                currentX = startX;
+                currentY += maxRowHeight;
+                maxRowHeight = 0;
+                itemsInRow = 0;
+            }
+            const dim = layoutSubtree(root, currentX, currentY);
+            currentX += dim.w;
+            if (dim.h > maxRowHeight) maxRowHeight = dim.h;
+            itemsInRow++;
         });
 
         // --- Creation of Nodes and Edges ---
@@ -1361,13 +1409,17 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         const newEdges: Edge[] = [];
         validChunks.forEach(chunk => {
             if (chunk.sourceId) {
-                newEdges.push({
-                    id: uuidv4(),
-                    source: chunk.sourceId,
-                    target: chunk.id,
-                    type: 'centered',
-                    data: { parentId: nodeId } // Scope edge to this canvas
-                } as Edge);
+                const sourceChunk = validChunks.find(c => c.id === chunk.sourceId);
+                // Keep only connections between a fused-note and their single blocks
+                if (sourceChunk && sourceChunk.type === 'fused-note' && chunk.type === 'block') {
+                    newEdges.push({
+                        id: uuidv4(),
+                        source: chunk.sourceId,
+                        target: chunk.id,
+                        type: 'centered',
+                        data: { parentId: nodeId } // Scope edge to this canvas
+                    } as Edge);
+                }
             }
         });
 

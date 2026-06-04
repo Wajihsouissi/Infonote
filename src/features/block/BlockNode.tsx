@@ -3,6 +3,7 @@ import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@
 import { StickyNote, Copy, Check, Loader2 } from 'lucide-react';
 import { BlockEditor } from '../editor/BlockEditor';
 import { ColorBlockModal } from '../editor/ColorBlockModal';
+import { ConvertCardModal, type ConvertCardResult } from '../card/ConvertCardModal';
 
 import { useStore } from '../../store/useStore';
 
@@ -28,6 +29,8 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const [isHoveredLinking, setIsHoveredLinking] = useState(false);
     const [isHoveredColorBlock, setIsHoveredColorBlock] = useState(false);
     const [colorModalOpen, setColorModalOpen] = useState(false);
+    const [convertModalOpen, setConvertModalOpen] = useState(false);
+    const [convertInitialTitle, setConvertInitialTitle] = useState('');
     const [copiedHex, setCopiedHex] = useState(false);
     const colorOriginalRef = useRef<string>('');
 
@@ -107,37 +110,51 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const handleConvertToCard = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
 
+        const { nodes } = useStore.getState();
+        const thisNode = nodes.find(n => n.id === id);
+        if (!thisNode) return;
+
+        setConvertInitialTitle('');
+        setConvertModalOpen(true);
+    }, [id]);
+
+    const confirmConvertToCard = useCallback((result: ConvertCardResult) => {
+        setConvertModalOpen(false);
+        
         const { nodes, setNodes } = useStore.getState();
         const thisNode = nodes.find(n => n.id === id);
         if (!thisNode) return;
 
-        const blockColor = (thisNode.data as any).color;
-        const blockContent = (thisNode.data as any).content;
-        
-        let label = 'Created Note';
-        if (Array.isArray(blockContent) && blockContent[0]?.content && typeof blockContent[0].content === 'string') {
-            const stripped = blockContent[0].content.replace(/<[^>]+>/g, '').trim();
-            if (stripped) label = stripped;
-        }
-
         setNodes((currentNodes) => currentNodes.map(n => {
             if (n.id === id) {
+                let width = 432;
+                let height = 432;
+                
+                if (result.viewMode === 'icon') {
+                    width = 96; height = 96;
+                } else if (result.viewMode === 'titleview') {
+                    width = 208; height = 56;
+                } else if (result.viewMode === 'medium') {
+                    width = 208; height = 208;
+                }
+
                 return {
                     ...n,
                     type: 'note',
                     data: {
-                        label,
-                        viewMode: 'titleview',
-                        content: blockContent,
+                        label: result.title,
+                        viewMode: result.viewMode,
+                        content: result.content,
                         description: '',
                         date: new Date().toISOString(),
-                        color: blockColor,
-                        showMetadata: false
+                        color: result.color,
+                        tags: result.tags,
+                        showMetadata: result.tags.length > 0
                     },
                     style: {
                         ...n.style,
-                        width: 208,
-                        height: 56,
+                        width,
+                        height,
                     }
                 } as any;
             }
@@ -277,6 +294,16 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                         updateNodeData(id, { content: newBlocks });
                     }}
                     onClose={() => setColorModalOpen(false)}
+                />
+            )}
+
+            {convertModalOpen && (
+                <ConvertCardModal
+                    initialTitle={convertInitialTitle}
+                    initialColor={(data as any).color}
+                    content={data.content as any[]}
+                    onConfirm={confirmConvertToCard}
+                    onClose={() => setConvertModalOpen(false)}
                 />
             )}
 

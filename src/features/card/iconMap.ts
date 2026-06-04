@@ -292,6 +292,23 @@ export function CardIcon({ icon, size = 20, className, style }: CardIconProps) {
         });
     }
 
+    if (icon && icon.startsWith('emoji::')) {
+        const emojiStr = icon.replace('emoji::', '');
+        return React.createElement('span', {
+            className,
+            style: {
+                fontSize: `${size * 0.9}px`,
+                lineHeight: 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: `${size}px`,
+                height: `${size}px`,
+                ...style
+            }
+        }, emojiStr);
+    }
+
     let iconName = icon || defaultIconName;
     let customColor: string | null = null;
     

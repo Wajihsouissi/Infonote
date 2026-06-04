@@ -2,6 +2,7 @@ import { memo, useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
 import { StickyNote } from 'lucide-react';
 import { BlockEditor } from '../editor/BlockEditor';
+import { ConvertCardModal, type ConvertCardResult } from '../card/ConvertCardModal';
 
 import { useStore } from '../../store/useStore';
 import type { Node } from '@xyflow/react';
@@ -39,6 +40,8 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     // Track fusion event for animation
     const [isFusing, setIsFusing] = useState(false);
     const [isHoveredLinking, setIsHoveredLinking] = useState(false);
+    const [convertModalOpen, setConvertModalOpen] = useState(false);
+    const [convertInitialTitle, setConvertInitialTitle] = useState('');
     const lastFusedTimeRef = useRef(data.lastFusedAt || 0);
 
     useEffect(() => {
@@ -125,6 +128,16 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     const handleConvertToCard = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
 
+        const { nodes } = useStore.getState();
+        const thisNode = nodes.find(n => n.id === id);
+        if (!thisNode) return;
+
+        setConvertInitialTitle('');
+        setConvertModalOpen(true);
+    }, [id, data.content]);
+
+    const confirmConvertToCard = useCallback((result: ConvertCardResult) => {
+        setConvertModalOpen(false);
         const { nodes, setNodes } = useStore.getState();
         const thisNode = nodes.find(n => n.id === id);
 
@@ -133,8 +146,16 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             return;
         }
 
-        // Get color from the actual node data in store
-        const fusedNodeColor = (thisNode.data as any).color;
+        let width = MIN_EXPANDED_SIZE;
+        let height = MIN_EXPANDED_SIZE;
+        
+        if (result.viewMode === 'icon') {
+            width = 96; height = 96;
+        } else if (result.viewMode === 'titleview') {
+            width = 208; height = 56;
+        } else if (result.viewMode === 'medium') {
+            width = 208; height = 208;
+        }
 
         // If no parent, we can just transform the node type (Root Level Fused Note)
         const parentId = thisNode.parentId;
@@ -145,18 +166,19 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                         ...n,
                         type: 'note',
                         data: {
-                            label: (data.content[0]?.content) || 'Created Note',
-                            viewMode: 'expanded',
-                            content: data.content,
+                            label: result.title,
+                            viewMode: result.viewMode,
+                            content: result.content,
                             description: '',
                             date: new Date().toISOString(),
-                            color: fusedNodeColor,
-                            showMetadata: false // Default to hidden metadata
+                            color: result.color,
+                            tags: result.tags,
+                            showMetadata: result.tags.length > 0
                         },
                         style: {
                             ...n.style,
-                            width: MIN_EXPANDED_SIZE,
-                            height: MIN_EXPANDED_SIZE,
+                            width,
+                            height,
                         }
                     } as any;
                 }
@@ -189,14 +211,15 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             parentId: parentId,
             position: thisNode.position,
             data: {
-                label: myBlocks[0].content || 'New Note',
-                content: myBlocks,
-                viewMode: 'expanded',
+                label: result.title,
+                content: result.content,
+                viewMode: result.viewMode,
                 date: new Date().toISOString(),
-                color: fusedNodeColor,
-                showMetadata: false // Default to hidden metadata
+                color: result.color,
+                tags: result.tags,
+                showMetadata: result.tags.length > 0
             },
-            style: { width: MIN_EXPANDED_SIZE, height: MIN_EXPANDED_SIZE },
+            style: { width, height },
             zIndex: 10
         };
 
@@ -388,6 +411,16 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                         e.stopPropagation();
                         e.preventDefault();
                     }}
+                />
+            )}
+
+            {convertModalOpen && (
+                <ConvertCardModal
+                    initialTitle={convertInitialTitle}
+                    initialColor={data.color}
+                    content={data.content}
+                    onConfirm={confirmConvertToCard}
+                    onClose={() => setConvertModalOpen(false)}
                 />
             )}
 
