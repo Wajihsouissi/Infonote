@@ -3,6 +3,8 @@ import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
 import { useStore } from '../../store/useStore';
 
 export const EMAIL_IN_USE_MESSAGE = 'This email is already in use.';
+export const EMAIL_CONFIRMATION_ENABLED_MESSAGE =
+    'Account created, but Supabase did not start a session. Turn OFF Authentication -> Providers -> Email -> Confirm email in Supabase, then try again.';
 
 type SignUpResult = {
     user: (User & { identities?: unknown[] | null }) | null;
@@ -20,7 +22,7 @@ export function getFriendlyAuthError(error: unknown): string {
         return message;
     }
     if (lower.includes('confirm') || lower.includes('not confirmed')) {
-        return 'Your email address has not been confirmed yet. Please check your inbox and confirm your email before signing in.';
+        return EMAIL_CONFIRMATION_ENABLED_MESSAGE;
     }
     if (lower.includes('invalid') || lower.includes('credentials')) {
         return 'Invalid email or password.';

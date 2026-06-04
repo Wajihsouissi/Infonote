@@ -5,6 +5,7 @@ import { useAuth } from './useAuth';
 import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
 import {
     EMAIL_IN_USE_MESSAGE,
+    EMAIL_CONFIRMATION_ENABLED_MESSAGE,
     activateAuthenticatedSession,
     getActiveSession,
     getFriendlyAuthError,
@@ -103,21 +104,15 @@ export const AuthModal: React.FC = () => {
                 });
                 if (signUpError) throw signUpError;
                 if (isDuplicateSignupResponse(data)) throw new Error(EMAIL_IN_USE_MESSAGE);
-                // Supabase returns user even if email confirmation is required.
+                // Infonote requires immediate sessions. Supabase Email
+                // "Confirm email" must be OFF for signUp to return one.
                 let activeSession = data.session ?? await getActiveSession();
                 if (!activeSession) {
                     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
                         email,
                         password: form.password,
                     });
-                    if (signInError) {
-                        const friendly = getFriendlyAuthError(signInError);
-                        if (friendly.toLowerCase().includes('confirm')) {
-                            setSuccess('Account created. Check your inbox to confirm your email, then sign in.');
-                            return;
-                        }
-                        throw signInError;
-                    }
+                    if (signInError) throw signInError;
                     activeSession = signInData.session ?? await getActiveSession();
                 }
 
@@ -125,10 +120,8 @@ export const AuthModal: React.FC = () => {
                     await activateAuthenticatedSession(activeSession);
                     setSuccess('Account created. You are now signed in.');
                     setTimeout(() => setOpen(false), 700);
-                } else if (data.user) {
-                    setSuccess('Account created. Check your inbox to confirm your email, then sign in.');
                 } else {
-                    setSuccess('Account created.');
+                    throw new Error(EMAIL_CONFIRMATION_ENABLED_MESSAGE);
                 }
             } else {
                 const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
