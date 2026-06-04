@@ -4,6 +4,7 @@ import { supabase } from '../../services/supabase/client';
 import { useAuth } from './useAuth';
 import {
     EMAIL_IN_USE_MESSAGE,
+    EMAIL_CONFIRMATION_ENABLED_MESSAGE,
     activateAuthenticatedSession,
     getActiveSession,
     getFriendlyAuthError,
@@ -72,8 +73,7 @@ export const SignInPanel: React.FC<Props> = ({ onSignedIn, compact }) => {
                 }
 
                 if (!activeSession) {
-                    setMessage('Account created. Please confirm your email before signing in.');
-                    return;
+                    throw new Error(EMAIL_CONFIRMATION_ENABLED_MESSAGE);
                 }
 
                 await activateAuthenticatedSession(activeSession);

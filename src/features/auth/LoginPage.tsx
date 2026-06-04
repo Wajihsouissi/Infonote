@@ -11,7 +11,7 @@ import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, LogIn, Zap, GitBranch, Layers
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
 import { connectNotion } from '../../services/notion/notionImport';
-import { activateAuthenticatedSession, getActiveSession, getFriendlyAuthError, isEmailRegistered } from './authFlow';
+import { EMAIL_CONFIRMATION_ENABLED_MESSAGE, activateAuthenticatedSession, getActiveSession, getFriendlyAuthError, isEmailRegistered } from './authFlow';
 import styles from './AuthPage.module.css';
 
 export const LoginPage: React.FC = () => {
@@ -56,12 +56,12 @@ export const LoginPage: React.FC = () => {
         // Surface a friendly message for the most common case.
         const msg = signInError.message?.toLowerCase() || '';
         if (msg.includes('confirm') || msg.includes('not confirmed')) {
-          throw new Error('Your email address has not been confirmed yet. Please check your inbox and confirm your email before signing in.');
+          throw new Error(EMAIL_CONFIRMATION_ENABLED_MESSAGE);
         }
         if (msg.includes('invalid') || msg.includes('credentials')) {
           const registered = await isEmailRegistered(cleanEmail);
           if (registered) {
-            throw new Error('Invalid email or password. If you just created this account, check your inbox and confirm your email before signing in.');
+            throw new Error('Invalid email or password.');
           }
           throw new Error('Invalid email or password.');
         }

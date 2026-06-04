@@ -6,12 +6,13 @@
  * by the on-signup trigger defined in the migration.
  */
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, UserPlus, Zap, GitBranch, Layers, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, UserPlus, Zap, GitBranch, Layers, Loader2, AlertCircle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
 import { connectNotion } from '../../services/notion/notionImport';
 import {
   EMAIL_IN_USE_MESSAGE,
+  EMAIL_CONFIRMATION_ENABLED_MESSAGE,
   activateAuthenticatedSession,
   getActiveSession,
   getFriendlyAuthError,
@@ -35,12 +36,10 @@ export const SignupPage: React.FC = () => {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccess(null);
 
     if (!isSupabaseConfigured || !supabase) {
       setError('Authentication is not configured. Please contact the administrator (missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY).');
@@ -95,8 +94,8 @@ export const SignupPage: React.FC = () => {
         throw new Error(EMAIL_IN_USE_MESSAGE);
       }
 
-      // Step 2: Immediately sign in with the same credentials to get a session
-      // when the Supabase project allows email/password sessions immediately.
+      // Step 2: Immediately require a live session. Infonote does not use
+      // email confirmation, so Supabase must have Confirm email turned OFF.
       let activeSession = signUpData.session;
       activeSession = activeSession ?? await getActiveSession();
       if (!activeSession) {
@@ -106,19 +105,13 @@ export const SignupPage: React.FC = () => {
         });
 
         if (signInError) {
-          const friendly = getFriendlyAuthError(signInError);
-          if (friendly.toLowerCase().includes('confirm')) {
-            setSuccess('Account created. Please confirm your email before signing in.');
-            return;
-          }
           throw signInError;
         }
-        activeSession = signInData.session;
+        activeSession = signInData.session ?? await getActiveSession();
       }
 
       if (!activeSession) {
-        setSuccess('Account created. Please check your email to confirm your account, then sign in.');
-        return;
+        throw new Error(EMAIL_CONFIRMATION_ENABLED_MESSAGE);
       }
 
       // Step 3: Show the welcome popup and route straight into the app canvas
@@ -282,15 +275,6 @@ export const SignupPage: React.FC = () => {
               <span>{error}</span>
             </div>
           )}
-          {success && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(34, 197, 94, 0.12)', color: '#22c55e', borderRadius: '8px', fontSize: '13px', marginBottom: '16px' }}>
-              <CheckCircle2 size={16} />
-              <span>{success}</span>
-            </div>
-          )}
-
-
-
           <form className={styles.form} onSubmit={handleSignup}>
             <div className={styles.nameRow}>
               <div className={styles.fieldGroup}>

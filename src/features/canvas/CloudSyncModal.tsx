@@ -7,6 +7,8 @@ interface CloudSyncModalProps {
     onClose: () => void;
     onSave: () => void;
     onReload: () => void;
+    onRestoreBackup: () => void;
+    hasCloudBackup: boolean;
     isAutoSyncEnabled: boolean;
     onAutoSyncChange: (enabled: boolean) => void;
 }
@@ -16,6 +18,8 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
     onClose,
     onSave,
     onReload,
+    onRestoreBackup,
+    hasCloudBackup,
     isAutoSyncEnabled,
     onAutoSyncChange,
 }) => {
@@ -68,6 +72,18 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
                                 Browse and load your remote cloud snapshots.
                             </p>
                         </button>
+
+                        {hasCloudBackup && (
+                            <button type="button" style={card} onClick={onRestoreBackup}>
+                                <div style={cardIconWrapperBackup}>
+                                    <History size={32} />
+                                </div>
+                                <h3 style={cardTitle}>Restore Backup</h3>
+                                <p style={cardDesc}>
+                                    Restore your canvas from a local pre-reload backup.
+                                </p>
+                            </button>
+                        )}
                     </div>
                     
                     <div style={footerOptions}>
