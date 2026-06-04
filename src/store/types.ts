@@ -18,6 +18,7 @@ export interface NodeSlice {
     setNodes: (nodes: AppNode[] | ((nodes: AppNode[]) => AppNode[])) => void;
     onEdgesChange: (changes: EdgeChange[]) => void;
     onConnect: (connection: Connection) => void;
+    onReconnect: (oldEdge: Edge, newConnection: Connection) => void;
     addNode: (type: 'note' | 'block' | 'fused-note' | 'kanban', position: { x: number; y: number }, initialData?: Record<string, unknown>, style?: React.CSSProperties, parentId?: string, customId?: string) => void;
     updateNodeData: (id: string, data: Record<string, unknown>) => void;
     updateNode: (id: string, updates: Partial<AppNode>) => void;
@@ -62,6 +63,7 @@ export interface StorageSlice {
         directoryName: string | null;
         lastSaved: string | null;
         isSaving: boolean;
+        isRestoringGraph: boolean;
         
         // Dynamic Save States:
         localLastSaved: string | null;
@@ -74,6 +76,12 @@ export interface StorageSlice {
         // Backup — saved before loadGraph overwrites current state
         backupNodes: AppNode[];
         backupEdges: Edge[];
+
+        // Delta Tracking
+        dirtyNodeIds: Set<string>;
+        dirtyEdgeIds: Set<string>;
+        deletedNodeIds: Set<string>;
+        deletedEdgeIds: Set<string>;
     };
     setStorageStatus: (isConnected: boolean, directoryName: string | null) => void;
     setLastSaved: (date: string | null) => void;
@@ -87,6 +95,13 @@ export interface StorageSlice {
     setCloudDirty: (dirty: boolean) => void;
     setLocalError: (err: string | null) => void;
     setCloudError: (err: string | null) => void;
+
+    /** Delta Tracking */
+    markNodesDirty: (ids: string[]) => void;
+    markEdgesDirty: (ids: string[]) => void;
+    markNodesDeleted: (ids: string[]) => void;
+    markEdgesDeleted: (ids: string[]) => void;
+    clearSyncTracking: (syncedNodes: Set<string>, syncedEdges: Set<string>, deletedNodes: Set<string>, deletedEdges: Set<string>) => void;
 
     /** Restore the snapshot taken before the last loadGraph call. */
     restoreFromBackup: () => void;

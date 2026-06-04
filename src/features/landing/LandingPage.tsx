@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
-import { ProfileMenu } from '../auth/ProfileMenu';
+import { useAuth } from '../auth/useAuth';
 import { useSiteTelemetry } from '../admin/hooks/useSiteTelemetry';
 import { useRecentlyViewed, useGlobalSearch } from './hooks/useDashboardData';
 import {
   Layout,
   ShoppingBag,
   LogIn,
+  LogOut,
   Search,
   Settings,
   Clock,
@@ -19,18 +20,37 @@ import {
   Command,
   Grid3X3,
   Zap,
-  BookOpen
+  BookOpen,
+  Lightbulb,
+  FileText,
+  Play,
+  ChevronRight
 } from 'lucide-react';
 import styles from './LandingPage.module.css';
 
 export const LandingPage: React.FC = () => {
   const setCurrentView = useStore((state) => state.setCurrentView);
+  const navigateToNode = useStore((state) => state.navigateToNode);
   const currentView = useStore((state) => state.currentView);
   const theme = useStore((state) => state.theme);
   const toggleTheme = useStore((state) => state.toggleTheme);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
   const isAuthenticated = useStore((state) => state.auth.isAuthenticated);
+  const { signOut } = useAuth();
+  const [isSigningOut, setIsSigningOut] = React.useState(false);
+
+  const handleSignOut = React.useCallback(async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    try {
+      await signOut();
+    } finally {
+      window.history.replaceState({}, '', '/');
+      setCurrentView('landing');
+      setIsSigningOut(false);
+    }
+  }, [isSigningOut, signOut, setCurrentView]);
 
   // Log a site visit row for admin analytics (deduped per browser session).
   useSiteTelemetry();
@@ -120,35 +140,6 @@ export const LandingPage: React.FC = () => {
             </button>
           </div>
 
-          <div className={styles.navDivider} />
-
-          <div className={styles.navGroup}>
-            <div className={styles.navLabel}>Recently viewed</div>
-            {recentNotes.length === 0 ? (
-              <div style={{ padding: '4px 12px', fontSize: '12px', opacity: 0.5 }}>No recent notes</div>
-            ) : (
-              recentNotes.map((note) => (
-                <button
-                  key={note.id}
-                  className={styles.navItemSecondary}
-                  onClick={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }}
-                >
-                  <Clock size={16} />
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{note.node_title}</span>
-                </button>
-              ))
-            )}
-          </div>
-
-          <div className={styles.navDivider} />
-
-          <div className={styles.navGroup}>
-            <div className={styles.navLabel}>Favorites</div>
-            <button className={styles.navItemSecondary} onClick={() => setIsMobileMenuOpen(false)}>
-              <Star size={16} />
-              <span>Personal Brain</span>
-            </button>
-          </div>
         </nav>
 
         <div className={styles.sidebarFooter}>
@@ -215,7 +206,15 @@ export const LandingPage: React.FC = () => {
 
           <div className={styles.userSection}>
             {isAuthenticated ? (
-              <ProfileMenu onOpenCanvas={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }} />
+              <button
+                className={styles.logoutButton}
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+                aria-label="Log out"
+                style={{ opacity: isSigningOut ? 0.5 : 1 }}
+              >
+                <LogOut size={20} />
+              </button>
             ) : (
               <>
                 <button className={styles.loginButton} onClick={() => { setCurrentView('login'); setIsMobileMenuOpen(false); }}>
@@ -262,80 +261,100 @@ export const LandingPage: React.FC = () => {
             </div>
           </section>
 
-          {/* Quick Start Cards */}
-          {recentNotes.length === 0 && (
-            <section className={styles.quickStartSection}>
-              <div className={styles.sectionLabel}>
-                <span className={styles.sectionLabelDot} />
-                Get started
-              </div>
-              <div className={styles.cardGrid}>
-                <button
-                  className={styles.actionCard}
-                  onClick={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }}
-                >
-                  <div className={styles.cardIcon} data-accent="primary">
-                    <Layout size={22} />
-                  </div>
-                  <div className={styles.cardBody}>
-                    <h3>Start a Canvas</h3>
-                    <p>Open a blank spatial canvas and drop in your first idea.</p>
-                  </div>
-                  <ArrowRight size={16} className={styles.cardArrow} />
-                </button>
-                <button
-                  className={styles.actionCard}
-                  onClick={() => { setCurrentView('marketplace'); setIsMobileMenuOpen(false); }}
-                >
-                  <div className={styles.cardIcon} data-accent="secondary">
-                    <ShoppingBag size={22} />
-                  </div>
-                  <div className={styles.cardBody}>
-                    <h3>Browse Marketplace</h3>
-                    <p>Discover templates, plugins, and community canvases.</p>
-                  </div>
-                  <ArrowRight size={16} className={styles.cardArrow} />
-                </button>
-                <button
-                  className={styles.actionCard}
-                  onClick={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }}
-                >
-                  <div className={styles.cardIcon} data-accent="amber">
-                    <Grid3X3 size={22} />
-                  </div>
-                  <div className={styles.cardBody}>
-                    <h3>Import Your Work</h3>
-                    <p>Drag in Markdown, images, or PDFs to populate your canvas.</p>
-                  </div>
-                  <ArrowRight size={16} className={styles.cardArrow} />
-                </button>
-              </div>
-            </section>
-          )}
+          {/* Educational / Guided Hub Content */}
+          <div className={styles.hubGrid}>
+            {/* Left Column: Tutorials & Templates */}
+            <div className={styles.hubMain}>
+              
+              {/* Mini-Tutorials */}
+              <section className={styles.hubSection}>
+                <div className={styles.sectionHeader}>
+                  <h2>Learn the Basics</h2>
+                  <button className={styles.textButton}>View all</button>
+                </div>
+                <div className={styles.tutorialGrid}>
+                  {[
+                    { title: "Connecting Nodes", duration: "1:20", color: "blue" },
+                    { title: "Using AI to Organize", duration: "2:45", color: "purple" },
+                    { title: "Spatial Workflows", duration: "3:10", color: "amber" }
+                  ].map((tutorial, idx) => (
+                    <div key={idx} className={styles.tutorialCard}>
+                      <div className={styles.videoPlaceholder} data-color={tutorial.color}>
+                        <Play size={24} className={styles.playIcon} />
+                        <span className={styles.duration}>{tutorial.duration}</span>
+                      </div>
+                      <h3>{tutorial.title}</h3>
+                    </div>
+                  ))}
+                </div>
+              </section>
 
-          {/* Recent Notes Grid */}
-          {recentNotes.length > 0 && (
-            <section className={styles.recentSection}>
-              <div className={styles.sectionLabel}>
-                <span className={styles.sectionLabelDot} />
-                Continue where you left off
-              </div>
-              <div className={styles.noteGrid}>
-                {recentNotes.slice(0, 6).map((note, i) => (
-                  <button
-                    key={note.id}
-                    className={styles.noteCard}
-                    onClick={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }}
-                    style={{ '--i': i } as React.CSSProperties}
-                  >
-                    <div className={styles.noteCardDot} />
-                    <span className={styles.noteCardTitle}>{note.node_title}</span>
-                    <Clock size={12} className={styles.noteCardTime} />
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
+              {/* Inspiration Blueprints */}
+              <section className={styles.hubSection}>
+                <div className={styles.sectionHeader}>
+                  <h2>Inspiration Blueprints</h2>
+                  <p>Start with a structure designed for your workflow.</p>
+                </div>
+                <div className={styles.templateGrid}>
+                  {[
+                    { title: "Brainstorming", icon: <Zap size={20} />, color: "primary" },
+                    { title: "Weekly Planner", icon: <Layout size={20} />, color: "secondary" },
+                    { title: "Research Hub", icon: <BookOpen size={20} />, color: "amber" }
+                  ].map((template, idx) => (
+                    <button 
+                      key={idx} 
+                      className={styles.templateCard}
+                      onClick={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }}
+                    >
+                      <div className={styles.templateIcon} data-color={template.color}>
+                        {template.icon}
+                      </div>
+                      <div className={styles.templateInfo}>
+                        <h3>{template.title}</h3>
+                        <p>1 click to inject</p>
+                      </div>
+                      <ChevronRight size={16} className={styles.templateArrow} />
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+            </div>
+
+            {/* Right Column: Global Activity */}
+            <div className={styles.hubSidebar}>
+              <section className={styles.hubSection}>
+                <div className={styles.sectionHeader}>
+                  <h2>Recent Activity</h2>
+                </div>
+                <div className={styles.activityFeed}>
+                  {recentNotes.length === 0 ? (
+                    <div className={styles.emptyActivity}>
+                      <Clock size={24} className={styles.emptyActivityIcon} />
+                      <p>No recent activity.</p>
+                    </div>
+                  ) : (
+                    recentNotes.map((note, i) => (
+                      <div 
+                        key={note.id} 
+                        className={styles.noteCard} 
+                        onClick={() => { 
+                          setCurrentView('canvas'); 
+                          navigateToNode(note.node_id || note.id);
+                          setIsMobileMenuOpen(false); 
+                        }}
+                        style={{ '--i': i } as React.CSSProperties}
+                      >
+                        <div className={styles.noteCardDot} />
+                        <div className={styles.noteCardTitle}>{note.node_title}</div>
+                        <span className={styles.noteCardTime}>Recently</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
+            </div>
+          </div>
 
           {/* Keyboard Shortcuts Hint */}
           <footer className={styles.shortcutsFooter}>

@@ -1,6 +1,6 @@
 import { memo, useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
-import { Scan, PanelRight, PanelLeft, Monitor, Sparkles, Loader2 } from 'lucide-react';
+import { Scan, PanelRight, PanelLeft, Monitor, Sparkles, Loader2, ArrowUpRight } from 'lucide-react';
 import styles from './NoteCard.module.css';
 import type { NoteNode } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -236,11 +236,6 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     // keep their size when content changes. Content overflows with scroll
     // via overflow-y: auto on .noteArea instead.
 
-    const handleDoubleClick = (e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent ReactFlow from catching it
-        navigateToNode(id);
-    };
-
     // Menu Actions
     const handleCenterPeak = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -282,14 +277,13 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
         ${isFusing ? styles.fusing : ''}
         custom-drag-handle
       `}
-            onDoubleClick={handleDoubleClick}
             ref={cardRef}
             style={{
                 width: '100%',
                 height: '100%',
                 // Ensure the card fills the resized node area
                 boxSizing: 'border-box',
-                backgroundColor: displayColor || undefined,
+                backgroundColor: viewMode !== 'expanded' ? (displayColor || undefined) : undefined,
                 ...dynamicStyles
             }}
         >
@@ -454,6 +448,17 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                     </button>
                     <button className={styles.menuBtn} onClick={handleSidePeak} title="Side Panel (Right)">
                         <PanelRight size={16} />
+                    </button>
+                    <div className={styles.menuDivider} />
+                    <button 
+                        className={`${styles.menuBtn} ${styles.neonOpenBtn}`} 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            navigateToNode(id);
+                        }} 
+                        title="Open Card"
+                    >
+                        <ArrowUpRight size={16} />
                     </button>
                 </div>
             )}

@@ -9,6 +9,7 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
         directoryName: null,
         lastSaved: null,
         isSaving: false,
+        isRestoringGraph: false,
         
         // Dynamic Save States initialization:
         localLastSaved: null,
@@ -21,6 +22,12 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
         // Backup — saved before loadGraph overwrites current state
         backupNodes: [],
         backupEdges: [],
+
+        // Delta Tracking
+        dirtyNodeIds: new Set<string>(),
+        dirtyEdgeIds: new Set<string>(),
+        deletedNodeIds: new Set<string>(),
+        deletedEdgeIds: new Set<string>(),
     },
     setStorageStatus: (isConnected, directoryName) => set((state) => ({
         storage: { ...state.storage, isConnected, directoryName }
@@ -49,6 +56,53 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
     setCloudError: (err) => set((state) => ({
         storage: { ...state.storage, cloudError: err }
     })),
+
+    markNodesDirty: (ids) => set((state) => {
+        const next = new Set(state.storage.dirtyNodeIds);
+        ids.forEach(id => next.add(id));
+        return { storage: { ...state.storage, dirtyNodeIds: next } };
+    }),
+    markEdgesDirty: (ids) => set((state) => {
+        const next = new Set(state.storage.dirtyEdgeIds);
+        ids.forEach(id => next.add(id));
+        return { storage: { ...state.storage, dirtyEdgeIds: next } };
+    }),
+    markNodesDeleted: (ids) => set((state) => {
+        const next = new Set(state.storage.deletedNodeIds);
+        ids.forEach(id => {
+            next.add(id);
+            // If it was marked dirty, it doesn't matter anymore, it's deleted.
+            // But we don't necessarily have to remove it from dirty here, we can just handle deletes first in sync.
+        });
+        return { storage: { ...state.storage, deletedNodeIds: next } };
+    }),
+    markEdgesDeleted: (ids) => set((state) => {
+        const next = new Set(state.storage.deletedEdgeIds);
+        ids.forEach(id => next.add(id));
+        return { storage: { ...state.storage, deletedEdgeIds: next } };
+    }),
+    clearSyncTracking: (syncedNodes, syncedEdges, deletedNodes, deletedEdges) => set((state) => {
+        const nextDirtyNodes = new Set(state.storage.dirtyNodeIds);
+        const nextDirtyEdges = new Set(state.storage.dirtyEdgeIds);
+        const nextDeletedNodes = new Set(state.storage.deletedNodeIds);
+        const nextDeletedEdges = new Set(state.storage.deletedEdgeIds);
+
+        syncedNodes.forEach(id => nextDirtyNodes.delete(id));
+        syncedEdges.forEach(id => nextDirtyEdges.delete(id));
+        deletedNodes.forEach(id => nextDeletedNodes.delete(id));
+        deletedEdges.forEach(id => nextDeletedEdges.delete(id));
+
+        return {
+            storage: {
+                ...state.storage,
+                dirtyNodeIds: nextDirtyNodes,
+                dirtyEdgeIds: nextDirtyEdges,
+                deletedNodeIds: nextDeletedNodes,
+                deletedEdgeIds: nextDeletedEdges,
+            }
+        };
+    }),
+
     loadGraph: (nodes, edges) => {
         // Guard: nodes must be an array
         if (!Array.isArray(nodes)) {
@@ -125,15 +179,22 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
         });
 
         set((state) => ({
+            isRestoringGraph: true, // Wait, it needs to be inside storage: { ... }
             nodes: validNodes,
             edges: validEdges,
             storage: {
                 ...state.storage,
+                isRestoringGraph: true,
                 backupNodes: prevNodes,
                 backupEdges: prevEdges,
                 cloudLastSaved: new Date().toLocaleTimeString(),
                 cloudError: null,
             },
+        }));
+
+        // Give the diff subscriber a chance to run synchronously, then clear the flag
+        set((state) => ({
+            storage: { ...state.storage, isRestoringGraph: false }
         }));
 
         // Reconstruct breadcrumbs if we restored a parent ID from localStorage

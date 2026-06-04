@@ -63,4 +63,54 @@ if (typeof window !== 'undefined') {
             e.returnValue = '';
         }
     });
+
+    // Compute explicit deltas for cloud sync
+    useStore.subscribe(
+        (state) => ({ nodes: state.nodes, edges: state.edges, isRestoring: state.storage.isRestoringGraph }),
+        (curr, prev) => {
+            if (curr.isRestoring) return;
+
+            const state = useStore.getState();
+
+            if (curr.nodes !== prev.nodes) {
+                const prevNodesMap = new Map(prev.nodes.map(n => [n.id, n]));
+                const currNodesMap = new Map(curr.nodes.map(n => [n.id, n]));
+                
+                const deleted: string[] = [];
+                const dirty: string[] = [];
+
+                prev.nodes.forEach(pn => {
+                    if (!currNodesMap.has(pn.id)) deleted.push(pn.id);
+                });
+
+                curr.nodes.forEach(cn => {
+                    const pn = prevNodesMap.get(cn.id);
+                    if (!pn || pn !== cn) dirty.push(cn.id);
+                });
+
+                if (deleted.length > 0) state.markNodesDeleted(deleted);
+                if (dirty.length > 0) state.markNodesDirty(dirty);
+            }
+
+            if (curr.edges !== prev.edges) {
+                const prevEdgesMap = new Map(prev.edges.map(e => [e.id, e]));
+                const currEdgesMap = new Map(curr.edges.map(e => [e.id, e]));
+
+                const deleted: string[] = [];
+                const dirty: string[] = [];
+
+                prev.edges.forEach(pe => {
+                    if (!currEdgesMap.has(pe.id)) deleted.push(pe.id);
+                });
+
+                curr.edges.forEach(ce => {
+                    const pe = prevEdgesMap.get(ce.id);
+                    if (!pe || pe !== ce) dirty.push(ce.id);
+                });
+
+                if (deleted.length > 0) state.markEdgesDeleted(deleted);
+                if (dirty.length > 0) state.markEdgesDirty(dirty);
+            }
+        }
+    );
 }

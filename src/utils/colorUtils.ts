@@ -16,14 +16,14 @@ export function toPastelColor(color: string, isLightMode: boolean = false): stri
     // Convert RGB to HSL
     const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
 
-    // Adjust to pastel
-    // Dark mode: High lightness (88%) to pop against dark bg
-    // Light mode: Slightly darker (80%) to be visible against white bg
-    const lightness = isLightMode ? 80 : 88;
+    // Adjust to vibrant pastel
+    // Dark mode: High lightness (85%) to pop against dark bg but retain color depth
+    // Light mode: Slightly darker (75%) to be visible against white bg
+    const lightness = isLightMode ? 75 : 85;
 
     const pastelHsl = {
         h: hsl.h,
-        s: Math.min(hsl.s, 40), // Cap saturation at 40%
+        s: Math.min(hsl.s, 85), // Increased saturation cap from 40% to 85% for much more vibrant colors
         l: lightness
     };
 

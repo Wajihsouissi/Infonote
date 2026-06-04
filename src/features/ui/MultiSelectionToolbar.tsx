@@ -3,7 +3,8 @@ import { useReactFlow } from '@xyflow/react';
 import {
     Trash2, Copy, Palette, Layers, X, ArrowUpRight, ArrowRight, GitBranch,
     Grid3x3, CircleDot, ArrowRightLeft, Columns2, Rows2, Network, Sparkles,
-    Search, Eye, AppWindow, Maximize, Minus, AlignLeft, Scissors
+    Search, Eye, AppWindow, Maximize, Minus, AlignLeft, Scissors,
+    Square, RectangleHorizontal, StickyNote, PanelTop
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { Tooltip } from './Tooltip';
@@ -320,22 +321,22 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
                                     <div className={styles.layoutGrid} style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
                                         <Tooltip label="Icon" desc="Icon only">
                                             <button className={styles.layoutOption} onClick={() => handleSetViewMode('icon')}>
-                                                <Minus size={18} />
+                                                <Square size={14} />
                                             </button>
                                         </Tooltip>
                                         <Tooltip label="Title" desc="Icon + Title">
                                             <button className={styles.layoutOption} onClick={() => handleSetViewMode('titleview')}>
-                                                <AlignLeft size={18} />
+                                                <RectangleHorizontal size={18} />
                                             </button>
                                         </Tooltip>
                                         <Tooltip label="Medium" desc="Medium card">
                                             <button className={styles.layoutOption} onClick={() => handleSetViewMode('medium')}>
-                                                <AppWindow size={18} />
+                                                <StickyNote size={18} />
                                             </button>
                                         </Tooltip>
                                         <Tooltip label="Expanded" desc="Expanded card">
                                             <button className={styles.layoutOption} onClick={() => handleSetViewMode('expanded')}>
-                                                <Maximize size={18} />
+                                                <PanelTop size={18} />
                                             </button>
                                         </Tooltip>
                                     </div>

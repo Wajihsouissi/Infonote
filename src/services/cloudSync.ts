@@ -167,16 +167,8 @@ function nodeToRow(node: AppNode, userId: string, workspaceId: string): CanvasNo
         deletable: (node as { deletable?: boolean }).deletable,
     };
 
-    // Sanitize: ensure data_json is serializable (no circular references).
-    let data_json: Record<string, unknown>;
-    try {
-        JSON.stringify(rawDataJson);
-        data_json = rawDataJson;
-    } catch {
-        // Circular reference or non-serializable data — fall back to safe default.
-        console.error(`[cloudSync] data_json serialization failed for node ${node.id}, using empty object`);
-        data_json = {};
-    }
+    // Fallback if data is totally missing
+    const data_json = rawDataJson;
 
     return {
         id: String(node.id),
@@ -206,15 +198,8 @@ function edgeToRow(edge: Edge, userId: string, workspaceId: string): CanvasEdgeR
         markerStart: edge.markerStart ?? null,
     };
 
-    // Sanitize: ensure data_json is serializable (no circular references).
-    let data_json: Record<string, unknown>;
-    try {
-        JSON.stringify(rawDataJson);
-        data_json = rawDataJson;
-    } catch {
-        console.error(`[cloudSync] data_json serialization failed for edge ${edge.id}, using empty object`);
-        data_json = {};
-    }
+    // Fallback if data is missing
+    const data_json = rawDataJson;
 
     return {
         id: String(edge.id),
@@ -314,6 +299,13 @@ export async function saveCanvasToCloud(
     workspaceId: string | null,
     nodes: AppNode[],
     edges: Edge[],
+    delta?: {
+        dirtyNodeIds: Set<string>;
+        dirtyEdgeIds: Set<string>;
+        deletedNodeIds: Set<string>;
+        deletedEdgeIds: Set<string>;
+        forceUpsertAll?: boolean;
+    }
 ): Promise<CloudSyncResult> {
     // Serialize saves: if a save is already in flight, wait for it first.
     // This prevents two concurrent upserts from hitting PostgreSQL with
@@ -322,7 +314,7 @@ export async function saveCanvasToCloud(
         await _saveLock.catch(() => {}); // ignore errors from the prior save
     }
 
-    const promise = _saveCanvasToCloudImpl(userId, workspaceId, nodes, edges);
+    const promise = _saveCanvasToCloudImpl(userId, workspaceId, nodes, edges, delta);
     _saveLock = promise;
 
     try {
@@ -340,96 +332,89 @@ async function _saveCanvasToCloudImpl(
     workspaceId: string | null,
     nodes: AppNode[],
     edges: Edge[],
+    delta?: {
+        dirtyNodeIds: Set<string>;
+        dirtyEdgeIds: Set<string>;
+        deletedNodeIds: Set<string>;
+        deletedEdgeIds: Set<string>;
+        forceUpsertAll?: boolean;
+    }
 ): Promise<CloudSyncResult> {
     try {
         const { userId: uid, workspaceId: wid } = await ensureReady(userId, workspaceId);
 
         // Build payloads, then dedupe — prevents the "409 ON CONFLICT cannot
         // affect row a second time" error when state has duplicate ids.
-        const nodeRows = dedupeById(nodes.map((n) => nodeToRow(n, uid, wid)));
-        const edgeRows = dedupeById(edges.map((e) => edgeToRow(e, uid, wid)));
+        // Filter for delta sync if provided and not forcing all
+        const nodesToUpsert = (delta && !delta.forceUpsertAll)
+            ? nodes.filter(n => delta.dirtyNodeIds.has(n.id))
+            : nodes;
+        const edgesToUpsert = (delta && !delta.forceUpsertAll)
+            ? edges.filter(e => delta.dirtyEdgeIds.has(e.id))
+            : edges;
 
-        // Upsert in chunks. `onConflict: 'user_id,id'` matches the composite
-        // PRIMARY KEY in 0001_init.sql; `ignoreDuplicates: false` makes
-        // Supabase MERGE the incoming row into the existing one (overwrite),
-        // which is exactly the behaviour the user expects from "Save Cloud".
-        await withRetry(async () => {
-            if (nodeRows.length > 0) {
-                const { error } = await supabase
-                    .from('canvas_nodes')
-                    .upsert(nodeRows, {
-                        onConflict: 'user_id,workspace_id,id',
-                        ignoreDuplicates: false,
-                    });
-                if (error) {
-                    console.error('[cloudSync] node upsert failed', {
-                        message: error.message,
-                        details: (error as { details?: string }).details,
-                        hint: (error as { hint?: string }).hint,
-                        code: (error as { code?: string }).code,
-                    });
-                    throw error;
-                }
+        const nodeRows = dedupeById(nodesToUpsert.map((n) => nodeToRow(n, uid, wid)));
+        const edgeRows = dedupeById(edgesToUpsert.map((e) => edgeToRow(e, uid, wid)));
+
+        // Helper to chunk arrays
+        const chunkArray = <T>(arr: T[], size: number): T[][] => {
+            const chunks = [];
+            for (let i = 0; i < arr.length; i += size) {
+                chunks.push(arr.slice(i, i + size));
             }
-            if (edgeRows.length > 0) {
-                const { error } = await supabase
-                    .from('canvas_edges')
-                    .upsert(edgeRows, {
-                        onConflict: 'user_id,workspace_id,id',
-                        ignoreDuplicates: false,
-                    });
-                if (error) {
-                    console.error('[cloudSync] edge upsert failed', {
-                        message: error.message,
-                        details: (error as { details?: string }).details,
-                        hint: (error as { hint?: string }).hint,
-                        code: (error as { code?: string }).code,
-                    });
-                    throw error;
-                }
-            }
-        });
+            return chunks;
+        };
 
-        // Mirror deletes — remove rows that no longer exist locally. We fetch
-        // the current ids and diff them client-side; this is robust regardless
-        // of how exotic the id strings are (UUIDs, slugs, etc.).
-        const localNodeIds = new Set(nodeRows.map((r) => r.id));
-        const localEdgeIds = new Set(edgeRows.map((r) => r.id));
-
-        const [existingNodes, existingEdges] = await withRetry(async () => {
-            const [nRes, eRes] = await Promise.all([
-                supabase.from('canvas_nodes').select('id').eq('user_id', uid).eq('workspace_id', wid),
-                supabase.from('canvas_edges').select('id').eq('user_id', uid).eq('workspace_id', wid),
-            ]);
-            if (nRes.error) throw nRes.error;
-            if (eRes.error) throw eRes.error;
-            return [nRes, eRes] as const;
-        });
-
-        const nodeIdsToDelete = (existingNodes.data ?? [])
-            .map((r: { id: string }) => r.id)
-            .filter((id: string) => !localNodeIds.has(id));
-        const edgeIdsToDelete = (existingEdges.data ?? [])
-            .map((r: { id: string }) => r.id)
-            .filter((id: string) => !localEdgeIds.has(id));
+        const nodeChunks = chunkArray(nodeRows, 500);
+        const edgeChunks = chunkArray(edgeRows, 500);
 
         await withRetry(async () => {
-            if (nodeIdsToDelete.length > 0) {
+            for (const chunk of nodeChunks) {
+                if (chunk.length === 0) continue;
                 const { error } = await supabase
                     .from('canvas_nodes')
-                    .delete()
-                    .eq('user_id', uid)
-                    .eq('workspace_id', wid)
-                    .in('id', nodeIdsToDelete);
+                    .upsert(chunk, { onConflict: 'user_id,workspace_id,id', ignoreDuplicates: false });
                 if (error) throw error;
             }
-            if (edgeIdsToDelete.length > 0) {
+            for (const chunk of edgeChunks) {
+                if (chunk.length === 0) continue;
+                const { error } = await supabase
+                    .from('canvas_edges')
+                    .upsert(chunk, { onConflict: 'user_id,workspace_id,id', ignoreDuplicates: false });
+                if (error) throw error;
+            }
+        });
+
+        // Handle Deletes
+        // ONLY delete nodes that were explicitly marked as deleted.
+        // We never do a full ID diff against the cloud to prevent catastrophic 
+        // data loss when users log in from a new PC (where local state is empty).
+        const nodeIdsToDelete = delta ? Array.from(delta.deletedNodeIds) : [];
+        const edgeIdsToDelete = delta ? Array.from(delta.deletedEdgeIds) : [];
+
+        // Chunk deletes too, as PostgREST `in` filter has URL length limits
+        const deleteNodeChunks = chunkArray(nodeIdsToDelete, 200);
+        const deleteEdgeChunks = chunkArray(edgeIdsToDelete, 200);
+
+        await withRetry(async () => {
+            for (const chunk of deleteNodeChunks) {
+                if (chunk.length === 0) continue;
+                const { error } = await supabase
+                    .from('canvas_nodes')
+                    .delete()
+                    .eq('user_id', uid)
+                    .eq('workspace_id', wid)
+                    .in('id', chunk);
+                if (error) throw error;
+            }
+            for (const chunk of deleteEdgeChunks) {
+                if (chunk.length === 0) continue;
                 const { error } = await supabase
                     .from('canvas_edges')
                     .delete()
                     .eq('user_id', uid)
                     .eq('workspace_id', wid)
-                    .in('id', edgeIdsToDelete);
+                    .in('id', chunk);
                 if (error) throw error;
             }
         });

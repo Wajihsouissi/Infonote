@@ -4,6 +4,7 @@ import {
     addEdge,
     applyNodeChanges,
     applyEdgeChanges,
+    reconnectEdge,
 } from '@xyflow/react';
 import { v4 as uuidv4 } from 'uuid';
 import type { AppNode } from '../../types';
@@ -203,6 +204,13 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         get().setCloudDirty?.(true);
     },
 
+    onReconnect: (oldEdge, newConnection) => {
+        set({
+            edges: reconnectEdge(oldEdge, newConnection, get().edges),
+        });
+        get().setCloudDirty?.(true);
+    },
+
     addNode: (type, position, initialData, style, parentId, customId) => {
         const { currentParentId } = get();
         const targetParentId = parentId !== undefined ? parentId : (currentParentId || undefined);
@@ -359,9 +367,6 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
     },
 
     releaseNodeContentToBlocks: (nodeId: string, centerPosition?: { x: number; y: number }, skipConfirm?: boolean) => {
-        if (!skipConfirm && !window.confirm(
-            'Release this node\'s content as individual blocks? The source node will be replaced.'
-        )) return;
 
         const { nodes, edges, currentParentId } = get();
         const sourceNode = nodes.find(n => n.id === nodeId);
@@ -1095,184 +1100,284 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         if (DEBUG) console.log("[hydrateCanvas] Found orphans:", orphanBlocks.length);
 
-        // Build sections from orphans using a smart semantic hierarchical system.
-        // H1 and explicit splits create new documents/cards.
-        // H2, H3, paragraphs, separators, lists, quotes, tables, etc., are owned by and grouped under their preceding H1/heading.
         const orphanIdSet = new Set(orphanBlocks.map(b => b.id));
         const orphanBlocksOrdered = parentContent.filter(b => orphanIdSet.has(b.id));
+        
+        // --- Smart Grouping & Splitting Strategy ---
+        const standaloneTypes = new Set(['image', 'video', 'code', 'table']);
+        const headingTypes = { 'heading1': 1, 'heading2': 2, 'heading3': 3 };
 
-        interface TreeNode {
-            type: 'document' | 'section' | 'block';
-            block?: any;
-            level?: number;
-            title?: string;
-            children: TreeNode[];
+        interface Chunk {
+            id: string;
+            type: 'fused-note' | 'block';
+            blocks: any[];
+            level: number;
+            sourceId?: string; 
+            style?: any;
         }
 
-        const buildHierarchy = (blocksList: any[]): TreeNode => {
-            const rootNode: TreeNode = { type: 'document', children: [] };
-            const stackNode: TreeNode[] = [rootNode];
+        const chunks: Chunk[] = [];
+        let currentChunk: Chunk | null = null;
+        const stack: Chunk[] = []; // to keep track of hierarchy for edges
+        
+        let numberedListCounter = 0; // Preserve numbered list indices
 
-            blocksList.forEach(block => {
-                let level = 0;
-                if (block.type === 'heading1') level = 1;
-                else if (block.type === 'heading2') level = 2;
-                else if (block.type === 'heading3') level = 3;
+        orphanBlocksOrdered.forEach((block) => {
+            const isStandalone = standaloneTypes.has(block.type);
+            const isHeading = block.type in headingTypes;
+            const isNumbered = block.type === 'numbered' || block.type === 'numberedListItem';
+            const isDividerSplit = block.type === 'divider' && 
+                (block.metadata?.split === true || block.metadata?.forceSplit === true || block.metadata?.semantic === 'split');
 
-                if (level > 0) {
-                    const newSection: TreeNode = {
-                        type: 'section',
-                        level,
-                        title: block.content,
-                        block,
-                        children: []
-                    };
-
-                    while (stackNode.length > 1) {
-                        const top = stackNode[stackNode.length - 1];
-                        if (top.type === 'section' && top.level! < level) {
-                            break;
-                        }
-                        stackNode.pop();
+            // Handle numbering preservation
+            let processedBlock = block;
+            if (isNumbered) {
+                numberedListCounter++;
+                processedBlock = { ...block, type: 'paragraph' }; // Convert to paragraph
+                if (Array.isArray(block.content)) {
+                    if (block.content.length > 0 && block.content[0].type === 'text') {
+                        processedBlock.content = [
+                            { ...block.content[0], text: `${numberedListCounter}. ${block.content[0].text}` },
+                            ...block.content.slice(1)
+                        ];
+                    } else {
+                        processedBlock.content = [
+                            { type: 'text', text: `${numberedListCounter}. `, styles: {} },
+                            ...block.content
+                        ];
                     }
-
-                    stackNode[stackNode.length - 1].children.push(newSection);
-                    stackNode.push(newSection);
-                } else {
-                    const newBlock: TreeNode = {
-                        type: 'block',
-                        block,
-                        children: []
-                    };
-                    stackNode[stackNode.length - 1].children.push(newBlock);
-                }
-            });
-
-            return rootNode;
-        };
-
-        const getFlatBlocks = (node: TreeNode, targetList: any[]) => {
-            if (node.block) {
-                targetList.push(node.block);
-            }
-            node.children.forEach(child => getFlatBlocks(child, targetList));
-        };
-
-        const hierarchyRoot = buildHierarchy(orphanBlocksOrdered);
-        const sections: any[][] = [];
-        let currentCardBlocks: any[] = [];
-
-        hierarchyRoot.children.forEach(child => {
-            if (child.type === 'block') {
-                const isDividerSplit = 
-                    child.block.type === 'divider' && 
-                    (child.block.metadata?.split === true || 
-                     child.block.metadata?.forceSplit === true || 
-                     child.block.metadata?.semantic === 'split');
-                     
-                if (isDividerSplit) {
-                    if (currentCardBlocks.length > 0) {
-                        sections.push(currentCardBlocks);
-                    }
-                    currentCardBlocks = [child.block];
-                } else {
-                    currentCardBlocks.push(child.block);
+                } else if (typeof block.content === 'string') {
+                    processedBlock.content = `${numberedListCounter}. ${block.content}`;
                 }
             } else {
-                if (currentCardBlocks.length > 0) {
-                    sections.push(currentCardBlocks);
-                    currentCardBlocks = [];
+                numberedListCounter = 0; // reset
+            }
+
+            let level = 0;
+            if (isHeading) level = headingTypes[block.type as keyof typeof headingTypes];
+            else if (currentChunk) level = currentChunk.level;
+
+            // Determine if we should split
+            let shouldSplit = false;
+            if (isStandalone || isHeading || isNumbered || isDividerSplit || !currentChunk) {
+                shouldSplit = true;
+            } else if (currentChunk && currentChunk.type === 'block') {
+                // If previous chunk was a standalone visual block, force text into a new chunk
+                shouldSplit = true;
+            }
+
+            if (shouldSplit) {
+                let parentChunkId = undefined;
+                
+                if (isHeading) {
+                    // find nearest parent in stack with strictly smaller level number (higher hierarchy)
+                    while (stack.length > 0) {
+                        const top = stack[stack.length - 1];
+                        if (top.level < level && top.level > 0) {
+                            parentChunkId = top.id;
+                            break;
+                        }
+                        stack.pop();
+                    }
+                } else if (isNumbered || isStandalone || isDividerSplit || (currentChunk && currentChunk.type === 'block')) {
+                    // These branch off the current active heading context
+                    if (stack.length > 0) {
+                        parentChunkId = stack[stack.length - 1].id;
+                    } else if (chunks.length > 0) {
+                        // If no heading, link to the immediate previous chunk to maintain flow
+                        parentChunkId = chunks[chunks.length - 1].id;
+                    }
+                    level = stack.length > 0 ? stack[stack.length - 1].level + 1 : 1;
                 }
 
-                const sectionBlocks: any[] = [];
-                getFlatBlocks(child, sectionBlocks);
+                const newChunk: Chunk = {
+                    id: uuidv4(),
+                    type: isStandalone ? 'block' : 'fused-note',
+                    blocks: isDividerSplit ? [] : [processedBlock],
+                    level: level,
+                    sourceId: parentChunkId
+                };
 
-                let subSections: any[][] = [];
-                let currentSubSection: any[] = [];
-
-                sectionBlocks.forEach(block => {
-                    let splitHere = false;
-
-                    if (block.type === 'divider') {
-                        const hasExplicitSplit = 
-                            block.metadata?.split === true || 
-                            block.metadata?.forceSplit === true || 
-                            block.metadata?.semantic === 'split';
-                        if (hasExplicitSplit) {
-                            splitHere = true;
-                        }
-                    } else if ((block.type === 'heading2' || block.type === 'heading3') && currentSubSection.length >= 20) {
-                        splitHere = true;
-                    }
-
-                    if (splitHere) {
-                        if (currentSubSection.length > 0) {
-                            subSections.push(currentSubSection);
-                        }
-                        currentSubSection = [block];
-                    } else {
-                        currentSubSection.push(block);
-                    }
-                });
-
-                if (currentSubSection.length > 0) {
-                    subSections.push(currentSubSection);
+                chunks.push(newChunk);
+                currentChunk = newChunk;
+                
+                if (isHeading) {
+                    stack.push(newChunk);
                 }
-
-                sections.push(...subSections);
+            } else {
+                currentChunk!.blocks.push(processedBlock);
             }
         });
 
-        if (currentCardBlocks.length > 0) {
-            sections.push(currentCardBlocks);
-        }
+        // Filter out empty chunks (like from a divider that didn't get any text after)
+        const validChunks = chunks.filter(c => c.blocks.length > 0);
+        
+        validChunks.forEach(chunk => {
+            if (chunk.blocks.length === 1 && chunk.type === 'fused-note') {
+                chunk.type = 'block';
+            }
+        });
 
-        if (sections.length === 0) {
-            if (DEBUG) console.log("[hydrateCanvas] Orphans exist but no sections were formed.");
-            return;
-        }
+        if (validChunks.length === 0) return;
 
-        // Calculate base position: below existing children or default
+        const normalizeText = (value: unknown) => {
+            if (typeof value !== 'string') return '';
+            return value.trim().replace(/[\n\u200B\u00A0\u200C\uFEFF]/g, '');
+        };
+
+        // --- Layout (Horizontal Mind-Map / Flow) ---
+        const getNodeStyle = (block: any) => {
+            const isHeading = block.type in headingTypes;
+            if (isHeading) return { width: 220, height: 80 };
+
+            switch (block.type) {
+                case 'image':
+                case 'video':
+                case 'file': return { width: 300, height: 300 };
+                case 'code': return { width: 400, height: 250 };
+                case 'table': return { width: 450, height: 300 };
+                case 'callout': return { width: 280, height: 100 };
+                case 'todo':
+                case 'bullet':
+                case 'numbered':
+                case 'numberedListItem':
+                    return { width: 260, height: 70 };
+                default:
+                    const textContent = Array.isArray(block.content) 
+                        ? block.content.map((c: any) => c.text || '').join('')
+                        : (typeof block.content === 'string' ? block.content : '');
+                    const len = normalizeText(textContent).length;
+                    
+                    if (len < 50) return { width: 260, height: 70 };
+                    if (len < 200) return { width: 300, height: 100 };
+                    return { width: 340, height: 140 };
+            }
+        };
+
+        const getFusedNoteStyle = (blocks: any[]) => {
+            let estimatedHeight = 40; // Base padding/margin (reduced to exactly fit)
+            blocks.forEach(b => {
+                if (b.type === 'heading1') estimatedHeight += 50;
+                else if (b.type === 'heading2') estimatedHeight += 40;
+                else if (b.type === 'heading3') estimatedHeight += 30;
+                else if (b.type === 'divider') estimatedHeight += 20;
+                else {
+                    const textContent = Array.isArray(b.content) 
+                        ? b.content.map((c: any) => c.text || '').join('')
+                        : (typeof b.content === 'string' ? b.content : '');
+                    const len = normalizeText(textContent).length;
+                    
+                    if (len === 0) {
+                        estimatedHeight += 24; // Empty line
+                    } else {
+                        // Assuming ~50 characters per line for MIN_FUSED_SIZE width
+                        const lines = Math.ceil(len / 50);
+                        estimatedHeight += lines * 24 + 10; // 24px per line + 10px paragraph spacing
+                    }
+                }
+            });
+            
+            // Snap to grid and do not force 208 height, just a small minimum of 80
+            const finalHeight = Math.max(80, Math.ceil(estimatedHeight / BASE_UNIT) * BASE_UNIT);
+            return { width: MIN_FUSED_SIZE, height: finalHeight };
+        };
+
+        const childrenMap = new Map<string, Chunk[]>();
+        const roots: Chunk[] = [];
+        
+        validChunks.forEach(c => childrenMap.set(c.id, []));
+
+        validChunks.forEach(c => {
+            if (c.sourceId && childrenMap.has(c.sourceId)) {
+                childrenMap.get(c.sourceId)!.push(c);
+            } else {
+                roots.push(c);
+            }
+        });
+
+        const HORIZONTAL_SPACING = BASE_UNIT * 5;
+        const VERTICAL_SPACING = BASE_UNIT * 2;
+        
         const margin = BASE_UNIT;
         let startY = margin;
         const startX = margin;
         
-        // Use vertical layout for fused nodes (stacked under each other)
-        const verticalGap = BASE_UNIT;  // Gap between stacked fused notes
-
         if (children.length > 0) {
             const maxY = Math.max(
-                ...children.map(c => c.position.y + ((c.style?.height as number) || MIN_FUSED_SIZE))
+                ...children.map(c => c.position.y + ((c.style?.height as number) || 208))
             );
-            startY = snapToGridValue(maxY + BASE_UNIT * 2);
+            startY = snapToGridValue(maxY + BASE_UNIT * 3);
         }
 
-        const newNodes: AppNode[] = sections.map((sectionBlocks, index) => {
-            const newNodeId = uuidv4();
-            
-            // Stack vertically: each fused note placed below the previous one
-            const x = startX;
-            const y = startY + (index * MIN_FUSED_SIZE) + (index * verticalGap);
+        const positions = new Map<string, {x: number, y: number}>();
+        let currentY = startY;
 
+        const layoutSubtree = (node: Chunk, x: number, y: number): number => {
+            positions.set(node.id, { x: snapToGridValue(x), y: snapToGridValue(y) });
+            
+            const nodeChildren = childrenMap.get(node.id) || [];
+            const nodeH = node.type === 'block' ? getNodeStyle(node.blocks[0]).height : getFusedNoteStyle(node.blocks).height;
+            
+            if (nodeChildren.length === 0) {
+                return nodeH + VERTICAL_SPACING;
+            }
+
+            let childY = y;
+            let totalHeight = 0;
+            const nodeW = node.type === 'block' ? getNodeStyle(node.blocks[0]).width : MIN_FUSED_SIZE;
+
+            nodeChildren.forEach(child => {
+                const childHeight = layoutSubtree(child, x + nodeW + HORIZONTAL_SPACING, childY);
+                childY += childHeight;
+                totalHeight += childHeight;
+            });
+            
+            return Math.max(totalHeight, nodeH + VERTICAL_SPACING);
+        };
+
+        roots.forEach(root => {
+            const h = layoutSubtree(root, startX, currentY);
+            currentY += h + VERTICAL_SPACING;
+        });
+
+        // --- Creation of Nodes and Edges ---
+        const newNodes: AppNode[] = validChunks.map(chunk => {
+            const pos = positions.get(chunk.id) || { x: startX, y: startY };
+            const style = chunk.type === 'block' ? getNodeStyle(chunk.blocks[0]) : getFusedNoteStyle(chunk.blocks);
+            
             return {
-                id: newNodeId,
-                type: 'fused-note',
-                position: { x, y },
-                style: { width: MIN_FUSED_SIZE, height: 208 }, // 8x4 default
+                id: chunk.id,
+                type: chunk.type,
+                position: pos,
+                style: style,
                 data: {
-                    content: sectionBlocks,
+                    content: chunk.blocks,
                     isStandaloneBlock: true
                 },
                 parentId: nodeId
-            };
+            } as AppNode;
+        });
+
+        const newEdges: Edge[] = [];
+        validChunks.forEach(chunk => {
+            if (chunk.sourceId) {
+                newEdges.push({
+                    id: uuidv4(),
+                    source: chunk.sourceId,
+                    target: chunk.id,
+                    type: 'centered',
+                    data: { parentId: nodeId } // Scope edge to this canvas
+                } as Edge);
+            }
         });
 
         set(state => ({
-            nodes: [...state.nodes, ...newNodes]
+            nodes: [...state.nodes, ...newNodes],
+            edges: [...state.edges, ...newEdges]
         }));
         get().setCloudDirty?.(true);
 
-        if (DEBUG) console.log("[hydrateCanvas] Created fused nodes for sections:", newNodes.map(n => n.id));
+        if (DEBUG) console.log("[hydrateCanvas] Created semantic chunks and edges:", newNodes.length, newEdges.length);
     },
 
     updateEdge: (id, updates) => {
