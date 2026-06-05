@@ -1,102 +1,153 @@
 // ============================================================
-// AI Service — powered by Puter.js (free, no API keys needed)
-// Text: GPT-4o-mini via puter.ai.chat()
-// Image: puter.ai.txt2img()
+// AI Service - powered by Vercel AI Gateway.
+// Text: OpenAI-compatible chat completions.
+// Image: OpenAI-compatible image generations.
 // ============================================================
 import { z } from 'zod';
 
+const AI_GATEWAY_BASE_URL = 'https://ai-gateway.vercel.sh/v1';
+const TEXT_MODEL = import.meta.env.VITE_AI_GATEWAY_TEXT_MODEL || 'openai/gpt-4o-mini';
+const IMAGE_MODEL = import.meta.env.VITE_AI_GATEWAY_IMAGE_MODEL || 'bfl/flux-2-pro';
+
+type ChatCompletionResponse = {
+    choices?: Array<{
+        message?: {
+            content?: string | Array<{ type?: string; text?: string }>;
+        };
+    }>;
+    error?: { message?: string };
+};
+
+type ImageGenerationResponse = {
+    data?: Array<{
+        b64_json?: string;
+        url?: string;
+        revised_prompt?: string;
+    }>;
+    error?: { message?: string };
+};
+
+function getGatewayKey(): string {
+    const key = import.meta.env.VITE_AI_GATEWAY_API_KEY;
+    if (!key || key.trim() === '') {
+        throw new Error('AI Gateway is not configured. Set VITE_AI_GATEWAY_API_KEY in your environment.');
+    }
+    return key.trim();
+}
+
+async function gatewayFetch<T>(path: string, body: Record<string, unknown>): Promise<T> {
+    const response = await fetch(`${AI_GATEWAY_BASE_URL}${path}`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${getGatewayKey()}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+    });
+
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : {};
+
+    if (!response.ok) {
+        const message =
+            data?.error?.message ||
+            data?.message ||
+            `AI Gateway request failed with HTTP ${response.status}`;
+        throw new Error(message);
+    }
+
+    return data as T;
+}
+
 /**
- * Generate text using Puter's free GPT-4o-mini model.
+ * Generate text using Vercel AI Gateway.
  */
 export async function generateText(prompt: string): Promise<string> {
-    const response = await puter.ai.chat(prompt, { model: 'gpt-4o-mini' });
+    const response = await gatewayFetch<ChatCompletionResponse>('/chat/completions', {
+        model: TEXT_MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+    });
 
-    // puter.ai.chat can return a string or an object
-    if (typeof response === 'string') return response;
-    const resObj = response as any;
-    if (resObj?.message?.content) return resObj.message.content;
-    return String(response);
+    const content = response.choices?.[0]?.message?.content;
+    if (typeof content === 'string') return content;
+    if (Array.isArray(content)) {
+        return content.map((part) => part.text || '').join('');
+    }
+    throw new Error(response.error?.message || 'AI Gateway returned no text content.');
 }
 
 export async function generateImage(prompt: string): Promise<string> {
-    try {
-        const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Timeout")), 20000)
-        );
-        const imgElement: any = await Promise.race([
-            puter.ai.txt2img(prompt),
-            timeoutPromise
-        ]);
+    const response = await gatewayFetch<ImageGenerationResponse>('/images/generations', {
+        model: IMAGE_MODEL,
+        prompt,
+        n: 1,
+        response_format: 'b64_json',
+    });
 
-        if (imgElement instanceof HTMLImageElement || imgElement.tagName === 'IMG') {
-            // Ensure the image is fully loaded before drawing
-            await new Promise((resolve, reject) => {
-                if (imgElement.complete) {
-                    resolve(null);
-                } else {
-                    imgElement.onload = resolve;
-                    imgElement.onerror = reject;
-                }
-            });
-
-            // Draw to canvas to extract base64 data URL
-            const canvas = document.createElement('canvas');
-            canvas.width = imgElement.naturalWidth || imgElement.width || 512;
-            canvas.height = imgElement.naturalHeight || imgElement.height || 512;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-                ctx.drawImage(imgElement, 0, 0);
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-                if (dataUrl && dataUrl.length > 50) {
-                    return dataUrl;
-                }
-            }
-            return imgElement.src;
-        }
-
-        if (typeof imgElement === 'string') return imgElement;
-        if (imgElement && imgElement.src) return imgElement.src;
-        if (imgElement && imgElement.url) return imgElement.url;
-
-        throw new Error("Puter returned an invalid image response");
-    } catch (e) {
-        console.warn("Puter image generation failed:", e);
-        // Fallback to pollinations but with different domain format
-        const encodedPrompt = encodeURIComponent(prompt);
-        const seed = Math.floor(Math.random() * 1000000);
-        return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=512&nologo=true&seed=${seed}`;
+    const image = response.data?.[0];
+    if (image?.b64_json) {
+        return `data:image/png;base64,${image.b64_json}`;
     }
+    if (image?.url && image.url.trim() !== '') {
+        return image.url;
+    }
+
+    throw new Error(response.error?.message || 'AI Gateway returned no image data.');
 }
 
 /**
- * Stream text generation via Puter.js.
+ * Stream text generation via Vercel AI Gateway.
  * Yields text chunks as they arrive so the UI can update character-by-character.
  */
 export async function* streamText(prompt: string): AsyncGenerator<string, void, unknown> {
-    const response = await puter.ai.chat(prompt, { model: 'gpt-4o-mini', stream: true });
+    const response = await fetch(`${AI_GATEWAY_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${getGatewayKey()}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: TEXT_MODEL,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.7,
+            stream: true,
+        }),
+    });
 
-    // Check if response is async iterable (streaming mode)
-    if (response != null && typeof (response as AsyncIterable<unknown>)[Symbol.asyncIterator] === 'function') {
-        const asyncIterable = response as AsyncIterable<{
-            text?: string;
-            delta?: { content?: string };
-            choices?: Array<{ delta?: { content?: string } }>;
-        }>;
-        for await (const chunk of asyncIterable) {
-            const text =
-                chunk?.text ??
-                chunk?.delta?.content ??
-                chunk?.choices?.[0]?.delta?.content ??
-                '';
+    if (!response.ok || !response.body) {
+        const message = await response.text();
+        throw new Error(message || `AI Gateway stream failed with HTTP ${response.status}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith('data:')) continue;
+
+            const payload = trimmed.slice(5).trim();
+            if (!payload || payload === '[DONE]') continue;
+
+            const parsed = JSON.parse(payload) as {
+                choices?: Array<{ delta?: { content?: string } }>;
+                error?: { message?: string };
+            };
+            if (parsed.error?.message) throw new Error(parsed.error.message);
+
+            const text = parsed.choices?.[0]?.delta?.content || '';
             if (text) yield text;
         }
-    } else {
-        // Non-streaming fallback: yield full response as single chunk
-        const text =
-            typeof response === 'string'
-                ? response
-                : (response as { message?: { content?: string } })?.message?.content ?? '';
-        if (text) yield text;
     }
 }
 

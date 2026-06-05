@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "stress:canvas": "node scripts/canvas-stress-test.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.48",
