@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Infonote Canvas Stress Test Report</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --text: #172033;
+      --muted: #667085;
+      --border: #dde3ee;
+      --primary: #4f46e5;
+      --good: #0f9f6e;
+    }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    main {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 42px 22px 64px;
+    }
+    header {
+      margin-bottom: 28px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 34px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+    h2 {
+      margin: 30px 0 12px;
+      font-size: 20px;
+    }
+    p {
+      color: var(--muted);
+      margin: 0 0 14px;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .pill {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 999px;
+      padding: 6px 10px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 12px;
+      margin: 18px 0 26px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+    }
+    .metric {
+      font-size: 26px;
+      font-weight: 750;
+      color: var(--primary);
+    }
+    .label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      display: table;
+    }
+    th, td {
+      border-bottom: 1px solid var(--border);
+      padding: 11px 13px;
+      text-align: left;
+      font-size: 14px;
+    }
+    th {
+      background: #eef2ff;
+      color: #27316f;
+      font-weight: 700;
+    }
+    tr:last-child td {
+      border-bottom: 0;
+    }
+    td:last-child {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    code, pre {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+    pre {
+      background: #111827;
+      color: #e5e7eb;
+      border-radius: 8px;
+      padding: 14px;
+      overflow-x: auto;
+    }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--good);
+      background: #ecfdf3;
+      border: 1px solid #b7f0d2;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Infonote Canvas Stress Test Report</h1>
+      <div class="meta">
+        <span class="pill">Date: 2026-06-06</span>
+        <span class="pill">Scenario: 10,000 notes</span>
+        <span class="pill">Workspace: C:\Users\niyaz\Desktop\Infonote-main</span>
+      </div>
+    </header>
+
+    <section>
+      <div class="status">Build verified: npm run build passes</div>
+      <h2>Command</h2>
+      <pre><code>npm run stress:canvas -- --nodes 10000 --blocks 12 --edges 9999</code></pre>
+    </section>
+
+    <section class="grid" aria-label="Stress test summary metrics">
+      <div class="card"><div class="metric">10,000</div><div class="label">Canvas nodes</div></div>
+      <div class="card"><div class="metric">9,999</div><div class="label">Canvas edges</div></div>
+      <div class="card"><div class="metric">120,000</div><div class="label">Nested blocks</div></div>
+      <div class="card"><div class="metric">23.20 MB</div><div class="label">Serialized JSON payload</div></div>
+    </section>
+
+    <section>
+      <h2>Local Serialization Results</h2>
+      <table>
+        <thead>
+          <tr><th>Metric</th><th>Result</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Nodes</td><td>10,000</td></tr>
+          <tr><td>Edges</td><td>9,999</td></tr>
+          <tr><td>Blocks per node</td><td>12</td></tr>
+          <tr><td>Total blocks</td><td>120,000</td></tr>
+          <tr><td>JSON payload size</td><td>23.20 MB</td></tr>
+          <tr><td>Payload generation time</td><td>77.4 ms</td></tr>
+          <tr><td>JSON serialization time</td><td>105.3 ms</td></tr>
+          <tr><td>JSON parse time</td><td>82.9 ms</td></tr>
+          <tr><td>Heap delta</td><td>100.88 MB</td></tr>
+          <tr><td>Node batches at 500 rows</td><td>20</td></tr>
+          <tr><td>Edge batches at 500 rows</td><td>20</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Interpretation</h2>
+      <p>
+        The local data-generation and serialization layer can construct and parse a 10,000-node /
+        120,000-block canvas payload quickly on this machine. The payload uses real Infonote row
+        shapes for <code>canvas_nodes</code> and <code>canvas_edges</code>, including coordinates,
+        dimensions, metadata, nested blocks, statuses, priorities, tags, and edge styling.
+      </p>
+      <p>
+        This run skipped Supabase writes. To validate backend throughput, run the same script with
+        <code>--write</code> and a real stress-test account.
+      </p>
+    </section>
+
+    <section>
+      <h2>Real Supabase Write Test</h2>
+      <pre><code>$env:SUPABASE_URL="https://your-project.supabase.co"
+$env:SUPABASE_ANON_KEY="your-anon-or-publishable-key"
+$env:STRESS_EMAIL="stress-test-user@example.com"
+$env:STRESS_PASSWORD="your-test-password"
+npm run stress:canvas -- --nodes 10000 --blocks 12 --edges 9999 --write --cleanup</code></pre>
+    </section>
+
+    <section>
+      <h2>AI Provider Check</h2>
+      <p>
+        The source code no longer references Puter under <code>src</code> or <code>scripts</code>.
+        Text and image generation use the Vercel AI Gateway path in <code>src/services/aiService.ts</code>,
+        so Infonote should not show a Puter login popup during AI text generation.
+      </p>
+      <pre><code>VITE_AI_GATEWAY_API_KEY=your-vercel-ai-gateway-key
+VITE_AI_GATEWAY_TEXT_MODEL=openai/gpt-4o-mini
+VITE_AI_GATEWAY_IMAGE_MODEL=bfl/flux-2-pro</code></pre>
+    </section>
+  </main>
+</body>
+</html>

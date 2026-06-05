@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Upload, XCircle, Lightbulb, Link, type LucideIcon } from 'lucide-react';
-import EmojiPicker, { EmojiStyle, Theme } from 'emoji-picker-react';
+import EmojiPicker, { EmojiStyle, Theme, type EmojiClickData } from 'emoji-picker-react';
 import styles from './IconPicker.module.css';
 import { CardIcon, iconRegistry, iconMap, defaultIconName } from './iconMap';
 
@@ -250,7 +250,7 @@ export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconP
                 {activeTab === 'emojis' && (
                     <div style={{ width: '100%', height: '400px', display: 'flex', justifyContent: 'center' }}>
                         <EmojiPicker 
-                            onEmojiClick={(emojiData) => {
+                            onEmojiClick={(emojiData: EmojiClickData) => {
                                 onSelect(`emoji::${emojiData.emoji}`);
                                 onClose();
                             }}

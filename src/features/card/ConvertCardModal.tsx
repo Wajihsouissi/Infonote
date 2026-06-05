@@ -367,7 +367,7 @@ export function ConvertCardModal({ initialTitle, initialColor, content, onConfir
                                     </div>
                                 )}
                                 
-                                <div className={styles.previewContent} style={{ color: noteAreaStyles['--color-text-main'] }}>
+                                <div className={styles.previewContent} style={{ color: String((noteAreaStyles as Record<string, unknown>)['--color-text-main'] ?? 'inherit') }}>
                                     {previewText ? (
                                         <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                                             {previewText}
