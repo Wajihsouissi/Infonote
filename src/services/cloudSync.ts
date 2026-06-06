@@ -81,7 +81,7 @@ interface CanvasEdgeRow {
     data_json: Record<string, unknown>;
 }
 
-async function ensureReady(userId: string | null, workspaceId: string | null): Promise<{ userId: string; workspaceId: string }> {
+async function ensureReady(userId: string | null, workspaceId: string | null): Promise<{ userId: string; workspaceId: string; actorUserId: string }> {
     if (!isSupabaseConfigured) {
         throw new Error('Supabase is not configured (missing VITE_SUPABASE_* env).');
     }
@@ -105,16 +105,15 @@ async function ensureReady(userId: string | null, workspaceId: string | null): P
 
     const { data: workspace, error: workspaceError } = await supabase
         .from('workspaces')
-        .select('id')
+        .select('id, owner_id')
         .eq('id', workspaceId)
-        .eq('owner_id', userId)
         .maybeSingle();
     if (workspaceError) throw workspaceError;
-    if (!workspace?.id) {
+    if (!workspace?.id || !workspace.owner_id) {
         throw new Error('Unauthorized workspace access blocked.');
     }
 
-    return { userId, workspaceId };
+    return { userId: workspace.owner_id as string, workspaceId, actorUserId: authData.user.id };
 }
 
 /** Retry an async operation with exponential backoff. */
@@ -341,7 +340,7 @@ async function _saveCanvasToCloudImpl(
     }
 ): Promise<CloudSyncResult> {
     try {
-        const { userId: uid, workspaceId: wid } = await ensureReady(userId, workspaceId);
+        const { userId: uid, workspaceId: wid, actorUserId } = await ensureReady(userId, workspaceId);
 
         // Build payloads, then dedupe — prevents the "409 ON CONFLICT cannot
         // affect row a second time" error when state has duplicate ids.
@@ -423,7 +422,7 @@ async function _saveCanvasToCloudImpl(
         supabase
             .from('user_profiles')
             .update({ last_active_at: new Date().toISOString() })
-            .eq('id', uid)
+            .eq('id', actorUserId)
             .then(() => {}); // fire-and-forget, don't block save
 
         return { ok: true, counts: { nodes: nodeRows.length, edges: edgeRows.length } };

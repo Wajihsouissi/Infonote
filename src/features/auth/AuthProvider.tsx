@@ -78,7 +78,6 @@ async function ensureWorkspace(userId: string): Promise<string | null> {
                 .from('workspaces')
                 .select('id')
                 .eq('id', cached)
-                .eq('owner_id', userId)
                 .maybeSingle();
             if (!cachedError && cachedWorkspace?.id) {
                 localStorage.setItem(userStorageKey, cachedWorkspace.id);
@@ -92,9 +91,9 @@ async function ensureWorkspace(userId: string): Promise<string | null> {
         // Query existing workspaces
         const { data, error } = await supabase
             .from('workspaces')
-            .select('id')
-            .eq('owner_id', userId)
-            .limit(1);
+            .select('id, owner_id')
+            .order('created_at', { ascending: true })
+            .limit(50);
 
         if (error) {
             console.warn('[workspace] Failed to query workspaces:', error.message);
@@ -102,9 +101,11 @@ async function ensureWorkspace(userId: string): Promise<string | null> {
         }
 
         if (data && data.length > 0) {
-            localStorage.setItem(userStorageKey, data[0].id);
-            localStorage.setItem(legacyStorageKey, data[0].id);
-            return data[0].id;
+            const owned = data.find((workspace: { owner_id?: string }) => workspace.owner_id === userId);
+            const selected = owned ?? data[0];
+            localStorage.setItem(userStorageKey, selected.id);
+            localStorage.setItem(legacyStorageKey, selected.id);
+            return selected.id;
         }
 
         // No workspace exists — create one

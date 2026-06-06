@@ -40,7 +40,7 @@ import { useStore } from '../../store/useStore';
 import { v4 as uuidv4 } from 'uuid';
 import { isUrl } from '../editor/pasteUtils';
 import { loadCanvasFromCloud } from '../../services/cloudSync';
-import { isSupabaseConfigured } from '../../services/supabase/client';
+import { isSupabaseConfigured, supabase } from '../../services/supabase/client';
 
 // Hooks
 import {
@@ -854,6 +854,60 @@ export function CanvasBoard() {
 
         return () => {
             cancelled = true;
+        };
+    }, [authUserId, activeWorkspaceId, isAuthenticated, loadGraph, setCloudLastSaved, setCloudDirty, setCloudError]);
+
+    useEffect(() => {
+        if (!isSupabaseConfigured || !supabase || !isAuthenticated || !authUserId || !activeWorkspaceId) return;
+
+        let cancelled = false;
+        let reloadTimer: number | null = null;
+
+        const reloadSharedCanvas = () => {
+            if (reloadTimer) window.clearTimeout(reloadTimer);
+            reloadTimer = window.setTimeout(async () => {
+                if (cancelled) return;
+                const result = await loadCanvasFromCloud(authUserId, activeWorkspaceId);
+                if (cancelled) return;
+                if (result.ok) {
+                    loadGraph(result.nodes, result.edges);
+                    setCloudLastSaved(new Date().toLocaleTimeString());
+                    setCloudDirty(false);
+                    setCloudError(null);
+                } else {
+                    setCloudError(result.error);
+                }
+            }, 650);
+        };
+
+        const channel = supabase
+            .channel(`workspace-canvas-${activeWorkspaceId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'canvas_nodes',
+                    filter: `workspace_id=eq.${activeWorkspaceId}`,
+                },
+                reloadSharedCanvas,
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'canvas_edges',
+                    filter: `workspace_id=eq.${activeWorkspaceId}`,
+                },
+                reloadSharedCanvas,
+            )
+            .subscribe();
+
+        return () => {
+            cancelled = true;
+            if (reloadTimer) window.clearTimeout(reloadTimer);
+            void supabase.removeChannel(channel);
         };
     }, [authUserId, activeWorkspaceId, isAuthenticated, loadGraph, setCloudLastSaved, setCloudDirty, setCloudError]);
 

@@ -96,7 +96,6 @@ export async function ensureUserWorkspace(userId: string): Promise<string | null
             .from('workspaces')
             .select('id')
             .eq('id', cached)
-            .eq('owner_id', userId)
             .maybeSingle();
 
         if (!error && cachedWorkspace?.id) {
@@ -111,18 +110,18 @@ export async function ensureUserWorkspace(userId: string): Promise<string | null
 
     const { data: existing, error: readError } = await supabase
         .from('workspaces')
-        .select('id')
-        .eq('owner_id', userId)
+        .select('id, owner_id')
         .order('created_at', { ascending: true })
-        .limit(1);
+        .limit(50);
 
     if (readError) throw readError;
 
-    const existingId = existing?.[0]?.id;
-    if (existingId) {
-        localStorage.setItem(userStorageKey, existingId);
-        localStorage.setItem(legacyStorageKey, existingId);
-        return existingId;
+    if (existing && existing.length > 0) {
+        const owned = existing.find((workspace: { owner_id?: string }) => workspace.owner_id === userId);
+        const selected = owned ?? existing[0];
+        localStorage.setItem(userStorageKey, selected.id);
+        localStorage.setItem(legacyStorageKey, selected.id);
+        return selected.id;
     }
 
     const { data: created, error: createError } = await supabase
