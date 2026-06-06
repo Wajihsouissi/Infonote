@@ -204,7 +204,7 @@ async function readNotionResponse(response: Response): Promise<unknown> {
   return data
 }
 
-async function fetchNotionPageBlocks(id: string, headers: Record<string, string>): Promise<unknown[]> {
+async function fetchNotionBlockChildren(id: string, headers: Record<string, string>, depth = 0): Promise<unknown[]> {
   const all: unknown[] = []
   let cursor = ''
 
@@ -213,11 +213,30 @@ async function fetchNotionPageBlocks(id: string, headers: Record<string, string>
       `${NOTION_API_BASE_URL}/blocks/${encodeURIComponent(id)}/children?page_size=100` +
       (cursor ? `&start_cursor=${encodeURIComponent(cursor)}` : '')
     const data = await readNotionResponse(await fetch(url, { method: 'GET', headers }))
-    all.push(...arrayValue(data, 'results'))
+    for (const rawBlock of arrayValue(data, 'results')) {
+      if (!isRecord(rawBlock)) {
+        all.push(rawBlock)
+        continue
+      }
+
+      const block: Record<string, unknown> = { ...rawBlock }
+      if (block.has_children === true && typeof block.id === 'string' && depth < 8) {
+        try {
+          block.children = await fetchNotionBlockChildren(block.id, headers, depth + 1)
+        } catch (error) {
+          block.children_fetch_error = error instanceof Error ? error.message : String(error)
+        }
+      }
+      all.push(block)
+    }
     cursor = isRecord(data) && data.has_more ? stringValue(data, 'next_cursor') : ''
   } while (cursor)
 
   return all
+}
+
+async function fetchNotionPageBlocks(id: string, headers: Record<string, string>): Promise<unknown[]> {
+  return fetchNotionBlockChildren(id, headers, 0)
 }
 
 async function queryNotionDatabaseRows(id: string, headers: Record<string, string>): Promise<unknown[]> {

@@ -43,7 +43,7 @@ async function readNotionJson(response) {
   return data;
 }
 
-async function fetchPageBlocks(id, headers) {
+async function fetchBlockChildren(id, headers, depth = 0) {
   const all = [];
   let cursor = null;
 
@@ -53,11 +53,26 @@ async function fetchPageBlocks(id, headers) {
       (cursor ? `&start_cursor=${encodeURIComponent(cursor)}` : '');
     const response = await fetch(url, { method: 'GET', headers });
     const data = await readNotionJson(response);
-    if (Array.isArray(data.results)) all.push(...data.results);
+    if (Array.isArray(data.results)) {
+      for (const block of data.results) {
+        if (block?.has_children && block?.id && depth < 8) {
+          try {
+            block.children = await fetchBlockChildren(block.id, headers, depth + 1);
+          } catch (error) {
+            block.children_fetch_error = error instanceof Error ? error.message : String(error);
+          }
+        }
+        all.push(block);
+      }
+    }
     cursor = data.has_more && data.next_cursor ? data.next_cursor : null;
   } while (cursor);
 
   return all;
+}
+
+async function fetchPageBlocks(id, headers) {
+  return fetchBlockChildren(id, headers, 0);
 }
 
 async function queryDatabase(id, headers) {

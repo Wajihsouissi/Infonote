@@ -14,8 +14,16 @@ create table if not exists public.workspace_members (
     primary key (workspace_id, user_id)
 );
 
+alter table public.workspace_members
+    add column if not exists role text not null default 'editor',
+    add column if not exists invited_by uuid references auth.users(id) on delete set null,
+    add column if not exists created_at timestamptz not null default now();
+
 create index if not exists workspace_members_user_idx
     on public.workspace_members(user_id);
+
+create unique index if not exists workspace_members_workspace_user_uidx
+    on public.workspace_members(workspace_id, user_id);
 
 create table if not exists public.workspace_invitations (
     id            uuid primary key default gen_random_uuid(),
@@ -28,6 +36,15 @@ create table if not exists public.workspace_invitations (
     accepted_at   timestamptz,
     expires_at    timestamptz not null default (now() + interval '14 days')
 );
+
+alter table public.workspace_invitations
+    add column if not exists invited_email citext,
+    add column if not exists invited_by uuid references auth.users(id) on delete cascade,
+    add column if not exists role text not null default 'editor',
+    add column if not exists status text not null default 'pending',
+    add column if not exists created_at timestamptz not null default now(),
+    add column if not exists accepted_at timestamptz,
+    add column if not exists expires_at timestamptz not null default (now() + interval '14 days');
 
 create index if not exists workspace_invitations_workspace_idx
     on public.workspace_invitations(workspace_id);

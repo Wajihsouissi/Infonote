@@ -1,28 +1,13 @@
 /**
- * notionConverter — translate a Notion page or database response into our
- * canvas AppNode shape.
+ * Translate Notion page/database responses into real Infonote canvas nodes.
  *
- * Two entry points:
- *   - convertNotionPageToCanvasNodes(blocks, options)
- *       Walks a flat list of Notion blocks (heading_*, paragraph,
- *       bulleted_list_item, numbered_list_item, to_do, code, quote, ...)
- *       and groups consecutive content under each heading into a single
- *       text card. Cards are stacked vertically along Y so they never
- *       pile up on top of each other.
- *
- *   - convertNotionDatabaseToCanvasNodes(pages, options)
- *       Buckets database pages by their Status (or Select) property name
- *       and lays them out as a kanban — one column per distinct status,
- *       cards stacked top-down within each column.
- *
- * Both functions return AppNode[] ready to hand off to
- * appendCanvasNodesToCloud() — the same path Figma import uses, so 409
- * conflicts are eliminated and overwrites are merged in place.
+ * Page imports preserve nested Notion block content by recursively walking
+ * child blocks fetched by the Notion API proxy. This keeps headings, body
+ * paragraphs, list items, toggles, code blocks, quotes, links, and nested
+ * column content in reading order instead of importing only section titles.
  */
 import { v4 as uuidv4 } from 'uuid';
 import type { AppNode } from '../../types';
-
-// ───── Notion API surface (only the fields we read) ──────────────────────
 
 export interface NotionRichText {
     plain_text?: string;
@@ -33,6 +18,8 @@ export interface NotionBlockBase {
     id: string;
     type: string;
     has_children?: boolean;
+    children?: NotionBlock[];
+    children_fetch_error?: string;
 }
 
 export interface NotionBlockWithRichText extends NotionBlockBase {
@@ -64,34 +51,29 @@ export interface NotionPage {
     last_edited_time?: string;
 }
 
-// ───── Shared options ────────────────────────────────────────────────────
-
 export interface NotionConvertOptions {
-    /**
-     * Translation applied to every produced node. Lets the caller drop
-     * the import in an empty area of the canvas instead of (0,0). Default
-     * is a small offset so brand-new imports never sit at the origin.
-     */
     offset?: { x: number; y: number };
-    /**
-     * If true (default), tag every produced node with `data._notionSourceId`
-     * and `data._notionType` for debugging / re-import.
-     */
     keepSourceIds?: boolean;
 }
 
 export interface NotionConvertResult {
     nodes: AppNode[];
-    /** Number of Notion blocks/pages we couldn't represent. */
     skipped: number;
 }
 
+type CanvasTextBlock = {
+    id: string;
+    type: string;
+    content: string;
+    metadata?: Record<string, unknown>;
+};
+
 const DEFAULT_OFFSET = { x: 80, y: 80 };
 
-// Layout constants tuned for the existing canvas grid.
-const PAGE_CARD_WIDTH = 360;
-const PAGE_CARD_HEIGHT = 220;
+const PAGE_CARD_WIDTH = 420;
+const PAGE_CARD_MIN_HEIGHT = 220;
 const PAGE_GAP_Y = 40;
+const LINE_HEIGHT_ESTIMATE = 26;
 
 const KANBAN_COLUMN_WIDTH = 320;
 const KANBAN_COLUMN_GAP = 40;
@@ -99,13 +81,6 @@ const KANBAN_CARD_HEIGHT = 140;
 const KANBAN_CARD_GAP_Y = 24;
 const KANBAN_HEADER_HEIGHT = 60;
 
-// ───── Page conversion ───────────────────────────────────────────────────
-
-/**
- * Group a flat block list under its headings. Each (heading + following
- * non-heading blocks) becomes a single text card. Blocks that appear
- * before the first heading land in an "Untitled" card so nothing is lost.
- */
 export function convertNotionPageToCanvasNodes(
     blocks: NotionBlock[],
     options: NotionConvertOptions = {},
@@ -120,107 +95,227 @@ export function convertNotionPageToCanvasNodes(
     interface Group {
         heading: string;
         sourceId: string;
-        bodyLines: string[];
+        bodyBlocks: CanvasTextBlock[];
     }
 
     const groups: Group[] = [];
     let current: Group = {
         heading: 'Untitled',
         sourceId: blocks[0]?.id ?? uuidv4(),
-        bodyLines: [],
+        bodyBlocks: [],
     };
     let skipped = 0;
 
     const flush = () => {
-        if (current.bodyLines.length > 0 || current.heading !== 'Untitled') {
+        if (current.bodyBlocks.length > 0 || current.heading !== 'Untitled') {
             groups.push(current);
         }
     };
 
     for (const block of blocks) {
-        const type = block.type;
-        if (type === 'heading_1' || type === 'heading_2' || type === 'heading_3') {
-            // Start a new group.
+        if (isHeading(block.type)) {
             flush();
             current = {
-                heading: extractRichText(block, type) || 'Section',
+                heading: extractRichText(block, block.type) || 'Section',
                 sourceId: block.id,
-                bodyLines: [],
+                bodyBlocks: [],
             };
+
+            const nested = notionChildrenToCanvasBlocks(block, 0);
+            current.bodyBlocks.push(...nested.blocks);
+            skipped += nested.skipped;
             continue;
         }
 
-        const line = blockToLine(block);
-        if (line == null) {
-            skipped += 1;
-            continue;
-        }
-        current.bodyLines.push(line);
+        const converted = notionBlockToCanvasBlocks(block, 0);
+        current.bodyBlocks.push(...converted.blocks);
+        skipped += converted.skipped;
     }
     flush();
 
-    // Emit one note card per group, stacked vertically.
-    const nodes: AppNode[] = groups.map((g, idx) => {
+    const nodes: AppNode[] = [];
+    let y = offset.y;
+
+    for (const group of groups) {
+        const bodyText = group.bodyBlocks.map((block) => block.content).join('\n');
+        const cardHeight = Math.max(
+            PAGE_CARD_MIN_HEIGHT,
+            120 + group.bodyBlocks.length * LINE_HEIGHT_ESTIMATE,
+        );
         const data: Record<string, unknown> = {
-            label: g.heading.slice(0, 80),
+            label: group.heading.slice(0, 80),
             type: 'text',
-            content: g.bodyLines.join('\n'),
+            content: group.bodyBlocks.length > 0
+                ? group.bodyBlocks
+                : [{ id: uuidv4(), type: 'text', content: '' }],
+            description: bodyText,
         };
+
         if (keepSourceIds) {
-            data._notionSourceId = g.sourceId;
+            data._notionSourceId = group.sourceId;
             data._notionType = 'page_section';
         }
-        return {
+
+        nodes.push({
             id: uuidv4(),
             type: 'note',
-            position: {
-                x: offset.x,
-                y: offset.y + idx * (PAGE_CARD_HEIGHT + PAGE_GAP_Y),
-            },
+            position: { x: offset.x, y },
             data,
-            style: { width: PAGE_CARD_WIDTH, height: PAGE_CARD_HEIGHT },
-        } as AppNode;
-    });
+            style: { width: PAGE_CARD_WIDTH, height: cardHeight },
+        } as AppNode);
+
+        y += cardHeight + PAGE_GAP_Y;
+    }
 
     return { nodes, skipped };
 }
 
-/** Extract the heading text from a heading_N block. */
+function notionChildrenToCanvasBlocks(
+    block: NotionBlock,
+    depth: number,
+): { blocks: CanvasTextBlock[]; skipped: number } {
+    const blocks: CanvasTextBlock[] = [];
+    let skipped = 0;
+
+    if (Array.isArray(block.children)) {
+        for (const child of block.children) {
+            const converted = notionBlockToCanvasBlocks(child, depth);
+            blocks.push(...converted.blocks);
+            skipped += converted.skipped;
+        }
+    } else if (block.has_children || block.children_fetch_error) {
+        skipped += 1;
+    }
+
+    return { blocks, skipped };
+}
+
+function notionBlockToCanvasBlocks(
+    block: NotionBlock,
+    depth: number,
+): { blocks: CanvasTextBlock[]; skipped: number } {
+    const blocks: CanvasTextBlock[] = [];
+    let skipped = 0;
+
+    const ownBlock = blockToCanvasTextBlock(block, depth);
+    if (ownBlock) {
+        blocks.push(ownBlock);
+    }
+
+    if (Array.isArray(block.children)) {
+        for (const child of block.children) {
+            const converted = notionBlockToCanvasBlocks(child, depth + 1);
+            blocks.push(...converted.blocks);
+            skipped += converted.skipped;
+        }
+    } else if (block.has_children || block.children_fetch_error) {
+        skipped += 1;
+    }
+
+    if (!ownBlock && blocks.length === 0 && !isStructuralContainer(block.type)) {
+        skipped += 1;
+    }
+
+    return { blocks, skipped };
+}
+
+function blockToCanvasTextBlock(block: NotionBlock, depth: number): CanvasTextBlock | null {
+    const type = block.type;
+    const inner = (block as Record<string, unknown>)[type] as
+        | {
+            rich_text?: NotionRichText[];
+            checked?: boolean;
+            language?: string;
+            caption?: NotionRichText[];
+            title?: string;
+            url?: string;
+            external?: { url?: string };
+            file?: { url?: string };
+        }
+        | undefined;
+
+    const text = joinRichText(inner?.rich_text);
+    const indent = depth > 0 ? '  '.repeat(Math.min(depth, 6)) : '';
+
+    switch (type) {
+        case 'paragraph':
+            return text ? textBlock(`${indent}${text}`) : null;
+        case 'heading_1':
+            return text ? textBlock(`${indent}${text}`, 'heading1') : null;
+        case 'heading_2':
+            return text ? textBlock(`${indent}${text}`, 'heading2') : null;
+        case 'heading_3':
+            return text ? textBlock(`${indent}${text}`, 'heading3') : null;
+        case 'bulleted_list_item':
+            return text ? textBlock(`${indent}- ${text}`) : null;
+        case 'numbered_list_item':
+            return text ? textBlock(`${indent}1. ${text}`) : null;
+        case 'to_do':
+            return textBlock(`${indent}${inner?.checked ? '[x]' : '[ ]'} ${text}`.trimEnd());
+        case 'quote':
+            return text ? textBlock(`${indent}> ${text}`, 'quote') : null;
+        case 'code':
+            return text
+                ? textBlock(text, 'code', { language: inner?.language ?? 'plain text' })
+                : null;
+        case 'callout':
+        case 'toggle':
+            return text ? textBlock(`${indent}${text}`) : null;
+        case 'divider':
+            return textBlock(`${indent}---`, 'divider');
+        case 'child_page':
+            return textBlock(`${indent}${inner?.title ?? 'Child page'}`, 'heading3');
+        case 'bookmark':
+        case 'embed':
+        case 'link_preview': {
+            const url = inner?.url;
+            return url ? textBlock(`${indent}${url}`, 'link') : null;
+        }
+        case 'image': {
+            const caption = joinRichText(inner?.caption);
+            const url = inner?.external?.url ?? inner?.file?.url;
+            if (!url && !caption) return null;
+            return textBlock(url ?? caption, url ? 'image' : 'text', caption ? { caption } : undefined);
+        }
+        default:
+            return null;
+    }
+}
+
+function textBlock(
+    content: string,
+    type = 'text',
+    metadata?: Record<string, unknown>,
+): CanvasTextBlock {
+    return {
+        id: uuidv4(),
+        type,
+        content,
+        ...(metadata ? { metadata } : {}),
+    };
+}
+
+function isHeading(type: string): boolean {
+    return type === 'heading_1' || type === 'heading_2' || type === 'heading_3';
+}
+
+function isStructuralContainer(type: string): boolean {
+    return [
+        'column_list',
+        'column',
+        'synced_block',
+        'table',
+        'table_row',
+        'breadcrumb',
+        'unsupported',
+    ].includes(type);
+}
+
 function extractRichText(block: NotionBlock, key: string): string {
     const inner = (block as Record<string, unknown>)[key] as
         | { rich_text?: NotionRichText[] }
         | undefined;
     return joinRichText(inner?.rich_text);
-}
-
-/** Convert a non-heading content block into a single line of text. */
-function blockToLine(block: NotionBlock): string | null {
-    const t = block.type;
-    const inner = (block as Record<string, unknown>)[t] as
-        | { rich_text?: NotionRichText[]; checked?: boolean; language?: string }
-        | undefined;
-    const text = joinRichText(inner?.rich_text);
-
-    switch (t) {
-        case 'paragraph':
-            return text;
-        case 'bulleted_list_item':
-            return `• ${text}`;
-        case 'numbered_list_item':
-            return `1. ${text}`;
-        case 'to_do':
-            return `${inner?.checked ? '[x]' : '[ ]'} ${text}`;
-        case 'quote':
-            return `> ${text}`;
-        case 'code':
-            return text ? '```\n' + text + '\n```' : '';
-        case 'callout':
-            return text ? `💡 ${text}` : '';
-        case 'divider':
-            return '———';
-        default:
-            return null;
-    }
 }
 
 function joinRichText(rich: NotionRichText[] | undefined): string {
@@ -231,21 +326,6 @@ function joinRichText(rich: NotionRichText[] | undefined): string {
         .trim();
 }
 
-// ───── Database (Kanban) conversion ──────────────────────────────────────
-
-/**
- * Bucket pages by status name and emit a kanban-style layout: one column
- * per distinct status, cards stacked vertically inside each column.
- *
- * Status detection order:
- *   1. First property of type 'status' (Notion's dedicated status column).
- *   2. First property of type 'select'.
- *   3. Falls back to a single column called "All".
- *
- * Title detection:
- *   1. The property whose `type` is 'title' (Notion's required Name column).
- *   2. Falls back to the page id.
- */
 export function convertNotionDatabaseToCanvasNodes(
     pages: NotionPage[],
     options: NotionConvertOptions = {},
@@ -257,30 +337,24 @@ export function convertNotionDatabaseToCanvasNodes(
         return { nodes: [], skipped: 0 };
     }
 
-    let skipped = 0;
-
-    // Discover the status property key from the first page that has one.
     const statusKey = findStatusKey(pages);
     const titleKey = findTitleKey(pages);
-
-    // Bucket pages by status name; preserve insertion order so columns
-    // appear in the order Notion returned them.
     const buckets = new Map<string, NotionPage[]>();
+
     for (const page of pages) {
         const status = statusKey ? readStatusName(page.properties[statusKey]) : 'All';
         const key = status || 'No status';
-        const arr = buckets.get(key) ?? [];
-        arr.push(page);
-        buckets.set(key, arr);
+        const bucket = buckets.get(key) ?? [];
+        bucket.push(page);
+        buckets.set(key, bucket);
     }
 
     const nodes: AppNode[] = [];
-
     let columnIndex = 0;
+
     for (const [status, columnPages] of buckets.entries()) {
         const colX = offset.x + columnIndex * (KANBAN_COLUMN_WIDTH + KANBAN_COLUMN_GAP);
 
-        // Column header — a small text note that labels the lane.
         nodes.push({
             id: uuidv4(),
             type: 'note',
@@ -288,27 +362,28 @@ export function convertNotionDatabaseToCanvasNodes(
             data: {
                 label: status,
                 type: 'text',
-                content: `${columnPages.length} task${columnPages.length === 1 ? '' : 's'}`,
+                content: [{ id: uuidv4(), type: 'text', content: `${columnPages.length} task${columnPages.length === 1 ? '' : 's'}` }],
                 ...(keepSourceIds ? { _notionType: 'database_column' } : {}),
             },
             style: { width: KANBAN_COLUMN_WIDTH, height: KANBAN_HEADER_HEIGHT },
         } as AppNode);
 
-        // Cards in this column.
         columnPages.forEach((page, rowIndex) => {
-            const title = titleKey
-                ? readTitleText(page.properties[titleKey])
-                : '';
+            const title = titleKey ? readTitleText(page.properties[titleKey]) : '';
             const summary = summariseProperties(page.properties, titleKey, statusKey);
             const data: Record<string, unknown> = {
-                label: (title && title.trim()) || `Task · ${page.id.slice(0, 6)}`,
+                label: (title && title.trim()) || `Task - ${page.id.slice(0, 6)}`,
                 type: 'task',
-                content: summary,
+                content: summary
+                    ? summary.split('\n').map((line) => textBlock(line))
+                    : [{ id: uuidv4(), type: 'text', content: '' }],
+                description: summary,
                 ...(typeof page.url === 'string' ? { url: page.url } : {}),
                 ...(keepSourceIds
                     ? { _notionSourceId: page.id, _notionType: 'database_card' }
                     : {}),
             };
+
             nodes.push({
                 id: uuidv4(),
                 type: 'note',
@@ -328,7 +403,7 @@ export function convertNotionDatabaseToCanvasNodes(
         columnIndex += 1;
     }
 
-    return { nodes, skipped };
+    return { nodes, skipped: 0 };
 }
 
 function findStatusKey(pages: NotionPage[]): string | null {
@@ -368,29 +443,27 @@ function readTitleText(prop: NotionPageProperty | undefined): string {
     return '';
 }
 
-/**
- * Build a short text summary of the remaining properties so the card body
- * isn't empty. Skips title and status (already represented elsewhere) and
- * skips empty values to keep the preview tight.
- */
 function summariseProperties(
     properties: Record<string, NotionPageProperty>,
     titleKey: string | null,
     statusKey: string | null,
 ): string {
     const lines: string[] = [];
+
     for (const [key, prop] of Object.entries(properties)) {
         if (key === titleKey || key === statusKey) continue;
         const value = stringifyProperty(prop);
         if (!value) continue;
         lines.push(`${key}: ${value}`);
-        if (lines.length >= 4) break; // keep cards readable
+        if (lines.length >= 8) break;
     }
+
     return lines.join('\n');
 }
 
 function stringifyProperty(prop: NotionPageProperty | undefined): string {
     if (!prop) return '';
+
     switch (prop.type) {
         case 'rich_text':
             return joinRichText(prop.rich_text);
@@ -406,7 +479,7 @@ function stringifyProperty(prop: NotionPageProperty | undefined): string {
         case 'number':
             return prop.number != null ? String(prop.number) : '';
         case 'checkbox':
-            return prop.checkbox ? '✓' : '';
+            return prop.checkbox ? 'checked' : '';
         case 'date':
             return prop.date?.start ?? '';
         case 'url':
