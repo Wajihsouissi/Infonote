@@ -1,14 +1,14 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Folder, FolderOpen, FolderCheck, FolderX, FolderSync, Cloud, CloudCheck, CloudAlert, CloudSync, CloudUpload } from 'lucide-react';
+import { Folder, FolderOpen, FolderCheck, FolderX, FolderSync, Cloud, CloudCheck, CloudAlert, CloudSync, CloudUpload, UploadCloud } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { connectBackend, disconnectBackend, getActiveBackendKind } from '../../services/StorageManager';
 import { fileSystemStorage } from '../../services/FileSystemStorage';
 import { saveCanvasToCloud } from '../../services/cloudSync';
 import { useAuth } from '../auth/useAuth';
-import { SignInPanel } from '../auth/SignInPanel';
 import { CloudLoadModal } from '../canvas/CloudLoadModal';
 import { LocalSyncModal } from '../canvas/LocalSyncModal';
 import { CloudSyncModal } from '../canvas/CloudSyncModal';
+import { NotionImportModal } from '../canvas/NotionImportModal';
 import styles from './StorageControls.module.css';
 
 /**
@@ -38,6 +38,7 @@ export const StorageControls: React.FC = () => {
     const [cloudModalOpen, setCloudModalOpen] = useState(false);
     const [loadModalOpen, setLoadModalOpen] = useState(false);
     const [localModalOpen, setLocalModalOpen] = useState(false);
+    const [notionModalOpen, setNotionModalOpen] = useState(false);
 
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const [hasAutoLoadedCloud, setHasAutoLoadedCloud] = useState(false);
@@ -364,6 +365,17 @@ export const StorageControls: React.FC = () => {
                 </button>
             )}
 
+            {user && (
+                <button
+                    className={`${styles.iconBtn} ${styles.neverSaved}`}
+                    onClick={() => setNotionModalOpen(true)}
+                    disabled={isConnecting}
+                    data-tooltip="Import from Notion"
+                >
+                    <UploadCloud size={18} />
+                </button>
+            )}
+
             <CloudSyncModal 
                 open={cloudModalOpen}
                 onClose={() => setCloudModalOpen(false)}
@@ -383,7 +395,7 @@ export const StorageControls: React.FC = () => {
             <CloudLoadModal
                 open={loadModalOpen}
                 onClose={() => setLoadModalOpen(false)}
-                onLoaded={(counts) => {
+                onLoaded={() => {
                     setHasCloudBackup(localStorage.getItem('chnk-it-cloud-reload-backup') !== null);
                 }}
             />
@@ -393,6 +405,11 @@ export const StorageControls: React.FC = () => {
                 onClose={() => setLocalModalOpen(false)}
                 onLoad={handleLocalLoad}
                 onSave={handleLocalSave}
+            />
+
+            <NotionImportModal
+                open={notionModalOpen}
+                onClose={() => setNotionModalOpen(false)}
             />
         </div>
     );

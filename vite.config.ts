@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 
 const AI_GATEWAY_BASE_URL = 'https://ai-gateway.vercel.sh/v1'
+const NOTION_API_BASE_URL = 'https://api.notion.com/v1'
+const DEFAULT_NOTION_VERSION = '2022-06-28'
 let loadedEnv: Record<string, string> = {}
 
 type JsonBody = Record<string, unknown>
@@ -52,6 +54,14 @@ function sendError(res: ServerResponse, status: number, error: unknown): void {
   sendJson(res, status, {
     error: error instanceof Error ? error.message : String(error),
   })
+}
+
+function buildNotionHeaders(accessToken: string, notionVersion?: string): Record<string, string> {
+  return {
+    Authorization: `Bearer ${accessToken}`,
+    'Notion-Version': notionVersion || DEFAULT_NOTION_VERSION,
+    'Content-Type': 'application/json',
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -120,6 +130,49 @@ function extractImageUrl(data: unknown): string | null {
   return null
 }
 
+function joinNotionRichText(value: unknown): string {
+  if (!Array.isArray(value)) return ''
+  return value.map((item) => stringValue(item, 'plain_text') || stringValue(recordValue(item, 'text'), 'content')).join('').trim()
+}
+
+function getNotionPageTitle(properties: unknown): string {
+  if (!isRecord(properties)) return 'Untitled page'
+  for (const prop of Object.values(properties)) {
+    if (isRecord(prop) && prop.type === 'title') {
+      return joinNotionRichText(prop.title) || 'Untitled page'
+    }
+  }
+  return 'Untitled page'
+}
+
+function normalizeNotionSearchItem(item: unknown): JsonBody | null {
+  if (!isRecord(item)) return null
+  const id = stringValue(item, 'id')
+  if (!id) return null
+
+  if (item.object === 'database') {
+    return {
+      id,
+      kind: 'database',
+      title: joinNotionRichText(item.title) || 'Untitled database',
+      url: stringValue(item, 'url') || null,
+      lastEditedTime: stringValue(item, 'last_edited_time') || null,
+    }
+  }
+
+  if (item.object === 'page') {
+    return {
+      id,
+      kind: 'page',
+      title: getNotionPageTitle(item.properties),
+      url: stringValue(item, 'url') || null,
+      lastEditedTime: stringValue(item, 'last_edited_time') || null,
+    }
+  }
+
+  return null
+}
+
 async function callGateway(path: string, payload: JsonBody): Promise<unknown> {
   const response = await fetch(`${AI_GATEWAY_BASE_URL}${path}`, {
     method: 'POST',
@@ -140,6 +193,115 @@ async function callGateway(path: string, payload: JsonBody): Promise<unknown> {
     throw error
   }
   return data
+}
+
+async function readNotionResponse(response: Response): Promise<unknown> {
+  const text = await response.text()
+  const data: unknown = text ? JSON.parse(text) : {}
+  if (!response.ok) {
+    throw new Error(stringValue(data, 'message') || text || `Notion API failed with HTTP ${response.status}`)
+  }
+  return data
+}
+
+async function fetchNotionPageBlocks(id: string, headers: Record<string, string>): Promise<unknown[]> {
+  const all: unknown[] = []
+  let cursor = ''
+
+  do {
+    const url =
+      `${NOTION_API_BASE_URL}/blocks/${encodeURIComponent(id)}/children?page_size=100` +
+      (cursor ? `&start_cursor=${encodeURIComponent(cursor)}` : '')
+    const data = await readNotionResponse(await fetch(url, { method: 'GET', headers }))
+    all.push(...arrayValue(data, 'results'))
+    cursor = isRecord(data) && data.has_more ? stringValue(data, 'next_cursor') : ''
+  } while (cursor)
+
+  return all
+}
+
+async function queryNotionDatabaseRows(id: string, headers: Record<string, string>): Promise<unknown[]> {
+  const all: unknown[] = []
+  let cursor = ''
+
+  do {
+    const data = await readNotionResponse(await fetch(`${NOTION_API_BASE_URL}/databases/${encodeURIComponent(id)}/query`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        page_size: 100,
+        ...(cursor ? { start_cursor: cursor } : {}),
+      }),
+    }))
+    all.push(...arrayValue(data, 'results'))
+    cursor = isRecord(data) && data.has_more ? stringValue(data, 'next_cursor') : ''
+  } while (cursor)
+
+  return all
+}
+
+async function handleDevNotionSearch(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  if (req.method !== 'POST') {
+    sendError(res, 405, 'Method not allowed')
+    return
+  }
+
+  const body = await readJsonBody(req)
+  const accessToken = getBodyString(body, 'accessToken')
+  if (!accessToken) {
+    sendError(res, 401, 'Connect Notion before importing workspace content.')
+    return
+  }
+
+  const query = getBodyString(body, 'query')
+  const notionVersion = getBodyString(body, 'notionVersion')
+  const data = await readNotionResponse(await fetch(`${NOTION_API_BASE_URL}/search`, {
+    method: 'POST',
+    headers: buildNotionHeaders(accessToken, notionVersion),
+    body: JSON.stringify({
+      page_size: 25,
+      ...(query ? { query } : {}),
+      sort: {
+        direction: 'descending',
+        timestamp: 'last_edited_time',
+      },
+    }),
+  }))
+
+  sendJson(res, 200, {
+    items: arrayValue(data, 'results').map(normalizeNotionSearchItem).filter(isRecord),
+    hasMore: Boolean(isRecord(data) && data.has_more),
+    nextCursor: stringValue(data, 'next_cursor') || null,
+  })
+}
+
+async function handleDevNotionFetch(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  if (req.method !== 'POST') {
+    sendError(res, 405, 'Method not allowed')
+    return
+  }
+
+  const body = await readJsonBody(req)
+  const accessToken = getBodyString(body, 'accessToken')
+  const id = getBodyString(body, 'id')
+  const kind = getBodyString(body, 'kind') === 'database' ? 'database' : 'page'
+  const notionVersion = getBodyString(body, 'notionVersion')
+
+  if (!accessToken) {
+    sendError(res, 401, 'Connect Notion before importing workspace content.')
+    return
+  }
+  if (!id) {
+    sendError(res, 400, 'Missing Notion page or database id.')
+    return
+  }
+
+  const headers = buildNotionHeaders(accessToken, notionVersion)
+  const results = kind === 'database'
+    ? await queryNotionDatabaseRows(id, headers)
+    : await fetchNotionPageBlocks(id, headers)
+
+  sendJson(res, 200, { kind, results })
 }
 
 async function handleDevText(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -281,6 +443,8 @@ function aiGatewayDevPlugin(): Plugin {
     '/api/ai/text': handleDevText,
     '/api/ai/image': handleDevImage,
     '/api/ai/stream': handleDevStream,
+    '/api/notion/search': handleDevNotionSearch,
+    '/api/notion/fetch': handleDevNotionFetch,
   }
 
   return {
