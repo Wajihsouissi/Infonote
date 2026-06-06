@@ -15,7 +15,6 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
-    const [streamingText, setStreamingText] = useState('');
     const panelRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -156,7 +155,6 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
         setIsGeneratingText(true);
         setError(null);
         setSuccess(null);
-        setStreamingText('');
         let fullText = '';
         // Stable block ID for live updates during streaming
         const streamBlockId = crypto.randomUUID();
@@ -164,7 +162,6 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
         try {
             for await (const chunk of streamText(prompt)) {
                 fullText += chunk;
-                setStreamingText(fullText);
                 // Live-update the node content as text streams in
                 updateNodeData(nodeId, {
                     content: [{ id: streamBlockId, type: 'text', content: fullText }],
@@ -173,7 +170,7 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
             }
             setSuccess('Text generated!');
             triggerCloudSave();
-        } catch {
+        } catch (streamErr) {
             // Fallback to non-streaming if stream fails
             try {
                 const generatedText = await generateText(prompt);
@@ -190,11 +187,10 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
                 setSuccess('Text generated successfully!');
                 setTimeout(() => triggerCloudSave(), 100);
             } catch (fallbackErr) {
-                setError(fallbackErr instanceof Error ? fallbackErr.message : 'Text generation failed');
+                setError(fallbackErr instanceof Error ? fallbackErr.message : streamErr instanceof Error ? streamErr.message : 'Text generation failed');
             }
         } finally {
             setIsGeneratingText(false);
-            setStreamingText('');
         }
     }, [prompt, nodeId, updateNodeData, triggerCloudSave, handleMultiCardGenerate, handleCanvasCardGenerate]);
 

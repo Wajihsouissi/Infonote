@@ -5,7 +5,6 @@
 // ============================================================
 import { z } from 'zod';
 
-const AI_GATEWAY_BASE_URL = 'https://ai-gateway.vercel.sh/v1';
 const TEXT_MODEL = import.meta.env.VITE_AI_GATEWAY_TEXT_MODEL || 'openai/gpt-4o-mini';
 const IMAGE_MODEL = import.meta.env.VITE_AI_GATEWAY_IMAGE_MODEL || 'bfl/flux-2-pro';
 
@@ -19,27 +18,14 @@ type ChatCompletionResponse = {
 };
 
 type ImageGenerationResponse = {
-    data?: Array<{
-        b64_json?: string;
-        url?: string;
-        revised_prompt?: string;
-    }>;
+    imageUrl?: string;
     error?: { message?: string };
 };
 
-function getGatewayKey(): string {
-    const key = import.meta.env.VITE_AI_GATEWAY_API_KEY;
-    if (!key || key.trim() === '') {
-        throw new Error('AI Gateway is not configured. Set VITE_AI_GATEWAY_API_KEY in your environment.');
-    }
-    return key.trim();
-}
-
 async function gatewayFetch<T>(path: string, body: Record<string, unknown>): Promise<T> {
-    const response = await fetch(`${AI_GATEWAY_BASE_URL}${path}`, {
+    const response = await fetch(path, {
         method: 'POST',
         headers: {
-            Authorization: `Bearer ${getGatewayKey()}`,
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),
@@ -52,7 +38,7 @@ async function gatewayFetch<T>(path: string, body: Record<string, unknown>): Pro
         const message =
             data?.error?.message ||
             data?.message ||
-            `AI Gateway request failed with HTTP ${response.status}`;
+            `AI request failed with HTTP ${response.status}`;
         throw new Error(message);
     }
 
@@ -63,13 +49,12 @@ async function gatewayFetch<T>(path: string, body: Record<string, unknown>): Pro
  * Generate text using Vercel AI Gateway.
  */
 export async function generateText(prompt: string): Promise<string> {
-    const response = await gatewayFetch<ChatCompletionResponse>('/chat/completions', {
+    const response = await gatewayFetch<ChatCompletionResponse>('/api/ai/text', {
         model: TEXT_MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
+        prompt,
     });
 
-    const content = response.choices?.[0]?.message?.content;
+    const content = (response as ChatCompletionResponse & { text?: string }).text ?? response.choices?.[0]?.message?.content;
     if (typeof content === 'string') return content;
     if (Array.isArray(content)) {
         return content.map((part) => part.text || '').join('');
@@ -78,19 +63,13 @@ export async function generateText(prompt: string): Promise<string> {
 }
 
 export async function generateImage(prompt: string): Promise<string> {
-    const response = await gatewayFetch<ImageGenerationResponse>('/images/generations', {
+    const response = await gatewayFetch<ImageGenerationResponse>('/api/ai/image', {
         model: IMAGE_MODEL,
         prompt,
-        n: 1,
-        response_format: 'b64_json',
     });
 
-    const image = response.data?.[0];
-    if (image?.b64_json) {
-        return `data:image/png;base64,${image.b64_json}`;
-    }
-    if (image?.url && image.url.trim() !== '') {
-        return image.url;
+    if (response.imageUrl && response.imageUrl.trim() !== '') {
+        return response.imageUrl;
     }
 
     throw new Error(response.error?.message || 'AI Gateway returned no image data.');
@@ -101,53 +80,38 @@ export async function generateImage(prompt: string): Promise<string> {
  * Yields text chunks as they arrive so the UI can update character-by-character.
  */
 export async function* streamText(prompt: string): AsyncGenerator<string, void, unknown> {
-    const response = await fetch(`${AI_GATEWAY_BASE_URL}/chat/completions`, {
+    const response = await fetch('/api/ai/stream', {
         method: 'POST',
         headers: {
-            Authorization: `Bearer ${getGatewayKey()}`,
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
             model: TEXT_MODEL,
-            messages: [{ role: 'user', content: prompt }],
-            temperature: 0.7,
-            stream: true,
+            prompt,
         }),
     });
 
     if (!response.ok || !response.body) {
         const message = await response.text();
-        throw new Error(message || `AI Gateway stream failed with HTTP ${response.status}`);
+        let parsedMessage = '';
+        try {
+            const data = JSON.parse(message);
+            parsedMessage = data?.error?.message || data?.error || data?.message || '';
+        } catch {
+            parsedMessage = message;
+        }
+        throw new Error(parsedMessage || `AI stream failed with HTTP ${response.status}`);
     }
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = '';
 
     while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed.startsWith('data:')) continue;
-
-            const payload = trimmed.slice(5).trim();
-            if (!payload || payload === '[DONE]') continue;
-
-            const parsed = JSON.parse(payload) as {
-                choices?: Array<{ delta?: { content?: string } }>;
-                error?: { message?: string };
-            };
-            if (parsed.error?.message) throw new Error(parsed.error.message);
-
-            const text = parsed.choices?.[0]?.delta?.content || '';
-            if (text) yield text;
-        }
+        const text = decoder.decode(value, { stream: true });
+        if (text) yield text;
     }
 }
 
@@ -170,7 +134,7 @@ export type AICanvasCard = z.infer<typeof CanvasCardSchema>;
  */
 export function extractJsonFromString(text: string, type: 'array' | 'object' = 'array'): string | null {
     // First, try to remove markdown blocks
-    let cleaned = text.replace(/```(?:json)?\s*([\s\S]*?)\s*```/g, '$1').trim();
+    const cleaned = text.replace(/```(?:json)?\s*([\s\S]*?)\s*```/g, '$1').trim();
     
     if (type === 'array') {
         const match = cleaned.match(/\[[\s\S]*\]/);
@@ -327,7 +291,7 @@ Example JSON response:
     if (!jsonStr) {
         try {
             const retryPrompt = `${fullPrompt}\n\n<assistant>\n${responseText}\n</assistant>\n\n<user>\nThis JSON was invalid or missing. Please fix the syntax errors and return ONLY the valid JSON array without any markdown wrappers or text.\n</user>`;
-            let retryResponse = await generateText(retryPrompt);
+            const retryResponse = await generateText(retryPrompt);
             jsonStr = extractJsonFromString(retryResponse, 'array');
             if (jsonStr) {
                 responseText = retryResponse;

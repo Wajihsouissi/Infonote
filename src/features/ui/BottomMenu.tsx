@@ -753,7 +753,7 @@ export function BottomMenu() {
             }
         } catch (error) {
             console.error("AI Generation failed:", error);
-            setAiError("AI Generation failed. Please try again.");
+            setAiError(error instanceof Error ? error.message : "AI Generation failed. Please try again.");
         } finally {
             setIsGenerating(false);
         }
