@@ -32,7 +32,9 @@ export interface WorkspaceInvitation {
     expiresAt: string | null;
     acceptUrl?: string | null;
     emailDelivery?: 'sent' | 'failed';
+    emailProvider?: 'resend' | 'supabase-auth' | null;
     emailError?: string | null;
+    emailFrom?: string | null;
 }
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -268,7 +270,9 @@ export async function inviteWorkspaceMember(
             workspaceName?: string;
             acceptUrl?: string;
             emailDelivery?: 'sent' | 'failed';
+            emailProvider?: 'resend' | 'supabase-auth' | null;
             emailError?: string | null;
+            emailFrom?: string | null;
         };
 
         if (!response.ok) {
@@ -293,7 +297,9 @@ export async function inviteWorkspaceMember(
                 expiresAt: String(invite.expires_at ?? ''),
                 acceptUrl: payload.acceptUrl || null,
                 emailDelivery: payload.emailDelivery,
+                emailProvider: payload.emailProvider ?? null,
                 emailError: payload.emailError ?? null,
+                emailFrom: payload.emailFrom ?? null,
             },
         };
     } catch (error) {

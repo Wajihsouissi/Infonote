@@ -46,11 +46,13 @@ export interface NotionPage {
     id: string;
     object?: 'page';
     properties: Record<string, NotionPageProperty>;
+    children?: NotionBlock[];
+    children_fetch_error?: string;
     url?: string;
     created_time?: string;
     last_edited_time?: string;
-    icon?: any;
-    cover?: any;
+    icon?: unknown;
+    cover?: unknown;
 }
 
 export interface NotionConvertOptions {
@@ -73,14 +75,12 @@ type CanvasTextBlock = {
     metadata?: Record<string, unknown>;
 };
 
-import { MIN_EXPANDED_SIZE, MEDIUM_SIZE, snapToGrid } from '../../config/layout';
+import { MIN_EXPANDED_SIZE, MEDIUM_SIZE } from '../../config/layout';
 
 const DEFAULT_OFFSET = { x: 80, y: 80 };
 
 const PAGE_CARD_WIDTH = MIN_EXPANDED_SIZE; // 8x8
 const PAGE_CARD_MIN_HEIGHT = MIN_EXPANDED_SIZE; // 8x8
-const PAGE_GAP_Y = 40;
-const LINE_HEIGHT_ESTIMATE = 26;
 
 const KANBAN_COLUMN_WIDTH = MIN_EXPANDED_SIZE; // 8 units
 const KANBAN_COLUMN_GAP = 40;
@@ -88,6 +88,20 @@ const KANBAN_CARD_WIDTH = MEDIUM_SIZE; // 4x4
 const KANBAN_CARD_HEIGHT = MEDIUM_SIZE; // 4x4
 const KANBAN_CARD_GAP_Y = 24;
 const KANBAN_HEADER_HEIGHT = 60;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function recordString(source: unknown, key: string): string | undefined {
+    if (!isRecord(source)) return undefined;
+    const value = source[key];
+    return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function recordUrl(source: unknown): string | undefined {
+    return recordString(source, 'url');
+}
 
 export interface ChildNodeMapping {
     notionId: string;
@@ -120,10 +134,10 @@ export function convertNotionPageToCanvasNodes(
 
     // Determine metadata from pageMeta if provided
     let label = 'Untitled';
-    let icon = undefined;
-    let coverImage = undefined;
+    let icon: string | undefined;
+    let coverImage: string | undefined;
     let description = '';
-    let mappedProperties: Record<string, unknown> = {};
+    const mappedProperties: Record<string, unknown> = {};
     
     if (options.pageMeta) {
         const titleProp = findTitleKey([options.pageMeta]);
@@ -161,15 +175,15 @@ export function convertNotionPageToCanvasNodes(
             }
         }
 
-        if (options.pageMeta.icon) {
+        if (isRecord(options.pageMeta.icon)) {
             // Notion icon can be emoji or external/file url
-            if (options.pageMeta.icon.type === 'emoji') icon = options.pageMeta.icon.emoji;
-            else if (options.pageMeta.icon.type === 'external') icon = options.pageMeta.icon.external?.url;
-            else if (options.pageMeta.icon.type === 'file') icon = options.pageMeta.icon.file?.url;
+            if (options.pageMeta.icon.type === 'emoji') icon = recordString(options.pageMeta.icon, 'emoji');
+            else if (options.pageMeta.icon.type === 'external') icon = recordUrl(options.pageMeta.icon.external);
+            else if (options.pageMeta.icon.type === 'file') icon = recordUrl(options.pageMeta.icon.file);
         }
-        if (options.pageMeta.cover) {
-            if (options.pageMeta.cover.type === 'external') coverImage = options.pageMeta.cover.external?.url;
-            else if (options.pageMeta.cover.type === 'file') coverImage = options.pageMeta.cover.file?.url;
+        if (isRecord(options.pageMeta.cover)) {
+            if (options.pageMeta.cover.type === 'external') coverImage = recordUrl(options.pageMeta.cover.external);
+            else if (options.pageMeta.cover.type === 'file') coverImage = recordUrl(options.pageMeta.cover.file);
         }
     }
 
@@ -207,27 +221,6 @@ export function convertNotionPageToCanvasNodes(
     } as AppNode];
 
     return { nodes, skipped, childPages };
-}
-
-function notionChildrenToCanvasBlocks(
-    block: NotionBlock,
-    depth: number,
-    childPages: ChildNodeMapping[]
-): { blocks: CanvasTextBlock[]; skipped: number } {
-    const blocks: CanvasTextBlock[] = [];
-    let skipped = 0;
-
-    if (Array.isArray(block.children)) {
-        for (const child of block.children) {
-            const converted = notionBlockToCanvasBlocks(child, depth, childPages);
-            blocks.push(...converted.blocks);
-            skipped += converted.skipped;
-        }
-    } else if (block.has_children || block.children_fetch_error) {
-        skipped += 1;
-    }
-
-    return { blocks, skipped };
 }
 
 function notionBlockToCanvasBlocks(
@@ -273,6 +266,7 @@ function blockToCanvasTextBlock(block: NotionBlock, depth: number, childPages: C
             url?: string;
             external?: { url?: string };
             file?: { url?: string };
+            page_id?: string;
         }
         | undefined;
 
@@ -312,7 +306,7 @@ function blockToCanvasTextBlock(block: NotionBlock, depth: number, childPages: C
             return textBlock(inner?.title ?? (type === 'child_database' ? 'Child database' : 'Child page'), 'page', { indent: depth, metadata: { pageId: block.id, nodeId: canvasNodeId } });
         }
         case 'link_to_page':
-            return textBlock('Linked page', 'page', { indent: depth, metadata: { pageId: (inner as any)?.page_id } });
+            return textBlock('Linked page', 'page', { indent: depth, metadata: { pageId: inner?.page_id } });
         case 'bookmark':
         case 'embed':
         case 'link_preview': {
@@ -344,10 +338,6 @@ function textBlock(
     };
 }
 
-function isHeading(type: string): boolean {
-    return type === 'heading_1' || type === 'heading_2' || type === 'heading_3';
-}
-
 function isStructuralContainer(type: string): boolean {
     return [
         'column_list',
@@ -358,13 +348,6 @@ function isStructuralContainer(type: string): boolean {
         'breadcrumb',
         'unsupported',
     ].includes(type);
-}
-
-function extractRichText(block: NotionBlock, key: string): string {
-    const inner = (block as Record<string, unknown>)[key] as
-        | { rich_text?: NotionRichText[] }
-        | undefined;
-    return joinRichText(inner?.rich_text);
 }
 
 function joinRichText(rich: NotionRichText[] | undefined): string {
@@ -399,6 +382,8 @@ export function convertNotionDatabaseToCanvasNodes(
     }
 
     const nodes: AppNode[] = [];
+    const childPages: ChildNodeMapping[] = [];
+    let skipped = 0;
     let columnIndex = 0;
     let isFirstNode = true;
 
@@ -423,15 +408,25 @@ export function convertNotionDatabaseToCanvasNodes(
         columnPages.forEach((page, rowIndex) => {
             const title = titleKey && page.properties ? readTitleText(page.properties[titleKey]) : '';
             const summary = summariseProperties(page.properties || {}, titleKey, statusKey);
+            const pageBody = notionPageChildrenToCanvasBlocks(page, childPages);
+            skipped += pageBody.skipped;
+            const bodyText = pageBody.blocks.map((block) => block.content).filter(Boolean).join('\n');
+            const summaryBlocks = summary
+                ? summary.split('\n').map((line) => textBlock(line))
+                : [];
             const data: Record<string, unknown> = {
                 label: (title && title.trim()) || `Task - ${page.id.slice(0, 6)}`,
                 type: 'task',
                 viewMode: 'medium',
-                content: summary
-                    ? summary.split('\n').map((line) => textBlock(line))
-                    : [{ id: uuidv4(), type: 'text', content: '' }],
-                description: summary,
+                content: pageBody.blocks.length > 0
+                    ? pageBody.blocks
+                    : summaryBlocks.length > 0
+                        ? summaryBlocks
+                        : [{ id: uuidv4(), type: 'text', content: '' }],
+                rawText: bodyText,
+                description: summary || bodyText.slice(0, 300),
                 ...(typeof page.url === 'string' ? { url: page.url } : {}),
+                ...(page.children_fetch_error ? { _notionChildrenFetchError: page.children_fetch_error } : {}),
                 ...(keepSourceIds
                     ? { _notionSourceId: page.id, _notionType: 'database_card' }
                     : {}),
@@ -456,7 +451,30 @@ export function convertNotionDatabaseToCanvasNodes(
         columnIndex += 1;
     }
 
-    return { nodes, skipped: 0, childPages: [] };
+    return { nodes, skipped, childPages };
+}
+
+function notionPageChildrenToCanvasBlocks(
+    page: NotionPage,
+    childPages: ChildNodeMapping[],
+): { blocks: CanvasTextBlock[]; skipped: number } {
+    const blocks: CanvasTextBlock[] = [];
+    let skipped = 0;
+
+    if (!Array.isArray(page.children)) {
+        return {
+            blocks,
+            skipped: page.children_fetch_error ? 1 : 0,
+        };
+    }
+
+    for (const block of page.children) {
+        const converted = notionBlockToCanvasBlocks(block, 0, childPages);
+        blocks.push(...converted.blocks);
+        skipped += converted.skipped;
+    }
+
+    return { blocks, skipped };
 }
 
 function findStatusKey(pages: NotionPage[]): string | null {

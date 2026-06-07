@@ -24,12 +24,26 @@ function getGatewayKey(): string {
   return key.trim()
 }
 
+function getSupabaseServiceRoleKey(): string {
+  return getEnvValue('SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SERVICE_KEY')
+}
+
 function getEnvValue(...names: string[]): string {
   for (const name of names) {
     const value = process.env[name] || loadedEnv[name]
-    if (value && value.trim() !== '') return value.trim()
+    if (value && value.trim() !== '') return stripWrappingQuotes(value.trim())
   }
   return ''
+}
+
+function stripWrappingQuotes(value: string): string {
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1).trim()
+  }
+  return value
 }
 
 function getBearerToken(req: IncomingMessage): string {
@@ -311,6 +325,33 @@ async function queryNotionDatabaseRows(id: string, headers: Record<string, strin
   return all
 }
 
+async function queryNotionDatabaseRowsWithBlocks(id: string, headers: Record<string, string>): Promise<unknown[]> {
+  const pages = await queryNotionDatabaseRows(id, headers)
+  const hydrated: unknown[] = []
+
+  for (const page of pages) {
+    if (!isRecord(page) || typeof page.id !== 'string') {
+      hydrated.push(page)
+      continue
+    }
+
+    try {
+      hydrated.push({
+        ...page,
+        children: await fetchNotionBlockChildren(page.id, headers, 0),
+      })
+    } catch (error) {
+      hydrated.push({
+        ...page,
+        children: [],
+        children_fetch_error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
+  return hydrated
+}
+
 async function handleDevNotionSearch(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method !== 'POST') {
     sendError(res, 405, 'Method not allowed')
@@ -377,7 +418,7 @@ async function handleDevNotionFetch(req: IncomingMessage, res: ServerResponse): 
   let page: unknown = undefined
 
   if (kind === 'database') {
-    results = await queryNotionDatabaseRows(id, headers)
+    results = await queryNotionDatabaseRowsWithBlocks(id, headers)
   } else {
     results = await fetchNotionPageBlocks(id, headers)
     try {
@@ -391,6 +432,7 @@ async function handleDevNotionFetch(req: IncomingMessage, res: ServerResponse): 
 }
 
 async function sendDevInviteEmail(options: {
+  supabaseUrl?: string
   to: string
   acceptUrl: string
   workspaceName: string
@@ -441,6 +483,84 @@ async function sendDevInviteEmail(options: {
     throw new Error(stringValue(data, 'message') || stringValue(data, 'error') || text || `Resend failed with HTTP ${response.status}`)
   }
   return data
+}
+
+async function sendDevSupabaseInviteEmail(options: {
+  supabaseUrl: string
+  to: string
+  acceptUrl: string
+  workspaceName: string
+  inviterName: string
+  role: string
+}): Promise<unknown> {
+  const serviceRoleKey = getSupabaseServiceRoleKey()
+  if (!serviceRoleKey) {
+    throw new Error('Supabase email fallback is not configured. Add SUPABASE_SERVICE_ROLE_KEY server-side to enable Auth invite fallback.')
+  }
+
+  const admin = createClient(options.supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(options.to, {
+    redirectTo: options.acceptUrl,
+    data: {
+      workspace_invite_url: options.acceptUrl,
+      workspace_name: options.workspaceName,
+      invited_by: options.inviterName,
+      workspace_role: options.role,
+    },
+  })
+
+  if (error) throw error
+  return data
+}
+
+async function deliverDevInviteEmail(options: {
+  supabaseUrl: string
+  to: string
+  acceptUrl: string
+  workspaceName: string
+  inviterName: string
+  role: string
+}): Promise<{
+  ok: boolean
+  provider: 'resend' | 'supabase-auth' | null
+  id: string | null
+  error: string | null
+}> {
+  const failures: string[] = []
+
+  try {
+    const data = await sendDevInviteEmail(options)
+    return {
+      ok: true,
+      provider: 'resend',
+      id: isRecord(data) ? stringValue(data, 'id') || null : null,
+      error: null,
+    }
+  } catch (error) {
+    failures.push(`Resend: ${error instanceof Error ? error.message : String(error)}`)
+  }
+
+  try {
+    const data = await sendDevSupabaseInviteEmail(options)
+    return {
+      ok: true,
+      provider: 'supabase-auth',
+      id: isRecord(data) ? stringValue(recordValue(data, 'user'), 'id') || null : null,
+      error: null,
+    }
+  } catch (error) {
+    failures.push(`Supabase Auth fallback: ${error instanceof Error ? error.message : String(error)}`)
+  }
+
+  return {
+    ok: false,
+    provider: null,
+    id: null,
+    error: failures.join(' | '),
+  }
 }
 
 async function handleDevWorkspaceInvite(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -522,28 +642,25 @@ async function handleDevWorkspaceInvite(req: IncomingMessage, res: ServerRespons
     stringValue(userData.user.user_metadata, 'full_name') ||
     userData.user.email ||
     'An Infonote collaborator'
-  const acceptUrl = `${getRequestBaseUrl(req)}/login?workspaceInvite=${encodeURIComponent(invite.id)}`
-  let emailResult: unknown = null
-  let emailError: string | null = null
-  try {
-    emailResult = await sendDevInviteEmail({
-      to: email,
-      acceptUrl,
-      workspaceName,
-      inviterName,
-      role,
-    })
-  } catch (error) {
-    emailError = error instanceof Error ? error.message : String(error)
-  }
+  const acceptUrl = `${getRequestBaseUrl(req)}/invite/${encodeURIComponent(invite.id)}`
+  const delivery = await deliverDevInviteEmail({
+    supabaseUrl,
+    to: email,
+    acceptUrl,
+    workspaceName,
+    inviterName,
+    role,
+  })
 
   sendJson(res, 200, {
     invitation: invite,
     workspaceName,
     acceptUrl,
-    emailDelivery: emailError ? 'failed' : 'sent',
-    emailError,
-    emailId: isRecord(emailResult) ? stringValue(emailResult, 'id') || null : null,
+    emailDelivery: delivery.ok ? 'sent' : 'failed',
+    emailProvider: delivery.provider,
+    emailError: delivery.error,
+    emailId: delivery.id,
+    emailFrom: getEnvValue('INVITE_FROM_EMAIL', 'RESEND_FROM_EMAIL') || null,
   })
 }
 

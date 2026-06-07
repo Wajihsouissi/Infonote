@@ -19,6 +19,49 @@ alter table public.workspace_members
     add column if not exists invited_by uuid references auth.users(id) on delete set null,
     add column if not exists created_at timestamptz not null default now();
 
+update public.workspace_members
+set role = 'editor'
+where role is null
+   or role not in ('owner', 'editor', 'viewer');
+
+alter table public.workspace_members
+    alter column role set default 'editor',
+    alter column created_at set default now();
+
+do $$
+begin
+    if not exists (
+        select 1
+        from pg_constraint
+        where conname = 'workspace_members_role_check'
+          and conrelid = 'public.workspace_members'::regclass
+    ) then
+        alter table public.workspace_members
+            add constraint workspace_members_role_check
+            check (role in ('owner', 'editor', 'viewer'));
+    end if;
+end $$;
+
+delete from public.workspace_members wm
+using (
+    select ctid
+    from (
+        select
+            ctid,
+            row_number() over (
+                partition by workspace_id, user_id
+                order by
+                    case role when 'owner' then 0 when 'editor' then 1 else 2 end,
+                    created_at desc nulls last
+            ) as rn
+        from public.workspace_members
+        where workspace_id is not null
+          and user_id is not null
+    ) ranked
+    where ranked.rn > 1
+) duplicates
+where wm.ctid = duplicates.ctid;
+
 create index if not exists workspace_members_user_idx
     on public.workspace_members(user_id);
 
@@ -45,6 +88,71 @@ alter table public.workspace_invitations
     add column if not exists created_at timestamptz not null default now(),
     add column if not exists accepted_at timestamptz,
     add column if not exists expires_at timestamptz not null default (now() + interval '14 days');
+
+update public.workspace_invitations
+set role = 'editor'
+where role is null
+   or role not in ('editor', 'viewer');
+
+update public.workspace_invitations
+set status = 'pending'
+where status is null
+   or status not in ('pending', 'accepted', 'revoked', 'expired');
+
+update public.workspace_invitations
+set expires_at = now() + interval '14 days'
+where expires_at is null;
+
+alter table public.workspace_invitations
+    alter column role set default 'editor',
+    alter column status set default 'pending',
+    alter column created_at set default now(),
+    alter column expires_at set default (now() + interval '14 days');
+
+do $$
+begin
+    if not exists (
+        select 1
+        from pg_constraint
+        where conname = 'workspace_invitations_role_check'
+          and conrelid = 'public.workspace_invitations'::regclass
+    ) then
+        alter table public.workspace_invitations
+            add constraint workspace_invitations_role_check
+            check (role in ('editor', 'viewer'));
+    end if;
+
+    if not exists (
+        select 1
+        from pg_constraint
+        where conname = 'workspace_invitations_status_check'
+          and conrelid = 'public.workspace_invitations'::regclass
+    ) then
+        alter table public.workspace_invitations
+            add constraint workspace_invitations_status_check
+            check (status in ('pending', 'accepted', 'revoked', 'expired'));
+    end if;
+end $$;
+
+update public.workspace_invitations wi
+set status = 'revoked'
+from (
+    select ctid
+    from (
+        select
+            ctid,
+            row_number() over (
+                partition by workspace_id, lower(invited_email::text)
+                order by created_at desc nulls last
+            ) as rn
+        from public.workspace_invitations
+        where status = 'pending'
+          and workspace_id is not null
+          and invited_email is not null
+    ) ranked
+    where ranked.rn > 1
+) duplicates
+where wi.ctid = duplicates.ctid;
 
 create index if not exists workspace_invitations_workspace_idx
     on public.workspace_invitations(workspace_id);
