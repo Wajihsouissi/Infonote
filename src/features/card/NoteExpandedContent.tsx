@@ -347,7 +347,7 @@ export function NoteExpandedContent({
 
             {/* Note Area */}
             <div
-                className={`${styles.noteArea} nodrag`}
+                className={`${styles.noteArea} nodrag infonote-scrollable`}
                 style={noteAreaStyles}
                 onWheelCapture={(e) => e.stopPropagation()}
                 onPointerDown={(e) => {

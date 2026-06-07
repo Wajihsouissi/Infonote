@@ -39,6 +39,8 @@ export interface NodeSlice {
     duplicateEdge: (id: string) => void;
     bringEdgeToFront: (id: string) => void;
     arrangeNodes: (nodeIds: string[], mode: 'grid' | 'circle' | 'flow' | 'horizontal-row' | 'vertical-column' | 'mindmap-horizontal' | 'mindmap-vertical') => void;
+    applyRemoteNodeUpdate: (id: string, updates: Partial<AppNode>) => void;
+    applyRemoteEdgeUpdate: (id: string, updates: Partial<Edge>) => void;
 }
 
 export interface NavigationSlice {
@@ -68,6 +70,7 @@ export interface StorageSlice {
         // Dynamic Save States:
         localLastSaved: string | null;
         cloudLastSaved: string | null;
+        cloudLastSaveTimeMs?: number | null;
         isLocalDirty: boolean;
         isCloudDirty: boolean;
         localError: string | null;

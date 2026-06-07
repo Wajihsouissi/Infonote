@@ -346,6 +346,11 @@ async function handleDevNotionSearch(req: IncomingMessage, res: ServerResponse):
   })
 }
 
+async function fetchNotionPage(id: string, headers: Record<string, string>): Promise<unknown> {
+  const url = `${NOTION_API_BASE_URL}/pages/${encodeURIComponent(id)}`
+  return await readNotionResponse(await fetch(url, { method: 'GET', headers }))
+}
+
 async function handleDevNotionFetch(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method !== 'POST') {
     sendError(res, 405, 'Method not allowed')
@@ -368,11 +373,21 @@ async function handleDevNotionFetch(req: IncomingMessage, res: ServerResponse): 
   }
 
   const headers = buildNotionHeaders(accessToken, notionVersion)
-  const results = kind === 'database'
-    ? await queryNotionDatabaseRows(id, headers)
-    : await fetchNotionPageBlocks(id, headers)
+  let results: unknown[] = []
+  let page: unknown = undefined
 
-  sendJson(res, 200, { kind, results })
+  if (kind === 'database') {
+    results = await queryNotionDatabaseRows(id, headers)
+  } else {
+    results = await fetchNotionPageBlocks(id, headers)
+    try {
+      page = await fetchNotionPage(id, headers)
+    } catch (e) {
+      console.error('[Notion] Failed to fetch page metadata:', e)
+    }
+  }
+
+  sendJson(res, 200, { kind, results, page })
 }
 
 async function sendDevInviteEmail(options: {

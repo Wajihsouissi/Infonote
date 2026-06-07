@@ -5,7 +5,7 @@
     -webkit-backdrop-filter: blur(var(--backdrop-blur));
     border: 1px solid var(--glass-border);
     color: var(--color-text-main);
-    box-shadow: var(--glass-shadow);
+    box-shadow: none;
     transition:
         background 0.2s ease,
         border-color 0.2s ease,
@@ -95,7 +95,7 @@
     border: 1px solid var(--rf-controls-border);
     border-radius: 8px;
     padding: 4px;
-    box-shadow: var(--glass-shadow);
+    box-shadow: none;
     overflow: hidden;
 }
 
@@ -164,11 +164,11 @@
 
 .multiSelected {
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px var(--color-primary), 0 0 20px rgba(139, 92, 246, 0.5);
+    box-shadow: 0 0 0 3px var(--color-primary), 0 0 20px var(--color-primary-glow);
 }
 
 .potentialMerge {
-    box-shadow: 0 0 0 4px var(--color-secondary-glow), 0 0 20px rgba(139, 92, 246, 0.4);
+    box-shadow: 0 0 0 4px var(--color-secondary-glow), 0 0 20px var(--color-secondary-glow);
     border-color: var(--color-secondary);
     transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
@@ -262,7 +262,7 @@
 }
 
 .iconTextInput:focus {
-    background: rgba(139, 92, 246, 0.05);
+    background: rgba(34, 197, 94, 0.05);
     box-shadow: 0 0 0 1px var(--color-primary);
 }
 
@@ -302,7 +302,7 @@
 }
 
 .titleViewInput:focus {
-    background: rgba(139, 92, 246, 0.05);
+    background: rgba(34, 197, 94, 0.05);
     box-shadow: 0 0 0 1px var(--color-primary);
 }
 
@@ -373,7 +373,7 @@
 }
 
 .mediumTitleInput:focus {
-    background: rgba(139, 92, 246, 0.05);
+    background: rgba(34, 197, 94, 0.05);
     box-shadow: 0 0 0 1px var(--color-primary);
 }
 
@@ -422,7 +422,7 @@
 }
 
 .mediumDescInput:focus {
-    background: rgba(139, 92, 246, 0.05);
+    background: rgba(34, 197, 94, 0.05);
     box-shadow: 0 0 0 1px var(--color-primary);
     opacity: 1;
     color: var(--color-text-main);
@@ -494,8 +494,8 @@
 }
 
 .categoryChip {
-    background: rgba(139, 92, 246, 0.15);
-    border: 1px solid rgba(139, 92, 246, 0.3);
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid rgba(34, 197, 94, 0.3);
     padding: 4px 10px;
     border-radius: 99px;
     font-size: 0.75rem;
@@ -579,7 +579,7 @@
 .metaChip.purple {
     color: #a78bfa;
     background: rgba(76, 29, 149, 0.6);
-    border-color: rgba(139, 92, 246, 0.3);
+    border-color: rgba(34, 197, 94, 0.3);
 }
 
 .metaChip.green {
@@ -675,7 +675,7 @@
 .expandedIconButton:hover {
     transform: translateY(-2px) scale(1.05);
     border-color: var(--color-primary);
-    box-shadow: 0 12px 32px rgba(139, 92, 246, 0.2);
+    box-shadow: 0 12px 32px rgba(34, 197, 94, 0.2);
 }
 
 .expandedIconButton svg {
@@ -714,7 +714,7 @@
 }
 
 .expandedTitleInput:focus {
-    background: rgba(139, 92, 246, 0.05);
+    background: rgba(34, 197, 94, 0.05);
     box-shadow: 0 0 0 1px var(--color-primary);
 }
 
@@ -760,7 +760,7 @@
 }
 
 .expandedDescEdit:focus {
-    background: rgba(139, 92, 246, 0.05);
+    background: rgba(34, 197, 94, 0.05);
     box-shadow: 0 0 0 1px var(--color-primary);
     color: var(--color-text-main);
     font-family: 'Poppins', sans-serif;
@@ -920,7 +920,7 @@
 }
 
 .modalTab.active {
-    background: rgba(139, 92, 246, 0.2);
+    background: rgba(34, 197, 94, 0.2);
     color: var(--color-primary);
 }
 
@@ -945,7 +945,7 @@
 .modalDropZone:hover,
 .modalDropZone.dragOver {
     border-color: var(--color-primary);
-    background: rgba(139, 92, 246, 0.05);
+    background: rgba(34, 197, 94, 0.05);
 }
 
 .modalDropIcon {
@@ -1252,7 +1252,7 @@
     backdrop-filter: blur(var(--backdrop-blur));
     -webkit-backdrop-filter: blur(var(--backdrop-blur));
     border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow);
+    box-shadow: none;
     border-radius: 12px;
     padding: 4px 6px;
     display: flex;
@@ -1273,14 +1273,14 @@
 }
 
 .neonOpenBtn {
-    background: linear-gradient(135deg, var(--color-primary, #8b5cf6), #6366f1) !important;
+    background: linear-gradient(135deg, var(--color-primary, #22c55e), var(--color-secondary, #0ea5e9)) !important;
     color: white !important;
     padding: 0 !important;
     border-radius: 50% !important;
     width: 32px !important;
     height: 32px !important;
     border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    box-shadow: 0 0 12px rgba(139, 92, 246, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
     display: flex !important;
     align-items: center !important;
@@ -1289,7 +1289,7 @@
 
 .neonOpenBtn:hover {
     transform: translateY(-1px) scale(1.05) !important;
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.2) !important;
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.2) !important;
     filter: brightness(1.1);
 }
 
@@ -1359,7 +1359,7 @@
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--control-btn-border, var(--glass-border));
-    box-shadow: var(--control-btn-shadow, 0 4px 12px rgba(0, 0, 0, 0.1));
+    box-shadow: none;
     border-radius: 99px;
     padding: 4px;
     gap: 2px;
@@ -1430,7 +1430,7 @@
 }
 
 :global(.dark) .controlBtn.active {
-    background: var(--control-btn-active-bg, rgba(139, 92, 246, 0.25));
+    background: var(--control-btn-active-bg, rgba(34, 197, 94, 0.25));
 }
 
 
@@ -1478,7 +1478,7 @@
 }
 
 .minimalTitleInput:focus {
-    background: rgba(139, 92, 246, 0.05);
+    background: rgba(34, 197, 94, 0.05);
     border-color: var(--color-primary);
 }
 
@@ -1620,7 +1620,7 @@
 .expandedIconButton:hover,
 .minimalIconButton:hover {
     border-color: var(--color-primary);
-    background: rgba(139, 92, 246, 0.1);
+    background: rgba(34, 197, 94, 0.1);
     transform: scale(1.05);
 }
 
@@ -1728,9 +1728,9 @@
 }
 
 .tagChip {
-    background: rgba(139, 92, 246, 0.1);
-    color: #a78bfa;
-    border: 1px solid rgba(139, 92, 246, 0.2);
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--color-primary);
+    border: 1px solid rgba(34, 197, 94, 0.2);
     font-size: 0.6rem;
     border-radius: 99px;
     padding: 1px 6px;
@@ -1763,15 +1763,13 @@
     z-index: 20;
     padding: 3px;
     background: var(--glass-bg);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border-radius: 99px;
-    /* Capsule */
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: none;
     border: 1px solid var(--glass-border);
     opacity: 0;
     transform: translateY(-5px);
     transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
-    box-shadow: var(--glass-shadow);
 }
 
 .noteArea:hover .columnControls,

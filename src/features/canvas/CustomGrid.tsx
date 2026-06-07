@@ -42,7 +42,7 @@ export const CustomGrid = memo(() => {
                 height: '100%',
                 pointerEvents: 'none',
                 zIndex: -1,
-                opacity: 0.45 // Increased opacity to make grid points more visible but not too harsh
+                opacity: 0.8 // Premium subtle opacity
             }}
         >
             <pattern
@@ -54,13 +54,13 @@ export const CustomGrid = memo(() => {
                 patternUnits="userSpaceOnUse"
             >
                 {/* Top-Left of gutter (Bottom-Right of previous node) */}
-                <rect x={p1 - scaledSize / 2} y={p1 - scaledSize / 2} width={scaledSize} height={scaledSize} fill="var(--color-border)" rx="0.5" />
+                <rect x={p1 - scaledSize / 2} y={p1 - scaledSize / 2} width={scaledSize} height={scaledSize} fill="rgba(255, 255, 255, 0.15)" rx="0.5" />
                 {/* Top-Right of gutter (Bottom-Left of next node) */}
-                <rect x={p2 - scaledSize / 2} y={p1 - scaledSize / 2} width={scaledSize} height={scaledSize} fill="var(--color-border)" rx="0.5" />
+                <rect x={p2 - scaledSize / 2} y={p1 - scaledSize / 2} width={scaledSize} height={scaledSize} fill="rgba(255, 255, 255, 0.15)" rx="0.5" />
                 {/* Bottom-Left of gutter (Top-Right of node below) */}
-                <rect x={p1 - scaledSize / 2} y={p2 - scaledSize / 2} width={scaledSize} height={scaledSize} fill="var(--color-border)" rx="0.5" />
+                <rect x={p1 - scaledSize / 2} y={p2 - scaledSize / 2} width={scaledSize} height={scaledSize} fill="rgba(255, 255, 255, 0.15)" rx="0.5" />
                 {/* Bottom-Right of gutter (Top-Left of next node below) */}
-                <rect x={p2 - scaledSize / 2} y={p2 - scaledSize / 2} width={scaledSize} height={scaledSize} fill="var(--color-border)" rx="0.5" />
+                <rect x={p2 - scaledSize / 2} y={p2 - scaledSize / 2} width={scaledSize} height={scaledSize} fill="rgba(255, 255, 255, 0.15)" rx="0.5" />
             </pattern>
             <rect width="100%" height="100%" fill="url(#pro-modular-grid)" />
         </svg>

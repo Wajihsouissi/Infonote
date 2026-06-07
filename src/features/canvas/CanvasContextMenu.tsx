@@ -94,7 +94,7 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
         try {
             const canvasEl = document.querySelector('.react-flow') as HTMLElement;
             if (!canvasEl) { onClose(); return; }
-            const bg = getComputedStyle(canvasEl).backgroundColor || '#0f1115';
+            const bg = getComputedStyle(canvasEl).backgroundColor || '#05060C';
             const canvas = await html2canvas(canvasEl, {
                 backgroundColor: bg,
                 scale: 2,

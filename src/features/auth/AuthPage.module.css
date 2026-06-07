@@ -14,7 +14,8 @@
   font-family: var(--font-sans);
 
   /* Dark Theme Tokens (Default) */
-  --auth-bg-shell: #0f1115;
+  --auth-bg-shell: #05060C;
+  --auth-surface: #0C0E15;
   --auth-bg-left: linear-gradient(145deg, #08090e 0%, #10101b 60%, #04060c 100%);
   --auth-bg-right: #181a20;
 

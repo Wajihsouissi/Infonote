@@ -51,6 +51,8 @@ import {
 } from './hooks';
 import { useRecentlyViewed } from '../landing/hooks/useDashboardData';
 import { useModifierKeys } from '../ui/hooks/useModifierKeys';
+import { useRealtimeSync } from './hooks/useRealtimeSync';
+import { LiveCursors } from './LiveCursors';
 
 // Lazy load KanbanConfigModal
 const KanbanConfigModal = lazy(() =>
@@ -147,6 +149,9 @@ export function CanvasBoard() {
     const setCloudDirty = useStore(s => s.setCloudDirty);
     const setCloudError = useStore(s => s.setCloudError);
 
+    // Realtime Sync Hook
+    const { presenceData, updateCursor, broadcastNodeChange, currentUserId } = useRealtimeSync(currentParentId);
+
     // Viewport culling and visible nodes
     const { visibleNodes, handleViewportChange } = useCanvasViewport({
         nodes,
@@ -231,6 +236,22 @@ export function CanvasBoard() {
         setViewportRef.current = setViewport;
         screenToFlowPositionRef.current = screenToFlowPosition;
     }, [getViewport, setViewport, screenToFlowPosition]);
+
+    const handlePointerMove = useCallback((e: React.PointerEvent) => {
+        const flowPos = screenToFlowPositionRef.current({ x: e.clientX, y: e.clientY });
+        updateCursor(flowPos.x, flowPos.y);
+    }, [updateCursor]);
+
+    const onNodesChangeWrapped = useCallback((changes: any[]) => {
+        onNodesChange(changes);
+        changes.forEach(change => {
+            if (change.type === 'position' && change.position) {
+                broadcastNodeChange(change.id, { position: change.position });
+            } else if (change.type === 'replace') {
+                broadcastNodeChange((change as any).id, (change as any).item);
+            }
+        });
+    }, [onNodesChange, broadcastNodeChange]);
 
     useEffect(() => {
         const handlePanToNode = (e: Event) => {
@@ -867,6 +888,34 @@ export function CanvasBoard() {
             if (reloadTimer) window.clearTimeout(reloadTimer);
             reloadTimer = window.setTimeout(async () => {
                 if (cancelled) return;
+
+                const state = useStore.getState();
+
+                // 1. If we have unsaved local changes, do NOT overwrite them!
+                if (state.storage.isCloudDirty) return;
+
+                // 2. If the user is actively typing, do NOT reload (prevents typing deletion)
+                const activeEl = document.activeElement as HTMLElement | null;
+                const isTyping = activeEl && (
+                    activeEl.tagName === 'INPUT' ||
+                    activeEl.tagName === 'TEXTAREA' ||
+                    activeEl.isContentEditable ||
+                    !!activeEl.closest('[contenteditable]') ||
+                    !!activeEl.closest('[class*="BlockEditor"]') ||
+                    !!activeEl.closest('[class*="editor"]')
+                );
+                if (isTyping) return;
+
+                // 3. If the user is actively dragging, do NOT reload (prevents snapping back)
+                const isDragging = document.body.classList.contains('chnk-it-node-dragging') || 
+                                   document.body.classList.contains('chnk-it-block-dragging');
+                if (isDragging) return;
+
+                // 4. If we just saved to the cloud within the last 5 seconds, ignore this event 
+                // as it's almost certainly our own save bouncing back from Supabase.
+                const lastSaveMs = state.storage.cloudLastSaveTimeMs;
+                if (lastSaveMs && Date.now() - lastSaveMs < 5000) return;
+
                 const result = await loadCanvasFromCloud(authUserId, activeWorkspaceId);
                 if (cancelled) return;
                 if (result.ok) {
@@ -1020,7 +1069,7 @@ export function CanvasBoard() {
                     className={isLinkingMode ? 'is-linking-mode' : ''}
                     nodes={processedNodes}
                     edges={visibleEdges}
-                    onNodesChange={onNodesChange}
+                    onNodesChange={onNodesChangeWrapped}
                     onConnect={onConnect}
                     onReconnect={onReconnect}
                     isValidConnection={isValidConnection}
@@ -1107,6 +1156,7 @@ export function CanvasBoard() {
                             setSelectedCanvasNodeIds(nextIds);
                         }
                     }}
+                    onPointerMove={handlePointerMove}
                     selectionOnDrag={true}
                     panOnDrag={true}
                     selectionKeyCode={isHoveringEditor ? null : "Control"}
@@ -1140,6 +1190,7 @@ export function CanvasBoard() {
                         });
                     }}
                 >
+                    <LiveCursors presenceData={presenceData} currentUserId={currentUserId} />
                     <CanvasSlashMenu />
                     <CustomGrid />
                     <Panel position="top-center">

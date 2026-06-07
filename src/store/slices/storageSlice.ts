@@ -42,7 +42,11 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
         storage: { ...state.storage, localLastSaved: date }
     })),
     setCloudLastSaved: (date) => set((state) => ({
-        storage: { ...state.storage, cloudLastSaved: date }
+        storage: { 
+            ...state.storage, 
+            cloudLastSaved: date,
+            cloudLastSaveTimeMs: Date.now() 
+        }
     })),
     setLocalDirty: (dirty) => set((state) => ({
         storage: { ...state.storage, isLocalDirty: dirty }

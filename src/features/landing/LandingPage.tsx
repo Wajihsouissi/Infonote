@@ -36,7 +36,8 @@ export const LandingPage: React.FC = () => {
   const toggleTheme = useStore((state) => state.toggleTheme);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
-  const isAuthenticated = useStore((state) => state.auth.isAuthenticated);
+  const auth = useStore((state) => state.auth);
+  const isAuthenticated = auth.isAuthenticated;
   const { signOut } = useAuth();
   const [isSigningOut, setIsSigningOut] = React.useState(false);
 
@@ -204,17 +205,22 @@ export const LandingPage: React.FC = () => {
             )}
           </div>
 
-          <div className={styles.userSection}>
+          <div className={styles.userSection} style={{ display: 'flex', alignItems: 'center' }}>
             {isAuthenticated ? (
-              <button
-                className={styles.logoutButton}
-                onClick={handleSignOut}
-                disabled={isSigningOut}
+              <>
+                <span style={{ marginRight: '16px', fontSize: '14px', fontWeight: 500, opacity: 0.9 }}>
+                  Welcome, {auth.displayName || auth.email?.split('@')[0] || 'User'}
+                </span>
+                <button
+                  className={styles.logoutButton}
+                  onClick={handleSignOut}
+                  disabled={isSigningOut}
                 aria-label="Log out"
                 style={{ opacity: isSigningOut ? 0.5 : 1 }}
               >
                 <LogOut size={20} />
               </button>
+              </>
             ) : (
               <>
                 <button className={styles.loginButton} onClick={() => { setCurrentView('login'); setIsMobileMenuOpen(false); }}>

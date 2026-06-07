@@ -360,12 +360,30 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
         el.focus({ preventScroll: true });
         
-        // Ensure the newly focused block is fully visible within the scrolling container
-        try {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } catch (e) {
-            // Safari/older browser fallback
-            el.scrollIntoView({ block: 'center' });
+        // Ensure the newly focused block is fully visible within the closest scrollable container
+        // Avoid using native scrollIntoView because it bubbles up and aggressively pans the ReactFlow canvas
+        const scrollContainer = el.closest('[class*="custom-scrollbar"]') 
+            || el.closest('[class*="noteArea"]')
+            || el.closest('[style*="overflow-y"]')
+            || el.parentElement;
+
+        if (scrollContainer && scrollContainer !== document.body) {
+            const containerRect = scrollContainer.getBoundingClientRect();
+            const elRect = el.getBoundingClientRect();
+            
+            // Check if element is out of view vertically
+            if (elRect.bottom > containerRect.bottom || elRect.top < containerRect.top) {
+                // Scroll the container to center the element
+                const scrollTarget = scrollContainer.scrollTop + (elRect.top - containerRect.top) - (containerRect.height / 2) + (elRect.height / 2);
+                scrollContainer.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+            }
+        } else {
+            // Safari/older browser fallback, use nearest to avoid large canvas jumps
+            try {
+                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } catch (e) {
+                el.scrollIntoView({ block: 'nearest' });
+            }
         }
 
         const pos = caretPositionRef.current;

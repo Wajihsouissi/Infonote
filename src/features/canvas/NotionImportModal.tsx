@@ -11,6 +11,7 @@ import {
     Search,
     UploadCloud,
     X,
+    Link as LinkIcon
 } from 'lucide-react';
 import {
     connectNotion,
@@ -42,38 +43,36 @@ export const NotionImportModal: React.FC<NotionImportModalProps> = ({ open, onCl
     const workspaceId = useStore((s) => s.auth.activeWorkspaceId);
     const currentParentId = useStore((s) => s.currentParentId);
     const setNodes = useStore((s) => s.setNodes);
+    const navigateToNode = useStore((s) => s.navigateToNode);
 
     const [accessToken, setAccessToken] = useState<string | null>(null);
     const [query, setQuery] = useState('');
     const [manualTarget, setManualTarget] = useState('');
-    const [manualKind, setManualKind] = useState<NotionSourceKind>('page');
     const [items, setItems] = useState<NotionSearchItem[]>([]);
     const [selected, setSelected] = useState<NotionSearchItem | null>(null);
     const [status, setStatus] = useState<Status>({ kind: 'idle' });
     const [prevOpen, setPrevOpen] = useState(false);
+    const [progress, setProgress] = useState(0);
 
     if (open && !prevOpen) {
         setPrevOpen(true);
         setItems([]);
         setSelected(null);
         setStatus({ kind: 'idle' });
+        setProgress(0);
+        setManualTarget('');
+        setQuery('');
     }
     if (!open && prevOpen) {
         setPrevOpen(false);
     }
 
     const busy = status.kind === 'connecting' || status.kind === 'searching' || status.kind === 'importing';
-    const selectedKind = selected?.kind ?? manualKind;
+    const isManualTarget = extractNotionId(manualTarget) !== null;
     const selectedId = selected?.id ?? extractNotionId(manualTarget);
+    const selectedKind = selected?.kind ?? 'page';
 
     const canImport = Boolean(accessToken && userId && workspaceId && selectedId && !busy);
-
-    const statusText = useMemo(() => {
-        if (status.kind === 'connecting') return 'Connecting Notion...';
-        if (status.kind === 'searching') return 'Searching Notion workspace...';
-        if (status.kind === 'importing') return 'Importing into canvas...';
-        return null;
-    }, [status]);
 
     const refreshToken = useCallback(async () => {
         const token = await getConnectedNotionAccessToken();
@@ -93,14 +92,14 @@ export const NotionImportModal: React.FC<NotionImportModalProps> = ({ open, onCl
 
         if (result.ok) {
             setItems(result.items);
-            setSelected((current) =>
-                current && result.items.some((item) => item.id === current.id) ? current : result.items[0] ?? null,
-            );
+            if (!manualTarget && !selected) {
+                setSelected(result.items[0] ?? null);
+            }
             setStatus({ kind: 'idle' });
         } else {
             setStatus({ kind: 'error', message: result.error });
         }
-    }, [accessToken, query]);
+    }, [accessToken, query, manualTarget, selected]);
 
     useEffect(() => {
         if (!open) return;
@@ -121,11 +120,11 @@ export const NotionImportModal: React.FC<NotionImportModalProps> = ({ open, onCl
     useEffect(() => {
         if (!open) return;
         const handleKey = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') onClose();
+            if (event.key === 'Escape' && !busy) onClose();
         };
         document.addEventListener('keydown', handleKey);
         return () => document.removeEventListener('keydown', handleKey);
-    }, [open, onClose]);
+    }, [open, onClose, busy]);
 
     const handleConnect = useCallback(async () => {
         setStatus({ kind: 'connecting' });
@@ -155,49 +154,77 @@ export const NotionImportModal: React.FC<NotionImportModalProps> = ({ open, onCl
         }
 
         setStatus({ kind: 'importing' });
-        const importFn = selectedKind === 'database' ? importNotionDatabase : importNotionPage;
-        const result = await importFn(selectedId, {
-            accessToken,
-            userId,
-            workspaceId,
-            parentId: currentParentId,
-        });
+        setProgress(0);
 
-        if (!result.ok) {
-            setStatus({ kind: 'error', message: result.error });
-            return;
+        const progressInterval = setInterval(() => {
+            setProgress((p) => {
+                if (p >= 95) return p;
+                return p + Math.floor(Math.random() * 5) + 1;
+            });
+        }, 250);
+
+        try {
+            const importFn = selectedKind === 'database' ? importNotionDatabase : importNotionPage;
+            const result = await importFn(selectedId, {
+                accessToken,
+                userId,
+                workspaceId,
+                parentId: currentParentId,
+            });
+
+            clearInterval(progressInterval);
+            setProgress(100);
+
+            if (!result.ok) {
+                setStatus({ kind: 'error', message: result.error });
+                return;
+            }
+
+            setNodes((currentNodes) => {
+                const ids = new Set(currentNodes.map((node) => node.id));
+                const freshNodes = result.nodes.filter((node) => !ids.has(node.id));
+                return [...currentNodes, ...freshNodes];
+            });
+
+            setStatus({
+                kind: 'success',
+                message: `Import successful. Opening...`,
+            });
+
+            // Brief pause to show 100% success before navigating
+            setTimeout(() => {
+                onClose();
+                if (result.nodes.length > 0) {
+                    navigateToNode(result.nodes[0].id);
+                }
+            }, 600);
+
+        } catch (err) {
+            clearInterval(progressInterval);
+            setStatus({ kind: 'error', message: 'An unexpected error occurred during import.' });
         }
-
-        setNodes((currentNodes) => {
-            const ids = new Set(currentNodes.map((node) => node.id));
-            const freshNodes = result.nodes.filter((node) => !ids.has(node.id));
-            return [...currentNodes, ...freshNodes];
-        });
-
-        setStatus({
-            kind: 'success',
-            message: `Imported ${result.imported} card${result.imported === 1 ? '' : 's'} from Notion${
-                result.skipped ? `; skipped ${result.skipped} unsupported block${result.skipped === 1 ? '' : 's'}` : ''
-            }.`,
-        });
-    }, [accessToken, currentParentId, selectedId, selectedKind, setNodes, userId, workspaceId]);
+    }, [accessToken, currentParentId, selectedId, selectedKind, setNodes, userId, workspaceId, navigateToNode, onClose]);
 
     if (!open) return null;
 
     const modalContent = (
         <div style={overlay} role="dialog" aria-modal="true" aria-label="Import Notion workspace">
             <div style={modal}>
+                {/* Ambient glows */}
+                <div style={ambientGlowLeft} />
+                <div style={ambientGlowRight} />
+
                 <div style={header}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                         <div style={iconBadge}>
-                            <UploadCloud size={20} />
+                            <UploadCloud size={22} strokeWidth={2.5} />
                         </div>
                         <div>
                             <h2 style={title}>Import from Notion</h2>
-                            <p style={subtitle}>Bring connected pages or databases into this canvas.</p>
+                            <p style={subtitle}>Bring pages or databases directly into your canvas</p>
                         </div>
                     </div>
-                    <button type="button" onClick={onClose} style={iconButton} aria-label="Close">
+                    <button type="button" onClick={onClose} style={iconButton} aria-label="Close" disabled={busy}>
                         <X size={18} />
                     </button>
                 </div>
@@ -206,17 +233,14 @@ export const NotionImportModal: React.FC<NotionImportModalProps> = ({ open, onCl
                     {!accessToken && (
                         <div style={emptyState}>
                             <div style={mutedIcon}>
-                                <UploadCloud size={26} />
+                                <UploadCloud size={32} strokeWidth={1.5} />
                             </div>
-                            <div>
-                                <h3 style={emptyTitle}>Connect Notion first</h3>
-                                <p style={emptyCopy}>
-                                    Your Notion OAuth token was not found on the active Supabase session. Connect Notion,
-                                    choose the pages to share, then return here to import.
-                                </p>
-                            </div>
+                            <h3 style={emptyTitle}>Connect your workspace</h3>
+                            <p style={emptyCopy}>
+                                Link your Notion account to browse and import shared pages instantly.
+                            </p>
                             <button type="button" onClick={handleConnect} disabled={busy} style={primaryButton}>
-                                {status.kind === 'connecting' ? <Loader2 size={15} className="animate-spin" /> : <UploadCloud size={15} />}
+                                {status.kind === 'connecting' ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
                                 <span>Connect Notion</span>
                             </button>
                         </div>
@@ -224,24 +248,28 @@ export const NotionImportModal: React.FC<NotionImportModalProps> = ({ open, onCl
 
                     {accessToken && (
                         <>
-                            <form onSubmit={handleSearchSubmit} style={searchRow}>
-                                <div style={searchBox}>
-                                    <Search size={15} />
-                                    <input
-                                        value={query}
-                                        onChange={(event) => setQuery(event.target.value)}
-                                        placeholder="Search shared Notion pages and databases"
-                                        disabled={busy}
-                                        style={searchInput}
-                                    />
-                                </div>
-                                <button type="submit" disabled={busy} style={secondaryButton}>
-                                    {status.kind === 'searching' ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
-                                    <span>Search</span>
-                                </button>
+                            <form onSubmit={handleSearchSubmit} style={searchContainer}>
+                                <Search size={18} style={searchIcon} />
+                                <input
+                                    value={query}
+                                    onChange={(event) => setQuery(event.target.value)}
+                                    placeholder="Search shared Notion pages and databases..."
+                                    disabled={busy}
+                                    style={searchInput}
+                                />
+                                {query && status.kind !== 'searching' && (
+                                    <button type="submit" style={searchActionBtn} disabled={busy}>
+                                        <RefreshCw size={14} />
+                                    </button>
+                                )}
+                                {status.kind === 'searching' && (
+                                    <div style={searchActionSpinner}>
+                                        <Loader2 size={16} className="animate-spin" />
+                                    </div>
+                                )}
                             </form>
 
-                            <div style={list}>
+                            <div style={listContainer}>
                                 {items.map((item) => (
                                     <button
                                         type="button"
@@ -255,95 +283,102 @@ export const NotionImportModal: React.FC<NotionImportModalProps> = ({ open, onCl
                                             ...(selected?.id === item.id ? resultRowActive : {}),
                                         }}
                                     >
-                                        <div style={itemIcon}>
-                                            {item.kind === 'database' ? <Database size={17} /> : <FileText size={17} />}
+                                        <div style={{...itemIcon, ...(selected?.id === item.id ? itemIconActive : {})}}>
+                                            {item.kind === 'database' ? <Database size={18} /> : <FileText size={18} />}
                                         </div>
-                                        <div style={{ minWidth: 0, flex: 1 }}>
+                                        <div style={itemDetails}>
                                             <div style={itemTitle}>{item.title}</div>
                                             <div style={itemMeta}>
                                                 {item.kind === 'database' ? 'Database' : 'Page'}
-                                                {item.lastEditedTime ? ` · edited ${new Date(item.lastEditedTime).toLocaleDateString()}` : ''}
+                                                {item.lastEditedTime ? ` • Edited ${new Date(item.lastEditedTime).toLocaleDateString()}` : ''}
                                             </div>
                                         </div>
-                                        {item.url && <ExternalLink size={14} style={{ opacity: 0.45 }} />}
+                                        {item.url && <ExternalLink size={14} style={itemLinkIcon} />}
+                                        {selected?.id === item.id && (
+                                            <div style={selectedIndicator}><CheckCircle2 size={16} /></div>
+                                        )}
                                     </button>
                                 ))}
 
                                 {items.length === 0 && status.kind !== 'searching' && (
-                                    <div style={compactEmpty}>No shared Notion pages found. Paste a Notion URL below.</div>
+                                    <div style={compactEmpty}>
+                                        <div style={{opacity: 0.5, marginBottom: 8}}><Search size={24} /></div>
+                                        No shared pages found matching your search.
+                                    </div>
                                 )}
                             </div>
 
-                            <div style={manualPanel}>
-                                <div style={manualHeader}>Import by URL or ID</div>
-                                <div style={modeRow}>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setManualKind('page');
+                            <div style={manualEntryContainer}>
+                                <div style={manualInputWrapper}>
+                                    <LinkIcon size={16} style={manualInputIcon} />
+                                    <input
+                                        value={manualTarget}
+                                        onChange={(event) => {
+                                            setManualTarget(event.target.value);
                                             setSelected(null);
                                         }}
-                                        style={{ ...modeButton, ...(manualKind === 'page' && !selected ? modeButtonActive : {}) }}
-                                    >
-                                        <FileText size={14} />
-                                        <span>Page</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setManualKind('database');
-                                            setSelected(null);
-                                        }}
-                                        style={{ ...modeButton, ...(manualKind === 'database' && !selected ? modeButtonActive : {}) }}
-                                    >
-                                        <Database size={14} />
-                                        <span>Database</span>
-                                    </button>
+                                        placeholder="Or paste a Notion URL to import directly"
+                                        disabled={busy}
+                                        style={manualInput}
+                                    />
+                                    {isManualTarget && (
+                                        <div style={manualValidBadge}>
+                                            <CheckCircle2 size={14} /> Link Valid
+                                        </div>
+                                    )}
                                 </div>
-                                <input
-                                    value={manualTarget}
-                                    onChange={(event) => {
-                                        setManualTarget(event.target.value);
-                                        setSelected(null);
-                                    }}
-                                    placeholder="Paste Notion page or database URL"
-                                    disabled={busy}
-                                    style={manualInput}
-                                />
                             </div>
-
-                            {statusText && (
-                                <div style={inlineState}>
-                                    <Loader2 size={15} className="animate-spin" />
-                                    <span>{statusText}</span>
-                                </div>
-                            )}
                         </>
                     )}
 
                     {status.kind === 'error' && (
                         <div style={errorBox}>
-                            <AlertCircle size={16} />
+                            <AlertCircle size={18} />
                             <span>{status.message}</span>
                         </div>
                     )}
 
                     {status.kind === 'success' && (
                         <div style={successBox}>
-                            <CheckCircle2 size={16} />
+                            <CheckCircle2 size={18} />
                             <span>{status.message}</span>
                         </div>
                     )}
                 </div>
 
                 <div style={footer}>
-                    <button type="button" onClick={onClose} style={ghostButton}>
-                        Close
-                    </button>
-                    <button type="button" onClick={handleImport} disabled={!canImport} style={primaryButton}>
-                        {status.kind === 'importing' ? <Loader2 size={15} className="animate-spin" /> : <UploadCloud size={15} />}
-                        <span>{status.kind === 'importing' ? 'Importing...' : 'Import to canvas'}</span>
-                    </button>
+                    {status.kind === 'importing' ? (
+                        <div style={progressContainer}>
+                            <div style={progressHeader}>
+                                <div style={progressLabel}>
+                                    <Loader2 size={16} className="animate-spin" /> 
+                                    Importing...
+                                </div>
+                                <div style={progressValue}>{progress}%</div>
+                            </div>
+                            <div style={progressBarBg}>
+                                <div style={{...progressBarFill, width: `${progress}%`}} />
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={footerActions}>
+                            <button type="button" onClick={onClose} style={ghostButton} disabled={busy}>
+                                Cancel
+                            </button>
+                            <button 
+                                type="button" 
+                                onClick={handleImport} 
+                                disabled={!canImport} 
+                                style={{
+                                    ...primaryButton,
+                                    ...(!canImport ? primaryButtonDisabled : {})
+                                }}
+                            >
+                                <UploadCloud size={16} />
+                                <span>Import into canvas</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -351,6 +386,8 @@ export const NotionImportModal: React.FC<NotionImportModalProps> = ({ open, onCl
 
     return createPortal(modalContent, document.body);
 };
+
+// --- STYLES ---
 
 const overlay: React.CSSProperties = {
     position: 'fixed',
@@ -360,54 +397,85 @@ const overlay: React.CSSProperties = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
-    background: 'rgba(5, 6, 12, 0.68)',
-    backdropFilter: 'blur(8px)',
-    WebkitBackdropFilter: 'blur(8px)',
+    background: 'rgba(5, 6, 12, 0.75)',
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
 };
 
 const modal: React.CSSProperties = {
-    width: 'min(720px, 100%)',
-    maxHeight: '90vh',
+    width: 'min(640px, 100%)',
+    maxHeight: '85vh',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
-    borderRadius: 14,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: 'rgba(18, 20, 29, 0.98)',
+    borderRadius: 20,
+    border: '1px solid rgba(255,255,255,0.08)',
+    background: 'rgba(12, 14, 21, 0.85)', // Deep dark, highly translucent
+    backdropFilter: 'blur(40px)',
     color: '#fff',
-    boxShadow: '0 32px 90px rgba(0,0,0,0.45)',
-    fontFamily: '"Poppins", system-ui, sans-serif',
+    boxShadow: '0 0 0 1px rgba(0,0,0,0.5), 0 32px 90px rgba(0,0,0,0.6)',
+    fontFamily: '"Plus Jakarta Sans", "Inter", system-ui, sans-serif',
+    position: 'relative',
+};
+
+// Ambient subtle glows to give that premium glassmorphism feel
+const ambientGlowLeft: React.CSSProperties = {
+    position: 'absolute',
+    top: '-20%',
+    left: '-10%',
+    width: '60%',
+    height: '60%',
+    background: 'radial-gradient(circle, rgba(34, 197, 94, 0.15) 0%, rgba(0,0,0,0) 70%)',
+    pointerEvents: 'none',
+    zIndex: -1,
+};
+
+const ambientGlowRight: React.CSSProperties = {
+    position: 'absolute',
+    bottom: '-10%',
+    right: '-10%',
+    width: '60%',
+    height: '50%',
+    background: 'radial-gradient(circle, rgba(14, 165, 233, 0.1) 0%, rgba(0,0,0,0) 70%)',
+    pointerEvents: 'none',
+    zIndex: -1,
 };
 
 const header: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '18px 20px',
-    borderBottom: '1px solid rgba(255,255,255,0.08)',
+    padding: '24px 28px',
+    borderBottom: '1px solid rgba(255,255,255,0.06)',
+    zIndex: 1,
 };
 
 const iconBadge: React.CSSProperties = {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'linear-gradient(135deg, #111827, #22c55e)',
-    color: '#fff',
+    background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(14, 165, 233, 0.1))',
+    color: '#4ade80',
+    border: '1px solid rgba(34, 197, 94, 0.2)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)',
 };
 
 const title: React.CSSProperties = {
     margin: 0,
-    fontSize: 17,
-    fontWeight: 700,
+    fontSize: 18,
+    fontWeight: 600,
+    letterSpacing: '-0.01em',
+    color: '#ffffff',
 };
 
 const subtitle: React.CSSProperties = {
-    margin: '2px 0 0',
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.56)',
+    margin: '4px 0 0',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
+    fontWeight: 400,
 };
 
 const iconButton: React.CSSProperties = {
@@ -417,277 +485,372 @@ const iconButton: React.CSSProperties = {
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.1)',
+    border: 'none',
     background: 'transparent',
-    color: 'rgba(255,255,255,0.68)',
+    color: 'rgba(255,255,255,0.4)',
     cursor: 'pointer',
+    transition: 'all 0.2s',
 };
 
 const body: React.CSSProperties = {
-    padding: 20,
+    padding: '24px 28px',
     overflowY: 'auto',
     flex: 1,
-};
-
-const searchRow: React.CSSProperties = {
     display: 'flex',
-    gap: 10,
-    marginBottom: 14,
+    flexDirection: 'column',
+    gap: 16,
+    zIndex: 1,
 };
 
-const searchBox: React.CSSProperties = {
-    flex: 1,
+const searchContainer: React.CSSProperties = {
+    position: 'relative',
     display: 'flex',
     alignItems: 'center',
-    gap: 8,
-    padding: '0 12px',
-    borderRadius: 9,
-    border: '1px solid rgba(255,255,255,0.1)',
-    background: 'rgba(255,255,255,0.04)',
-    color: 'rgba(255,255,255,0.52)',
+    background: 'rgba(0,0,0,0.3)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 12,
+    transition: 'all 0.2s ease',
+};
+
+const searchIcon: React.CSSProperties = {
+    position: 'absolute',
+    left: 16,
+    color: 'rgba(255,255,255,0.4)',
+    pointerEvents: 'none',
 };
 
 const searchInput: React.CSSProperties = {
     width: '100%',
-    height: 40,
+    height: 52,
+    background: 'transparent',
     border: 'none',
     outline: 'none',
-    background: 'transparent',
+    padding: '0 48px',
     color: '#fff',
-    fontSize: 13,
+    fontSize: 15,
+    fontWeight: 500,
 };
 
-const list: React.CSSProperties = {
+const searchActionBtn: React.CSSProperties = {
+    position: 'absolute',
+    right: 12,
+    background: 'rgba(255,255,255,0.08)',
+    border: 'none',
+    borderRadius: 6,
+    width: 28,
+    height: 28,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'rgba(255,255,255,0.7)',
+    cursor: 'pointer',
+    transition: 'background 0.2s',
+};
+
+const searchActionSpinner: React.CSSProperties = {
+    position: 'absolute',
+    right: 18,
+    color: 'rgba(255,255,255,0.5)',
+};
+
+const listContainer: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
-    gap: 8,
-    maxHeight: 250,
+    gap: 6,
+    maxHeight: 280,
     overflowY: 'auto',
-    paddingRight: 2,
+    paddingRight: 4,
 };
 
 const resultRow: React.CSSProperties = {
     width: '100%',
     display: 'flex',
     alignItems: 'center',
-    gap: 12,
-    padding: '11px 12px',
-    borderRadius: 10,
-    border: '1px solid rgba(255,255,255,0.08)',
-    background: 'rgba(255,255,255,0.035)',
+    gap: 14,
+    padding: '12px 14px',
+    borderRadius: 12,
+    border: '1px solid transparent',
+    background: 'transparent',
     color: '#fff',
     cursor: 'pointer',
     textAlign: 'left',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
 };
 
 const resultRowActive: React.CSSProperties = {
-    borderColor: 'rgba(34,197,94,0.6)',
-    background: 'rgba(34,197,94,0.12)',
+    background: 'rgba(34, 197, 94, 0.08)',
+    borderColor: 'rgba(34, 197, 94, 0.3)',
+    boxShadow: 'inset 0 0 0 1px rgba(34, 197, 94, 0.1)',
 };
 
 const itemIcon: React.CSSProperties = {
-    width: 34,
-    height: 34,
+    width: 36,
+    height: 36,
     borderRadius: 8,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'rgba(255,255,255,0.06)',
-    color: '#d1fae5',
+    background: 'rgba(255,255,255,0.04)',
+    color: 'rgba(255,255,255,0.7)',
     flexShrink: 0,
+    transition: 'all 0.2s',
+};
+
+const itemIconActive: React.CSSProperties = {
+    background: 'rgba(34, 197, 94, 0.15)',
+    color: '#4ade80',
+};
+
+const itemDetails: React.CSSProperties = {
+    minWidth: 0,
+    flex: 1,
 };
 
 const itemTitle: React.CSSProperties = {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: 600,
+    color: '#f8fafc',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
 };
 
 const itemMeta: React.CSSProperties = {
-    marginTop: 2,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.48)',
+    marginTop: 3,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.4)',
+    fontWeight: 500,
+};
+
+const itemLinkIcon: React.CSSProperties = {
+    opacity: 0.3,
+    color: '#fff',
+};
+
+const selectedIndicator: React.CSSProperties = {
+    color: '#4ade80',
+    display: 'flex',
+    alignItems: 'center',
+    marginLeft: 8,
 };
 
 const compactEmpty: React.CSSProperties = {
-    padding: '18px 12px',
-    borderRadius: 10,
-    border: '1px dashed rgba(255,255,255,0.12)',
-    color: 'rgba(255,255,255,0.52)',
-    fontSize: 13,
-    textAlign: 'center',
-};
-
-const manualPanel: React.CSSProperties = {
-    marginTop: 16,
-    padding: 12,
-    borderRadius: 10,
-    border: '1px solid rgba(255,255,255,0.08)',
-    background: 'rgba(0,0,0,0.18)',
-};
-
-const manualHeader: React.CSSProperties = {
-    fontSize: 12,
-    fontWeight: 700,
-    marginBottom: 10,
-    color: 'rgba(255,255,255,0.68)',
-};
-
-const modeRow: React.CSSProperties = {
+    padding: '40px 20px',
     display: 'flex',
-    gap: 8,
-    marginBottom: 10,
-};
-
-const modeButton: React.CSSProperties = {
-    display: 'inline-flex',
+    flexDirection: 'column',
     alignItems: 'center',
-    gap: 6,
-    padding: '7px 10px',
-    borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.1)',
-    background: 'rgba(255,255,255,0.04)',
-    color: 'rgba(255,255,255,0.7)',
-    cursor: 'pointer',
-    fontSize: 12,
-    fontWeight: 600,
+    justifyContent: 'center',
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 14,
+    textAlign: 'center',
+    background: 'rgba(0,0,0,0.1)',
+    borderRadius: 12,
+    border: '1px dashed rgba(255,255,255,0.08)',
 };
 
-const modeButtonActive: React.CSSProperties = {
-    borderColor: 'rgba(34,197,94,0.6)',
-    color: '#bbf7d0',
-    background: 'rgba(34,197,94,0.12)',
+const manualEntryContainer: React.CSSProperties = {
+    marginTop: 8,
+};
+
+const manualInputWrapper: React.CSSProperties = {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+};
+
+const manualInputIcon: React.CSSProperties = {
+    position: 'absolute',
+    left: 14,
+    color: 'rgba(255,255,255,0.3)',
+    pointerEvents: 'none',
 };
 
 const manualInput: React.CSSProperties = {
     width: '100%',
-    height: 40,
+    height: 44,
     boxSizing: 'border-box',
-    borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.1)',
-    background: 'rgba(255,255,255,0.04)',
+    borderRadius: 10,
+    border: '1px solid rgba(255,255,255,0.08)',
+    background: 'rgba(255,255,255,0.03)',
     color: '#fff',
-    padding: '0 11px',
+    padding: '0 100px 0 42px',
     outline: 'none',
     fontSize: 13,
+    transition: 'all 0.2s',
 };
 
-const inlineState: React.CSSProperties = {
-    marginTop: 12,
+const manualValidBadge: React.CSSProperties = {
+    position: 'absolute',
+    right: 12,
     display: 'flex',
     alignItems: 'center',
-    gap: 8,
-    color: 'rgba(255,255,255,0.64)',
-    fontSize: 13,
+    gap: 4,
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#4ade80',
+    background: 'rgba(34, 197, 94, 0.15)',
+    padding: '4px 8px',
+    borderRadius: 6,
 };
 
 const emptyState: React.CSSProperties = {
-    display: 'grid',
-    gridTemplateColumns: '42px 1fr',
-    gap: 14,
-    alignItems: 'start',
-    padding: 16,
-    borderRadius: 12,
-    border: '1px solid rgba(255,255,255,0.1)',
-    background: 'rgba(255,255,255,0.04)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '40px 20px',
+    textAlign: 'center',
 };
 
 const mutedIcon: React.CSSProperties = {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    display: 'inline-flex',
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'rgba(255,255,255,0.06)',
-    color: '#d1fae5',
+    background: 'rgba(255,255,255,0.04)',
+    color: 'rgba(255,255,255,0.4)',
+    marginBottom: 20,
+    border: '1px solid rgba(255,255,255,0.05)',
 };
 
 const emptyTitle: React.CSSProperties = {
     margin: 0,
-    fontSize: 15,
+    fontSize: 18,
+    fontWeight: 600,
+    color: '#fff',
 };
 
 const emptyCopy: React.CSSProperties = {
-    margin: '4px 0 14px',
-    color: 'rgba(255,255,255,0.56)',
-    fontSize: 13,
+    margin: '8px 0 24px',
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 14,
     lineHeight: 1.5,
+    maxWidth: 320,
 };
 
 const errorBox: React.CSSProperties = {
-    marginTop: 12,
     display: 'flex',
     alignItems: 'center',
-    gap: 8,
-    padding: '10px 12px',
-    borderRadius: 9,
-    background: 'rgba(239,68,68,0.11)',
-    color: '#fca5a5',
-    fontSize: 13,
+    gap: 10,
+    padding: '14px 16px',
+    borderRadius: 10,
+    background: 'rgba(239, 68, 68, 0.1)',
+    border: '1px solid rgba(239, 68, 68, 0.2)',
+    color: '#f87171',
+    fontSize: 14,
+    fontWeight: 500,
 };
 
 const successBox: React.CSSProperties = {
-    marginTop: 12,
     display: 'flex',
     alignItems: 'center',
-    gap: 8,
-    padding: '10px 12px',
-    borderRadius: 9,
-    background: 'rgba(34,197,94,0.12)',
-    color: '#86efac',
-    fontSize: 13,
+    gap: 10,
+    padding: '14px 16px',
+    borderRadius: 10,
+    background: 'rgba(34, 197, 94, 0.1)',
+    border: '1px solid rgba(34, 197, 94, 0.2)',
+    color: '#4ade80',
+    fontSize: 14,
+    fontWeight: 500,
 };
 
 const footer: React.CSSProperties = {
+    padding: '20px 28px',
+    borderTop: '1px solid rgba(255,255,255,0.06)',
+    background: 'rgba(0,0,0,0.2)',
+    zIndex: 1,
+};
+
+const footerActions: React.CSSProperties = {
     display: 'flex',
     justifyContent: 'flex-end',
-    gap: 10,
-    padding: '15px 20px',
-    borderTop: '1px solid rgba(255,255,255,0.08)',
-    background: 'rgba(0,0,0,0.18)',
+    gap: 12,
 };
 
 const ghostButton: React.CSSProperties = {
-    padding: '8px 13px',
+    padding: '10px 16px',
     borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.1)',
+    border: 'none',
     background: 'transparent',
-    color: 'rgba(255,255,255,0.72)',
+    color: 'rgba(255,255,255,0.6)',
     cursor: 'pointer',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: 600,
-};
-
-const secondaryButton: React.CSSProperties = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 7,
-    padding: '8px 12px',
-    borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.1)',
-    background: 'rgba(255,255,255,0.055)',
-    color: '#fff',
-    cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: 600,
+    transition: 'all 0.2s',
 };
 
 const primaryButton: React.CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
-    padding: '9px 14px',
+    gap: 8,
+    padding: '10px 20px',
     borderRadius: 8,
     border: 'none',
-    background: 'linear-gradient(135deg, #16a34a, #0ea5e9)',
-    color: '#fff',
+    background: '#22c55e',
+    color: '#000',
     cursor: 'pointer',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: 700,
+    boxShadow: '0 4px 14px rgba(34, 197, 94, 0.3)',
+    transition: 'all 0.2s',
+};
+
+const primaryButtonDisabled: React.CSSProperties = {
+    background: 'rgba(255,255,255,0.1)',
+    color: 'rgba(255,255,255,0.3)',
+    boxShadow: 'none',
+    cursor: 'not-allowed',
+};
+
+// --- Progress Bar Styles ---
+
+const progressContainer: React.CSSProperties = {
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    padding: '4px 0',
+};
+
+const progressHeader: React.CSSProperties = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+};
+
+const progressLabel: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#4ade80',
+};
+
+const progressValue: React.CSSProperties = {
+    fontSize: 14,
+    fontWeight: 700,
+    color: '#fff',
+    fontVariantNumeric: 'tabular-nums',
+};
+
+const progressBarBg: React.CSSProperties = {
+    width: '100%',
+    height: 6,
+    background: 'rgba(255,255,255,0.08)',
+    borderRadius: 3,
+    overflow: 'hidden',
+};
+
+const progressBarFill: React.CSSProperties = {
+    height: '100%',
+    background: '#22c55e',
+    borderRadius: 3,
+    transition: 'width 0.3s ease-out',
+    boxShadow: '0 0 10px rgba(34, 197, 94, 0.5)',
 };
 
 export default NotionImportModal;

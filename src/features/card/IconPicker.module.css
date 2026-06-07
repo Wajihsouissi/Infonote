@@ -76,8 +76,8 @@
 
 /* Standard centered modal box (for canvas card note click triggers) */
 .modal {
-    background: linear-gradient(135deg, #1c1e26, #12141c);
-    border: 1px solid var(--glass-border);
+    background: linear-gradient(135deg, #0C0E15, #05060C);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 16px;
     padding: 20px;
     width: 720px;

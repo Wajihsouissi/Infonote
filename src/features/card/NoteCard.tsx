@@ -60,6 +60,24 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
         if (data.lastFusedAt) lastFusedTimeRef.current = data.lastFusedAt;
     }, [data.lastFusedAt]);
 
+    // Track interactivity based on selection, with a 300ms delay to allow double-clicks on unselected cards to safely navigate without entering edit mode
+    const [isInteractive, setIsInteractive] = useState(selected);
+    const interactionTimerRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        if (selected) {
+            interactionTimerRef.current = window.setTimeout(() => {
+                setIsInteractive(true);
+            }, 300);
+        } else {
+            if (interactionTimerRef.current) clearTimeout(interactionTimerRef.current);
+            setIsInteractive(false);
+        }
+        return () => {
+            if (interactionTimerRef.current) clearTimeout(interactionTimerRef.current);
+        };
+    }, [selected]);
+
     const viewMode = data.viewMode || 'medium';
     const isMultiSelected = selectedCanvasNodeIds.has(id);
 
@@ -338,6 +356,48 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                     }}
                 />
             )}
+
+            {/* Interaction Overlay: Converts the entire card into a drag handle and intercepts double-clicks when unselected */}
+            {!isInteractive && !isLinkingMode && (
+                <div
+                    className="interaction-overlay"
+                    ref={(el) => {
+                        if (el) {
+                            el.onwheel = (e) => {
+                                if (!cardRef.current) return;
+                                const scrollArea = cardRef.current.querySelector('.infonote-scrollable');
+                                if (scrollArea) {
+                                    const isScrollable = scrollArea.scrollHeight > scrollArea.clientHeight;
+                                    if (isScrollable) {
+                                        const isAtTop = scrollArea.scrollTop === 0;
+                                        const isAtBottom = Math.abs(scrollArea.scrollHeight - scrollArea.clientHeight - scrollArea.scrollTop) <= 1;
+                                        
+                                        if ((e.deltaY < 0 && !isAtTop) || (e.deltaY > 0 && !isAtBottom)) {
+                                            e.stopPropagation();
+                                            e.preventDefault();
+                                            scrollArea.scrollTop += e.deltaY;
+                                        }
+                                    }
+                                }
+                            };
+                        }
+                    }}
+                    style={{
+                        position: 'absolute',
+                        inset: 0,
+                        zIndex: 10, // Must be above the card content, but below the resize handle and hover menus
+                        cursor: 'grab',
+                        borderRadius: 'inherit'
+                    }}
+                    onDoubleClick={(e) => {
+                        // Double-click detection on the unselected card to navigate
+                        e.preventDefault();
+                        e.stopPropagation(); // Stop React Flow from grabbing this double-click
+                        navigateToNode(id);
+                    }}
+                />
+            )}
+
             {/* custom strict resize handle */}
             <div
                 className={`${styles.modernResizeHandle} nodrag`}

@@ -117,17 +117,20 @@ export async function searchNotionWorkspace(options: {
     }
 }
 
-export async function fetchNotionPageBlocks(
+export async function fetchNotionPageData(
     pageId: string,
     options: NotionImportOptions,
-): Promise<NotionBlock[]> {
-    const data = await postAppApi<{ results?: NotionBlock[] }>('/api/notion/fetch', {
+): Promise<{ blocks: NotionBlock[]; page?: NotionPage }> {
+    const data = await postAppApi<{ results?: NotionBlock[]; page?: NotionPage }>('/api/notion/fetch', {
         accessToken: options.accessToken,
         id: pageId,
         kind: 'page',
         notionVersion: options.notionVersion ?? DEFAULT_NOTION_VERSION,
     });
-    return Array.isArray(data.results) ? data.results : [];
+    return {
+        blocks: Array.isArray(data.results) ? data.results : [],
+        page: data.page,
+    };
 }
 
 export async function queryNotionDatabase(
@@ -155,13 +158,39 @@ export async function importNotionPage(
     }
 
     try {
-        const blocks = await fetchNotionPageBlocks(pageId, options);
+        const { blocks, page } = await fetchNotionPageData(pageId, options);
         const offset = options.offset ?? computeFreshOffset();
-        const { nodes, skipped } = convertNotionPageToCanvasNodes(blocks, {
+        const { nodes, skipped, childPages } = convertNotionPageToCanvasNodes(blocks, {
             offset,
             keepSourceIds: options.keepSourceIds,
+            pageMeta: page,
+            forcedNodeId: options.forcedNodeId,
         });
-        return persist(applyParentId(nodes, options.parentId), skipped, options.userId, options.workspaceId);
+        
+        const finalNodes = applyParentId(nodes, options.parentId);
+        const result = await persist(finalNodes, skipped, options.userId, options.workspaceId);
+        
+        if (result.ok && childPages && childPages.length > 0) {
+            // Import child pages sequentially to avoid overloading Notion/Supabase
+            const parentNodeId = finalNodes[0]?.id;
+            for (const child of childPages) {
+                if (child.kind === 'database') {
+                    await importNotionDatabase(child.notionId, {
+                        ...options,
+                        parentId: parentNodeId,
+                        forcedNodeId: child.canvasNodeId,
+                    });
+                } else {
+                    await importNotionPage(child.notionId, {
+                        ...options,
+                        parentId: parentNodeId,
+                        forcedNodeId: child.canvasNodeId,
+                    });
+                }
+            }
+        }
+        
+        return result;
     } catch (err) {
         return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }

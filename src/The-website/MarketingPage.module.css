@@ -1786,12 +1786,12 @@
 
 .testimonialSlider::before {
   left: 0;
-  background: linear-gradient(to right, #0f1115, transparent);
+  background: linear-gradient(to right, #05060C, transparent);
 }
 
 .testimonialSlider::after {
   right: 0;
-  background: linear-gradient(to left, #0f1115, transparent);
+  background: linear-gradient(to left, #05060C, transparent);
 }
 
 .testimonialTrack {

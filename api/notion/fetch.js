@@ -75,6 +75,11 @@ async function fetchPageBlocks(id, headers) {
   return fetchBlockChildren(id, headers, 0);
 }
 
+async function fetchPage(id, headers) {
+  const response = await fetch(`${NOTION_API}/pages/${encodeURIComponent(id)}`, { method: 'GET', headers });
+  return await readNotionJson(response);
+}
+
 async function queryDatabase(id, headers) {
   const all = [];
   let cursor = null;
@@ -123,7 +128,17 @@ export default async function handler(req, res) {
       ? await queryDatabase(id, headers)
       : await fetchPageBlocks(id, headers);
 
-    sendJson(res, 200, { kind, results });
+    let page = undefined;
+    if (kind === 'page') {
+      try {
+        page = await fetchPage(id, headers);
+      } catch (e) {
+        // Ignored if page fetch fails (e.g. if we fetched blocks of a block instead of page)
+        console.warn('Could not fetch page metadata:', e);
+      }
+    }
+
+    sendJson(res, 200, { kind, results, page });
   } catch (error) {
     sendError(res, 500, error);
   }

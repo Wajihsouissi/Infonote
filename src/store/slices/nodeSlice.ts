@@ -366,6 +366,24 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         get().setCloudDirty?.(true);
     },
 
+    applyRemoteNodeUpdate: (id, updates) => {
+        set((state) => ({
+            nodes: state.nodes.map((node) =>
+                node.id === id ? { ...node, ...updates } as AppNode : node
+            ),
+        }));
+        // DO NOT setCloudDirty(true) to avoid infinite sync loops
+    },
+
+    applyRemoteEdgeUpdate: (id, updates) => {
+        set((state) => ({
+            edges: state.edges.map((edge) =>
+                edge.id === id ? { ...edge, ...updates } as Edge : edge
+            ),
+        }));
+        // DO NOT setCloudDirty(true)
+    },
+
     releaseNodeContentToBlocks: (nodeId: string, centerPosition?: { x: number; y: number }, skipConfirm?: boolean) => {
 
         const { nodes, edges, currentParentId } = get();
