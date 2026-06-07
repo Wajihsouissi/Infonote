@@ -49,6 +49,7 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
     const [status, setStatus] = useState<Status>({ kind: 'idle' });
     const [lastInviteLink, setLastInviteLink] = useState<string | null>(null);
     const [copiedInviteLink, setCopiedInviteLink] = useState(false);
+    const [showTestingFallback, setShowTestingFallback] = useState(false);
 
     useEffect(() => {
         if (!open) return;
@@ -56,6 +57,7 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
             setInviteEmail('');
             setLastInviteLink(null);
             setCopiedInviteLink(false);
+            setShowTestingFallback(false);
             setStatus({ kind: 'loading' });
         }, 0);
         return () => window.clearTimeout(timer);
@@ -137,6 +139,7 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
         setStatus({ kind: 'inviting' });
         setLastInviteLink(null);
         setCopiedInviteLink(false);
+        setShowTestingFallback(false);
         const result = await inviteWorkspaceMember(auth.activeWorkspaceId, email, 'editor');
         if (!result.ok) {
             setStatus({ kind: 'error', message: result.error });
@@ -146,11 +149,10 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
         setInviteEmail('');
         setLastInviteLink(result.data.acceptUrl ?? null);
         if (result.data.emailDelivery === 'failed') {
-            setStatus({
-                kind: 'error',
-                message: `Invitation was created, but email delivery failed: ${result.data.emailError || 'provider unavailable'}. Copy the invite link below.`,
-            });
+            setShowTestingFallback(true);
+            setStatus({ kind: 'idle' });
         } else {
+            setShowTestingFallback(false);
             setStatus({ kind: 'success', message: `Invitation sent to ${result.data.invitedEmail}.` });
         }
         void refresh({ preserveStatus: true });
@@ -235,7 +237,67 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
                                 <span>Invite</span>
                             </button>
                         </div>
-                        {lastInviteLink && (
+                        {showTestingFallback && lastInviteLink && (
+                            <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                padding: '14px 16px',
+                                borderRadius: 10,
+                                backgroundColor: 'rgba(34, 197, 94, 0.08)',
+                                border: '1px solid rgba(34, 197, 94, 0.2)',
+                                marginTop: 12,
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                    <CheckCircle2 size={16} style={{ color: '#4ade80' }} />
+                                    <span style={{ fontWeight: 600, color: '#86efac', fontSize: 13 }}>Invitation created!</span>
+                                </div>
+                                <p style={{ margin: '0 0 10px 0', fontSize: 12, color: 'rgba(255,255,255,0.85)', lineHeight: 1.4 }}>
+                                    Email delivery failed because we are in testing mode, but you can copy and share this link directly:
+                                </p>
+                                <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+                                    <input
+                                        type="text"
+                                        value={lastInviteLink}
+                                        readOnly
+                                        style={{
+                                            flex: 1,
+                                            height: 36,
+                                            minWidth: 0,
+                                            borderRadius: 6,
+                                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                                            backgroundColor: 'rgba(0,0,0,0.3)',
+                                            color: '#fff',
+                                            padding: '0 10px',
+                                            outline: 'none',
+                                            fontSize: 12,
+                                        }}
+                                        onFocus={(event) => event.currentTarget.select()}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleCopyInviteLink}
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 6,
+                                            padding: '0 14px',
+                                            height: 36,
+                                            borderRadius: 6,
+                                            border: 'none',
+                                            background: 'linear-gradient(135deg, #2563eb, #22c55e)',
+                                            color: '#fff',
+                                            cursor: 'pointer',
+                                            fontSize: 12,
+                                            fontWeight: 700,
+                                        }}
+                                    >
+                                        <Clipboard size={14} />
+                                        <span>{copiedInviteLink ? 'Copied' : 'Copy Link'}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                        {lastInviteLink && !showTestingFallback && (
                             <div style={copyLinkBox}>
                                 <input
                                     type="text"
