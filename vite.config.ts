@@ -1,11 +1,17 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { createClient } from '@supabase/supabase-js'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 
 const AI_GATEWAY_BASE_URL = 'https://ai-gateway.vercel.sh/v1'
 const NOTION_API_BASE_URL = 'https://api.notion.com/v1'
 const DEFAULT_NOTION_VERSION = '2022-06-28'
+const MAX_EMAIL_LENGTH = 254
+const INVITE_RATE_LIMIT_WINDOW_MS = 60_000
+const INVITE_RATE_LIMIT_MAX = 10
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 let loadedEnv: Record<string, string> = {}
+const inviteRateLimits = new Map<string, { count: number; resetAt: number }>()
 
 type JsonBody = Record<string, unknown>
 type DevAiHandler = (req: IncomingMessage, res: ServerResponse) => Promise<void>
@@ -24,6 +30,52 @@ function getEnvValue(...names: string[]): string {
     if (value && value.trim() !== '') return value.trim()
   }
   return ''
+}
+
+function getBearerToken(req: IncomingMessage): string {
+  const header = req.headers.authorization || ''
+  const match = /^Bearer\s+(.+)$/i.exec(Array.isArray(header) ? header[0] : header)
+  return match?.[1]?.trim() || ''
+}
+
+function isValidEmail(email: string): boolean {
+  return email.length <= MAX_EMAIL_LENGTH && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
+function escapeHtml(value: unknown): string {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function getRequestBaseUrl(req: IncomingMessage): string {
+  const configured = getEnvValue('INVITE_SITE_URL', 'VITE_SITE_URL', 'SITE_URL')
+  if (configured && /^https?:\/\//i.test(configured)) return configured.replace(/\/+$/, '')
+
+  const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:5173'
+  const proto = req.headers['x-forwarded-proto'] || 'http'
+  const cleanHost = Array.isArray(host) ? host[0] : host
+  const cleanProto = Array.isArray(proto) ? proto[0] : proto
+  return `${cleanProto}://${cleanHost}`.replace(/\/+$/, '')
+}
+
+function checkInviteRateLimit(key: string): number | null {
+  const now = Date.now()
+  const current = inviteRateLimits.get(key)
+  if (!current || now > current.resetAt) {
+    inviteRateLimits.set(key, { count: 1, resetAt: now + INVITE_RATE_LIMIT_WINDOW_MS })
+    return null
+  }
+
+  current.count += 1
+  if (current.count > INVITE_RATE_LIMIT_MAX) {
+    return Math.max(1, Math.ceil((current.resetAt - now) / 1000))
+  }
+
+  return null
 }
 
 async function readJsonBody(req: IncomingMessage): Promise<JsonBody> {
@@ -323,6 +375,163 @@ async function handleDevNotionFetch(req: IncomingMessage, res: ServerResponse): 
   sendJson(res, 200, { kind, results })
 }
 
+async function sendDevInviteEmail(options: {
+  to: string
+  acceptUrl: string
+  workspaceName: string
+  inviterName: string
+  role: string
+}): Promise<unknown> {
+  const resendKey = getEnvValue('RESEND_API_KEY')
+  if (!resendKey) {
+    throw new Error('Email delivery is not configured. Add RESEND_API_KEY to your local environment or Vercel Project Settings.')
+  }
+
+  const from = getEnvValue('INVITE_FROM_EMAIL', 'RESEND_FROM_EMAIL') || 'Infonote <onboarding@resend.dev>'
+  const safeWorkspace = escapeHtml(options.workspaceName)
+  const safeInviter = escapeHtml(options.inviterName)
+  const safeRole = escapeHtml(options.role)
+  const safeUrl = escapeHtml(options.acceptUrl)
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${resendKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from,
+      to: options.to,
+      subject: `${options.inviterName} invited you to ${options.workspaceName}`,
+      text:
+        `${options.inviterName} invited you to join "${options.workspaceName}" as ${options.role}.\n\n` +
+        `Accept the invitation: ${options.acceptUrl}\n\n` +
+        'If this was not expected, you can ignore this email.',
+      html: `
+        <div style="font-family:Inter,Arial,sans-serif;line-height:1.55;color:#111827">
+          <h1 style="margin:0 0 12px;font-size:22px">You have been invited to Infonote</h1>
+          <p style="margin:0 0 14px">${safeInviter} invited you to collaborate on <strong>${safeWorkspace}</strong> as <strong>${safeRole}</strong>.</p>
+          <p style="margin:24px 0">
+            <a href="${safeUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Accept invitation</a>
+          </p>
+          <p style="margin:0;color:#6b7280;font-size:13px">If the button does not work, open this link:<br>${safeUrl}</p>
+        </div>
+      `,
+    }),
+  })
+
+  const text = await response.text()
+  const data: unknown = text ? JSON.parse(text) : {}
+  if (!response.ok) {
+    throw new Error(stringValue(data, 'message') || stringValue(data, 'error') || text || `Resend failed with HTTP ${response.status}`)
+  }
+  return data
+}
+
+async function handleDevWorkspaceInvite(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  if (req.method !== 'POST') {
+    sendError(res, 405, 'Method not allowed')
+    return
+  }
+
+  const token = getBearerToken(req)
+  if (!token) {
+    sendError(res, 401, 'You must be signed in to invite collaborators.')
+    return
+  }
+
+  const body = await readJsonBody(req)
+  const workspaceId = getBodyString(body, 'workspaceId')
+  const email = getBodyString(body, 'email').toLowerCase()
+  const role = getBodyString(body, 'role') === 'viewer' ? 'viewer' : 'editor'
+
+  if (!workspaceId) {
+    sendError(res, 400, 'No active workspace selected.')
+    return
+  }
+  if (!UUID_RE.test(workspaceId)) {
+    sendError(res, 400, 'Invalid workspace id.')
+    return
+  }
+  if (!email || !isValidEmail(email)) {
+    sendError(res, 400, 'Enter a valid email address.')
+    return
+  }
+
+  const supabaseUrl = getEnvValue('SUPABASE_URL', 'VITE_SUPABASE_URL')
+  const supabaseKey = getEnvValue('SUPABASE_ANON_KEY', 'SUPABASE_PUBLISHABLE_KEY', 'VITE_SUPABASE_ANON_KEY', 'VITE_SUPABASE_PUBLISHABLE_KEY')
+  if (!supabaseUrl || !supabaseKey) {
+    sendError(res, 500, 'Supabase server environment is missing SUPABASE_URL and SUPABASE_ANON_KEY.')
+    return
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+
+  const { data: userData, error: userError } = await supabase.auth.getUser(token)
+  if (userError || !userData.user) {
+    sendError(res, 401, 'Your session expired. Sign in again before inviting collaborators.')
+    return
+  }
+
+  const retryAfterSeconds = checkInviteRateLimit(`${userData.user.id}:${workspaceId}`)
+  if (retryAfterSeconds) {
+    res.setHeader('Retry-After', String(retryAfterSeconds))
+    sendError(res, 429, `Too many invitations. Try again in ${retryAfterSeconds} seconds.`)
+    return
+  }
+
+  const { data: invite, error: inviteError } = await supabase.rpc('create_workspace_invitation', {
+    _workspace_id: workspaceId,
+    _email: email,
+    _role: role,
+  })
+  if (inviteError) throw inviteError
+  if (!isRecord(invite) || typeof invite.id !== 'string') {
+    throw new Error('Invitation was created without a valid id.')
+  }
+
+  const { data: workspace } = await supabase
+    .from('workspaces')
+    .select('name')
+    .eq('id', workspaceId)
+    .maybeSingle()
+
+  const workspaceName = isRecord(workspace) && typeof workspace.name === 'string' && workspace.name.trim()
+    ? workspace.name.trim()
+    : 'Infonote canvas'
+  const inviterName =
+    stringValue(userData.user.user_metadata, 'display_name') ||
+    stringValue(userData.user.user_metadata, 'full_name') ||
+    userData.user.email ||
+    'An Infonote collaborator'
+  const acceptUrl = `${getRequestBaseUrl(req)}/login?workspaceInvite=${encodeURIComponent(invite.id)}`
+  let emailResult: unknown = null
+  let emailError: string | null = null
+  try {
+    emailResult = await sendDevInviteEmail({
+      to: email,
+      acceptUrl,
+      workspaceName,
+      inviterName,
+      role,
+    })
+  } catch (error) {
+    emailError = error instanceof Error ? error.message : String(error)
+  }
+
+  sendJson(res, 200, {
+    invitation: invite,
+    workspaceName,
+    acceptUrl,
+    emailDelivery: emailError ? 'failed' : 'sent',
+    emailError,
+    emailId: isRecord(emailResult) ? stringValue(emailResult, 'id') || null : null,
+  })
+}
+
 async function handleDevText(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method !== 'POST') {
     sendError(res, 405, 'Method not allowed')
@@ -464,6 +673,7 @@ function aiGatewayDevPlugin(): Plugin {
     '/api/ai/stream': handleDevStream,
     '/api/notion/search': handleDevNotionSearch,
     '/api/notion/fetch': handleDevNotionFetch,
+    '/api/workspace/invite': handleDevWorkspaceInvite,
   }
 
   return {

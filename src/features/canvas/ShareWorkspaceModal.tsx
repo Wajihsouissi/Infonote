@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import {
     AlertCircle,
     CheckCircle2,
+    Clipboard,
     Loader2,
     MailPlus,
     UserCheck,
@@ -46,24 +47,30 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
     const [myInvites, setMyInvites] = useState<WorkspaceInvitation[]>([]);
     const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
     const [status, setStatus] = useState<Status>({ kind: 'idle' });
-    const [prevOpen, setPrevOpen] = useState(false);
+    const [lastInviteLink, setLastInviteLink] = useState<string | null>(null);
+    const [copiedInviteLink, setCopiedInviteLink] = useState(false);
 
-    if (open && !prevOpen) {
-        setPrevOpen(true);
-        setInviteEmail('');
-        setStatus({ kind: 'loading' });
-    }
-    if (!open && prevOpen) {
-        setPrevOpen(false);
-    }
+    useEffect(() => {
+        if (!open) return;
+        const timer = window.setTimeout(() => {
+            setInviteEmail('');
+            setLastInviteLink(null);
+            setCopiedInviteLink(false);
+            setStatus({ kind: 'loading' });
+        }, 0);
+        return () => window.clearTimeout(timer);
+    }, [open]);
 
     const activeWorkspace = workspaces.find((workspace) => workspace.id === auth.activeWorkspaceId);
     const isOwner = activeWorkspace?.role === 'owner';
     const busy = status.kind === 'loading' || status.kind === 'inviting' || status.kind === 'accepting';
 
-    const refresh = useCallback(async () => {
+    const refresh = useCallback(async (options: { preserveStatus?: boolean } = {}) => {
+        const preserveStatus = options.preserveStatus === true;
         if (!auth.userId) return;
-        setStatus({ kind: 'loading' });
+        if (!preserveStatus) {
+            setStatus({ kind: 'loading' });
+        }
 
         const [workspaceRes, pendingRes, membersRes, invitesRes] = await Promise.all([
             listAccessibleWorkspaces(auth.userId),
@@ -73,7 +80,11 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
         ]);
 
         if (!workspaceRes.ok) {
-            setStatus({ kind: 'error', message: workspaceRes.error });
+            if (preserveStatus) {
+                console.warn('[collaboration] workspace refresh failed:', workspaceRes.error);
+            } else {
+                setStatus({ kind: 'error', message: workspaceRes.error });
+            }
             return;
         }
         setWorkspaces(workspaceRes.data);
@@ -86,11 +97,17 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
 
         const firstError = [pendingRes, membersRes, invitesRes].find((result) => !result.ok);
         if (firstError && !firstError.ok) {
-            setStatus({ kind: 'error', message: firstError.error });
+            if (preserveStatus) {
+                console.warn('[collaboration] secondary refresh failed:', firstError.error);
+            } else {
+                setStatus({ kind: 'error', message: firstError.error });
+            }
             return;
         }
 
-        setStatus({ kind: 'idle' });
+        if (!preserveStatus) {
+            setStatus({ kind: 'idle' });
+        }
     }, [auth.activeWorkspaceId, auth.userId]);
 
     useEffect(() => {
@@ -118,6 +135,8 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
         }
 
         setStatus({ kind: 'inviting' });
+        setLastInviteLink(null);
+        setCopiedInviteLink(false);
         const result = await inviteWorkspaceMember(auth.activeWorkspaceId, email, 'editor');
         if (!result.ok) {
             setStatus({ kind: 'error', message: result.error });
@@ -125,9 +144,29 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
         }
 
         setInviteEmail('');
-        setStatus({ kind: 'success', message: `Invitation sent to ${result.data.invitedEmail}.` });
-        void refresh();
+        setLastInviteLink(result.data.acceptUrl ?? null);
+        if (result.data.emailDelivery === 'failed') {
+            setStatus({
+                kind: 'error',
+                message: `Invitation was created, but email delivery failed: ${result.data.emailError || 'provider unavailable'}. Copy the invite link below.`,
+            });
+        } else {
+            setStatus({ kind: 'success', message: `Invitation sent to ${result.data.invitedEmail}.` });
+        }
+        void refresh({ preserveStatus: true });
     }, [auth.activeWorkspaceId, inviteEmail, refresh]);
+
+    const handleCopyInviteLink = useCallback(async () => {
+        if (!lastInviteLink) return;
+        try {
+            await navigator.clipboard.writeText(lastInviteLink);
+            setCopiedInviteLink(true);
+            setStatus({ kind: 'success', message: 'Invite link copied.' });
+        } catch {
+            setCopiedInviteLink(false);
+            setStatus({ kind: 'error', message: 'Could not copy automatically. Select and copy the invite link manually.' });
+        }
+    }, [lastInviteLink]);
 
     const handleAccept = useCallback(async (invite: WorkspaceInvitation) => {
         if (!auth.userId) return;
@@ -141,7 +180,7 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
         persistActiveWorkspace(auth.userId, result.data.workspaceId);
         setAuthWorkspace(result.data.workspaceId);
         setStatus({ kind: 'success', message: `Joined ${invite.workspaceName}.` });
-        void refresh();
+        void refresh({ preserveStatus: true });
     }, [auth.userId, refresh, setAuthWorkspace]);
 
     const handleSwitchWorkspace = useCallback((workspace: WorkspaceSummary) => {
@@ -196,6 +235,22 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
                                 <span>Invite</span>
                             </button>
                         </div>
+                        {lastInviteLink && (
+                            <div style={copyLinkBox}>
+                                <input
+                                    type="text"
+                                    value={lastInviteLink}
+                                    readOnly
+                                    style={copyInput}
+                                    aria-label="Workspace invitation link"
+                                    onFocus={(event) => event.currentTarget.select()}
+                                />
+                                <button type="button" onClick={handleCopyInviteLink} style={smallButton}>
+                                    <Clipboard size={14} />
+                                    <span>{copiedInviteLink ? 'Copied' : 'Copy link'}</span>
+                                </button>
+                            </div>
+                        )}
                     </section>
 
                     {myInvites.length > 0 && (
@@ -449,6 +504,18 @@ const input: React.CSSProperties = {
     padding: '0 11px',
     outline: 'none',
     fontSize: 13,
+};
+
+const copyLinkBox: React.CSSProperties = {
+    display: 'flex',
+    gap: 9,
+    marginTop: 9,
+};
+
+const copyInput: React.CSSProperties = {
+    ...input,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.72)',
 };
 
 const list: React.CSSProperties = {

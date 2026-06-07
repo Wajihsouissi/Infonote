@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { Loader2 } from 'lucide-react';
 import { CanvasBoard } from './features/canvas/CanvasBoard';
@@ -14,18 +14,36 @@ import { WelcomeModal } from './features/auth/WelcomeModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useStore } from './store/useStore';
 import { supabase, isSupabaseConfigured } from './services/supabase/client';
+import { acceptWorkspaceInvitation, persistActiveWorkspace } from './services/collaboration';
+
+const PENDING_INVITE_KEY = 'infonote.pendingWorkspaceInvitationId';
 
 function App() {
   const currentView = useStore((state) => state.currentView);
   const setCurrentView = useStore((state) => state.setCurrentView);
   const isAuthenticated = useStore((state) => state.auth.isAuthenticated);
   const isAuthLoading = useStore((state) => state.auth.isAuthLoading);
+  const authUserId = useStore((state) => state.auth.userId);
+  const setAuthWorkspace = useStore((state) => state.setAuthWorkspace);
   const showWelcomeModal = useStore((state) => state.showWelcomeModal);
   const setShowWelcomeModal = useStore((state) => state.setShowWelcomeModal);
+  const [inviteBanner, setInviteBanner] = useState<string | null>(null);
 
   // URL-based route detection (e.g. direct navigation to /wajihadmin)
   useEffect(() => {
     const path = window.location.pathname.replace(/\/+$/, '') || '/';
+    const params = new URLSearchParams(window.location.search);
+    const workspaceInviteId = params.get('workspaceInvite') || params.get('invite');
+
+    if (workspaceInviteId) {
+      sessionStorage.setItem(PENDING_INVITE_KEY, workspaceInviteId);
+      params.delete('workspaceInvite');
+      params.delete('invite');
+      const nextSearch = params.toString();
+      const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash}`;
+      window.history.replaceState({}, '', nextUrl);
+    }
+
     if (path === '/wajihadmin') {
       setCurrentView('wajihadmin');
     } else if (path.includes('admin')) {
@@ -43,8 +61,56 @@ function App() {
     }
   }, [setCurrentView]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || isAuthLoading) return;
+
+    const invitationId = sessionStorage.getItem(PENDING_INVITE_KEY);
+    if (!invitationId) return;
+
+    if (!isAuthenticated || !authUserId) {
+      setCurrentView('login');
+      return;
+    }
+
+    let cancelled = false;
+    const bannerTimer = window.setTimeout(() => {
+      if (!cancelled) setInviteBanner('Accepting workspace invitation...');
+    }, 0);
+    setCurrentView('canvas');
+
+    acceptWorkspaceInvitation(invitationId)
+      .then((result) => {
+        if (cancelled) return;
+        if (!result.ok) {
+          setInviteBanner(result.error);
+          return;
+        }
+
+        sessionStorage.removeItem(PENDING_INVITE_KEY);
+        persistActiveWorkspace(authUserId, result.data.workspaceId);
+        setAuthWorkspace(result.data.workspaceId);
+        setCurrentView('canvas');
+        setInviteBanner('Invitation accepted. Opening shared canvas...');
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setInviteBanner(error instanceof Error ? error.message : 'Invitation could not be accepted.');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(bannerTimer);
+    };
+  }, [authUserId, isAuthLoading, isAuthenticated, setAuthWorkspace, setCurrentView]);
+
   // Auto-redirect authenticated users from login/signup/marketing views to landing/dashboard
   useEffect(() => {
+    const hasPendingInvite =
+      typeof window !== 'undefined' &&
+      Boolean(sessionStorage.getItem(PENDING_INVITE_KEY));
+    if (hasPendingInvite) return;
+
     if (!isAuthLoading && isAuthenticated && (currentView === 'login' || currentView === 'signup' || currentView === 'marketing')) {
       setCurrentView('landing');
     }
@@ -185,6 +251,29 @@ function App() {
   return (
     <ErrorBoundary>
       {renderContent()}
+      {inviteBanner && (
+        <div
+          role="status"
+          style={{
+            position: 'fixed',
+            left: '50%',
+            bottom: 24,
+            transform: 'translateX(-50%)',
+            zIndex: 11000,
+            maxWidth: 'min(520px, calc(100vw - 32px))',
+            padding: '12px 16px',
+            borderRadius: 10,
+            background: 'rgba(17, 24, 39, 0.94)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            color: '#fff',
+            fontSize: 13,
+            fontWeight: 600,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+          }}
+        >
+          {inviteBanner}
+        </div>
+      )}
       <WelcomeModal
         isOpen={showWelcomeModal}
         onClose={() => {

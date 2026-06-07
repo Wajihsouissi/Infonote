@@ -30,6 +30,9 @@ export interface WorkspaceInvitation {
     invitedBy: string;
     createdAt: string | null;
     expiresAt: string | null;
+    acceptUrl?: string | null;
+    emailDelivery?: 'sent' | 'failed';
+    emailError?: string | null;
 }
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -240,26 +243,57 @@ export async function inviteWorkspaceMember(
         const client = requireSupabase();
         if (!workspaceId) throw new Error('No active workspace selected.');
 
-        const { data, error } = await client.rpc('create_workspace_invitation', {
-            _workspace_id: workspaceId,
-            _email: email,
-            _role: role,
-        });
-        if (error) throw error;
+        const { data: sessionData, error: sessionError } = await client.auth.getSession();
+        if (sessionError) throw sessionError;
 
-        const invite = data as Record<string, unknown>;
+        const accessToken = sessionData.session?.access_token;
+        if (!accessToken) throw new Error('You must be signed in to invite collaborators.');
+
+        const response = await fetch('/api/workspace/invite', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                workspaceId,
+                email,
+                role,
+            }),
+        });
+
+        const payload = await response.json().catch(() => ({})) as {
+            error?: string;
+            invitation?: Record<string, unknown>;
+            workspaceName?: string;
+            acceptUrl?: string;
+            emailDelivery?: 'sent' | 'failed';
+            emailError?: string | null;
+        };
+
+        if (!response.ok) {
+            throw new Error(payload.error || `Invitation failed with HTTP ${response.status}`);
+        }
+        if (!payload.invitation) {
+            throw new Error('Invitation was created without a valid server response.');
+        }
+
+        const invite = payload.invitation;
         return {
             ok: true,
             data: {
                 id: String(invite.id),
                 workspaceId: String(invite.workspace_id),
-                workspaceName: 'Shared workspace',
+                workspaceName: payload.workspaceName || 'Shared workspace',
                 invitedEmail: String(invite.invited_email),
                 role: invite.role === 'viewer' ? 'viewer' : 'editor',
                 status: 'pending',
                 invitedBy: String(invite.invited_by),
                 createdAt: String(invite.created_at ?? ''),
                 expiresAt: String(invite.expires_at ?? ''),
+                acceptUrl: payload.acceptUrl || null,
+                emailDelivery: payload.emailDelivery,
+                emailError: payload.emailError ?? null,
             },
         };
     } catch (error) {

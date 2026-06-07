@@ -8,9 +8,9 @@
  *   canvas_edges(id, user_id, source_id, target_id, data_json)
  *
  * Notes:
- *   - All access is gated through Supabase RLS, which restricts every row to
- *     `auth.uid() = user_id`. We additionally pass user_id in the payload so
- *     RLS `with check` succeeds.
+ *   - All access is gated through Supabase RLS. For shared workspaces, rows
+ *     are stored under the workspace owner's `user_id` while `workspace_id`
+ *     and membership policies authorize collaborators to read/write them.
  *   - We upsert in batches and then delete-by-not-in to mirror the local
  *     state exactly (true sync, not append-only).
  *   - `data_json` carries everything not captured by the typed columns
