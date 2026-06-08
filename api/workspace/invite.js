@@ -49,9 +49,19 @@ async function readJsonBody(req) {
 function getEnv(...names) {
   for (const name of names) {
     const value = process.env[name];
-    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'string' && value.trim()) return stripWrappingQuotes(value.trim());
   }
   return '';
+}
+
+function stripWrappingQuotes(value) {
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1).trim();
+  }
+  return value;
 }
 
 function requireSupabaseEnv() {
@@ -63,6 +73,10 @@ function requireSupabaseEnv() {
   }
 
   return { url, key };
+}
+
+function getSupabaseServiceRoleKey() {
+  return getEnv('SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SERVICE_KEY');
 }
 
 function requireResendEnv() {
@@ -137,9 +151,24 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function isProductionRuntime() {
+  return process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
+}
+
+function getInviteFromEmail() {
+  const from = getEnv('INVITE_FROM_EMAIL', 'RESEND_FROM_EMAIL');
+  if (from) return from;
+
+  if (isProductionRuntime()) {
+    throw new Error('Invite sender email is not configured. Add INVITE_FROM_EMAIL with a verified Resend sender/domain in Vercel Project Settings.');
+  }
+
+  return 'Infonote <onboarding@resend.dev>';
+}
+
 async function sendInviteEmail({ to, acceptUrl, workspaceName, inviterName, role }) {
   const resendKey = requireResendEnv();
-  const from = getEnv('INVITE_FROM_EMAIL', 'RESEND_FROM_EMAIL') || 'Infonote <onboarding@resend.dev>';
+  const from = getInviteFromEmail();
   const safeWorkspace = escapeHtml(workspaceName || 'Infonote canvas');
   const safeInviter = escapeHtml(inviterName || 'An Infonote collaborator');
   const safeRole = escapeHtml(role);
@@ -179,6 +208,65 @@ async function sendInviteEmail({ to, acceptUrl, workspaceName, inviterName, role
   }
 
   return data;
+}
+
+async function sendSupabaseInviteEmail({ supabaseUrl, to, acceptUrl, workspaceName, inviterName, role }) {
+  const serviceRoleKey = getSupabaseServiceRoleKey();
+  if (!serviceRoleKey) {
+    throw new Error('Supabase email fallback is not configured. Add SUPABASE_SERVICE_ROLE_KEY server-side to enable Auth invite fallback.');
+  }
+
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(to, {
+    redirectTo: acceptUrl,
+    data: {
+      workspace_invite_url: acceptUrl,
+      workspace_name: workspaceName,
+      invited_by: inviterName,
+      workspace_role: role,
+    },
+  });
+
+  if (error) throw error;
+  return data;
+}
+
+async function deliverInviteEmail(options) {
+  const failures = [];
+
+  try {
+    const data = await sendInviteEmail(options);
+    return {
+      ok: true,
+      provider: 'resend',
+      id: isRecord(data) ? data.id || null : null,
+      error: null,
+    };
+  } catch (error) {
+    failures.push(`Resend: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  try {
+    const data = await sendSupabaseInviteEmail(options);
+    return {
+      ok: true,
+      provider: 'supabase-auth',
+      id: data?.user?.id || null,
+      error: null,
+    };
+  } catch (error) {
+    failures.push(`Supabase Auth fallback: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  return {
+    ok: false,
+    provider: null,
+    id: null,
+    error: failures.join(' | '),
+  };
 }
 
 export default async function handler(req, res) {
@@ -255,28 +343,25 @@ export default async function handler(req, res) {
     const workspaceName = typeof workspace?.name === 'string' && workspace.name.trim()
       ? workspace.name.trim()
       : 'Infonote canvas';
-    const acceptUrl = `${getSiteBaseUrl(req)}/login?workspaceInvite=${encodeURIComponent(invite.id)}`;
-    let emailResult = null;
-    let emailError = null;
-    try {
-      emailResult = await sendInviteEmail({
-        to: email,
-        acceptUrl,
-        workspaceName,
-        inviterName,
-        role,
-      });
-    } catch (error) {
-      emailError = error instanceof Error ? error.message : String(error);
-    }
+    const acceptUrl = `${getSiteBaseUrl(req)}/invite/${encodeURIComponent(invite.id)}`;
+    const delivery = await deliverInviteEmail({
+      supabaseUrl: url,
+      to: email,
+      acceptUrl,
+      workspaceName,
+      inviterName,
+      role,
+    });
 
     sendJson(res, 200, {
       invitation: invite,
       workspaceName,
       acceptUrl,
-      emailDelivery: emailError ? 'failed' : 'sent',
-      emailError,
-      emailId: emailResult?.id || null,
+      emailDelivery: delivery.ok ? 'sent' : 'failed',
+      emailProvider: delivery.provider,
+      emailError: delivery.error,
+      emailId: delivery.id,
+      emailFrom: getEnv('INVITE_FROM_EMAIL', 'RESEND_FROM_EMAIL') || null,
     });
   } catch (error) {
     sendError(res, error?.status || 500, error);

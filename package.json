@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "check:invite-env": "node scripts/check-invite-env.mjs",
     "stress:canvas": "node scripts/canvas-stress-test.mjs"
   },
   "dependencies": {

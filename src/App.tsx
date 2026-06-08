@@ -17,6 +17,8 @@ import { supabase, isSupabaseConfigured } from './services/supabase/client';
 import { acceptWorkspaceInvitation, persistActiveWorkspace } from './services/collaboration';
 
 const PENDING_INVITE_KEY = 'infonote.pendingWorkspaceInvitationId';
+const INVITE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const INVITE_PATH_RE = /^\/invite\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
 
 function App() {
   const currentView = useStore((state) => state.currentView);
@@ -33,15 +35,21 @@ function App() {
   useEffect(() => {
     const path = window.location.pathname.replace(/\/+$/, '') || '/';
     const params = new URLSearchParams(window.location.search);
-    const workspaceInviteId = params.get('workspaceInvite') || params.get('invite');
+    const invitePathMatch = INVITE_PATH_RE.exec(path);
+    const workspaceInviteId = params.get('workspaceInvite') || params.get('invite') || invitePathMatch?.[1] || null;
 
-    if (workspaceInviteId) {
+    if (workspaceInviteId && INVITE_ID_RE.test(workspaceInviteId)) {
       sessionStorage.setItem(PENDING_INVITE_KEY, workspaceInviteId);
       params.delete('workspaceInvite');
       params.delete('invite');
       const nextSearch = params.toString();
-      const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash}`;
+      const nextPath = invitePathMatch ? '/canvas' : window.location.pathname;
+      const nextUrl = `${nextPath}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash}`;
       window.history.replaceState({}, '', nextUrl);
+    } else if (workspaceInviteId) {
+      window.setTimeout(() => {
+        setInviteBanner('This workspace invitation link is invalid.');
+      }, 0);
     }
 
     if (path === '/wajihadmin') {
@@ -90,6 +98,7 @@ function App() {
         persistActiveWorkspace(authUserId, result.data.workspaceId);
         setAuthWorkspace(result.data.workspaceId);
         setCurrentView('canvas');
+        window.history.replaceState({}, '', '/canvas');
         setInviteBanner('Invitation accepted. Opening shared canvas...');
       })
       .catch((error) => {

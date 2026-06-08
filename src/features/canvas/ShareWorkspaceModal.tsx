@@ -6,6 +6,7 @@ import {
     Clipboard,
     Loader2,
     MailPlus,
+    Link as LinkIcon,
     UserCheck,
     Users,
     X,
@@ -45,19 +46,25 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
     const [members, setMembers] = useState<WorkspaceMember[]>([]);
     const [workspaceInvites, setWorkspaceInvites] = useState<WorkspaceInvitation[]>([]);
     const [myInvites, setMyInvites] = useState<WorkspaceInvitation[]>([]);
+    const [manualInvite, setManualInvite] = useState('');
     const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
     const [status, setStatus] = useState<Status>({ kind: 'idle' });
     const [lastInviteLink, setLastInviteLink] = useState<string | null>(null);
+    const [inviteDeliveryError, setInviteDeliveryError] = useState<string | null>(null);
+    const [inviteSender, setInviteSender] = useState<string | null>(null);
+    const [inviteProvider, setInviteProvider] = useState<string | null>(null);
     const [copiedInviteLink, setCopiedInviteLink] = useState(false);
-    const [showTestingFallback, setShowTestingFallback] = useState(false);
 
     useEffect(() => {
         if (!open) return;
         const timer = window.setTimeout(() => {
             setInviteEmail('');
+            setManualInvite('');
             setLastInviteLink(null);
+            setInviteDeliveryError(null);
+            setInviteSender(null);
+            setInviteProvider(null);
             setCopiedInviteLink(false);
-            setShowTestingFallback(false);
             setStatus({ kind: 'loading' });
         }, 0);
         return () => window.clearTimeout(timer);
@@ -138,8 +145,10 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
 
         setStatus({ kind: 'inviting' });
         setLastInviteLink(null);
+        setInviteDeliveryError(null);
+        setInviteSender(null);
+        setInviteProvider(null);
         setCopiedInviteLink(false);
-        setShowTestingFallback(false);
         const result = await inviteWorkspaceMember(auth.activeWorkspaceId, email, 'editor');
         if (!result.ok) {
             setStatus({ kind: 'error', message: result.error });
@@ -148,12 +157,15 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
 
         setInviteEmail('');
         setLastInviteLink(result.data.acceptUrl ?? null);
+        setInviteSender(result.data.emailFrom ?? null);
+        const formattedProvider = formatInviteProvider(result.data.emailProvider);
+        setInviteProvider(formattedProvider);
         if (result.data.emailDelivery === 'failed') {
-            setShowTestingFallback(true);
-            setStatus({ kind: 'idle' });
+            setInviteDeliveryError(result.data.emailError || 'Email provider did not accept the invitation email.');
+            setStatus({ kind: 'error', message: 'Invitation was created, but email delivery failed. Copy the invite link below.' });
         } else {
-            setShowTestingFallback(false);
-            setStatus({ kind: 'success', message: `Invitation sent to ${result.data.invitedEmail}.` });
+            setInviteDeliveryError(null);
+            setStatus({ kind: 'success', message: `Invitation email queued for ${result.data.invitedEmail}${formattedProvider ? ` via ${formattedProvider}` : ''}.` });
         }
         void refresh({ preserveStatus: true });
     }, [auth.activeWorkspaceId, inviteEmail, refresh]);
@@ -171,7 +183,10 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
     }, [lastInviteLink]);
 
     const handleAccept = useCallback(async (invite: WorkspaceInvitation) => {
-        if (!auth.userId) return;
+        if (!auth.userId) {
+            setStatus({ kind: 'error', message: 'Sign in before accepting an invitation.' });
+            return;
+        }
         setStatus({ kind: 'accepting' });
         const result = await acceptWorkspaceInvitation(invite.id);
         if (!result.ok) {
@@ -184,6 +199,32 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
         setStatus({ kind: 'success', message: `Joined ${invite.workspaceName}.` });
         void refresh({ preserveStatus: true });
     }, [auth.userId, refresh, setAuthWorkspace]);
+
+    const handleAcceptManualInvite = useCallback(async () => {
+        if (!auth.userId) {
+            setStatus({ kind: 'error', message: 'Sign in before accepting an invitation.' });
+            return;
+        }
+
+        const invitationId = extractInvitationId(manualInvite);
+        if (!invitationId) {
+            setStatus({ kind: 'error', message: 'Paste a valid workspace invite link or invitation id.' });
+            return;
+        }
+
+        setStatus({ kind: 'accepting' });
+        const result = await acceptWorkspaceInvitation(invitationId);
+        if (!result.ok) {
+            setStatus({ kind: 'error', message: result.error });
+            return;
+        }
+
+        setManualInvite('');
+        persistActiveWorkspace(auth.userId, result.data.workspaceId);
+        setAuthWorkspace(result.data.workspaceId);
+        setStatus({ kind: 'success', message: 'Invitation accepted. Opening shared canvas.' });
+        void refresh({ preserveStatus: true });
+    }, [auth.userId, manualInvite, refresh, setAuthWorkspace]);
 
     const handleSwitchWorkspace = useCallback((workspace: WorkspaceSummary) => {
         if (!auth.userId) return;
@@ -237,22 +278,34 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
                                 <span>Invite</span>
                             </button>
                         </div>
-                        {showTestingFallback && lastInviteLink && (
+                        {lastInviteLink && (
                             <div style={{
                                 display: 'flex',
                                 flexDirection: 'column',
                                 padding: '14px 16px',
                                 borderRadius: 10,
-                                backgroundColor: 'rgba(34, 197, 94, 0.08)',
-                                border: '1px solid rgba(34, 197, 94, 0.2)',
+                                backgroundColor: inviteDeliveryError ? 'rgba(245, 158, 11, 0.1)' : 'rgba(34, 197, 94, 0.08)',
+                                border: inviteDeliveryError ? '1px solid rgba(245, 158, 11, 0.24)' : '1px solid rgba(34, 197, 94, 0.2)',
                                 marginTop: 12,
                             }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                                    <CheckCircle2 size={16} style={{ color: '#4ade80' }} />
-                                    <span style={{ fontWeight: 600, color: '#86efac', fontSize: 13 }}>Invitation created!</span>
+                                    {inviteDeliveryError ? (
+                                        <AlertCircle size={16} style={{ color: '#fbbf24' }} />
+                                    ) : (
+                                        <CheckCircle2 size={16} style={{ color: '#4ade80' }} />
+                                    )}
+                                    <span style={{
+                                        fontWeight: 600,
+                                        color: inviteDeliveryError ? '#fde68a' : '#86efac',
+                                        fontSize: 13,
+                                    }}>
+                                        {inviteDeliveryError ? 'Invitation created, email not delivered' : 'Invitation email queued'}
+                                    </span>
                                 </div>
                                 <p style={{ margin: '0 0 10px 0', fontSize: 12, color: 'rgba(255,255,255,0.85)', lineHeight: 1.4 }}>
-                                    Email delivery failed because we are in testing mode, but you can copy and share this link directly:
+                                    {inviteDeliveryError
+                                        ? `Delivery error: ${inviteDeliveryError} Copy and share this accept link directly while the email configuration is fixed.`
+                                        : `The email has been accepted${inviteProvider ? ` by ${inviteProvider}` : ' by the provider'}${inviteSender ? ` from ${inviteSender}` : ''}. You can also copy the accept link directly.`}
                                 </p>
                                 <div style={{ display: 'flex', gap: 8, width: '100%' }}>
                                     <input
@@ -297,22 +350,6 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
                                 </div>
                             </div>
                         )}
-                        {lastInviteLink && !showTestingFallback && (
-                            <div style={copyLinkBox}>
-                                <input
-                                    type="text"
-                                    value={lastInviteLink}
-                                    readOnly
-                                    style={copyInput}
-                                    aria-label="Workspace invitation link"
-                                    onFocus={(event) => event.currentTarget.select()}
-                                />
-                                <button type="button" onClick={handleCopyInviteLink} style={smallButton}>
-                                    <Clipboard size={14} />
-                                    <span>{copiedInviteLink ? 'Copied' : 'Copy link'}</span>
-                                </button>
-                            </div>
-                        )}
                     </section>
 
                     {myInvites.length > 0 && (
@@ -337,6 +374,31 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
                             </div>
                         </section>
                     )}
+
+                    <section style={panel}>
+                        <div style={sectionHeader}>
+                            <div>
+                                <h3 style={sectionTitle}>Accept invite link</h3>
+                                <p style={sectionCopy}>
+                                    Paste a workspace invitation link or id to join from this account.
+                                </p>
+                            </div>
+                        </div>
+                        <div style={inviteRow}>
+                            <input
+                                type="text"
+                                value={manualInvite}
+                                onChange={(event) => setManualInvite(event.target.value)}
+                                placeholder="https://chnkit.com/invite/..."
+                                disabled={busy}
+                                style={input}
+                            />
+                            <button type="button" onClick={handleAcceptManualInvite} disabled={busy || !manualInvite.trim()} style={primaryButton}>
+                                {status.kind === 'accepting' ? <Loader2 size={15} className="animate-spin" /> : <LinkIcon size={15} />}
+                                <span>Accept</span>
+                            </button>
+                        </div>
+                    </section>
 
                     <section style={panel}>
                         <h3 style={sectionTitle}>People in this canvas</h3>
@@ -443,6 +505,31 @@ function initials(value: string): string {
     if (parts.length === 0) return 'U';
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+
+function formatInviteProvider(provider: WorkspaceInvitation['emailProvider']): string | null {
+    if (provider === 'resend') return 'Resend';
+    if (provider === 'supabase-auth') return 'Supabase Auth';
+    return null;
+}
+
+const INVITATION_ID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
+
+function extractInvitationId(value: string): string | null {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    try {
+        const url = new URL(trimmed);
+        const queryInvite = url.searchParams.get('workspaceInvite') || url.searchParams.get('invite');
+        if (queryInvite && INVITATION_ID_RE.test(queryInvite)) {
+            return queryInvite.match(INVITATION_ID_RE)?.[0] ?? null;
+        }
+    } catch {
+        // Plain invitation ids are accepted below.
+    }
+
+    return trimmed.match(INVITATION_ID_RE)?.[0] ?? null;
 }
 
 const overlay: React.CSSProperties = {
@@ -566,18 +653,6 @@ const input: React.CSSProperties = {
     padding: '0 11px',
     outline: 'none',
     fontSize: 13,
-};
-
-const copyLinkBox: React.CSSProperties = {
-    display: 'flex',
-    gap: 9,
-    marginTop: 9,
-};
-
-const copyInput: React.CSSProperties = {
-    ...input,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.72)',
 };
 
 const list: React.CSSProperties = {

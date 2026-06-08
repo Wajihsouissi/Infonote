@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
     AlertCircle,
@@ -21,7 +21,6 @@ import {
     importNotionPage,
     searchNotionWorkspace,
     type NotionSearchItem,
-    type NotionSourceKind,
 } from '../../services/notion/notionImport';
 import { useStore } from '../../store/useStore';
 
@@ -51,21 +50,6 @@ export const NotionImportModal: React.FC<NotionImportModalProps> = ({ open, onCl
     const [items, setItems] = useState<NotionSearchItem[]>([]);
     const [selected, setSelected] = useState<NotionSearchItem | null>(null);
     const [status, setStatus] = useState<Status>({ kind: 'idle' });
-    const [prevOpen, setPrevOpen] = useState(false);
-    const [progress, setProgress] = useState(0);
-
-    if (open && !prevOpen) {
-        setPrevOpen(true);
-        setItems([]);
-        setSelected(null);
-        setStatus({ kind: 'idle' });
-        setProgress(0);
-        setManualTarget('');
-        setQuery('');
-    }
-    if (!open && prevOpen) {
-        setPrevOpen(false);
-    }
 
     const busy = status.kind === 'connecting' || status.kind === 'searching' || status.kind === 'importing';
     const isManualTarget = extractNotionId(manualTarget) !== null;
@@ -79,6 +63,19 @@ export const NotionImportModal: React.FC<NotionImportModalProps> = ({ open, onCl
         setAccessToken(token);
         return token;
     }, []);
+
+    useEffect(() => {
+        if (!open) return;
+        const timer = window.setTimeout(() => {
+            setItems([]);
+            setSelected(null);
+            setStatus({ kind: 'idle' });
+            setManualTarget('');
+            setQuery('');
+        }, 0);
+
+        return () => window.clearTimeout(timer);
+    }, [open]);
 
     const runSearch = useCallback(async (tokenOverride?: string | null) => {
         const token = tokenOverride ?? accessToken;
@@ -154,14 +151,6 @@ export const NotionImportModal: React.FC<NotionImportModalProps> = ({ open, onCl
         }
 
         setStatus({ kind: 'importing' });
-        setProgress(0);
-
-        const progressInterval = setInterval(() => {
-            setProgress((p) => {
-                if (p >= 95) return p;
-                return p + Math.floor(Math.random() * 5) + 1;
-            });
-        }, 250);
 
         try {
             const importFn = selectedKind === 'database' ? importNotionDatabase : importNotionPage;
@@ -171,9 +160,6 @@ export const NotionImportModal: React.FC<NotionImportModalProps> = ({ open, onCl
                 workspaceId,
                 parentId: currentParentId,
             });
-
-            clearInterval(progressInterval);
-            setProgress(100);
 
             if (!result.ok) {
                 setStatus({ kind: 'error', message: result.error });
@@ -199,8 +185,7 @@ export const NotionImportModal: React.FC<NotionImportModalProps> = ({ open, onCl
                 }
             }, 600);
 
-        } catch (err) {
-            clearInterval(progressInterval);
+        } catch {
             setStatus({ kind: 'error', message: 'An unexpected error occurred during import.' });
         }
     }, [accessToken, currentParentId, selectedId, selectedKind, setNodes, userId, workspaceId, navigateToNode, onClose]);
@@ -352,12 +337,8 @@ export const NotionImportModal: React.FC<NotionImportModalProps> = ({ open, onCl
                             <div style={progressHeader}>
                                 <div style={progressLabel}>
                                     <Loader2 size={16} className="animate-spin" /> 
-                                    Importing...
+                                    Importing Notion content...
                                 </div>
-                                <div style={progressValue}>{progress}%</div>
-                            </div>
-                            <div style={progressBarBg}>
-                                <div style={{...progressBarFill, width: `${progress}%`}} />
                             </div>
                         </div>
                     ) : (
@@ -828,29 +809,6 @@ const progressLabel: React.CSSProperties = {
     fontSize: 14,
     fontWeight: 600,
     color: '#4ade80',
-};
-
-const progressValue: React.CSSProperties = {
-    fontSize: 14,
-    fontWeight: 700,
-    color: '#fff',
-    fontVariantNumeric: 'tabular-nums',
-};
-
-const progressBarBg: React.CSSProperties = {
-    width: '100%',
-    height: 6,
-    background: 'rgba(255,255,255,0.08)',
-    borderRadius: 3,
-    overflow: 'hidden',
-};
-
-const progressBarFill: React.CSSProperties = {
-    height: '100%',
-    background: '#22c55e',
-    borderRadius: 3,
-    transition: 'width 0.3s ease-out',
-    boxShadow: '0 0 10px rgba(34, 197, 94, 0.5)',
 };
 
 export default NotionImportModal;

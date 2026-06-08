@@ -101,6 +101,33 @@ async function queryDatabase(id, headers) {
   return all;
 }
 
+async function queryDatabaseWithPageBlocks(id, headers) {
+  const pages = await queryDatabase(id, headers);
+  const hydrated = [];
+
+  for (const page of pages) {
+    if (!page?.id) {
+      hydrated.push(page);
+      continue;
+    }
+
+    try {
+      hydrated.push({
+        ...page,
+        children: await fetchBlockChildren(page.id, headers, 0),
+      });
+    } catch (error) {
+      hydrated.push({
+        ...page,
+        children: [],
+        children_fetch_error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return hydrated;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     sendError(res, 405, 'Method not allowed');
@@ -125,7 +152,7 @@ export default async function handler(req, res) {
 
     const headers = buildHeaders(accessToken, notionVersion);
     const results = kind === 'database'
-      ? await queryDatabase(id, headers)
+      ? await queryDatabaseWithPageBlocks(id, headers)
       : await fetchPageBlocks(id, headers);
 
     let page = undefined;

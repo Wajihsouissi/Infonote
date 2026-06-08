@@ -169,28 +169,47 @@ export async function importNotionPage(
         
         const finalNodes = applyParentId(nodes, options.parentId);
         const result = await persist(finalNodes, skipped, options.userId, options.workspaceId);
-        
-        if (result.ok && childPages && childPages.length > 0) {
+        if (!result.ok) return result;
+
+        let imported = result.imported;
+        let skippedTotal = result.skipped;
+        const importedNodes = [...result.nodes];
+
+        if (childPages && childPages.length > 0) {
             // Import child pages sequentially to avoid overloading Notion/Supabase
             const parentNodeId = finalNodes[0]?.id;
             for (const child of childPages) {
+                let childResult: NotionImportResult;
                 if (child.kind === 'database') {
-                    await importNotionDatabase(child.notionId, {
+                    childResult = await importNotionDatabase(child.notionId, {
                         ...options,
                         parentId: parentNodeId,
                         forcedNodeId: child.canvasNodeId,
                     });
                 } else {
-                    await importNotionPage(child.notionId, {
+                    childResult = await importNotionPage(child.notionId, {
                         ...options,
                         parentId: parentNodeId,
                         forcedNodeId: child.canvasNodeId,
                     });
                 }
+
+                if (childResult.ok) {
+                    imported += childResult.imported;
+                    skippedTotal += childResult.skipped;
+                    importedNodes.push(...childResult.nodes);
+                } else {
+                    skippedTotal += 1;
+                }
             }
         }
         
-        return result;
+        return {
+            ...result,
+            imported,
+            skipped: skippedTotal,
+            nodes: importedNodes,
+        };
     } catch (err) {
         return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }
@@ -210,11 +229,53 @@ export async function importNotionDatabase(
     try {
         const pages = await queryNotionDatabase(databaseId, options);
         const offset = options.offset ?? computeFreshOffset();
-        const { nodes, skipped } = convertNotionDatabaseToCanvasNodes(pages, {
+        const { nodes, skipped, childPages } = convertNotionDatabaseToCanvasNodes(pages, {
             offset,
             keepSourceIds: options.keepSourceIds,
+            forcedNodeId: options.forcedNodeId,
         });
-        return persist(applyParentId(nodes, options.parentId), skipped, options.userId, options.workspaceId);
+        const finalNodes = applyParentId(nodes, options.parentId);
+        const result = await persist(finalNodes, skipped, options.userId, options.workspaceId);
+        if (!result.ok) return result;
+
+        let imported = result.imported;
+        let skippedTotal = result.skipped;
+        const importedNodes = [...result.nodes];
+
+        if (childPages.length > 0) {
+            const parentNodeId = finalNodes[0]?.id;
+            for (const child of childPages) {
+                let childResult: NotionImportResult;
+                if (child.kind === 'database') {
+                    childResult = await importNotionDatabase(child.notionId, {
+                        ...options,
+                        parentId: parentNodeId,
+                        forcedNodeId: child.canvasNodeId,
+                    });
+                } else {
+                    childResult = await importNotionPage(child.notionId, {
+                        ...options,
+                        parentId: parentNodeId,
+                        forcedNodeId: child.canvasNodeId,
+                    });
+                }
+
+                if (childResult.ok) {
+                    imported += childResult.imported;
+                    skippedTotal += childResult.skipped;
+                    importedNodes.push(...childResult.nodes);
+                } else {
+                    skippedTotal += 1;
+                }
+            }
+        }
+
+        return {
+            ...result,
+            imported,
+            skipped: skippedTotal,
+            nodes: importedNodes,
+        };
     } catch (err) {
         return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }
