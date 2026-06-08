@@ -563,6 +563,63 @@ async function deliverDevInviteEmail(options: {
   }
 }
 
+function buildDevInviteHealth(): JsonBody {
+  const hasResendApiKey = Boolean(getEnvValue('RESEND_API_KEY'))
+  const hasInviteFromEmail = Boolean(getEnvValue('INVITE_FROM_EMAIL', 'RESEND_FROM_EMAIL'))
+  const hasSupabaseServiceRoleFallback = Boolean(getSupabaseServiceRoleKey())
+  const hasInviteSiteUrl = Boolean(getEnvValue('INVITE_SITE_URL', 'VITE_SITE_URL', 'SITE_URL'))
+  const resendConfigured = hasResendApiKey && hasInviteFromEmail
+  const emailDeliveryConfigured = resendConfigured || hasSupabaseServiceRoleFallback
+  const recommendations: string[] = []
+
+  if (!hasResendApiKey) recommendations.push('Add RESEND_API_KEY in Vercel Project Settings.')
+  if (!hasInviteFromEmail) recommendations.push('Add INVITE_FROM_EMAIL using a verified Resend sender/domain.')
+  if (!hasInviteSiteUrl) recommendations.push('Add INVITE_SITE_URL=https://chnkit.com so email accept links use the production domain.')
+  if (!hasSupabaseServiceRoleFallback) recommendations.push('Optional: add server-only SUPABASE_SERVICE_ROLE_KEY to enable Supabase Auth email fallback.')
+
+  return {
+    ok: emailDeliveryConfigured && hasInviteSiteUrl,
+    resendConfigured,
+    supabaseAuthFallbackConfigured: hasSupabaseServiceRoleFallback,
+    inviteSiteUrlConfigured: hasInviteSiteUrl,
+    emailDeliveryConfigured,
+    recommendations,
+  }
+}
+
+async function handleDevWorkspaceInviteHealth(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  if (req.method !== 'GET') {
+    sendError(res, 405, 'Method not allowed')
+    return
+  }
+
+  const token = getBearerToken(req)
+  if (!token) {
+    sendError(res, 401, 'You must be signed in to check invite email configuration.')
+    return
+  }
+
+  const supabaseUrl = getEnvValue('SUPABASE_URL', 'VITE_SUPABASE_URL')
+  const supabaseKey = getEnvValue('SUPABASE_ANON_KEY', 'SUPABASE_PUBLISHABLE_KEY', 'VITE_SUPABASE_ANON_KEY', 'VITE_SUPABASE_PUBLISHABLE_KEY')
+  if (!supabaseUrl || !supabaseKey) {
+    sendError(res, 500, 'Supabase server environment is missing SUPABASE_URL and SUPABASE_ANON_KEY.')
+    return
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+
+  const { data, error } = await supabase.auth.getUser(token)
+  if (error || !data.user) {
+    sendError(res, 401, 'Your session expired. Sign in again before checking invite email configuration.')
+    return
+  }
+
+  sendJson(res, 200, buildDevInviteHealth())
+}
+
 async function handleDevWorkspaceInvite(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method !== 'POST') {
     sendError(res, 405, 'Method not allowed')
@@ -806,6 +863,7 @@ function aiGatewayDevPlugin(): Plugin {
     '/api/notion/search': handleDevNotionSearch,
     '/api/notion/fetch': handleDevNotionFetch,
     '/api/workspace/invite': handleDevWorkspaceInvite,
+    '/api/workspace/invite-health': handleDevWorkspaceInviteHealth,
   }
 
   return {
