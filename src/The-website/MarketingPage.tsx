@@ -1619,7 +1619,7 @@ export const MarketingPage: React.FC = () => {
                 <div style={{ position: 'absolute', top: '16px', right: '160px', zIndex: 50, pointerEvents: 'none' }}>
                   <div style={{ position: 'absolute', top: -6, left: -6, width: 32, height: 32, borderRadius: '50%', border: '2px solid rgba(168,85,247,0.8)', background: 'rgba(168,85,247,0.2)', animation: 'clickRippleEffect 4s infinite ease-out' }} />
                   <div style={{ animation: 'cursorApproach 4s infinite', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#a855f7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#a855f7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ undefined }}>
                       <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
                     </svg>
                     {/* Double-click to explore Chip attached to the mouse */}

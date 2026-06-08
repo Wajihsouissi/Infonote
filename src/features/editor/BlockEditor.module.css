@@ -114,7 +114,7 @@
 /* Remove hover background when handles are hidden (e.g. FusedNoteNode), show line instead */
 .sortableWrapper.hideHandle:hover {
     background: transparent;
-    /* box-shadow: inset 2px 0 0 0 var(--color-primary); */
+    /* box-shadow: none; */
     /* Left line indicator - REMOVED per user request */
     padding-left: 2px;
     /* Slight offset compensation if needed, but inset shadow doesn't take space */
@@ -246,6 +246,66 @@
     flex-grow: 1;
     font-size: 0.95rem;
     line-height: 1.5;
+    transition: color 0.2s, opacity 0.2s;
+}
+
+.todoChecked {
+    text-decoration: line-through;
+    opacity: 0.65;
+}
+
+.todoDateWrapper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    position: relative;
+    user-select: none;
+}
+
+.todoDateIcon {
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s, color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.todoWrapper:hover .todoDateIcon {
+    opacity: 0.6;
+    pointer-events: auto;
+}
+
+.todoWrapper:hover .todoDateIcon:hover {
+    opacity: 1;
+    color: var(--color-primary);
+    transform: scale(1.1);
+}
+
+.todoDateInput {
+    position: absolute;
+    right: 0;
+    top: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+}
+
+.todoDateDisplay {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.todoDateDisplay:hover {
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .quoteWrapper {
@@ -256,6 +316,11 @@
     color: var(--color-text-muted);
     background: rgba(255, 255, 255, 0.03);
     border-radius: 0 4px 4px 0;
+}
+
+.quote {
+    flex-grow: 1;
+    min-width: 0;
 }
 
 .mediaWrapper {
@@ -352,7 +417,7 @@
     outline: none;
     min-height: 28px;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.);
+    box-shadow: none;
 }
 
 /* Lists */
@@ -419,7 +484,7 @@
     border-radius: 12px;
     border-left: 4px solid var(--color-primary);
     margin: 2px 0;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: none;
 }
 
 .calloutIconWrapper {
@@ -433,7 +498,7 @@
     user-select: none;
     color: var(--color-text-main);
     border-radius: 4px;
-    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    transition:background-color 0.2s ease, border-color 0.2s ease, 0.2s ease;
 }
 
 .calloutIconWrapper.clickable {
@@ -505,7 +570,7 @@
 
 .tableCell:focus {
     background: var(--table-cell-focus-bg, rgba(255, 255, 255, 0.05));
-    box-shadow: inset 0 0 0 2px var(--table-focus-ring, var(--color-primary, rgba(139, 92, 246, 0.3)));
+    box-shadow: none;
 }
 
 .tableHeader .tableCell {
@@ -682,7 +747,7 @@
     padding: 8px;
     width: 270px;
     max-height: 380px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25), 0 0 0 1px var(--glass-border);
+    box-shadow: none;
     z-index: 10000;
     display: flex;
     flex-direction: column;
@@ -731,13 +796,13 @@
     color: var(--color-text-main);
     font-size: 0.8rem;
     font-family: inherit;
-    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+    transition:border-color 0.15s ease, background-color 0.15s ease, 0.15s ease;
 }
 
 .slashMenuInput:focus {
     background: var(--slash-input-bg-focus, rgba(255, 255, 255, 0.05));
     border-color: var(--selected-accent, var(--color-primary));
-    box-shadow: var(--slash-focus-shadow, 0 0 0 2px rgba(139, 92, 246, 0.15));
+    box-shadow: none;
 }
 
 .slashMenuEmpty {
@@ -835,7 +900,7 @@
     backdrop-filter: blur(var(--backdrop-blur));
     -webkit-backdrop-filter: blur(var(--backdrop-blur));
     border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow);
+    box-shadow: none;
     border-radius: 6px;
     padding: 4px;
     display: flex;
@@ -895,7 +960,7 @@
     font-weight: 500;
     cursor: pointer;
     border-radius: 6px;
-    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    transition:background-color 0.2s ease, border-color 0.2s ease, 0.2s ease;
 }
 
 .tabButton:hover {
@@ -906,7 +971,7 @@
 .tabButton.active {
     background: rgba(255, 255, 255, 0.15);
     color: white;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
 }
 
 .editor {
@@ -950,7 +1015,7 @@
 
 .sortableWrapper.selected:focus-within {
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+    box-shadow: none;
 }
 
 
@@ -1134,13 +1199,13 @@
     border-radius: 20px;
     margin: 8px 0;
     cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition:transform 0.15s ease, 0.15s ease;
     flex-shrink: 0;
 }
 
 .colorBlockWrapper:hover {
     transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: none;
 }
 
 .colorBlockCard {
@@ -1153,13 +1218,13 @@
     overflow: hidden;
     background: #f7f7f7;
     border: 1px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: none;
+    transition:transform 0.2s ease, 0.2s ease;
 }
 
 .colorBlockCard:hover {
     transform: translateY(-2px);
-    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.18);
+    box-shadow: none;
 }
 
 .colorSection {
@@ -1210,12 +1275,12 @@
     border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
     border-radius: 10px;
     cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    transition:transform 0.15s ease, border-color 0.15s ease;
 }
 
 .colorCodeButton:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+    box-shadow: none;
     border-color: var(--color-text-muted, rgba(255, 255, 255, 0.2));
 }
 
@@ -1262,7 +1327,7 @@
     background: white;
     border: 1px solid rgba(0, 0, 0, 0.15);
     border-radius: 50%;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
     cursor: pointer;
     z-index: 20;
     transition: transform 0.2s;
@@ -1281,7 +1346,7 @@
     background: #ffffff;
     padding: 0;
     border-radius: 14px;
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+    box-shadow: none;
     border: 1px solid rgba(0, 0, 0, 0.08);
     z-index: 1000;
     width: 100%;
@@ -1324,7 +1389,7 @@
 .colorInputModeSelect:focus {
     outline: none;
     border-color: #8b5cf6;
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    box-shadow: none;
 }
 
 .colorInputModeSelect option {
@@ -1460,7 +1525,7 @@
     padding: 4px;
     display: flex;
     gap: 4px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
 
     opacity: 0;
     transition: opacity 0.2s;

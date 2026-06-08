@@ -1,4 +1,4 @@
-import { memo, useState, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
+import { memo, useState, useLayoutEffect, useCallback, useRef, useMemo, useEffect } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
 import { StickyNote, Copy, Check, Loader2 } from 'lucide-react';
 import { BlockEditor } from '../editor/BlockEditor';
@@ -12,6 +12,50 @@ import styles from './BlockNode.module.css';
 import { toPastelColor, darkenColor } from '../../utils/colorUtils';
 import { snapMediaDimensions, MIN_EXPANDED_SIZE, ICON_SIZE } from '../../config/layout';
 import { v4 as uuidv4 } from 'uuid';
+
+const useGlobalListIndex = (nodeId: string, isSingleNumbered: boolean) => {
+    return useStore(
+        useCallback(
+            (state) => {
+                if (!isSingleNumbered) return undefined;
+                
+                const node = state.nodes.find(n => n.id === nodeId);
+                if (!node || node.type !== 'block' || !(node.data as any).isStandaloneBlock) return undefined;
+                
+                // Get all nodes in the same column that are also standalone blocks
+                const siblings = state.nodes.filter(n => 
+                    n.type === 'block' && 
+                    (n.data as any).isStandaloneBlock && 
+                    Math.abs(n.position.x - node.position.x) < 50
+                );
+                
+                // Sort by Y position
+                siblings.sort((a, b) => a.position.y - b.position.y);
+                
+                // Find our node and calculate its list index by walking backwards
+                const ourIndex = siblings.findIndex(n => n.id === nodeId);
+                if (ourIndex === -1) return 1;
+                
+                let count = 1;
+                for (let i = ourIndex - 1; i >= 0; i--) {
+                    const sibling = siblings[i];
+                    const content = (sibling.data as any).content;
+                    const isNumbered = Array.isArray(content) && content.length === 1 && content[0].type === 'numbered';
+                    
+                    if (isNumbered) {
+                        count++;
+                    } else {
+                        // The chain is broken by a non-numbered block
+                        break;
+                    }
+                }
+                
+                return count;
+            },
+            [nodeId, isSingleNumbered]
+        )
+    );
+};
 
 // BlockNode is a "headless" or "chromeless" text unit.
 export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
@@ -34,14 +78,35 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const [copiedHex, setCopiedHex] = useState(false);
     const colorOriginalRef = useRef<string>('');
 
+    const [isInteractive, setIsInteractive] = useState(selected);
+    const interactionTimerRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        if (selected) {
+            interactionTimerRef.current = window.setTimeout(() => {
+                setIsInteractive(true);
+            }, 300);
+        } else {
+            if (interactionTimerRef.current) clearTimeout(interactionTimerRef.current);
+            setIsInteractive(false);
+        }
+        return () => {
+            if (interactionTimerRef.current) clearTimeout(interactionTimerRef.current);
+        };
+    }, [selected]);
+
     const isMultiSelected = selectedCanvasNodeIds.has(id);
 
     const isSingleMedia = Array.isArray(data.content) && data.content.length === 1 && (data.content[0].type === 'image' || data.content[0].type === 'video' || data.content[0].type === 'file');
     const isSingleLink = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'link';
     const isSingleColor = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'color';
+    const isSingleNumbered = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'numbered';
     const singleColorValue = isSingleColor ? (data.content?.[0]?.content || '#1E944A') : undefined;
     const isColumns = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'columns';
+    const isWideBlock = Array.isArray(data.content) && data.content.length === 1 && ['callout', 'code', 'quote', 'link'].includes(data.content[0].type);
     const isResizable = isSingleMedia || isSingleLink;
+
+    const globalListIndex = useGlobalListIndex(id, isSingleNumbered);
 
     // Convert color to pastel for better readability
     const displayColor = singleColorValue || (data.color ? toPastelColor(data.color, theme === 'light') : undefined);
@@ -76,19 +141,21 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
         setNodes(nodes => nodes.map(n => {
             if (n.id === id) {
                 const needsHeightAuto = !isSingleColor && n.style?.height !== 'auto';
-                const needsWidthAuto = !isResizable && !isColumns && !isSingleColor && n.style?.width !== 'auto';
+                const needsWidthInit = !isResizable && !isColumns && !isSingleColor && !isWideBlock && (n.style?.width === 'auto' || n.style?.width === undefined);
                 const needsResizableWidthInit = isResizable && (n.style?.width === 'auto' || n.style?.width === undefined);
                 const needsColumnsWidthInit = isColumns && (n.style?.width === 'auto' || n.style?.width === undefined);
                 const needsColorInit = isSingleColor && (n.style?.width !== ICON_SIZE || n.style?.height !== ICON_SIZE);
+                const needsWideBlockInit = isWideBlock && (n.style?.width !== MIN_EXPANDED_SIZE);
                 
-                if (needsHeightAuto || needsWidthAuto || needsResizableWidthInit || needsColumnsWidthInit || needsColorInit) {
+                if (needsHeightAuto || needsWidthInit || needsResizableWidthInit || needsColumnsWidthInit || needsColorInit || needsWideBlockInit) {
                     return { 
                         ...n, 
                         style: { 
                             ...n.style, 
                             ...(needsHeightAuto ? { height: 'auto' } : {}), 
-                            ...(needsWidthAuto ? { width: 'auto' } : {}),
-                            ...(needsResizableWidthInit ? { width: isSingleLink ? 320 : 208 } : {}),
+                            ...(needsWidthInit ? { width: MIN_EXPANDED_SIZE } : {}),
+                            ...(needsWideBlockInit ? { width: MIN_EXPANDED_SIZE } : {}),
+                            ...(needsResizableWidthInit ? { width: isSingleLink ? 432 : 208 } : {}),
                             ...(needsColumnsWidthInit ? { width: 550 } : {}),
                             ...(needsColorInit ? { width: ICON_SIZE, height: ICON_SIZE } : {})
                         } 
@@ -97,7 +164,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             }
             return n;
         }));
-    }, [id, setNodes, isResizable, isColumns, isSingleLink, isSingleColor]);
+    }, [id, setNodes, isResizable, isColumns, isSingleLink, isSingleColor, isWideBlock]);
 
 
 
@@ -212,12 +279,42 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     return (
         <div
             ref={nodeRef}
-            className={`${baseClassName} ${(isSingleMedia || isSingleLink) ? styles.mediaBlockNode : ''} ${isSingleLink ? styles.linkBlockNode : ''} ${selected ? styles.selected : ''} ${isMultiSelected ? styles.multiSelected : ''}`}
+            className={`${baseClassName} ${(isSingleMedia || isSingleLink) ? styles.mediaBlockNode : ''} ${isSingleLink ? styles.linkBlockNode : ''} ${isWideBlock ? styles.wideBlock : ''} ${selected ? styles.selected : ''} ${isMultiSelected ? styles.multiSelected : ''} custom-drag-handle`}
             style={{
                 backgroundColor: displayColor || undefined,
                 ...dynamicStyles
             }}
         >
+            {/* Interaction Overlay: Converts the entire node into a drag handle when unselected */}
+            {!isInteractive && !isLinkingMode && !isSingleColor && (
+                <div
+                    className="interaction-overlay"
+                    ref={(el) => {
+                        if (el) {
+                            el.onwheel = (e) => {
+                                if (!nodeRef.current) return;
+                                const scrollArea = nodeRef.current.querySelector('.ProseMirror, .infonote-scrollable, [data-scrollable="true"]');
+                                if (scrollArea) {
+                                    const previousScrollTop = scrollArea.scrollTop;
+                                    scrollArea.scrollTop += e.deltaY;
+                                    if (Math.abs(scrollArea.scrollTop - previousScrollTop) > 0.5) {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                    }
+                                }
+                            };
+                        }
+                    }}
+                    style={{
+                        position: 'absolute',
+                        inset: 0,
+                        zIndex: 10,
+                        cursor: 'grab',
+                        borderRadius: 'inherit'
+                    }}
+                />
+            )}
+
             {/* Canvas color block: transparent click overlay to open modal without fighting ReactFlow drag */}
             {isSingleColor && !isLinkingMode && (
                 <div
@@ -395,6 +492,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                         hideBlockHandles={false}
                         disableMediaControls={true}
                         promoteBlockHandles={true}
+                        globalStartIndex={globalListIndex}
                     />
                 )}
             </div>

@@ -34,7 +34,7 @@
     flex-shrink: 0;
     overflow: hidden;
     position: relative;
-    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
     transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-left-color 0.3s ease;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
@@ -249,7 +249,7 @@
     width: 3px;
     background: var(--color-primary);
     border-radius: 2px;
-    box-shadow: 0 0 8px var(--color-primary);
+    box-shadow: none;
 }
 
 /* Icon Styles */
@@ -482,7 +482,7 @@
 
 .switcherTrack:hover {
     border-color: rgba(99, 102, 241, 0.4);
-    box-shadow: 0 0 10px rgba(99, 102, 241, 0.05);
+    box-shadow: none;
 }
 
 /* Sliding active background bubble */
@@ -576,7 +576,7 @@
 .searchInput:focus {
     background: rgba(255, 255, 255, 0.06);
     border-color: var(--color-primary);
-    box-shadow: 0 0 12px var(--color-primary-glow);
+    box-shadow: none;
 }
 
 .clearSearchBtn {
@@ -678,5 +678,5 @@
     background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
     border-radius: 3px;
     transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+    box-shadow: none;
 }

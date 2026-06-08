@@ -44,6 +44,23 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     const [convertInitialTitle, setConvertInitialTitle] = useState('');
     const lastFusedTimeRef = useRef(data.lastFusedAt || 0);
 
+    const [isInteractive, setIsInteractive] = useState(selected);
+    const interactionTimerRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        if (selected) {
+            interactionTimerRef.current = window.setTimeout(() => {
+                setIsInteractive(true);
+            }, 300);
+        } else {
+            if (interactionTimerRef.current) clearTimeout(interactionTimerRef.current);
+            setIsInteractive(false);
+        }
+        return () => {
+            if (interactionTimerRef.current) clearTimeout(interactionTimerRef.current);
+        };
+    }, [selected]);
+
     useEffect(() => {
         if (data.lastFusedAt && data.lastFusedAt > lastFusedTimeRef.current) {
             setIsFusing(true);
@@ -362,6 +379,36 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             ref={nodeRef}
             style={dynamicStyle}
         >
+            {/* Interaction Overlay: Converts the entire node into a drag handle when unselected */}
+            {!isInteractive && !isLinkingMode && (
+                <div
+                    className="interaction-overlay"
+                    ref={(el) => {
+                        if (el) {
+                            el.onwheel = (e) => {
+                                if (!nodeRef.current) return;
+                                const scrollArea = nodeRef.current.querySelector('.ProseMirror, .infonote-scrollable, [data-scrollable="true"]');
+                                if (scrollArea) {
+                                    const previousScrollTop = scrollArea.scrollTop;
+                                    scrollArea.scrollTop += e.deltaY;
+                                    if (Math.abs(scrollArea.scrollTop - previousScrollTop) > 0.5) {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                    }
+                                }
+                            };
+                        }
+                    }}
+                    style={{
+                        position: 'absolute',
+                        inset: 0,
+                        zIndex: 10,
+                        cursor: 'grab',
+                        borderRadius: 'inherit'
+                    }}
+                />
+            )}
+
             {isLinkingMode && (
                 <div
                     style={{
@@ -437,6 +484,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
             <div 
                 className={`${styles.content} nodrag`} 
+                data-scrollable="true"
                 ref={contentRef}
                 onWheelCapture={(e) => e.stopPropagation()}
                 onPointerDown={(e) => {

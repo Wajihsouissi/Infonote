@@ -26,7 +26,7 @@
     backdrop-filter: blur(var(--backdrop-blur));
     -webkit-backdrop-filter: blur(var(--backdrop-blur));
     border: 1px solid var(--glass-border);
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--glass-border);
+    box-shadow: none;
 
     color: var(--color-text-main);
     font-family: var(--font-sans);
@@ -105,7 +105,7 @@
 .tabActive {
     background: var(--color-primary);
     color: white;
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25);
+    box-shadow: none;
 }
 
 /* Field group */
@@ -222,13 +222,13 @@
     gap: 8px;
 
     background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-    box-shadow: 0 6px 18px rgba(139, 92, 246, 0.32);
-    transition: transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast);
+    box-shadow: none;
+    transition:transform var(--transition-fast), var(--transition-fast), opacity var(--transition-fast);
 }
 
 .submit:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 10px 24px rgba(139, 92, 246, 0.42);
+    box-shadow: none;
 }
 
 .submit:active:not(:disabled) {

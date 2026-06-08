@@ -19,7 +19,7 @@
     flex-shrink: 0;
     overflow: hidden;
     position: relative;
-    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
     transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-left-color 0.3s ease;
     
     /* Professional Sans-Serif Base Font Stack for Premium Inspector Look */
@@ -91,7 +91,7 @@
     overflow: hidden;
     position: relative;
     border: 1px solid var(--glass-border);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: none;
 }
 
 .coverPreview img {
@@ -168,7 +168,7 @@
     cursor: pointer;
     flex-shrink: 0;
     transition: all var(--transition-fast);
-    box-shadow: 0 4px 10px rgba(139, 92, 246, 0.1);
+    box-shadow: none;
 }
 
 .iconBtn:hover {
@@ -181,7 +181,7 @@
     border: none;
     
     /* Poppins brand font specifically for main titles */
-    font-family: 'Poppins', sans-serif;
+    font-family: 'Outfit', sans-serif;
     font-size: 1.0rem;
     font-weight: 700;
     color: var(--color-text-main);
@@ -237,7 +237,7 @@
 .descriptionInput:focus {
     border-color: var(--color-primary);
     background: var(--glass-bg-hover);
-    box-shadow: 0 0 0 2px var(--color-primary-glow);
+    box-shadow: none;
 }
 
 .divider {
@@ -258,5 +258,5 @@
 
 /* Maintain high-end geometric Poppins solely on the Page Title */
 .panel .titleInput {
-    font-family: 'Poppins', sans-serif !important;
+    font-family: 'Outfit', sans-serif !important;
 }

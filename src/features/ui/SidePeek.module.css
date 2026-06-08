@@ -22,12 +22,12 @@
 
 .sideRight {
     border-left: 1px solid var(--glass-border);
-    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
 }
 
 .sideLeft {
     border-right: 1px solid var(--glass-border);
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
 }
 
 .panelOpen {

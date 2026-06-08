@@ -18,7 +18,7 @@
     padding: 24px;
     width: 800px;
     max-width: 90vw;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -120,12 +120,12 @@
     color: var(--color-text-main, #1a1a2e);
     font-size: 1rem;
     outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition:border-color 0.2s, 0.2s;
 }
 
 .input:focus {
     border-color: var(--color-primary, #8b5cf6);
-    box-shadow: 0 0 0 2px var(--color-primary-glow, rgba(139, 92, 246, 0.2));
+    box-shadow: none;
 }
 
 .aiBtn {
@@ -172,7 +172,7 @@
     border: 2px solid transparent;
     cursor: pointer;
     transition: transform 0.1s, border-color 0.1s;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: none;
 }
 
 .colorSwatch:hover {
@@ -208,7 +208,7 @@
 .viewModeBtn.active {
     background: var(--color-bg-surface, #ffffff);
     color: var(--color-primary, #8b5cf6);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: none;
 }
 
 .footer {
@@ -257,7 +257,7 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: none;
     border: 1px solid rgba(255,255,255,0.2);
     min-height: 100px;
     transition: all 0.3s ease;

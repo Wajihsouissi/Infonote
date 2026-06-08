@@ -45,7 +45,7 @@
     /* Zinc 900 */
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    box-shadow: none;
     z-index: 200;
     padding: 16px;
     animation: fadeIn 0.15s ease-out;
@@ -149,7 +149,7 @@
 .selected {
     background: var(--color-primary) !important;
     color: white !important;
-    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+    box-shadow: none;
 }
 
 .selected::after {

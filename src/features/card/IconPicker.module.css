@@ -86,7 +86,7 @@
     max-height: 80vh; /* Scaled slightly down to prevent overflow when placed at top-center */
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+    box-shadow: none;
     position: relative;
     overflow: hidden;
     font-family: 'Inter', -apple-system, sans-serif;
@@ -178,7 +178,7 @@
 .tabActive {
     background: rgba(255, 255, 255, 0.1) !important;
     color: var(--color-text-main);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
 }
 
 .closeBtn {
@@ -218,7 +218,7 @@
     border-radius: 50%;
     border: 2px solid transparent;
     cursor: pointer;
-    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    transition:transform 0.2s, border-color 0.2s, 0.2s;
     padding: 0;
     outline: none;
 }
@@ -229,7 +229,7 @@
 
 .swatchSelected {
     border-color: #fff;
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3), 0 0 8px currentColor;
+    box-shadow: none;
     transform: scale(1.1);
 }
 
@@ -262,7 +262,7 @@
 .searchBox:focus-within {
     border-color: var(--color-primary);
     background: rgba(0, 0, 0, 0.3);
-    box-shadow: 0 0 0 2px var(--color-primary-glow);
+    box-shadow: none;
 }
 
 .searchBox svg {
@@ -417,7 +417,7 @@
 
 .urlInputRow:focus-within {
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px var(--color-primary-glow);
+    box-shadow: none;
 }
 
 .urlInputRow svg {
@@ -492,7 +492,7 @@
     height: 80px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
 }
 
 .removeCustomBtn {
@@ -558,5 +558,5 @@
     background: var(--color-primary-glow);
     border-color: var(--color-primary);
     color: var(--color-primary);
-    box-shadow: 0 0 0 2px var(--color-primary-glow);
+    box-shadow: none;
 }

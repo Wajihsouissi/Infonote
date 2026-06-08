@@ -16,7 +16,7 @@
     transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
     cursor: nwse-resize;
     z-index: 30;
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+    box-shadow: none;
 }
 
 .card:hover .modernResizeHandle {
@@ -26,7 +26,7 @@
 
 .modernResizeHandle:hover {
     background: linear-gradient(135deg, rgba(139, 92, 246, 1), rgba(59, 130, 246, 1));
-    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.6);
+    box-shadow: none;
     transform: scale(1.1);
 }
 

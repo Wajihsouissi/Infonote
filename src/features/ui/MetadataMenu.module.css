@@ -21,15 +21,15 @@
     color: var(--color-text-main);
     cursor: pointer;
 
-    transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition:background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), var(--transition-fast);
+    box-shadow: none;
 }
 
 .toggleBtn:hover {
     background: var(--glass-bg-hover);
     border-color: var(--color-primary);
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.2);
+    box-shadow: none;
 }
 
 .toggleBtn:active {
@@ -61,7 +61,7 @@
     backdrop-filter: blur(40px);
     -webkit-backdrop-filter: blur(40px);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    box-shadow: none;
     border-radius: 20px;
     display: flex;
     flex-direction: column;
@@ -263,7 +263,7 @@
     color: var(--color-text-main);
     outline: none;
     transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), border-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
-    font-family: 'Poppins', sans-serif;
+    font-family: 'Outfit', sans-serif;
     width: 100%;
 }
 

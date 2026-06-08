@@ -1,5 +1,5 @@
 import React, { useState, useRef, useLayoutEffect, memo, useCallback } from 'react';
-import { FileText, Trash2, Sparkles, Loader2 } from 'lucide-react';
+import { FileText, Trash2, Sparkles, Loader2, Clock } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { renderContentWithLinks } from './pasteUtils';
 import pageStyles from './PageBlock.module.css'; // Import page styles
@@ -13,6 +13,7 @@ import { generateText } from '../../services/aiService';
 // Lazy load PDFViewer
 const PDFViewer = React.lazy(() => import('../ui/PDFViewer').then(module => ({ default: module.PDFViewer })));
 import ReactDOM from 'react-dom';
+import { CustomDateTimePicker } from './CustomDateTimePicker';
 
 interface BlockProps {
     block: Block;
@@ -178,19 +179,46 @@ export const HeadingBlock = memo(({ block, level, readOnly, onChange, onKeyDown,
 
 export const TodoBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
     const { ref, handlers } = useContentEditable(block.content, domRef);
+    const [isPickerOpen, setIsPickerOpen] = useState(false);
+    
+    const formatDisplayDate = (dateString: string) => {
+        if (!dateString) return '';
+        const hasTime = dateString.includes('T');
+        
+        let date: Date;
+        if (!hasTime) {
+            const [year, month, day] = dateString.split('-').map(Number);
+            date = new Date(year, month - 1, day);
+        } else {
+            date = new Date(dateString);
+        }
+        
+        let result = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        if (hasTime) {
+            result += ' ' + date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+        }
+        return result;
+    };
     
     if (readOnly) {
         return (
             <div className={styles.todoWrapper}>
                 <input type="checkbox" disabled className={styles.todoCheckbox} checked={block.metadata?.checked || false} />
                 <div
-                    className={`${styles.block} ${styles.todo}`}
+                    className={`${styles.block} ${styles.todo} ${block.metadata?.checked ? styles.todoChecked : ''}`}
                     style={{
                         color: block.metadata?.textColor,
                         backgroundColor: block.metadata?.backgroundColor
                     }}
                     dangerouslySetInnerHTML={{ __html: renderContentWithLinks(block.content) }}
                 />
+                {block.metadata?.dueDate && (
+                    <div className={styles.todoDateWrapper}>
+                        <div className={styles.todoDateDisplay}>
+                            {formatDisplayDate(block.metadata.dueDate)}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -200,7 +228,7 @@ export const TodoBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
             <input type="checkbox" disabled={readOnly} className={styles.todoCheckbox} checked={block.metadata?.checked || false} onChange={(e) => onChange(block.content, { ...block.metadata, checked: e.target.checked })} />
             <div
                 ref={ref}
-                className={`${styles.block} ${styles.todo}`}
+                className={`${styles.block} ${styles.todo} ${block.metadata?.checked ? styles.todoChecked : ''}`}
                 style={{
                     color: block.metadata?.textColor,
                     backgroundColor: block.metadata?.backgroundColor
@@ -214,6 +242,24 @@ export const TodoBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
                 data-is-empty={!block.content || block.content.trim() === '' ? 'true' : 'false'}
                 {...handlers}
             />
+            <div className={styles.todoDateWrapper} contentEditable={false}>
+                {block.metadata?.dueDate ? (
+                    <div className={styles.todoDateDisplay} onClick={() => setIsPickerOpen(true)}>
+                        {formatDisplayDate(block.metadata.dueDate)}
+                    </div>
+                ) : (
+                    <div className={styles.todoDateIcon} title="Set due date" onClick={() => setIsPickerOpen(true)}>
+                        <Clock size={14} />
+                    </div>
+                )}
+                {isPickerOpen && (
+                    <CustomDateTimePicker 
+                        value={block.metadata?.dueDate}
+                        onChange={(date) => onChange(block.content, { ...block.metadata, dueDate: date })}
+                        onClose={() => setIsPickerOpen(false)}
+                    />
+                )}
+            </div>
         </div>
     );
 });

@@ -28,7 +28,6 @@ interface BlockEditorProps {
     readOnly?: boolean;
     autoFocus?: boolean;
     minimal?: boolean;
-    mode?: 'document' | 'atomic';
     nodeId?: string; // New prop
     hideBlockHandles?: boolean;
     disableMediaControls?: boolean;
@@ -37,11 +36,12 @@ interface BlockEditorProps {
     syncUpdate?: boolean; // Instantly push updates to parent without debouncing
     editorId?: string; // Stable identifier for drag-and-drop tracking
     renderBetweenBlocks?: (index: number) => React.ReactNode;
+    globalStartIndex?: number; // Starting index for numbered lists computed globally
 }
 
 import { memo } from 'react';
 
-export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles, disableMediaControls, promoteBlockHandles, selectionIslandPortalId, syncUpdate, editorId, renderBetweenBlocks }: BlockEditorProps) {
+export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles, disableMediaControls, promoteBlockHandles, selectionIslandPortalId, syncUpdate, editorId, renderBetweenBlocks, globalStartIndex = 1 }: BlockEditorProps) {
     const editorRef = useRef<HTMLDivElement>(null);
     const editorInstanceId = useRef(editorId || `editor-${uuidv4()}`);
     const nodeColor = useStore(s => (s.nodes.find(n => n.id === nodeId)?.data as any)?.color);
@@ -701,6 +701,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             const currentBlock = blocksRef.current.find(b => b.id === id);
 
             // Intercept Enter on standalone Canvas Block
+            
             if (nodeId) {
                 const store = useStore.getState();
                 const node = store.nodes.find(n => n.id === nodeId);
@@ -749,7 +750,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         // Start a new column to the right
                         const topY = Math.min(...nodesInColumn.map(n => n.position.y));
                         position = {
-                            x: node.position.x + (Number(node.style?.width) || 300) + 16,
+                            x: node.position.x + (Number(node.style?.width) || 432) + 16,
                             y: topY
                         };
                     } else {
@@ -764,7 +765,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         'block',
                         position,
                         { content: [newBlock], isStandaloneBlock: true },
-                        { width: node.style?.width || 300, height: node.style?.height || 100 },
+                        { width: node.style?.width || 432, height: node.style?.height || 100 },
                         parentId,
                         newNodeId
                     );
@@ -1213,12 +1214,16 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     // Calculate List Index for numbered blocks
                     let listIndex = undefined;
                     if (block.type === 'numbered') {
-                        let count = 1;
-                        for (let i = index - 1; i >= 0; i--) {
-                            if (blocks[i].type === 'numbered' && (blocks[i].indent || 0) === (block.indent || 0)) {
-                                count++;
-                            } else if ((blocks[i].indent || 0) < (block.indent || 0)) {
-                                break;
+                        let count = index === 0 ? globalStartIndex : 1;
+                        if (index > 0) {
+                            for (let i = index - 1; i >= 0; i--) {
+                                if (blocks[i].type === 'numbered' && (blocks[i].indent || 0) === (block.indent || 0)) {
+                                    count++;
+                                } else if ((blocks[i].indent || 0) < (block.indent || 0)) {
+                                    break;
+                                } else if (blocks[i].type !== 'numbered' && (blocks[i].indent || 0) === (block.indent || 0)) {
+                                    break; // Reset list if interrupted by another block type at same indent
+                                }
                             }
                         }
                         listIndex = count;

@@ -15,33 +15,32 @@
     height: 100%;
     min-height: 40px;
     box-sizing: border-box;
-    transition: width 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    transition:width 0.18s cubic-bezier(0.4, 0, 0.2, 1),
         height 0.18s cubic-bezier(0.4, 0, 0.2, 1),
         background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1),
         transform 0.15s cubic-bezier(0.2, 0, 0.2, 1),
-        border-color 0.2s ease,
-        box-shadow 0.2s ease;
-    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.05), var(--glass-shadow);
+        border-color 0.2s ease, 0.2s ease;
+    box-shadow: none;
     color: var(--color-text-main);
     will-change: transform, box-shadow, border-color;
 }
 
 .dragging {
     transform: scale(0.98) rotate(2deg);
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4), 0 0 0 2px var(--color-primary);
+    box-shadow: none;
     opacity: 0.95;
     z-index: 10000 !important;
 }
 
 .dropTarget {
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 4px var(--color-primary-glow), 0 0 20px var(--color-primary-glow);
+    box-shadow: none;
     animation: targetPulse 1.5s ease-in-out infinite;
 }
 
 .fusionTarget {
     border-color: var(--color-secondary);
-    box-shadow: 0 0 0 4px var(--color-secondary-glow), 0 0 30px var(--color-secondary-glow);
+    box-shadow: none;
     animation: fusionPulse 1s ease-in-out infinite;
 }
 
@@ -51,32 +50,32 @@
 
 @keyframes targetPulse {
     0% {
-        box-shadow: 0 0 0 2px var(--color-primary-glow);
+        box-shadow: none;
     }
 
     50% {
-        box-shadow: 0 0 0 6px var(--color-primary-glow), 0 0 25px var(--color-primary-glow);
+        box-shadow: none;
     }
 
     100% {
-        box-shadow: 0 0 0 2px var(--color-primary-glow);
+        box-shadow: none;
     }
 }
 
 @keyframes fusionPulse {
     0% {
         transform: scale(1);
-        box-shadow: 0 0 0 2px var(--color-secondary-glow);
+        box-shadow: none;
     }
 
     50% {
         transform: scale(1.02);
-        box-shadow: 0 0 0 8px var(--color-secondary-glow), 0 0 40px var(--color-secondary-glow);
+        box-shadow: none;
     }
 
     100% {
         transform: scale(1);
-        box-shadow: 0 0 0 2px var(--color-secondary-glow);
+        box-shadow: none;
     }
 }
 
@@ -133,27 +132,27 @@
 .fusedNoteNode:hover {
     border-color: rgba(255, 255, 255, 0.3);
     /* Subtle glow intensity */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
 }
 
 .fusedNoteNode.selected {
     border-color: var(--color-primary, #60A5FA);
-    box-shadow: 0 0 0 1px var(--color-primary, #60A5FA);
+    box-shadow: none;
 }
 
 .fusedNoteNode.selected:hover {
     border-color: var(--color-primary, #60A5FA);
-    box-shadow: 0 0 0 1px var(--color-primary, #60A5FA), 0 4px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
 }
 
 .fusedNoteNode.multiSelected {
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px var(--color-primary), 0 0 20px rgba(139, 92, 246, 0.5);
+    box-shadow: none;
 }
 
 .fusedNoteNode.multiSelected:hover {
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px var(--color-primary), 0 4px 16px rgba(139, 92, 246, 0.6);
+    box-shadow: none;
 }
 
 .content {
@@ -212,7 +211,7 @@
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(139, 92, 246, 0.2);
     /* Subtle violet tint border */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
 
     color: #e2e8f0;
     display: flex;
@@ -236,9 +235,7 @@
     background: rgba(139, 92, 246, 0.2);
     /* Violet glass hover */
     border-color: rgba(139, 92, 246, 0.6);
-    box-shadow:
-        0 8px 20px rgba(124, 58, 237, 0.3),
-        0 0 0 1px rgba(139, 92, 246, 0.4);
+    box-shadow: none;
     transform: scale(1.1) rotate(3deg) !important;
     color: white;
 }
@@ -251,7 +248,7 @@
     border-radius: 50%;
     background: var(--color-primary) !important;
     border: 2px solid var(--bg-dark) !important;
-    transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+    transition:opacity 0.3s ease, transform 0.3s ease, 0.3s ease;
     pointer-events: none;
     left: auto !important;
     right: -6px !important;
@@ -268,7 +265,7 @@
 
 .handle:hover {
     transform: scale(1.4) !important;
-    box-shadow: 0 0 8px var(--color-primary);
+    box-shadow: none;
 }
 
 /* Apple Vision Pro Style Resize Handle - Truly Curved Arc, Outside */

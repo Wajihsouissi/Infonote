@@ -18,7 +18,7 @@
     width: 360px;
     max-width: 90vw;
     overflow-y: visible;
-    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+    box-shadow: none;
     animation: slideUp 0.2s ease-out;
 }
 
