@@ -7,7 +7,7 @@
     padding: 12px;
     cursor: pointer;
     /* Only animate visual properties, NOT transform (dnd-kit handles that) */
-    transition: box-shadow 150ms ease, border-color 150ms ease, opacity 150ms ease;
+    transition:150ms ease, border-color 150ms ease, opacity 150ms ease;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -16,12 +16,12 @@
 
 .card:hover {
     border-color: rgba(139, 92, 246, 0.3);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: none;
 }
 
 /* Dragging state for overlay */
 .dragging {
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35), 0 0 0 2px var(--color-primary);
+    box-shadow: none;
     border-color: var(--color-primary);
 }
 

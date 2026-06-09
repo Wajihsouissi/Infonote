@@ -31,7 +31,7 @@
     overflow: hidden;
     border: 1px solid var(--glass-border);
     border-radius: 12px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
     will-change: transform;
 }
 
@@ -44,7 +44,7 @@
     /* Not full height */
     border-radius: 12px;
     border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow);
+    box-shadow: none;
     background: var(--modal-bg);
     will-change: transform;
 }

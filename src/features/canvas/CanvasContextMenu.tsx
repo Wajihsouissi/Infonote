@@ -69,7 +69,7 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
         addNode('block', flowPos, {
             content: [{ id: crypto.randomUUID?.() || Math.random().toString(36), type, content: '' }],
             isStandaloneBlock: true,
-        }, { width: 320, height: 120 }, currentParentId || undefined);
+        }, { width: 432, height: 120 }, currentParentId || undefined);
         onClose();
     }, [x, y, addNode, screenToFlowPosition, onClose, currentParentId]);
 
@@ -81,7 +81,7 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
             addNode('block', flowPos, {
                 content: [{ id: crypto.randomUUID?.() || Math.random().toString(36), type: 'text', content: text }],
                 isStandaloneBlock: true,
-            }, { width: 320, height: 120 }, currentParentId || undefined);
+            }, { width: 432, height: 120 }, currentParentId || undefined);
         } catch (err) {
             console.warn('[CanvasContextMenu] Paste failed:', err);
         }

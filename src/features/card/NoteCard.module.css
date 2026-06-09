@@ -6,10 +6,8 @@
     border: 1px solid var(--glass-border);
     color: var(--color-text-main);
     box-shadow: none;
-    transition:
-        background 0.2s ease,
+    transition:background 0.2s ease,
         border-color 0.2s ease,
-        box-shadow 0.2s ease,
         transform 0.15s cubic-bezier(0.2, 0, 0.2, 1);
     will-change: transform;
     display: flex;
@@ -18,20 +16,20 @@
 
 .dragging {
     transform: scale(0.98) rotate(2deg);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 2px var(--color-primary);
+    box-shadow: none;
     opacity: 0.95;
     z-index: 10000 !important;
 }
 
 .dropTarget {
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 4px var(--color-primary-glow), 0 0 20px var(--color-primary-glow);
+    box-shadow: none;
     animation: targetPulse 1.5s ease-in-out infinite;
 }
 
 .fusionTarget {
     border-color: var(--color-secondary);
-    box-shadow: 0 0 0 4px var(--color-secondary-glow), 0 0 30px var(--color-secondary-glow);
+    box-shadow: none;
     animation: fusionPulse 1s ease-in-out infinite;
 }
 
@@ -41,32 +39,32 @@
 
 @keyframes targetPulse {
     0% {
-        box-shadow: 0 0 0 2px var(--color-primary-glow);
+        box-shadow: none;
     }
 
     50% {
-        box-shadow: 0 0 0 6px var(--color-primary-glow), 0 0 25px var(--color-primary-glow);
+        box-shadow: none;
     }
 
     100% {
-        box-shadow: 0 0 0 2px var(--color-primary-glow);
+        box-shadow: none;
     }
 }
 
 @keyframes fusionPulse {
     0% {
         transform: scale(1);
-        box-shadow: 0 0 0 2px var(--color-secondary-glow);
+        box-shadow: none;
     }
 
     50% {
         transform: scale(1.02);
-        box-shadow: 0 0 0 8px var(--color-secondary-glow), 0 0 40px var(--color-secondary-glow);
+        box-shadow: none;
     }
 
     100% {
         transform: scale(1);
-        box-shadow: 0 0 0 2px var(--color-secondary-glow);
+        box-shadow: none;
     }
 }
 
@@ -130,7 +128,7 @@
 
 .selected {
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px var(--color-primary-glow);
+    box-shadow: none;
 }
 
 .topRightHandle {
@@ -144,7 +142,7 @@
     right: -7px !important;
     cursor: crosshair !important;
     z-index: 100 !important;
-    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease !important;
+    transition:transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), 0.2s ease !important;
     opacity: 0 !important;
     visibility: hidden !important;
     pointer-events: none !important;
@@ -158,19 +156,19 @@
 
 .topRightHandle:hover {
     transform: scale(1.3) !important;
-    box-shadow: 0 0 12px var(--color-primary) !important;
+    box-shadow: none !important;
     opacity: 1 !important;
 }
 
 .multiSelected {
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px var(--color-primary), 0 0 20px var(--color-primary-glow);
+    box-shadow: none;
 }
 
 .potentialMerge {
-    box-shadow: 0 0 0 4px var(--color-secondary-glow), 0 0 20px var(--color-secondary-glow);
+    box-shadow: none;
     border-color: var(--color-secondary);
-    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    transition:0.2s ease, border-color 0.2s ease;
 }
 
 .selectionIslandContainer {
@@ -253,7 +251,7 @@
     text-align: center;
     width: 100%;
     outline: none;
-    transition: background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    transition:background 0.2s ease, border-color 0.2s ease;
     cursor: text;
 }
 
@@ -263,7 +261,7 @@
 
 .iconTextInput:focus {
     background: rgba(34, 197, 94, 0.05);
-    box-shadow: 0 0 0 1px var(--color-primary);
+    box-shadow: none;
 }
 
 /* 1.5 Title View */
@@ -290,7 +288,7 @@
     color: var(--color-text-main);
     width: 100%;
     outline: none;
-    transition: background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    transition:background 0.2s ease, border-color 0.2s ease;
     cursor: text;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -303,7 +301,7 @@
 
 .titleViewInput:focus {
     background: rgba(34, 197, 94, 0.05);
-    box-shadow: 0 0 0 1px var(--color-primary);
+    box-shadow: none;
 }
 
 /* 2. Medium View */
@@ -363,7 +361,7 @@
     width: 100%;
     outline: none;
     line-height: 1.2;
-    transition: background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    transition:background-color 0.2s ease, border-color 0.2s ease;
     border-radius: 4px;
     cursor: text;
 }
@@ -374,7 +372,7 @@
 
 .mediumTitleInput:focus {
     background: rgba(34, 197, 94, 0.05);
-    box-shadow: 0 0 0 1px var(--color-primary);
+    box-shadow: none;
 }
 
 .mediumDescInput {
@@ -393,7 +391,7 @@
     resize: none;
     font-family: inherit;
     line-height: 1.4;
-    transition: background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    transition:background 0.2s ease, border-color 0.2s ease;
     cursor: text;
     overflow-y: auto;
     scrollbar-width: thin;
@@ -423,7 +421,7 @@
 
 .mediumDescInput:focus {
     background: rgba(34, 197, 94, 0.05);
-    box-shadow: 0 0 0 1px var(--color-primary);
+    box-shadow: none;
     opacity: 1;
     color: var(--color-text-main);
 }
@@ -561,7 +559,7 @@
     text-transform: uppercase;
     color: var(--color-text-main);
     letter-spacing: 0.05em;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: none;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -663,7 +661,7 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    box-shadow: none;
     cursor: pointer;
     transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), background-color 0.2s ease, border-color 0.2s ease;
     z-index: 2;
@@ -675,7 +673,7 @@
 .expandedIconButton:hover {
     transform: translateY(-2px) scale(1.05);
     border-color: var(--color-primary);
-    box-shadow: 0 12px 32px rgba(34, 197, 94, 0.2);
+    box-shadow: none;
 }
 
 .expandedIconButton svg {
@@ -715,7 +713,7 @@
 
 .expandedTitleInput:focus {
     background: rgba(34, 197, 94, 0.05);
-    box-shadow: 0 0 0 1px var(--color-primary);
+    box-shadow: none;
 }
 
 .expandedTitleInput::placeholder {
@@ -742,7 +740,7 @@
     border: none;
     border-radius: 6px;
     padding: 8px 12px;
-    font-family: 'Poppins', sans-serif;
+    font-family: 'Outfit', sans-serif;
     font-size: 0.9rem;
     font-weight: 400;
     color: var(--color-text-muted);
@@ -761,14 +759,14 @@
 
 .expandedDescEdit:focus {
     background: rgba(34, 197, 94, 0.05);
-    box-shadow: 0 0 0 1px var(--color-primary);
+    box-shadow: none;
     color: var(--color-text-main);
-    font-family: 'Poppins', sans-serif;
+    font-family: 'Outfit', sans-serif;
 }
 
 .expandedDescEdit::placeholder {
     color: var(--color-text-muted);
-    font-family: 'Poppins', sans-serif;
+    font-family: 'Outfit', sans-serif;
     opacity: 0.5;
 }
 
@@ -856,7 +854,7 @@
     border-radius: 12px;
     width: 420px;
     max-width: 90vw;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    box-shadow: none;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -1216,7 +1214,7 @@
     height: 10px !important;
     background: var(--color-primary) !important;
     border: 2px solid var(--bg-dark) !important;
-    transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+    transition:opacity 0.3s ease, transform 0.3s ease, 0.3s ease;
     opacity: 0;
     /* Position at top-right */
     left: auto !important;
@@ -1234,7 +1232,7 @@
 
 .handle:hover {
     transform: scale(1.4) !important;
-    box-shadow: 0 0 8px var(--color-primary);
+    box-shadow: none;
 }
 
 /* Hide handles on expanded view for cleaner look */
@@ -1280,7 +1278,7 @@
     width: 32px !important;
     height: 32px !important;
     border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    box-shadow: 0 0 12px rgba(34, 197, 94, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+    box-shadow: none !important;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
     display: flex !important;
     align-items: center !important;
@@ -1289,7 +1287,7 @@
 
 .neonOpenBtn:hover {
     transform: translateY(-1px) scale(1.05) !important;
-    box-shadow: 0 0 20px rgba(34, 197, 94, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.2) !important;
+    box-shadow: none !important;
     filter: brightness(1.1);
 }
 
@@ -1365,7 +1363,7 @@
     gap: 2px;
     /* Always visible — individual contexts may override opacity */
     opacity: 1;
-    transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, opacity 0.2s ease;
+    transition:background-color 0.25s ease, border-color 0.25s ease, opacity 0.2s ease;
 }
 
 /* In the cover overlay, start hidden and reveal on card hover */
@@ -1470,7 +1468,7 @@
     padding: 2px 4px;
     margin: 0;
     border-radius: 4px;
-    transition: background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    transition:background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .minimalTitleInput:hover {
@@ -1802,7 +1800,7 @@
 .columnBtn.active {
     background: var(--color-primary);
     color: white;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
 }
 
 /* Layout Grid */

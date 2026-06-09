@@ -6,7 +6,7 @@
     /* Slightly narrower to accommodate gaps */
     background: var(--modal-bg);
     border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow);
+    box-shadow: none;
     border-radius: 12px;
     /* Distinctive card rounding */
     z-index: 500;

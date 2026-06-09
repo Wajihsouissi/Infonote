@@ -38,7 +38,7 @@
 .notSynced {
     border-color: var(--color-warning, #f59e0b) !important;
     background: rgba(245, 158, 11, 0.06) !important;
-    box-shadow: 0 0 10px rgba(245, 158, 11, 0.15) !important;
+    box-shadow: none !important;
     animation: warningPulse 2.4s infinite ease-in-out;
 }
 .notSynced svg {
@@ -46,15 +46,15 @@
 }
 
 @keyframes warningPulse {
-    0%, 100% { border-color: rgba(245, 158, 11, 0.4); box-shadow: 0 0 8px rgba(245, 158, 11, 0.1); }
-    50% { border-color: rgba(245, 158, 11, 0.85); box-shadow: 0 0 16px rgba(245, 158, 11, 0.3); }
+    0%, 100% { border-color: rgba(245, 158, 11, 0.4); box-shadow: none; }
+    50% { border-color: rgba(245, 158, 11, 0.85); box-shadow: none; }
 }
 
 /* 3. Synced successfully (Clean) */
 .synced {
     border-color: #10b981 !important;
     background: rgba(16, 185, 129, 0.06) !important;
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.1) !important;
+    box-shadow: none !important;
 }
 .synced svg {
     color: #10b981 !important;
@@ -64,7 +64,7 @@
 .error {
     border-color: #ef4444 !important;
     background: rgba(239, 68, 68, 0.08) !important;
-    box-shadow: 0 0 12px rgba(239, 68, 68, 0.25) !important;
+    box-shadow: none !important;
     animation: errorPulse 1.8s infinite ease-in-out;
 }
 .error svg {

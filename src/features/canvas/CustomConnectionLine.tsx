@@ -33,7 +33,6 @@ export function CustomConnectionLine({
                     }
                 }
                 .animated-connection-preview-glow {
-                    filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.7)) drop-shadow(0 0 16px rgba(139, 92, 246, 0.4));
                     animation: customConnectionDash 0.8s linear infinite;
                     stroke-dasharray: 6, 4;
                 }
@@ -57,7 +56,7 @@ export function CustomConnectionLine({
                 stroke="white"
                 strokeWidth={2}
                 style={{
-                    filter: 'drop-shadow(0 0 6px rgba(139, 92, 246, 0.8))',
+
                 }}
             />
         </g>

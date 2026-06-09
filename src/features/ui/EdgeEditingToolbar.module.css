@@ -22,7 +22,7 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    box-shadow: 0 0 10px currentColor;
+    box-shadow: none;
     animation: pulseGlow 2s infinite ease-in-out;
 }
 
@@ -34,7 +34,7 @@
     50% {
         opacity: 1;
         transform: scale(1.1);
-        box-shadow: 0 0 12px currentColor;
+        box-shadow: none;
     }
 }
 
@@ -97,7 +97,7 @@
     background: var(--color-primary-muted, rgba(139, 92, 246, 0.15)) !important;
     border-color: var(--color-primary) !important;
     color: var(--color-primary) !important;
-    box-shadow: 0 0 12px var(--color-primary-glow);
+    box-shadow: none;
 }
 
 .pulsingIcon {
@@ -107,11 +107,11 @@
 @keyframes pulseIcon {
     from {
         transform: scale(1);
-        filter: drop-shadow(0 0 1px currentColor);
+        filter: none;
     }
     to {
         transform: scale(1.2);
-        filter: drop-shadow(0 0 4px currentColor);
+        filter: none;
     }
 }
 
@@ -147,7 +147,7 @@
 .segmentBtn.active {
     background: var(--color-primary);
     color: white !important;
-    box-shadow: 0 2px 6px var(--color-primary-glow);
+    box-shadow: none;
 }
 
 /* Indicators inside Segment controls */
@@ -224,7 +224,7 @@
 .inputWrapper:focus-within {
     border-color: var(--color-primary);
     background: rgba(255, 255, 255, 0.04);
-    box-shadow: 0 0 0 1px var(--color-primary-glow);
+    box-shadow: none;
 }
 
 .inputIcon {
@@ -289,7 +289,7 @@
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    box-shadow: none;
     z-index: 10000;
     min-width: 160px;
     backdrop-filter: blur(8px);
@@ -313,12 +313,12 @@
 .colorOption:hover {
     transform: scale(1.15);
     border-color: white;
-    box-shadow: 0 2px 8px rgba(255, 255, 255, 0.2);
+    box-shadow: none;
 }
 
 .selectedColor {
     border-color: white !important;
-    box-shadow: 0 0 0 2px var(--color-primary);
+    box-shadow: none;
 }
 
 .colorLabel {
@@ -357,7 +357,7 @@
     background: var(--color-primary-muted, rgba(139, 92, 246, 0.15)) !important;
     border-color: var(--color-primary) !important;
     color: var(--color-primary) !important;
-    box-shadow: 0 0 12px var(--color-primary-glow);
+    box-shadow: none;
 }
 
 .stylePopover {
@@ -369,7 +369,7 @@
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 16px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+    box-shadow: none;
     z-index: 10000;
     width: 280px;
     max-height: 480px;

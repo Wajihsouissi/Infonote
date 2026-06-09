@@ -735,7 +735,7 @@ export function CanvasBoard() {
             addNode('block', flowPos, { 
                 content: [newBlock], 
                 isStandaloneBlock: true 
-            }, { width: 320, height: 120 }, currentParentId || undefined);
+            }, { width: 432, height: 120 }, currentParentId || undefined);
             return;
         }
 
@@ -764,7 +764,7 @@ export function CanvasBoard() {
                     addNode('block', flowPos, { 
                         content: [newBlock], 
                         isStandaloneBlock: true 
-                    }, { width: 320, height: 120 }, currentParentId || undefined);
+                    }, { width: 432, height: 120 }, currentParentId || undefined);
                 });
             }
         }

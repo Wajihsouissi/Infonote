@@ -17,13 +17,13 @@
     padding: 12px 14px;
     min-height: 80px;
     background: rgba(255, 255, 255, 0.015);
-    transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition:background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .column:hover {
     border-color: rgba(139, 92, 246, 0.25);
     background: rgba(139, 92, 246, 0.015);
-    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
 }
 
 /* Light mode overrides */
@@ -35,5 +35,5 @@
 :global([data-theme="light"]) .column:hover {
     border-color: rgba(124, 58, 237, 0.2);
     background: rgba(124, 58, 237, 0.015);
-    box-shadow: 0 4px 20px -2px rgba(124, 58, 237, 0.05);
+    box-shadow: none;
 }

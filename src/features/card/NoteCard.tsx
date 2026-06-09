@@ -367,16 +367,11 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                                 if (!cardRef.current) return;
                                 const scrollArea = cardRef.current.querySelector('.infonote-scrollable');
                                 if (scrollArea) {
-                                    const isScrollable = scrollArea.scrollHeight > scrollArea.clientHeight;
-                                    if (isScrollable) {
-                                        const isAtTop = scrollArea.scrollTop === 0;
-                                        const isAtBottom = Math.abs(scrollArea.scrollHeight - scrollArea.clientHeight - scrollArea.scrollTop) <= 1;
-                                        
-                                        if ((e.deltaY < 0 && !isAtTop) || (e.deltaY > 0 && !isAtBottom)) {
-                                            e.stopPropagation();
-                                            e.preventDefault();
-                                            scrollArea.scrollTop += e.deltaY;
-                                        }
+                                    const previousScrollTop = scrollArea.scrollTop;
+                                    scrollArea.scrollTop += e.deltaY;
+                                    if (Math.abs(scrollArea.scrollTop - previousScrollTop) > 0.5) {
+                                        e.stopPropagation();
+                                        e.preventDefault();
                                     }
                                 }
                             };

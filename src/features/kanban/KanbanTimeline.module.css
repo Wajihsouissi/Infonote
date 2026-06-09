@@ -188,20 +188,20 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    box-shadow: none;
     z-index: 2;
-    transition: box-shadow 0.2s;
+    transition:0.2s;
 }
 
 .timelineBar:hover {
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+    box-shadow: none;
 }
 
 .timelineBar.dragging {
     cursor: grabbing;
     opacity: 0.9;
     z-index: 10;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    box-shadow: none;
 }
 
 /* Resize Handles */

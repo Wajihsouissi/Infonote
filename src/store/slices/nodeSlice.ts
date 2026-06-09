@@ -462,11 +462,13 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 case 'file':
                     return { width: 200, height: 200 };
                 case 'code':
-                    return { width: 340, height: 160 };
+                    return { width: 432, height: 160 };
                 case 'table':
                     return { width: 360, height: 180 };
                 case 'callout':
-                    return { width: 280, height: 100 };
+                case 'quote':
+                case 'link':
+                    return { width: 432, height: 100 };
                 case 'todo':
                 case 'bullet':
                 case 'numbered':
@@ -1252,9 +1254,11 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 case 'image':
                 case 'video':
                 case 'file': return { width: 300, height: 300 };
-                case 'code': return { width: 400, height: 250 };
+                case 'code': return { width: 432, height: 250 };
                 case 'table': return { width: 450, height: 300 };
-                case 'callout': return { width: 280, height: 100 };
+                case 'callout':
+                case 'quote':
+                case 'link': return { width: 432, height: 100 };
                 case 'todo':
                 case 'bullet':
                 case 'numbered':

@@ -86,7 +86,7 @@ export function CanvasSlashMenu() {
                     content: '',
                     metadata: item.meta
                 };
-                addNode('block', pos, { content: [newBlock], isStandaloneBlock: true }, { width: 300, height: 100 }, currentParentId || undefined);
+                addNode('block', pos, { content: [newBlock], isStandaloneBlock: true }, { width: 432, height: 100 }, currentParentId || undefined);
             }
         }));
 

@@ -9,7 +9,7 @@
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--glass-border);
     border-radius: 99px;
-    box-shadow: var(--glass-shadow);
+    box-shadow: none;
     gap: 8px;
 }
 
@@ -70,7 +70,7 @@
     transition: all 0.2s ease;
     box-sizing: border-box;
     padding-top: 1px;
-    /* Optical vertical centering adjustment for Poppins numbers (pushes text down) */
+    /* Optical vertical centering adjustment for Outfit numbers (pushes text down) */
 }
 
 :global(.light-theme) .levelBadge {
