@@ -44,7 +44,7 @@ async function fetchProfileRow(userId: string): Promise<ProfileRow | null> {
  * The DB trigger on auth.users normally handles this, but race conditions
  * or external sign-up flows may skip it — so we upsert defensively here.
  */
-async function ensureUserProfile(user: { id: string; email?: string; user_metadata?: any }): Promise<void> {
+async function ensureUserProfile(user: Pick<User, 'id' | 'email' | 'user_metadata'>): Promise<void> {
     if (!isSupabaseConfigured) return;
     try {
         const { error } = await supabase
@@ -194,10 +194,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(sessionUser);
             await pushToStore(sessionUser);
             if (sessionUser) {
+                const workspaceAtStart = useStore.getState().auth.activeWorkspaceId;
                 void ensureUserProfile(sessionUser)
                     .then(() => ensureWorkspace(sessionUser.id))
                     .then((workspaceId) => {
-                        if (workspaceId) useStore.getState().setAuthWorkspace(workspaceId);
+                        const state = useStore.getState();
+                        if (
+                            workspaceId &&
+                            (state.auth.activeWorkspaceId === null ||
+                                state.auth.activeWorkspaceId === workspaceAtStart)
+                        ) {
+                            state.setAuthWorkspace(workspaceId);
+                        }
                     });
             }
             setLoading(false);
@@ -215,10 +223,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 // fire-and-forget; pushToStore handles its own errors via try/catch
                 void pushToStore(nextUser);
                 if (nextUser) {
+                    const workspaceAtStart = useStore.getState().auth.activeWorkspaceId;
                     void ensureUserProfile(nextUser)
                         .then(() => ensureWorkspace(nextUser.id))
                         .then((workspaceId) => {
-                            if (workspaceId) useStore.getState().setAuthWorkspace(workspaceId);
+                            const state = useStore.getState();
+                            if (
+                                workspaceId &&
+                                (state.auth.activeWorkspaceId === null ||
+                                    state.auth.activeWorkspaceId === workspaceAtStart)
+                            ) {
+                                state.setAuthWorkspace(workspaceId);
+                            }
                         });
                 }
             }

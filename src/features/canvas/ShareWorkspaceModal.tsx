@@ -14,16 +14,17 @@ import {
 import { useStore } from '../../store/useStore';
 import {
     acceptWorkspaceInvitation,
+    activateWorkspace,
     inviteWorkspaceMember,
     listAccessibleWorkspaces,
     listPendingInvitationsForCurrentUser,
     listWorkspaceInvitations,
     listWorkspaceMembers,
-    persistActiveWorkspace,
     type WorkspaceInvitation,
     type WorkspaceMember,
     type WorkspaceSummary,
 } from '../../services/collaboration';
+import { saveCanvasToCloud } from '../../services/cloudSync';
 
 type Status =
     | { kind: 'idle' }
@@ -40,7 +41,6 @@ interface ShareWorkspaceModalProps {
 
 export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, onClose }) => {
     const auth = useStore((state) => state.auth);
-    const setAuthWorkspace = useStore((state) => state.setAuthWorkspace);
 
     const [inviteEmail, setInviteEmail] = useState('');
     const [members, setMembers] = useState<WorkspaceMember[]>([]);
@@ -142,6 +142,10 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
             setStatus({ kind: 'error', message: 'Enter a valid email address.' });
             return;
         }
+        if (!auth.userId || !auth.activeWorkspaceId) {
+            setStatus({ kind: 'error', message: 'Open a signed-in workspace before inviting collaborators.' });
+            return;
+        }
 
         setStatus({ kind: 'inviting' });
         setLastInviteLink(null);
@@ -149,6 +153,25 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
         setInviteSender(null);
         setInviteProvider(null);
         setCopiedInviteLink(false);
+
+        const state = useStore.getState();
+        const syncResult = await saveCanvasToCloud(
+            auth.userId,
+            auth.activeWorkspaceId,
+            state.nodes,
+            state.edges,
+        );
+        if (!syncResult.ok) {
+            setStatus({
+                kind: 'error',
+                message: `The canvas could not be synced before inviting: ${syncResult.error}`,
+            });
+            return;
+        }
+        state.setCloudDirty(false);
+        state.setCloudError(null);
+        state.setCloudLastSaved(new Date().toLocaleTimeString());
+
         const result = await inviteWorkspaceMember(auth.activeWorkspaceId, email, 'editor');
         if (!result.ok) {
             setStatus({ kind: 'error', message: result.error });
@@ -168,7 +191,7 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
             setStatus({ kind: 'success', message: `Invitation email queued for ${result.data.invitedEmail}${formattedProvider ? ` via ${formattedProvider}` : ''}.` });
         }
         void refresh({ preserveStatus: true });
-    }, [auth.activeWorkspaceId, inviteEmail, refresh]);
+    }, [auth.activeWorkspaceId, auth.userId, inviteEmail, refresh]);
 
     const handleCopyInviteLink = useCallback(async () => {
         if (!lastInviteLink) return;
@@ -194,11 +217,14 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
             return;
         }
 
-        persistActiveWorkspace(auth.userId, result.data.workspaceId);
-        setAuthWorkspace(result.data.workspaceId);
+        const activation = await activateWorkspace(auth.userId, result.data.workspaceId);
+        if (!activation.ok) {
+            setStatus({ kind: 'error', message: `Invitation accepted, but the shared canvas could not be loaded: ${activation.error}` });
+            return;
+        }
         setStatus({ kind: 'success', message: `Joined ${invite.workspaceName}.` });
         void refresh({ preserveStatus: true });
-    }, [auth.userId, refresh, setAuthWorkspace]);
+    }, [auth.userId, refresh]);
 
     const handleAcceptManualInvite = useCallback(async () => {
         if (!auth.userId) {
@@ -220,18 +246,25 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
         }
 
         setManualInvite('');
-        persistActiveWorkspace(auth.userId, result.data.workspaceId);
-        setAuthWorkspace(result.data.workspaceId);
+        const activation = await activateWorkspace(auth.userId, result.data.workspaceId);
+        if (!activation.ok) {
+            setStatus({ kind: 'error', message: `Invitation accepted, but the shared canvas could not be loaded: ${activation.error}` });
+            return;
+        }
         setStatus({ kind: 'success', message: 'Invitation accepted. Opening shared canvas.' });
         void refresh({ preserveStatus: true });
-    }, [auth.userId, manualInvite, refresh, setAuthWorkspace]);
+    }, [auth.userId, manualInvite, refresh]);
 
-    const handleSwitchWorkspace = useCallback((workspace: WorkspaceSummary) => {
+    const handleSwitchWorkspace = useCallback(async (workspace: WorkspaceSummary) => {
         if (!auth.userId) return;
-        persistActiveWorkspace(auth.userId, workspace.id);
-        setAuthWorkspace(workspace.id);
+        setStatus({ kind: 'loading' });
+        const activation = await activateWorkspace(auth.userId, workspace.id);
+        if (!activation.ok) {
+            setStatus({ kind: 'error', message: `Workspace could not be loaded: ${activation.error}` });
+            return;
+        }
         setStatus({ kind: 'success', message: `Opened ${workspace.name}.` });
-    }, [auth.userId, setAuthWorkspace]);
+    }, [auth.userId]);
 
     if (!open) return null;
 

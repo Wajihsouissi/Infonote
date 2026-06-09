@@ -14,7 +14,7 @@ import { WelcomeModal } from './features/auth/WelcomeModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useStore } from './store/useStore';
 import { supabase, isSupabaseConfigured } from './services/supabase/client';
-import { acceptWorkspaceInvitation, persistActiveWorkspace } from './services/collaboration';
+import { acceptWorkspaceInvitation, activateWorkspace } from './services/collaboration';
 
 const PENDING_INVITE_KEY = 'infonote.pendingWorkspaceInvitationId';
 const INVITE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -26,7 +26,6 @@ function App() {
   const isAuthenticated = useStore((state) => state.auth.isAuthenticated);
   const isAuthLoading = useStore((state) => state.auth.isAuthLoading);
   const authUserId = useStore((state) => state.auth.userId);
-  const setAuthWorkspace = useStore((state) => state.setAuthWorkspace);
   const showWelcomeModal = useStore((state) => state.showWelcomeModal);
   const setShowWelcomeModal = useStore((state) => state.setShowWelcomeModal);
   const [inviteBanner, setInviteBanner] = useState<string | null>(null);
@@ -87,7 +86,7 @@ function App() {
     setCurrentView('canvas');
 
     acceptWorkspaceInvitation(invitationId)
-      .then((result) => {
+      .then(async (result) => {
         if (cancelled) return;
         if (!result.ok) {
           setInviteBanner(result.error);
@@ -95,8 +94,13 @@ function App() {
         }
 
         sessionStorage.removeItem(PENDING_INVITE_KEY);
-        persistActiveWorkspace(authUserId, result.data.workspaceId);
-        setAuthWorkspace(result.data.workspaceId);
+        const activation = await activateWorkspace(authUserId, result.data.workspaceId);
+        if (cancelled) return;
+        if (!activation.ok) {
+          setInviteBanner(`Invitation accepted, but the shared canvas could not be loaded: ${activation.error}`);
+          return;
+        }
+
         setCurrentView('canvas');
         window.history.replaceState({}, '', '/canvas');
         setInviteBanner('Invitation accepted. Opening shared canvas...');
@@ -111,7 +115,7 @@ function App() {
       cancelled = true;
       window.clearTimeout(bannerTimer);
     };
-  }, [authUserId, isAuthLoading, isAuthenticated, setAuthWorkspace, setCurrentView]);
+  }, [authUserId, isAuthLoading, isAuthenticated, setCurrentView]);
 
   // Auto-redirect authenticated users from login/signup/marketing views to landing/dashboard
   useEffect(() => {
@@ -151,7 +155,7 @@ function App() {
       setTimeout(() => {
         window.alert(
           `Sign-in failed: ${errDesc || err}\n\n` +
-            'If you used Google or Facebook, make sure the provider is enabled ' +
+            'If you used Google, make sure the provider is enabled ' +
             'in your Supabase Dashboard \u2192 Authentication \u2192 Providers and ' +
             'that this URL is in the Redirect URLs allow-list.'
         );
