@@ -82,13 +82,31 @@ export function CanvasSlashMenu() {
             keywords: item.keywords,
             category: 'Blocks',
             action: (pos) => {
+                // Mirror the bottom menu (BottomMenu.handleBlockClick): seed columns with empty
+                // cells and size the node the same way, so a block looks identical regardless of
+                // whether it's added from the bottom menu or the slash menu.
+                const metadata = item.type === 'columns'
+                    ? {
+                        columns: Array.from({ length: item.meta?.count || 2 }).map(() => ({
+                            id: uuidv4(),
+                            content: [{ id: uuidv4(), type: 'text', content: '' }],
+                        })),
+                    }
+                    : item.meta;
+
                 const newBlock = {
                     id: uuidv4(),
                     type: item.type,
                     content: '',
-                    metadata: item.meta
+                    metadata
                 };
-                addNode('block', pos, { content: [newBlock], isStandaloneBlock: true }, { width: 432, height: 100 }, currentParentId || undefined);
+
+                const columnCount = item.type === 'columns' ? (item.meta?.count || 2) : 0;
+                const columnsPerRow = columnCount === 4 ? 2 : columnCount;
+                const BLOCK_WIDTH = item.type === 'columns' ? Math.max(550, columnsPerRow * 220) : 300;
+                const BLOCK_HEIGHT = 100;
+
+                addNode('block', pos, { content: [newBlock], isStandaloneBlock: true }, { width: BLOCK_WIDTH, height: BLOCK_HEIGHT }, currentParentId || undefined);
             }
         }));
 

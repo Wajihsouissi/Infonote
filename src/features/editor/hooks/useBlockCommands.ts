@@ -164,12 +164,30 @@ export function useBlockCommands({
         switch (action) {
             case 'turnInto':
                 setBlocks(prev => {
-                    const newBlocks = prev.map(b => {
-                        if (targetIds.includes(b.id)) {
-                            return { ...b, type: value };
+                    const newBlocks = [...prev];
+                    for (let i = 0; i < newBlocks.length; i++) {
+                        const block = newBlocks[i];
+                        if (!targetIds.includes(block.id)) continue;
+
+                        const wasToggle = block.type === 'toggle';
+                        newBlocks[i] = { ...block, type: value };
+
+                        // Converting a toggle to a non-toggle: outdent its nested children so
+                        // they aren't orphaned (indented with no parent toggle).
+                        if (wasToggle && value !== 'toggle') {
+                            const targetIndent = block.indent || 0;
+                            let j = i + 1;
+                            while (j < newBlocks.length) {
+                                const childIndent = newBlocks[j].indent || 0;
+                                if (childIndent > targetIndent) {
+                                    newBlocks[j] = { ...newBlocks[j], indent: Math.max(0, childIndent - 1) };
+                                    j++;
+                                } else {
+                                    break;
+                                }
+                            }
                         }
-                        return b;
-                    });
+                    }
                     debouncedOnUpdate(newBlocks);
                     return newBlocks;
                 });

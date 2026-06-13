@@ -2,7 +2,17 @@ import { useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useReactFlow } from '@xyflow/react';
 import type { AppNode } from '../../../types';
-import { snapToGridValue } from '../../../config/layout';
+import { snapToGridValue, snapFusedDimensions, MAX_HEIGHT } from '../../../config/layout';
+
+// A single source of truth for what a node-drag will do on release. Computed once per
+// drag tick and consumed verbatim on drop, so the highlight the user sees always matches
+// the action that runs (no second, divergent detection pass on drop).
+interface PendingDrop {
+    targetId: string;
+    action: 'fusion' | 'nesting';
+    insertBlockId: string | null;
+    insertPosition: 'top' | 'bottom';
+}
 
 interface UseCanvasNodeDragOptions {
     nodes: AppNode[];
@@ -34,15 +44,35 @@ export function useCanvasNodeDrag({
     const lastHighlightedBlockRef = useRef<HTMLElement | null>(null);
     const activeDropTargetRef = useRef<any>(null);
     const activeKanbanColumnRef = useRef<any>(null);
+    // The complete fusion/nesting decision for the current drag, reused on drop.
+    const pendingDropRef = useRef<PendingDrop | null>(null);
+
+    // Move the between-blocks insertion line to a specific block element (or clear it).
+    const setDropLine = useCallback((blockEl: HTMLElement | null, position: 'top' | 'bottom') => {
+        const prev = lastHighlightedBlockRef.current;
+        if (prev && prev !== blockEl) prev.removeAttribute('data-external-drop-target');
+        if (blockEl) {
+            blockEl.setAttribute('data-external-drop-target', position);
+            lastHighlightedBlockRef.current = blockEl;
+        } else {
+            lastHighlightedBlockRef.current = null;
+        }
+    }, []);
+
+    // Single, centralized cleanup for every drop indicator left in the DOM.
+    const clearDropIndicators = useCallback(() => {
+        lastHighlightedBlockRef.current = null;
+        document.querySelectorAll('[data-external-drop-target]').forEach(el => {
+            (el as HTMLElement).removeAttribute('data-external-drop-target');
+        });
+    }, []);
 
     const onNodeDragStart = useCallback((_event: React.MouseEvent, node: any) => {
         setInteractionState({ draggedNodeId: node.id });
         activeDropTargetRef.current = null;
         activeKanbanColumnRef.current = null;
-        if (lastHighlightedBlockRef.current) {
-            lastHighlightedBlockRef.current.removeAttribute('data-external-drop-target');
-            lastHighlightedBlockRef.current = null;
-        }
+        pendingDropRef.current = null;
+        clearDropIndicators();
 
         // Collect IDs to boost: primary node + any selected nodes
         const idsToBoost = new Set(selectedCanvasNodeIds);
@@ -55,12 +85,8 @@ export function useCanvasNodeDrag({
             extent: undefined // Allow dragging out of parent
         } : n));
 
-        // Cleanup any previous drop target indicators
-        document.querySelectorAll('[data-external-drop-target]').forEach(el => {
-            (el as HTMLElement).removeAttribute('data-external-drop-target');
-        });
         document.body.classList.add('chnk-it-node-dragging');
-    }, [setInteractionState, setNodes, selectedCanvasNodeIds]);
+    }, [setInteractionState, setNodes, selectedCanvasNodeIds, clearDropIndicators]);
 
     const onNodeDrag = useCallback((event: React.MouseEvent, node: any) => {
         // Throttle for smoother grid response (approx 30fps)
@@ -131,6 +157,9 @@ export function useCanvasNodeDrag({
                         dropTarget: newDropTarget
                     });
                 }
+                // Over a kanban column: there's no fusion/nesting in play.
+                pendingDropRef.current = null;
+                clearDropIndicators();
                 return;
             }
         }
@@ -141,7 +170,7 @@ export function useCanvasNodeDrag({
             setInteractionState({ hoveredKanbanColumn: null });
         }
 
-        // Priority 2: Fusion or Nesting
+        // Priority 2: Fusion or Nesting (single decision used verbatim on drop)
         if (targetOther) {
             const isSourceBlock = node.type === 'block';
             const isSourceFused = node.type === 'fused-note';
@@ -157,33 +186,38 @@ export function useCanvasNodeDrag({
                 newDropTarget = { id: targetOther.id, type: 'nesting' };
             }
 
-            // Visual indicator logic
-            if (newDropTarget && (newDropTarget.type === 'fusion' || newDropTarget.type === 'nesting')) {
+            if (newDropTarget) {
+                // Which of the target's blocks would we insert next to? The dragged node is
+                // pointer-events:none during drag (global CSS), so elementsFromPoint returns the
+                // TARGET's blocks rather than the dragged node's overlay.
                 const elementsUnderCursor = document.elementsFromPoint(event.clientX, event.clientY);
                 const blockElement = elementsUnderCursor.find(el => el.id && el.id.startsWith('block-')) as HTMLElement | undefined;
 
+                let insertBlockId: string | null = null;
+                let insertPosition: 'top' | 'bottom' = 'bottom';
                 if (blockElement) {
                     const rect = blockElement.getBoundingClientRect();
                     const midY = rect.top + (rect.height / 2);
-                    const position = event.clientY < midY ? 'top' : 'bottom';
-                    
-                    if (lastHighlightedBlockRef.current && lastHighlightedBlockRef.current !== blockElement) {
-                        lastHighlightedBlockRef.current.removeAttribute('data-external-drop-target');
-                    }
-                    
-                    blockElement.setAttribute('data-external-drop-target', position);
-                    lastHighlightedBlockRef.current = blockElement;
-                } else if (lastHighlightedBlockRef.current) {
-                    lastHighlightedBlockRef.current.removeAttribute('data-external-drop-target');
-                    lastHighlightedBlockRef.current = null;
+                    insertPosition = event.clientY < midY ? 'top' : 'bottom';
+                    insertBlockId = blockElement.id.replace('block-', '');
+                    setDropLine(blockElement, insertPosition);
+                } else {
+                    setDropLine(null, 'bottom');
                 }
-            } else if (lastHighlightedBlockRef.current) {
-                lastHighlightedBlockRef.current.removeAttribute('data-external-drop-target');
-                lastHighlightedBlockRef.current = null;
+
+                pendingDropRef.current = {
+                    targetId: newDropTarget.id,
+                    action: newDropTarget.type as 'fusion' | 'nesting',
+                    insertBlockId,
+                    insertPosition,
+                };
+            } else {
+                pendingDropRef.current = null;
+                setDropLine(null, 'bottom');
             }
-        } else if (lastHighlightedBlockRef.current) {
-            lastHighlightedBlockRef.current.removeAttribute('data-external-drop-target');
-            lastHighlightedBlockRef.current = null;
+        } else {
+            pendingDropRef.current = null;
+            setDropLine(null, 'bottom');
         }
 
         const lastDropTarget = activeDropTargetRef.current;
@@ -192,34 +226,27 @@ export function useCanvasNodeDrag({
             activeDropTargetRef.current = newDropTarget;
             setInteractionState({ dropTarget: newDropTarget });
         }
-    }, [getIntersectingNodes, setInteractionState, screenToFlowPosition, getViewport]);
+    }, [getIntersectingNodes, setInteractionState, screenToFlowPosition, getViewport, setDropLine, clearDropIndicators]);
 
     const onNodeDragStop = useCallback((event: React.MouseEvent, node: any) => {
+        // The exact fusion/nesting decision that was shown to the user during the drag.
+        const pending = pendingDropRef.current;
         const hoveredColumn = activeKanbanColumnRef.current;
         const isMultiDrag = selectedCanvasNodeIds.size > 1 && selectedCanvasNodeIds.has(node.id);
 
-        // Clear interaction states
+        // Clear interaction states + every drop indicator (single, centralized cleanup)
         setInteractionState({
             hoveredKanbanColumn: null,
             draggedNodeId: null,
             dropTarget: null
         });
-
         activeDropTargetRef.current = null;
         activeKanbanColumnRef.current = null;
-
-        // Cleanup visual indicators
-        if (lastHighlightedBlockRef.current) {
-            lastHighlightedBlockRef.current.removeAttribute('data-external-drop-target');
-            lastHighlightedBlockRef.current = null;
-        }
-        document.querySelectorAll('[data-external-drop-target]').forEach(el => {
-            (el as HTMLElement).removeAttribute('data-external-drop-target');
-        });
+        pendingDropRef.current = null;
+        clearDropIndicators();
         document.body.classList.remove('chnk-it-node-dragging');
 
         // FREE-FORM POSITIONING: preserve raw decimal coordinates produced by React Flow.
-        // No grid snapping is applied — nodes float exactly where the cursor releases them.
         const restoreNodeZIndex = () => {
             const idsToRestore = isMultiDrag ? new Set(selectedCanvasNodeIds) : new Set([node.id]);
 
@@ -237,55 +264,14 @@ export function useCanvasNodeDrag({
         const isSourceFused = node.type === 'fused-note';
         const isSourceNote = node.type === 'note';
 
-        // Multi-drag: skip fusion/nesting/kanban — just snap all nodes and return
+        // Multi-drag: skip fusion/nesting/kanban — just restore and return
         if (isMultiDrag) {
             restoreNodeZIndex();
             if (currentParentId) syncParentContent(currentParentId);
             return;
         }
 
-        const { zoom } = getViewport();
-        // Constant 16px screen-space hover checking size, scaled to flow space
-        const checkSize = Math.max(2, 16 / zoom);
-
-        const mousePos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-        const mouseRect = { 
-            x: mousePos.x - checkSize / 2, 
-            y: mousePos.y - checkSize / 2, 
-            width: checkSize, 
-            height: checkSize 
-        };
-        const intersections = getIntersectingNodes(mouseRect as any);
-        const targetNode = intersections.find(n => n.id !== node.id && n.id !== currentParentId);
-
-        // CASE 0: Drag Out - Un-nesting (free-form, no grid snap)
-        if (!targetNode && node.parentId) {
-            const parentNode = getNode(node.parentId);
-
-            if (parentNode) {
-                // Preserve raw decimal coordinates; child relative -> absolute
-                const absPos = {
-                    x: snapToGridValue(node.positionAbsolute?.x ?? (parentNode.position.x + node.position.x)),
-                    y: snapToGridValue(node.positionAbsolute?.y ?? (parentNode.position.y + node.position.y))
-                };
-
-                setNodes(nds => nds.map(n => {
-                    if (n.id === node.id) {
-                        return {
-                            ...n,
-                            parentId: undefined,
-                            extent: undefined,
-                            zIndex: 10,
-                            position: absPos
-                        };
-                    }
-                    return n;
-                }));
-            }
-            return;
-        }
-
-        // Use hoveredColumn for Kanban drop
+        // Kanban column placement (note → kanban)
         if (hoveredColumn && isSourceNote) {
             const targetKanban = getNode(hoveredColumn.kanbanId);
 
@@ -353,47 +339,86 @@ export function useCanvasNodeDrag({
             }
         }
 
-        if (targetNode) {
-            // Guard: If dragging over current parent, ignore to prevent re-nesting/duplication
-            if (targetNode.id === node.parentId) {
-                restoreNodeZIndex();
-                return;
+        // Fusion / Nesting — run the EXACT decision the user saw during the drag.
+        if (pending) {
+            const targetNode = getNode(pending.targetId);
+            if (targetNode) {
+                // Dropped onto its own parent → keep as-is (no re-nest / no un-nest).
+                if (targetNode.id === node.parentId) {
+                    restoreNodeZIndex();
+                    return;
+                }
+
+                const isTargetBlock = targetNode.type === 'block';
+                const isTargetFused = targetNode.type === 'fused-note';
+                const isTargetNote = targetNode.type === 'note';
+
+                if (pending.action === 'fusion' && (isTargetBlock || isTargetFused) && (isSourceBlock || isSourceFused)) {
+                    const sourceContent = Array.isArray(node.data.content) ? node.data.content : [];
+                    // Nothing to merge — keep the source intact instead of deleting it (no data loss).
+                    if (sourceContent.length === 0) {
+                        restoreNodeZIndex();
+                        return;
+                    }
+                    handleFusionDrop(targetNode, node, pending.insertBlockId, pending.insertPosition, setNodes);
+                    return;
+                }
+
+                if (pending.action === 'nesting' && isTargetNote && (isSourceFused || isSourceNote || isSourceBlock)) {
+                    handleNestingDrop(targetNode, node, pending.insertBlockId, pending.insertPosition, updateNodeData, setNodes);
+                    return;
+                }
             }
-
-            const isTargetBlock = targetNode.type === 'block';
-            const isTargetFused = targetNode.type === 'fused-note';
-            const isTargetNote = targetNode.type === 'note';
-            const isTargetKanban = targetNode.type === 'kanban';
-
-            // CASE 1: Kanban Status Update
-            if (isTargetKanban && isSourceNote) {
-                handleKanbanDrop(targetNode, node, nodes, setNodes);
-                return;
-            }
-
-            // CASE 2: Fusion
-            if ((isTargetBlock || isTargetFused) && (isSourceBlock || isSourceFused)) {
-                handleFusionDrop(targetNode, node, event, setNodes);
-                return;
-            }
-
-            // CASE 3: Nesting
-            if (isTargetNote && (isSourceFused || isSourceNote || isSourceBlock)) {
-                handleNestingDrop(targetNode, node, event, updateNodeData, setNodes);
-                return;
-            }
-
-            restoreNodeZIndex();
-        } else {
-            restoreNodeZIndex();
         }
 
-        // Final sync
+        // Recompute intersections once for the kanban fallback + un-nest decision.
+        const { zoom } = getViewport();
+        const checkSize = Math.max(2, 16 / zoom);
+        const mousePos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+        const mouseRect = {
+            x: mousePos.x - checkSize / 2,
+            y: mousePos.y - checkSize / 2,
+            width: checkSize,
+            height: checkSize
+        };
+        const stopIntersections = getIntersectingNodes(mouseRect as any);
+
+        // Kanban fallback: note dropped on a board but the hover wasn't captured this tick.
+        if (isSourceNote) {
+            const kanbanTarget = stopIntersections.find(n => n.type === 'kanban' && n.id !== node.id);
+            if (kanbanTarget) {
+                handleKanbanDrop(kanbanTarget, node, nodes, setNodes);
+                return;
+            }
+        }
+
+        // CASE 0: Drag out — un-nest when nothing actionable is under the cursor.
+        const overSomething = stopIntersections.some(n => n.id !== node.id && n.id !== currentParentId);
+
+        if (!overSomething && node.parentId) {
+            const parentNode = getNode(node.parentId);
+            if (parentNode) {
+                const absPos = {
+                    x: snapToGridValue(node.positionAbsolute?.x ?? (parentNode.position.x + node.position.x)),
+                    y: snapToGridValue(node.positionAbsolute?.y ?? (parentNode.position.y + node.position.y))
+                };
+                setNodes(nds => nds.map(n => n.id === node.id ? {
+                    ...n,
+                    parentId: undefined,
+                    extent: undefined,
+                    zIndex: 10,
+                    position: absPos
+                } : n));
+            }
+            return;
+        }
+
+        restoreNodeZIndex();
         if (currentParentId) {
             syncParentContent(currentParentId);
         }
     }, [getIntersectingNodes, setNodes, updateNodeData, getNode, nodes, currentParentId,
-        syncParentContent, screenToFlowPosition, setInteractionState, selectedCanvasNodeIds, getViewport]);
+        syncParentContent, screenToFlowPosition, setInteractionState, selectedCanvasNodeIds, getViewport, clearDropIndicators]);
 
     return {
         onNodeDragStart,
@@ -483,26 +508,27 @@ function handleKanbanDrop(targetNode: any, node: any, nodes: AppNode[], setNodes
     }));
 }
 
-// Helper: Handle Fusion drop
-function handleFusionDrop(targetNode: any, node: any, event: React.MouseEvent, setNodes: any) {
+// Resolve the precomputed (blockId, position) decision into an array index.
+function computeInsertIndex(targetContent: any[], insertBlockId: string | null, insertPosition: 'top' | 'bottom'): number {
+    if (!insertBlockId) return targetContent.length;
+    const idx = targetContent.findIndex((b: any) => b.id === insertBlockId);
+    if (idx === -1) return targetContent.length;
+    return insertPosition === 'top' ? idx : idx + 1;
+}
+
+// Helper: Handle Fusion drop. Uses the insertion point captured during the drag (no
+// re-hit-testing) so the merge lands exactly where the insertion line was shown.
+function handleFusionDrop(
+    targetNode: any,
+    node: any,
+    insertBlockId: string | null,
+    insertPosition: 'top' | 'bottom',
+    setNodes: any
+) {
     const sourceContent = Array.isArray(node.data.content) ? node.data.content : [];
     const targetContent = Array.isArray((targetNode.data as any).content) ? (targetNode.data as any).content : [];
 
-    let insertIndex = targetContent.length;
-    const elementsUnderCursor = document.elementsFromPoint(event.clientX, event.clientY);
-    const blockElement = elementsUnderCursor.find(el => el.id && el.id.startsWith('block-'));
-
-    if (blockElement) {
-        const blockId = blockElement.id.replace('block-', '');
-        const targetBlockIndex = targetContent.findIndex((b: any) => b.id === blockId);
-
-        if (targetBlockIndex !== -1) {
-            const rect = blockElement.getBoundingClientRect();
-            const midY = rect.top + (rect.height / 2);
-            insertIndex = event.clientY < midY ? targetBlockIndex : targetBlockIndex + 1;
-        }
-    }
-
+    const insertIndex = computeInsertIndex(targetContent, insertBlockId, insertPosition);
     const newContent = [
         ...targetContent.slice(0, insertIndex),
         ...sourceContent,
@@ -511,26 +537,29 @@ function handleFusionDrop(targetNode: any, node: any, event: React.MouseEvent, s
 
     const isStandalone = (node.data as any).isStandaloneBlock || (targetNode.data as any).isStandaloneBlock;
 
-    // Default fused note size: 8 units wide × 4 units tall (432×208)
+    // Content-aware default size: 8 units wide, height grown to fit the merged blocks
+    // (grid-snapped, min 8×4, capped at MAX_HEIGHT) so tall merges aren't clipped.
     const DEFAULT_FUSED_WIDTH = 432; // 8 * 56 - 16
-    const DEFAULT_FUSED_HEIGHT = 208; // 4 * 56 - 16
+    const APPROX_BLOCK_PX = 44;
+    const VERTICAL_PADDING = 48;
+    const rawHeight = Math.min(MAX_HEIGHT, newContent.length * APPROX_BLOCK_PX + VERTICAL_PADDING);
+    const sized = snapFusedDimensions(DEFAULT_FUSED_WIDTH, rawHeight);
 
     setNodes((nds: AppNode[]) => {
         const filtered = nds.filter(n => n.id !== node.id);
         return filtered.map(n => {
             if (n.id === targetNode.id) {
-                // If target already is a fused-note with manual dimensions, keep them;
-                // otherwise apply the 8×4 default
+                // Preserve an already-fused target's manual dimensions; otherwise size to content.
                 const currentWidth = n.style?.width as number | undefined;
                 const currentHeight = n.style?.height as number | undefined;
                 const isAlreadyFused = n.type === 'fused-note';
-                const keepWidth = isAlreadyFused && typeof currentWidth === 'number' ? currentWidth : DEFAULT_FUSED_WIDTH;
-                const keepHeight = isAlreadyFused && typeof currentHeight === 'number' ? currentHeight : DEFAULT_FUSED_HEIGHT;
+                const nextWidth = isAlreadyFused && typeof currentWidth === 'number' ? currentWidth : sized.width;
+                const nextHeight = isAlreadyFused && typeof currentHeight === 'number' ? currentHeight : sized.height;
 
                 return {
                     ...n,
                     type: 'fused-note',
-                    style: { ...n.style, width: keepWidth, height: keepHeight },
+                    style: { ...n.style, width: nextWidth, height: nextHeight },
                     data: {
                         ...n.data,
                         content: newContent,
@@ -544,11 +573,12 @@ function handleFusionDrop(targetNode: any, node: any, event: React.MouseEvent, s
     });
 }
 
-// Helper: Handle Nesting drop
+// Helper: Handle Nesting drop. Uses the insertion point captured during the drag.
 function handleNestingDrop(
     targetNode: any,
     node: any,
-    event: React.MouseEvent,
+    insertBlockId: string | null,
+    insertPosition: 'top' | 'bottom',
     updateNodeData: any,
     setNodes: any
 ) {
@@ -563,20 +593,7 @@ function handleNestingDrop(
         };
 
         const targetContent = Array.isArray((targetNode.data as any).content) ? (targetNode.data as any).content : [];
-
-        let insertIndex = targetContent.length;
-        const elementsUnderCursor = document.elementsFromPoint(event.clientX, event.clientY);
-        const blockElement = elementsUnderCursor.find(el => el.id && el.id.startsWith('block-'));
-
-        if (blockElement) {
-            const blockId = blockElement.id.replace('block-', '');
-            const targetBlockIndex = targetContent.findIndex((b: any) => b.id === blockId);
-            if (targetBlockIndex !== -1) {
-                const rect = blockElement.getBoundingClientRect();
-                const midY = rect.top + (rect.height / 2);
-                insertIndex = event.clientY < midY ? targetBlockIndex : targetBlockIndex + 1;
-            }
-        }
+        const insertIndex = computeInsertIndex(targetContent, insertBlockId, insertPosition);
 
         updateNodeData(targetNode.id, {
             content: [
@@ -606,20 +623,7 @@ function handleNestingDrop(
 
     if (sourceContent.length > 0) {
         const targetContent = Array.isArray((targetNode.data as any).content) ? (targetNode.data as any).content : [];
-
-        let insertIndex = targetContent.length;
-        const elementsUnderCursor = document.elementsFromPoint(event.clientX, event.clientY);
-        const blockElement = elementsUnderCursor.find(el => el.id && el.id.startsWith('block-'));
-
-        if (blockElement) {
-            const blockId = blockElement.id.replace('block-', '');
-            const targetBlockIndex = targetContent.findIndex((b: any) => b.id === blockId);
-            if (targetBlockIndex !== -1) {
-                const rect = blockElement.getBoundingClientRect();
-                const midY = rect.top + (rect.height / 2);
-                insertIndex = event.clientY < midY ? targetBlockIndex : targetBlockIndex + 1;
-            }
-        }
+        const insertIndex = computeInsertIndex(targetContent, insertBlockId, insertPosition);
 
         const newTargetContent = [
             ...targetContent.slice(0, insertIndex),

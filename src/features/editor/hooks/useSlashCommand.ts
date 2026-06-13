@@ -52,13 +52,29 @@ export function useSlashCommand({
                 type,
                 content: finalContent || '',
                 metadata: type === 'columns' ? {
-                    columns: Array.from({ length: metadata?.count || 2 }).map(() => ({ 
-                        id: uuidv4(), 
-                        content: [{ id: uuidv4(), type: 'text', content: '' }] 
+                    columns: Array.from({ length: metadata?.count || 2 }).map(() => ({
+                        id: uuidv4(),
+                        content: [{ id: uuidv4(), type: 'text', content: '' }]
                     }))
                 } : (metadata !== undefined ? { ...currentBlock.metadata, ...metadata } : currentBlock.metadata)
             };
-            
+
+            // Converting a toggle to a non-toggle: outdent its nested children by one level so
+            // they don't end up orphaned (indented with no parent toggle). Mirrors convertSelectedBlocks.
+            if (currentBlock.type === 'toggle' && type !== 'toggle') {
+                const targetIndent = currentBlock.indent || 0;
+                let j = index + 1;
+                while (j < updated.length) {
+                    const childIndent = updated[j].indent || 0;
+                    if (childIndent > targetIndent) {
+                        updated[j] = { ...updated[j], indent: Math.max(0, childIndent - 1) };
+                        j++;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
             debouncedOnUpdate(updated);
             return updated;
         });

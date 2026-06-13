@@ -698,6 +698,159 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             return null;
         };
 
+        // --- Toggle-aware Enter / Shift+Enter ---------------------------------------
+        // A toggle is a header line plus indented content. We keep the header and its
+        // content together as one unit and route the keys to build the toggle body:
+        //   • Enter on the header        -> first content line inside the toggle
+        //   • Shift+Enter inside content -> another content line inside the toggle
+        //   • Enter inside content       -> a new toggle right under this toggle's body
+        if (e.key === 'Enter' && !slashMenuStateRef.current) {
+            const allBlocks = blocksRef.current;
+            const idx = allBlocks.findIndex(b => b.id === id);
+            const currentBlock = idx !== -1 ? allBlocks[idx] : undefined;
+
+            if (currentBlock) {
+                const curIndent = currentBlock.indent || 0;
+                const isToggleHeader = currentBlock.type === 'toggle';
+
+                // The enclosing toggle is the nearest preceding block with a smaller
+                // indent; a toggle's content always sits at indent > the toggle's indent.
+                let enclosingToggle: Block | null = null;
+                for (let j = idx - 1; j >= 0; j--) {
+                    if ((allBlocks[j].indent || 0) < curIndent) {
+                        enclosingToggle = allBlocks[j].type === 'toggle' ? allBlocks[j] : null;
+                        break;
+                    }
+                }
+                const inToggleContent = !!enclosingToggle;
+
+                if (isToggleHeader || inToggleContent) {
+                    // Shift+Enter on the header keeps the native soft line-break.
+                    if (e.shiftKey && isToggleHeader) {
+                        return;
+                    }
+
+                    e.preventDefault();
+                    const caretOffset = getCaretOffset();
+                    const textBefore = content.substring(0, caretOffset);
+                    const textAfter = content.substring(caretOffset);
+                    const newId = uuidv4();
+
+                    if (e.shiftKey && inToggleContent) {
+                        // Clause 2: another content line inside the toggle (same indent).
+                        setBlocks(prev => {
+                            const i = prev.findIndex(b => b.id === id);
+                            if (i === -1) return prev;
+                            const nb = [...prev];
+                            nb[i] = { ...nb[i], content: textBefore };
+                            nb.splice(i + 1, 0, { id: newId, type: 'text', content: textAfter, indent: curIndent });
+                            debouncedOnUpdate(nb);
+                            return nb;
+                        });
+                    } else if (isToggleHeader) {
+                        // Clause 1: Enter on the header -> first content line inside (indent + 1).
+                        setBlocks(prev => {
+                            const i = prev.findIndex(b => b.id === id);
+                            if (i === -1) return prev;
+                            const nb = [...prev];
+                            nb[i] = { ...nb[i], content: textBefore, metadata: { ...nb[i].metadata, isCollapsed: false } };
+                            nb.splice(i + 1, 0, { id: newId, type: 'text', content: textAfter, indent: curIndent + 1 });
+                            debouncedOnUpdate(nb);
+                            return nb;
+                        });
+                    } else {
+                        // Clause 3: Enter inside content -> a new toggle.
+                        const store = nodeId ? useStore.getState() : null;
+                        const canvasNode = store ? store.nodes.find(n => n.id === nodeId) : null;
+
+                        if (store && canvasNode && canvasNode.type === 'block') {
+                            // On the canvas: spawn a SEPARATE toggle node below this one.
+                            // Keep the text before the caret in this line; carry the rest into the new toggle.
+                            if (textAfter) {
+                                setBlocks(prev => {
+                                    const i = prev.findIndex(b => b.id === id);
+                                    if (i === -1) return prev;
+                                    const nb = [...prev];
+                                    nb[i] = { ...nb[i], content: textBefore };
+                                    debouncedOnUpdate(nb);
+                                    return nb;
+                                });
+                            }
+                            const newNodeId = uuidv4();
+                            const newToggleBlock: Block = {
+                                id: newId,
+                                type: 'toggle',
+                                content: textAfter,
+                                indent: 0,
+                                metadata: { isCollapsed: false }
+                            };
+                            const parentId = canvasNode.parentId || undefined;
+                            const nodesInColumn = store.nodes.filter(n =>
+                                n.type === 'block' &&
+                                (n.data as any)?.isStandaloneBlock &&
+                                Math.abs(n.position.x - canvasNode.position.x) < 10 &&
+                                n.parentId === parentId
+                            );
+                            const position = nodesInColumn.length >= 5
+                                ? {
+                                    x: canvasNode.position.x + (Number(canvasNode.style?.width) || 432) + 16,
+                                    y: Math.min(...nodesInColumn.map(n => n.position.y))
+                                }
+                                : {
+                                    x: canvasNode.position.x,
+                                    y: canvasNode.position.y + (Number(canvasNode.style?.height) || 100) + 16
+                                };
+
+                            store.addNode(
+                                'block',
+                                position,
+                                { content: [newToggleBlock], isStandaloneBlock: true },
+                                { width: canvasNode.style?.width || 432, height: canvasNode.style?.height || 100 },
+                                parentId,
+                                newNodeId
+                            );
+                            store.setNodes((nodes) => nodes.map(n => ({ ...n, selected: n.id === newNodeId })));
+                            store.setSelectedCanvasNodeIds(new Set([newNodeId]));
+                            setTimeout(() => {
+                                const el = document.getElementById('block-' + newId)?.querySelector('[contenteditable="true"]');
+                                if (el instanceof HTMLElement) {
+                                    el.focus({ preventScroll: true });
+                                    window.dispatchEvent(new CustomEvent('panToNode', { detail: { id: newNodeId } }));
+                                }
+                            }, 50);
+                            return;
+                        }
+
+                        // Document editor: insert a plain text block under the toggle's body, in-place.
+                        // Keep textBefore in the current line; carry textAfter into the new block.
+                        const toggleIndent = enclosingToggle!.indent || 0;
+                        setBlocks(prev => {
+                            const i = prev.findIndex(b => b.id === id);
+                            const encI = prev.findIndex(b => b.id === enclosingToggle!.id);
+                            if (encI === -1) return prev;
+                            const nb = [...prev];
+                            if (i !== -1) nb[i] = { ...nb[i], content: textBefore };
+                            // Insert after the toggle's entire content subtree.
+                            let end = encI + 1;
+                            while (end < nb.length && (nb[end].indent || 0) > toggleIndent) end++;
+                            nb.splice(end, 0, {
+                                id: newId,
+                                type: 'text',
+                                content: textAfter,
+                                indent: toggleIndent
+                            });
+                            debouncedOnUpdate(nb);
+                            return nb;
+                        });
+                    }
+
+                    caretPositionRef.current = 'start';
+                    setTimeout(() => setFocusId(newId), 0);
+                    return;
+                }
+            }
+        }
+
         if (e.key === 'Enter' && !e.shiftKey) {
             if (slashMenuStateRef.current) return;
             e.preventDefault();
@@ -709,7 +862,12 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             if (nodeId) {
                 const store = useStore.getState();
                 const node = store.nodes.find(n => n.id === nodeId);
-                if (node && node.type === 'block') {
+                // Toggles keep their body inside the same canvas node: pressing Enter on the
+                // toggle header (or on one of its nested children) should build the toggle's
+                // content in-place instead of spawning a brand-new block node. We let those
+                // cases fall through to the in-node split logic below.
+                const inToggleContext = !!currentBlock && (currentBlock.type === 'toggle' || (currentBlock.indent || 0) > 0);
+                if (node && node.type === 'block' && !inToggleContext) {
                     // Create a new block node on the canvas directly below this one
                     const caretOffset = getCaretOffset();
                     const textBefore = content.substring(0, caretOffset);
@@ -857,9 +1015,41 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
             if (isEmpty) {
                 e.preventDefault();
-                if ((currentBlock.indent || 0) > 0) {
+                const curIndent = currentBlock.indent || 0;
+
+                // Is this empty block the content of a toggle? (enclosed by a toggle header)
+                let enclosingToggle: Block | null = null;
+                if (curIndent > 0) {
+                    const allBlocks = blocksRef.current;
+                    const idx = allBlocks.findIndex(b => b.id === id);
+                    for (let j = idx - 1; j >= 0; j--) {
+                        if ((allBlocks[j].indent || 0) < curIndent) {
+                            enclosingToggle = allBlocks[j].type === 'toggle' ? allBlocks[j] : null;
+                            break;
+                        }
+                    }
+                }
+
+                if (enclosingToggle) {
+                    // Empty toggle content: merge up naturally — remove this line and move the
+                    // caret to the end of the previous line (the toggle header or prior content).
+                    caretPositionRef.current = 'end';
+                    removeBlock(id);
+                } else if (curIndent > 0) {
                     handleOutdent(id);
-                } else if (['bullet', 'numbered', 'todo', 'toggle', 'heading1', 'heading2', 'heading3', 'quote', 'callout', 'code'].includes(currentBlock.type)) {
+                } else if (currentBlock.type === 'toggle') {
+                    // Empty toggle: in the document editor, delete it and move the caret to the
+                    // previous line (natural deletion). On the canvas a standalone single-block
+                    // node can't be removed, so fall back to converting it to plain text.
+                    const store = nodeId ? useStore.getState() : null;
+                    const canvasNode = store ? store.nodes.find(n => n.id === nodeId) : null;
+                    if (canvasNode && canvasNode.type === 'block') {
+                        convertBlock(id, 'text');
+                    } else {
+                        caretPositionRef.current = 'end';
+                        removeBlock(id);
+                    }
+                } else if (['bullet', 'numbered', 'todo', 'heading1', 'heading2', 'heading3', 'quote', 'callout', 'code'].includes(currentBlock.type)) {
                     convertBlock(id, 'text');
                 } else {
                     caretPositionRef.current = 'end';

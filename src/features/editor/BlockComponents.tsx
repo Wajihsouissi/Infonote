@@ -317,8 +317,17 @@ export const ImageBlock = memo(({ block, readOnly, onChange, disableMediaControl
         )
     }
 
-    const handleResize = (newWidth: number) => {
-        onChange(block.content, { ...block.metadata, width: newWidth });
+    // In the editor, images default to a fixed 180px height (resized via the bottom-right
+    // handle). On the canvas (disableMediaControls) they keep filling the node width.
+    const isEditorMode = !disableMediaControls;
+    const imageHeight = block.metadata?.height || 180;
+
+    const handleResize = (newValue: number) => {
+        if (isEditorMode) {
+            onChange(block.content, { ...block.metadata, height: newValue });
+        } else {
+            onChange(block.content, { ...block.metadata, width: newValue });
+        }
     };
 
     const handleAlign = (alignment: 'left' | 'center' | 'right') => {
@@ -328,6 +337,8 @@ export const ImageBlock = memo(({ block, readOnly, onChange, disableMediaControl
     return (
         <ResizableMediaWrapper
             width={block.metadata?.width}
+            height={isEditorMode ? imageHeight : undefined}
+            resizeMode={isEditorMode ? 'height' : 'width'}
             alignment={block.metadata?.alignment}
             readOnly={readOnly}
             onResize={handleResize}
@@ -335,7 +346,13 @@ export const ImageBlock = memo(({ block, readOnly, onChange, disableMediaControl
             disableMediaControls={disableMediaControls}
         >
             <div className={styles.mediaWrapper}>
-                <img src={block.content} alt="User content" className={styles.mediaImage} loading="lazy" />
+                <img
+                    src={block.content}
+                    alt="User content"
+                    className={styles.mediaImage}
+                    loading="lazy"
+                    style={isEditorMode ? { height: `${imageHeight}px`, width: 'auto', maxWidth: '100%', objectFit: 'contain' } : undefined}
+                />
             </div>
         </ResizableMediaWrapper>
     );

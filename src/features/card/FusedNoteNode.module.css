@@ -32,15 +32,18 @@
     z-index: 10000 !important;
 }
 
+/* Nesting target = primary ring; fusion target = secondary ring (breathing outline). */
 .dropTarget {
     border-color: var(--color-primary);
-    box-shadow: none;
-    animation: targetPulse 1.5s ease-in-out infinite;
+    outline: 2px solid var(--color-primary);
+    outline-offset: 3px;
+    animation: targetPulse 1s ease-in-out infinite;
 }
 
 .fusionTarget {
     border-color: var(--color-secondary);
-    box-shadow: none;
+    outline: 2px solid var(--color-secondary);
+    outline-offset: 3px;
     animation: fusionPulse 1s ease-in-out infinite;
 }
 
@@ -49,34 +52,13 @@
 }
 
 @keyframes targetPulse {
-    0% {
-        box-shadow: none;
-    }
-
-    50% {
-        box-shadow: none;
-    }
-
-    100% {
-        box-shadow: none;
-    }
+    0%, 100% { outline-offset: 3px; }
+    50% { outline-offset: 6px; }
 }
 
 @keyframes fusionPulse {
-    0% {
-        transform: scale(1);
-        box-shadow: none;
-    }
-
-    50% {
-        transform: scale(1.02);
-        box-shadow: none;
-    }
-
-    100% {
-        transform: scale(1);
-        box-shadow: none;
-    }
+    0%, 100% { outline-offset: 3px; }
+    50% { outline-offset: 6px; }
 }
 
 @keyframes fusionEffect {

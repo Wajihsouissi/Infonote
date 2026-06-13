@@ -393,10 +393,11 @@
     color: #e63e2c;
     padding: 4px 12px;
     border-radius: 8px;
-    white-space: pre;
-    /* Use pre to respect indentation */
-    overflow-x: auto;
-    /* Horizontal scroll */
+    white-space: pre-wrap;
+    /* pre-wrap keeps indentation but wraps long lines to the next line at the 8-grid edge */
+    overflow-wrap: break-word;
+    word-break: break-word;
+    overflow-x: hidden;
     outline: none;
     min-height: 28px;
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1050,6 +1051,16 @@
     cursor: grab !important;
 }
 
+/* Selected state for media blocks — the media reset above strips border/background,
+   so show a persistent solid primary outline that hugs the media (mirrors the hover ring). */
+.sortableWrapper[data-block-type="image"].selected .resizeWrapper,
+.sortableWrapper[data-block-type="video"].selected .resizeWrapper,
+.sortableWrapper[data-block-type="file"].selected .fileWrapper {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 8px;
+}
+
 .sortableWrapper[data-block-type="image"]:active .blockContent,
 .sortableWrapper[data-block-type="video"]:active .blockContent,
 .sortableWrapper[data-block-type="file"]:active .blockContent,
@@ -1180,6 +1191,12 @@
 .resizeWrapper:hover {
     outline: 2px solid rgba(167, 139, 250, 0.5);
     outline-offset: 2px;
+}
+
+/* On the canvas (atomic block node), the node itself provides the hover/selected
+   ring — suppress the inner hover outline to avoid a double border. */
+.resizeWrapper.atomicMedia:hover {
+    outline: none;
 }
 
 
@@ -1420,10 +1437,11 @@
 
 .resizeHandle {
     position: absolute;
-    bottom: -20px;
-    right: -20px;
-    width: 44px;
-    height: 44px;
+    bottom: -16px;
+    right: -16px;
+    /* Larger hit area for easy grabbing; the visual arc stays small via the svg size below. */
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1433,6 +1451,12 @@
     transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: auto;
     transform: rotate(180deg);
+}
+
+.resizeHandle svg {
+    width: 56%;
+    height: 56%;
+    display: block;
 }
 
 /* Show handle on hover or dragging */

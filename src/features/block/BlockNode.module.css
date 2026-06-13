@@ -153,6 +153,30 @@
     max-width: 432px; /* 8 units */
 }
 
+/* Fusion / nesting drop-target rings (driven by interactionState during a node drag).
+   Uses outline so it survives the media blocks' border:none / box-shadow:none resets.
+   Fusion = secondary color, nesting = primary color. */
+.blockNode.fusionTarget,
+.colorBlockNode.fusionTarget {
+    outline: 2px solid var(--color-secondary);
+    outline-offset: 3px;
+    border-radius: 8px;
+    animation: blockTargetPulse 1s ease-in-out infinite;
+}
+
+.blockNode.dropTarget,
+.colorBlockNode.dropTarget {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 3px;
+    border-radius: 8px;
+    animation: blockTargetPulse 1s ease-in-out infinite;
+}
+
+@keyframes blockTargetPulse {
+    0%, 100% { outline-offset: 3px; }
+    50% { outline-offset: 6px; }
+}
+
 .colorBlockNode {
     position: relative;
     display: flex;
@@ -193,11 +217,15 @@
     opacity: 1;
 }
 
-/* Ensure selection shows a subtle border only, no background */
-.mediaBlockNode.selected {
-    border: 2px solid var(--color-primary);
+/* Media nodes force `border: none !important`, so a border won't show when selected.
+   Use an outline ring instead (matches the in-editor media selected state). */
+.blockNode.mediaBlockNode.selected,
+.blockNode.mediaBlockNode.multiSelected {
     background: transparent;
     box-shadow: none;
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 8px;
 }
 
 .mediaBlockNode {

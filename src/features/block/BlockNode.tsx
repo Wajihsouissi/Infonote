@@ -65,6 +65,10 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const updateNodeData = useStore(s => s.updateNodeData);
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
     const theme = useStore(s => s.theme);
+    // Narrow selectors: a block only re-renders when ITS own drop-target status changes
+    // (not on every drag tick across all nodes).
+    const isDropTarget = useStore(s => s.interactionState.dropTarget?.id === id);
+    const dropType = useStore(s => (s.interactionState.dropTarget?.id === id ? s.interactionState.dropTarget?.type : null));
     const isLinkingMode = useStore(s => s.isLinkingMode);
     const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
     const linkSelectedNodes = useStore(s => s.linkSelectedNodes);
@@ -103,7 +107,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const isSingleNumbered = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'numbered';
     const singleColorValue = isSingleColor ? (data.content?.[0]?.content || '#1E944A') : undefined;
     const isColumns = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'columns';
-    const isWideBlock = Array.isArray(data.content) && data.content.length === 1 && ['callout', 'code', 'quote', 'link'].includes(data.content[0].type);
+    const isWideBlock = Array.isArray(data.content) && data.content.length === 1 && ['callout', 'code', 'quote', 'link', 'toggle'].includes(data.content[0].type);
     // Text, headings & lists size to their content: start at 4 units (208px) and grow to a max of 8 units (432px), then wrap.
     const isAutoWidthText = Array.isArray(data.content) && data.content.length === 1 && ['text', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered', 'todo'].includes(data.content[0].type);
     const isResizable = isSingleMedia || isSingleLink;
@@ -284,7 +288,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     return (
         <div
             ref={nodeRef}
-            className={`${baseClassName} ${(isSingleMedia || isSingleLink) ? styles.mediaBlockNode : ''} ${isSingleLink ? styles.linkBlockNode : ''} ${isWideBlock ? styles.wideBlock : ''} ${isAutoWidthText ? styles.autoWidth : ''} ${selected ? styles.selected : ''} ${isMultiSelected ? styles.multiSelected : ''} custom-drag-handle`}
+            className={`${baseClassName} ${(isSingleMedia || isSingleLink) ? styles.mediaBlockNode : ''} ${isSingleLink ? styles.linkBlockNode : ''} ${isWideBlock ? styles.wideBlock : ''} ${isAutoWidthText ? styles.autoWidth : ''} ${selected ? styles.selected : ''} ${isMultiSelected ? styles.multiSelected : ''} ${isDropTarget && dropType === 'fusion' ? styles.fusionTarget : ''} ${isDropTarget && dropType === 'nesting' ? styles.dropTarget : ''} custom-drag-handle`}
             style={{
                 backgroundColor: (isSingleMedia || isSingleLink) ? 'transparent' : (displayColor || undefined),
                 ...dynamicStyles

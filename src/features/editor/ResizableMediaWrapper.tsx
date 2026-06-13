@@ -6,9 +6,11 @@ import styles from './BlockEditor.module.css';
 interface ResizableMediaWrapperProps {
     children: React.ReactNode;
     width?: number; // stored width in pixels
+    height?: number; // stored height in pixels (used when resizeMode === 'height')
+    resizeMode?: 'width' | 'height';
     alignment?: 'left' | 'center' | 'right';
     readOnly?: boolean;
-    onResize: (newWidth: number) => void;
+    onResize: (newValue: number) => void;
     onAlign?: (alignment: 'left' | 'center' | 'right') => void;
     disableMediaControls?: boolean;
 }
@@ -16,6 +18,8 @@ interface ResizableMediaWrapperProps {
 export const ResizableMediaWrapper = ({
     children,
     width,
+    height,
+    resizeMode = 'width',
     alignment = 'left',
     readOnly,
     onResize,
@@ -36,14 +40,43 @@ export const ResizableMediaWrapper = ({
         e.preventDefault();
         e.stopPropagation();
 
-        const startX = e.clientX;
         const currentRef = wrapperRef.current;
         if (!currentRef) return;
 
-        const startWidth = currentRef.offsetWidth;
         activeResize.current = true;
         setIsResizing(true);
 
+        // Height mode (editor images): vertical drag resizes height, width follows aspect.
+        if (resizeMode === 'height') {
+            const img = currentRef.querySelector('img');
+            const startY = e.clientY;
+            const startHeight = img?.offsetHeight || currentRef.offsetHeight;
+            let currentH = startHeight;
+
+            const onMouseMove = (moveEvent: MouseEvent) => {
+                moveEvent.preventDefault();
+                const deltaY = (moveEvent.clientY - startY) / safeZoom;
+                const newHeight = Math.min(600, Math.max(80, startHeight + deltaY));
+                currentH = newHeight;
+                if (img) img.style.height = `${newHeight}px`;
+            };
+
+            const onMouseUp = (upEvent: MouseEvent) => {
+                upEvent.preventDefault();
+                activeResize.current = false;
+                setIsResizing(false);
+                window.removeEventListener('mousemove', onMouseMove);
+                window.removeEventListener('mouseup', onMouseUp);
+                onResize(currentH);
+            };
+
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+            return;
+        }
+
+        const startX = e.clientX;
+        const startWidth = currentRef.offsetWidth;
         let currentW = startWidth;
 
         const onMouseMove = (moveEvent: MouseEvent) => {
@@ -111,11 +144,15 @@ export const ResizableMediaWrapper = ({
 
             <div
                 ref={wrapperRef}
-                className={styles.resizeWrapper}
+                className={`${styles.resizeWrapper} ${disableMediaControls ? styles.atomicMedia : ''}`}
                 style={{
-                    // On canvas (disableMediaControls), always fill parent (node has fixed px width)
-                    // In editor mode, use stored width or default to 100%
-                    width: disableMediaControls ? '100%' : (width ? `${width}px` : '100%'),
+                    // Height mode (editor images): hug the image so the outline/handle sit at its edge.
+                    // On canvas (disableMediaControls): fill parent (node has fixed px width).
+                    // Otherwise (editor width mode): use stored width or default to 100%.
+                    width: resizeMode === 'height'
+                        ? 'fit-content'
+                        : (disableMediaControls ? '100%' : (width ? `${width}px` : '100%')),
+                    maxWidth: '100%',
                 }}
             >
                 {children}
@@ -125,7 +162,9 @@ export const ResizableMediaWrapper = ({
                         className={`${styles.resizeHandle} ${isResizing ? styles.isResizing : ''} nodrag`}
                         onMouseDown={handleMouseDown}
                         style={{
-                            transform: `scale(${1 / safeZoom}) rotate(180deg)`
+                            transform: `scale(${1 / safeZoom}) rotate(180deg)`,
+                            // Height mode resizes vertically, so use a vertical cursor.
+                            cursor: resizeMode === 'height' ? 'ns-resize' : 'nwse-resize'
                         }}
                     >
                         <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">

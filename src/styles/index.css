@@ -259,6 +259,13 @@ body {
   overflow: visible !important;
 }
 
+/* While dragging a node onto another (fusion/nesting), let the in-flight node ignore
+   hit-testing so document.elementsFromPoint resolves the TARGET's blocks under the
+   cursor instead of the dragged node's own overlay (which is boosted to z-index 10000). */
+body.chnk-it-node-dragging .react-flow__node.dragging {
+  pointer-events: none;
+}
+
 /* Premium Highlight Flash Animation for Outline/TOC Navigation */
 @keyframes chnkItHighlightFlash {
   0% {
