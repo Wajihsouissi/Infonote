@@ -80,6 +80,9 @@ export interface StorageSlice {
         backupNodes: AppNode[];
         backupEdges: Edge[];
 
+        // True only during the very first automatic cloud load on app open
+        isInitialCloudLoading: boolean;
+
         // Delta Tracking
         dirtyNodeIds: Set<string>;
         dirtyEdgeIds: Set<string>;
@@ -98,6 +101,7 @@ export interface StorageSlice {
     setCloudDirty: (dirty: boolean) => void;
     setLocalError: (err: string | null) => void;
     setCloudError: (err: string | null) => void;
+    setInitialCloudLoading: (loading: boolean) => void;
 
     /** Delta Tracking */
     markNodesDirty: (ids: string[]) => void;

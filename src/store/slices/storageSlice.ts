@@ -23,6 +23,8 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
         backupNodes: [],
         backupEdges: [],
 
+        isInitialCloudLoading: false,
+
         // Delta Tracking
         dirtyNodeIds: new Set<string>(),
         dirtyEdgeIds: new Set<string>(),
@@ -59,6 +61,9 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
     })),
     setCloudError: (err) => set((state) => ({
         storage: { ...state.storage, cloudError: err }
+    })),
+    setInitialCloudLoading: (loading) => set((state) => ({
+        storage: { ...state.storage, isInitialCloudLoading: loading }
     })),
 
     markNodesDirty: (ids) => set((state) => {

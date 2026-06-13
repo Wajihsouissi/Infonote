@@ -551,6 +551,10 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         }
     }, [debouncedOnUpdate, convertBlock, handleSlashOpen, slashMenuStateRef, setSlashMenuState]);
 
+    const handleDeleteBlock = useCallback((id: string) => {
+        removeBlock(id);
+    }, [removeBlock]);
+
     const checkCaretFirstLine = useCallback((): boolean => {
         try {
             const selection = window.getSelection();
@@ -1308,6 +1312,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                     onMoveBlock={handleMoveBlock}
                                     onDragStart={handleDragStartWrapped}
                                     onMenuOpen={handleBlockMenuOpen}
+                                    onDeleteBlock={handleDeleteBlock}
                                     onSelectionClick={() => {
                                         if (selectedBlockIds.size > 0) {
                                             setSelectedBlockIds(new Set());
@@ -1347,6 +1352,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                         onMoveBlock={handleMoveBlock}
                                         onDragStart={handleDragStartWrapped}
                                         onMenuOpen={handleBlockMenuOpen}
+                                        onDeleteBlock={handleDeleteBlock}
                                         onSelectionClick={() => {
                                             if (selectedBlockIds.size > 0) {
                                                 setSelectedBlockIds(new Set());

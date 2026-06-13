@@ -104,6 +104,8 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const singleColorValue = isSingleColor ? (data.content?.[0]?.content || '#1E944A') : undefined;
     const isColumns = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'columns';
     const isWideBlock = Array.isArray(data.content) && data.content.length === 1 && ['callout', 'code', 'quote', 'link'].includes(data.content[0].type);
+    // Text, headings & lists size to their content: start at 4 units (208px) and grow to a max of 8 units (432px), then wrap.
+    const isAutoWidthText = Array.isArray(data.content) && data.content.length === 1 && ['text', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered', 'todo'].includes(data.content[0].type);
     const isResizable = isSingleMedia || isSingleLink;
 
     const globalListIndex = useGlobalListIndex(id, isSingleNumbered);
@@ -141,30 +143,33 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
         setNodes(nodes => nodes.map(n => {
             if (n.id === id) {
                 const needsHeightAuto = !isSingleColor && n.style?.height !== 'auto';
-                const needsWidthInit = !isResizable && !isColumns && !isSingleColor && !isWideBlock && (n.style?.width === 'auto' || n.style?.width === undefined);
+                // Text & headings flow with their content (4 -> 8 units, then wrap) instead of a fixed width.
+                const needsAutoWidthInit = isAutoWidthText && !isResizable && !isColumns && !isSingleColor && !isWideBlock && n.style?.width !== 'fit-content';
+                const needsWidthInit = !isAutoWidthText && !isResizable && !isColumns && !isSingleColor && !isWideBlock && (n.style?.width === 'auto' || n.style?.width === undefined);
                 const needsResizableWidthInit = isResizable && (n.style?.width === 'auto' || n.style?.width === undefined);
                 const needsColumnsWidthInit = isColumns && (n.style?.width === 'auto' || n.style?.width === undefined);
                 const needsColorInit = isSingleColor && (n.style?.width !== ICON_SIZE || n.style?.height !== ICON_SIZE);
                 const needsWideBlockInit = isWideBlock && (n.style?.width !== MIN_EXPANDED_SIZE);
-                
-                if (needsHeightAuto || needsWidthInit || needsResizableWidthInit || needsColumnsWidthInit || needsColorInit || needsWideBlockInit) {
-                    return { 
-                        ...n, 
-                        style: { 
-                            ...n.style, 
-                            ...(needsHeightAuto ? { height: 'auto' } : {}), 
+
+                if (needsHeightAuto || needsAutoWidthInit || needsWidthInit || needsResizableWidthInit || needsColumnsWidthInit || needsColorInit || needsWideBlockInit) {
+                    return {
+                        ...n,
+                        style: {
+                            ...n.style,
+                            ...(needsHeightAuto ? { height: 'auto' } : {}),
+                            ...(needsAutoWidthInit ? { width: 'fit-content' } : {}),
                             ...(needsWidthInit ? { width: MIN_EXPANDED_SIZE } : {}),
                             ...(needsWideBlockInit ? { width: MIN_EXPANDED_SIZE } : {}),
                             ...(needsResizableWidthInit ? { width: isSingleLink ? 432 : 208 } : {}),
                             ...(needsColumnsWidthInit ? { width: 550 } : {}),
                             ...(needsColorInit ? { width: ICON_SIZE, height: ICON_SIZE } : {})
-                        } 
+                        }
                     };
                 }
             }
             return n;
         }));
-    }, [id, setNodes, isResizable, isColumns, isSingleLink, isSingleColor, isWideBlock]);
+    }, [id, setNodes, isResizable, isColumns, isSingleLink, isSingleColor, isWideBlock, isAutoWidthText]);
 
 
 
@@ -279,9 +284,9 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     return (
         <div
             ref={nodeRef}
-            className={`${baseClassName} ${(isSingleMedia || isSingleLink) ? styles.mediaBlockNode : ''} ${isSingleLink ? styles.linkBlockNode : ''} ${isWideBlock ? styles.wideBlock : ''} ${selected ? styles.selected : ''} ${isMultiSelected ? styles.multiSelected : ''} custom-drag-handle`}
+            className={`${baseClassName} ${(isSingleMedia || isSingleLink) ? styles.mediaBlockNode : ''} ${isSingleLink ? styles.linkBlockNode : ''} ${isWideBlock ? styles.wideBlock : ''} ${isAutoWidthText ? styles.autoWidth : ''} ${selected ? styles.selected : ''} ${isMultiSelected ? styles.multiSelected : ''} custom-drag-handle`}
             style={{
-                backgroundColor: displayColor || undefined,
+                backgroundColor: (isSingleMedia || isSingleLink) ? 'transparent' : (displayColor || undefined),
                 ...dynamicStyles
             }}
         >
@@ -514,11 +519,26 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             )}
 
             {/* Resize Handle for Resizable or Column Blocks */}
-            {(isResizable || isColumns) && selected && (
+            {(isResizable || isColumns) && (
                 <div
                     className={styles.resizeHandle}
                     onMouseDown={handleResizeStart}
-                />
+                >
+                    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="canvas-media-arc-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stopColor="#A78BFA" />
+                                <stop offset="100%" stopColor="#60A5FA" />
+                            </linearGradient>
+                        </defs>
+                        <path
+                            d="M 8 32 A 24 24 0 0 1 32 8"
+                            stroke="url(#canvas-media-arc-gradient)"
+                            strokeWidth="6"
+                            strokeLinecap="round"
+                        />
+                    </svg>
+                </div>
             )}
 
 

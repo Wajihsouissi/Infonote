@@ -23,7 +23,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '../../store/useStore';
 import styles from './BottomMenu.module.css';
 import { MENU_ITEMS } from '../editor/menuConstants';
-import { snapToGridValue } from '../../config/layout';
+import { findNonOverlappingPosition } from '../../utils/findNonOverlappingPosition';
 import { parseSearchQuery } from './searchUtils';
 import { MultiSelectionToolbar } from './MultiSelectionToolbar';
 import { EdgeEditingToolbar } from './EdgeEditingToolbar';
@@ -43,7 +43,7 @@ export function BottomMenu() {
     const selectedEdgeIds = useStore(s => s.selectedEdgeIds);
     const hasSelectedEdges = selectedEdgeId || (selectedEdgeIds && selectedEdgeIds.size > 0);
 
-    const { screenToFlowPosition } = useReactFlow();
+    const { screenToFlowPosition, getViewport } = useReactFlow();
     const [isSearchMode, setIsSearchMode] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [isAIMode, setIsAIMode] = useState(false);
@@ -125,7 +125,7 @@ export function BottomMenu() {
                         const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
                         const BOARD_WIDTH = 700;
                         const BOARD_HEIGHT = 500;
-                        const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT });
+                        const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, nodes, currentParentId, vp());
                         // @ts-ignore
                         addNode('kanban', position, {
                             label: 'My Table',
@@ -142,7 +142,7 @@ export function BottomMenu() {
                         const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
                         const BOARD_WIDTH = 800;
                         const BOARD_HEIGHT = 600;
-                        const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT });
+                        const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, nodes, currentParentId, vp());
                         // @ts-ignore
                         addNode('kanban', position, {
                             label: 'Calendar',
@@ -159,7 +159,7 @@ export function BottomMenu() {
                         const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
                         const BOARD_WIDTH = 800;
                         const BOARD_HEIGHT = 400;
-                        const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT });
+                        const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, nodes, currentParentId, vp());
                         // @ts-ignore
                         addNode('kanban', position, {
                             label: 'Timeline',
@@ -286,97 +286,9 @@ export function BottomMenu() {
         if (cleanedQuery && !isSearchMode) setIsSearchMode(true);
     };
 
-    const findNonOverlappingPosition = (
-        center: { x: number; y: number },
-        size: { width: number; height: number }
-    ) => {
-        const PADDING = 24;
-        const STEP = 60;
-        const MAX_RADIUS = 1200;
-
-        const relevantNodes = nodes.filter(n =>
-            currentParentId === null
-                ? n.parentId === undefined
-                : n.parentId === currentParentId
-        );
-
-        const doesOverlap = (x: number, y: number) => {
-            const left = x - PADDING;
-            const top = y - PADDING;
-            const right = x + size.width + PADDING;
-            const bottom = y + size.height + PADDING;
-
-            return relevantNodes.some(n => {
-                const nodeWidth = (n.style?.width as number) || 432;
-                const nodeHeight = (n.style?.height as number) || 432;
-                const nx = n.position.x;
-                const ny = n.position.y;
-                const nLeft = nx;
-                const nTop = ny;
-                const nRight = nx + nodeWidth;
-                const nBottom = ny + nodeHeight;
-
-                return !(
-                    right < nLeft ||
-                    left > nRight ||
-                    bottom < nTop ||
-                    top > nBottom
-                );
-            });
-        };
-
-        const centerX = center.x;
-        const centerY = center.y;
-
-        let bestX = centerX - size.width / 2;
-        let bestY = centerY - size.height / 2;
-
-        if (!doesOverlap(bestX, bestY)) {
-            return { x: snapToGridValue(bestX), y: snapToGridValue(bestY) };
-        }
-
-        for (let radius = STEP; radius <= MAX_RADIUS; radius += STEP) {
-            const steps = Math.max(8, Math.round((2 * Math.PI * radius) / STEP));
-            for (let i = 0; i < steps; i++) {
-                const angle = (i / steps) * 2 * Math.PI;
-                const candidateCenterX = centerX + radius * Math.cos(angle);
-                const candidateCenterY = centerY + radius * Math.sin(angle);
-                const candidateX = candidateCenterX - size.width / 2;
-                const candidateY = candidateCenterY - size.height / 2;
-
-                if (!doesOverlap(candidateX, candidateY)) {
-                    return { x: snapToGridValue(candidateX), y: snapToGridValue(candidateY) };
-                }
-            }
-        }
-
-        // Fallback: canvas around the center is dense; try a few random spots
-        const FALLBACK_RADIUS = MAX_RADIUS * 0.75;
-        const FALLBACK_ATTEMPTS = 20;
-
-        for (let i = 0; i < FALLBACK_ATTEMPTS; i++) {
-            const angle = Math.random() * 2 * Math.PI;
-            const radius = Math.random() * FALLBACK_RADIUS;
-            const candidateCenterX = centerX + radius * Math.cos(angle);
-            const candidateCenterY = centerY + radius * Math.sin(angle);
-            const candidateX = candidateCenterX - size.width / 2;
-            const candidateY = candidateCenterY - size.height / 2;
-
-            if (!doesOverlap(candidateX, candidateY)) {
-                return { x: snapToGridValue(candidateX), y: snapToGridValue(candidateY) };
-            }
-        }
-
-        // Last resort: place at a random position around center, even if overlapping
-        const angle = Math.random() * 2 * Math.PI;
-        const radius = FALLBACK_RADIUS;
-        const fallbackCenterX = centerX + radius * Math.cos(angle);
-        const fallbackCenterY = centerY + radius * Math.sin(angle);
-
-        return {
-            x: snapToGridValue(fallbackCenterX - size.width / 2),
-            y: snapToGridValue(fallbackCenterY - size.height / 2),
-        };
+    const vp = () => {
+        const { x, y, zoom } = getViewport();
+        return { x, y, zoom, screenW: window.innerWidth, screenH: window.innerHeight };
     };
 
     const handleAddNote = () => {
@@ -387,10 +299,7 @@ export function BottomMenu() {
         const NOTE_WIDTH = 432;
         const NOTE_HEIGHT = 432;
 
-        const position = findNonOverlappingPosition(flowPos, {
-            width: NOTE_WIDTH,
-            height: NOTE_HEIGHT
-        });
+        const position = findNonOverlappingPosition(flowPos, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, nodes, currentParentId, vp());
 
         addNode('note', position, { viewMode: 'expanded' }, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, currentParentId || undefined);
     };
@@ -494,7 +403,7 @@ export function BottomMenu() {
                  const skeletonId = uuidv4();
                  
                  if (isMindmapQuery) {
-                     const rootPos = findNonOverlappingPosition(flowPos, { width: 260, height: 80 });
+                     const rootPos = findNonOverlappingPosition(flowPos, { width: 260, height: 80 }, nodes, currentParentId, vp());
                      const skelNodes: any[] = [{
                          id: skeletonId,
                          type: 'block',
@@ -540,7 +449,7 @@ export function BottomMenu() {
                  } else {
                      addNode(
                          'note',
-                         findNonOverlappingPosition(flowPos, { width: 432, height: 432 }),
+                         findNonOverlappingPosition(flowPos, { width: 432, height: 432 }, nodes, currentParentId, vp()),
                          {
                              label: 'AI is thinking...',
                              content: [{ id: uuidv4(), type: 'text', content: 'Generating your structured request...' }],
@@ -578,7 +487,8 @@ export function BottomMenu() {
                                  x: flowPos.x + (idx % 3) * 340,
                                  y: flowPos.y + Math.floor(idx / 3) * 260
                              },
-                             { width, height }
+                             { width, height },
+                             nodes, currentParentId, vp()
                          );
      
                          if (action.type === 'note') {
@@ -721,10 +631,7 @@ export function BottomMenu() {
                 const imageUrl = await generateImage(query);
                 const BLOCK_WIDTH = 380;
                 const BLOCK_HEIGHT = 380;
-                const position = findNonOverlappingPosition(flowPos, {
-                    width: BLOCK_WIDTH,
-                    height: BLOCK_HEIGHT
-                });
+                const position = findNonOverlappingPosition(flowPos, { width: BLOCK_WIDTH, height: BLOCK_HEIGHT }, nodes, currentParentId, vp());
                 addNode(
                     'block',
                     position,
@@ -780,11 +687,22 @@ export function BottomMenu() {
     };
 
     const handleBlockClick = (block: typeof MENU_ITEMS[0]) => {
+        // Columns need their metadata seeded with empty column content, otherwise the
+        // node renders as an empty box (matches editor slash-command behaviour).
+        const metadata = block.type === 'columns'
+            ? {
+                columns: Array.from({ length: block.meta?.count || 2 }).map(() => ({
+                    id: uuidv4(),
+                    content: [{ id: uuidv4(), type: 'text', content: '' }],
+                })),
+            }
+            : block.meta;
+
         const newBlock = {
             id: uuidv4(),
             type: block.type,
             content: '',
-            metadata: block.meta
+            metadata
         };
 
         const targetNodeId = centerPanelId || fullscreenId;
@@ -806,13 +724,14 @@ export function BottomMenu() {
 
         const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
 
-        const BLOCK_WIDTH = 300;
+        // Each column needs ~200px to be comfortably editable; scale node width with the
+        // number of columns per row (4 columns render as a 2x2 grid, so only 2 per row).
+        const columnCount = block.type === 'columns' ? (block.meta?.count || 2) : 0;
+        const columnsPerRow = columnCount === 4 ? 2 : columnCount;
+        const BLOCK_WIDTH = block.type === 'columns' ? Math.max(550, columnsPerRow * 220) : 300;
         const BLOCK_HEIGHT = 100;
 
-        const position = findNonOverlappingPosition(flowPos, {
-            width: BLOCK_WIDTH,
-            height: BLOCK_HEIGHT
-        });
+        const position = findNonOverlappingPosition(flowPos, { width: BLOCK_WIDTH, height: BLOCK_HEIGHT }, nodes, currentParentId, vp());
 
         addNode('block', position, {
             content: [newBlock],
@@ -1120,7 +1039,7 @@ export function BottomMenu() {
                                             const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
                                             const BOARD_WIDTH = 700;
                                             const BOARD_HEIGHT = 500;
-                                            const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT });
+                                            const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, nodes, currentParentId, vp());
                                             // @ts-ignore
                                             addNode('kanban', position, {
                                                 label: 'My Table',
@@ -1152,7 +1071,7 @@ export function BottomMenu() {
                                             const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
                                             const BOARD_WIDTH = 800;
                                             const BOARD_HEIGHT = 600;
-                                            const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT });
+                                            const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, nodes, currentParentId, vp());
                                             // @ts-ignore
                                             addNode('kanban', position, {
                                                 label: 'Calendar',
@@ -1184,7 +1103,7 @@ export function BottomMenu() {
                                             const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
                                             const BOARD_WIDTH = 800;
                                             const BOARD_HEIGHT = 400;
-                                            const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT });
+                                            const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, nodes, currentParentId, vp());
                                             // @ts-ignore
                                             addNode('kanban', position, {
                                                 label: 'Timeline',

@@ -1,7 +1,12 @@
 import { useCallback } from 'react';
+import { Plus, Minus, X } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 import { BlockEditor } from './BlockEditor';
 import type { Block } from './types';
 import styles from './ColumnsBlock.module.css';
+
+const MIN_COLUMNS = 1;
+const MAX_COLUMNS = 4;
 
 interface ColumnsBlockProps {
     block: Block;
@@ -13,10 +18,15 @@ interface ColumnsBlockProps {
     disableMediaControls?: boolean;
 }
 
-export const ColumnsBlock = ({ 
-    block, 
-    onUpdate, 
-    readOnly, 
+const makeColumn = () => ({
+    id: uuidv4(),
+    content: [{ id: uuidv4(), type: 'text', content: '' }],
+});
+
+export const ColumnsBlock = ({
+    block,
+    onUpdate,
+    readOnly,
     nodeId,
     hideBlockHandles,
     promoteBlockHandles,
@@ -24,6 +34,17 @@ export const ColumnsBlock = ({
 }: ColumnsBlockProps) => {
     const columns = block.metadata?.columns || []; // Array of { id: string, content: Block[] }
     const columnCount = columns.length;
+    // 4 columns render as a 2x2 grid (2 on top, 2 on bottom); 2 and 3 stay in a single row.
+    const gridColumnCount = columnCount === 4 ? 2 : columnCount;
+
+    const commitColumns = useCallback((newColumns: any[]) => {
+        onUpdate({
+            metadata: {
+                ...block.metadata,
+                columns: newColumns
+            }
+        });
+    }, [block.metadata, onUpdate]);
 
     const handleColumnUpdate = useCallback((colIndex: number, newBlocks: Block[]) => {
         const newColumns = [...columns];
@@ -31,19 +52,61 @@ export const ColumnsBlock = ({
             ...newColumns[colIndex],
             content: newBlocks
         };
-        onUpdate({
-            metadata: {
-                ...block.metadata,
-                columns: newColumns
-            }
-        });
-    }, [columns, block.metadata, onUpdate]);
+        commitColumns(newColumns);
+    }, [columns, commitColumns]);
+
+    const handleAddColumn = useCallback(() => {
+        if (columnCount >= MAX_COLUMNS) return;
+        commitColumns([...columns, makeColumn()]);
+    }, [columns, columnCount, commitColumns]);
+
+    const handleRemoveColumn = useCallback((colIndex: number) => {
+        if (columnCount <= MIN_COLUMNS) return;
+        commitColumns(columns.filter((_: any, i: number) => i !== colIndex));
+    }, [columns, columnCount, commitColumns]);
 
     return (
         <div className={styles.columnsWrapper}>
-            <div className={styles.columnsContainer} style={{ gridTemplateColumns: `repeat(${columnCount}, 1fr)` }}>
+            {!readOnly && (
+                <div className={styles.columnsToolbar} contentEditable={false}>
+                    <button
+                        type="button"
+                        className={styles.toolbarBtn}
+                        title="Remove column"
+                        disabled={columnCount <= MIN_COLUMNS}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => handleRemoveColumn(columnCount - 1)}
+                    >
+                        <Minus size={14} />
+                    </button>
+                    <span className={styles.toolbarCount}>{columnCount} columns</span>
+                    <button
+                        type="button"
+                        className={styles.toolbarBtn}
+                        title="Add column"
+                        disabled={columnCount >= MAX_COLUMNS}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={handleAddColumn}
+                    >
+                        <Plus size={14} />
+                    </button>
+                </div>
+            )}
+            <div className={styles.columnsContainer} style={{ gridTemplateColumns: `repeat(${gridColumnCount}, 1fr)` }}>
                 {columns.map((col: any, index: number) => (
                     <div key={col.id || index} className={styles.column}>
+                        {!readOnly && columnCount > MIN_COLUMNS && (
+                            <button
+                                type="button"
+                                className={styles.removeColumnBtn}
+                                title="Remove this column"
+                                contentEditable={false}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => handleRemoveColumn(index)}
+                            >
+                                <X size={12} />
+                            </button>
+                        )}
                         <BlockEditor
                             initialContent={col.content}
                             onUpdate={(blocks) => handleColumnUpdate(index, blocks)}

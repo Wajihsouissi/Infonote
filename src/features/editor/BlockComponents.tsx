@@ -19,12 +19,12 @@ interface BlockProps {
     block: Block;
     readOnly?: boolean;
     onChange: (content: string, metadata?: any) => void;
-    onKeyDown: (e: React.KeyboardEvent) => void;
+    onKeyDown?: (e: React.KeyboardEvent) => void;
     onPaste?: (e: React.ClipboardEvent) => void;
-    domRef?: React.Ref<HTMLDivElement>;
+    domRef?: (el: HTMLDivElement | null) => void;
     disableMediaControls?: boolean;
-    hasChildren?: boolean;
     minimal?: boolean;
+    onDeleteBlock?: () => void;
 }
 
 // Hook to safely handle contentEditable without cursor jumps and IME breaks
@@ -310,7 +310,7 @@ import { ResizableMediaWrapper } from './ResizableMediaWrapper';
 
 // ... (other blocks)
 
-export const ImageBlock = memo(({ block, readOnly, onChange, disableMediaControls }: BlockProps) => {
+export const ImageBlock = memo(({ block, readOnly, onChange, disableMediaControls, onDeleteBlock }: BlockProps) => {
     if (!block.content) {
         return (
             <MediaPlaceholder type="image" onUpload={onChange} />
@@ -336,9 +336,6 @@ export const ImageBlock = memo(({ block, readOnly, onChange, disableMediaControl
         >
             <div className={styles.mediaWrapper}>
                 <img src={block.content} alt="User content" className={styles.mediaImage} loading="lazy" />
-                {!readOnly && (
-                    <button onClick={() => onChange('')} className={styles.removeMediaBtn}>×</button>
-                )}
             </div>
         </ResizableMediaWrapper>
     );
@@ -894,7 +891,7 @@ Respond with raw markdown only. Do not wrap it in a code block. Keep it concise,
     );
 });
 
-export const VideoBlock = memo(({ block, readOnly, onChange, disableMediaControls }: BlockProps) => {
+export const VideoBlock = memo(({ block, readOnly, onChange, disableMediaControls, onDeleteBlock }: BlockProps) => {
     if (!block.content) {
         return (
             <MediaPlaceholder type="video" onUpload={onChange} />
@@ -920,15 +917,12 @@ export const VideoBlock = memo(({ block, readOnly, onChange, disableMediaControl
         >
             <div className={styles.mediaWrapper}>
                 <video src={block.content} controls className={styles.mediaImage} />
-                {!readOnly && (
-                    <button onClick={() => onChange('')} className={styles.removeMediaBtn}>×</button>
-                )}
             </div>
         </ResizableMediaWrapper>
     );
 });
 
-export const FileBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
+export const FileBlock = memo(({ block, readOnly, onChange, onDeleteBlock }: BlockProps) => {
     const fileName = block.metadata?.name || block.content.split('/').pop() || "File";
     const [showPDF, setShowPDF] = React.useState(false);
 
@@ -970,15 +964,6 @@ export const FileBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
                     )}
                 </div>
 
-                {!readOnly && (
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onChange('');
-                        }}
-                        className={styles.removeMediaBtn}
-                    >×</button>
-                )}
             </div>
 
             {showPDF && ReactDOM.createPortal(

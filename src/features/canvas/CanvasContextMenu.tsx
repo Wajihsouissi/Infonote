@@ -64,12 +64,25 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
         return () => window.removeEventListener('keydown', handleKey);
     }, [onClose, activeSubmenu, showClearConfirm]);
 
-    const handleAddBlock = useCallback((type: string, _meta?: any) => {
+    const handleAddBlock = useCallback((type: string, meta?: any) => {
+        const newId = () => crypto.randomUUID?.() || Math.random().toString(36);
         const flowPos = screenToFlowPosition({ x, y });
+
+        // Columns need their metadata seeded with empty column content,
+        // otherwise the node renders as an empty box (matches editor slash-command behaviour).
+        const metadata = type === 'columns'
+            ? {
+                columns: Array.from({ length: meta?.count || 2 }).map(() => ({
+                    id: newId(),
+                    content: [{ id: newId(), type: 'text', content: '' }],
+                })),
+            }
+            : undefined;
+
         addNode('block', flowPos, {
-            content: [{ id: crypto.randomUUID?.() || Math.random().toString(36), type, content: '' }],
+            content: [{ id: newId(), type, content: '', ...(metadata ? { metadata } : {}) }],
             isStandaloneBlock: true,
-        }, { width: 432, height: 120 }, currentParentId || undefined);
+        }, { width: type === 'columns' ? Math.max(550, ((meta?.count || 2) === 4 ? 2 : (meta?.count || 2)) * 220) : 432, height: 120 }, currentParentId || undefined);
         onClose();
     }, [x, y, addNode, screenToFlowPosition, onClose, currentParentId]);
 

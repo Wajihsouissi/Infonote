@@ -120,7 +120,7 @@ export const ResizableMediaWrapper = ({
             >
                 {children}
 
-                {!readOnly && (
+                {!readOnly && !disableMediaControls && (
                     <div
                         className={`${styles.resizeHandle} ${isResizing ? styles.isResizing : ''} nodrag`}
                         onMouseDown={handleMouseDown}

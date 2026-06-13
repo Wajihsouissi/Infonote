@@ -29,6 +29,9 @@ interface BlockItemProps {
     onDragStart: (e: React.DragEvent, block: Block) => void;
     onMenuOpen: (e: React.MouseEvent, id: string) => void;
 
+    // Deletion Props
+    onDeleteBlock?: (id: string) => void;
+
     // Selection Props
     onSelectionClick: (e: React.MouseEvent, id: string) => void;
     onSelectionMouseDown: (e: React.MouseEvent, id: string) => void;
@@ -54,10 +57,11 @@ export const BlockItem = memo(function BlockItem({
     onMoveBlock,
     onDragStart,
     onMenuOpen,
+    onDeleteBlock,
     onSelectionClick,
     onSelectionMouseDown,
     onRegisterRef,
-    index, // New Prop
+    index,
     hasChildren,
     minimal
 }: BlockItemProps & { index?: number }) {
@@ -99,6 +103,10 @@ export const BlockItem = memo(function BlockItem({
         onRegisterRef(block.id, el);
     }, [block.id, onRegisterRef]);
 
+    const handleDelete = useCallback(() => {
+        onDeleteBlock?.(block.id);
+    }, [block.id, onDeleteBlock]);
+
     const renderBlockContent = () => {
         const props = {
             block,
@@ -110,7 +118,8 @@ export const BlockItem = memo(function BlockItem({
             domRef: handleRegisterRef,
             index, // Pass to children (ListBlock needs it)
             hasChildren, // Pass to children
-            minimal
+            minimal,
+            onDeleteBlock: handleDelete,
         };
 
         switch (block.type) {

@@ -5,6 +5,7 @@ import { useStore } from '../../store/useStore';
 import { v4 as uuidv4 } from 'uuid';
 import { MENU_ITEMS } from '../editor/menuConstants';
 import styles from './CanvasSlashMenu.module.css';
+import { findNonOverlappingPosition } from '../../utils/findNonOverlappingPosition';
 
 interface SlashMenuItem {
     id: string;
@@ -26,8 +27,9 @@ export function CanvasSlashMenu() {
     const itemsListRef = useRef<HTMLDivElement>(null);
     const lastMousePos = useRef({ x: 0, y: 0 });
 
-    const { screenToFlowPosition } = useReactFlow();
+    const { screenToFlowPosition, getViewport } = useReactFlow();
     const addNode = useStore(s => s.addNode);
+    const nodes = useStore(s => s.nodes);
     const centerPanelId = useStore(s => s.centerPanelId);
     const fullscreenId = useStore(s => s.fullscreenId);
     const currentParentId = useStore(s => s.currentParentId);
@@ -190,13 +192,14 @@ export function CanvasSlashMenu() {
     }, [isOpen]);
 
     const executeItem = useCallback((item: SlashMenuItem) => {
-        const flowPos = screenToFlowPosition({
-            x: menuPosition.x,
-            y: menuPosition.y
-        });
-        item.action(flowPos);
+        const rawPos = screenToFlowPosition({ x: menuPosition.x, y: menuPosition.y });
+        const { x, y, zoom } = getViewport();
+        const vp = { x, y, zoom, screenW: window.innerWidth, screenH: window.innerHeight };
+        const size = { width: 432, height: 100 };
+        const position = findNonOverlappingPosition(rawPos, size, nodes, currentParentId, vp);
+        item.action(position);
         setIsOpen(false);
-    }, [menuPosition, screenToFlowPosition]);
+    }, [menuPosition, screenToFlowPosition, getViewport, nodes, currentParentId]);
 
     const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
         switch (e.key) {

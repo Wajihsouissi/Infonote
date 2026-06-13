@@ -15,8 +15,6 @@ import {
     Film,
     File,
     Columns2,
-    Columns3,
-    LayoutGrid,
     Code,
     Palette,
     Link,
@@ -63,8 +61,6 @@ export const MENU_ITEMS: MenuItem[] = [
     { label: 'File', description: 'Upload file attachment', type: 'file', icon: File, keywords: ['document', 'pdf', 'upload'] },
 
     // Layouts
-    { label: '2 Columns', description: 'Side-by-side layout', type: 'columns', icon: Columns2, keywords: ['2cols', 'layout', 'grid'], meta: { count: 2 } },
-    { label: '3 Columns', description: 'Three column grid', type: 'columns', icon: Columns3, keywords: ['3cols', 'layout', 'grid'], meta: { count: 3 } },
-    { label: '4 Columns', description: 'Four column grid', type: 'columns', icon: LayoutGrid, keywords: ['4cols', 'layout', 'grid'], meta: { count: 4 } },
+    { label: 'Columns', description: 'Side-by-side layout — add or remove columns anytime', type: 'columns', icon: Columns2, keywords: ['cols', 'columns', 'layout', 'grid', 'side by side'], meta: { count: 2 } },
     { label: 'Color Block', description: 'Display a color swatch', type: 'color', icon: Palette, keywords: ['color', 'swatch', 'hex'] },
 ];

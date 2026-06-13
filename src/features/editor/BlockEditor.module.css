@@ -340,41 +340,24 @@
     background: transparent !important;
 }
 
+.mediaWrapper:hover .mediaImage {
+    /* outline handled at resizeWrapper level to avoid double stroke */
+}
+
+.mediaImage {
+    transition: outline 0.15s ease;
+}
+
 .mediaImage {
     width: 100%;
     max-width: 100%;
     height: auto;
     border-radius: 8px;
     display: block;
-    object-fit: cover;
+    object-fit: contain;
+    background: transparent !important;
 }
 
-.removeMediaBtn {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    background: rgba(0, 0, 0, 0.6);
-    color: white;
-    border: none;
-    width: 24px;
-    height: 24px;
-    border-radius: 12px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.2s ease, transform 0.2s;
-}
-
-.mediaWrapper:hover .removeMediaBtn {
-    opacity: 1;
-}
-
-.removeMediaBtn:hover {
-    transform: scale(1.1);
-    background: rgba(0, 0, 0, 0.8);
-}
 
 .mediaPlaceholder {
     width: 100%;
@@ -1116,6 +1099,7 @@
 .fileWrapper .removeMediaBtn {
     top: 50%;
     right: 12px;
+    left: auto;
     transform: translateY(-50%);
 }
 
@@ -1186,10 +1170,16 @@
 /* Resizable Media Wrappers */
 .resizeWrapper {
     max-width: 100%;
-    /* Ensure height adapts to content (which uses aspect-ratio) */
     height: auto;
     position: relative;
-    /* transition: width 0.1s ease-out; - Optional smoothing */
+    background: transparent;
+    overflow: visible;
+    border-radius: 8px;
+}
+
+.resizeWrapper:hover {
+    outline: 2px solid rgba(167, 139, 250, 0.5);
+    outline-offset: 2px;
 }
 
 
@@ -1430,14 +1420,17 @@
 
 .resizeHandle {
     position: absolute;
-    bottom: -10px;
-    right: -14px;
-    width: 28px;
-    height: 28px;
+    bottom: -20px;
+    right: -20px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: nwse-resize;
-    z-index: 20;
+    z-index: 30;
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: auto;
     transform: rotate(180deg);
 }
@@ -1449,9 +1442,21 @@
 }
 
 .handlePath {
-    stroke-dasharray: 100;
-    stroke-dashoffset: 0;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    stroke-opacity: 0.9;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
+    transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.resizeHandle:hover svg {
+    filter:
+        drop-shadow(0 0 15px rgba(167, 139, 250, 0.7)) drop-shadow(0 0 30px rgba(96, 165, 250, 0.5));
+    transform: scale(1.1) rotate(-5deg);
+}
+
+.resizeHandle:active svg {
+    filter:
+        drop-shadow(0 0 25px rgba(167, 139, 250, 1)) drop-shadow(0 0 50px rgba(96, 165, 250, 0.8)) drop-shadow(0 0 80px rgba(96, 165, 250, 0.4));
+    transform: scale(1.2) rotate(-10deg);
 }
 
 /* Alignment Container */
@@ -1460,9 +1465,10 @@
     width: 100%;
     margin-bottom: 4px;
     position: relative;
-    /* Ensure z-index context for menu */
     z-index: 10;
     align-items: flex-start;
+    background: transparent;
+    overflow: visible;
 }
 
 .alignmentContainer[data-alignment="left"] {
