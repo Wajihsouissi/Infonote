@@ -1,4 +1,6 @@
 import { isSupabaseConfigured, supabase } from './supabase/client';
+import { loadCanvasFromCloud } from './cloudSync';
+import { useStore } from '../store/useStore';
 
 export type WorkspaceRole = 'owner' | 'editor' | 'viewer';
 
@@ -323,4 +325,46 @@ export async function acceptWorkspaceInvitation(invitationId: string): Promise<R
 export function persistActiveWorkspace(userId: string, workspaceId: string): void {
     localStorage.setItem(`chnk-it.activeWorkspaceId.${userId}`, workspaceId);
     localStorage.setItem('chnk it.activeWorkspaceId', workspaceId);
+}
+
+/**
+ * Make a workspace the active canvas and load its authoritative cloud graph.
+ * This is used after accepting an invite and when switching workspaces so the
+ * previous workspace's local graph can never remain visible by accident.
+ */
+export async function activateWorkspace(
+    userId: string,
+    workspaceId: string,
+): Promise<Result<{ workspaceId: string; nodeCount: number; edgeCount: number }>> {
+    try {
+        const result = await loadCanvasFromCloud(userId, workspaceId);
+        if (!result.ok) throw new Error(result.error);
+
+        persistActiveWorkspace(userId, workspaceId);
+
+        const state = useStore.getState();
+        state.setAuthWorkspace(workspaceId);
+        state.loadGraph(result.nodes, result.edges);
+        state.navigateToNode(null);
+        state.clearSyncTracking(
+            new Set(state.storage.dirtyNodeIds),
+            new Set(state.storage.dirtyEdgeIds),
+            new Set(state.storage.deletedNodeIds),
+            new Set(state.storage.deletedEdgeIds),
+        );
+        state.setCloudDirty(false);
+        state.setCloudError(null);
+        state.setCloudLastSaved(new Date().toLocaleTimeString());
+
+        return {
+            ok: true,
+            data: {
+                workspaceId,
+                nodeCount: result.nodes.length,
+                edgeCount: result.edges.length,
+            },
+        };
+    } catch (error) {
+        return failure(error);
+    }
 }

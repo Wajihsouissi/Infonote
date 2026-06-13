@@ -76,6 +76,7 @@ export const StorageControls: React.FC = () => {
 
     useEffect(() => {
         setIsAutoSyncEnabled(localStorage.getItem(`chnk-it-cloud-autosync-${workspaceId || 'default'}`) === 'true');
+        setHasAutoLoadedCloud(false);
     }, [workspaceId]);
 
     // Close the auth popover when clicking outside.
