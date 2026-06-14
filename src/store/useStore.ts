@@ -85,7 +85,19 @@ if (typeof window !== 'undefined') {
 
                 curr.nodes.forEach(cn => {
                     const pn = prevNodesMap.get(cn.id);
-                    if (!pn || pn !== cn) dirty.push(cn.id);
+                    if (!pn) {
+                        dirty.push(cn.id);
+                    } else if (pn !== cn) {
+                        // Skip selection-only changes — `selected` is a UI concern
+                        // and must not mark nodes dirty for cloud sync.
+                        const { selected: _cs, ...cnRest } = cn as any;
+                        const { selected: _ps, ...pnRest } = pn as any;
+                        const isOnlySelectedChange = Object.keys(cnRest).length === Object.keys(pnRest).length &&
+                            Object.keys(cnRest).every(k => (cnRest as any)[k] === (pnRest as any)[k]);
+                        if (!isOnlySelectedChange) {
+                            dirty.push(cn.id);
+                        }
+                    }
                 });
 
                 if (deleted.length > 0) state.markNodesDeleted(deleted);

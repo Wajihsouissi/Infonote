@@ -19,9 +19,10 @@ interface SortableBlockWrapperProps {
     // Helper to check if block is media
     isMedia?: boolean;
     promoteBlockHandles?: boolean;
+    isFirstChildOfToggle?: boolean;
 }
 
-export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, children, readOnly, block, nodeId, isSelected, onMoveBlock, onDragStart, onMenuOpen, onMouseDown, style, hideHandle, promoteBlockHandles }: SortableBlockWrapperProps & { hideHandle?: boolean, promoteBlockHandles?: boolean }) {
+export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, children, readOnly, block, nodeId, isSelected, onMoveBlock, onDragStart, onMenuOpen, onMouseDown, style, hideHandle, promoteBlockHandles, isFirstChildOfToggle }: SortableBlockWrapperProps & { hideHandle?: boolean, promoteBlockHandles?: boolean }) {
     const ref = useRef<HTMLDivElement>(null);
     const [dropIndication, setDropIndication] = useState<'top' | 'bottom' | null>(null);
 
@@ -210,6 +211,11 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
             )}
             <div className={`${styles.blockContent} ${(promoteBlockHandles && !isMedia) ? 'nodrag' : ''}`}>
                 {children}
+                {isFirstChildOfToggle && !readOnly && (
+                    <div className={styles.toggleHint}>
+                        <kbd>↵</kbd> new toggle <span>•</span> <kbd>⇧</kbd><kbd>↵</kbd> write
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -80,7 +80,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const [convertModalOpen, setConvertModalOpen] = useState(false);
     const [convertInitialTitle, setConvertInitialTitle] = useState('');
     const [copiedHex, setCopiedHex] = useState(false);
-    const colorOriginalRef = useRef<string>('');
+    const [colorOriginal, setColorOriginal] = useState<string>('');
 
     const [isInteractive, setIsInteractive] = useState(selected);
     const interactionTimerRef = useRef<number | null>(null);
@@ -99,7 +99,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
         };
     }, [selected]);
 
-    const isMultiSelected = selectedCanvasNodeIds.has(id);
+    const isMultiSelected = selectedCanvasNodeIds.has(id) && selectedCanvasNodeIds.size > 1;
 
     const isSingleMedia = Array.isArray(data.content) && data.content.length === 1 && (data.content[0].type === 'image' || data.content[0].type === 'video' || data.content[0].type === 'file');
     const isSingleLink = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'link';
@@ -112,7 +112,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const isAutoWidthText = Array.isArray(data.content) && data.content.length === 1 && ['text', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered', 'todo'].includes(data.content[0].type);
     const isResizable = isSingleMedia || isSingleLink;
 
-    const isMediaEmpty = isSingleMedia && (!data.content[0].content || data.content[0].content.trim() === '');
+    const isMediaEmpty = isSingleMedia && (!data.content?.[0]?.content || data.content[0].content.trim() === '');
 
     const globalListIndex = useGlobalListIndex(id, isSingleNumbered);
 
@@ -146,37 +146,42 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     }, [displayColor]);
 
     useLayoutEffect(() => {
-        setNodes(nodes => nodes.map(n => {
-            if (n.id === id) {
-                const needsHeightAuto = !isSingleColor && n.style?.height !== 'auto';
-                // Text & headings flow with their content (4 -> 8 units, then wrap) instead of a fixed width.
-                const needsAutoWidthInit = isAutoWidthText && !isResizable && !isColumns && !isSingleColor && !isWideBlock && n.style?.width !== 'fit-content';
-                const needsWidthInit = !isAutoWidthText && !isResizable && !isColumns && !isSingleColor && !isWideBlock && (n.style?.width === 'auto' || n.style?.width === undefined);
-                const needsResizableWidthInit = isResizable && (n.style?.width === 'auto' || n.style?.width === undefined);
-                const shouldForcePlaceholderWidth = isMediaEmpty && n.style?.width !== 208 && n.style?.width !== '208px';
-                const needsColumnsWidthInit = isColumns && (n.style?.width === 'auto' || n.style?.width === undefined);
-                const needsColorInit = isSingleColor && (n.style?.width !== ICON_SIZE || n.style?.height !== ICON_SIZE);
-                const needsWideBlockInit = isWideBlock && (n.style?.width !== MIN_EXPANDED_SIZE);
+        setNodes(nodes => {
+            let changed = false;
+            const newNodes = nodes.map(n => {
+                if (n.id === id) {
+                    const needsHeightAuto = !isSingleColor && n.style?.height !== 'auto';
+                    // Text & headings flow with their content (4 -> 8 units, then wrap) instead of a fixed width.
+                    const needsAutoWidthInit = isAutoWidthText && !isResizable && !isColumns && !isSingleColor && !isWideBlock && n.style?.width !== 'fit-content';
+                    const needsWidthInit = !isAutoWidthText && !isResizable && !isColumns && !isSingleColor && !isWideBlock && (n.style?.width === 'auto' || n.style?.width === undefined);
+                    const needsResizableWidthInit = isResizable && (n.style?.width === 'auto' || n.style?.width === undefined);
+                    const shouldForcePlaceholderWidth = isMediaEmpty && n.style?.width !== 208 && n.style?.width !== '208px';
+                    const needsColumnsWidthInit = isColumns && (n.style?.width === 'auto' || n.style?.width === undefined);
+                    const needsColorInit = isSingleColor && (n.style?.width !== ICON_SIZE || n.style?.height !== ICON_SIZE);
+                    const needsWideBlockInit = isWideBlock && (n.style?.width !== MIN_EXPANDED_SIZE);
 
-                if (needsHeightAuto || needsAutoWidthInit || needsWidthInit || needsResizableWidthInit || shouldForcePlaceholderWidth || needsColumnsWidthInit || needsColorInit || needsWideBlockInit) {
-                    return {
-                        ...n,
-                        style: {
-                            ...n.style,
-                            ...(needsHeightAuto ? { height: 'auto' } : {}),
-                            ...(needsAutoWidthInit ? { width: 'fit-content' } : {}),
-                            ...(needsWidthInit ? { width: MIN_EXPANDED_SIZE } : {}),
-                            ...(needsWideBlockInit ? { width: MIN_EXPANDED_SIZE } : {}),
-                            ...((needsResizableWidthInit || shouldForcePlaceholderWidth) ? { width: isSingleLink ? 432 : 208 } : {}),
-                            ...(needsColumnsWidthInit ? { width: 550 } : {}),
-                            ...(needsColorInit ? { width: ICON_SIZE, height: ICON_SIZE } : {})
-                        }
-                    };
+                    if (needsHeightAuto || needsAutoWidthInit || needsWidthInit || needsResizableWidthInit || shouldForcePlaceholderWidth || needsColumnsWidthInit || needsColorInit || needsWideBlockInit) {
+                        changed = true;
+                        return {
+                            ...n,
+                            style: {
+                                ...n.style,
+                                ...(needsHeightAuto ? { height: 'auto' } : {}),
+                                ...(needsAutoWidthInit ? { width: 'fit-content' } : {}),
+                                ...(needsWidthInit ? { width: MIN_EXPANDED_SIZE } : {}),
+                                ...(needsWideBlockInit ? { width: MIN_EXPANDED_SIZE } : {}),
+                                ...((needsResizableWidthInit || shouldForcePlaceholderWidth) ? { width: isSingleLink ? 432 : 208 } : {}),
+                                ...(needsColumnsWidthInit ? { width: 550 } : {}),
+                                ...(needsColorInit ? { width: ICON_SIZE, height: ICON_SIZE } : {})
+                            }
+                        };
+                    }
                 }
-            }
-            return n;
-        }));
-    }, [id, setNodes, isResizable, isColumns, isSingleLink, isSingleColor, isWideBlock, isAutoWidthText]);
+                return n;
+            });
+            return changed ? newNodes : nodes;
+        });
+    }, [id, setNodes, isResizable, isColumns, isSingleLink, isSingleColor, isWideBlock, isAutoWidthText, isMediaEmpty]);
 
 
 
@@ -300,7 +305,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             {/* Interaction Overlay: Converts the entire node into a drag handle when unselected */}
             {!isInteractive && !isLinkingMode && !isSingleColor && (
                 <div
-                    className="interaction-overlay"
+                    className="interaction-overlay custom-drag-handle"
                     ref={(el) => {
                         if (el) {
                             el.onwheel = (e) => {
@@ -351,7 +356,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                         e.stopPropagation();
                     }}
                     onClick={() => {
-                        colorOriginalRef.current = singleColorValue || '#1E944A';
+                        setColorOriginal(singleColorValue || '#1E944A');
                         setColorModalOpen(true);
                     }}
                     title="Edit color"
@@ -394,7 +399,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             {colorModalOpen && isSingleColor && (
                 <ColorBlockModal
                     color={singleColorValue || '#1E944A'}
-                    originalColor={colorOriginalRef.current}
+                    originalColor={colorOriginal}
                     metadata={(data.content as any[])?.[0]?.metadata}
                     onChange={(newColor, newMeta) => {
                         const newBlocks = (data.content as any[]).map((b: any, i: number) =>
@@ -500,8 +505,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                         minimal={true}
                         onUpdate={handleUpdate}
                         nodeId={id}
-                        mode="atomic"
-                        hideBlockHandles={false}
+                        hideBlockHandles={!isInteractive}
                         disableMediaControls={true}
                         promoteBlockHandles={true}
                         globalStartIndex={globalListIndex}

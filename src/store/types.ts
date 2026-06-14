@@ -45,6 +45,8 @@ export interface NodeSlice {
 
 export interface NavigationSlice {
     currentParentId: string | null;
+    lastExitedNodeId: string | null;
+    clearLastExitedNodeId: () => void;
     breadcrumbs: Breadcrumb[];
     fullscreenId: string | null;
     rightSidePanelId: string | null;
@@ -152,6 +154,9 @@ export interface UISlice {
         draggingKanbanNodeId: string | null;
         hoveredKanbanColumn: { kanbanId: string; columnId: string } | null;
         draggedNodeId: string | null;
+        // True while a multi-node drag is active (>1 selected nodes being moved).
+        // Lets cards opt out of single-drag visuals in favor of a unified group lift.
+        isMultiDragging: boolean;
         dropTarget: {
             id: string;
             type: 'fusion' | 'nesting' | 'kanban-column';

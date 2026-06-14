@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Sparkles, Type, Image, X, Loader2 } from 'lucide-react';
-import { generateText, generateImage, parseMultiCardIntent, generateMultipleCardContents, streamText, generateCanvasCards } from '../../services/aiService';
+import { generateText, generateImage, parseMultiCardIntent, generateMultipleCardContents, streamText, generateCanvasCards, FREEFORM_SYSTEM_PROMPT } from '../../services/aiService';
 import { saveCanvasToCloud } from '../../services/cloudSync';
+import { parsePlainText } from '../editor/pasteUtils';
 import { useStore } from '../../store/useStore';
 
 interface AIGeneratePanelProps {
@@ -156,34 +157,39 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
         setError(null);
         setSuccess(null);
         let fullText = '';
-        // Stable block ID for live updates during streaming
-        const streamBlockId = crypto.randomUUID();
+        let lastParseAt = 0;
+
+        // Parse the accumulating markdown into structured blocks (headings, lists,
+        // tables, code, **bold**, etc.) so the card fills in richly as it streams —
+        // instead of dumping raw markdown text into one flat block.
+        const applyStructured = (text: string) => {
+            const blocks = parsePlainText(text);
+            updateNodeData(nodeId, {
+                content: blocks.length > 0 ? blocks : [{ id: crypto.randomUUID(), type: 'text', content: text }],
+                updatedAt: new Date().toISOString(),
+            });
+        };
 
         try {
-            for await (const chunk of streamText(prompt)) {
+            for await (const chunk of streamText(prompt, FREEFORM_SYSTEM_PROMPT)) {
                 fullText += chunk;
-                // Live-update the node content as text streams in
-                updateNodeData(nodeId, {
-                    content: [{ id: streamBlockId, type: 'text', content: fullText }],
-                    updatedAt: new Date().toISOString(),
-                });
+                // Throttle re-parsing to ~150ms so streaming stays smooth (re-parsing
+                // assigns fresh block ids, so we don't want to do it every token).
+                const now = Date.now();
+                if (now - lastParseAt > 150) {
+                    lastParseAt = now;
+                    applyStructured(fullText);
+                }
             }
+            // Final parse to capture the complete, well-formed structure.
+            applyStructured(fullText);
             setSuccess('Text generated!');
             triggerCloudSave();
         } catch (streamErr) {
             // Fallback to non-streaming if stream fails
             try {
-                const generatedText = await generateText(prompt);
-                const paragraphs = generatedText.split('\n').filter((p: string) => p.trim());
-                const newBlocks = paragraphs.map((line: string) => ({
-                    id: crypto.randomUUID(),
-                    type: line.startsWith('#') ? 'heading' : 'text',
-                    content: line.replace(/^#+\s*/, ''),
-                }));
-                updateNodeData(nodeId, {
-                    content: newBlocks,
-                    updatedAt: new Date().toISOString(),
-                });
+                const generatedText = await generateText(prompt, FREEFORM_SYSTEM_PROMPT);
+                applyStructured(generatedText);
                 setSuccess('Text generated successfully!');
                 setTimeout(() => triggerCloudSave(), 100);
             } catch (fallbackErr) {

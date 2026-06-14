@@ -28,6 +28,8 @@ interface NoteExpandedContentProps {
     onNavigate?: () => void; // Navigate to nested canvas
     selectionIslandPortalId?: string; // Portal target for selection island
     flatCorners?: boolean; // Remove border radius
+    readOnly?: boolean;
+    hideBlockHandles?: boolean;
 }
 
 export function NoteExpandedContent({
@@ -39,7 +41,9 @@ export function NoteExpandedContent({
     onClose,
     onNavigate,
     selectionIslandPortalId,
-    flatCorners
+    flatCorners,
+    readOnly,
+    hideBlockHandles
 }: NoteExpandedContentProps) {
     // Use data state (persistent) or fallback to false
     const showMetadata = data.showMetadata ?? false;
@@ -372,11 +376,12 @@ export function NoteExpandedContent({
                 {hasRendered ? (
                     <BlockEditor
                         initialContent={Array.isArray(data.content) ? data.content : []}
-                        readOnly={false}
+                        readOnly={readOnly || false}
                         minimal={false}
                         onUpdate={handleContentUpdate}
                         nodeId={nodeId}
                         selectionIslandPortalId={selectionIslandPortalId}
+                        hideBlockHandles={hideBlockHandles}
                     />
                 ) : (
                     <SkeletonLoader />

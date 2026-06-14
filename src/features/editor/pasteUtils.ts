@@ -159,43 +159,49 @@ function toSafeHttpUrl(value: string): string | null {
     }
 }
 
+// Renders a single line of content to safe HTML with inline markdown support:
+// links ([label](url) + bare URLs), **bold**, *italic*, `code`, and ~~strike~~.
+// Everything is HTML-escaped FIRST, so user/AI text can never inject markup;
+// markdown markers survive escaping and are converted afterward.
 export function renderContentWithLinks(content: string): string {
     if (!content) return '';
-    // Match:
-    // 1. Markdown links: [Label](URL)
-    // 2. Raw URLs: http://, https://, or www.
-    const pattern = /\[([^\]]+)\]\(((?:https?:\/\/|www\.)[^\s()<>]+(?:\([\w\d]+\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))\)|((?:https?:\/\/|www\.)[^\s()<>]+(?:\([\w\d]+\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))/gi;
-    
-    let result = '';
-    let lastIndex = 0;
-    content.replace(pattern, (match, label, markdownUrl, rawUrl, offset) => {
-        result += escapeHtml(content.slice(lastIndex, offset));
-        lastIndex = offset + match.length;
 
-        if (label) {
-            const href = toSafeHttpUrl(markdownUrl);
-            if (!href) {
-                result += escapeHtml(match);
-                return match;
-            }
-            result += `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" class="editor-inline-link" style="color: var(--color-text-muted); text-decoration: underline; font-weight: 500;">${escapeHtml(label)}</a>`;
-            return match;
-        }
+    // 1) Escape everything up front (XSS-safe baseline).
+    let html = escapeHtml(content);
 
-        if (rawUrl) {
-            const href = toSafeHttpUrl(rawUrl);
-            if (!href) {
-                result += escapeHtml(match);
-                return match;
-            }
-            result += `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" class="editor-inline-link" style="color: var(--color-text-muted); text-decoration: underline; font-weight: 500;">${escapeHtml(rawUrl)}</a>`;
-            return match;
-        }
-        result += escapeHtml(match);
-        return match;
+    // 2) Protect inline code spans so their contents aren't treated as
+    //    bold/italic/links. Stash them and restore at the very end.
+    const codeStash: string[] = [];
+    html = html.replace(/`([^`\n]+)`/g, (_m, code: string) => {
+        const token = `\uE000${codeStash.length}\uE001`;
+        codeStash.push(
+            `<code style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; padding: 1px 5px; border-radius: 4px; background: var(--glass-bg, rgba(255,255,255,0.08)); border: 1px solid var(--glass-border, rgba(255,255,255,0.1));">${code}</code>`
+        );
+        return token;
     });
-    result += escapeHtml(content.slice(lastIndex));
-    return result;
+
+    // 3) Links: [label](url) and bare URLs (operating on the escaped string).
+    //    Groups: 1=label, 2=markdownUrl, 3=rawUrl.
+    const linkPattern = /\[([^\]]+)\]\(((?:https?:\/\/|www\.)[^\s()<>]+(?:\([\w\d]+\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))\)|((?:https?:\/\/|www\.)[^\s()<>]+(?:\([\w\d]+\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))/gi;
+    html = html.replace(linkPattern, (match, label: string, markdownUrl: string, rawUrl: string) => {
+        const url = label ? markdownUrl : rawUrl;
+        // The URL was escaped, so &→&amp;. Decode for validation/href value.
+        const href = toSafeHttpUrl((url || '').replace(/&amp;/g, '&'));
+        if (!href) return match;
+        const text = label || rawUrl;
+        return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" class="editor-inline-link" style="color: var(--color-text-muted); text-decoration: underline; font-weight: 500;">${text}</a>`;
+    });
+
+    // 4) Emphasis. Bold before italic so ** isn't eaten by the * rule.
+    html = html
+        .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/(^|[^*])\*(?!\s)([^*\n]+?)\*(?!\*)/g, '$1<em>$2</em>')
+        .replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
+
+    // 5) Restore protected code spans.
+    html = html.replace(/\uE000(\d+)\uE001/g, (_m, i: string) => codeStash[Number(i)] || '');
+
+    return html;
 }
 
 // 2. Handle Text/HTML - SYNC
@@ -290,7 +296,10 @@ function parseExactLinkLine(trimmedLine: string): ExtractedLink | null {
  * Handles headings, lists, code fences, tables, blockquotes, dividers, etc.
  */
 export function parsePlainText(text: string): Block[] {
-    const cleanText = text.replace(/\*\*/g, '');
+    // Keep inline markdown markers (**bold**, *italic*, `code`, ~~strike~~) intact —
+    // renderContentWithLinks turns them into styled HTML at render time. Stripping
+    // them here (as we used to with **) flattened all emphasis out of AI output.
+    const cleanText = text;
     const blocks: Block[] = [];
     const lines = cleanText.split(/\r\n|\r|\n/);
 

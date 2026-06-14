@@ -10,6 +10,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
         draggingKanbanNodeId: null,
         hoveredKanbanColumn: null,
         draggedNodeId: null,
+        isMultiDragging: false,
         dropTarget: null
     },
     theme: (localStorage.getItem('chnk-it-theme') as 'light' | 'dark') || 'dark',
@@ -128,12 +129,15 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
             isLinkingMode: selected.size < 2 ? false : get().isLinkingMode
         });
 
-        get().setNodes(nds => nds.map(n => {
+        // Use direct set() instead of setNodes() to avoid triggering setCloudDirty
+        // for selection-only changes (a UI concern, not a data change).
+        const updatedNodes = get().nodes.map(n => {
             if (!visibleNodeIds.has(n.id)) return n;
             const shouldBeSelected = selected.has(n.id);
             if (n.selected === shouldBeSelected) return n;
             return { ...n, selected: shouldBeSelected };
-        }));
+        });
+        set({ nodes: updatedNodes } as any);
     },
 
     setLastCreatedCanvasNodeId: (id: string | null) => set({ lastCreatedCanvasNodeId: id }),

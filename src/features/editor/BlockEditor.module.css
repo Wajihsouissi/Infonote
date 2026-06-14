@@ -19,7 +19,8 @@
     padding-bottom: 0 !important;
     min-height: auto !important;
     padding-top: 0 !important;
-    /* Also remove top padding if any inherited from parent */
+    justify-content: center;
+    /* Center elements vertically in their container */
 }
 
 /* Compact headers in minimal mode to prevent snapping to 2x height */
@@ -45,26 +46,40 @@
     cursor: pointer;
 }
 
+.minimal .sortableWrapper {
+    align-items: center;
+}
+
 .sortableWrapper:has(.heading1) .dragHandle {
     margin-top: 10px;
 }
+
 .sortableWrapper:has(.heading2) .dragHandle {
     margin-top: 6px;
 }
+
 .sortableWrapper:has(.heading3) .dragHandle {
     margin-top: 4px;
 }
+
 .sortableWrapper:has(.quoteWrapper) .dragHandle {
-    margin-top: 6px; /* 4px + 2px quote padding */
+    margin-top: 6px;
+    /* 4px + 2px quote padding */
 }
+
 .sortableWrapper:has(.calloutWrapper) .dragHandle {
-    margin-top: 22px; /* 2px margin + 16px padding + 4px text offset */
+    margin-top: 22px;
+    /* 2px margin + 16px padding + 4px text offset */
 }
+
 .sortableWrapper:has(.mediaWrapper) .dragHandle {
-    margin-top: 2px; /* flush with top of media wrapper margin */
+    margin-top: 2px;
+    /* flush with top of media wrapper margin */
 }
+
 .sortableWrapper:has(.tableWrapper) .dragHandle {
-    margin-top: 10px; /* 2px margin + 8px cell padding */
+    margin-top: 10px;
+    /* 2px margin + 8px cell padding */
 }
 
 .dragHandle {
@@ -76,7 +91,8 @@
     flex-shrink: 0;
     width: 18px;
     height: 20px;
-    margin-top: 4px; /* Default for standard text blocks */
+    margin-top: 4px;
+    /* Default for standard text blocks */
 
     cursor: grab;
     color: var(--color-text-muted);
@@ -91,6 +107,10 @@
 
     user-select: none;
     -webkit-user-select: none;
+}
+
+.minimal .dragHandle {
+    margin-top: 0 !important;
 }
 
 /* Force visible and scale to 1 on hover of wrapper */
@@ -114,16 +134,33 @@
 /* Remove hover background when handles are hidden (e.g. FusedNoteNode), show line instead */
 .sortableWrapper.hideHandle:hover {
     background: transparent;
-    /* box-shadow: none; */
-    /* Left line indicator - REMOVED per user request */
     padding-left: 2px;
-    /* Slight offset compensation if needed, but inset shadow doesn't take space */
 }
 
 .dragHandle:hover {
     opacity: 1 !important;
     background: rgba(255, 255, 255, 0.1) !important;
     border-radius: 4px;
+}
+
+/* Unselected text/heading blocks on canvas: 4px padding on both sides for breathing room */
+.minimal .sortableWrapper.hideHandle[data-block-type="text"] .blockContent,
+.minimal .sortableWrapper.hideHandle[data-block-type="heading1"] .blockContent,
+.minimal .sortableWrapper.hideHandle[data-block-type="heading2"] .blockContent,
+.minimal .sortableWrapper.hideHandle[data-block-type="heading3"] .blockContent {
+    padding-left: 8px;
+    padding-right: 8px;
+    transition: padding 0.2s ease-out;
+}
+
+/* Selected text/heading blocks on canvas: 0px left (handle takes space), 4px right */
+.minimal .sortableWrapper:not(.hideHandle)[data-block-type="text"] .blockContent,
+.minimal .sortableWrapper:not(.hideHandle)[data-block-type="heading1"] .blockContent,
+.minimal .sortableWrapper:not(.hideHandle)[data-block-type="heading2"] .blockContent,
+.minimal .sortableWrapper:not(.hideHandle)[data-block-type="heading3"] .blockContent {
+    padding-left: 0;
+    padding-right: 8px;
+    transition: padding 0.2s ease-out;
 }
 
 /* (Moved to bottom) */
@@ -385,23 +422,28 @@
 }
 
 .codeBlock {
-    font-family: 'Fira Code', 'Consolas', 'Monaco', 'Andale Mono', monospace;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', monospace;
     font-size: 0.85rem;
-    line-height: 1.5;
-    background: #1e1e1e8b;
-    /* VS Code dark default or similar */
-    color: #e63e2c;
-    padding: 4px 12px;
+    line-height: 1.6;
+    background: linear-gradient(145deg, rgba(24, 24, 27, 0.95) 0%, rgba(15, 15, 17, 0.95) 100%);
+    color: #f87171;
+    padding: 12px 16px;
     border-radius: 8px;
     white-space: pre-wrap;
-    /* pre-wrap keeps indentation but wraps long lines to the next line at the 8-grid edge */
     overflow-wrap: break-word;
     word-break: break-word;
     overflow-x: hidden;
     outline: none;
     min-height: 28px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: none;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 12px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(8px);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.codeBlock:focus {
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 /* Lists */
@@ -482,7 +524,7 @@
     user-select: none;
     color: var(--color-text-main);
     border-radius: 4px;
-    transition:background-color 0.2s ease, border-color 0.2s ease, 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, 0.2s ease;
 }
 
 .calloutIconWrapper.clickable {
@@ -599,7 +641,8 @@
 
 .deleteColumnBtn:hover {
     opacity: 1 !important;
-    color: #f87171 !important; /* Soft premium red */
+    color: #f87171 !important;
+    /* Soft premium red */
     background: rgba(239, 68, 68, 0.15) !important;
 }
 
@@ -687,6 +730,7 @@
     opacity: 0;
     transition: opacity 0.15s;
 }
+
 .colResizeHandle:hover,
 .colResizeHandle.resizeActive {
     opacity: 1;
@@ -705,6 +749,7 @@
     opacity: 0;
     transition: opacity 0.15s;
 }
+
 .rowResizeHandle:hover,
 .rowResizeHandle.resizeActive {
     opacity: 1;
@@ -780,7 +825,7 @@
     color: var(--color-text-main);
     font-size: 0.8rem;
     font-family: inherit;
-    transition:border-color 0.15s ease, background-color 0.15s ease, 0.15s ease;
+    transition: border-color 0.15s ease, background-color 0.15s ease, 0.15s ease;
 }
 
 .slashMenuInput:focus {
@@ -826,7 +871,8 @@
 }
 
 .slashMenuItem.selected {
-    background: var(--selected-bg, rgba(139, 92, 246, 0.12)); /* Beautiful tinted light purple */
+    background: var(--selected-bg, rgba(139, 92, 246, 0.12));
+    /* Beautiful tinted light purple */
     border-left-color: var(--selected-accent, var(--color-primary));
     color: var(--color-text-main);
     transform: translateX(4px);
@@ -944,7 +990,7 @@
     font-weight: 500;
     cursor: pointer;
     border-radius: 6px;
-    transition:background-color 0.2s ease, border-color 0.2s ease, 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, 0.2s ease;
 }
 
 .tabButton:hover {
@@ -1206,7 +1252,7 @@
     border-radius: 20px;
     margin: 8px 0;
     cursor: pointer;
-    transition:transform 0.15s ease, 0.15s ease;
+    transition: transform 0.15s ease, 0.15s ease;
     flex-shrink: 0;
 }
 
@@ -1226,7 +1272,7 @@
     background: #f7f7f7;
     border: 1px solid rgba(0, 0, 0, 0.08);
     box-shadow: none;
-    transition:transform 0.2s ease, 0.2s ease;
+    transition: transform 0.2s ease, 0.2s ease;
 }
 
 .colorBlockCard:hover {
@@ -1282,7 +1328,7 @@
     border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
     border-radius: 10px;
     cursor: pointer;
-    transition:transform 0.15s ease, border-color 0.15s ease;
+    transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
 .colorCodeButton:hover {
@@ -1605,8 +1651,10 @@
     margin-bottom: 4px;
     padding: 8px 12px 8px 12px;
     border-radius: 12px;
-    background: rgba(139, 92, 246, 0.03); /* Soft purple background aligned with theme */
-    border-left: 2.5px solid rgba(139, 92, 246, 0.18); /* Soft left border matching theme */
+    background: rgba(139, 92, 246, 0.03);
+    /* Soft purple background aligned with theme */
+    border-left: 2.5px solid rgba(139, 92, 246, 0.18);
+    /* Soft left border matching theme */
     transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -1650,6 +1698,55 @@
     bottom: -8px;
     left: 0;
     right: 0;
-    z-index: 1; /* High enough to capture, but doesn't block text cursor when not dragging since it only exists during dragging */
+    z-index: 1;
+    /* High enough to capture, but doesn't block text cursor when not dragging since it only exists during dragging */
     pointer-events: auto;
+}
+
+.toggleWrapper {
+    display: flex;
+    align-items: flex-start;
+    position: relative;
+    width: 100%;
+}
+
+.toggleHint {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.75rem;
+    color: var(--color-text-muted, #9ca3af);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    user-select: none;
+    background: transparent;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.toggleWrapper:has([data-is-empty="true"]):hover .toggleHint,
+.toggleWrapper:has([data-is-empty="true"]):focus-within .toggleHint,
+.sortableWrapper:has([data-is-empty="true"]):hover>.blockContent>.toggleHint,
+.sortableWrapper:has([data-is-empty="true"]):focus-within>.blockContent>.toggleHint {
+    opacity: 1;
+}
+
+.toggleHint kbd {
+    font-family: inherit;
+    background: var(--color-bg-secondary, rgba(0, 0, 0, 0.05));
+    border: 1px solid var(--color-border, rgba(0, 0, 0, 0.1));
+    border-radius: 3px;
+    padding: 0 4px;
+    font-size: 0.7rem;
+    color: var(--color-text-main, #374151);
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+}
+
+.toggleHint span {
+    opacity: 0.5;
 }

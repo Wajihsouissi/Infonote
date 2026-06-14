@@ -9,7 +9,7 @@ export { ContainerBlock, ColumnsBlock };
 import type { Block } from './types';
 import styles from './BlockEditor.module.css';
 import { IconPicker, getIconByName } from '../card/IconPicker';
-import { generateText } from '../../services/aiService';
+import { generateText, FREEFORM_SYSTEM_PROMPT } from '../../services/aiService';
 // Lazy load PDFViewer
 const PDFViewer = React.lazy(() => import('../ui/PDFViewer').then(module => ({ default: module.PDFViewer })));
 import ReactDOM from 'react-dom';
@@ -436,6 +436,11 @@ export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
                 data-is-empty={!block.content || block.content.trim() === '' ? 'true' : 'false'}
                 {...handlers}
             />
+            {block.type === 'toggle' && !readOnly && (
+                <div className={styles.toggleHint}>
+                    <kbd>↵</kbd> inside
+                </div>
+            )}
         </div>
     );
 });
@@ -868,11 +873,12 @@ export const AIBlock = memo(({ block, readOnly }: BlockProps) => {
         setIsGenerating(true);
         setError(null);
         try {
-            const systemPrompt = `You are a writing assistant in an infinite canvas note-taking app. The user wants you to write something inline in their note.
-Respond with raw markdown only. Do not wrap it in a code block. Keep it concise, high-quality, and directly address the prompt: ${prompt}`;
-            
-            const response = await generateText(systemPrompt);
-            
+            // Inline writing: append a short instruction to the shared assistant
+            // persona so length/formatting adapt to the ask (no raw code-block wrapper).
+            const inlineSystem = `${FREEFORM_SYSTEM_PROMPT}\n\nYou are writing inline inside the user's note. Respond with raw markdown only — do not wrap the whole answer in a code block.`;
+
+            const response = await generateText(prompt, inlineSystem);
+
             window.dispatchEvent(new CustomEvent('chnk-it-ai-generate', { detail: { id: block.id, content: response } }));
         } catch (e) {
             setError('Failed to generate. Please try again.');

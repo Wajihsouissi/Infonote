@@ -922,9 +922,13 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
         if (e.key === 'Enter' && !e.shiftKey) {
             if (slashMenuStateRef.current) return;
-            e.preventDefault();
-
+            
             const currentBlock = blocksRef.current.find(b => b.id === id);
+            if (currentBlock?.type === 'code') {
+                return; // Allow native newline insertion in code blocks
+            }
+
+            e.preventDefault();
 
             // Intercept Enter on standalone Canvas Block
             
@@ -1549,7 +1553,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     return root;
                 };
 
-                const renderNode = (node: RenderNode, parentToggleIndent?: number, forceReadOnly?: boolean): React.ReactNode => {
+                const renderNode = (node: RenderNode, parentToggleIndent?: number, forceReadOnly?: boolean, isFirstChildOfToggle?: boolean): React.ReactNode => {
                     const currentReadOnly = readOnly || forceReadOnly;
                     if (node.type === 'block') {
                         return (
@@ -1559,6 +1563,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                     index={node.listIndex}
                                     hasChildren={node.hasChildren}
                                     isSelected={selectedBlockIds.has(node.block.id)}
+                                    isFirstChildOfToggle={isFirstChildOfToggle}
                                     readOnly={currentReadOnly}
                                     nodeId={nodeId}
                                     hideBlockHandles={hideBlockHandles}
@@ -1623,7 +1628,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                     />
                                     {showChildren && !isCollapsed && (
                                         <div className={styles.toggleChildrenContainer}>
-                                            {node.children.map(child => renderNode(child, node.block.indent || 0, currentReadOnly))}
+                                            {node.children.map((child, i) => renderNode(child, node.block.indent || 0, currentReadOnly, i === 0))}
                                         </div>
                                     )}
                                 </div>

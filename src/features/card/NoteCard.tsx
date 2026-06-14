@@ -40,7 +40,10 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     const clearCanvasSelection = useStore(s => s.clearCanvasSelection);
     const setNodesStore = useStore(s => s.setNodes);
 
-    const isDragging = interactionState.draggedNodeId === id;
+    // Scale + tilt is reserved for single-drag (the grabbed card "lifts").
+    // Multi-drag uses a unified subtle lift on every selected card via global CSS
+    // (.chnk-it-multi-drag .react-flow__node.selected) — so we deliberately skip it here.
+    const isDragging = interactionState.draggedNodeId === id && !interactionState.isMultiDragging;
     const isDropTarget = interactionState.dropTarget?.id === id;
     const dropType = isDropTarget ? interactionState.dropTarget?.type : null;
 
@@ -79,7 +82,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     }, [selected]);
 
     const viewMode = data.viewMode || 'medium';
-    const isMultiSelected = selectedCanvasNodeIds.has(id);
+    const isMultiSelected = selectedCanvasNodeIds.has(id) && selectedCanvasNodeIds.size > 1;
 
     // Convert color to pastel for better readability
     const displayColor = data.color ? toPastelColor(data.color, theme === 'light') : undefined;
@@ -357,10 +360,10 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                 />
             )}
 
-            {/* Interaction Overlay: Converts the entire card into a drag handle and intercepts double-clicks when unselected */}
+            {/* Interaction Overlay */}
             {!isInteractive && !isLinkingMode && (
                 <div
-                    className="interaction-overlay"
+                    className="interaction-overlay custom-drag-handle"
                     ref={(el) => {
                         if (el) {
                             el.onwheel = (e) => {
@@ -681,6 +684,8 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                                 id={id}
                                 data={data}
                                 onUpdate={updateNodeData}
+                                readOnly={false}
+                                hideBlockHandles={!isInteractive}
                                 contentRef={contentRef}
                                 nodeId={id}
                                 selectionIslandPortalId={`selection-island-${id}`}

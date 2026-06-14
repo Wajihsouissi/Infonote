@@ -9,7 +9,7 @@
     -webkit-backdrop-filter: blur(var(--backdrop-blur));
     border: 1px solid var(--glass-border);
     border-radius: 9px;
-    padding: 6px 4px;
+    padding: 2px 2px;
     width: 100%;
     min-width: 208px;
     /* 4 * 56px - 16px */
@@ -157,10 +157,10 @@
 }
 
 .blockNode.wideBlock {
-    width: 432px;
+    width: max-content;
     max-width: 432px;
-    min-width: 432px;
-    height: 96px;
+    min-width: 208px;
+    height: auto;
     align-items: stretch;
 }
 
@@ -183,8 +183,6 @@
 }
 
 .blockNode.wideBlock [class*="calloutWrapper"],
-.blockNode.wideBlock [class*="codeBlockWrapper"],
-.blockNode.wideBlock [class*="codeBlock"],
 .blockNode.wideBlock [class*="quoteWrapper"],
 .blockNode.wideBlock [class*="toggleWrapper"],
 .blockNode.wideBlock [class*="todoWrapper"] {

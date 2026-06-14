@@ -247,6 +247,29 @@ body {
   cursor: grabbing !important;
 }
 
+/* MULTI-NODE DRAG — unified group visual.
+   When 2+ nodes are dragged as a group, EVERY selected node gets the same subtle
+   lift so the group reads as a cohesive object. Rotation is intentionally absent:
+   tilting individual cards in a group looks chaotic and breaks the "stack of cards
+   moving together" mental model. The grabbed card matches its siblings exactly —
+   no special-case scale or tilt — which is the whole point of the rewrite. */
+.chnk-it-multi-drag .react-flow__node.selected,
+.chnk-it-multi-drag .react-flow__node.is-selected {
+  z-index: 10000 !important;
+  opacity: 0.92;
+  transform-origin: center center;
+  /* React Flow controls translate() — we add scale on top via a composed transform.
+     Using `will-change` to keep the GPU layer warm during the drag. */
+  will-change: transform, opacity;
+  transition: opacity 0.12s ease, filter 0.12s ease;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.18));
+  cursor: grabbing !important;
+}
+
+/* The grabbed card in multi-drag should look identical to its siblings — no
+   .dragging styles, no scale+tilt. The card components already opt out via
+   `isDragging = draggedNodeId === id && !isMultiDragging`. */
+
 /* Global override for resizing nodes */
 .chnk-it-resizing-active,
 .chnk-it-resizing-active * {

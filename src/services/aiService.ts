@@ -8,6 +8,27 @@ import { z } from 'zod';
 const TEXT_MODEL = import.meta.env.VITE_AI_GATEWAY_TEXT_MODEL || 'openai/gpt-4o-mini';
 const IMAGE_MODEL = import.meta.env.VITE_AI_GATEWAY_IMAGE_MODEL || 'bfl/flux-2-pro';
 
+/**
+ * System prompt for free-form text generation (single notes, inline writing,
+ * card editing). Steers the model toward ChatGPT/Claude-quality answers whose
+ * LENGTH ADAPTS TO THE ASK — concise for simple questions, richly structured
+ * only when the topic warrants it. This is intentionally NOT used for the
+ * structured (JSON) generators, whose strict output contracts must stay clean.
+ */
+export const FREEFORM_SYSTEM_PROMPT = `You are a knowledgeable, articulate writing assistant inside Infonote, an infinite-canvas note app.
+
+Match the depth and length of your answer to what is actually asked:
+- Simple or factual question → answer directly in 1–3 sentences. Do not pad or add headings.
+- "Explain", "compare", "how do I…" → a focused answer with light structure where it helps.
+- "Guide", "deep dive", "comprehensive", "everything about…" → fully structured with clear sections.
+
+Formatting (clean Markdown that renders beautifully):
+- **Bold** for key terms, *italic* for nuance, \`inline code\` for code, commands, or identifiers.
+- Use ##/### headings, "- " bullets, "1." numbered steps, "> " quotes, and tables ONLY when they add clarity.
+- Use fenced \`\`\` code blocks for multi-line code.
+
+Lead with the answer — no preamble, no "Certainly!", no restating the question. Never over-structure a short answer.`;
+
 type ChatCompletionResponse = {
     choices?: Array<{
         message?: {
@@ -47,11 +68,14 @@ async function gatewayFetch<T>(path: string, body: Record<string, unknown>): Pro
 
 /**
  * Generate text using Vercel AI Gateway.
+ * Pass `system` for free-form generation to control persona/formatting/length.
+ * Omit it for structured (JSON) calls that carry their own strict instructions.
  */
-export async function generateText(prompt: string): Promise<string> {
+export async function generateText(prompt: string, system?: string): Promise<string> {
     const response = await gatewayFetch<ChatCompletionResponse>('/api/ai/text', {
         model: TEXT_MODEL,
         prompt,
+        ...(system ? { system } : {}),
     });
 
     const content = (response as ChatCompletionResponse & { text?: string }).text ?? response.choices?.[0]?.message?.content;
@@ -79,7 +103,7 @@ export async function generateImage(prompt: string): Promise<string> {
  * Stream text generation via Vercel AI Gateway.
  * Yields text chunks as they arrive so the UI can update character-by-character.
  */
-export async function* streamText(prompt: string): AsyncGenerator<string, void, unknown> {
+export async function* streamText(prompt: string, system?: string): AsyncGenerator<string, void, unknown> {
     const response = await fetch('/api/ai/stream', {
         method: 'POST',
         headers: {
@@ -88,6 +112,7 @@ export async function* streamText(prompt: string): AsyncGenerator<string, void, 
         body: JSON.stringify({
             model: TEXT_MODEL,
             prompt,
+            ...(system ? { system } : {}),
         }),
     });
 
@@ -158,7 +183,7 @@ export async function generateCanvasCards(
 
 Respond ONLY with a valid JSON array. Each item must have:
 - "title": short card title (max 6 words)
-- "content": Detailed, rich, and highly comprehensive body content based on the request (at least 3-4 structural sections, use markdown headings '##', bullet lists, or todo checks to structure it beautifully).
+- "content": Body content whose depth MATCHES the request — concise (a few sentences or a short list) for simple cards, richly structured (## headings, bullet lists, '- [ ]' tasks) only when the topic genuinely warrants it. Use markdown including **bold** for key terms. Do not pad thin topics.
 - "x": x position (start at ${baseX}, increment by 340 per column, max 4 columns)
 - "y": y position (start at ${baseY}, increment by 260 per row)
 - "color": CSS hex color for background. You MUST choose ONLY from this exact premium preset palette: #8b5cf6, #ec4899, #f59e0b, #10b981, #3b82f6, #ef4444, #06b6d4, #6366f1
@@ -205,9 +230,9 @@ export async function generateMultipleCardContents(
     topic: string,
     count: number
 ): Promise<Array<{ title: string; content: string }>> {
-    const prompt = `Generate ${count} distinct, highly detailed, and deep notes about "${topic}". 
-Each note must be comprehensive, explaining the aspect in-depth.
-Use rich markdown tags extensively inside the content: headings (##), bullet points (-), todo checkboxes, and quotes (>) to organize the content.
+    const prompt = `Generate ${count} distinct notes about "${topic}".
+Each note should cover a different aspect. Match each note's depth to its aspect — keep it concise when the point is simple, go deeper only when it genuinely warrants it. Do not pad.
+Use markdown where it aids clarity: headings (##), bullet points (-), todo checkboxes (- [ ]), quotes (>), and **bold** for key terms.
 Respond ONLY with a valid JSON array like:
 [{"title":"Title 1","content":"detailed structured content..."},{"title":"Title 2","content":"..."}]
 Return exactly ${count} items. No explanations outside the JSON array.`;
@@ -252,7 +277,7 @@ Each action object must have:
 - "type": "note" | "kanban" | "fused-note" | "mindmap"
 - "title": Title of the card/board/doc/mindmap
 - If type is "note" or "fused-note":
-  - "content": In-depth, highly detailed, and comprehensive body content. Use markdown extensively (headers, bullet lists, quote blocks, and task lists like '- [ ] Task'). Make "fused-note" content especially long and structured.
+  - "content": Body content whose length and depth MATCH the user's request — concise for simple asks, richly structured only when the topic warrants it. Use markdown where it helps (headers, bullet lists, quote blocks, '- [ ] Task' lists, and **bold** for key terms). A "fused-note" is a document, so it can go deeper, but still avoid padding.
   - "color": Optional background hex color. MUST choose ONLY from: #8b5cf6, #ec4899, #f59e0b, #10b981, #3b82f6, #ef4444, #06b6d4, #6366f1
 - If type is "kanban":
   - "viewMode": "board" | "table" | "calendar" | "timeline"

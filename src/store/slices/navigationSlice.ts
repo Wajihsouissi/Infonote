@@ -3,6 +3,8 @@ import type { AppState, NavigationSlice } from '../types';
 
 export const createNavigationSlice: StateCreator<AppState, [], [], NavigationSlice> = (set, get) => ({
     currentParentId: typeof window !== 'undefined' ? localStorage.getItem('chnk-it-current-parent-id') : null,
+    lastExitedNodeId: null,
+    clearLastExitedNodeId: () => set({ lastExitedNodeId: null }),
     breadcrumbs: [{ id: null, label: 'Home' }],
     fullscreenId: null,
     sidePanelId: null, // Deprecated, kept for backward compatibility if any
@@ -11,10 +13,10 @@ export const createNavigationSlice: StateCreator<AppState, [], [], NavigationSli
     centerPanelId: null,
 
     navigateToNode: (nodeId) => {
-        const { nodes, breadcrumbs } = get();
+        const { nodes, breadcrumbs, currentParentId } = get();
 
         if (nodeId === null) {
-            set({ currentParentId: null, breadcrumbs: [{ id: null, label: 'Home' }] });
+            set({ currentParentId: null, lastExitedNodeId: currentParentId, breadcrumbs: [{ id: null, label: 'Home' }] });
             if (typeof window !== 'undefined') localStorage.removeItem('chnk-it-current-parent-id');
             return;
         }
@@ -34,11 +36,13 @@ export const createNavigationSlice: StateCreator<AppState, [], [], NavigationSli
         if (existingIndex !== -1) {
             set({
                 currentParentId: nodeId,
+                lastExitedNodeId: currentParentId, // We are going backward to an existing crumb
                 breadcrumbs: breadcrumbs.slice(0, existingIndex + 1),
             });
         } else {
             set({
                 currentParentId: nodeId,
+                lastExitedNodeId: null, // Going deeper, not backward
                 breadcrumbs: [...breadcrumbs, { id: nodeId, label: targetNode.type === 'note' ? (targetNode.data.label || 'Note') : 'Block' }],
             });
         }

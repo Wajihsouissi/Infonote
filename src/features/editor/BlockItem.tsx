@@ -40,6 +40,7 @@ interface BlockItemProps {
     onRegisterRef: (id: string, el: HTMLDivElement | null) => void;
     hasChildren?: boolean;
     minimal?: boolean;
+    isFirstChildOfToggle?: boolean;
 }
 
 export const BlockItem = memo(function BlockItem({
@@ -63,13 +64,14 @@ export const BlockItem = memo(function BlockItem({
     onRegisterRef,
     index,
     hasChildren,
-    minimal
+    minimal,
+    isFirstChildOfToggle
 }: BlockItemProps & { index?: number }) {
 
     // Memoized wrapper handlers
     const handleWrapperMouseDown = useCallback((e: React.MouseEvent) => {
         const target = e.target as HTMLElement;
-        const isInteractive = target.isContentEditable || 
+        const isInteractive = target.isContentEditable ||
                               target.tagName === 'INPUT' || 
                               target.tagName === 'TEXTAREA' || 
                               target.closest('button') || 
@@ -172,6 +174,7 @@ export const BlockItem = memo(function BlockItem({
             style={{ paddingLeft: `${Math.max(0, ((block.indent || 0) - (parentToggleIndent || 0)) * 24)}px` }}
             hideHandle={hideBlockHandles}
             promoteBlockHandles={promoteBlockHandles}
+            isFirstChildOfToggle={isFirstChildOfToggle}
         >
             {renderBlockContent()}
         </SortableBlockWrapper>

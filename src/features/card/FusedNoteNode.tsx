@@ -33,7 +33,10 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     const clearCanvasSelection = useStore(s => s.clearCanvasSelection);
     const setNodesStore = useStore(s => s.setNodes);
 
-    const isDragging = interactionState.draggedNodeId === id;
+    // Scale + tilt is reserved for single-drag (the grabbed card "lifts").
+    // Multi-drag uses a unified subtle lift on every selected card via global CSS
+    // (.chnk-it-multi-drag .react-flow__node.selected) — so we deliberately skip it here.
+    const isDragging = interactionState.draggedNodeId === id && !interactionState.isMultiDragging;
     const isDropTarget = interactionState.dropTarget?.id === id;
     const dropType = isDropTarget ? interactionState.dropTarget?.type : null;
 
@@ -76,7 +79,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     const nodeRef = useRef<HTMLDivElement>(null);
     const activeResize = useRef(false);
 
-    const isMultiSelected = selectedCanvasNodeIds.has(id);
+    const isMultiSelected = selectedCanvasNodeIds.has(id) && selectedCanvasNodeIds.size > 1;
 
     // Convert color to pastel for better readability
     const displayColor = data.color ? toPastelColor(data.color, theme === 'light') : undefined;
@@ -379,10 +382,10 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             ref={nodeRef}
             style={dynamicStyle}
         >
-            {/* Interaction Overlay: Converts the entire node into a drag handle when unselected */}
+            {/* Interaction Overlay */}
             {!isInteractive && !isLinkingMode && (
                 <div
-                    className="interaction-overlay"
+                    className="interaction-overlay custom-drag-handle"
                     ref={(el) => {
                         if (el) {
                             el.onwheel = (e) => {
@@ -506,7 +509,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                     minimal={false}
                     onUpdate={handleContentUpdate}
                     nodeId={id}
-                    hideBlockHandles={false}
+                    hideBlockHandles={!isInteractive}
                     disableMediaControls={true}
                     selectionIslandPortalId={`selection-island-${id}`}
                 />

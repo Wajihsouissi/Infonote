@@ -721,6 +721,28 @@ async function handleDevWorkspaceInvite(req: IncomingMessage, res: ServerRespons
   })
 }
 
+// Build the chat messages array, prepending an optional caller-supplied system
+// prompt. Free-form text callers pass a "system" string to control persona,
+// formatting and adaptive length; structured (JSON) callers omit it so their
+// strict "respond ONLY with JSON" instructions aren't diluted.
+function buildChatMessages(body: JsonBody, prompt: string): Array<{ role: string; content: string }> {
+  const system = getBodyString(body, 'system')
+  const messages: Array<{ role: string; content: string }> = []
+  if (system) messages.push({ role: 'system', content: system })
+  messages.push({ role: 'user', content: prompt })
+  return messages
+}
+
+// A generous ceiling so long answers aren't truncated. Actual length is steered
+// by the system prompt (short for simple asks), not capped here. Callers may
+// override via "maxTokens".
+function getMaxTokens(body: JsonBody): number {
+  const raw = body['maxTokens']
+  const value = typeof raw === 'number' ? raw : 0
+  if (value > 0 && value <= 8192) return Math.floor(value)
+  return 4096
+}
+
 async function handleDevText(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method !== 'POST') {
     sendError(res, 405, 'Method not allowed')
@@ -737,8 +759,9 @@ async function handleDevText(req: IncomingMessage, res: ServerResponse): Promise
   const model = getBodyString(body, 'model') || getEnvValue('AI_GATEWAY_TEXT_MODEL', 'VITE_AI_GATEWAY_TEXT_MODEL') || 'openai/gpt-4o-mini'
   const data = await callGateway('/chat/completions', {
     model,
-    messages: [{ role: 'user', content: prompt }],
+    messages: buildChatMessages(body, prompt),
     temperature: 0.7,
+    max_tokens: getMaxTokens(body),
   })
 
   const output = extractTextContent(data)
@@ -811,8 +834,9 @@ async function handleDevStream(req: IncomingMessage, res: ServerResponse): Promi
     },
     body: JSON.stringify({
       model,
-      messages: [{ role: 'user', content: prompt }],
+      messages: buildChatMessages(body, prompt),
       temperature: 0.7,
+      max_tokens: getMaxTokens(body),
       stream: true,
     }),
   })

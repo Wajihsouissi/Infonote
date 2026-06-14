@@ -38,6 +38,7 @@ import { ChunkItModal } from '../card/ChunkItModal';
 import { BASE_UNIT, GRID_GAP } from '../../config/layout';
 import { AuthModal } from '../auth/AuthModal';
 import { useStore } from '../../store/useStore';
+import type { AppNode } from '../../types';
 import { v4 as uuidv4 } from 'uuid';
 import { isUrl } from '../editor/pasteUtils';
 import { loadCanvasFromCloud } from '../../services/cloudSync';
@@ -116,6 +117,10 @@ export function CanvasBoard() {
     const shortcutsBtnRef = useRef<HTMLButtonElement | null>(null);
     const setSelectedEdgeId = useStore(s => s.setSelectedEdgeId);
     const isBoxSelectingRef = useRef(false);
+    // Guard ref: ReactFlow fires onSelectionChange asynchronously after receiving
+    // new processedNodes. We use a timestamp to prevent ReactFlow from reverting
+    // our selection immediately after we set it programmatically.
+    const lastProgrammaticSelectionTimeRef = useRef(0);
     const modifierKeys = useModifierKeys();
     const [isInEditableField, setIsInEditableField] = useState(false);
     const [isHoveringEditor, setIsHoveringEditor] = useState(false);
@@ -163,42 +168,61 @@ export function CanvasBoard() {
         return visibleNodes.map(node => {
             const isSelected = selectedCanvasNodeIds.has(node.id);
             const baseClass = node.className || '';
-            
-            // Calculate what the class string should look like
+
             let nextClass = baseClass
                 .replace(/\bis-selected\b/g, '')
                 .replace(/\bis-linking-mode\b/g, '')
                 .replace(/\s+/g, ' ')
                 .trim();
-                
+
             if (isSelected) nextClass += (nextClass ? ' ' : '') + 'is-selected';
             if (isLinkingMode) nextClass += (nextClass ? ' ' : '') + 'is-linking-mode';
-            
-            // IMPORTANT: If nothing changed, return the EXACT same object reference
-            // This prevents React Flow from destroying its internal d3-drag state during multi-selection!
+
             if (baseClass === nextClass) {
                 return node;
             }
-            
+
             return {
                 ...node,
-                className: nextClass
+                className: nextClass,
             };
         });
     }, [visibleNodes, selectedCanvasNodeIds, isLinkingMode]);
 
-    const applySelectedIdsToNodes = useCallback((ids: Set<string>) => {
-        setNodes(nds => {
-            let changed = false;
-            const next = nds.map(n => {
-                const shouldBeSelected = ids.has(n.id);
-                if (n.selected === shouldBeSelected) return n;
-                changed = true;
-                return { ...n, selected: shouldBeSelected };
-            });
-            return changed ? next : nds;
+    // Sync node.selected into the store whenever selectedCanvasNodeIds changes.
+    // This is what React Flow reads to decide which nodes join a multi-drag.
+    //
+    // CRITICAL: We use useStore.setState directly instead of setNodes because
+    // setNodes unconditionally calls setCloudDirty(true), which triggers the
+    // useStore.subscribe delta-tracker. That tracker diffs nodes by reference,
+    // finds "changed" objects (because we create new objects with flipped
+    // `selected`), and calls markNodesDirty → further store updates →
+    // onSelectionChange re-fires → new Set → this effect re-runs → infinite loop.
+    //
+    // The `selected` flag is purely a UI concern and must NOT mark the cloud dirty.
+    useEffect(() => {
+        const currentNodes = useStore.getState().nodes;
+        let needsUpdate = false;
+        for (const n of currentNodes) {
+            if (!!n.selected !== selectedCanvasNodeIds.has(n.id)) {
+                needsUpdate = true;
+                break;
+            }
+        }
+        if (!needsUpdate) return;
+
+        // Record timestamp so onSelectionChange ignores ReactFlow's callback
+        // that fires as an async side-effect of us changing nodes.
+        lastProgrammaticSelectionTimeRef.current = Date.now();
+
+        // Direct setState bypasses setNodes → setCloudDirty chain
+        const nextNodes = currentNodes.map(n => {
+            const shouldBeSelected = selectedCanvasNodeIds.has(n.id);
+            if (!!n.selected === shouldBeSelected) return n;
+            return { ...n, selected: shouldBeSelected };
         });
-    }, [setNodes]);
+        useStore.setState({ nodes: nextNodes as AppNode[] });
+    }, [selectedCanvasNodeIds]);
 
 
 
@@ -237,6 +261,28 @@ export function CanvasBoard() {
 
     // Focus viewport when parent changes
     const { fitView, screenToFlowPosition, getViewport, setViewport, setCenter } = useReactFlow();
+
+    // Focus last exited node when navigating backwards
+    const lastExitedNodeId = useStore(s => s.lastExitedNodeId);
+    const clearLastExitedNodeId = useStore(s => s.clearLastExitedNodeId);
+
+    useEffect(() => {
+        if (lastExitedNodeId && visibleNodes.length > 0) {
+            const node = visibleNodes.find(n => n.id === lastExitedNodeId);
+            if (node) {
+                // Instantly center on the exact middle of the node with animation
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        const { zoom } = getViewport();
+                        const width = node.measured?.width || 300;
+                        const height = node.measured?.height || 200;
+                        setCenter(node.position.x + (width / 2), node.position.y + (height / 2), { zoom: Math.max(zoom, 1), duration: 500 });
+                        clearLastExitedNodeId();
+                    });
+                });
+            }
+        }
+    }, [lastExitedNodeId, visibleNodes, setCenter, getViewport, clearLastExitedNodeId]);
 
     const keysPressed = useRef<{ [key: string]: boolean }>({});
     const animationFrameId = useRef<number | null>(null);
@@ -699,7 +745,6 @@ export function CanvasBoard() {
             // Automatically highlight and select the newly created text block node
             const nextSelectedIds = new Set([nodeId]);
             setSelectedCanvasNodeIds(nextSelectedIds);
-            applySelectedIdsToNodes(nextSelectedIds);
             setLastCreatedCanvasNodeId(nodeId);
 
             requestAnimationFrame(() => {
@@ -713,7 +758,7 @@ export function CanvasBoard() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [addNode, applySelectedIdsToNodes, currentParentId, screenToFlowPosition, setLastCreatedCanvasNodeId, setSelectedCanvasNodeIds]);
+    }, [addNode, currentParentId, screenToFlowPosition, setLastCreatedCanvasNodeId, setSelectedCanvasNodeIds]);
 
     // Canvas-Level Direct URL Pasting
     const handleCanvasPaste = (e: React.ClipboardEvent) => {
@@ -1108,7 +1153,6 @@ export function CanvasBoard() {
                         if (isFocusArmedRef.current) setIsFocusArmed(false);
                         setSelectedEdgeId(null);
                         clearCanvasSelection();
-                        applySelectedIdsToNodes(new Set());
                     }}
                     onNodeClick={(e, node) => {
                         e.stopPropagation();
@@ -1120,7 +1164,6 @@ export function CanvasBoard() {
                             linkSelectedNodes(node.id, Array.from(selectedCanvasNodeIds));
                             setIsLinkingMode(false);
                             clearCanvasSelection();
-                            applySelectedIdsToNodes(new Set());
                             return;
                         }
 
@@ -1130,12 +1173,9 @@ export function CanvasBoard() {
                         }
                         if (e.shiftKey) {
                             toggleCanvasNodeSelection(node.id);
-                            const nextIds = useStore.getState().selectedCanvasNodeIds;
-                            applySelectedIdsToNodes(nextIds);
+                            // processedNodes derives node.selected from selectedCanvasNodeIds automatically
                         } else {
-                            const nextIds = new Set([node.id]);
-                            setSelectedCanvasNodeIds(nextIds);
-                            applySelectedIdsToNodes(nextIds);
+                            setSelectedCanvasNodeIds(new Set([node.id]));
                         }
                     }}
                     onEdgeClick={(e, edge) => {
@@ -1150,8 +1190,7 @@ export function CanvasBoard() {
                     colorMode={theme}
                     minZoom={0.05}
                     maxZoom={2}
-                    snapToGrid={selectedCanvasNodeIds.size <= 1}
-                    snapGrid={[BASE_UNIT, BASE_UNIT]}
+                    snapToGrid={false}
                     onDragOver={onDragOver}
                     onDrop={onDrop}
                     onNodeDragStart={onNodeDragStart}
@@ -1166,6 +1205,11 @@ export function CanvasBoard() {
                         isBoxSelectingRef.current = false;
                     }}
                     onSelectionChange={({ nodes: selectedNodes }) => {
+                        // Skip if we recently updated node.selected —
+                        // ReactFlow fires onSelectionChange asynchronously as a side-effect
+                        // of receiving new processedNodes, which would revert our selection.
+                        if (Date.now() - lastProgrammaticSelectionTimeRef.current < 50) return;
+
                         const nextIds = new Set(selectedNodes.map(n => n.id));
                         const currentIds = useStore.getState().selectedCanvasNodeIds;
                         const isSame = nextIds.size === currentIds.size && Array.from(nextIds).every(id => currentIds.has(id));

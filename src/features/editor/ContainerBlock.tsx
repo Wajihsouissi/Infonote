@@ -32,7 +32,6 @@ export const ContainerBlock = ({ block, onUpdate, readOnly, nodeId }: ContainerB
                 onUpdate={handleUpdate}
                 readOnly={readOnly}
                 minimal={true}
-                mode="atomic"
                 nodeId={nodeId}
             />
         </div>

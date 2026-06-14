@@ -85,34 +85,34 @@ export function useCanvasNodeDrag({
     }, []);
 
     const onNodeDragStart = useCallback((_event: React.MouseEvent, node: any) => {
-        setInteractionState({ draggedNodeId: node.id });
+        // Multi-drag = the grabbed node is part of a selection of 2+. React Flow's own
+        // getDragItems uses node.selected to decide who moves; we mirror that exactly.
+        const isMultiDrag = selectedCanvasNodeIds.size > 1 && selectedCanvasNodeIds.has(node.id);
+
+        setInteractionState({
+            draggedNodeId: node.id,
+            isMultiDragging: isMultiDrag,
+        });
         activeDropTargetRef.current = null;
         activeKanbanColumnRef.current = null;
         pendingDropRef.current = null;
+        isSourceHiddenRef.current = false;
         clearDropIndicators();
 
-        // Collect IDs to boost: primary node + any selected nodes
-        const idsToBoost = new Set(selectedCanvasNodeIds);
-        idsToBoost.add(node.id);
-
-        // Boost z-index and remove extent for ALL dragged nodes. The node stays visible
-        // (normal drag) until it's actually over a fusion/nesting target — see onNodeDrag,
-        // which then swaps it for the cursor chip.
-        isSourceHiddenRef.current = false;
-        setNodes(nds => nds.map(n => {
-            if (!idsToBoost.has(n.id)) return n;
-            if (n.zIndex === 10000 && n.extent === undefined) return n;
-            return {
-                ...n,
-                zIndex: 10000,
-                extent: undefined // Allow dragging out of parent
-            };
-        }));
-
+        // Two distinct body classes so single-drag and multi-drag can style independently:
+        //   chnk-it-node-dragging  — base flag for cursor + general grabbing UX
+        //   chnk-it-multi-drag     — only during multi-drag; targets every selected card
         document.body.classList.add('chnk-it-node-dragging');
-    }, [setInteractionState, setNodes, selectedCanvasNodeIds, clearDropIndicators]);
+        if (isMultiDrag) document.body.classList.add('chnk-it-multi-drag');
+    }, [setInteractionState, clearDropIndicators, selectedCanvasNodeIds]);
 
     const onNodeDrag = useCallback((event: React.MouseEvent, node: any) => {
+        // Multi-drag is pure repositioning — no fusion, no nesting, no kanban targeting.
+        // Short-circuit before any hit-testing so the group glides cleanly under the cursor.
+        if (selectedCanvasNodeIds.size > 1 && selectedCanvasNodeIds.has(node.id)) {
+            return;
+        }
+
         // Throttle for smoother grid response (approx 30fps)
         const now = Date.now();
         if (now - lastDragCheck.current < 32) {
@@ -251,10 +251,9 @@ export function useCanvasNodeDrag({
             setInteractionState({ dropTarget: newDropTarget });
         }
 
-        // Swap the node for the cursor chip only while over a fusion/nesting target
-        // (single drag). Free repositioning keeps the normal, visible node.
-        const isMultiDrag = selectedCanvasNodeIds.size > 1 && selectedCanvasNodeIds.has(node.id);
-        setSourceHidden(node.id, !!newDropTarget && !isMultiDrag);
+        // Swap the node for the cursor chip while over a fusion/nesting target.
+        // Multi-drag never reaches here — it short-circuits at the top of this callback.
+        setSourceHidden(node.id, !!newDropTarget);
     }, [getIntersectingNodes, setInteractionState, screenToFlowPosition, getViewport, setDropLine, clearDropIndicators, setSourceHidden, selectedCanvasNodeIds]);
 
     const onNodeDragStop = useCallback((event: React.MouseEvent, node: any) => {
@@ -267,6 +266,7 @@ export function useCanvasNodeDrag({
         setInteractionState({
             hoveredKanbanColumn: null,
             draggedNodeId: null,
+            isMultiDragging: false,
             dropTarget: null
         });
         activeDropTargetRef.current = null;
@@ -275,6 +275,7 @@ export function useCanvasNodeDrag({
         isSourceHiddenRef.current = false;
         clearDropIndicators();
         document.body.classList.remove('chnk-it-node-dragging');
+        document.body.classList.remove('chnk-it-multi-drag');
 
         // Reveal the dragged node(s) again (drop the drag-chip hide class). Runs before the
         // branch updates below, which spread the now-cleaned node.
@@ -282,25 +283,36 @@ export function useCanvasNodeDrag({
             ? { ...n, className: n.className.replace('chnk-it-drag-source', '').replace(/\s+/g, ' ').trim() }
             : n));
 
-        // FREE-FORM POSITIONING: preserve raw decimal coordinates produced by React Flow.
-        const restoreNodeZIndex = () => {
-            const idsToRestore = isMultiDrag ? new Set(selectedCanvasNodeIds) : new Set([node.id]);
-
+        // Snap the node (or the whole group) to grid and restore z-index.
+        // For multi-drag we use GROUP-DELTA snapping: compute the nudge that snaps the
+        // primary node, then apply the exact same dx/dy to every other node in the group
+        // so relative positions are preserved perfectly.
+        const snapSingleNode = () => {
             setNodes(nds => nds.map(n => {
-                if (!idsToRestore.has(n.id)) return n;
-                
-                // For multi-drag, we disabled live-snapping to prevent jitter.
-                // We snap all nodes perfectly to the grid upon release.
-                const nextPos = isMultiDrag ? {
-                    x: snapToGridValue(n.position.x),
-                    y: snapToGridValue(n.position.y)
-                } : n.position;
-
+                if (n.id !== node.id) return n;
                 return {
                     ...n,
                     zIndex: 10,
                     extent: n.parentId ? 'parent' : undefined,
-                    position: nextPos
+                    position: {
+                        x: snapToGridValue(n.position.x),
+                        y: snapToGridValue(n.position.y),
+                    },
+                };
+            }));
+        };
+
+        const snapGroupNodes = () => {
+            // Anchor the snap to the primary dragged node so all others shift by the same delta.
+            const dx = snapToGridValue(node.position.x) - node.position.x;
+            const dy = snapToGridValue(node.position.y) - node.position.y;
+            setNodes(nds => nds.map(n => {
+                if (!selectedCanvasNodeIds.has(n.id)) return n;
+                return {
+                    ...n,
+                    zIndex: 10,
+                    extent: n.parentId ? 'parent' : undefined,
+                    position: { x: n.position.x + dx, y: n.position.y + dy },
                 };
             }));
         };
@@ -309,9 +321,9 @@ export function useCanvasNodeDrag({
         const isSourceFused = node.type === 'fused-note';
         const isSourceNote = node.type === 'note';
 
-        // Multi-drag: skip fusion/nesting/kanban — just restore and return
+        // Multi-drag: skip fusion/nesting/kanban — snap as a group and return.
         if (isMultiDrag) {
-            restoreNodeZIndex();
+            snapGroupNodes();
             if (currentParentId) syncParentContent(currentParentId);
             return;
         }
@@ -390,7 +402,7 @@ export function useCanvasNodeDrag({
             if (targetNode) {
                 // Dropped onto its own parent → keep as-is (no re-nest / no un-nest).
                 if (targetNode.id === node.parentId) {
-                    restoreNodeZIndex();
+                    snapSingleNode();
                     return;
                 }
 
@@ -402,7 +414,7 @@ export function useCanvasNodeDrag({
                     const sourceContent = Array.isArray(node.data.content) ? node.data.content : [];
                     // Nothing to merge — keep the source intact instead of deleting it (no data loss).
                     if (sourceContent.length === 0) {
-                        restoreNodeZIndex();
+                        snapSingleNode();
                         return;
                     }
                     handleFusionDrop(targetNode, node, pending.insertBlockId, pending.insertPosition, setNodes);
@@ -458,7 +470,7 @@ export function useCanvasNodeDrag({
             return;
         }
 
-        restoreNodeZIndex();
+        snapSingleNode();
         if (currentParentId) {
             syncParentContent(currentParentId);
         }
