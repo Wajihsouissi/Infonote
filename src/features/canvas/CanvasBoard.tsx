@@ -28,6 +28,7 @@ import { HistoryControls } from '../ui/HistoryControls';
 import { ModifierKeyIndicator } from '../ui/ModifierKeyIndicator';
 import { KanbanNodeComponent } from '../kanban/KanbanNode';
 import { CanvasSlashMenu } from './CanvasSlashMenu';
+import { DragChip } from './DragChip';
 import { CanvasContextMenu } from './CanvasContextMenu';
 
 import { CenteredEdge } from './CenteredEdge';
@@ -161,14 +162,27 @@ export function CanvasBoard() {
     const processedNodes = useMemo(() => {
         return visibleNodes.map(node => {
             const isSelected = selectedCanvasNodeIds.has(node.id);
-            const classes = [
-                node.className || '',
-                isSelected ? 'is-selected' : '',
-                isLinkingMode ? 'is-linking-mode' : '',
-            ].filter(Boolean).join(' ');
+            const baseClass = node.className || '';
+            
+            // Calculate what the class string should look like
+            let nextClass = baseClass
+                .replace(/\bis-selected\b/g, '')
+                .replace(/\bis-linking-mode\b/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+                
+            if (isSelected) nextClass += (nextClass ? ' ' : '') + 'is-selected';
+            if (isLinkingMode) nextClass += (nextClass ? ' ' : '') + 'is-linking-mode';
+            
+            // IMPORTANT: If nothing changed, return the EXACT same object reference
+            // This prevents React Flow from destroying its internal d3-drag state during multi-selection!
+            if (baseClass === nextClass) {
+                return node;
+            }
+            
             return {
                 ...node,
-                className: classes
+                className: nextClass
             };
         });
     }, [visibleNodes, selectedCanvasNodeIds, isLinkingMode]);
@@ -246,7 +260,10 @@ export function CanvasBoard() {
         onNodesChange(changes);
         changes.forEach(change => {
             if (change.type === 'position' && change.position) {
-                broadcastNodeChange(change.id, { position: change.position });
+                // Skip flooding websockets during live drag to prevent JS thread lag (swinging)
+                if (!change.dragging) {
+                    broadcastNodeChange(change.id, { position: change.position });
+                }
             } else if (change.type === 'replace') {
                 broadcastNodeChange((change as any).id, (change as any).item);
             }
@@ -1133,7 +1150,7 @@ export function CanvasBoard() {
                     colorMode={theme}
                     minZoom={0.05}
                     maxZoom={2}
-                    snapToGrid={true}
+                    snapToGrid={selectedCanvasNodeIds.size <= 1}
                     snapGrid={[BASE_UNIT, BASE_UNIT]}
                     onDragOver={onDragOver}
                     onDrop={onDrop}
@@ -1192,6 +1209,7 @@ export function CanvasBoard() {
                 >
                     <LiveCursors presenceData={presenceData} currentUserId={currentUserId} />
                     <CanvasSlashMenu />
+                    <DragChip />
                     <CustomGrid />
                     <Panel position="top-center">
 

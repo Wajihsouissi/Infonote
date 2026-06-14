@@ -69,10 +69,21 @@ export function useCanvasViewport({ nodes, currentParentId }: UseCanvasViewportO
         // Strip parentId for ReactFlow rendering (root level nodes) and dynamically apply custom drag handle
         return culledNodes.map(n => {
             const hasDragHandle = n.type === 'note' || n.type === 'fused-note';
+            const shouldStripParent = n.parentId === currentParentId;
+            const shouldAddDragHandle = hasDragHandle;
+            
+            // Check if it already matches the target state
+            const alreadyHasCorrectParent = shouldStripParent ? n.parentId === undefined : true;
+            const alreadyHasCorrectDragHandle = shouldAddDragHandle ? n.dragHandle === '.custom-drag-handle' : true;
+            
+            if (alreadyHasCorrectParent && alreadyHasCorrectDragHandle) {
+                return n;
+            }
+            
             return {
                 ...n,
-                ...(n.parentId === currentParentId ? { parentId: undefined } : {}),
-                ...(hasDragHandle ? { dragHandle: '.custom-drag-handle' } : {})
+                ...(shouldStripParent ? { parentId: undefined } : {}),
+                ...(shouldAddDragHandle ? { dragHandle: '.custom-drag-handle' } : {})
             };
         });
     }, [rootNodes, currentParentId, viewport, selectedCanvasNodeIds]);

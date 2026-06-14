@@ -112,29 +112,20 @@
 }
 
 .fusedNoteNode:hover {
-    border-color: rgba(255, 255, 255, 0.3);
-    /* Subtle glow intensity */
-    box-shadow: none;
+    background: var(--glass-bg-hover);
+    border-color: rgba(255, 255, 255, 0.15);
+    border-left-color: var(--color-primary);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
 }
 
-.fusedNoteNode.selected {
-    border-color: var(--color-primary, #60A5FA);
-    box-shadow: none;
-}
-
-.fusedNoteNode.selected:hover {
-    border-color: var(--color-primary, #60A5FA);
-    box-shadow: none;
-}
-
-.fusedNoteNode.multiSelected {
-    border-color: var(--color-primary);
-    box-shadow: none;
-}
-
+.fusedNoteNode.selected,
+.fusedNoteNode.selected:hover,
+.fusedNoteNode.multiSelected,
 .fusedNoteNode.multiSelected:hover {
-    border-color: var(--color-primary);
-    box-shadow: none;
+    border-color: rgba(255, 255, 255, 0.2);
+    border-left-color: var(--color-primary);
+    box-shadow: 0 0 0 1px var(--color-primary);
 }
 
 .content {

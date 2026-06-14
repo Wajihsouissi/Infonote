@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import type { MutableRefObject } from 'react';
 import type { Block, BlockType } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '../../../store/useStore';
@@ -10,7 +11,8 @@ interface DragAndDropProps {
     selectedBlockIds: Set<string>;
     nodeId?: string;
     addBlock: (afterId: string, type: BlockType, indent?: number, metadata?: any) => void;
-    editorId: string; // Unique ID for this editor instance
+    editorId: string;
+    pendingDropTarget?: MutableRefObject<{ blockId: string; position: 'top' | 'bottom' } | null>;
 }
 
 export function useBlockDragAndDrop({
@@ -18,6 +20,7 @@ export function useBlockDragAndDrop({
     setBlocks,
     debouncedOnUpdate,
     selectedBlockIds,
+    pendingDropTarget,
     nodeId,
     addBlock,
     editorId
@@ -345,10 +348,15 @@ export function useBlockDragAndDrop({
                     return;
                 }
 
-                // Same-node move (internal reorder)
+                // Same-node move (internal reorder) — use container-tracked target if available
                 console.log("[BlockEditor.handleDrop] SAME-NODE move (internal reorder)");
-                const lastId = blocks[blocks.length - 1].id;
-                handleMoveBlock(sourceBlockId, lastId, 'bottom', e.dataTransfer);
+                const tracked = pendingDropTarget?.current;
+                if (tracked) {
+                    handleMoveBlock(sourceBlockId, tracked.blockId, tracked.position, e.dataTransfer);
+                } else {
+                    const lastId = blocks[blocks.length - 1].id;
+                    handleMoveBlock(sourceBlockId, lastId, 'bottom', e.dataTransfer);
+                }
                 return;
             }
 

@@ -728,7 +728,7 @@ export function BottomMenu() {
         // number of columns per row (4 columns render as a 2x2 grid, so only 2 per row).
         const columnCount = block.type === 'columns' ? (block.meta?.count || 2) : 0;
         const columnsPerRow = columnCount === 4 ? 2 : columnCount;
-        const BLOCK_WIDTH = block.type === 'columns' ? Math.max(550, columnsPerRow * 220) : 300;
+        const BLOCK_WIDTH = block.type === 'columns' ? Math.max(550, columnsPerRow * 220) : ['image', 'video', 'file'].includes(block.type) ? 208 : 300;
         const BLOCK_HEIGHT = 100;
 
         const position = findNonOverlappingPosition(flowPos, { width: BLOCK_WIDTH, height: BLOCK_HEIGHT }, nodes, currentParentId, vp());

@@ -46,6 +46,23 @@ export function useCanvasNodeDrag({
     const activeKanbanColumnRef = useRef<any>(null);
     // The complete fusion/nesting decision for the current drag, reused on drop.
     const pendingDropRef = useRef<PendingDrop | null>(null);
+    // Whether the dragged node is currently hidden (swapped for the cursor chip). True only
+    // while hovering a fusion/nesting target, so free repositioning keeps the normal node.
+    const isSourceHiddenRef = useRef(false);
+
+    // Add/remove the hide class on the dragged node as it enters/leaves a drop target.
+    const setSourceHidden = useCallback((nodeId: string, hidden: boolean) => {
+        if (hidden === isSourceHiddenRef.current) return;
+        isSourceHiddenRef.current = hidden;
+        setNodes(nds => nds.map(n => {
+            if (n.id !== nodeId) return n;
+            const cls = n.className ?? '';
+            const has = cls.includes('chnk-it-drag-source');
+            if (hidden && !has) return { ...n, className: `${cls} chnk-it-drag-source`.trim() };
+            if (!hidden && has) return { ...n, className: cls.replace('chnk-it-drag-source', '').replace(/\s+/g, ' ').trim() };
+            return n;
+        }));
+    }, [setNodes]);
 
     // Move the between-blocks insertion line to a specific block element (or clear it).
     const setDropLine = useCallback((blockEl: HTMLElement | null, position: 'top' | 'bottom') => {
@@ -78,12 +95,19 @@ export function useCanvasNodeDrag({
         const idsToBoost = new Set(selectedCanvasNodeIds);
         idsToBoost.add(node.id);
 
-        // Boost z-index and remove extent for ALL dragged nodes
-        setNodes(nds => nds.map(n => idsToBoost.has(n.id) ? {
-            ...n,
-            zIndex: 10000,
-            extent: undefined // Allow dragging out of parent
-        } : n));
+        // Boost z-index and remove extent for ALL dragged nodes. The node stays visible
+        // (normal drag) until it's actually over a fusion/nesting target — see onNodeDrag,
+        // which then swaps it for the cursor chip.
+        isSourceHiddenRef.current = false;
+        setNodes(nds => nds.map(n => {
+            if (!idsToBoost.has(n.id)) return n;
+            if (n.zIndex === 10000 && n.extent === undefined) return n;
+            return {
+                ...n,
+                zIndex: 10000,
+                extent: undefined // Allow dragging out of parent
+            };
+        }));
 
         document.body.classList.add('chnk-it-node-dragging');
     }, [setInteractionState, setNodes, selectedCanvasNodeIds, clearDropIndicators]);
@@ -226,7 +250,12 @@ export function useCanvasNodeDrag({
             activeDropTargetRef.current = newDropTarget;
             setInteractionState({ dropTarget: newDropTarget });
         }
-    }, [getIntersectingNodes, setInteractionState, screenToFlowPosition, getViewport, setDropLine, clearDropIndicators]);
+
+        // Swap the node for the cursor chip only while over a fusion/nesting target
+        // (single drag). Free repositioning keeps the normal, visible node.
+        const isMultiDrag = selectedCanvasNodeIds.size > 1 && selectedCanvasNodeIds.has(node.id);
+        setSourceHidden(node.id, !!newDropTarget && !isMultiDrag);
+    }, [getIntersectingNodes, setInteractionState, screenToFlowPosition, getViewport, setDropLine, clearDropIndicators, setSourceHidden, selectedCanvasNodeIds]);
 
     const onNodeDragStop = useCallback((event: React.MouseEvent, node: any) => {
         // The exact fusion/nesting decision that was shown to the user during the drag.
@@ -243,8 +272,15 @@ export function useCanvasNodeDrag({
         activeDropTargetRef.current = null;
         activeKanbanColumnRef.current = null;
         pendingDropRef.current = null;
+        isSourceHiddenRef.current = false;
         clearDropIndicators();
         document.body.classList.remove('chnk-it-node-dragging');
+
+        // Reveal the dragged node(s) again (drop the drag-chip hide class). Runs before the
+        // branch updates below, which spread the now-cleaned node.
+        setNodes(nds => nds.map(n => (n.className && n.className.includes('chnk-it-drag-source'))
+            ? { ...n, className: n.className.replace('chnk-it-drag-source', '').replace(/\s+/g, ' ').trim() }
+            : n));
 
         // FREE-FORM POSITIONING: preserve raw decimal coordinates produced by React Flow.
         const restoreNodeZIndex = () => {
@@ -252,10 +288,19 @@ export function useCanvasNodeDrag({
 
             setNodes(nds => nds.map(n => {
                 if (!idsToRestore.has(n.id)) return n;
+                
+                // For multi-drag, we disabled live-snapping to prevent jitter.
+                // We snap all nodes perfectly to the grid upon release.
+                const nextPos = isMultiDrag ? {
+                    x: snapToGridValue(n.position.x),
+                    y: snapToGridValue(n.position.y)
+                } : n.position;
+
                 return {
                     ...n,
                     zIndex: 10,
                     extent: n.parentId ? 'parent' : undefined,
+                    position: nextPos
                 };
             }));
         };

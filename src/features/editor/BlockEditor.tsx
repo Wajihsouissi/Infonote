@@ -156,6 +156,17 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
     });
 
     // 4. Drag and Drop Hook
+    // Tracks the "nearest block + position" the cursor is over during a drag,
+    // including the 8px gaps between blocks and the zones before/after all blocks.
+    const dragDropTargetRef = useRef<{ blockId: string; position: 'top' | 'bottom' } | null>(null);
+
+    const clearBlockDropIndicators = useCallback(() => {
+        document.querySelectorAll('[data-external-drop-target]').forEach(el => {
+            el.removeAttribute('data-external-drop-target');
+        });
+        dragDropTargetRef.current = null;
+    }, []);
+
     const {
         handleMoveBlock,
         handleBlockDragStart,
@@ -168,8 +179,66 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         selectedBlockIds,
         nodeId,
         addBlock,
-        editorId: editorInstanceId.current
+        editorId: editorInstanceId.current,
+        pendingDropTarget: dragDropTargetRef
     });
+
+    // Container-level drag-over: covers the gap between blocks, above the first
+    // block, and below the last block. The per-block handlers still fire for blocks
+    // themselves; this fills the dead zones.
+    const handleEditorDragOver = useCallback((e: React.DragEvent) => {
+        handleDragOver(e); // e.preventDefault() + dropEffect
+
+        const clientY = e.clientY;
+
+        // Walk blocks top-to-bottom to find the insertion point.
+        // Any Y above a block's bottom edge that is also above the block's midpoint → 'top' of that block.
+        // Any Y in the gap above a block (below previous block's bottom) → 'top' of this block.
+        // Y below all blocks → 'bottom' of last block.
+        let target: { blockId: string; position: 'top' | 'bottom' } | null = null;
+
+        for (let i = 0; i < blocks.length; i++) {
+            const block = blocks[i];
+            const el = document.getElementById(`block-${block.id}`);
+            if (!el) continue;
+            const rect = el.getBoundingClientRect();
+
+            if (clientY < rect.bottom) {
+                // Cursor is above this block's bottom edge.
+                // If cursor is above the block's top edge it's in the gap → insert before this block.
+                // If cursor is inside the block, use midpoint to decide.
+                const position: 'top' | 'bottom' = clientY < rect.top + rect.height / 2 ? 'top' : 'bottom';
+                target = { blockId: block.id, position };
+                break;
+            }
+        }
+
+        // Cursor is below all blocks
+        if (!target && blocks.length > 0) {
+            target = { blockId: blocks[blocks.length - 1].id, position: 'bottom' };
+        }
+
+        if (!target) return;
+
+        // Only update DOM if target changed (avoids unnecessary attribute thrashing)
+        const prev = dragDropTargetRef.current;
+        if (prev?.blockId === target.blockId && prev?.position === target.position) return;
+
+        // Clear old attribute
+        if (prev) {
+            document.getElementById(`block-${prev.blockId}`)?.removeAttribute('data-external-drop-target');
+        }
+
+        dragDropTargetRef.current = target;
+        document.getElementById(`block-${target.blockId}`)?.setAttribute('data-external-drop-target', target.position);
+    }, [blocks, handleDragOver]);
+
+    const handleEditorDragLeave = useCallback((e: React.DragEvent) => {
+        // Only clear when leaving the editor itself (not entering a child element)
+        if (!editorRef.current?.contains(e.relatedTarget as Node)) {
+            clearBlockDropIndicators();
+        }
+    }, [clearBlockDropIndicators]);
 
     const handleDragStartWrapped = useCallback((e: React.DragEvent, block: Block) => {
         if (timeoutRef.current) {
@@ -1353,8 +1422,9 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             className={`${styles.editor} ${minimal ? styles.minimal : ''}`}
             ref={editorRef}
             tabIndex={-1}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
+            onDrop={(e) => { handleDrop(e); clearBlockDropIndicators(); }}
+            onDragOver={handleEditorDragOver}
+            onDragLeave={handleEditorDragLeave}
             onClick={(e) => handleEditorClick(e, wasDraggingRef.current)}
             onPointerDown={(e) => {
                 if (e.ctrlKey) {

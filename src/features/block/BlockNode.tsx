@@ -112,6 +112,8 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const isAutoWidthText = Array.isArray(data.content) && data.content.length === 1 && ['text', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered', 'todo'].includes(data.content[0].type);
     const isResizable = isSingleMedia || isSingleLink;
 
+    const isMediaEmpty = isSingleMedia && (!data.content[0].content || data.content[0].content.trim() === '');
+
     const globalListIndex = useGlobalListIndex(id, isSingleNumbered);
 
     // Convert color to pastel for better readability
@@ -151,11 +153,12 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 const needsAutoWidthInit = isAutoWidthText && !isResizable && !isColumns && !isSingleColor && !isWideBlock && n.style?.width !== 'fit-content';
                 const needsWidthInit = !isAutoWidthText && !isResizable && !isColumns && !isSingleColor && !isWideBlock && (n.style?.width === 'auto' || n.style?.width === undefined);
                 const needsResizableWidthInit = isResizable && (n.style?.width === 'auto' || n.style?.width === undefined);
+                const shouldForcePlaceholderWidth = isMediaEmpty && n.style?.width !== 208 && n.style?.width !== '208px';
                 const needsColumnsWidthInit = isColumns && (n.style?.width === 'auto' || n.style?.width === undefined);
                 const needsColorInit = isSingleColor && (n.style?.width !== ICON_SIZE || n.style?.height !== ICON_SIZE);
                 const needsWideBlockInit = isWideBlock && (n.style?.width !== MIN_EXPANDED_SIZE);
 
-                if (needsHeightAuto || needsAutoWidthInit || needsWidthInit || needsResizableWidthInit || needsColumnsWidthInit || needsColorInit || needsWideBlockInit) {
+                if (needsHeightAuto || needsAutoWidthInit || needsWidthInit || needsResizableWidthInit || shouldForcePlaceholderWidth || needsColumnsWidthInit || needsColorInit || needsWideBlockInit) {
                     return {
                         ...n,
                         style: {
@@ -164,7 +167,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                             ...(needsAutoWidthInit ? { width: 'fit-content' } : {}),
                             ...(needsWidthInit ? { width: MIN_EXPANDED_SIZE } : {}),
                             ...(needsWideBlockInit ? { width: MIN_EXPANDED_SIZE } : {}),
-                            ...(needsResizableWidthInit ? { width: isSingleLink ? 432 : 208 } : {}),
+                            ...((needsResizableWidthInit || shouldForcePlaceholderWidth) ? { width: isSingleLink ? 432 : 208 } : {}),
                             ...(needsColumnsWidthInit ? { width: 550 } : {}),
                             ...(needsColorInit ? { width: ICON_SIZE, height: ICON_SIZE } : {})
                         }
@@ -260,7 +263,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             const deltaX = (moveEvent.clientX - startX) / zoom;
             const rawW = startW + deltaX;
 
-            const width = snapMediaDimensions(rawW);
+            const width = Math.max(100, rawW);
 
             setNodes(nodes => nodes.map(n => {
                 if (n.id === id) {
@@ -288,9 +291,9 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     return (
         <div
             ref={nodeRef}
-            className={`${baseClassName} ${(isSingleMedia || isSingleLink) ? styles.mediaBlockNode : ''} ${isSingleLink ? styles.linkBlockNode : ''} ${isWideBlock ? styles.wideBlock : ''} ${isAutoWidthText ? styles.autoWidth : ''} ${selected ? styles.selected : ''} ${isMultiSelected ? styles.multiSelected : ''} ${isDropTarget && dropType === 'fusion' ? styles.fusionTarget : ''} ${isDropTarget && dropType === 'nesting' ? styles.dropTarget : ''} custom-drag-handle`}
+            className={`${baseClassName} ${(isSingleMedia || isSingleLink) ? styles.mediaBlockNode : ''} ${isMediaEmpty ? styles.mediaPlaceholderBlock : ''} ${isSingleLink ? styles.linkBlockNode : ''} ${isWideBlock ? styles.wideBlock : ''} ${isAutoWidthText ? styles.autoWidth : ''} ${selected ? styles.selected : ''} ${isMultiSelected ? styles.multiSelected : ''} ${isDropTarget && dropType === 'fusion' ? styles.fusionTarget : ''} ${isDropTarget && dropType === 'nesting' ? styles.dropTarget : ''} custom-drag-handle`}
             style={{
-                backgroundColor: (isSingleMedia || isSingleLink) ? 'transparent' : (displayColor || undefined),
+                backgroundColor: ((isSingleMedia && !isMediaEmpty) || isSingleLink) ? 'transparent' : (displayColor || undefined),
                 ...dynamicStyles
             }}
         >
@@ -525,7 +528,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             {/* Resize Handle for Resizable or Column Blocks */}
             {(isResizable || isColumns) && (
                 <div
-                    className={styles.resizeHandle}
+                    className={`${styles.resizeHandle} nodrag`}
                     onMouseDown={handleResizeStart}
                 >
                     <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">

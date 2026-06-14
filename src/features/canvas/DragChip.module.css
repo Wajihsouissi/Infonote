@@ -1,0 +1,22 @@
+.dragChip {
+    position: fixed;
+    left: -1000px;
+    top: -1000px;
+    transform: translate(-50%, -50%);
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: rgba(38, 38, 44, 0.96);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    color: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    z-index: 100000;
+    opacity: 0;
+    transition: opacity 0.1s ease;
+}

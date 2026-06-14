@@ -77,6 +77,9 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
     const handleDragEnd = () => {
         if (ref.current) ref.current.classList.remove(styles.dragging);
         setDropIndication(null);
+        document.querySelectorAll('[data-external-drop-target]').forEach(el => {
+            el.removeAttribute('data-external-drop-target');
+        });
         document.body.classList.remove('chnk-it-block-dragging');
 
         const regularCleanup = (window as any).chnkItDragCleanup;
@@ -138,8 +141,12 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         if (dropIndication !== newIndication) setDropIndication(newIndication);
     };
 
-    const handleDragLeave = () => {
-        setDropIndication(null);
+    const handleDragLeave = (e: React.DragEvent) => {
+        // Ignore DragLeave events caused by entering a child element — only clear
+        // when the cursor truly exits this block's bounding box.
+        if (!ref.current?.contains(e.relatedTarget as Node)) {
+            setDropIndication(null);
+        }
     };
 
     const handleDrop = (e: React.DragEvent) => {
@@ -152,6 +159,9 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
             e.preventDefault();
             e.stopPropagation();
             setDropIndication(null);
+            document.querySelectorAll('[data-external-drop-target]').forEach(el => {
+                el.removeAttribute('data-external-drop-target');
+            });
 
             if (sourceBlockId === id) return;
             // Use special ID for external drops to satisfy type but indicate source
