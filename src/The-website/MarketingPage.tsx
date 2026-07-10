@@ -369,8 +369,16 @@ export const MarketingPage: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [activeAccordion, setActiveAccordion] = useState(0);
   const [activeStep, setActiveStep] = useState(0);
+  const [isSmallScreen, setIsSmallScreen] = useState(() => window.matchMedia('(max-width: 720px)').matches);
   const stepRefs = useRef<(HTMLDivElement | null)[]>([null, null, null]);
   const setCurrentView = useStore((state) => state.setCurrentView);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 720px)');
+    const onChange = (e: MediaQueryListEvent) => setIsSmallScreen(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   // Intersection observer to track which step visual is currently in view
   useEffect(() => {
@@ -1490,11 +1498,11 @@ export const MarketingPage: React.FC = () => {
                 autoPanOnConnect={false}
                 nodesDraggable={true}
                 proOptions={{ hideAttribution: true }}
-                minZoom={0.8}
+                minZoom={isSmallScreen ? 0.35 : 0.8}
                 maxZoom={0.8}
                 fitView
                 fitViewOptions={{ padding: 0.15 }}
-                key={drilledNode || 'main'}
+                key={`${drilledNode || 'main'}-${isSmallScreen ? 'sm' : 'lg'}`}
               >
                 <Background gap={24} size={2} color="var(--color-border)" />
               </ReactFlow>

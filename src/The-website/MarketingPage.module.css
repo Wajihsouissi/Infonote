@@ -3160,3 +3160,38 @@
     text-align: center;
   }
 }
+
+/* ── Small screens: nav + hero (QA F-1) ── */
+@media (max-width: 720px) {
+  .topNav {
+    left: 12px;
+    right: 12px;
+    transform: none;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px 8px 16px;
+  }
+
+  .scrolled.topNav {
+    gap: 12px;
+  }
+
+  .navLinks {
+    display: none;
+  }
+
+  .heroContent {
+    padding: 88px 12px 64px;
+  }
+
+  .browserFrame {
+    width: 100%;
+    height: 60vh;
+    min-height: 420px;
+    overflow: hidden;
+  }
+
+  .browserSearch {
+    display: none;
+  }
+}
