@@ -296,6 +296,7 @@ export function NoteExpandedContent({
                             type="text"
                             value={editedData.label}
                             onChange={(e) => setEditedData(prev => ({ ...prev, label: e.target.value }))}
+                            onFocus={() => setIsEditingMetadata(true)}
                             onBlur={handleSaveMetadata}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
