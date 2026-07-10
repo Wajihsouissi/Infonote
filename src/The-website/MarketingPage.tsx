@@ -114,12 +114,30 @@ const YouTubeBlock = memo(({ data }: any) => {
         overflow: 'hidden', position: 'relative',
         background: '#000', border: '1px solid var(--color-border)',
         boxShadow: '0 12px 30px rgba(0,0,0,0.3)',
-      }} onClick={() => setOpen(true)}>
-        <img
-          src={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0.8 }}
-          alt="Video thumbnail"
-        />
+        cursor: videoId ? 'pointer' : 'default',
+      }} onClick={() => { if (videoId) setOpen(true); }}>
+        {videoId ? (
+          <img
+            src={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0.8 }}
+            alt="Video thumbnail"
+          />
+        ) : (
+          <div style={{
+            width: '100%', height: '100%',
+            background: 'radial-gradient(120% 140% at 20% 0%, rgba(139,92,246,0.45), rgba(9,10,15,0.95) 60%), #0b0c14',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'flex-end',
+            paddingBottom: 28, gap: 6,
+          }}>
+            <span style={{ color: '#fff', fontWeight: 700, fontSize: 16, letterSpacing: '-0.01em' }}>
+              Product tour
+            </span>
+            <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>
+              Coming with the beta
+            </span>
+          </div>
+        )}
         <div style={{
           position: 'absolute', inset: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -151,14 +169,16 @@ const nodeTypes = {
 };
 
 const initialNodes: any[] = [
-  // â”€â”€ CENTER: YouTube video + Icon card side by side â”€â”€
+  // ── CENTER: YouTube video + Icon card side by side ──
   {
     id: '10',
     type: 'youtube',
     className: styles.blockVideo,
     position: { x: -36, y: 181 },
     data: {
-      videoId: '-I8QtPA7lt4',
+      // Set to the YouTube id of OUR demo video when it's ready. Empty renders
+      // a branded "Product tour" placeholder instead of an external embed.
+      videoId: '',
     },
     style: { width: 480, height: 270, rotate: '1deg' },
     selected: false,
@@ -178,9 +198,9 @@ const initialNodes: any[] = [
     selected: false,
   },
 
-  // â”€â”€ EDGES: surrounding nodes spread around the perimeter â”€â”€
+  // ── EDGES: surrounding nodes spread around the perimeter ──
 
-  // Top-left â€” Bullet list block
+  // Top-left — Bullet list block
   {
     id: '8',
     type: 'block',
@@ -198,7 +218,7 @@ const initialNodes: any[] = [
     selected: false,
   },
 
-  // Left â€” New Note card
+  // Left — New Note card
   {
     id: '3',
     type: 'note',
@@ -216,7 +236,7 @@ const initialNodes: any[] = [
 
   
 
-  // Top-right â€” Text block ("Chunk it...")
+  // Top-right — Text block ("Chunk it...")
   {
     id: '9',
     type: 'block',
@@ -232,7 +252,7 @@ const initialNodes: any[] = [
     selected: false,
   },
 
-  // Right â€” Fused note (Meeting Notes)
+  // Right — Fused note (Meeting Notes)
   {
     id: '7',
     type: 'fused-note',
@@ -251,7 +271,7 @@ const initialNodes: any[] = [
     selected: false,
   },
 
-  // Bottom-right â€” Workshop insights (large expanded card)
+  // Bottom-right — Workshop insights (large expanded card)
   {
     id: '1',
     type: 'note',
@@ -300,7 +320,7 @@ const nestedDesignNodes = [
       label: 'Logo Designs',
       viewMode: 'medium',
       icon: 'square',
-      description: 'Final logo variations in SVG format â€” light, dark, and monochrome versions.',
+      description: 'Final logo variations in SVG format — light, dark, and monochrome versions.',
       hideHoverMenu: true,
     },
     style: { width: 240, height: 240 },
@@ -321,7 +341,7 @@ const nestedDesignNodes = [
         { id: 'nb1', type: 'heading', content: 'Screens' },
         { id: 'nb2', type: 'bullet', content: 'Welcome screen with product value prop' },
         { id: 'nb3', type: 'bullet', content: 'Feature highlights with interactive previews' },
-        { id: 'nb4', type: 'bullet', content: 'Workspace creation â€” one-click setup' },
+        { id: 'nb4', type: 'bullet', content: 'Workspace creation — one-click setup' },
       ],
     },
     style: { width: 360, height: 340 },
@@ -1436,7 +1456,7 @@ export const MarketingPage: React.FC = () => {
             <div className={styles.browserSearch}>
               <Search size={14} />
               <span>Find anything you are looking for...</span>
-              <span style={{marginLeft: 'auto', opacity: 0.5, fontSize: 10, background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: 4}}>âŒ˜K</span>
+              <span style={{marginLeft: 'auto', opacity: 0.5, fontSize: 10, background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: 4}}>⌘K</span>
             </div>
 
             <div className={styles.browserActions}>
@@ -1493,7 +1513,7 @@ export const MarketingPage: React.FC = () => {
       {/* Features Section */}
       <section className={styles.featuresSection} id="features">
 
-        {/* â”€â”€ Hero Feature Area â”€â”€ */}
+        {/* ── Hero Feature Area ── */}
         <div className={styles.ftHero}>
           <span className={styles.ftBadge}>
             <span className={styles.ftBadgeDot} />
@@ -1506,7 +1526,7 @@ export const MarketingPage: React.FC = () => {
             Align your thinking around a <strong>unified knowledge canvas</strong>. Capture, organize, and connect all your ideas with Infonote's visual-first approach to note-taking.
           </p>
 
-          {/* Large hero visual â€” Collaborative Canvas UI Simulation (Nested Chunks) */}
+          {/* Large hero visual — Collaborative Canvas UI Simulation (Nested Chunks) */}
           <div className={styles.ftHeroVisual}>
             <div className={styles.ftHeroVisualInner}>
               {/* Subtle dot grid for canvas background */}
@@ -1648,7 +1668,7 @@ export const MarketingPage: React.FC = () => {
           </div>
         </div>
 
-        {/* â”€â”€ Two Column Feature Cards â”€â”€ */}
+        {/* ── Two Column Feature Cards ── */}
         <div className={styles.ftDualRow}>
           
           {/* Feature 1: Local Storage and Security */}
@@ -1802,7 +1822,7 @@ export const MarketingPage: React.FC = () => {
           </div>
         </div>
 
-        {/* â”€â”€ Split Feature Row: Linear meets Canvas â”€â”€ */}
+        {/* ── Split Feature Row: Linear meets Canvas ── */}
         <div className={styles.ftSplitRow}>
           
           <div className={styles.ftSplitText}>
@@ -2034,7 +2054,7 @@ export const MarketingPage: React.FC = () => {
           </div>
         </div>
 
-        {/* â”€â”€ Bottom Feature Bar â”€â”€ */}
+        {/* ── Bottom Feature Bar ── */}
         <div className={styles.ftBottomBar}>
           <div className={styles.ftBottomItem}>
             <div className={styles.ftBottomHead}>
@@ -2068,7 +2088,7 @@ export const MarketingPage: React.FC = () => {
 
       </section>
 
-      {/* â”€â”€ How It Works Walkthrough Section â”€â”€ */}
+      {/* ── How It Works Walkthrough Section ── */}
       <section className={styles.walkthroughSection} id="how-it-works">
         <div className={styles.wtHeader}>
           <span className={styles.ftBadge}>
@@ -2743,7 +2763,7 @@ export const MarketingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* â”€â”€ Testimonials Section â”€â”€ */}
+      {/* ── Testimonials Section ── */}
       <section className={styles.testimonialSection}>
         <div className={styles.testimonialHeader}>
           <h2 className={styles.testimonialTitle}>Loved by thinkers, creators, and teams</h2>

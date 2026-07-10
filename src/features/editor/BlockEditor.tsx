@@ -249,21 +249,42 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         handleBlockDragStart(e, block);
     }, [handleBlockDragStart, onUpdate]);
 
-    // Escape key handler for clearing selection
+    // Escape / Delete key handling for block selection. Lives on `document`
+    // because multi-select blurs the block contentEditables (focus moves to
+    // the editor container), so per-block onKeyDown handlers never fire.
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && selectedBlockIds.size > 0) {
+            if (selectedBlockIds.size === 0) return;
+
+            if (e.key === 'Escape') {
                 e.preventDefault();
                 setSelectedBlockIds(new Set());
                 if (document.activeElement instanceof HTMLElement) {
                     document.activeElement.blur();
                 }
                 editorRef.current?.focus({ preventScroll: true });
+                return;
+            }
+
+            if (e.key === 'Backspace' || e.key === 'Delete') {
+                // Don't hijack typing — if focus sits in any editable element,
+                // the per-block handler owns Backspace/Delete.
+                const target = e.target as HTMLElement | null;
+                const isEditableTarget = !!target && (
+                    target.isContentEditable ||
+                    target.tagName === 'INPUT' ||
+                    target.tagName === 'TEXTAREA' ||
+                    target.tagName === 'SELECT'
+                );
+                if (isEditableTarget) return;
+
+                e.preventDefault();
+                deleteSelectedBlocks();
             }
         };
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [selectedBlockIds.size, setSelectedBlockIds]);
+    }, [selectedBlockIds.size, setSelectedBlockIds, deleteSelectedBlocks]);
 
     // Listen for drag completion events — restore focus after native HTML5 drag blurs it
     const dragClearedRef = useRef(false);
@@ -1080,6 +1101,18 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
             addBlock(id, 'text');
 
+        } else if ((e.key === 'Backspace' || e.key === 'Delete') && selectedBlockIdsRef.current.size > 0) {
+            // Multi-select active: delete the selected blocks, not the focused
+            // one. Reads through refs/stable setters because this callback's
+            // dep list intentionally omits selection state.
+            e.preventDefault();
+            const selected = selectedBlockIdsRef.current;
+            setBlocks(prev => {
+                const newBlocks = prev.filter(b => !selected.has(b.id));
+                debouncedOnUpdate(newBlocks);
+                return newBlocks;
+            });
+            setSelectedBlockIds(new Set());
         } else if (e.key === 'Backspace') {
             const currentBlock = blocksRef.current.find(b => b.id === id);
             if (!currentBlock) return;
@@ -1335,21 +1368,10 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 editorRef.current?.focus({ preventScroll: true });
             }
             // else let browser select all text (default)
-        } else if ((e.ctrlKey || e.metaKey) && e.key === 'Delete') {
-            // Ctrl+Delete to delete selected blocks
-            if (selectedBlockIds.size > 0) {
-                e.preventDefault();
-                deleteSelectedBlocks();
-            }
-        } else if (e.key === 'Backspace' && selectedBlockIds.size > 0) {
-            // Backspace/Delete to delete selected blocks
-            e.preventDefault();
-            deleteSelectedBlocks();
-        } else if (e.key === 'Delete' && selectedBlockIds.size > 0) {
-            // Delete key to delete selected blocks
-            e.preventDefault();
-            deleteSelectedBlocks();
         }
+        // NOTE: selection-aware Backspace/Delete is handled at the TOP of this
+        // chain — branches placed here are shadowed by the single-block
+        // Backspace/Delete branches above and can never execute.
     }, [handleIndent, handleOutdent, convertBlock, addBlock, removeBlock, debouncedOnUpdate]);
 
     const handleBlockMenuOpen = useCallback((e: React.MouseEvent, id: string) => {

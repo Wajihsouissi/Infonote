@@ -1,22 +1,116 @@
-.dragChip {
+.dragChipContainer {
     position: fixed;
     left: -1000px;
     top: -1000px;
-    transform: translate(-50%, -50%);
-    width: 48px;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 12px;
-    background: rgba(38, 38, 44, 0.96);
-    -webkit-backdrop-filter: blur(6px);
-    backdrop-filter: blur(6px);
-    color: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
     pointer-events: none;
     z-index: 100000;
     opacity: 0;
-    transition: opacity 0.1s ease;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    transform: scale(0.9);
+}
+
+@keyframes floatPop {
+    0% { transform: scale(0.6) translateY(10px); opacity: 0; filter: blur(8px); }
+    60% { transform: scale(1.1) translateY(-2px); opacity: 1; filter: blur(0); }
+    100% { transform: scale(1) translateY(0); opacity: 1; filter: blur(0); }
+}
+
+.magicalBlock {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(var(--chip-color-rgb), 0.9), rgba(var(--chip-color-rgb), 0.4));
+    -webkit-backdrop-filter: blur(12px) saturate(200%);
+    backdrop-filter: blur(12px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 
+        0 12px 32px rgba(var(--chip-color-rgb), 0.5),
+        inset 0 2px 4px rgba(255, 255, 255, 0.6);
+    animation: floatPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.icon {
+    color: white;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    animation: pulseIcon 2s ease-in-out infinite alternate;
+}
+
+@keyframes pulseIcon {
+    0% { transform: scale(1) translateY(0); filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4)); }
+    100% { transform: scale(1.1) translateY(-2px); filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.9)); }
+}
+
+/* Background glowing rings */
+.glowRing1, .glowRing2 {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.glowRing1 {
+    width: 140%;
+    height: 140%;
+    background: radial-gradient(circle, rgba(var(--chip-color-rgb), 0.4) 0%, transparent 60%);
+    animation: rotateGlow 3s linear infinite;
+}
+
+.glowRing2 {
+    width: 180%;
+    height: 180%;
+    background: radial-gradient(circle, rgba(var(--chip-color-rgb), 0.2) 0%, transparent 70%);
+    animation: rotateGlow 5s linear infinite reverse;
+}
+
+@keyframes rotateGlow {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Floating Sparkles */
+.sparkle1, .sparkle2 {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 0 8px 2px rgba(255, 255, 255, 0.8);
+    pointer-events: none;
+}
+
+.sparkle1 {
+    top: -4px;
+    right: -4px;
+    animation: twinkleFloat1 1.5s ease-in-out infinite alternate;
+}
+
+.sparkle2 {
+    bottom: -2px;
+    left: -8px;
+    animation: twinkleFloat2 2s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes twinkleFloat1 {
+    0% { transform: translate(0, 0) scale(0.5); opacity: 0.3; }
+    100% { transform: translate(6px, -10px) scale(1.2); opacity: 1; }
+}
+
+@keyframes twinkleFloat2 {
+    0% { transform: translate(0, 0) scale(0.8); opacity: 0.5; }
+    100% { transform: translate(-8px, 6px) scale(1.5); opacity: 1; }
+}
+
+/* Light mode overrides */
+:global(.light) .magicalBlock {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 
+        0 12px 32px rgba(var(--chip-color-rgb), 0.3),
+        inset 0 2px 8px rgba(255, 255, 255, 0.9);
 }

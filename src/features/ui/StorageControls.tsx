@@ -52,11 +52,21 @@ export const StorageControls: React.FC = () => {
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const [hasAutoLoadedCloud, setHasAutoLoadedCloud] = useState(false);
     
-    // Autosync logic
+    // Autosync logic — ON by default so signed-in users never lose work
+    // silently; an explicit opt-out writes 'false' and is respected.
     const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useState(
-        () => localStorage.getItem(`chnk-it-cloud-autosync-${workspaceId || 'default'}`) === 'true'
+        () => localStorage.getItem(`chnk-it-cloud-autosync-${workspaceId || 'default'}`) !== 'false'
     );
     const autoSaveTimerRef = useRef<number | null>(null);
+
+    // The mount-time read above runs before auth resolves (workspaceId null →
+    // 'default' key). Re-read once the real workspace id arrives so a
+    // per-workspace opt-out is respected.
+    useEffect(() => {
+        setIsAutoSyncEnabled(
+            localStorage.getItem(`chnk-it-cloud-autosync-${workspaceId || 'default'}`) !== 'false'
+        );
+    }, [workspaceId]);
 
     // Backup restore logic
     const [hasCloudBackup, setHasCloudBackup] = useState(
@@ -207,7 +217,7 @@ export const StorageControls: React.FC = () => {
         try {
             const state = useStore.getState();
             const { nodes, edges } = state;
-            
+
             // Capture a snapshot of the dirty sets
             const dirtyNodeIds = new Set(state.storage.dirtyNodeIds);
             const dirtyEdgeIds = new Set(state.storage.dirtyEdgeIds);

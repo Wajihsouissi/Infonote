@@ -7,11 +7,13 @@
 
 import { fileSystemBackend } from './storage/FileSystemBackend';
 import type { GraphBackend, BackendKind } from './storage/types';
+import { saveSnapshot, loadSnapshot } from './storage/LocalSnapshotStore';
 import { shallow } from 'zustand/shallow';
 import { useStore } from '../store/useStore';
 
 let isInitialized = false;
 let saveTimeout: number | null = null;
+let snapshotTimeout: number | null = null;
 let isRestoring = false;
 let autoReconnectPromise: Promise<void> | null = null;
 
@@ -68,6 +70,11 @@ export function initStorageManager(
                 if (curr.setLocalDirty) curr.setLocalDirty(true);
                 if (curr.setCloudDirty) curr.setCloudDirty(true);
 
+                // Safety-net IndexedDB snapshot — runs regardless of which
+                // (if any) explicit backend is connected, so users without a
+                // local folder or cloud session survive a refresh/crash.
+                if (!isRestoring) scheduleSnapshot();
+
                 if (!curr.isConnected || isRestoring) return;
 
                 if (saveTimeout) {
@@ -90,6 +97,23 @@ export function initStorageManager(
     );
 }
 
+function scheduleSnapshot(): void {
+    if (snapshotTimeout) {
+        clearTimeout(snapshotTimeout);
+    }
+    snapshotTimeout = window.setTimeout(() => {
+        snapshotTimeout = null;
+        const state = useStore.getState();
+        // Never write an empty snapshot: empty ones are never restored (see
+        // restoreFromLocalSnapshot), and an accidental wipe (e.g. a bad cloud
+        // load) must not cascade into destroying the last good snapshot.
+        if (state.nodes.length === 0) return;
+        saveSnapshot(state.nodes, state.edges).catch((err) => {
+            console.warn('[StorageManager] Snapshot write failed:', err);
+        });
+    }, 800);
+}
+
 async function autoReconnect(): Promise<void> {
     if (!storeCallbacks) return;
 
@@ -99,7 +123,14 @@ async function autoReconnect(): Promise<void> {
     // Cloud reconnect is an explicit user action because it requires auth.
     try {
         const connected = await fileSystemBackend.reconnect().catch(() => false);
-        if (!connected) return;
+        if (!connected) {
+            // No folder connected — fall back to the IndexedDB safety net so
+            // anonymous / non-Chromium users get their canvas back after a
+            // refresh. Signed-in users may still get a cloud auto-load right
+            // after this; that path snapshots the replaced state as a backup.
+            await restoreFromLocalSnapshot();
+            return;
+        }
 
         activeBackend = fileSystemBackend;
 
@@ -126,6 +157,20 @@ async function autoReconnect(): Promise<void> {
 
 export function getAutoReconnectPromise(): Promise<void> {
     return autoReconnectPromise || Promise.resolve();
+}
+
+async function restoreFromLocalSnapshot(): Promise<void> {
+    if (!storeCallbacks) return;
+    try {
+        const snapshot = await loadSnapshot();
+        if (!snapshot || snapshot.nodes.length === 0) return;
+        isRestoring = true;
+        storeCallbacks.loadGraph(snapshot.nodes, snapshot.edges);
+        isRestoring = false;
+    } catch (err) {
+        isRestoring = false;
+        console.warn('[StorageManager] Snapshot restore failed:', err);
+    }
 }
 
 async function performSave(): Promise<void> {

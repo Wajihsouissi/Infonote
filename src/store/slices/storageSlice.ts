@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import type { AppState, StorageSlice } from '../types';
 import type { AppNode } from '../../types';
+import { withoutHistory, clearHistory } from '../temporalControl';
 
 export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = (set, get) => ({
     storage: {
@@ -122,18 +123,13 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
         // Default edges to empty array if undefined/null
         const safeEdges = Array.isArray(edges) ? edges : [];
 
-        // Safety cap: limit nodes to 500 to prevent performance issues
-        const cappedNodes = nodes.slice(0, 500);
-        if (nodes.length > 500) {
-            console.warn(`[storageSlice] Trimming nodes from ${nodes.length} to 500 (safety cap).`);
-        }
-
         // Snapshot current state BEFORE overwriting (for data-loss recovery)
         const prevNodes = get().nodes;
         const prevEdges = get().edges;
 
-        // Validate and sanitize nodes
-        const validNodes = cappedNodes.map(node => {
+        // Validate and sanitize nodes (no node-count cap — canvases of any
+        // size load and save in full).
+        const validNodes = nodes.map(node => {
             // Basic structure check
             if (!node || typeof node !== 'object') return null;
             if (!node.id || !node.type) return null;
@@ -187,24 +183,30 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
             return true;
         });
 
-        set((state) => ({
-            isRestoringGraph: true, // Wait, it needs to be inside storage: { ... }
-            nodes: validNodes,
-            edges: validEdges,
-            storage: {
-                ...state.storage,
-                isRestoringGraph: true,
-                backupNodes: prevNodes,
-                backupEdges: prevEdges,
-                cloudLastSaved: new Date().toLocaleTimeString(),
-                cloudError: null,
-            },
-        }));
+        // Loading a graph wholesale is not a user edit: don't record it, and
+        // wipe any existing timeline since undo steps from the previous graph
+        // are meaningless against the newly loaded one.
+        withoutHistory(() => {
+            set((state) => ({
+                isRestoringGraph: true, // Wait, it needs to be inside storage: { ... }
+                nodes: validNodes,
+                edges: validEdges,
+                storage: {
+                    ...state.storage,
+                    isRestoringGraph: true,
+                    backupNodes: prevNodes,
+                    backupEdges: prevEdges,
+                    cloudLastSaved: new Date().toLocaleTimeString(),
+                    cloudError: null,
+                },
+            }));
 
-        // Give the diff subscriber a chance to run synchronously, then clear the flag
-        set((state) => ({
-            storage: { ...state.storage, isRestoringGraph: false }
-        }));
+            // Give the diff subscriber a chance to run synchronously, then clear the flag
+            set((state) => ({
+                storage: { ...state.storage, isRestoringGraph: false }
+            }));
+        });
+        clearHistory();
 
         // Reconstruct breadcrumbs if we restored a parent ID from localStorage
         get().reconstructBreadcrumbs();
@@ -219,14 +221,19 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
         );
         if (!confirmed) return;
 
-        set((state) => ({
-            nodes: storage.backupNodes,
-            edges: storage.backupEdges,
-            storage: {
-                ...state.storage,
-                backupNodes: [],
-                backupEdges: [],
-            },
-        }));
+        // A full-canvas restore replaces everything; reset the timeline rather
+        // than leaving stale steps that would corrupt subsequent undos.
+        withoutHistory(() => {
+            set((state) => ({
+                nodes: storage.backupNodes,
+                edges: storage.backupEdges,
+                storage: {
+                    ...state.storage,
+                    backupNodes: [],
+                    backupEdges: [],
+                },
+            }));
+        });
+        clearHistory();
     },
 });

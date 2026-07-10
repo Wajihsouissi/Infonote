@@ -38,7 +38,7 @@ export interface NodeSlice {
     deleteEdge: (id: string) => void;
     duplicateEdge: (id: string) => void;
     bringEdgeToFront: (id: string) => void;
-    arrangeNodes: (nodeIds: string[], mode: 'grid' | 'circle' | 'flow' | 'horizontal-row' | 'vertical-column' | 'mindmap-horizontal' | 'mindmap-vertical') => void;
+    arrangeNodes: (nodeIds: string[], mode: 'grid' | 'circle' | 'flow' | 'horizontal-row' | 'vertical-column' | 'mindmap-horizontal' | 'mindmap-vertical' | 'related-clusters') => void;
     applyRemoteNodeUpdate: (id: string, updates: Partial<AppNode>) => void;
     applyRemoteEdgeUpdate: (id: string, updates: Partial<Edge>) => void;
 }

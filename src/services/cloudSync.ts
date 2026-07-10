@@ -11,8 +11,11 @@
  *   - All access is gated through Supabase RLS. For shared workspaces, rows
  *     are stored under the workspace owner's `user_id` while `workspace_id`
  *     and membership policies authorize collaborators to read/write them.
- *   - We upsert in batches and then delete-by-not-in to mirror the local
- *     state exactly (true sync, not append-only).
+ *   - We upsert in batches and delete ONLY ids explicitly tracked in the
+ *     caller's `delta.deletedNodeIds` / `delta.deletedEdgeIds`. We must NEVER
+ *     mirror-delete rows missing from local state ("delete-by-not-in"):
+ *     a fresh device or a collaborator who hasn't reloaded yet would wipe
+ *     everyone else's nodes on their next save.
  *   - `data_json` carries everything not captured by the typed columns
  *     (node.data, node.style minus width/height, edge type/handles/etc.).
  */
@@ -289,9 +292,9 @@ function dedupeById<T extends { id: string }>(rows: T[]): T[] {
 }
 
 /**
- * Save the current canvas snapshot to the user's cloud rows. Performs a true
- * sync: upserts incoming rows (overwriting existing entries with same id),
- * then deletes anything no longer in state.
+ * Save the current canvas snapshot to the user's cloud rows. Upserts incoming
+ * rows (overwriting existing entries with same id) and deletes only the ids
+ * explicitly tracked as deleted in `delta` — never a full diff against cloud.
  */
 export async function saveCanvasToCloud(
     userId: string | null,

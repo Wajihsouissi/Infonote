@@ -11,20 +11,23 @@ import {
   Search,
   Settings,
   Clock,
-  Star,
   Sun,
   Moon,
   Menu,
   X,
   ArrowRight,
   Command,
-  Grid3X3,
   Zap,
   BookOpen,
-  Lightbulb,
-  FileText,
   Play,
-  ChevronRight
+  ChevronRight,
+  Sparkles,
+  Infinity as InfinityIcon,
+  Workflow,
+  FileText,
+  Image as ImageIcon,
+  Link2,
+  Check,
 } from 'lucide-react';
 import styles from './LandingPage.module.css';
 
@@ -236,53 +239,157 @@ export const LandingPage: React.FC = () => {
         </header>
 
         <main className={styles.content}>
-          {/* Hero Section */}
-          <section className={styles.heroSection}>
-            <div className={styles.heroBadge}>
-              <Zap size={12} />
-              <span>v2.0 — Now with AI-powered canvases</span>
+          {/* ── Hero: split copy + live canvas preview ── */}
+          <section className={styles.hero}>
+            <div className={styles.heroCopy}>
+              <div className={styles.heroBadge}>
+                <Sparkles size={12} />
+                <span>AI-native canvas · v2.0</span>
+              </div>
+              <h1 className={styles.heroTitle}>
+                Think in <span className={styles.heroGradient}>space</span>,
+                <br />
+                not in stacks.
+              </h1>
+              <p className={styles.heroSubtitle}>
+                Chnk it turns the blank page into an infinite canvas. Drop notes, images,
+                PDFs and links anywhere — then let AI find the threads between them and
+                shape the chaos into clarity.
+              </p>
+              <div className={styles.heroActions}>
+                <button
+                  className={styles.primaryButton}
+                  onClick={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }}
+                >
+                  <Layout size={18} />
+                  <span>Open your canvas</span>
+                  <ArrowRight size={16} className={styles.btnArrow} />
+                </button>
+                <button className={styles.ghostButton}>
+                  <Play size={15} />
+                  <span>Watch the 60s tour</span>
+                </button>
+              </div>
+              <div className={styles.heroMeta}>
+                <span className={styles.heroMetaItem}><Check size={13} /> No credit card</span>
+                <span className={styles.heroMetaItem}><Check size={13} /> Free forever plan</span>
+                <span className={styles.heroMetaItem}><Check size={13} /> Yours in 10 seconds</span>
+              </div>
             </div>
-            <h1 className={styles.heroTitle}>
-              Your ideas
-              <br />
-              <span className={styles.heroGradient}>have a new home.</span>
-            </h1>
-            <p className={styles.heroSubtitle}>
-              A spatial canvas for thinking, creating, and organizing.
-              Drop in notes, images, PDFs — watch your ideas connect.
-            </p>
-            <div className={styles.heroActions}>
-              <button
-                className={styles.primaryButton}
-                onClick={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }}
-              >
-                <Layout size={18} />
-                <span>Open Canvas</span>
-                <ArrowRight size={16} className={styles.btnArrow} />
-              </button>
-              <button className={styles.ghostButton}>
-                <BookOpen size={16} />
-                <span>Quick Tour</span>
-              </button>
+
+            {/* Decorative "live canvas" — pure CSS/SVG, non-interactive */}
+            <div className={styles.heroPreview} aria-hidden="true">
+              <div className={styles.previewCanvas}>
+                <div className={styles.previewToolbar}>
+                  <span className={styles.previewDot} data-c="r" />
+                  <span className={styles.previewDot} data-c="y" />
+                  <span className={styles.previewDot} data-c="g" />
+                  <span className={styles.previewToolbarLabel}>untitled canvas</span>
+                </div>
+
+                <svg className={styles.previewWires} viewBox="0 0 320 240" preserveAspectRatio="none">
+                  <path d="M86 70 C 150 70, 150 150, 214 150" />
+                  <path d="M86 70 C 120 130, 60 150, 96 196" />
+                  <path d="M214 150 C 250 110, 200 70, 234 64" />
+                </svg>
+
+                <div className={`${styles.previewNode} ${styles.nodeA}`}>
+                  <FileText size={13} />
+                  <span>Research notes</span>
+                </div>
+                <div className={`${styles.previewNode} ${styles.nodeB}`}>
+                  <ImageIcon size={13} />
+                  <span>Moodboard.png</span>
+                </div>
+                <div className={`${styles.previewNode} ${styles.nodeC}`}>
+                  <Link2 size={13} />
+                  <span>Source link</span>
+                </div>
+                <div className={`${styles.previewNode} ${styles.nodeAi}`}>
+                  <Sparkles size={13} />
+                  <span>AI grouped 3 ideas</span>
+                </div>
+              </div>
             </div>
           </section>
 
-          {/* Educational / Guided Hub Content */}
+          {/* ── Value props ── */}
+          <section className={styles.features}>
+            {[
+              {
+                icon: <InfinityIcon size={20} />,
+                color: 'primary',
+                title: 'An infinite canvas',
+                copy: 'Pan, zoom and place anything anywhere. No folders, no margins — just room to think.',
+              },
+              {
+                icon: <Sparkles size={20} />,
+                color: 'secondary',
+                title: 'AI that connects the dots',
+                copy: 'Ask it to summarize, cluster or expand. Watch loose notes resolve into structure.',
+              },
+              {
+                icon: <Workflow size={20} />,
+                color: 'amber',
+                title: 'Drop in anything',
+                copy: 'Notes, images, PDFs and links become living nodes you can link and rearrange.',
+              },
+            ].map((f, idx) => (
+              <div key={idx} className={styles.featureCard} style={{ '--i': idx } as React.CSSProperties}>
+                <div className={styles.featureIcon} data-color={f.color}>{f.icon}</div>
+                <h3>{f.title}</h3>
+                <p>{f.copy}</p>
+              </div>
+            ))}
+          </section>
+
+          {/* ── Guided hub: blueprints + recent activity ── */}
           <div className={styles.hubGrid}>
-            {/* Left Column: Tutorials & Templates */}
             <div className={styles.hubMain}>
-              
-              {/* Mini-Tutorials */}
               <section className={styles.hubSection}>
                 <div className={styles.sectionHeader}>
-                  <h2>Learn the Basics</h2>
+                  <div>
+                    <h2>Start from a blueprint</h2>
+                    <p>Skip the blank page — drop in a ready-made structure.</p>
+                  </div>
+                </div>
+                <div className={styles.templateGrid}>
+                  {[
+                    { title: "Brainstorm", desc: "Diverge fast, cluster later", icon: <Zap size={20} />, color: "primary" },
+                    { title: "Weekly planner", desc: "Map the week at a glance", icon: <Layout size={20} />, color: "secondary" },
+                    { title: "Research hub", desc: "Sources, notes & synthesis", icon: <BookOpen size={20} />, color: "amber" }
+                  ].map((template, idx) => (
+                    <button
+                      key={idx}
+                      className={styles.templateCard}
+                      onClick={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }}
+                    >
+                      <div className={styles.templateIcon} data-color={template.color}>
+                        {template.icon}
+                      </div>
+                      <div className={styles.templateInfo}>
+                        <h3>{template.title}</h3>
+                        <p>{template.desc}</p>
+                      </div>
+                      <ChevronRight size={16} className={styles.templateArrow} />
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className={styles.hubSection}>
+                <div className={styles.sectionHeader}>
+                  <div>
+                    <h2>Learn the moves</h2>
+                    <p>Two minutes to your first connected canvas.</p>
+                  </div>
                   <button className={styles.textButton}>View all</button>
                 </div>
                 <div className={styles.tutorialGrid}>
                   {[
-                    { title: "Connecting Nodes", duration: "1:20", color: "blue" },
-                    { title: "Using AI to Organize", duration: "2:45", color: "purple" },
-                    { title: "Spatial Workflows", duration: "3:10", color: "amber" }
+                    { title: "Connecting nodes", duration: "1:20", color: "blue" },
+                    { title: "Organizing with AI", duration: "2:45", color: "purple" },
+                    { title: "Spatial workflows", duration: "3:10", color: "amber" }
                   ].map((tutorial, idx) => (
                     <div key={idx} className={styles.tutorialCard}>
                       <div className={styles.videoPlaceholder} data-color={tutorial.color}>
@@ -294,60 +401,29 @@ export const LandingPage: React.FC = () => {
                   ))}
                 </div>
               </section>
-
-              {/* Inspiration Blueprints */}
-              <section className={styles.hubSection}>
-                <div className={styles.sectionHeader}>
-                  <h2>Inspiration Blueprints</h2>
-                  <p>Start with a structure designed for your workflow.</p>
-                </div>
-                <div className={styles.templateGrid}>
-                  {[
-                    { title: "Brainstorming", icon: <Zap size={20} />, color: "primary" },
-                    { title: "Weekly Planner", icon: <Layout size={20} />, color: "secondary" },
-                    { title: "Research Hub", icon: <BookOpen size={20} />, color: "amber" }
-                  ].map((template, idx) => (
-                    <button 
-                      key={idx} 
-                      className={styles.templateCard}
-                      onClick={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }}
-                    >
-                      <div className={styles.templateIcon} data-color={template.color}>
-                        {template.icon}
-                      </div>
-                      <div className={styles.templateInfo}>
-                        <h3>{template.title}</h3>
-                        <p>1 click to inject</p>
-                      </div>
-                      <ChevronRight size={16} className={styles.templateArrow} />
-                    </button>
-                  ))}
-                </div>
-              </section>
-
             </div>
 
-            {/* Right Column: Global Activity */}
             <div className={styles.hubSidebar}>
               <section className={styles.hubSection}>
                 <div className={styles.sectionHeader}>
-                  <h2>Recent Activity</h2>
+                  <div><h2>Jump back in</h2></div>
                 </div>
                 <div className={styles.activityFeed}>
                   {recentNotes.length === 0 ? (
                     <div className={styles.emptyActivity}>
                       <Clock size={24} className={styles.emptyActivityIcon} />
-                      <p>No recent activity.</p>
+                      <p>Nothing here yet.</p>
+                      <span>Your recent canvases will appear here.</span>
                     </div>
                   ) : (
                     recentNotes.map((note, i) => (
-                      <div 
-                        key={note.id} 
-                        className={styles.noteCard} 
-                        onClick={() => { 
-                          setCurrentView('canvas'); 
+                      <div
+                        key={note.id}
+                        className={styles.noteCard}
+                        onClick={() => {
+                          setCurrentView('canvas');
                           navigateToNode(note.node_id || note.id);
-                          setIsMobileMenuOpen(false); 
+                          setIsMobileMenuOpen(false);
                         }}
                         style={{ '--i': i } as React.CSSProperties}
                       >
@@ -362,7 +438,7 @@ export const LandingPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Keyboard Shortcuts Hint */}
+          {/* ── Shortcuts ── */}
           <footer className={styles.shortcutsFooter}>
             <div className={styles.shortcut}>
               <kbd className={styles.kbd}><Command size={12} /></kbd>

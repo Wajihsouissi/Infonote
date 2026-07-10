@@ -92,6 +92,70 @@ function checkInviteRateLimit(key: string): number | null {
   return null
 }
 
+// ── AI route guard (mirrors api/_lib/aiGuard.js so dev === prod behavior) ──
+const AI_RATE_LIMIT_WINDOW_MS = 60_000
+const AI_RATE_LIMITS: Record<'text' | 'image', number> = { text: 30, image: 10 }
+const aiRateLimits = new Map<string, { count: number; resetAt: number }>()
+
+type AiAccessResult =
+  | { ok: true; userId: string }
+  | { ok: false; status: number; message: string; retryAfter?: number }
+
+// The model is ALWAYS chosen server-side; client "model" fields are ignored
+// so the endpoint cannot be pointed at expensive models.
+function getServerAiModel(kind: 'text' | 'image'): string {
+  if (kind === 'image') {
+    return getEnvValue('AI_GATEWAY_IMAGE_MODEL', 'VITE_AI_GATEWAY_IMAGE_MODEL') || 'bfl/flux-2-pro'
+  }
+  return getEnvValue('AI_GATEWAY_TEXT_MODEL', 'VITE_AI_GATEWAY_TEXT_MODEL') || 'openai/gpt-4o-mini'
+}
+
+async function requireDevAiAccess(req: IncomingMessage, kind: 'text' | 'image'): Promise<AiAccessResult> {
+  const token = getBearerToken(req)
+  if (!token) {
+    return { ok: false, status: 401, message: 'Sign in to use AI features.' }
+  }
+
+  const url = getEnvValue('SUPABASE_URL', 'VITE_SUPABASE_URL')
+  const key = getEnvValue('SUPABASE_ANON_KEY', 'SUPABASE_PUBLISHABLE_KEY', 'VITE_SUPABASE_ANON_KEY', 'VITE_SUPABASE_PUBLISHABLE_KEY')
+  if (!url || !key) {
+    return { ok: false, status: 500, message: 'Supabase environment is missing SUPABASE_URL and SUPABASE_ANON_KEY.' }
+  }
+
+  const supabase = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+  const { data, error } = await supabase.auth.getUser(token)
+  if (error || !data?.user) {
+    return { ok: false, status: 401, message: 'Your session expired. Sign in again to use AI features.' }
+  }
+
+  const limitKey = `${data.user.id}:${kind}`
+  const now = Date.now()
+  const current = aiRateLimits.get(limitKey)
+  if (!current || now >= current.resetAt) {
+    aiRateLimits.set(limitKey, { count: 1, resetAt: now + AI_RATE_LIMIT_WINDOW_MS })
+  } else {
+    current.count += 1
+    if (current.count > AI_RATE_LIMITS[kind]) {
+      const retryAfter = Math.max(1, Math.ceil((current.resetAt - now) / 1000))
+      return { ok: false, status: 429, message: `Too many AI requests. Try again in ${retryAfter} seconds.`, retryAfter }
+    }
+  }
+
+  return { ok: true, userId: data.user.id }
+}
+
+async function guardDevAiRoute(req: IncomingMessage, res: ServerResponse, kind: 'text' | 'image'): Promise<boolean> {
+  const access = await requireDevAiAccess(req, kind)
+  if (!access.ok) {
+    if (access.retryAfter) res.setHeader('Retry-After', String(access.retryAfter))
+    sendError(res, access.status, access.message)
+    return false
+  }
+  return true
+}
+
 async function readJsonBody(req: IncomingMessage): Promise<JsonBody> {
   const chunks: Buffer[] = []
   for await (const chunk of req) {
@@ -748,6 +812,7 @@ async function handleDevText(req: IncomingMessage, res: ServerResponse): Promise
     sendError(res, 405, 'Method not allowed')
     return
   }
+  if (!(await guardDevAiRoute(req, res, 'text'))) return
 
   const body = await readJsonBody(req)
   const prompt = getBodyString(body, 'prompt')
@@ -756,7 +821,7 @@ async function handleDevText(req: IncomingMessage, res: ServerResponse): Promise
     return
   }
 
-  const model = getBodyString(body, 'model') || getEnvValue('AI_GATEWAY_TEXT_MODEL', 'VITE_AI_GATEWAY_TEXT_MODEL') || 'openai/gpt-4o-mini'
+  const model = getServerAiModel('text')
   const data = await callGateway('/chat/completions', {
     model,
     messages: buildChatMessages(body, prompt),
@@ -779,6 +844,7 @@ async function handleDevImage(req: IncomingMessage, res: ServerResponse): Promis
     sendError(res, 405, 'Method not allowed')
     return
   }
+  if (!(await guardDevAiRoute(req, res, 'image'))) return
 
   const body = await readJsonBody(req)
   const prompt = getBodyString(body, 'prompt')
@@ -787,7 +853,7 @@ async function handleDevImage(req: IncomingMessage, res: ServerResponse): Promis
     return
   }
 
-  const model = getBodyString(body, 'model') || getEnvValue('AI_GATEWAY_IMAGE_MODEL', 'VITE_AI_GATEWAY_IMAGE_MODEL') || 'bfl/flux-2-pro'
+  const model = getServerAiModel('image')
   let data: unknown
   try {
     data = await callGateway('/images/generations', {
@@ -817,6 +883,7 @@ async function handleDevStream(req: IncomingMessage, res: ServerResponse): Promi
     sendError(res, 405, 'Method not allowed')
     return
   }
+  if (!(await guardDevAiRoute(req, res, 'text'))) return
 
   const body = await readJsonBody(req)
   const prompt = getBodyString(body, 'prompt')
@@ -825,7 +892,7 @@ async function handleDevStream(req: IncomingMessage, res: ServerResponse): Promi
     return
   }
 
-  const model = getBodyString(body, 'model') || getEnvValue('AI_GATEWAY_TEXT_MODEL', 'VITE_AI_GATEWAY_TEXT_MODEL') || 'openai/gpt-4o-mini'
+  const model = getServerAiModel('text')
   const gatewayRes = await fetch(`${AI_GATEWAY_BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: {

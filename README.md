@@ -1,76 +1,53 @@
-<<<<<<< HEAD
-# React + TypeScript + Vite
+# Chnk it (Infonote)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An infinite-canvas note-taking app: atomic note cards, a block-based editor,
+kanban boards, mindmaps, real-time workspace collaboration, and AI-assisted
+content generation — in the browser.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Frontend:** React 19 + TypeScript + Vite, Zustand (+ zundo undo history), @xyflow/react canvas, Tailwind CSS 4
+- **Backend:** Supabase (auth, Postgres + RLS, realtime), Vercel serverless functions under `api/`
+- **AI:** Vercel AI Gateway proxied through `api/ai/*` (auth-gated, server-chosen models)
+- **Email:** Resend (workspace invitations), with Supabase Auth fallback
 
-## React Compiler
+## Getting started
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+cp .env.example .env   # fill in your Supabase project values
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The dev server mirrors the production `api/` routes as Vite middleware (see
+`vite.config.ts`), so AI, Notion import, and invitations work locally.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Scripts
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-# Chnk it
-noote taking app
+| Script | What it does |
+|---|---|
+| `npm run dev` | Vite dev server with local API middleware |
+| `npm run build` | Typecheck (`tsc -b`) + production build |
+| `npm run lint` | ESLint over the repo |
+| `npm run preview` | Serve the production build locally |
+| `npm run check:invite-env` | Validate invitation email env wiring |
+| `npm run stress:canvas` | Canvas stress-test script |
+
+## Environment
+
+See [.env.example](.env.example) for the full annotated list. Highlights:
+
+- `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` — client Supabase config
+- `AI_GATEWAY_API_KEY` — **server-side only**; required for AI features
+- `RESEND_API_KEY`, `INVITE_FROM_EMAIL` — server-side invitation emails
+- `SUPABASE_SERVICE_ROLE_KEY` — optional, server-side only, never `VITE_`-prefixed
+
+## Data storage
+
+Canvas state is persisted through three layers:
+
+1. **Cloud sync** (Supabase, per-workspace, RLS-enforced) — auto-saves for signed-in users
+2. **Local folder** (File System Access API, Chromium only) — explicit opt-in
+3. **IndexedDB safety-net snapshot** — automatic, keeps work across refreshes even when neither backend is connected
+
+Database schema lives in `supabase/migrations/`.

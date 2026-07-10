@@ -154,7 +154,7 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
         selectConnectedCanvasNodes(selectedId);
     }, [selectedCanvasNodeIds, selectConnectedCanvasNodes]);
 
-    const handleArrange = useCallback((mode: 'grid' | 'circle' | 'flow' | 'horizontal-row' | 'vertical-column' | 'mindmap-horizontal' | 'mindmap-vertical') => {
+    const handleArrange = useCallback((mode: 'grid' | 'circle' | 'flow' | 'horizontal-row' | 'vertical-column' | 'mindmap-horizontal' | 'mindmap-vertical' | 'related-clusters') => {
         arrangeNodes(Array.from(selectedCanvasNodeIds), mode);
         setShowLayoutPopover(false);
     }, [selectedCanvasNodeIds, arrangeNodes]);
@@ -179,6 +179,7 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
     }, [selectedCanvasNodeIds, setNodes]);
 
     const layoutOptions: { mode: typeof handleArrange extends (mode: infer M) => void ? M : never; label: string; desc: string; icon: React.ReactNode }[] = [
+        { mode: 'related-clusters', label: 'Smart', desc: 'Group related cards into tidy clusters', icon: <Sparkles size={18} /> },
         { mode: 'grid', label: 'Grid', desc: 'Arrange in rows and columns', icon: <Grid3x3 size={18} /> },
         { mode: 'circle', label: 'Circle', desc: 'Arrange in a circular pattern', icon: <CircleDot size={18} /> },
         { mode: 'flow', label: 'Flow', desc: 'Left-to-right reading order', icon: <ArrowRightLeft size={18} /> },

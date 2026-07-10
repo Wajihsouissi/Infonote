@@ -143,21 +143,27 @@
     border-radius: 4px;
 }
 
-/* Unselected text/heading blocks on canvas: 4px padding on both sides for breathing room */
+/* Unselected text/heading/list blocks on canvas: 8px padding on both sides for breathing room */
 .minimal .sortableWrapper.hideHandle[data-block-type="text"] .blockContent,
 .minimal .sortableWrapper.hideHandle[data-block-type="heading1"] .blockContent,
 .minimal .sortableWrapper.hideHandle[data-block-type="heading2"] .blockContent,
-.minimal .sortableWrapper.hideHandle[data-block-type="heading3"] .blockContent {
+.minimal .sortableWrapper.hideHandle[data-block-type="heading3"] .blockContent,
+.minimal .sortableWrapper.hideHandle[data-block-type="bullet"] .blockContent,
+.minimal .sortableWrapper.hideHandle[data-block-type="numbered"] .blockContent,
+.minimal .sortableWrapper.hideHandle[data-block-type="todo"] .blockContent {
     padding-left: 8px;
     padding-right: 8px;
     transition: padding 0.2s ease-out;
 }
 
-/* Selected text/heading blocks on canvas: 0px left (handle takes space), 4px right */
+/* Selected text/heading/list blocks on canvas: 0px left (handle takes space), 8px right */
 .minimal .sortableWrapper:not(.hideHandle)[data-block-type="text"] .blockContent,
 .minimal .sortableWrapper:not(.hideHandle)[data-block-type="heading1"] .blockContent,
 .minimal .sortableWrapper:not(.hideHandle)[data-block-type="heading2"] .blockContent,
-.minimal .sortableWrapper:not(.hideHandle)[data-block-type="heading3"] .blockContent {
+.minimal .sortableWrapper:not(.hideHandle)[data-block-type="heading3"] .blockContent,
+.minimal .sortableWrapper:not(.hideHandle)[data-block-type="bullet"] .blockContent,
+.minimal .sortableWrapper:not(.hideHandle)[data-block-type="numbered"] .blockContent,
+.minimal .sortableWrapper:not(.hideHandle)[data-block-type="todo"] .blockContent {
     padding-left: 0;
     padding-right: 8px;
     transition: padding 0.2s ease-out;
@@ -541,17 +547,38 @@
     background: rgba(255, 255, 255, 0.15);
 }
 
-/* Table Block */
+/* ============================ Table Block ============================ */
 .tableWrapper {
+    position: relative;
     width: 100%;
-    margin: 2px 0;
+    margin: 6px 0;
+}
+
+.tableScroll {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    border-radius: 10px;
+    /* Thin, unobtrusive horizontal scrollbar for wide tables */
+    scrollbar-width: thin;
+}
+
+.tableInner {
+    width: max-content;
+    min-width: 100%;
+}
+
+.tableMain {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.1)));
     border-radius: 10px;
     overflow: hidden;
-    border: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.1)));
     background: var(--table-bg, var(--note-area-bg, var(--color-bg-card, rgba(255, 255, 255, 0.03))));
 }
 
 .table {
+    flex: 1 1 auto;
     width: 100%;
     border-collapse: collapse;
     table-layout: auto;
@@ -559,12 +586,15 @@
 
 .tableHeader {
     position: relative;
-    background: var(--table-header-bg, rgba(255, 255, 255, 0.06));
-    border-bottom: 2px solid var(--table-border-strong, var(--glass-border, rgba(255, 255, 255, 0.12)));
+    vertical-align: top;
+    background: var(--table-header-bg, rgba(255, 255, 255, 0.05));
+    border-bottom: 1.5px solid var(--table-border-strong, var(--glass-border, rgba(255, 255, 255, 0.14)));
     padding: 0;
 }
 
 .tableData {
+    position: relative;
+    vertical-align: top;
     border-bottom: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.06)));
     padding: 0;
 }
@@ -578,182 +608,253 @@
     border-bottom: none;
 }
 
-.table tr:hover .tableData {
-    background: var(--table-row-hover-bg, rgba(255, 255, 255, 0.03));
+.table tbody tr:hover .tableData {
+    background: var(--table-row-hover-bg, rgba(255, 255, 255, 0.025));
+}
+
+/* Tint the column/row whose options menu is open */
+.colSelected,
+.table tbody tr.rowSelected .tableData {
+    background: var(--table-selected-bg, rgba(139, 92, 246, 0.1)) !important;
 }
 
 .tableCell {
+    display: block;
     width: 100%;
-    padding: 8px 12px;
+    min-height: 38px;
+    padding: 9px 12px;
     background: transparent;
     border: none;
     outline: none;
+    resize: none;
+    overflow: hidden;
     color: var(--color-text-main);
     font-family: inherit;
     font-size: 0.9rem;
     line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    box-sizing: border-box;
+}
+
+.tableCell::placeholder {
+    color: var(--color-text-muted);
+    opacity: 0.5;
 }
 
 .tableCell:focus {
-    background: var(--table-cell-focus-bg, rgba(255, 255, 255, 0.05));
-    box-shadow: none;
+    background: var(--table-cell-focus-bg, rgba(139, 92, 246, 0.06));
+    box-shadow: inset 0 0 0 1.5px var(--table-focus-ring, var(--color-primary, rgba(139, 92, 246, 0.5)));
+    border-radius: 2px;
 }
 
 .tableHeader .tableCell {
     font-weight: 600;
     font-size: 0.85rem;
-    text-transform: none;
-    letter-spacing: 0.01em;
     color: var(--color-text-main);
-    padding-right: 28px;
 }
 
-.tableHeaderCellWrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-    width: 100%;
+/* Reserve a little room in the first column for the row grip */
+.tableData:first-child .tableCell {
+    padding-left: 18px;
 }
 
-.deleteColumnBtn {
+/* ---- Column / Row grips (open the options menu) ---- */
+.colGrip,
+.rowGrip {
     position: absolute;
-    right: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    color: var(--color-text-muted);
+    background: var(--table-header-bg, rgba(255, 255, 255, 0.08));
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+    border-radius: 5px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.12s, color 0.12s, background 0.12s, border-color 0.12s;
+    z-index: 6;
+}
+
+.colGrip {
+    top: 1px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 28px;
+    height: 13px;
+}
+
+.rowGrip {
+    left: 1px;
     top: 50%;
     transform: translateY(-50%);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    color: var(--color-text-muted);
-    background: rgba(15, 23, 42, 0.6);
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.15s, background-color 0.15s, color 0.15s;
-    z-index: 2;
+    width: 13px;
+    height: 28px;
 }
 
-.tableHeader:hover .deleteColumnBtn {
-    opacity: 0.65;
-}
-
-.deleteColumnBtn:hover {
-    opacity: 1 !important;
-    color: #f87171 !important;
-    /* Soft premium red */
-    background: rgba(239, 68, 68, 0.15) !important;
-}
-
-.tableHeaderActionCell {
-    position: relative;
-    width: 36px;
-    background: var(--table-header-bg, rgba(255, 255, 255, 0.06));
-    border-bottom: 2px solid var(--table-border-strong, var(--glass-border, rgba(255, 255, 255, 0.12)));
-}
-
-.tableActionCell {
-    position: relative;
-    width: 36px;
-    text-align: center;
-    border-bottom: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.06)));
-    vertical-align: middle;
-}
-
-.deleteRowBtn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    color: var(--color-text-muted);
-    background: transparent;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.15s, background-color 0.15s, color 0.15s;
-}
-
-.table tr:hover .deleteRowBtn {
-    opacity: 0.5;
-}
-
-.table tr:hover .deleteRowBtn:hover {
+.tableHeader:hover .colGrip,
+.tableHeader:focus-within .colGrip,
+.table tbody tr:hover .rowGrip,
+.table tbody tr:focus-within .rowGrip,
+.gripActive {
     opacity: 1;
-    color: #f87171;
-    background: rgba(239, 68, 68, 0.12);
 }
 
-.tableControls {
+.colGrip:hover,
+.rowGrip:hover,
+.gripActive {
+    color: var(--color-text-main);
+    background: var(--table-btn-hover-bg, rgba(139, 92, 246, 0.25));
+    border-color: var(--table-focus-ring, var(--color-primary, rgba(139, 92, 246, 0.5)));
+}
+
+/* ---- Add row / column affordances ---- */
+.addColBtn {
+    flex: 0 0 22px;
     display: flex;
-    gap: 4px;
-    padding: 4px 8px;
-    background: var(--table-controls-bg, rgba(255, 255, 255, 0.03));
-    border-top: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.06)));
-    opacity: 0;
-    transition: opacity 0.2s ease;
-}
-
-.tableWrapper:hover .tableControls {
-    opacity: 1;
-}
-
-.tableControlBtn {
-    padding: 4px 10px;
-    font-size: 0.75rem;
-    font-weight: 500;
+    align-items: center;
+    justify-content: center;
     color: var(--color-text-muted);
     background: transparent;
-    border: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.08)));
+    border: none;
+    border-left: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.06)));
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+
+.addRowBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 22px;
+    margin-top: 4px;
+    color: var(--color-text-muted);
+    background: var(--table-controls-bg, rgba(255, 255, 255, 0.02));
+    border: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.06)));
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.addColBtn:hover,
+.addRowBtn:hover {
+    color: var(--color-text-main);
+    background: var(--table-btn-hover-bg, rgba(139, 92, 246, 0.12));
+    border-color: var(--table-focus-ring, var(--color-primary, rgba(139, 92, 246, 0.35)));
+}
+
+/* ---- Row / column options menu (popover) ---- */
+.tableMenu {
+    position: absolute;
+    z-index: 50;
+    min-width: 184px;
+    padding: 5px;
+    background: var(--slash-bg, var(--glass-bg, rgba(20, 22, 30, 0.95)));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+    border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.menuItem {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 7px 9px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    text-align: left;
+    color: var(--color-text-main);
+    background: transparent;
+    border: none;
     border-radius: 6px;
     cursor: pointer;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    transition: background 0.12s, color 0.12s;
 }
 
-.tableControlBtn:hover {
-    background: var(--table-btn-hover-bg, rgba(255, 255, 255, 0.08));
+.menuItem:hover:not(:disabled) {
+    background: var(--table-btn-hover-bg, rgba(139, 92, 246, 0.16));
+}
+
+.menuItem:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.menuDanger:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+}
+
+.menuDivider {
+    height: 1px;
+    margin: 5px 4px;
+    background: var(--glass-border, rgba(255, 255, 255, 0.08));
+}
+
+.menuAlignRow {
+    display: flex;
+    gap: 4px;
+    padding: 2px 5px;
+}
+
+.alignBtn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 30px;
+    color: var(--color-text-muted);
+    background: transparent;
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.alignBtn:hover {
     color: var(--color-text-main);
-    border-color: var(--table-focus-ring, var(--color-primary, rgba(139, 92, 246, 0.4)));
+    background: var(--table-btn-hover-bg, rgba(255, 255, 255, 0.06));
 }
 
-/* Column Resize Handle */
+.alignActive {
+    color: var(--color-text-main);
+    background: var(--table-btn-hover-bg, rgba(139, 92, 246, 0.22));
+    border-color: var(--table-focus-ring, var(--color-primary, rgba(139, 92, 246, 0.5)));
+}
+
+/* ---- Column Resize Handle ---- */
 .colResizeHandle {
     position: absolute;
     right: -3px;
     top: 0;
     bottom: 0;
-    width: 6px;
+    width: 7px;
     cursor: col-resize;
-    z-index: 10;
+    z-index: 8;
     opacity: 0;
     transition: opacity 0.15s;
 }
 
+.colResizeHandle::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--color-primary, rgba(139, 92, 246, 0.85));
+    border-radius: 2px;
+}
+
+.tableHeader:hover .colResizeHandle,
 .colResizeHandle:hover,
 .colResizeHandle.resizeActive {
     opacity: 1;
-    background: var(--color-primary);
-}
-
-/* Row Resize Handle */
-.rowResizeHandle {
-    position: absolute;
-    bottom: -3px;
-    left: 0;
-    right: 0;
-    height: 6px;
-    cursor: row-resize;
-    z-index: 10;
-    opacity: 0;
-    transition: opacity 0.15s;
-}
-
-.rowResizeHandle:hover,
-.rowResizeHandle.resizeActive {
-    opacity: 1;
-    background: var(--color-primary);
 }
 
 /* Divider */

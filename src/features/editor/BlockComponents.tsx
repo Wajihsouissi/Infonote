@@ -1,5 +1,5 @@
-import React, { useState, useRef, useLayoutEffect, memo, useCallback } from 'react';
-import { FileText, Trash2, Sparkles, Loader2, Clock } from 'lucide-react';
+import React, { useState, useRef, useLayoutEffect, useEffect, memo, useCallback } from 'react';
+import { FileText, Trash2, Sparkles, Loader2, Clock, Plus, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, AlignLeft, AlignCenter, AlignRight, GripHorizontal, GripVertical, Eraser } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { renderContentWithLinks } from './pasteUtils';
 import pageStyles from './PageBlock.module.css'; // Import page styles
@@ -541,49 +541,215 @@ export const CodeBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
     );
 });
 
+type TableAlign = 'left' | 'center' | 'right';
+
 export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
     const rows: string[][] = block.metadata?.rows || [];
     const savedWidths: number[] = block.metadata?.columnWidths || [];
     const savedHeights: number[] = block.metadata?.rowHeights || [];
+    const alignments: TableAlign[] = block.metadata?.alignments || [];
 
+    const colCount = rows[0]?.length || 0;
+    const rowCount = rows.length;
+
+    const wrapperRef = useRef<HTMLDivElement>(null);
     const tableRef = useRef<HTMLTableElement>(null);
+    const cellRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map());
+    const pendingFocus = useRef<{ key: string; toEnd: boolean } | null>(null);
+
     const [activeResize, setActiveResize] = useState<{ type: 'col' | 'row'; index: number } | null>(null);
+    const [menu, setMenu] = useState<{ type: 'col' | 'row'; index: number; x: number; y: number } | null>(null);
     const dragData = useRef<{ type: 'col' | 'row'; index: number; startPos: number; startSize: number } | null>(null);
+
+    const commit = (patch: Record<string, any>) => onChange(block.content, { ...block.metadata, ...patch });
+
+    // Grow a textarea cell to fit its content (multi-line, wrapping cells).
+    const autosize = (el: HTMLTextAreaElement | null) => {
+        if (!el) return;
+        el.style.height = 'auto';
+        el.style.height = `${el.scrollHeight}px`;
+    };
+
+    const setCellRef = (r: number, c: number) => (el: HTMLTextAreaElement | null) => {
+        const key = `${r}:${c}`;
+        if (el) { cellRefs.current.set(key, el); autosize(el); }
+        else cellRefs.current.delete(key);
+    };
+
+    const focusCell = (r: number, c: number, toEnd = true) => {
+        const key = `${r}:${c}`;
+        const el = cellRefs.current.get(key);
+        if (el) {
+            el.focus();
+            const pos = toEnd ? el.value.length : 0;
+            el.setSelectionRange(pos, pos);
+        } else {
+            // Cell doesn't exist yet (just inserted) — focus once it mounts.
+            pendingFocus.current = { key, toEnd };
+        }
+    };
+
+    // Apply a focus queued before its target cell existed.
+    useLayoutEffect(() => {
+        const pending = pendingFocus.current;
+        if (!pending) return;
+        const el = cellRefs.current.get(pending.key);
+        if (el) {
+            el.focus();
+            const pos = pending.toEnd ? el.value.length : 0;
+            el.setSelectionRange(pos, pos);
+        }
+        pendingFocus.current = null;
+    });
+
+    // Keep every cell sized to its content after any data change (e.g. undo, paste).
+    useLayoutEffect(() => {
+        cellRefs.current.forEach(el => autosize(el));
+    }, [rows]);
+
+    // Seed an empty table without mutating state during render.
+    useLayoutEffect(() => {
+        if (rowCount === 0) {
+            commit({ rows: [['Column 1', 'Column 2'], ['', '']], alignments: ['left', 'left'] });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rowCount]);
+
+    // Dismiss the row/column menu on outside click or Escape.
+    useEffect(() => {
+        if (!menu) return;
+        const onDown = (e: MouseEvent) => {
+            const t = e.target as HTMLElement;
+            // Grips toggle the menu themselves — don't pre-close on their mousedown.
+            if (t.closest(`.${styles.colGrip}`) || t.closest(`.${styles.rowGrip}`)) return;
+            const m = wrapperRef.current?.querySelector(`.${styles.tableMenu}`);
+            if (m && !m.contains(t)) setMenu(null);
+        };
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(null); };
+        document.addEventListener('mousedown', onDown);
+        document.addEventListener('keydown', onKey);
+        return () => {
+            document.removeEventListener('mousedown', onDown);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, [menu]);
 
     const handleCellChange = (rowIndex: number, cellIndex: number, value: string) => {
         const newRows = rows.map((row, ri) =>
-            ri === rowIndex
-                ? row.map((cell, ci) => (ci === cellIndex ? value : cell))
-                : [...row]
+            ri === rowIndex ? row.map((cell, ci) => (ci === cellIndex ? value : cell)) : [...row]
         );
-        onChange(block.content, { ...block.metadata, rows: newRows });
+        commit({ rows: newRows });
     };
 
-    const addRow = () => {
-        const colCount = rows.length > 0 ? rows[0].length : 2;
-        const newRow = Array(colCount).fill('');
-        const newHeights = savedHeights.length > 0 ? [...savedHeights, 0] : undefined;
-        onChange(block.content, { ...block.metadata, rows: [...rows, newRow], rowHeights: newHeights });
+    const insertRow = (at: number) => {
+        const newRow = Array(colCount || 2).fill('');
+        const newRows = [...rows.slice(0, at), newRow, ...rows.slice(at)];
+        const patch: Record<string, any> = { rows: newRows };
+        if (savedHeights.length > 0) patch.rowHeights = [...savedHeights.slice(0, at), 0, ...savedHeights.slice(at)];
+        commit(patch);
+        focusCell(at, 0, false);
     };
 
-    const addColumn = () => {
-        const newRows = rows.map(row => [...row, '']);
-        const newWidths = savedWidths.length > 0 ? [...savedWidths, 0] : undefined;
-        onChange(block.content, { ...block.metadata, rows: newRows, columnWidths: newWidths });
+    const insertColumn = (at: number) => {
+        const newRows = rows.map(row => [...row.slice(0, at), '', ...row.slice(at)]);
+        const patch: Record<string, any> = {
+            rows: newRows,
+            alignments: [...alignments.slice(0, at), 'left' as TableAlign, ...alignments.slice(at)],
+        };
+        if (savedWidths.length > 0) patch.columnWidths = [...savedWidths.slice(0, at), 0, ...savedWidths.slice(at)];
+        commit(patch);
+        focusCell(0, at, false);
     };
 
     const deleteRow = (rowIndex: number) => {
-        if (rows.length <= 1) return;
+        if (rowCount <= 2) return; // keep the header plus at least one body row
         const newRows = rows.filter((_, ri) => ri !== rowIndex);
-        const newHeights = savedHeights.length > 0 ? savedHeights.filter((_, ri) => ri !== rowIndex) : undefined;
-        onChange(block.content, { ...block.metadata, rows: newRows, rowHeights: newHeights });
+        const patch: Record<string, any> = { rows: newRows };
+        if (savedHeights.length > 0) patch.rowHeights = savedHeights.filter((_, ri) => ri !== rowIndex);
+        commit(patch);
+        setMenu(null);
     };
 
     const deleteColumn = (colIndex: number) => {
-        if (rows[0].length <= 1) return;
+        if (colCount <= 1) return;
         const newRows = rows.map(row => row.filter((_, ci) => ci !== colIndex));
-        const newWidths = savedWidths.length > 0 ? savedWidths.filter((_, ci) => ci !== colIndex) : undefined;
-        onChange(block.content, { ...block.metadata, rows: newRows, columnWidths: newWidths });
+        const patch: Record<string, any> = { rows: newRows };
+        if (savedWidths.length > 0) patch.columnWidths = savedWidths.filter((_, ci) => ci !== colIndex);
+        if (alignments.length > 0) patch.alignments = alignments.filter((_, ci) => ci !== colIndex);
+        commit(patch);
+        setMenu(null);
+    };
+
+    const clearRow = (rowIndex: number) => {
+        commit({ rows: rows.map((row, ri) => ri === rowIndex ? row.map(() => '') : row) });
+        setMenu(null);
+    };
+
+    const clearColumn = (colIndex: number) => {
+        commit({ rows: rows.map(row => row.map((cell, ci) => ci === colIndex ? '' : cell)) });
+        setMenu(null);
+    };
+
+    const setColumnAlign = (colIndex: number, align: TableAlign) => {
+        const next: TableAlign[] = Array.from({ length: colCount }, (_, i) => alignments[i] || 'left');
+        next[colIndex] = align;
+        commit({ alignments: next });
+        setMenu(null);
+    };
+
+    const openMenu = (type: 'col' | 'row', index: number, e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (menu && menu.type === type && menu.index === index) { setMenu(null); return; }
+        const wrap = wrapperRef.current;
+        if (!wrap) return;
+        const gripRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const wrapRect = wrap.getBoundingClientRect();
+        if (type === 'col') {
+            setMenu({ type, index, x: gripRect.left - wrapRect.left, y: gripRect.bottom - wrapRect.top + 4 });
+        } else {
+            setMenu({ type, index, x: gripRect.right - wrapRect.left + 4, y: gripRect.top - wrapRect.top });
+        }
+    };
+
+    const handleCellKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, r: number, c: number) => {
+        const el = e.currentTarget;
+        const atStart = el.selectionStart === 0 && el.selectionEnd === 0;
+        const atEnd = el.selectionStart === el.value.length && el.selectionEnd === el.value.length;
+
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.shiftKey) {
+                if (c > 0) focusCell(r, c - 1);
+                else if (r > 0) focusCell(r - 1, colCount - 1);
+            } else if (c < colCount - 1) {
+                focusCell(r, c + 1);
+            } else if (r < rowCount - 1) {
+                focusCell(r + 1, 0);
+            } else {
+                insertRow(rowCount); // last cell → grow the table and step into it
+            }
+            return;
+        }
+
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (r < rowCount - 1) {
+                focusCell(r + 1, c);
+            } else {
+                insertRow(rowCount);
+                pendingFocus.current = { key: `${rowCount}:${c}`, toEnd: false }; // stay in the same column
+            }
+            return;
+        }
+
+        if (e.key === 'ArrowDown' && atEnd && r < rowCount - 1) { e.preventDefault(); focusCell(r + 1, c); return; }
+        if (e.key === 'ArrowUp' && atStart && r > 0) { e.preventDefault(); focusCell(r - 1, c); return; }
+        if (e.key === 'ArrowRight' && atEnd && c < colCount - 1) { e.preventDefault(); focusCell(r, c + 1, false); return; }
+        if (e.key === 'ArrowLeft' && atStart && c > 0) { e.preventDefault(); focusCell(r, c - 1); return; }
+        if (e.key === 'Escape') { e.preventDefault(); el.blur(); }
     };
 
     const handleColResizeStart = (e: React.MouseEvent, colIndex: number) => {
@@ -669,164 +835,150 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
         window.addEventListener('mouseup', onMouseUp);
     };
 
-    const handleRowResizeStart = (e: React.MouseEvent, rowIndex: number) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        const table = tableRef.current;
-        if (!table) return;
-
-        const allRows = table.querySelectorAll('thead tr, tbody tr');
-        const tr = allRows[rowIndex] as HTMLElement;
-        if (!tr) return;
-
-        const startHeight = tr.getBoundingClientRect().height;
-        const startY = e.clientY;
-
-        dragData.current = { type: 'row', index: rowIndex, startPos: startY, startSize: startHeight };
-        setActiveResize({ type: 'row', index: rowIndex });
-
-        document.body.style.cursor = 'row-resize';
-        document.body.classList.add('chnk-it-resizing-active');
-
-        const onMouseMove = (moveEvent: MouseEvent) => {
-            const data = dragData.current;
-            if (!data || data.type !== 'row') return;
-
-            const diff = moveEvent.clientY - data.startPos;
-            const newHeight = Math.max(30, data.startSize + diff);
-
-            const rows = table.querySelectorAll('thead tr, tbody tr');
-            const tr = rows[data.index] as HTMLElement;
-            if (tr) tr.style.height = `${newHeight}px`;
-        };
-
-        const onMouseUp = () => {
-            window.removeEventListener('mousemove', onMouseMove);
-            window.removeEventListener('mouseup', onMouseUp);
-            document.body.style.cursor = '';
-            document.body.classList.remove('chnk-it-resizing-active');
-
-            const data = dragData.current;
-            if (data && data.type === 'row' && table) {
-                const allRows = table.querySelectorAll('thead tr, tbody tr');
-                const newHeights: number[] = [];
-                allRows.forEach(row => {
-                    const h = (row as HTMLElement).style.height;
-                    const parsed = parseInt(h);
-                    newHeights.push(!isNaN(parsed) && parsed > 0 ? parsed : Math.round((row as HTMLElement).getBoundingClientRect().height));
-                });
-                if (newHeights.length > 0) {
-                    onChange(block.content, { ...block.metadata, rowHeights: newHeights });
-                }
-            }
-
-            dragData.current = null;
-            setActiveResize(null);
-        };
-
-        window.addEventListener('mousemove', onMouseMove);
-        window.addEventListener('mouseup', onMouseUp);
-    };
-
     const hasWidths = savedWidths.length > 0 && savedWidths.some(w => w > 0);
     const hasHeights = savedHeights.length > 0 && savedHeights.some(h => h > 0);
+    const alignOf = (c: number): TableAlign => alignments[c] || 'left';
 
-    if (rows.length === 0) {
-        const defaultRows = [['Header 1', 'Header 2'], ['', '']];
-        onChange(block.content, { ...block.metadata, rows: defaultRows });
-        return null;
+    if (rowCount === 0) {
+        // First paint of a fresh table — the init effect will populate it.
+        return <div className={styles.tableWrapper} ref={wrapperRef} contentEditable={false} />;
     }
 
     return (
-        <div className={styles.tableWrapper} contentEditable={false}>
-            <table className={styles.table} ref={tableRef}>
-                {(hasWidths || hasHeights) && (
-                    <colgroup>
-                        {(rows[0] || []).map((_, ci) => (
-                            <col key={ci} style={{ width: savedWidths[ci] && savedWidths[ci] > 0 ? `${savedWidths[ci]}px` : undefined }} />
-                        ))}
-                    </colgroup>
-                )}
-                <thead>
-                    <tr style={{ height: savedHeights[0] && savedHeights[0] > 0 ? `${savedHeights[0]}px` : undefined }}>
-                        {rows[0]?.map((cell, ci) => (
-                            <th key={ci} className={styles.tableHeader}>
-                                <div className={styles.tableHeaderCellWrapper}>
-                                    <input
-                                        className={styles.tableCell}
-                                        value={cell}
-                                        readOnly={readOnly}
-                                        onChange={(e) => handleCellChange(0, ci, e.target.value)}
-                                        placeholder="Header"
-                                    />
-                                    {!readOnly && rows[0].length > 1 && (
-                                        <button
-                                            className={styles.deleteColumnBtn}
-                                            onClick={() => deleteColumn(ci)}
-                                            title="Delete Column"
-                                        >
-                                            <Trash2 size={12} />
-                                        </button>
-                                    )}
-                                </div>
-                                {!readOnly && (
-                                    <div
-                                        className={`${styles.colResizeHandle} ${activeResize?.type === 'col' && activeResize?.index === ci ? styles.resizeActive : ''}`}
-                                        onMouseDown={(e) => handleColResizeStart(e, ci)}
-                                    />
-                                )}
-                            </th>
-                        ))}
-                        {!readOnly && (
-                            <th className={styles.tableHeaderActionCell}>
-                                <div
-                                    className={`${styles.rowResizeHandle} ${activeResize?.type === 'row' && activeResize?.index === 0 ? styles.resizeActive : ''}`}
-                                    onMouseDown={(e) => handleRowResizeStart(e, 0)}
-                                />
-                            </th>
-                        )}
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows.slice(1).map((row, ri) => (
-                        <tr key={ri + 1} style={{ height: savedHeights[ri + 1] && savedHeights[ri + 1] > 0 ? `${savedHeights[ri + 1]}px` : undefined }}>
-                            {row.map((cell, ci) => (
-                                <td key={ci} className={styles.tableData}>
-                                    <input
-                                        className={styles.tableCell}
-                                        value={cell}
-                                        readOnly={readOnly}
-                                        onChange={(e) => handleCellChange(ri + 1, ci, e.target.value)}
-                                        placeholder=""
-                                    />
-                                </td>
-                            ))}
-                            {!readOnly && (
-                                <td className={styles.tableActionCell}>
-                                    {rows.length > 1 && (
-                                        <button
-                                            className={styles.deleteRowBtn}
-                                            onClick={() => deleteRow(ri + 1)}
-                                            title="Delete Row"
-                                        >
-                                            <Trash2 size={12} />
-                                        </button>
-                                    )}
-                                    <div
-                                        className={`${styles.rowResizeHandle} ${activeResize?.type === 'row' && activeResize?.index === ri + 1 ? styles.resizeActive : ''}`}
-                                        onMouseDown={(e) => handleRowResizeStart(e, ri + 1)}
-                                    />
-                                </td>
+        <div className={styles.tableWrapper} ref={wrapperRef} contentEditable={false}>
+            <div className={styles.tableScroll}>
+                <div className={styles.tableInner}>
+                    <div className={styles.tableMain}>
+                        <table className={styles.table} ref={tableRef}>
+                            {(hasWidths || hasHeights) && (
+                                <colgroup>
+                                    {(rows[0] || []).map((_, ci) => (
+                                        <col key={ci} style={{ width: savedWidths[ci] && savedWidths[ci] > 0 ? `${savedWidths[ci]}px` : undefined }} />
+                                    ))}
+                                </colgroup>
                             )}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-            {!readOnly && (
-                <div className={styles.tableControls}>
-                    <button className={styles.tableControlBtn} onClick={addRow} title="Add Row">+ Row</button>
-                    <button className={styles.tableControlBtn} onClick={addColumn} title="Add Column">+ Column</button>
+                            <thead>
+                                <tr style={{ minHeight: savedHeights[0] && savedHeights[0] > 0 ? `${savedHeights[0]}px` : undefined }}>
+                                    {rows[0]?.map((cell, ci) => {
+                                        const colSelected = menu?.type === 'col' && menu.index === ci;
+                                        return (
+                                            <th key={ci} scope="col" className={`${styles.tableHeader} ${colSelected ? styles.colSelected : ''}`}>
+                                                {!readOnly && (
+                                                    <button
+                                                        type="button"
+                                                        className={`${styles.colGrip} ${colSelected ? styles.gripActive : ''}`}
+                                                        title="Column options"
+                                                        aria-label="Column options"
+                                                        onClick={(e) => openMenu('col', ci, e)}
+                                                    >
+                                                        <GripHorizontal size={11} />
+                                                    </button>
+                                                )}
+                                                <textarea
+                                                    ref={setCellRef(0, ci)}
+                                                    className={styles.tableCell}
+                                                    style={{ textAlign: alignOf(ci) }}
+                                                    rows={1}
+                                                    value={cell}
+                                                    readOnly={readOnly}
+                                                    onChange={(e) => { handleCellChange(0, ci, e.target.value); autosize(e.currentTarget); }}
+                                                    onKeyDown={(e) => handleCellKeyDown(e, 0, ci)}
+                                                    placeholder="Header"
+                                                />
+                                                {!readOnly && (
+                                                    <div
+                                                        className={`${styles.colResizeHandle} ${activeResize?.type === 'col' && activeResize?.index === ci ? styles.resizeActive : ''}`}
+                                                        onMouseDown={(e) => handleColResizeStart(e, ci)}
+                                                    />
+                                                )}
+                                            </th>
+                                        );
+                                    })}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rows.slice(1).map((row, ri) => {
+                                    const r = ri + 1;
+                                    const rowSelected = menu?.type === 'row' && menu.index === r;
+                                    return (
+                                        <tr
+                                            key={r}
+                                            className={rowSelected ? styles.rowSelected : ''}
+                                            style={{ minHeight: savedHeights[r] && savedHeights[r] > 0 ? `${savedHeights[r]}px` : undefined }}
+                                        >
+                                            {row.map((cell, ci) => {
+                                                const colSelected = menu?.type === 'col' && menu.index === ci;
+                                                return (
+                                                    <td key={ci} className={`${styles.tableData} ${colSelected ? styles.colSelected : ''}`}>
+                                                        {!readOnly && ci === 0 && (
+                                                            <button
+                                                                type="button"
+                                                                className={`${styles.rowGrip} ${rowSelected ? styles.gripActive : ''}`}
+                                                                title="Row options"
+                                                                aria-label="Row options"
+                                                                onClick={(e) => openMenu('row', r, e)}
+                                                            >
+                                                                <GripVertical size={11} />
+                                                            </button>
+                                                        )}
+                                                        <textarea
+                                                            ref={setCellRef(r, ci)}
+                                                            className={styles.tableCell}
+                                                            style={{ textAlign: alignOf(ci) }}
+                                                            rows={1}
+                                                            value={cell}
+                                                            readOnly={readOnly}
+                                                            onChange={(e) => { handleCellChange(r, ci, e.target.value); autosize(e.currentTarget); }}
+                                                            onKeyDown={(e) => handleCellKeyDown(e, r, ci)}
+                                                            placeholder=""
+                                                        />
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                        {!readOnly && (
+                            <button type="button" className={styles.addColBtn} onClick={() => insertColumn(colCount)} title="Add column" aria-label="Add column">
+                                <Plus size={14} />
+                            </button>
+                        )}
+                    </div>
+                    {!readOnly && (
+                        <button type="button" className={styles.addRowBtn} onClick={() => insertRow(rowCount)} title="Add row" aria-label="Add row">
+                            <Plus size={14} />
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {!readOnly && menu && (
+                <div className={styles.tableMenu} style={{ top: menu.y, left: menu.x }} role="menu">
+                    {menu.type === 'col' ? (
+                        <>
+                            <button type="button" className={styles.menuItem} onClick={() => { insertColumn(menu.index); setMenu(null); }}><ArrowLeft size={14} /> Insert left</button>
+                            <button type="button" className={styles.menuItem} onClick={() => { insertColumn(menu.index + 1); setMenu(null); }}><ArrowRight size={14} /> Insert right</button>
+                            <div className={styles.menuDivider} />
+                            <div className={styles.menuAlignRow}>
+                                <button type="button" className={`${styles.alignBtn} ${alignOf(menu.index) === 'left' ? styles.alignActive : ''}`} onClick={() => setColumnAlign(menu.index, 'left')} title="Align left" aria-label="Align left"><AlignLeft size={14} /></button>
+                                <button type="button" className={`${styles.alignBtn} ${alignOf(menu.index) === 'center' ? styles.alignActive : ''}`} onClick={() => setColumnAlign(menu.index, 'center')} title="Align center" aria-label="Align center"><AlignCenter size={14} /></button>
+                                <button type="button" className={`${styles.alignBtn} ${alignOf(menu.index) === 'right' ? styles.alignActive : ''}`} onClick={() => setColumnAlign(menu.index, 'right')} title="Align right" aria-label="Align right"><AlignRight size={14} /></button>
+                            </div>
+                            <div className={styles.menuDivider} />
+                            <button type="button" className={styles.menuItem} onClick={() => clearColumn(menu.index)}><Eraser size={14} /> Clear contents</button>
+                            <button type="button" className={`${styles.menuItem} ${styles.menuDanger}`} onClick={() => deleteColumn(menu.index)} disabled={colCount <= 1}><Trash2 size={14} /> Delete column</button>
+                        </>
+                    ) : (
+                        <>
+                            <button type="button" className={styles.menuItem} onClick={() => { insertRow(menu.index); setMenu(null); }}><ArrowUp size={14} /> Insert above</button>
+                            <button type="button" className={styles.menuItem} onClick={() => { insertRow(menu.index + 1); setMenu(null); }}><ArrowDown size={14} /> Insert below</button>
+                            <div className={styles.menuDivider} />
+                            <button type="button" className={styles.menuItem} onClick={() => clearRow(menu.index)}><Eraser size={14} /> Clear contents</button>
+                            <button type="button" className={`${styles.menuItem} ${styles.menuDanger}`} onClick={() => deleteRow(menu.index)} disabled={rowCount <= 2}><Trash2 size={14} /> Delete row</button>
+                        </>
+                    )}
                 </div>
             )}
         </div>

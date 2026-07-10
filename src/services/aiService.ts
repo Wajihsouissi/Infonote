@@ -4,9 +4,27 @@
 // Image: OpenAI-compatible image generations.
 // ============================================================
 import { z } from 'zod';
+import { supabase, isSupabaseConfigured } from './supabase/client';
 
 const TEXT_MODEL = import.meta.env.VITE_AI_GATEWAY_TEXT_MODEL || 'openai/gpt-4o-mini';
 const IMAGE_MODEL = import.meta.env.VITE_AI_GATEWAY_IMAGE_MODEL || 'bfl/flux-2-pro';
+
+/**
+ * The /api/ai/* routes require a signed-in Supabase user (they proxy a paid
+ * gateway). Resolve the current access token or fail fast with a friendly
+ * message instead of a bare 401.
+ */
+async function getAiAuthHeader(): Promise<Record<string, string>> {
+    if (!isSupabaseConfigured || !supabase) {
+        throw new Error('Sign in to use AI features.');
+    }
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) {
+        throw new Error('Sign in to use AI features.');
+    }
+    return { Authorization: `Bearer ${token}` };
+}
 
 /**
  * System prompt for free-form text generation (single notes, inline writing,
@@ -48,6 +66,7 @@ async function gatewayFetch<T>(path: string, body: Record<string, unknown>): Pro
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            ...(await getAiAuthHeader()),
         },
         body: JSON.stringify(body),
     });
@@ -108,6 +127,7 @@ export async function* streamText(prompt: string, system?: string): AsyncGenerat
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            ...(await getAiAuthHeader()),
         },
         body: JSON.stringify({
             model: TEXT_MODEL,

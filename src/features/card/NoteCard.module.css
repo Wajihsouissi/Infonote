@@ -1415,6 +1415,108 @@
 }
 
 
+/* ───────────────────────────────────────────────
+   macOS traffic-light window controls
+   Scoped to the minimal-header control pill so other
+   .controlsGroup toolbars keep their original styling.
+─────────────────────────────────────────────── */
+.trafficLights {
+    /* Strip the frosted pill — Mac traffic lights float bare */
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    padding: 3px 2px;
+    gap: 8px;
+}
+
+.trafficLights .controlBtn {
+    position: relative;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: transparent;
+    opacity: 1;
+    transform: none;
+    transition: filter 0.15s ease;
+}
+
+/* The colored dot lives on ::before so the base hover/active
+   background overrides never touch the gradient. */
+.trafficLights .controlBtn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    box-shadow:
+        inset 0 0 0 0.5px rgba(0, 0, 0, 0.22),
+        inset 0 1px 1.5px rgba(255, 255, 255, 0.5),
+        0 0.5px 1px rgba(0, 0, 0, 0.18);
+    transition: filter 0.12s ease;
+    z-index: 0;
+}
+
+.trafficLights .tlClose::before {
+    background: radial-gradient(circle at 50% 32%, #ff7b73, #ff5147);
+}
+
+.trafficLights .tlMeta::before {
+    background: radial-gradient(circle at 50% 32%, #ffd472, #fcb024);
+}
+
+.trafficLights .tlOpen::before {
+    background: radial-gradient(circle at 50% 32%, #4dd866, #1fb138);
+}
+
+/* Glyph: hidden until the cluster is hovered, exactly like macOS.
+   currentColor is a dark tint of each dot so the symbol reads clearly. */
+.trafficLights .tlClose {
+    color: #6e0a06;
+}
+
+.trafficLights .tlMeta {
+    color: #8a5600;
+}
+
+.trafficLights .tlOpen {
+    color: #0c5e16;
+}
+
+.trafficLights .controlBtn svg {
+    position: relative;
+    z-index: 1;
+    width: 9px;
+    height: 9px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.trafficLights:hover .controlBtn svg {
+    opacity: 0.85;
+}
+
+/* Neutralize the generic hover (scale + grey fill) — keep dots crisp */
+.trafficLights .controlBtn:hover,
+:global(.dark) .trafficLights .controlBtn:hover {
+    background: transparent;
+    transform: none;
+}
+
+.trafficLights .controlBtn:hover::before {
+    filter: brightness(1.07);
+}
+
+.trafficLights .controlBtn:active::before {
+    filter: brightness(0.88);
+}
+
+/* Active toggle (metadata shown) shouldn't grey-fill the dot */
+.trafficLights .controlBtn.active {
+    background: transparent;
+}
+
+
 /* Minimal Header Mode */
 .minimalHeader {
     display: flex;

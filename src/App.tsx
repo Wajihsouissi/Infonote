@@ -1,24 +1,65 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { Loader2 } from 'lucide-react';
-import { CanvasBoard } from './features/canvas/CanvasBoard';
-import { LandingPage } from './features/landing/LandingPage';
-import { MarketingPage } from './The-website/MarketingPage';
-import { MarketplacePage } from './features/marketplace/MarketplacePage';
-import { LoginPage } from './features/auth/LoginPage';
-import { SignupPage } from './features/auth/SignupPage';
-import { ProfilePage } from './features/auth/ProfilePage';
-import { UpdatePasswordPage } from './features/auth/UpdatePasswordPage';
-import AdminGate from './features/admin/AdminGate';
 import { WelcomeModal } from './features/auth/WelcomeModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useStore } from './store/useStore';
+import type { AppView } from './store/types';
 import { supabase, isSupabaseConfigured } from './services/supabase/client';
 import { acceptWorkspaceInvitation, activateWorkspace } from './services/collaboration';
+
+// Top-level views are lazy so the marketing page doesn't pay for the whole
+// canvas/editor bundle (and vice versa). Vite splits each into its own chunk.
+const CanvasBoard = lazy(() => import('./features/canvas/CanvasBoard').then(m => ({ default: m.CanvasBoard })));
+const LandingPage = lazy(() => import('./features/landing/LandingPage').then(m => ({ default: m.LandingPage })));
+const MarketingPage = lazy(() => import('./The-website/MarketingPage').then(m => ({ default: m.MarketingPage })));
+const MarketplacePage = lazy(() => import('./features/marketplace/MarketplacePage').then(m => ({ default: m.MarketplacePage })));
+const LoginPage = lazy(() => import('./features/auth/LoginPage').then(m => ({ default: m.LoginPage })));
+const SignupPage = lazy(() => import('./features/auth/SignupPage').then(m => ({ default: m.SignupPage })));
+const ProfilePage = lazy(() => import('./features/auth/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const UpdatePasswordPage = lazy(() => import('./features/auth/UpdatePasswordPage').then(m => ({ default: m.UpdatePasswordPage })));
+const AdminGate = lazy(() => import('./features/admin/AdminGate'));
 
 const PENDING_INVITE_KEY = 'infonote.pendingWorkspaceInvitationId';
 const INVITE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const INVITE_PATH_RE = /^\/invite\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
+
+// Canonical URL for each view. 'landing' and 'marketing' share '/' (which one
+// renders there depends on auth); 'not-found' keeps whatever path caused it.
+const VIEW_PATHS: Partial<Record<AppView, string>> = {
+  landing: '/',
+  marketing: '/',
+  canvas: '/canvas',
+  marketplace: '/marketplace',
+  login: '/login',
+  signup: '/signup',
+  profile: '/profile',
+  'update-password': '/update-password',
+  wajihadmin: '/wajihadmin',
+};
+
+function viewFromPath(rawPath: string, isAuthenticated: boolean): AppView {
+  const path = rawPath.replace(/\/+$/, '') || '/';
+  if (path === '/') return isAuthenticated ? 'landing' : 'marketing';
+  if (path === '/wajihadmin') return 'wajihadmin';
+  if (path.includes('admin')) return 'not-found';
+  if (path === '/profile') return 'profile';
+  if (path === '/canvas') return 'canvas';
+  if (path === '/marketplace') return 'marketplace';
+  if (path === '/login') return 'login';
+  if (path === '/signup') return 'signup';
+  if (path === '/update-password') return 'update-password';
+  return isAuthenticated ? 'landing' : 'marketing';
+}
+
+const viewLoader = (
+  <div style={{
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    minHeight: '100vh', width: '100%', backgroundColor: '#090a0f',
+  }}>
+    <Loader2 style={{ animation: 'spin 1s linear infinite', color: '#8b5cf6' }} size={32} />
+  </div>
+);
 
 function App() {
   const currentView = useStore((state) => state.currentView);
@@ -29,6 +70,8 @@ function App() {
   const showWelcomeModal = useStore((state) => state.showWelcomeModal);
   const setShowWelcomeModal = useStore((state) => state.setShowWelcomeModal);
   const [inviteBanner, setInviteBanner] = useState<string | null>(null);
+  const isFirstViewSync = useRef(true);
+  const historyOpRef = useRef<'push' | 'replace'>('push');
 
   // URL-based route detection (e.g. direct navigation to /wajihadmin)
   useEffect(() => {
@@ -51,21 +94,44 @@ function App() {
       }, 0);
     }
 
-    if (path === '/wajihadmin') {
-      setCurrentView('wajihadmin');
-    } else if (path.includes('admin')) {
-      setCurrentView('not-found');
-    } else if (path === '/profile') {
-      setCurrentView('profile');
-    } else if (path === '/canvas') {
-      setCurrentView('canvas');
-    } else if (path === '/login') {
-      setCurrentView('login');
-    } else if (path === '/signup') {
-      setCurrentView('signup');
-    } else if (path === '/update-password') {
-      setCurrentView('update-password');
+    if (path !== '/') {
+      const { auth } = useStore.getState();
+      setCurrentView(viewFromPath(path, auth.isAuthenticated));
     }
+  }, [setCurrentView]);
+
+  // History integration: keep the URL in sync with the current view and make
+  // the browser Back/Forward buttons navigate between views.
+  useEffect(() => {
+    // Skip the very first run: the initial view comes FROM the URL, and this
+    // effect can observe the pre-parse view for one render.
+    if (isFirstViewSync.current) {
+      isFirstViewSync.current = false;
+      return;
+    }
+    const op = historyOpRef.current;
+    historyOpRef.current = 'push';
+
+    const targetPath = VIEW_PATHS[currentView];
+    // Only touch the URL when the path actually differs — this preserves
+    // query strings and hashes (OAuth codes, recovery tokens) on the view
+    // that consumed them.
+    if (targetPath && window.location.pathname !== targetPath) {
+      if (op === 'replace') {
+        window.history.replaceState({ view: currentView }, '', targetPath);
+      } else {
+        window.history.pushState({ view: currentView }, '', targetPath);
+      }
+    }
+  }, [currentView]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const { auth } = useStore.getState();
+      setCurrentView(viewFromPath(window.location.pathname, auth.isAuthenticated));
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, [setCurrentView]);
 
   useEffect(() => {
@@ -125,6 +191,9 @@ function App() {
     if (hasPendingInvite) return;
 
     if (!isAuthLoading && isAuthenticated && (currentView === 'login' || currentView === 'signup' || currentView === 'marketing')) {
+      // Replace instead of push: this is a bounce, not a navigation. Pushing
+      // would trap the Back button in a login -> landing loop.
+      historyOpRef.current = 'replace';
       setCurrentView('landing');
     }
   }, [isAuthLoading, isAuthenticated, currentView, setCurrentView]);
@@ -263,7 +332,9 @@ function App() {
 
   return (
     <ErrorBoundary>
-      {renderContent()}
+      <Suspense fallback={viewLoader}>
+        {renderContent()}
+      </Suspense>
       {inviteBanner && (
         <div
           role="status"

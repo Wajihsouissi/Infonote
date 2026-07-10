@@ -8,16 +8,34 @@ export function HistoryControls() {
     const { pastStates, futureStates, undo, redo } = useZustandStore(useStore.temporal);
 
     useEffect(() => {
+        const isEditingText = (target: EventTarget | null): boolean => {
+            const el = target as HTMLElement | null;
+            if (!el) return false;
+            const tag = el.tagName;
+            return (
+                tag === 'INPUT' ||
+                tag === 'TEXTAREA' ||
+                el.isContentEditable
+            );
+        };
+
         const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+            if (!(e.ctrlKey || e.metaKey)) return;
+            // While typing in a note/field, let the editor's native text undo
+            // handle Ctrl+Z — don't hijack it for canvas-level undo.
+            if (isEditingText(e.target)) return;
+
+            // `e.key` is uppercase 'Z' when Shift is held, so normalize.
+            const key = e.key.toLowerCase();
+
+            if (key === 'z') {
+                e.preventDefault();
                 if (e.shiftKey) {
-                    e.preventDefault();
                     useStore.temporal.getState().redo();
                 } else {
-                    e.preventDefault();
                     useStore.temporal.getState().undo();
                 }
-            } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+            } else if (key === 'y') {
                 e.preventDefault();
                 useStore.temporal.getState().redo();
             }

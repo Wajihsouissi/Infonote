@@ -925,6 +925,18 @@ export function CanvasBoard() {
             const result = await loadCanvasFromCloud(authUserId, activeWorkspaceId);
             if (cancelled) return;
             if (result.ok) {
+                const state = useStore.getState();
+                if (result.nodes.length === 0 && state.nodes.length > 0) {
+                    // Empty cloud must never wipe existing local work — e.g. an
+                    // anonymous canvas restored from the IndexedDB snapshot right
+                    // before sign-in, or a brand-new workspace. Keep the local
+                    // canvas and mark everything dirty so auto-sync pushes it up
+                    // to the empty cloud instead.
+                    state.markNodesDirty(state.nodes.map(n => n.id));
+                    state.markEdgesDirty(state.edges.map(e => e.id));
+                    setCloudDirty(true);
+                    return;
+                }
                 loadGraph(result.nodes, result.edges);
                 setCloudLastSaved(new Date().toLocaleTimeString());
                 setCloudDirty(false);
@@ -981,6 +993,11 @@ export function CanvasBoard() {
                 const result = await loadCanvasFromCloud(authUserId, activeWorkspaceId);
                 if (cancelled) return;
                 if (result.ok) {
+                    // Local is clean here (checked above), so a non-empty local
+                    // canvas should match the cloud. An empty result against
+                    // non-empty local is almost certainly a transient glitch —
+                    // skip rather than wipe the canvas.
+                    if (result.nodes.length === 0 && useStore.getState().nodes.length > 0) return;
                     loadGraph(result.nodes, result.edges);
                     setCloudLastSaved(new Date().toLocaleTimeString());
                     setCloudDirty(false);

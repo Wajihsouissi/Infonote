@@ -46,14 +46,14 @@ export function NoteExpandedContent({
     hideBlockHandles
 }: NoteExpandedContentProps) {
     // Use data state (persistent) or fallback to false
-    const showMetadata = data.showMetadata ?? false;
+    const showMetadata = data?.showMetadata ?? false;
 
     const setShowMetadata = useCallback((show: boolean) => {
         onUpdate(id, { showMetadata: show });
     }, [id, onUpdate]);
 
     const theme = useStore(s => s.theme);
-    const displayColor = data.color ? toPastelColor(data.color, theme === 'light') : undefined;
+    const displayColor = data?.color ? toPastelColor(data.color, theme === 'light') : undefined;
 
     // Lazy rendering hook
     const { hasRendered, containerRef } = useLazyRender();
@@ -151,20 +151,15 @@ export function NoteExpandedContent({
         onUpdate(id, { content: blocks });
     }, [id, onUpdate]);
 
-    // Early return after hooks
-    if (!data) {
-        return <div>Error: Missing data</div>;
-    }
-
     // Dynamic color styles
     const dynamicStyles = useMemo(() => {
-        if (!data.color) return {};
+        if (!data?.color) return {};
         const tableBorderColor = darkenColor(data.color, 55);
         return {
             '--glass-border': `${tableBorderColor}33`,
             '--note-bg-dynamic': data.color,
         } as React.CSSProperties;
-    }, [data.color]);
+    }, [data?.color]);
 
     const headerStyle = useMemo(() => {
         if (!displayColor) return {};
@@ -194,7 +189,7 @@ export function NoteExpandedContent({
     }, [displayColor]);
 
     const noteAreaStyles = useMemo(() => {
-        if (!data.color) return { backgroundColor: 'transparent' };
+        if (!data?.color) return { backgroundColor: 'transparent' };
         
         // Reset the text colors back to the default theme so the block editor
         // looks exactly like an uncolored card, matching global theme.
@@ -221,7 +216,13 @@ export function NoteExpandedContent({
             '--link-border-hover': 'initial',
             '--link-shadow': 'initial',
         } as React.CSSProperties;
-    }, [data.color, theme]);
+    }, [data?.color, theme]);
+
+    // Early return AFTER all hooks — a conditional return above any hook
+    // makes React throw "Rendered more hooks than during the previous render".
+    if (!data) {
+        return <div>Error: Missing data</div>;
+    }
 
     return (
         <div
@@ -313,36 +314,40 @@ export function NoteExpandedContent({
                         />
                     </div>
 
-                    <div className={styles.controlsGroup} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                    {/* macOS-style traffic-light window controls: close (red), show metadata (yellow), open canvas (green) */}
+                    <div className={`${styles.controlsGroup} ${styles.trafficLights}`} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                        {onClose && (
+                            <button
+                                className={`${styles.controlBtn} ${styles.tlClose}`}
+                                onClick={onClose}
+                                title="Close"
+                                aria-label="Close"
+                            >
+                                <X size={16} strokeWidth={2.6} />
+                            </button>
+                        )}
                         <button
-                            className={`${styles.controlBtn} ${showMetadata ? styles.active : ''}`}
+                            className={`${styles.controlBtn} ${styles.tlMeta} ${showMetadata ? styles.active : ''}`}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setShowMetadata(!showMetadata);
                             }}
                             title="Show Metadata"
+                            aria-label="Show Metadata"
                         >
-                            <Eye size={16} />
+                            <Eye size={16} strokeWidth={2.6} />
                         </button>
                         {onNavigate && (
                             <button
-                                className={styles.controlBtn}
+                                className={`${styles.controlBtn} ${styles.tlOpen}`}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onNavigate();
                                 }}
                                 title="Open Canvas"
+                                aria-label="Open Canvas"
                             >
-                                <ExternalLink size={20} />
-                            </button>
-                        )}
-                        {onClose && (
-                            <button
-                                className={styles.controlBtn}
-                                onClick={onClose}
-                                title="Close"
-                            >
-                                <X size={20} />
+                                <ExternalLink size={16} strokeWidth={2.6} />
                             </button>
                         )}
                     </div>

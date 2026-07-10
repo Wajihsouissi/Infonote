@@ -8,6 +8,13 @@ import { createUISlice } from './slices/uiSlice';
 import { createAuthSlice } from './slices/authSlice';
 import type { AppState } from './types';
 import { initStorageManager, flushPendingSave } from '../services/StorageManager';
+import { bindTemporal, type HistoryState } from './temporalControl';
+import { historyEquality, createCoalescingHandleSet } from './historyConfig';
+
+// Collapse a burst of rapid mutations (a drag, a synchronous cascade of sets)
+// into one undo step. Kept below the editor's 300ms write debounce so typing
+// still records sentence-sized steps rather than one giant entry.
+const HISTORY_COALESCE_MS = 150;
 
 export const useStore = create<AppState>()(
     subscribeWithSelector(
@@ -21,14 +28,24 @@ export const useStore = create<AppState>()(
             }),
             {
                 limit: 200,
-                partialize: (state) => {
+                // Only nodes/edges are undoable; everything else is UI/session state.
+                partialize: (state): HistoryState => {
                     const { nodes, edges } = state;
                     return { nodes, edges };
                 },
+                // Skip pure selection/measurement changes so clicking a card
+                // never creates (or, after an undo, never destroys) a step.
+                equality: historyEquality,
+                // One drag / one cascade = one undo step.
+                handleSet: createCoalescingHandleSet(HISTORY_COALESCE_MS),
             }
         )
     )
 );
+
+// Let slices pause/clear history for programmatic & remote writes without a
+// circular import back into this module.
+bindTemporal(useStore.temporal as Parameters<typeof bindTemporal>[0]);
 
 // Initialize storage manager ONCE at module load (outside React)
 if (typeof window !== 'undefined') {

@@ -10,6 +10,17 @@ import { v4 as uuidv4 } from 'uuid';
 import type { AppNode } from '../../types';
 import { MIN_FUSED_SIZE, BASE_UNIT, snapToGridValue, ICON_SIZE, GRID_GAP } from '../../config/layout';
 import { computeParentContentUpdate } from '../contentSync';
+import { planHydration, layoutChunks, computeSmartHierarchy, type HydrationChunk } from '../contentHydration';
+import { withoutHistory } from '../temporalControl';
+import {
+    normalizeText,
+    blockText,
+    getBlockNodeStyle,
+    createBlockNode as createStandaloneBlockNode,
+    buildRadialCluster as buildRadialClusterFromCenter,
+    RELEASE_SIZE_PROFILE,
+    HYDRATE_SIZE_PROFILE,
+} from '../blockNodeStyle';
 import type { AppState, NodeSlice } from '../types';
 
 // Debug flag - set to false in production
@@ -367,20 +378,25 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
     },
 
     applyRemoteNodeUpdate: (id, updates) => {
-        set((state) => ({
-            nodes: state.nodes.map((node) =>
-                node.id === id ? { ...node, ...updates } as AppNode : node
-            ),
-        }));
+        // Remote (collaborator) changes must not enter THIS user's undo stack.
+        withoutHistory(() => {
+            set((state) => ({
+                nodes: state.nodes.map((node) =>
+                    node.id === id ? { ...node, ...updates } as AppNode : node
+                ),
+            }));
+        });
         // DO NOT setCloudDirty(true) to avoid infinite sync loops
     },
 
     applyRemoteEdgeUpdate: (id, updates) => {
-        set((state) => ({
-            edges: state.edges.map((edge) =>
-                edge.id === id ? { ...edge, ...updates } as Edge : edge
-            ),
-        }));
+        withoutHistory(() => {
+            set((state) => ({
+                edges: state.edges.map((edge) =>
+                    edge.id === id ? { ...edge, ...updates } as Edge : edge
+                ),
+            }));
+        });
         // DO NOT setCloudDirty(true)
     },
 
@@ -391,10 +407,6 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         if (!sourceNode) return;
 
         const rawContent = (sourceNode.data as any).content;
-        const normalizeText = (value: unknown) => {
-            if (typeof value !== 'string') return '';
-            return value.trim().replace(/[\n\u200B\u00A0\u200C\uFEFF]/g, '');
-        };
         const isEmptyBlock = (b: any) => {
             if (!b) return true;
             if (b.type === 'divider') return true;
@@ -453,77 +465,13 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             }
         }
 
-        // --- Smart node sizing ---
-        const getNodeStyle = (block: any, isHeading: boolean) => {
-            if (isHeading) return { width: 220, height: 80 };
-            switch (block.type) {
-                case 'image':
-                case 'video':
-                case 'file':
-                    return { width: 200, height: 200 };
-                case 'code':
-                    return { width: 432, height: 160 };
-                case 'table':
-                    return { width: 360, height: 180 };
-                case 'callout':
-                case 'quote':
-                case 'link':
-                    return { width: 432, height: 100 };
-                case 'todo':
-                case 'bullet':
-                case 'numbered':
-                    return { width: 260, height: 70 };
-                default:
-                    const len = normalizeText(block.content).length;
-                    if (len < 50) return { width: 260, height: 70 };
-                    if (len < 200) return { width: 300, height: 100 };
-                    return { width: 340, height: 140 };
-            }
-        };
-
-        const createBlockNode = (block: any, position: { x: number; y: number }, style: { width: number; height: number }) => ({
-            id: uuidv4(),
-            type: 'block',
-            position,
-            style,
-            data: { content: [block], isStandaloneBlock: true } as any,
-            parentId
-        } as AppNode);
-
-        // --- Build a radial cluster from a center node + outer blocks ---
-        const buildRadialCluster = (centerNode: AppNode, outerBlocks: any[], centerPos: { x: number; y: number }) => {
-            const clusterNodes: AppNode[] = [centerNode];
-            const clusterEdges: Edge[] = [];
-
-            if (outerBlocks.length === 0) return { nodes: clusterNodes, edges: clusterEdges, radius: 0 };
-
-            const outerStyles = outerBlocks.map(b => getNodeStyle(b, false));
-            const maxOuterWidth = Math.max(...outerStyles.map(s => s.width));
-            const minRadius = BASE_UNIT * 4;
-            const estimatedRadius = outerBlocks.length <= 1
-                ? minRadius
-                : (maxOuterWidth * 1.5) / (2 * Math.sin(Math.PI / outerBlocks.length));
-            const r = snapToGridValue(Math.max(minRadius, estimatedRadius));
-            const angleStep = (2 * Math.PI) / outerBlocks.length;
-            const angleOffset = -Math.PI / 2;
-
-            outerBlocks.forEach((block, idx) => {
-                const angle = angleOffset + angleStep * idx;
-                const x = snapToGridValue(centerPos.x + r * Math.cos(angle));
-                const y = snapToGridValue(centerPos.y + r * Math.sin(angle));
-                const node = createBlockNode(block, { x, y }, outerStyles[idx]);
-                clusterNodes.push(node);
-                clusterEdges.push({
-                    id: uuidv4(),
-                    source: centerNode.id,
-                    target: node.id,
-                    type: 'centered',
-                    data: { parentId: parentIdForEdge }
-                } as Edge);
-            });
-
-            return { nodes: clusterNodes, edges: clusterEdges, radius: r + maxOuterWidth / 2 };
-        };
+        // --- Smart node sizing & cluster builders (shared: blockNodeStyle.ts) ---
+        const getNodeStyle = (block: any, isHeading: boolean) =>
+            getBlockNodeStyle(block, RELEASE_SIZE_PROFILE, isHeading);
+        const createBlockNode = (block: any, position: { x: number; y: number }, style: { width: number; height: number }) =>
+            createStandaloneBlockNode(block, position, style, parentId);
+        const buildRadialCluster = (centerNode: AppNode, outerBlocks: any[], centerPos: { x: number; y: number }) =>
+            buildRadialClusterFromCenter(centerNode, outerBlocks, centerPos, { parentId, parentIdForEdge });
 
         const newNodes: AppNode[] = [];
         const newEdges: Edge[] = [];
@@ -806,18 +754,22 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 });
             }
 
-            set((state) => ({
-                nodes: state.nodes.map(n => {
-                    if (n.id === parentId) {
-                        return { ...n, data: { ...n.data, content: result.parentContent } };
-                    }
-                    const update = result.nodesToUpdate.find(u => u.id === n.id);
-                    if (update) {
-                        return { ...n, data: update.data };
-                    }
-                    return n;
-                })
-            }));
+            // Derived reconciliation that rides along with the user action that
+            // triggered it — not a standalone undo step.
+            withoutHistory(() => {
+                set((state) => ({
+                    nodes: state.nodes.map(n => {
+                        if (n.id === parentId) {
+                            return { ...n, data: { ...n.data, content: result.parentContent } };
+                        }
+                        const update = result.nodesToUpdate.find(u => u.id === n.id);
+                        if (update) {
+                            return { ...n, data: update.data };
+                        }
+                        return n;
+                    })
+                }));
+            });
 
             if (DEBUG) {
                 console.log("[syncParentContent] After sync - nodes with parentId", parentId, ":",
@@ -1122,159 +1074,20 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         const orphanIdSet = new Set(orphanBlocks.map(b => b.id));
         const orphanBlocksOrdered = parentContent.filter(b => orphanIdSet.has(b.id));
-        
-        // --- Smart Grouping & Splitting Strategy ---
-        const standaloneTypes = new Set(['image', 'video', 'code', 'table']);
-        const headingTypes = { 'heading1': 1, 'heading2': 2, 'heading3': 3 };
 
-        interface Chunk {
-            id: string;
-            type: 'fused-note' | 'block';
-            blocks: any[];
-            level: number;
-            sourceId?: string; 
-            style?: any;
-        }
+        // --- Relatedness-based semantic grouping ---
+        // Group blocks by content relatedness (not just heading/divider markers),
+        // producing a semantic hierarchy tree + cross-topic "related" edges.
+        // See contentHydration.ts.
+        type Chunk = HydrationChunk;
 
-        const chunks: Chunk[] = [];
-        let currentChunk: Chunk | null = null;
-        const stack: Chunk[] = []; // to keep track of hierarchy for edges
-        
-        let numberedListCounter = 0; // Preserve numbered list indices
-
-        orphanBlocksOrdered.forEach((block) => {
-            const isStandalone = standaloneTypes.has(block.type);
-            const isHeading = block.type in headingTypes;
-            const isNumbered = block.type === 'numbered' || block.type === 'numberedListItem';
-            const isDividerSplit = block.type === 'divider' && 
-                (block.metadata?.split === true || block.metadata?.forceSplit === true || block.metadata?.semantic === 'split');
-
-            // Handle numbering preservation
-            let processedBlock = block;
-            if (isNumbered) {
-                numberedListCounter++;
-                processedBlock = { ...block, type: 'paragraph' }; // Convert to paragraph
-                if (Array.isArray(block.content)) {
-                    if (block.content.length > 0 && block.content[0].type === 'text') {
-                        processedBlock.content = [
-                            { ...block.content[0], text: `${numberedListCounter}. ${block.content[0].text}` },
-                            ...block.content.slice(1)
-                        ];
-                    } else {
-                        processedBlock.content = [
-                            { type: 'text', text: `${numberedListCounter}. `, styles: {} },
-                            ...block.content
-                        ];
-                    }
-                } else if (typeof block.content === 'string') {
-                    processedBlock.content = `${numberedListCounter}. ${block.content}`;
-                }
-            } else {
-                numberedListCounter = 0; // reset
-            }
-
-            let level = 0;
-            if (isHeading) level = headingTypes[block.type as keyof typeof headingTypes];
-            else if (currentChunk) level = currentChunk.level;
-
-            // Determine if we should split
-            let shouldSplit = false;
-            if (isStandalone || isHeading || isNumbered || isDividerSplit || !currentChunk) {
-                shouldSplit = true;
-            } else if (currentChunk && currentChunk.type === 'block') {
-                // If previous chunk was a standalone visual block, force text into a new chunk
-                shouldSplit = true;
-            }
-
-            if (shouldSplit) {
-                let parentChunkId = undefined;
-                
-                if (isHeading) {
-                    // find nearest parent in stack with strictly smaller level number (higher hierarchy)
-                    while (stack.length > 0) {
-                        const top = stack[stack.length - 1];
-                        if (top.level < level && top.level > 0) {
-                            parentChunkId = top.id;
-                            break;
-                        }
-                        stack.pop();
-                    }
-                } else if (isNumbered || isStandalone || isDividerSplit || (currentChunk && currentChunk.type === 'block')) {
-                    // These branch off the current active heading context
-                    if (stack.length > 0) {
-                        parentChunkId = stack[stack.length - 1].id;
-                    } else if (chunks.length > 0) {
-                        // If no heading, link to the immediate previous chunk to maintain flow
-                        parentChunkId = chunks[chunks.length - 1].id;
-                    }
-                    level = stack.length > 0 ? stack[stack.length - 1].level + 1 : 1;
-                }
-
-                const newChunk: Chunk = {
-                    id: uuidv4(),
-                    type: isStandalone ? 'block' : 'fused-note',
-                    blocks: isDividerSplit ? [] : [processedBlock],
-                    level: level,
-                    sourceId: parentChunkId
-                };
-
-                chunks.push(newChunk);
-                currentChunk = newChunk;
-                
-                if (isHeading) {
-                    stack.push(newChunk);
-                }
-            } else {
-                currentChunk!.blocks.push(processedBlock);
-            }
-        });
-
-        // Filter out empty chunks (like from a divider that didn't get any text after)
-        const validChunks = chunks.filter(c => c.blocks.length > 0);
-        
-        validChunks.forEach(chunk => {
-            if (chunk.blocks.length === 1 && chunk.type === 'fused-note') {
-                chunk.type = 'block';
-            }
-        });
+        const plan = planHydration(orphanBlocksOrdered);
+        const validChunks: Chunk[] = plan.chunks;
 
         if (validChunks.length === 0) return;
 
-        const normalizeText = (value: unknown) => {
-            if (typeof value !== 'string') return '';
-            return value.trim().replace(/[\n\u200B\u00A0\u200C\uFEFF]/g, '');
-        };
-
         // --- Layout (Horizontal Mind-Map / Flow) ---
-        const getNodeStyle = (block: any) => {
-            const isHeading = block.type in headingTypes;
-            if (isHeading) return { width: 220, height: 80 };
-
-            switch (block.type) {
-                case 'image':
-                case 'video':
-                case 'file': return { width: 300, height: 300 };
-                case 'code': return { width: 432, height: 250 };
-                case 'table': return { width: 450, height: 300 };
-                case 'callout':
-                case 'quote':
-                case 'link': return { width: 432, height: 100 };
-                case 'todo':
-                case 'bullet':
-                case 'numbered':
-                case 'numberedListItem':
-                    return { width: 260, height: 70 };
-                default:
-                    const textContent = Array.isArray(block.content) 
-                        ? block.content.map((c: any) => c.text || '').join('')
-                        : (typeof block.content === 'string' ? block.content : '');
-                    const len = normalizeText(textContent).length;
-                    
-                    if (len < 50) return { width: 260, height: 70 };
-                    if (len < 200) return { width: 300, height: 100 };
-                    return { width: 340, height: 140 };
-            }
-        };
+        const getNodeStyle = (block: any) => getBlockNodeStyle(block, HYDRATE_SIZE_PROFILE);
 
         const getFusedNoteStyle = (blocks: any[]) => {
             let estimatedHeight = 40; // Base padding/margin (reduced to exactly fit)
@@ -1284,11 +1097,8 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 else if (b.type === 'heading3') estimatedHeight += 30;
                 else if (b.type === 'divider') estimatedHeight += 20;
                 else {
-                    const textContent = Array.isArray(b.content) 
-                        ? b.content.map((c: any) => c.text || '').join('')
-                        : (typeof b.content === 'string' ? b.content : '');
-                    const len = normalizeText(textContent).length;
-                    
+                    const len = normalizeText(blockText(b.content)).length;
+
                     if (len === 0) {
                         estimatedHeight += 24; // Empty line
                     } else {
@@ -1304,26 +1114,16 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             return { width: MIN_FUSED_SIZE, height: finalHeight };
         };
 
-        const childrenMap = new Map<string, Chunk[]>();
-        const roots: Chunk[] = [];
-        
-        validChunks.forEach(c => childrenMap.set(c.id, []));
+        // --- Cluster-aware compact layout ---
+        // Related groups are packed together (short, local connectors); unrelated
+        // clusters are separated into a tidy wrapping grid. See contentHydration.
+        const sizeOf = (chunk: Chunk): { width: number; height: number } =>
+            chunk.type === 'block' ? getNodeStyle(chunk.blocks[0]) : getFusedNoteStyle(chunk.blocks);
 
-        validChunks.forEach(c => {
-            if (c.sourceId && childrenMap.has(c.sourceId)) {
-                childrenMap.get(c.sourceId)!.push(c);
-            } else {
-                roots.push(c);
-            }
-        });
-
-        const HORIZONTAL_SPACING = BASE_UNIT * 5;
-        const VERTICAL_SPACING = BASE_UNIT * 2;
-        
         const margin = BASE_UNIT;
         let startY = margin;
         const startX = margin;
-        
+
         if (children.length > 0) {
             const maxY = Math.max(
                 ...children.map(c => c.position.y + ((c.style?.height as number) || 208))
@@ -1331,83 +1131,10 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             startY = snapToGridValue(maxY + BASE_UNIT * 3);
         }
 
-        const positions = new Map<string, {x: number, y: number}>();
-        
-        const MAX_ITEMS_PER_ROW = 4;
-
-        const layoutSubtree = (node: Chunk, x: number, y: number): { w: number, h: number } => {
-            const nodeChildren = childrenMap.get(node.id) || [];
-            const nodeH = node.type === 'block' ? getNodeStyle(node.blocks[0]).height : getFusedNoteStyle(node.blocks).height;
-            const nodeW = node.type === 'block' ? getNodeStyle(node.blocks[0]).width : MIN_FUSED_SIZE;
-            
-            if (nodeChildren.length === 0) {
-                positions.set(node.id, { x: snapToGridValue(x), y: snapToGridValue(y) });
-                return { w: nodeW + HORIZONTAL_SPACING, h: nodeH + VERTICAL_SPACING };
-            }
-
-            const rows: { children: Chunk[], h: number, w: number }[] = [];
-            let currentRow: Chunk[] = [];
-            
-            nodeChildren.forEach(child => {
-                if (currentRow.length >= MAX_ITEMS_PER_ROW) {
-                    rows.push({ children: currentRow, h: 0, w: 0 });
-                    currentRow = [];
-                }
-                currentRow.push(child);
-            });
-            if (currentRow.length > 0) {
-                rows.push({ children: currentRow, h: 0, w: 0 });
-            }
-
-            let childY = y + nodeH + VERTICAL_SPACING;
-            let maxTotalWidth = 0;
-
-            rows.forEach(row => {
-                let childX = x;
-                let rowWidth = 0;
-                let rowHeight = 0;
-
-                row.children.forEach(child => {
-                    const childDim = layoutSubtree(child, childX, childY);
-                    childX += childDim.w;
-                    rowWidth += childDim.w;
-                    if (childDim.h > rowHeight) rowHeight = childDim.h;
-                });
-
-                row.w = rowWidth;
-                row.h = rowHeight;
-                
-                childY += rowHeight;
-                if (rowWidth > maxTotalWidth) maxTotalWidth = rowWidth;
-            });
-            
-            const actualTotalWidth = maxTotalWidth > 0 ? maxTotalWidth - HORIZONTAL_SPACING : 0;
-            const parentX = x + actualTotalWidth / 2 - nodeW / 2;
-            
-            positions.set(node.id, { x: snapToGridValue(parentX), y: snapToGridValue(y) });
-            
-            return {
-                w: Math.max(nodeW + HORIZONTAL_SPACING, maxTotalWidth),
-                h: childY - y
-            };
-        };
-
-        let currentX = startX;
-        let currentY = startY;
-        let itemsInRow = 0;
-        let maxRowHeight = 0;
-
-        roots.forEach(root => {
-            if (itemsInRow >= MAX_ITEMS_PER_ROW) {
-                currentX = startX;
-                currentY += maxRowHeight;
-                maxRowHeight = 0;
-                itemsInRow = 0;
-            }
-            const dim = layoutSubtree(root, currentX, currentY);
-            currentX += dim.w;
-            if (dim.h > maxRowHeight) maxRowHeight = dim.h;
-            itemsInRow++;
+        const positions = layoutChunks(validChunks, plan.relatedEdges, sizeOf, {
+            originX: startX,
+            originY: startY,
+            gridStep: BASE_UNIT,
         });
 
         // --- Creation of Nodes and Edges ---
@@ -1428,20 +1155,22 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             } as AppNode;
         });
 
+        const chunkIds = new Set(validChunks.map(c => c.id));
         const newEdges: Edge[] = [];
-        validChunks.forEach(chunk => {
-            if (chunk.sourceId) {
-                const sourceChunk = validChunks.find(c => c.id === chunk.sourceId);
-                // Keep only connections between a fused-note and their single blocks
-                if (sourceChunk && sourceChunk.type === 'fused-note' && chunk.type === 'block') {
-                    newEdges.push({
-                        id: uuidv4(),
-                        source: chunk.sourceId,
-                        target: chunk.id,
-                        type: 'centered',
-                        data: { parentId: nodeId } // Scope edge to this canvas
-                    } as Edge);
-                }
+
+        // Connect ONLY groups that are genuinely related to each other (default
+        // edge style). The hierarchy/relatedness tree is used purely for layout
+        // positioning above — it is intentionally NOT drawn, to avoid connecting
+        // every node on the canvas.
+        plan.relatedEdges.forEach(rel => {
+            if (chunkIds.has(rel.source) && chunkIds.has(rel.target)) {
+                newEdges.push({
+                    id: uuidv4(),
+                    source: rel.source,
+                    target: rel.target,
+                    type: 'centered',
+                    data: { parentId: nodeId } // Scope edge to this canvas
+                } as Edge);
             }
         });
 
@@ -1494,11 +1223,14 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
     },
 
     arrangeNodes: (nodeIds, mode) => {
-        const { nodes } = get();
+        const { nodes, edges, currentParentId } = get();
         const selected = nodes.filter(n => nodeIds.includes(n.id));
         if (selected.length < 2) return;
 
         const count = selected.length;
+
+        // Smart mode may also rebuild the connectors between the selected nodes.
+        let rebuiltEdges: Edge[] | null = null;
 
         const getW = (n: typeof selected[0]) => n.measured?.width ?? (typeof n.style?.width === 'number' ? n.style.width : 432);
         const getH = (n: typeof selected[0]) => n.measured?.height ?? (typeof n.style?.height === 'number' ? n.style.height : 432);
@@ -1651,10 +1383,60 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 });
                 break;
             }
+
+            case 'related-clusters': {
+                // Group selected nodes by content relatedness and pack each cluster
+                // compactly, so related cards sit together and connectors stay short.
+                const items = selected.map(n => {
+                    const content = (n.data as any).content;
+                    return {
+                        id: n.id,
+                        blocks: Array.isArray(content) && content.length > 0
+                            ? content
+                            : [{ type: 'text', content: (n.data as any).label || '' }],
+                    };
+                });
+                const forest = computeSmartHierarchy(items);
+                const layoutInputs = selected.map(n => ({
+                    id: n.id,
+                    type: (n.type === 'block' ? 'block' : 'fused-note') as 'block' | 'fused-note',
+                    sourceId: forest.parent.get(n.id),
+                }));
+                const sizeMap = new Map(selected.map(n => [n.id, { width: getGridW(n), height: getGridH(n) }]));
+                const computed = layoutChunks(
+                    layoutInputs,
+                    forest.edges,
+                    (node) => sizeMap.get(node.id) || { width: 432, height: 200 },
+                    {
+                        originX: snapToGridValue(bbox.minX),
+                        originY: snapToGridValue(bbox.minY),
+                        gridStep: BASE_UNIT,
+                    }
+                );
+                computed.forEach((p, id) => { positions[id] = p; });
+
+                // Rebuild connectors: drop existing edges that link two selected
+                // nodes, then draw the clean relatedness tree (default style).
+                const selectedSet = new Set(nodeIds);
+                const edgeParentId = currentParentId ?? null;
+                const keptEdges = edges.filter(
+                    e => !(selectedSet.has(e.source) && selectedSet.has(e.target))
+                );
+                const forestEdges = forest.edges.map(e => ({
+                    id: uuidv4(),
+                    source: e.source,
+                    target: e.target,
+                    type: 'centered',
+                    data: { parentId: edgeParentId },
+                }) as Edge);
+                rebuiltEdges = [...keptEdges, ...forestEdges];
+                break;
+            }
         }
 
         set({
             nodes: nodes.map(n => (positions[n.id] ? { ...n, position: positions[n.id] } : n)),
+            ...(rebuiltEdges ? { edges: rebuiltEdges } : {}),
         });
         get().setCloudDirty?.(true);
     },

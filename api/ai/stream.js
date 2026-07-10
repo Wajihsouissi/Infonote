@@ -1,3 +1,5 @@
+import { requireAiAccess, getServerModel } from '../_lib/aiGuard.js';
+
 const AI_GATEWAY_BASE_URL = 'https://ai-gateway.vercel.sh/v1';
 
 function getGatewayKey() {
@@ -40,6 +42,13 @@ export default async function handler(req, res) {
   }
 
   try {
+    const access = await requireAiAccess(req, 'text');
+    if (!access.ok) {
+      if (access.retryAfter) res.setHeader('Retry-After', String(access.retryAfter));
+      sendError(res, access.status, access.message);
+      return;
+    }
+
     const body = await readJsonBody(req);
     const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
     if (!prompt) {
@@ -47,10 +56,8 @@ export default async function handler(req, res) {
       return;
     }
 
-    const model =
-      typeof body.model === 'string' && body.model.trim()
-        ? body.model.trim()
-        : process.env.AI_GATEWAY_TEXT_MODEL || process.env.VITE_AI_GATEWAY_TEXT_MODEL || 'openai/gpt-4o-mini';
+    // Server-chosen model only — client "model" is intentionally ignored.
+    const model = getServerModel('text');
 
     const gatewayRes = await fetch(`${AI_GATEWAY_BASE_URL}/chat/completions`, {
       method: 'POST',
