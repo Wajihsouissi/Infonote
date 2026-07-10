@@ -33741,27 +33741,6 @@
       "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx:129"
     },
     {
-      "id": "file::marketingpage",
-      "label": "MarketingPage.tsx",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx:1"
-    },
-    {
-      "id": "MarketingPage::handlekey",
-      "label": "handleKey",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx:69"
-    },
-    {
-      "id": "MarketingPage::onscroll",
-      "label": "onScroll",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx:1311"
-    },
-    {
       "id": "file::canvasboard",
       "label": "CanvasBoard.tsx",
       "fileType": "code",
@@ -33900,13 +33879,6 @@
       "fileType": "code",
       "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\canvas\\DragChip.tsx",
       "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\canvas\\DragChip.tsx:65"
-    },
-    {
-      "id": "file::noteexpandedcontent",
-      "label": "NoteExpandedContent.tsx",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\card\\NoteExpandedContent.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\card\\NoteExpandedContent.tsx:1"
     },
     {
       "id": "file::blockcomponents",
@@ -35195,6 +35167,41 @@
       "fileType": "code",
       "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\temporalControl.ts",
       "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\temporalControl.ts:41"
+    },
+    {
+      "id": "file::marketingpage",
+      "label": "MarketingPage.tsx",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx:1"
+    },
+    {
+      "id": "MarketingPage::handlekey",
+      "label": "handleKey",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx:69"
+    },
+    {
+      "id": "MarketingPage::onchange",
+      "label": "onChange",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx:378"
+    },
+    {
+      "id": "MarketingPage::onscroll",
+      "label": "onScroll",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx:1319"
+    },
+    {
+      "id": "file::noteexpandedcontent",
+      "label": "NoteExpandedContent.tsx",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\card\\NoteExpandedContent.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\card\\NoteExpandedContent.tsx:1"
     }
   ],
   "edges": [
@@ -76887,24 +76894,6 @@
       "weight": 1
     },
     {
-      "source": "file::marketingpage",
-      "target": "MarketingPage::handlekey",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx:69",
-      "weight": 1
-    },
-    {
-      "source": "file::marketingpage",
-      "target": "MarketingPage::onscroll",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx:1311",
-      "weight": 1
-    },
-    {
       "source": "file::canvasboard",
       "target": "CanvasBoard::handlemouseover",
       "relation": "contains",
@@ -78541,12 +78530,39 @@
       "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\temporalControl.ts",
       "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\temporalControl.ts:41",
       "weight": 1
+    },
+    {
+      "source": "file::marketingpage",
+      "target": "MarketingPage::handlekey",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx:69",
+      "weight": 1
+    },
+    {
+      "source": "file::marketingpage",
+      "target": "MarketingPage::onchange",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx:378",
+      "weight": 1
+    },
+    {
+      "source": "file::marketingpage",
+      "target": "MarketingPage::onscroll",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx:1319",
+      "weight": 1
     }
   ],
   "metadata": {
     "files": 213,
-    "nodes": 5028,
-    "edges": 4816,
-    "builtAt": "2026-07-10T14:21:20.900Z"
+    "nodes": 5029,
+    "edges": 4817,
+    "builtAt": "2026-07-10T14:42:05.110Z"
   }
 }

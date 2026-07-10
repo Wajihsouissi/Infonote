@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
+import { reportClientError } from '../services/errorTelemetry';
 
 interface Props {
     children: ReactNode;
@@ -23,6 +24,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error('[ErrorBoundary] Caught error:', error, errorInfo);
+        reportClientError('error-boundary', error, errorInfo.componentStack ?? undefined);
     }
 
     render() {

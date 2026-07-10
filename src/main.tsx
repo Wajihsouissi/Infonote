@@ -12,6 +12,9 @@ import '@fontsource/outfit/700.css';
 import App from './App.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthProvider } from './features/auth/AuthProvider';
+import { initErrorTelemetry } from './services/errorTelemetry';
+
+initErrorTelemetry();
 
 // Prevent default browser zoom via keyboard (Ctrl +/-, Cmd +/-)
 document.addEventListener(
