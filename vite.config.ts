@@ -991,6 +991,11 @@ export default defineConfig(({ mode }) => {
       host: 'localhost',
       port: 5173,
       strictPort: true,
+      watch: {
+        // graphify-out is a code-navigation index rewritten by tooling hooks;
+        // watching it makes every index refresh full-reload the app mid-work.
+        ignored: ['**/graphify-out/**'],
+      },
     },
     preview: {
       host: 'localhost',

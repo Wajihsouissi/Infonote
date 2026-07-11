@@ -29884,20 +29884,6 @@
       "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\card\\hooks\\index.ts:1"
     },
     {
-      "id": "file::usecanvasdrop",
-      "label": "useCanvasDrop.ts",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\canvas\\hooks\\useCanvasDrop.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\canvas\\hooks\\useCanvasDrop.ts:1"
-    },
-    {
-      "id": "usecanvasdrop::usecanvasdrop",
-      "label": "useCanvasDrop",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\canvas\\hooks\\useCanvasDrop.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\canvas\\hooks\\useCanvasDrop.ts:18"
-    },
-    {
       "id": "file::usecanvasnodedrag",
       "label": "useCanvasNodeDrag.ts",
       "fileType": "code",
@@ -33104,20 +33090,6 @@
       "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\navigationSlice.ts:4"
     },
     {
-      "id": "file::uislice",
-      "label": "uiSlice.ts",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\uiSlice.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\uiSlice.ts:1"
-    },
-    {
-      "id": "uiSlice::createuislice",
-      "label": "createUISlice",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\uiSlice.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\uiSlice.ts:4"
-    },
-    {
       "id": "colorutils::topastelcolor",
       "label": "toPastelColor",
       "fileType": "code",
@@ -33718,27 +33690,6 @@
       "fileType": "code",
       "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\api\\ai\\text.js",
       "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\api\\ai\\text.js:38"
-    },
-    {
-      "id": "file::app",
-      "label": "App.tsx",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx:1"
-    },
-    {
-      "id": "app::viewfrompath",
-      "label": "viewFromPath",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx:41"
-    },
-    {
-      "id": "App::handlepopstate",
-      "label": "handlePopState",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx:129"
     },
     {
       "id": "file::canvasboard",
@@ -34476,34 +34427,6 @@
       "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\services\\cloudSync.ts:527"
     },
     {
-      "id": "file::nodeslice",
-      "label": "nodeSlice.ts",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts:1"
-    },
-    {
-      "id": "nodeslice::scheduleparentsync",
-      "label": "scheduleParentSync",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts:33"
-    },
-    {
-      "id": "nodeSlice::getinitialnodes",
-      "label": "getInitialNodes",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts:50"
-    },
-    {
-      "id": "nodeSlice::createnodeslice",
-      "label": "createNodeSlice",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts:102"
-    },
-    {
       "id": "file::storageslice",
       "label": "storageSlice.ts",
       "fileType": "code",
@@ -34516,20 +34439,6 @@
       "fileType": "code",
       "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\storageSlice.ts",
       "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\storageSlice.ts:7"
-    },
-    {
-      "id": "file::types",
-      "label": "types.ts",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\types.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\types.ts:1"
-    },
-    {
-      "id": "file::usestore",
-      "label": "useStore.ts",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\useStore.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\useStore.ts:1"
     },
     {
       "id": "file::vite_config",
@@ -35202,6 +35111,167 @@
       "fileType": "code",
       "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\card\\NoteExpandedContent.tsx",
       "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\card\\NoteExpandedContent.tsx:1"
+    },
+    {
+      "id": "file::app",
+      "label": "App.tsx",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx:1"
+    },
+    {
+      "id": "app::viewfrompath",
+      "label": "viewFromPath",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx:43"
+    },
+    {
+      "id": "App::handlepopstate",
+      "label": "handlePopState",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx:131"
+    },
+    {
+      "id": "file::usecanvasdrop",
+      "label": "useCanvasDrop.ts",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\canvas\\hooks\\useCanvasDrop.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\canvas\\hooks\\useCanvasDrop.ts:1"
+    },
+    {
+      "id": "usecanvasdrop::usecanvasdrop",
+      "label": "useCanvasDrop",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\canvas\\hooks\\useCanvasDrop.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\canvas\\hooks\\useCanvasDrop.ts:19"
+    },
+    {
+      "id": "file::nodeslice",
+      "label": "nodeSlice.ts",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts:1"
+    },
+    {
+      "id": "nodeslice::scheduleparentsync",
+      "label": "scheduleParentSync",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts:34"
+    },
+    {
+      "id": "nodeSlice::getinitialnodes",
+      "label": "getInitialNodes",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts:51"
+    },
+    {
+      "id": "nodeSlice::createnodeslice",
+      "label": "createNodeSlice",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts:103"
+    },
+    {
+      "id": "file::uislice",
+      "label": "uiSlice.ts",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\uiSlice.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\uiSlice.ts:1"
+    },
+    {
+      "id": "uiSlice::createuislice",
+      "label": "createUISlice",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\uiSlice.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\uiSlice.ts:4"
+    },
+    {
+      "id": "file::types",
+      "label": "types.ts",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\types.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\types.ts:1"
+    },
+    {
+      "id": "file::usestore",
+      "label": "useStore.ts",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\useStore.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\useStore.ts:1"
+    },
+    {
+      "id": "file::canvaslimitbadge",
+      "label": "CanvasLimitBadge.tsx",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\ui\\CanvasLimitBadge.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\ui\\CanvasLimitBadge.tsx:1"
+    },
+    {
+      "id": "file::limitnoticemodal",
+      "label": "LimitNoticeModal.tsx",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\ui\\LimitNoticeModal.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\ui\\LimitNoticeModal.tsx:1"
+    },
+    {
+      "id": "LimitNoticeModal::close",
+      "label": "close",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\ui\\LimitNoticeModal.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\ui\\LimitNoticeModal.tsx:26"
+    },
+    {
+      "id": "LimitNoticeModal::signin",
+      "label": "signIn",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\ui\\LimitNoticeModal.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\ui\\LimitNoticeModal.tsx:27"
+    },
+    {
+      "id": "file::nodelimits",
+      "label": "nodeLimits.ts",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts:1"
+    },
+    {
+      "id": "nodeLimits::samecanvas",
+      "label": "sameCanvas",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts:25"
+    },
+    {
+      "id": "nodelimits::countnodesoncanvas",
+      "label": "countNodesOnCanvas",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts:27"
+    },
+    {
+      "id": "nodelimits::countcards",
+      "label": "countCards",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts:31"
+    },
+    {
+      "id": "nodelimits::getcanvaslevel",
+      "label": "getCanvasLevel",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts:36"
+    },
+    {
+      "id": "nodelimits::checknodecreationlimits",
+      "label": "checkNodeCreationLimits",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts:50"
     }
   ],
   "edges": [
@@ -73249,15 +73319,6 @@
       "weight": 1
     },
     {
-      "source": "file::usecanvasdrop",
-      "target": "usecanvasdrop::usecanvasdrop",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\canvas\\hooks\\useCanvasDrop.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\canvas\\hooks\\useCanvasDrop.ts:18",
-      "weight": 1
-    },
-    {
       "source": "file::usecanvasnodedrag",
       "target": "usecanvasnodedrag::usecanvasnodedrag",
       "relation": "contains",
@@ -76336,15 +76397,6 @@
       "weight": 1
     },
     {
-      "source": "file::uislice",
-      "target": "uiSlice::createuislice",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\uiSlice.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\uiSlice.ts:4",
-      "weight": 1
-    },
-    {
       "source": "file::colorutils",
       "target": "colorutils::topastelcolor",
       "relation": "contains",
@@ -76873,24 +76925,6 @@
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\api\\ai\\text.js",
       "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\api\\ai\\text.js:38",
-      "weight": 1
-    },
-    {
-      "source": "file::app",
-      "target": "app::viewfrompath",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx:41",
-      "weight": 1
-    },
-    {
-      "source": "file::app",
-      "target": "App::handlepopstate",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx:129",
       "weight": 1
     },
     {
@@ -77740,33 +77774,6 @@
       "weight": 1
     },
     {
-      "source": "file::nodeslice",
-      "target": "nodeslice::scheduleparentsync",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts:33",
-      "weight": 1
-    },
-    {
-      "source": "file::nodeslice",
-      "target": "nodeSlice::getinitialnodes",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts:50",
-      "weight": 1
-    },
-    {
-      "source": "file::nodeslice",
-      "target": "nodeSlice::createnodeslice",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts:102",
-      "weight": 1
-    },
-    {
       "source": "file::storageslice",
       "target": "storageSlice::createstorageslice",
       "relation": "contains",
@@ -78557,12 +78564,138 @@
       "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx",
       "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\The-website\\MarketingPage.tsx:1319",
       "weight": 1
+    },
+    {
+      "source": "file::app",
+      "target": "app::viewfrompath",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx:43",
+      "weight": 1
+    },
+    {
+      "source": "file::app",
+      "target": "App::handlepopstate",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\App.tsx:131",
+      "weight": 1
+    },
+    {
+      "source": "file::usecanvasdrop",
+      "target": "usecanvasdrop::usecanvasdrop",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\canvas\\hooks\\useCanvasDrop.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\canvas\\hooks\\useCanvasDrop.ts:19",
+      "weight": 1
+    },
+    {
+      "source": "file::nodeslice",
+      "target": "nodeslice::scheduleparentsync",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts:34",
+      "weight": 1
+    },
+    {
+      "source": "file::nodeslice",
+      "target": "nodeSlice::getinitialnodes",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts:51",
+      "weight": 1
+    },
+    {
+      "source": "file::nodeslice",
+      "target": "nodeSlice::createnodeslice",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\nodeSlice.ts:103",
+      "weight": 1
+    },
+    {
+      "source": "file::uislice",
+      "target": "uiSlice::createuislice",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\uiSlice.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\slices\\uiSlice.ts:4",
+      "weight": 1
+    },
+    {
+      "source": "file::limitnoticemodal",
+      "target": "LimitNoticeModal::close",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\ui\\LimitNoticeModal.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\ui\\LimitNoticeModal.tsx:26",
+      "weight": 1
+    },
+    {
+      "source": "file::limitnoticemodal",
+      "target": "LimitNoticeModal::signin",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\ui\\LimitNoticeModal.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\ui\\LimitNoticeModal.tsx:27",
+      "weight": 1
+    },
+    {
+      "source": "file::nodelimits",
+      "target": "nodeLimits::samecanvas",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts:25",
+      "weight": 1
+    },
+    {
+      "source": "file::nodelimits",
+      "target": "nodelimits::countnodesoncanvas",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts:27",
+      "weight": 1
+    },
+    {
+      "source": "file::nodelimits",
+      "target": "nodelimits::countcards",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts:31",
+      "weight": 1
+    },
+    {
+      "source": "file::nodelimits",
+      "target": "nodelimits::getcanvaslevel",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts:36",
+      "weight": 1
+    },
+    {
+      "source": "file::nodelimits",
+      "target": "nodelimits::checknodecreationlimits",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\store\\nodeLimits.ts:50",
+      "weight": 1
     }
   ],
   "metadata": {
-    "files": 213,
-    "nodes": 5029,
-    "edges": 4817,
-    "builtAt": "2026-07-10T14:42:05.110Z"
+    "files": 216,
+    "nodes": 5039,
+    "edges": 4824,
+    "builtAt": "2026-07-11T10:55:07.468Z"
   }
 }

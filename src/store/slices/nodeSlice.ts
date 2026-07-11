@@ -12,6 +12,7 @@ import { MIN_FUSED_SIZE, BASE_UNIT, snapToGridValue, ICON_SIZE, GRID_GAP } from 
 import { computeParentContentUpdate } from '../contentSync';
 import { planHydration, layoutChunks, computeSmartHierarchy, type HydrationChunk } from '../contentHydration';
 import { withoutHistory } from '../temporalControl';
+import { checkNodeCreationLimits } from '../nodeLimits';
 import {
     normalizeText,
     blockText,
@@ -225,6 +226,18 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
     addNode: (type, position, initialData, style, parentId, customId) => {
         const { currentParentId } = get();
         const targetParentId = parentId !== undefined ? parentId : (currentParentId || undefined);
+
+        // Beta creation limits (BETA_SCOPE.md). Creation-only — loads are never trimmed.
+        const violation = checkNodeCreationLimits({
+            nodes: get().nodes,
+            targetParentId,
+            newNodeType: type,
+            isAuthenticated: get().auth.isAuthenticated,
+        });
+        if (violation) {
+            get().setLimitNotice(violation);
+            return;
+        }
 
         const snappedPosition = {
             x: snapToGridValue(position.x),
@@ -1173,6 +1186,18 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 } as Edge);
             }
         });
+
+        // Beta creation limits (BETA_SCOPE.md) — the whole batch counts.
+        const violation = checkNodeCreationLimits({
+            nodes: get().nodes,
+            targetParentId: nodeId,
+            isAuthenticated: get().auth.isAuthenticated,
+            addedCount: newNodes.length,
+        });
+        if (violation) {
+            get().setLimitNotice(violation);
+            return;
+        }
 
         set(state => ({
             nodes: [...state.nodes, ...newNodes],

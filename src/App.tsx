@@ -2,6 +2,8 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { Loader2 } from 'lucide-react';
 import { WelcomeModal } from './features/auth/WelcomeModal';
+import { LimitNoticeModal } from './features/ui/LimitNoticeModal';
+import { CanvasLimitBadge } from './features/ui/CanvasLimitBadge';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useStore } from './store/useStore';
 import type { AppView } from './store/types';
@@ -365,6 +367,8 @@ function App() {
           setCurrentView('canvas');
         }}
       />
+      <LimitNoticeModal />
+      <CanvasLimitBadge />
     </ErrorBoundary>
   );
 }

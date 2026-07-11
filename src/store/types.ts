@@ -5,6 +5,7 @@ import {
     type Connection,
 } from '@xyflow/react';
 import type { AppNode } from '../types';
+import type { LimitViolation } from './nodeLimits';
 
 export interface Breadcrumb {
     id: string | null;
@@ -194,6 +195,9 @@ export interface UISlice {
     showWelcomeModal: boolean;
     setShowWelcomeModal: (v: boolean) => void;
     setChunkItNodeId: (id: string | null) => void;
+    /** Set when node creation was blocked by a beta limit (see BETA_SCOPE.md). */
+    limitNotice: LimitViolation | null;
+    setLimitNotice: (notice: LimitViolation | null) => void;
 }
 
 export type AppState = NodeSlice & NavigationSlice & StorageSlice & UISlice & AuthSlice;

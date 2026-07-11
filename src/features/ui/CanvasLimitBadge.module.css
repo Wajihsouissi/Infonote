@@ -1,0 +1,21 @@
+.badge {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 900;
+  display: flex;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 99px;
+  background: var(--color-bg-surface, rgba(17, 12, 26, 0.85));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  color: var(--color-text-muted, rgba(255, 255, 255, 0.65));
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+  user-select: none;
+}
+
+.atLimit {
+  color: #f0abfc;
+}

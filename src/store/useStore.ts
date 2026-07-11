@@ -47,6 +47,12 @@ export const useStore = create<AppState>()(
 // circular import back into this module.
 bindTemporal(useStore.temporal as Parameters<typeof bindTemporal>[0]);
 
+// Dev-only handle so QA harnesses can drive the REAL store instance from the
+// page console (a dynamic import() in an eval sandbox gets a separate copy).
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+    (window as unknown as { __appStore?: typeof useStore }).__appStore = useStore;
+}
+
 // Initialize storage manager ONCE at module load (outside React)
 if (typeof window !== 'undefined') {
     setTimeout(() => {

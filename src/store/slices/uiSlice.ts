@@ -25,6 +25,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     isLinkingMode: false,
     chunkItNodeId: null,
     showWelcomeModal: false,
+    limitNotice: null,
 
     setActiveIconMenuId: (id) => set({ activeIconMenuId: id }),
     setKanbanModalOpen: (isOpen) => set({ isKanbanModalOpen: isOpen, editingKanbanId: isOpen ? get().editingKanbanId : null }),
@@ -178,4 +179,5 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     setHasEnteredApp: (val: boolean) => set({ hasEnteredApp: val }),
     setShowWelcomeModal: (v: boolean) => set({ showWelcomeModal: v }),
     setChunkItNodeId: (id: string | null) => set({ chunkItNodeId: id }),
+    setLimitNotice: (notice) => set({ limitNotice: notice }),
 });

@@ -5,6 +5,7 @@ import { useStore } from '../../../store/useStore';
 import type { BlockType } from '../../editor/types';
 import type { AppNode } from '../../../types';
 import { BASE_UNIT, MIN_FUSED_SIZE, ICON_SIZE, snapToGridValue, GRID_GAP } from '../../../config/layout';
+import { checkNodeCreationLimits } from '../../../store/nodeLimits';
 
 interface UseCanvasDropOptions {
     updateNodeData: (id: string, data: any) => void;
@@ -206,6 +207,22 @@ export function useCanvasDrop({
                     },
                     parentId: targetParentId,
                 };
+
+                // Beta creation limits (BETA_SCOPE.md). Abort BEFORE adding the
+                // node and before any blocks are removed from the source card.
+                {
+                    const { nodes, auth, setLimitNotice } = useStore.getState();
+                    const violation = checkNodeCreationLimits({
+                        nodes,
+                        targetParentId,
+                        newNodeType: newNode.type,
+                        isAuthenticated: auth.isAuthenticated,
+                    });
+                    if (violation) {
+                        setLimitNotice(violation);
+                        return;
+                    }
+                }
 
                 useStore.setState(state => ({
                     nodes: [...state.nodes, newNode]
