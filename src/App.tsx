@@ -10,6 +10,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { useStore } from './store/useStore';
 import type { AppView } from './store/types';
 import { supabase, isSupabaseConfigured } from './services/supabase/client';
+import { FEATURES } from './config/featureFlags';
 import { acceptWorkspaceInvitation, activateWorkspace } from './services/collaboration';
 
 // Top-level views are lazy so the marketing page doesn't pay for the whole
@@ -49,7 +50,7 @@ function viewFromPath(rawPath: string, isAuthenticated: boolean): AppView {
   if (path.includes('admin')) return 'not-found';
   if (path === '/profile') return 'profile';
   if (path === '/canvas') return 'canvas';
-  if (path === '/marketplace') return 'marketplace';
+  if (path === '/marketplace') return FEATURES.marketplace ? 'marketplace' : (isAuthenticated ? 'landing' : 'marketing');
   if (path === '/login') return 'login';
   if (path === '/signup') return 'signup';
   if (path === '/update-password') return 'update-password';
@@ -301,7 +302,7 @@ function App() {
       case 'landing':
         return <LandingPage />;
       case 'marketplace':
-        return <MarketplacePage />;
+        return FEATURES.marketplace ? <MarketplacePage /> : <LandingPage />;
       case 'login':
         return <LoginPage />;
       case 'signup':

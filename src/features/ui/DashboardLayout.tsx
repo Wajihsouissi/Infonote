@@ -1,4 +1,5 @@
 import React from 'react';
+import { FEATURES } from '../../config/featureFlags';
 import { useStore } from '../../store/useStore';
 import { 
   Layout, 
@@ -45,13 +46,15 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, titl
               <Layout size={18} />
               <span>Home</span>
             </button>
-            <button 
-              className={`${styles.navItem} ${currentView === 'marketplace' ? styles.active : ''}`}
-              onClick={() => setCurrentView('marketplace')}
-            >
-              <ShoppingBag size={18} />
-              <span>Marketplace</span>
-            </button>
+            {FEATURES.marketplace && (
+              <button
+                className={`${styles.navItem} ${currentView === 'marketplace' ? styles.active : ''}`}
+                onClick={() => setCurrentView('marketplace')}
+              >
+                <ShoppingBag size={18} />
+                <span>Marketplace</span>
+              </button>
+            )}
           </div>
 
           <div className={styles.navDivider} />

@@ -1,4 +1,5 @@
 import { SearchResults } from './SearchResults';
+import { FEATURES } from '../../config/featureFlags';
 import {
     Plus,
     LayoutGrid,
@@ -989,14 +990,16 @@ export function BottomMenu() {
                         </button>
 
                         <div className={styles.blocksWrapper}>
-                            <button 
-                                className={`${styles.iconBtn} ${activeMenu === 'views' ? styles.iconBtnActive : ''}`} 
-                                onClick={() => setActiveMenu(activeMenu === 'views' ? null : 'views')}
-                                title="Add View" 
-                                style={{ marginLeft: 8 }}
-                            >
-                                <KanbanSquare size={20} />
-                            </button>
+                            {FEATURES.kanban && (
+                                <button
+                                    className={`${styles.iconBtn} ${activeMenu === 'views' ? styles.iconBtnActive : ''}`}
+                                    onClick={() => setActiveMenu(activeMenu === 'views' ? null : 'views')}
+                                    title="Add View"
+                                    style={{ marginLeft: 8 }}
+                                >
+                                    <KanbanSquare size={20} />
+                                </button>
+                            )}
 
                             <div className={`${styles.hoverMenu} ${activeMenu === 'views' ? styles.menuVisible : ''}`}>
                                 <div className={styles.menuHeader}>

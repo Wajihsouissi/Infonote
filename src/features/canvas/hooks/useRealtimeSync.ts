@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useStore } from '../../../store/useStore';
 import { realtimeSync } from '../../../services/realtimeSync';
 import type { RealtimePresenceState, RealtimeMessage } from '../../../services/realtimeSync';
+import { FEATURES } from '../../../config/featureFlags';
 
 export function useRealtimeSync(currentParentId: string | null) {
     const auth = useStore((state) => state.auth);
@@ -20,7 +21,7 @@ export function useRealtimeSync(currentParentId: string | null) {
     }, [applyRemoteNodeUpdate, applyRemoteEdgeUpdate]);
 
     useEffect(() => {
-        if (!auth.isAuthenticated || !auth.activeWorkspaceId || !auth.userId) {
+        if (!FEATURES.collaboration || !auth.isAuthenticated || !auth.activeWorkspaceId || !auth.userId) {
             realtimeSync.destroy();
             isInitialized.current = false;
             return;

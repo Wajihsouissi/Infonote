@@ -10,6 +10,7 @@ import { LocalSyncModal } from '../canvas/LocalSyncModal';
 import { CloudSyncModal } from '../canvas/CloudSyncModal';
 import { NotionImportModal } from '../canvas/NotionImportModal';
 import { ShareWorkspaceModal } from '../canvas/ShareWorkspaceModal';
+import { FEATURES } from '../../config/featureFlags';
 import styles from './StorageControls.module.css';
 
 const NotionIcon = ({ size = 18, className }: { size?: number, className?: string }) => (
@@ -393,7 +394,7 @@ export const StorageControls: React.FC = () => {
                 </button>
             )}
 
-            {user && (
+            {user && FEATURES.notionImport && (
                 <button
                     className={`${styles.iconBtn} ${styles.neverSaved}`}
                     onClick={() => setNotionModalOpen(true)}
@@ -404,7 +405,7 @@ export const StorageControls: React.FC = () => {
                 </button>
             )}
 
-            {user && (
+            {user && FEATURES.collaboration && (
                 <button
                     className={`${styles.iconBtn} ${styles.synced}`}
                     onClick={() => setShareModalOpen(true)}
@@ -446,15 +447,19 @@ export const StorageControls: React.FC = () => {
                 onSave={handleLocalSave}
             />
 
-            <NotionImportModal
-                open={notionModalOpen}
-                onClose={() => setNotionModalOpen(false)}
-            />
+            {FEATURES.notionImport && (
+                <NotionImportModal
+                    open={notionModalOpen}
+                    onClose={() => setNotionModalOpen(false)}
+                />
+            )}
 
-            <ShareWorkspaceModal
-                open={shareModalOpen}
-                onClose={() => setShareModalOpen(false)}
-            />
+            {FEATURES.collaboration && (
+                <ShareWorkspaceModal
+                    open={shareModalOpen}
+                    onClose={() => setShareModalOpen(false)}
+                />
+            )}
         </div>
     );
 };

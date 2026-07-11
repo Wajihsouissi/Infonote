@@ -1,5 +1,6 @@
 import React, { useState, useRef, useLayoutEffect, useEffect, memo, useCallback } from 'react';
 import { FileText, Trash2, Sparkles, Loader2, Clock, Plus, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, AlignLeft, AlignCenter, AlignRight, GripHorizontal, GripVertical, Eraser } from 'lucide-react';
+import { FEATURES } from '../../config/featureFlags';
 import { useStore } from '../../store/useStore';
 import { renderContentWithLinks } from './pasteUtils';
 import pageStyles from './PageBlock.module.css'; // Import page styles
@@ -1113,7 +1114,7 @@ export const FileBlock = memo(({ block, readOnly, onChange, onDeleteBlock }: Blo
     }
 
     const handleClick = (e: React.MouseEvent) => {
-        if (isPDF) {
+        if (isPDF && FEATURES.pdfBlock) {
             e.preventDefault();
             setShowPDF(true);
         }
@@ -1141,7 +1142,7 @@ export const FileBlock = memo(({ block, readOnly, onChange, onDeleteBlock }: Blo
 
             </div>
 
-            {showPDF && ReactDOM.createPortal(
+            {showPDF && FEATURES.pdfBlock && ReactDOM.createPortal(
                 <React.Suspense fallback={null}>
                     <PDFViewer
                         fileUrl={block.content}

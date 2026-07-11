@@ -8,6 +8,7 @@
  * user_metadata that Supabase returned on sign-in.
  */
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { FEATURES } from '../../config/featureFlags';
 import {
     ArrowLeft,
     LogOut,
@@ -397,15 +398,17 @@ export const ProfilePage: React.FC = () => {
                 <div style={card}>
                     <h2 style={sectionTitle}>Account actions</h2>
 
-                    <button
-                        type="button"
-                        onClick={() => setCurrentView('marketplace')}
-                        style={btnRow}
-                    >
-                        <Layout size={16} />
-                        <span style={{ flex: 1, textAlign: 'left' }}>Browse Marketplace</span>
-                        <span style={{ opacity: 0.5, fontSize: 12 }}>›</span>
-                    </button>
+                    {FEATURES.marketplace && (
+                        <button
+                            type="button"
+                            onClick={() => setCurrentView('marketplace')}
+                            style={btnRow}
+                        >
+                            <Layout size={16} />
+                            <span style={{ flex: 1, textAlign: 'left' }}>Browse Marketplace</span>
+                            <span style={{ opacity: 0.5, fontSize: 12 }}>›</span>
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={handleLogout}

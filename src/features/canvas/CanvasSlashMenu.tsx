@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useReactFlow } from '@xyflow/react';
+import { FEATURES } from '../../config/featureFlags';
 import { StickyNote, Layers, KanbanSquare } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { v4 as uuidv4 } from 'uuid';
@@ -60,7 +61,7 @@ export function CanvasSlashMenu() {
                     addNode('fused-note', pos, { content: [block] }, { width: 300, height: 300 }, currentParentId || undefined);
                 }
             },
-            {
+            ...(FEATURES.kanban ? [{
                 id: 'kanban',
                 label: 'Kanban Board',
                 description: 'A drag-and-drop task board',
@@ -70,7 +71,7 @@ export function CanvasSlashMenu() {
                 action: () => {
                     useStore.getState().setKanbanModalOpen(true);
                 }
-            },
+            }] : []),
         ];
 
         // Block-level items from MENU_ITEMS

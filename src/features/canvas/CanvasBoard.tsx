@@ -1,4 +1,5 @@
 import { useMemo, useEffect, Suspense, lazy, useRef, useCallback, useState } from 'react';
+import { FEATURES } from '../../config/featureFlags';
 import {
     ReactFlow,
     Controls,
@@ -1268,7 +1269,7 @@ export function CanvasBoard() {
                         });
                     }}
                 >
-                    <LiveCursors presenceData={presenceData} currentUserId={currentUserId} />
+                    {FEATURES.collaboration && <LiveCursors presenceData={presenceData} currentUserId={currentUserId} />}
                     <CanvasSlashMenu />
                     <DragChip />
                     <CustomGrid />

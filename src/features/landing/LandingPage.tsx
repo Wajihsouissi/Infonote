@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { FEATURES } from '../../config/featureFlags';
 import { useStore } from '../../store/useStore';
 import { useAuth } from '../auth/useAuth';
 import { useSiteTelemetry } from '../admin/hooks/useSiteTelemetry';
@@ -135,13 +136,15 @@ export const LandingPage: React.FC = () => {
               <Layout size={18} />
               <span>Canvas</span>
             </button>
-            <button
-              className={`${styles.navItem} ${currentView === 'marketplace' ? styles.active : ''}`}
-              onClick={() => { setCurrentView('marketplace'); setIsMobileMenuOpen(false); }}
-            >
-              <ShoppingBag size={18} />
-              <span>Marketplace</span>
-            </button>
+            {FEATURES.marketplace && (
+              <button
+                className={`${styles.navItem} ${currentView === 'marketplace' ? styles.active : ''}`}
+                onClick={() => { setCurrentView('marketplace'); setIsMobileMenuOpen(false); }}
+              >
+                <ShoppingBag size={18} />
+                <span>Marketplace</span>
+              </button>
+            )}
           </div>
 
         </nav>

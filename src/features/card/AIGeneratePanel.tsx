@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Sparkles, Type, Image, X, Loader2 } from 'lucide-react';
 import { generateText, generateImage, parseMultiCardIntent, generateMultipleCardContents, streamText, generateCanvasCards, FREEFORM_SYSTEM_PROMPT } from '../../services/aiService';
+import { FEATURES } from '../../config/featureFlags';
 import { saveCanvasToCloud } from '../../services/cloudSync';
 import { parsePlainText } from '../editor/pasteUtils';
 import { useStore } from '../../store/useStore';
@@ -315,30 +316,32 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
                     <span>{isGeneratingText ? 'Generating...' : 'Generate Text'}</span>
                 </button>
 
-                <button
-                    onClick={handleGenerateImage}
-                    disabled={isGenerating || !prompt.trim()}
-                    style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        border: 'none',
-                        background: isGeneratingImage ? 'rgba(6,182,212,0.3)' : 'rgba(6,182,212,0.2)',
-                        color: '#06b6d4',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: isGenerating || !prompt.trim() ? 'not-allowed' : 'pointer',
-                        opacity: isGenerating || !prompt.trim() ? 0.6 : 1,
-                        transition: 'background 0.15s',
-                    }}
-                >
-                    {isGeneratingImage ? <Loader2 size={14} className="animate-spin" /> : <Image size={14} />}
-                    <span>{isGeneratingImage ? 'Generating...' : 'Generate Image'}</span>
-                </button>
+                {FEATURES.aiImages && (
+                    <button
+                        onClick={handleGenerateImage}
+                        disabled={isGenerating || !prompt.trim()}
+                        style={{
+                            flex: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            background: isGeneratingImage ? 'rgba(6,182,212,0.3)' : 'rgba(6,182,212,0.2)',
+                            color: '#06b6d4',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            cursor: isGenerating || !prompt.trim() ? 'not-allowed' : 'pointer',
+                            opacity: isGenerating || !prompt.trim() ? 0.6 : 1,
+                            transition: 'background 0.15s',
+                        }}
+                    >
+                        {isGeneratingImage ? <Loader2 size={14} className="animate-spin" /> : <Image size={14} />}
+                        <span>{isGeneratingImage ? 'Generating...' : 'Generate Image'}</span>
+                    </button>
+                )}
             </div>
 
             {/* Status Messages */}
