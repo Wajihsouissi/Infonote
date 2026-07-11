@@ -16,8 +16,8 @@
 | AI text generation (auth-gated, rate-limited) | D19–D21, D23 |
 | Marketing page (desktop + mobile) | #39 |
 
-**Explicitly OUT of beta v1** (stays on `dev`, released one-by-one after beta):
-real-time multi-user collaboration (G32–35), Notion import (F31), AI image generation (D22), marketplace. Kanban (E24–26) ships only if its QA pass is clean — otherwise it waits.
+**Explicitly OUT of beta v1** (feature-flagged OFF in `src/config/featureFlags.ts` — code stays in the tree, re-enable by flipping the flag after QA):
+real-time multi-user collaboration (G32–35), Notion import (F31), AI image generation (D22), marketplace. Kanban (E24–26) and the PDF viewer block ship flag-ON pending their QA pass — flip the flag OFF to cut either without code changes. Dev builds can re-enable anything via `VITE_FEATURE_<NAME>=true`.
 
 ---
 
