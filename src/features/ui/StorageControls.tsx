@@ -66,6 +66,19 @@ export const StorageControls: React.FC = () => {
         setIsAutoSyncEnabled(
             localStorage.getItem(`chnk-it-cloud-autosync-${workspaceId || 'default'}`) !== 'false'
         );
+        setHasAutoLoadedCloud(false);
+    }, [workspaceId]);
+
+    // The first-login storage choice modal writes the autosync key directly;
+    // re-read it when that happens so the choice takes effect immediately.
+    useEffect(() => {
+        const onModeChange = () => {
+            setIsAutoSyncEnabled(
+                localStorage.getItem(`chnk-it-cloud-autosync-${workspaceId || 'default'}`) !== 'false'
+            );
+        };
+        window.addEventListener('chnk-it-storage-mode-changed', onModeChange);
+        return () => window.removeEventListener('chnk-it-storage-mode-changed', onModeChange);
     }, [workspaceId]);
 
     // Backup restore logic
@@ -83,11 +96,6 @@ export const StorageControls: React.FC = () => {
             window.removeEventListener('offline', handleOffline);
         };
     }, []);
-
-    useEffect(() => {
-        setIsAutoSyncEnabled(localStorage.getItem(`chnk-it-cloud-autosync-${workspaceId || 'default'}`) === 'true');
-        setHasAutoLoadedCloud(false);
-    }, [workspaceId]);
 
     // Close the auth popover when clicking outside.
     useEffect(() => {
