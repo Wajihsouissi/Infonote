@@ -1059,9 +1059,15 @@
     background: rgba(255, 255, 255, 0.1);
 }
 
-.toolbarBtn.active {
-    background: var(--color-primary);
-    color: white;
+.toolbarBtn.active,
+.toolbarBtnActive {
+    background: var(--color-primary, #8b5cf6);
+    color: #fff;
+}
+
+.toolbarBtnActive:hover {
+    background: var(--color-primary, #8b5cf6);
+    filter: brightness(1.1);
 }
 
 .toolbarDivider {

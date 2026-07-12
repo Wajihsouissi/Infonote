@@ -8,6 +8,7 @@ import styles from './BlockEditor.module.css';
 import { SlashMenu } from './SlashMenu';
 import { BlockMenu } from './BlockMenu';
 import { FloatingToolbar } from './FloatingToolbar';
+import { applyInlineFormat, getActiveInlineFormats, type InlineFormat } from './inlineFormat';
 
 import { BlockItem } from './BlockItem';
 import { useStore } from '../../store/useStore';
@@ -702,6 +703,48 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         // Normalize: browsers inject trailing \n and \u200B in contentEditable
         const content = rawContent.replace(/[\n\u200B]+$/, '');
         const isCtrl = e.ctrlKey || e.metaKey;
+        const lowerKey = e.key.toLowerCase();
+
+        // Inline formatting shortcuts. These wrap the selection in markdown
+        // markers (see inlineFormat.ts) so they persist through save — the
+        // native Ctrl+B/I/U would inject <b> tags that innerText strips.
+        if (isCtrl && !e.shiftKey && lowerKey === 'b') {
+            e.preventDefault();
+            applyInlineFormat('bold');
+            return;
+        }
+        if (isCtrl && !e.shiftKey && lowerKey === 'i') {
+            e.preventDefault();
+            applyInlineFormat('italic');
+            return;
+        }
+        if (isCtrl && !e.shiftKey && lowerKey === 'u') {
+            e.preventDefault();
+            applyInlineFormat('underline');
+            return;
+        }
+        if (isCtrl && e.shiftKey && lowerKey === 's') {
+            e.preventDefault();
+            applyInlineFormat('strikeThrough');
+            return;
+        }
+        if (isCtrl && !e.shiftKey && lowerKey === 'e') {
+            e.preventDefault();
+            applyInlineFormat('code');
+            return;
+        }
+        if (isCtrl && !e.shiftKey && lowerKey === 'k') {
+            e.preventDefault();
+            const linkSel = window.getSelection();
+            const linkText = linkSel ? linkSel.toString() : '';
+            if (linkText) {
+                const url = prompt('Enter URL:');
+                if (url && url.trim()) {
+                    document.execCommand('insertText', false, `[${linkText}](${url.trim()})`);
+                }
+            }
+            return;
+        }
 
         // Ctrl+Shift+↑ - Move block up
         if (isCtrl && e.shiftKey && e.key === 'ArrowUp') {
@@ -1701,7 +1744,8 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             {selectionRect && !slashMenuState && !blockMenuState && (
                 <FloatingToolbar
                     selectionRect={selectionRect}
-                    onFormat={(format, value) => {
+                    activeFormats={getActiveInlineFormats()}
+                    onFormat={(format) => {
                         if (format === 'createPage') {
                             const selection = window.getSelection();
                             if (selection && !selection.isCollapsed) {
@@ -1717,12 +1761,17 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                 }
                             }
                         } else if (format === 'createLink') {
+                            // Markdown link so it survives save; renderContentWithLinks
+                            // turns [text](url) into an anchor on blur.
+                            const selection = window.getSelection();
+                            const text = selection ? selection.toString() : '';
+                            if (!text) return;
                             const url = prompt('Enter URL:');
-                            if (url) {
-                                document.execCommand('createLink', false, url);
+                            if (url && url.trim()) {
+                                document.execCommand('insertText', false, `[${text}](${url.trim()})`);
                             }
                         } else {
-                            document.execCommand(format, false, value);
+                            applyInlineFormat(format as InlineFormat);
                         }
                     }}
                 />

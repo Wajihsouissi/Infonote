@@ -71,8 +71,30 @@ const useContentEditable = (content: string, domRef?: React.Ref<HTMLDivElement>,
     }, [content, renderLinks]);
 
     const handlers = {
-        onFocus: () => { isFocused.current = true; },
-        onBlur: () => { 
+        onFocus: () => {
+            isFocused.current = true;
+            // Source-mode editing: a formatted block renders to HTML on blur
+            // (e.g. **x** -> <strong>x</strong>), which drops the markdown
+            // markers from innerText. On focus, restore the raw source so the
+            // markers are visible and editing is lossless. Plain blocks already
+            // show raw text (innerText === content), so this is a no-op for them.
+            const el = internalRef.current;
+            if (el && renderLinks) {
+                const raw = contentRef.current;
+                if (el.innerText !== raw) {
+                    el.innerText = raw;
+                    // Caret to end — the click's caret was placed in the old
+                    // rendered text and is no longer meaningful.
+                    const range = document.createRange();
+                    range.selectNodeContents(el);
+                    range.collapse(false);
+                    const sel = window.getSelection();
+                    sel?.removeAllRanges();
+                    sel?.addRange(range);
+                }
+            }
+        },
+        onBlur: () => {
             isFocused.current = false; 
             if (internalRef.current) {
                 const currentContent = contentRef.current;
