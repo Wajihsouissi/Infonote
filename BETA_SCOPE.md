@@ -17,7 +17,7 @@
 | Marketing page (desktop + mobile) | #39 |
 
 **Explicitly OUT of beta v1** (feature-flagged OFF in `src/config/featureFlags.ts` — code stays in the tree, re-enable by flipping the flag after QA):
-real-time multi-user collaboration (G32–35), Notion import (F31), AI image generation (D22), marketplace. Kanban (E24–26) and the PDF viewer block ship flag-ON pending their QA pass — flip the flag OFF to cut either without code changes. Dev builds can re-enable anything via `VITE_FEATURE_<NAME>=true`.
+real-time multi-user collaboration (G32–35), Notion import (F31), AI image generation (D22), marketplace, kanban/views (E24–26), and the PDF viewer block. All default OFF; re-enable a feature by flipping its flag (or `VITE_FEATURE_<NAME>=true` for local dev only) once its QA pass is clean.
 
 ---
 

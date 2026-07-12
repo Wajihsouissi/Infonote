@@ -27,10 +27,10 @@ export const FEATURES = {
     aiImages: envFlag('AI_IMAGES') ?? false,
     /** Marketplace page (currently a placeholder). */
     marketplace: envFlag('MARKETPLACE') ?? false,
-    /** In beta pending a clean QA pass — flip off to cut without code changes. */
-    kanban: envFlag('KANBAN') ?? true,
-    /** In beta pending a clean QA pass. */
-    pdfBlock: envFlag('PDF_BLOCK') ?? true,
+    /** Deferred from beta v1 — flip on (or VITE_FEATURE_KANBAN=true) after its QA pass. */
+    kanban: envFlag('KANBAN') ?? false,
+    /** Deferred from beta v1 — flip on after its QA pass. */
+    pdfBlock: envFlag('PDF_BLOCK') ?? false,
 } as const;
 
 export type FeatureName = keyof typeof FEATURES;

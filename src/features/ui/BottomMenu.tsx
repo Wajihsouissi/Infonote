@@ -989,17 +989,16 @@ export function BottomMenu() {
                             <Plus size={24} />
                         </button>
 
+                        {FEATURES.kanban && (
                         <div className={styles.blocksWrapper}>
-                            {FEATURES.kanban && (
-                                <button
-                                    className={`${styles.iconBtn} ${activeMenu === 'views' ? styles.iconBtnActive : ''}`}
-                                    onClick={() => setActiveMenu(activeMenu === 'views' ? null : 'views')}
-                                    title="Add View"
-                                    style={{ marginLeft: 8 }}
-                                >
-                                    <KanbanSquare size={20} />
-                                </button>
-                            )}
+                            <button
+                                className={`${styles.iconBtn} ${activeMenu === 'views' ? styles.iconBtnActive : ''}`}
+                                onClick={() => setActiveMenu(activeMenu === 'views' ? null : 'views')}
+                                title="Add View"
+                                style={{ marginLeft: 8 }}
+                            >
+                                <KanbanSquare size={20} />
+                            </button>
 
                             <div className={`${styles.hoverMenu} ${activeMenu === 'views' ? styles.menuVisible : ''}`}>
                                 <div className={styles.menuHeader}>
@@ -1131,6 +1130,7 @@ export function BottomMenu() {
                                 </div>
                             </div>
                         </div>
+                        )}
 
                         <div className={styles.separator} />
 
