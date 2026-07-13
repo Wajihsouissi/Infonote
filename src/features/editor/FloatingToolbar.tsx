@@ -53,6 +53,10 @@ export function FloatingToolbar({ selectionRect, onFormat, activeFormats }: Floa
         onFormat(format);
     };
 
+    // Prevent the button's own mousedown from collapsing the selection /
+    // moving focus off the editable before the click handler runs.
+    const keepSelection = (e: React.MouseEvent) => e.preventDefault();
+
     return createPortal(
         <motion.div
             ref={ref}
@@ -70,6 +74,7 @@ export function FloatingToolbar({ selectionRect, onFormat, activeFormats }: Floa
                     <button
                         key={format}
                         className={`${styles.toolbarBtn} ${isActive ? styles.toolbarBtnActive : ''}`}
+                        onMouseDown={keepSelection}
                         onClick={(e) => handleFormat(e, format)}
                         title={title}
                         aria-pressed={isActive || false}
@@ -81,6 +86,7 @@ export function FloatingToolbar({ selectionRect, onFormat, activeFormats }: Floa
             <div className={styles.toolbarDivider} />
             <button
                 className={styles.toolbarBtn}
+                onMouseDown={keepSelection}
                 onClick={(e) => handleFormat(e, 'createLink')}
                 title="Link (Ctrl+K)"
             >
@@ -88,6 +94,7 @@ export function FloatingToolbar({ selectionRect, onFormat, activeFormats }: Floa
             </button>
             <button
                 className={styles.toolbarBtn}
+                onMouseDown={keepSelection}
                 onClick={(e) => handleFormat(e, 'createPage')}
                 title="Turn into Page"
             >

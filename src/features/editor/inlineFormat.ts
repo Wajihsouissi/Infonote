@@ -1,14 +1,16 @@
 /**
- * Inline text formatting for the block editor.
+ * Inline text formatting helpers for the block editor.
  *
  * Block content is stored as plain text with markdown markers (`**bold**`,
  * `*italic*`, `++underline++`, `~~strike~~`, `` `code` ``) and rendered to HTML
- * by renderContentWithLinks() on blur. So formatting must be applied by
- * wrapping the selection in those markers — NOT via document.execCommand
- * (which injects <b>/<i> tags that get stripped the moment innerText is
- * saved). We use execCommand('insertText') only as the insertion primitive
- * because it fires the native `input` event (persisting via onChange) and
- * participates in the contentEditable undo stack.
+ * by renderContentWithLinks() on blur. Focused blocks are in "source mode" — a
+ * single text node showing the raw markdown.
+ *
+ * These are PURE (or DOM-read-only) helpers. The actual mutation lives in
+ * BlockEditor, which updates React state (updateBlock) and syncs the block's
+ * text node directly — we deliberately avoid document.execCommand, whose
+ * `input` event reaches React unreliably in an uncontrolled contentEditable
+ * ("the buttons don't do anything" / formatting that doesn't persist).
  */
 
 export type InlineFormat = 'bold' | 'italic' | 'underline' | 'strikeThrough' | 'code';
@@ -21,79 +23,82 @@ export const INLINE_MARKERS: Record<InlineFormat, string> = {
     code: '`',
 };
 
+/** A concrete place to apply formatting: a text host and offsets into its text. */
+export interface FormatTarget {
+    host: HTMLElement;
+    start: number;
+    end: number;
+}
+
 /**
- * Toggle a markdown marker around the current selection inside a
- * contentEditable block. Wraps a plain selection, unwraps one that already
- * carries the marker, and — with no selection — drops an empty marker pair
- * with the caret between them so the user can type inside it.
+ * Pure string transform: wrap / toggle the [start,end) slice of `raw` with the
+ * given format's marker. Returns the new text and where the selection should
+ * land afterward. No DOM involved — trivially testable.
  */
-export function applyInlineFormat(format: InlineFormat): void {
+export function computeInlineFormat(
+    raw: string,
+    start: number,
+    end: number,
+    format: InlineFormat,
+): { text: string; selStart: number; selEnd: number } {
     const marker = INLINE_MARKERS[format];
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
+    const m = marker.length;
+    const selected = raw.slice(start, end);
+    const italicSafe = (probe: string) => !(format === 'italic' && probe.startsWith('**'));
 
-    const selected = sel.toString();
-
-    // No selection → insert an empty pair, caret in the middle.
-    if (!selected) {
-        document.execCommand('insertText', false, marker + marker);
-        try {
-            const s = window.getSelection();
-            if (s && s.rangeCount) {
-                const r = s.getRangeAt(0);
-                const offset = r.startOffset - marker.length;
-                if (r.startContainer.nodeType === Node.TEXT_NODE && offset >= 0) {
-                    r.setStart(r.startContainer, offset);
-                    r.collapse(true);
-                    s.removeAllRanges();
-                    s.addRange(r);
-                }
-            }
-        } catch { /* caret nicety only */ }
-        return;
+    // Collapsed caret → drop an empty marker pair, caret between them.
+    if (start === end) {
+        return {
+            text: raw.slice(0, start) + marker + marker + raw.slice(start),
+            selStart: start + m,
+            selEnd: start + m,
+        };
     }
 
-    // Selection already wrapped in this marker → unwrap (toggle off).
-    const isWrapped =
-        selected.length >= marker.length * 2 &&
-        selected.startsWith(marker) &&
-        selected.endsWith(marker) &&
-        // guard: "**x**" must not read as italic-wrapped ("*...*")
-        !(format === 'italic' && selected.startsWith('**'));
+    // Case 1 — the selection itself includes the markers ("**word**") → strip.
+    if (selected.length >= m * 2 && selected.startsWith(marker) && selected.endsWith(marker) && italicSafe(selected)) {
+        const inner = selected.slice(m, selected.length - m);
+        return { text: raw.slice(0, start) + inner + raw.slice(end), selStart: start, selEnd: start + inner.length };
+    }
 
-    const inner = isWrapped
-        ? selected.slice(marker.length, selected.length - marker.length)
-        : selected;
-    const replacement = isWrapped ? inner : `${marker}${selected}${marker}`;
+    // Case 2 — markers sit just outside the selection (double-clicking a word
+    // inside **word** selects only the word) → strip the outer markers.
+    const before = raw.slice(Math.max(0, start - m), start);
+    const after = raw.slice(end, end + m);
+    const boldProbe = raw.slice(Math.max(0, start - 2), start);
+    if (before === marker && after === marker && italicSafe(boldProbe)) {
+        return {
+            text: raw.slice(0, start - m) + selected + raw.slice(end + m),
+            selStart: start - m,
+            selEnd: start - m + selected.length,
+        };
+    }
 
-    document.execCommand('insertText', false, replacement);
+    // Case 3 — wrap.
+    return {
+        text: raw.slice(0, start) + marker + selected + marker + raw.slice(end),
+        selStart: start + m,
+        selEnd: start + m + selected.length,
+    };
+}
 
-    // Re-select the inner text so the toolbar stays open, active states
-    // update, and formats can be stacked (bold then italic).
-    try {
-        const s = window.getSelection();
-        if (s && s.rangeCount) {
-            const r = s.getRangeAt(0);
-            const node = r.startContainer;
-            const end = r.startOffset;
-            const innerStart = isWrapped ? end - inner.length : end - marker.length - inner.length;
-            const innerEnd = isWrapped ? end : end - marker.length;
-            if (node.nodeType === Node.TEXT_NODE && innerStart >= 0) {
-                const nr = document.createRange();
-                nr.setStart(node, innerStart);
-                nr.setEnd(node, innerEnd);
-                s.removeAllRanges();
-                s.addRange(nr);
-            }
-        }
-    } catch { /* re-selection nicety only */ }
+/** The raw text a source-mode block currently shows (its single text node). */
+export function sourceText(host: HTMLElement): string | null {
+    const node = host.firstChild;
+    if (!node || node.nodeType !== Node.TEXT_NODE) return null;
+    return node.nodeValue ?? '';
+}
+
+/** The text a saved target currently covers. */
+export function targetText(target: FormatTarget): string {
+    const raw = sourceText(target.host) ?? target.host.textContent ?? '';
+    return raw.slice(Math.min(target.start, raw.length), Math.min(target.end, raw.length));
 }
 
 /**
  * Best-effort read of which markers wrap the current selection, for
- * highlighting active toolbar buttons. Detects markers immediately inside
- * OR immediately outside the selection (double-click selects the word
- * without its markers). Purely observational — never mutates.
+ * highlighting active toolbar buttons. Detects markers immediately inside OR
+ * immediately outside the selection. Purely observational.
  */
 export function getActiveInlineFormats(): Set<InlineFormat> {
     const active = new Set<InlineFormat>();
@@ -108,20 +113,16 @@ export function getActiveInlineFormats(): Set<InlineFormat> {
 
     (Object.keys(INLINE_MARKERS) as InlineFormat[]).forEach((format) => {
         const m = INLINE_MARKERS[format];
-        const innerWrapped =
-            text.length >= m.length * 2 && text.startsWith(m) && text.endsWith(m);
+        const innerWrapped = text.length >= m.length * 2 && text.startsWith(m) && text.endsWith(m);
         const outerWrapped =
             sameNode &&
             value.slice(Math.max(0, range.startOffset - m.length), range.startOffset) === m &&
             value.slice(range.endOffset, range.endOffset + m.length) === m;
 
         if (!innerWrapped && !outerWrapped) return;
-        // Disambiguate italic ("*") from bold ("**") which contains it.
         if (format === 'italic') {
             const boldInner = text.startsWith('**') && text.endsWith('**');
-            const boldOuter =
-                sameNode &&
-                value.slice(Math.max(0, range.startOffset - 2), range.startOffset) === '**';
+            const boldOuter = sameNode && value.slice(Math.max(0, range.startOffset - 2), range.startOffset) === '**';
             if (boldInner || boldOuter) return;
         }
         active.add(format);
@@ -130,11 +131,10 @@ export function getActiveInlineFormats(): Set<InlineFormat> {
     return active;
 }
 
-// Dev-only handle so QA harnesses can exercise the formatter directly (the
-// canvas card's contentEditable is awkward to drive via synthetic events).
+// Dev-only handle so QA harnesses can exercise the pure logic directly.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
     (window as unknown as Record<string, unknown>).__inlineFormat = {
-        applyInlineFormat,
+        computeInlineFormat,
         getActiveInlineFormats,
         INLINE_MARKERS,
     };

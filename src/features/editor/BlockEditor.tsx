@@ -8,7 +8,7 @@ import styles from './BlockEditor.module.css';
 import { SlashMenu } from './SlashMenu';
 import { BlockMenu } from './BlockMenu';
 import { FloatingToolbar } from './FloatingToolbar';
-import { applyInlineFormat, getActiveInlineFormats, type InlineFormat } from './inlineFormat';
+import { computeInlineFormat, getActiveInlineFormats, sourceText, targetText, type InlineFormat, type FormatTarget } from './inlineFormat';
 
 import { BlockItem } from './BlockItem';
 import { useStore } from '../../store/useStore';
@@ -45,6 +45,27 @@ import { memo } from 'react';
 export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles, disableMediaControls, promoteBlockHandles, selectionIslandPortalId, syncUpdate, editorId, renderBetweenBlocks, globalStartIndex = 1 }: BlockEditorProps) {
     const editorRef = useRef<HTMLDivElement>(null);
     const editorInstanceId = useRef(editorId || `editor-${uuidv4()}`);
+
+    // Remember the last non-empty selection made inside this editor as text
+    // OFFSETS into the block's raw markdown (focused blocks are a single text
+    // node). A toolbar click can then format that exact range even if the
+    // drag-handle overlay or portal stole focus/selection on mousedown.
+    const savedSelectionRef = useRef<FormatTarget | null>(null);
+    useEffect(() => {
+        const onSelChange = () => {
+            const sel = window.getSelection();
+            if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+            const range = sel.getRangeAt(0);
+            if (range.startContainer !== range.endContainer) return;
+            if (range.startContainer.nodeType !== Node.TEXT_NODE) return;
+            const editable = range.startContainer.parentElement?.closest('[contenteditable="true"]') as HTMLElement | null;
+            if (editable && editorRef.current?.contains(editable)) {
+                savedSelectionRef.current = { host: editable, start: range.startOffset, end: range.endOffset };
+            }
+        };
+        document.addEventListener('selectionchange', onSelChange);
+        return () => document.removeEventListener('selectionchange', onSelChange);
+    }, []);
     const nodeColor = useStore(s => (s.nodes.find(n => n.id === nodeId)?.data as any)?.color);
     const theme = useStore(s => s.theme);
     const [blocks, setBlocks] = useState<Block[]>(() => {
@@ -646,6 +667,82 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         removeBlock(id);
     }, [removeBlock]);
 
+    // Resolve a format target (saved offsets, else the live source-mode
+    // selection) to the block that owns it.
+    const resolveFormatTarget = useCallback((explicit?: FormatTarget | null): { target: FormatTarget; blockId: string } | null => {
+        let target = explicit && explicit.host.isConnected ? explicit : null;
+        if (!target) {
+            const sel = window.getSelection();
+            if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+                const range = sel.getRangeAt(0);
+                if (range.startContainer === range.endContainer && range.startContainer.nodeType === Node.TEXT_NODE) {
+                    const host = range.startContainer.parentElement?.closest('[contenteditable="true"]') as HTMLElement | null;
+                    if (host && editorRef.current?.contains(host)) {
+                        target = { host, start: range.startOffset, end: range.endOffset };
+                    }
+                }
+            }
+        }
+        if (!target) return null;
+        for (const [id, el] of Object.entries(blockRefs.current)) {
+            if (el && (el === target.host || el.contains(target.host))) return { target, blockId: id };
+        }
+        return null;
+    }, []);
+
+    // Write new raw text to a block: persist to state (updateBlock) AND sync the
+    // focused block's text node directly for instant feedback, then restore the
+    // selection. No execCommand — deterministic and always persists.
+    const writeBlockText = useCallback((target: FormatTarget, blockId: string, text: string, selStart: number, selEnd: number) => {
+        updateBlock(blockId, text);
+        const host = target.host;
+        const node = host.firstChild;
+        if (node && node.nodeType === Node.TEXT_NODE) node.nodeValue = text;
+        else host.textContent = text;
+        host.focus({ preventScroll: true });
+        const tn = host.firstChild;
+        if (tn && tn.nodeType === Node.TEXT_NODE) {
+            const len = (tn as Text).length;
+            const r = document.createRange();
+            r.setStart(tn, Math.min(selStart, len));
+            r.setEnd(tn, Math.min(selEnd, len));
+            const sel = window.getSelection();
+            sel?.removeAllRanges();
+            sel?.addRange(r);
+            savedSelectionRef.current = { host, start: selStart, end: selEnd };
+        }
+    }, [updateBlock]);
+
+    // Toggle a markdown format on the current (or saved) selection.
+    const formatSelection = useCallback((format: InlineFormat, explicit?: FormatTarget | null) => {
+        const resolved = resolveFormatTarget(explicit);
+        if (!resolved) return;
+        const { target, blockId } = resolved;
+        const raw = sourceText(target.host);
+        if (raw === null) return; // block not in source mode — refuse to corrupt
+        const start = Math.min(target.start, raw.length);
+        const end = Math.min(target.end, raw.length);
+        const { text, selStart, selEnd } = computeInlineFormat(raw, start, end, format);
+        writeBlockText(target, blockId, text, selStart, selEnd);
+    }, [resolveFormatTarget, writeBlockText]);
+
+    // Insert a markdown link [text](url) over the current (or saved) selection.
+    const linkSelection = useCallback((explicit?: FormatTarget | null) => {
+        const resolved = resolveFormatTarget(explicit);
+        if (!resolved) return;
+        const { target, blockId } = resolved;
+        const raw = sourceText(target.host);
+        if (raw === null) return;
+        const start = Math.min(target.start, raw.length);
+        const end = Math.min(target.end, raw.length);
+        const text = raw.slice(start, end);
+        if (!text.trim()) return;
+        const url = prompt('Enter URL:');
+        if (!url || !url.trim()) return;
+        const link = `[${text}](${url.trim()})`;
+        writeBlockText(target, blockId, raw.slice(0, start) + link + raw.slice(end), start, start + link.length);
+    }, [resolveFormatTarget, writeBlockText]);
+
     const checkCaretFirstLine = useCallback((): boolean => {
         try {
             const selection = window.getSelection();
@@ -710,39 +807,32 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         // native Ctrl+B/I/U would inject <b> tags that innerText strips.
         if (isCtrl && !e.shiftKey && lowerKey === 'b') {
             e.preventDefault();
-            applyInlineFormat('bold');
+            formatSelection('bold');
             return;
         }
         if (isCtrl && !e.shiftKey && lowerKey === 'i') {
             e.preventDefault();
-            applyInlineFormat('italic');
+            formatSelection('italic');
             return;
         }
         if (isCtrl && !e.shiftKey && lowerKey === 'u') {
             e.preventDefault();
-            applyInlineFormat('underline');
+            formatSelection('underline');
             return;
         }
         if (isCtrl && e.shiftKey && lowerKey === 's') {
             e.preventDefault();
-            applyInlineFormat('strikeThrough');
+            formatSelection('strikeThrough');
             return;
         }
         if (isCtrl && !e.shiftKey && lowerKey === 'e') {
             e.preventDefault();
-            applyInlineFormat('code');
+            formatSelection('code');
             return;
         }
         if (isCtrl && !e.shiftKey && lowerKey === 'k') {
             e.preventDefault();
-            const linkSel = window.getSelection();
-            const linkText = linkSel ? linkSel.toString() : '';
-            if (linkText) {
-                const url = prompt('Enter URL:');
-                if (url && url.trim()) {
-                    document.execCommand('insertText', false, `[${linkText}](${url.trim()})`);
-                }
-            }
+            linkSelection();
             return;
         }
 
@@ -1746,32 +1836,20 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     selectionRect={selectionRect}
                     activeFormats={getActiveInlineFormats()}
                     onFormat={(format) => {
-                        if (format === 'createPage') {
-                            const selection = window.getSelection();
-                            if (selection && !selection.isCollapsed) {
-                                const text = selection.toString();
-                                if (text.trim()) {
-                                    const createPageFromText = useStore.getState().createPageFromText;
-                                    const rect = selection.getRangeAt(0).getBoundingClientRect();
-                                    const newPageId = createPageFromText(text, { x: rect.left, y: rect.bottom + 20 });
-
-                                    // Use Span with data-node-id for custom handling
-                                    const html = `<span data-node-id="${newPageId}" class="${styles.inlinePageChip}" contenteditable="false"><span class="${styles.inlinePageIcon}">📄</span>${text}</span>`;
-                                    document.execCommand('insertHTML', false, html);
-                                }
-                            }
-                        } else if (format === 'createLink') {
-                            // Markdown link so it survives save; renderContentWithLinks
-                            // turns [text](url) into an anchor on blur.
-                            const selection = window.getSelection();
-                            const text = selection ? selection.toString() : '';
-                            if (!text) return;
-                            const url = prompt('Enter URL:');
-                            if (url && url.trim()) {
-                                document.execCommand('insertText', false, `[${text}](${url.trim()})`);
-                            }
+                        // Use the selection captured when it was made — the toolbar
+                        // click may have stolen focus/selection on mousedown.
+                        const saved = savedSelectionRef.current;
+                        if (format === 'createLink') {
+                            linkSelection(saved);
+                        } else if (format === 'createPage') {
+                            if (!saved || !saved.host.isConnected) return;
+                            const text = targetText(saved);
+                            if (!text.trim()) return;
+                            const createPageFromText = useStore.getState().createPageFromText;
+                            const rect = saved.host.getBoundingClientRect();
+                            createPageFromText(text, { x: rect.left, y: rect.bottom + 20 });
                         } else {
-                            applyInlineFormat(format as InlineFormat);
+                            formatSelection(format as InlineFormat, saved);
                         }
                     }}
                 />

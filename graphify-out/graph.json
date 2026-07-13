@@ -35113,90 +35113,6 @@
       "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\config\\featureFlags.ts:14"
     },
     {
-      "id": "file::blockeditor",
-      "label": "BlockEditor.tsx",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:1"
-    },
-    {
-      "id": "BlockEditor::handlekeydown",
-      "label": "handleKeyDown",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:257"
-    },
-    {
-      "id": "BlockEditor::tryfocuseditor",
-      "label": "tryFocusEditor",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:293"
-    },
-    {
-      "id": "BlockEditor::handledragcleanup",
-      "label": "handleDragCleanup",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:319"
-    },
-    {
-      "id": "BlockEditor::handleforcesync",
-      "label": "handleForceSync",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:421"
-    },
-    {
-      "id": "BlockEditor::setcaretbyoffset",
-      "label": "setCaretByOffset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:486"
-    },
-    {
-      "id": "BlockEditor::handleaigenerate",
-      "label": "handleAIGenerate",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:569"
-    },
-    {
-      "id": "BlockEditor::getcaretoffset",
-      "label": "getCaretOffset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:798"
-    },
-    {
-      "id": "BlockEditor::getcaretx",
-      "label": "getCaretX",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:819"
-    },
-    {
-      "id": "BlockEditor::buildrendertree",
-      "label": "buildRenderTree",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:1586"
-    },
-    {
-      "id": "file::floatingtoolbar",
-      "label": "FloatingToolbar.tsx",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\FloatingToolbar.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\FloatingToolbar.tsx:1"
-    },
-    {
-      "id": "FloatingToolbar::handleformat",
-      "label": "handleFormat",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\FloatingToolbar.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\FloatingToolbar.tsx:50"
-    },
-    {
       "id": "file::pasteutils",
       "label": "pasteUtils.ts",
       "fileType": "code",
@@ -35302,6 +35218,104 @@
       "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\pasteUtils.ts:797"
     },
     {
+      "id": "file::blockeditor",
+      "label": "BlockEditor.tsx",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:1"
+    },
+    {
+      "id": "BlockEditor::onselchange",
+      "label": "onSelChange",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:55"
+    },
+    {
+      "id": "BlockEditor::handlekeydown",
+      "label": "handleKeyDown",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:278"
+    },
+    {
+      "id": "BlockEditor::tryfocuseditor",
+      "label": "tryFocusEditor",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:314"
+    },
+    {
+      "id": "BlockEditor::handledragcleanup",
+      "label": "handleDragCleanup",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:340"
+    },
+    {
+      "id": "BlockEditor::handleforcesync",
+      "label": "handleForceSync",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:442"
+    },
+    {
+      "id": "BlockEditor::setcaretbyoffset",
+      "label": "setCaretByOffset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:507"
+    },
+    {
+      "id": "BlockEditor::handleaigenerate",
+      "label": "handleAIGenerate",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:590"
+    },
+    {
+      "id": "BlockEditor::getcaretoffset",
+      "label": "getCaretOffset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:821"
+    },
+    {
+      "id": "BlockEditor::getcaretx",
+      "label": "getCaretX",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:842"
+    },
+    {
+      "id": "BlockEditor::buildrendertree",
+      "label": "buildRenderTree",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:1609"
+    },
+    {
+      "id": "file::floatingtoolbar",
+      "label": "FloatingToolbar.tsx",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\FloatingToolbar.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\FloatingToolbar.tsx:1"
+    },
+    {
+      "id": "FloatingToolbar::handleformat",
+      "label": "handleFormat",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\FloatingToolbar.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\FloatingToolbar.tsx:50"
+    },
+    {
+      "id": "FloatingToolbar::keepselection",
+      "label": "keepSelection",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\FloatingToolbar.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\FloatingToolbar.tsx:58"
+    },
+    {
       "id": "file::inlineformat",
       "label": "inlineFormat.ts",
       "fileType": "code",
@@ -35309,18 +35323,46 @@
       "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts:1"
     },
     {
+      "id": "inlineformat::computeinlineformat",
+      "label": "computeInlineFormat",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts:37"
+    },
+    {
+      "id": "inlineformat::livetarget",
+      "label": "liveTarget",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts:90"
+    },
+    {
       "id": "inlineformat::applyinlineformat",
       "label": "applyInlineFormat",
       "fileType": "code",
       "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts:30"
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts:125"
+    },
+    {
+      "id": "inlineformat::targettext",
+      "label": "targetText",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts:203"
+    },
+    {
+      "id": "inlineformat::replacetargettext",
+      "label": "replaceTargetText",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts:210"
     },
     {
       "id": "inlineformat::getactiveinlineformats",
       "label": "getActiveInlineFormats",
       "fileType": "code",
       "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts:98"
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts:232"
     }
   ],
   "edges": [
@@ -78552,96 +78594,6 @@
       "weight": 1
     },
     {
-      "source": "file::blockeditor",
-      "target": "BlockEditor::handlekeydown",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:257",
-      "weight": 1
-    },
-    {
-      "source": "file::blockeditor",
-      "target": "BlockEditor::tryfocuseditor",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:293",
-      "weight": 1
-    },
-    {
-      "source": "file::blockeditor",
-      "target": "BlockEditor::handledragcleanup",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:319",
-      "weight": 1
-    },
-    {
-      "source": "file::blockeditor",
-      "target": "BlockEditor::handleforcesync",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:421",
-      "weight": 1
-    },
-    {
-      "source": "file::blockeditor",
-      "target": "BlockEditor::setcaretbyoffset",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:486",
-      "weight": 1
-    },
-    {
-      "source": "file::blockeditor",
-      "target": "BlockEditor::handleaigenerate",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:569",
-      "weight": 1
-    },
-    {
-      "source": "file::blockeditor",
-      "target": "BlockEditor::getcaretoffset",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:798",
-      "weight": 1
-    },
-    {
-      "source": "file::blockeditor",
-      "target": "BlockEditor::getcaretx",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:819",
-      "weight": 1
-    },
-    {
-      "source": "file::blockeditor",
-      "target": "BlockEditor::buildrendertree",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:1586",
-      "weight": 1
-    },
-    {
-      "source": "file::floatingtoolbar",
-      "target": "FloatingToolbar::handleformat",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\FloatingToolbar.tsx",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\FloatingToolbar.tsx:50",
-      "weight": 1
-    },
-    {
       "source": "file::pasteutils",
       "target": "pasteUtils::parsefiles",
       "relation": "contains",
@@ -78768,12 +78720,156 @@
       "weight": 1
     },
     {
+      "source": "file::blockeditor",
+      "target": "BlockEditor::onselchange",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:55",
+      "weight": 1
+    },
+    {
+      "source": "file::blockeditor",
+      "target": "BlockEditor::handlekeydown",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:278",
+      "weight": 1
+    },
+    {
+      "source": "file::blockeditor",
+      "target": "BlockEditor::tryfocuseditor",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:314",
+      "weight": 1
+    },
+    {
+      "source": "file::blockeditor",
+      "target": "BlockEditor::handledragcleanup",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:340",
+      "weight": 1
+    },
+    {
+      "source": "file::blockeditor",
+      "target": "BlockEditor::handleforcesync",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:442",
+      "weight": 1
+    },
+    {
+      "source": "file::blockeditor",
+      "target": "BlockEditor::setcaretbyoffset",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:507",
+      "weight": 1
+    },
+    {
+      "source": "file::blockeditor",
+      "target": "BlockEditor::handleaigenerate",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:590",
+      "weight": 1
+    },
+    {
+      "source": "file::blockeditor",
+      "target": "BlockEditor::getcaretoffset",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:821",
+      "weight": 1
+    },
+    {
+      "source": "file::blockeditor",
+      "target": "BlockEditor::getcaretx",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:842",
+      "weight": 1
+    },
+    {
+      "source": "file::blockeditor",
+      "target": "BlockEditor::buildrendertree",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\BlockEditor.tsx:1609",
+      "weight": 1
+    },
+    {
+      "source": "file::floatingtoolbar",
+      "target": "FloatingToolbar::handleformat",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\FloatingToolbar.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\FloatingToolbar.tsx:50",
+      "weight": 1
+    },
+    {
+      "source": "file::floatingtoolbar",
+      "target": "FloatingToolbar::keepselection",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\FloatingToolbar.tsx",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\FloatingToolbar.tsx:58",
+      "weight": 1
+    },
+    {
+      "source": "file::inlineformat",
+      "target": "inlineformat::computeinlineformat",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts:37",
+      "weight": 1
+    },
+    {
+      "source": "file::inlineformat",
+      "target": "inlineformat::livetarget",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts:90",
+      "weight": 1
+    },
+    {
       "source": "file::inlineformat",
       "target": "inlineformat::applyinlineformat",
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts:30",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts:125",
+      "weight": 1
+    },
+    {
+      "source": "file::inlineformat",
+      "target": "inlineformat::targettext",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts:203",
+      "weight": 1
+    },
+    {
+      "source": "file::inlineformat",
+      "target": "inlineformat::replacetargettext",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts:210",
       "weight": 1
     },
     {
@@ -78782,14 +78878,14 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts",
-      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts:98",
+      "sourceLocation": "C:\\Users\\Wajih souissi\\.gemini\\antigravity-ide\\scratch\\infonote\\src\\features\\editor\\inlineFormat.ts:232",
       "weight": 1
     }
   ],
   "metadata": {
     "files": 218,
-    "nodes": 5046,
-    "edges": 4829,
-    "builtAt": "2026-07-12T17:24:32.053Z"
+    "nodes": 5052,
+    "edges": 4835,
+    "builtAt": "2026-07-13T19:07:20.672Z"
   }
 }
