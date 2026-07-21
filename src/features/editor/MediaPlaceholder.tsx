@@ -2,10 +2,11 @@ import React, { useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Image as ImageIcon, Video as VideoIcon, FileText, Sparkles } from 'lucide-react';
 import styles from './MediaPlaceholder.module.css';
+import type { BlockMetadata } from './types';
 
 interface MediaPlaceholderProps {
     type: 'image' | 'video' | 'file';
-    onUpload: (url: string, metadata?: Record<string, any>) => void;
+    onUpload: (url: string, metadata?: BlockMetadata) => void;
 }
 
 export const MediaPlaceholder = ({ type, onUpload }: MediaPlaceholderProps) => {
@@ -83,7 +84,7 @@ export const MediaPlaceholder = ({ type, onUpload }: MediaPlaceholderProps) => {
     // Trigger is the in-editor representation
     const trigger = (
         <div
-            className={`${styles.trigger} ${isDragging ? styles.triggerDragOver : ''}`}
+            className={`${styles.trigger} ${isDragging ? styles.triggerDragOver : ''} mediaPlaceholderTrigger`}
             onClick={() => setIsOpen(true)}
             onDrop={onDrop}
             onDragOver={onDragOver}

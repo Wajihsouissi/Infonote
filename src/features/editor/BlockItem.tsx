@@ -7,7 +7,8 @@ import {
 } from './BlockComponents';
 import { ColorBlock } from './ColorBlock';
 import { LinkBlock } from './LinkBlock';
-import type { Block } from './types';
+import { serializeInline } from './inlineFormat';
+import type { Block, BlockMetadata } from './types';
 
 interface BlockItemProps {
     block: Block;
@@ -20,7 +21,7 @@ interface BlockItemProps {
     parentToggleIndent?: number;
 
     // Stable Handlers
-    onUpdateBlock: (id: string, content: string, metadata?: any) => void;
+    onUpdateBlock: (id: string, contentOrPatch: string | Partial<Block>, metadata?: BlockMetadata) => void;
     onKeyDown: (e: React.KeyboardEvent, id: string, content: string) => void;
     onPaste: (e: React.ClipboardEvent, id: string) => void;
 
@@ -86,14 +87,16 @@ export const BlockItem = memo(function BlockItem({
     }, [block.id, onSelectionMouseDown, onSelectionClick]);
 
     // Memoized block handlers
-    const handleChange = useCallback((content: string, metadata?: any) => {
+    const handleChange = useCallback((content: string, metadata?: BlockMetadata) => {
         onUpdateBlock(block.id, content, metadata);
     }, [block.id, onUpdateBlock]);
 
     const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-        // Read live DOM text instead of potentially stale React state
+        // Read live DOM as markdown (not innerText) so caret/split logic sees the
+        // same marker-space that block.content is stored in — keeps formatting
+        // intact across Enter-splits and merges.
         const target = e.target as HTMLElement;
-        const liveContent = target.isContentEditable ? target.innerText : block.content;
+        const liveContent = target.isContentEditable ? serializeInline(target) : block.content;
         onKeyDown(e, block.id, liveContent);
     }, [block.id, block.content, onKeyDown]);
 
@@ -137,11 +140,11 @@ export const BlockItem = memo(function BlockItem({
             case 'toggle': return <ListBlock {...props} />;
             case 'callout': return <CalloutBlock {...props} />;
             case 'page': return <PageBlock {...props} />;
-            case 'container': return <ContainerBlock block={block} onUpdate={(data: Partial<Block>) => onUpdateBlock(block.id, data as any)} readOnly={readOnly} nodeId={nodeId} />;
+            case 'container': return <ContainerBlock block={block} onUpdate={(data: Partial<Block>) => onUpdateBlock(block.id, data)} readOnly={readOnly} nodeId={nodeId} />;
             case 'columns': return (
-                <ColumnsBlock 
-                    block={block} 
-                    onUpdate={(data: Partial<Block>) => onUpdateBlock(block.id, data as any)} 
+                <ColumnsBlock
+                    block={block}
+                    onUpdate={(data: Partial<Block>) => onUpdateBlock(block.id, data)}
                     readOnly={readOnly} 
                     nodeId={nodeId} 
                     hideBlockHandles={hideBlockHandles}

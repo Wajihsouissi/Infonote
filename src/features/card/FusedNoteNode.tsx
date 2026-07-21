@@ -9,9 +9,11 @@ import type { Node } from '@xyflow/react';
 import styles from './FusedNoteNode.module.css';
 import { snapFusedDimensions, MIN_EXPANDED_SIZE } from '../../config/layout';
 import { toPastelColor, darkenColor } from '../../utils/colorUtils';
+import type { AppNode } from '../../types';
+import type { Block } from '../editor/types';
 
 export type FusedNoteNodeData = {
-    content: any[];
+    content: Block[];
     color?: string;
     lastFusedAt?: number;
 };
@@ -200,7 +202,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                             width,
                             height,
                         }
-                    } as any;
+                    } as AppNode;
                 }
                 return n;
             }));
@@ -211,7 +213,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
         const parentNode = nodes.find(n => n.id === parentId);
         if (!parentNode) return;
 
-        const parentContent = (parentNode.data as any).content;
+        const parentContent = 'content' in parentNode.data ? parentNode.data.content : undefined;
         if (!Array.isArray(parentContent)) return;
 
         const myBlocks = data.content;
@@ -219,7 +221,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
         // Find blocks in parent
         const firstBlockId = myBlocks[0].id;
-        const startIndex = parentContent.findIndex((b: any) => b.id === firstBlockId);
+        const startIndex = parentContent.findIndex((b) => b.id === firstBlockId);
 
         if (startIndex === -1) return;
 
@@ -244,7 +246,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
         };
 
         // 2. Prepare Page Block to replace fused blocks
-        const pageBlock = {
+        const pageBlock: Block = {
             id: uuidv4(),
             type: 'page',
             content: myBlocks[0].content || 'New Note',
@@ -259,12 +261,13 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 return currentNodes;
             }
 
-            const oldContent = (parentNode.data as any).content || [];
+            const oldContent: Block[] = 'content' in parentNode.data && Array.isArray(parentNode.data.content)
+                ? parentNode.data.content : [];
             // Create a shallow copy to modify
             const newParentContent = [...oldContent];
 
             // Re-find index in authoritative state
-            const currentStartIndex = newParentContent.findIndex((b: any) => b.id === firstBlockId);
+            const currentStartIndex = newParentContent.findIndex((b) => b.id === firstBlockId);
 
             if (currentStartIndex !== -1) {
                 console.log("FusedNoteNode: Splicing content at index", currentStartIndex, "replacing", myBlocks.length, "blocks");
@@ -294,9 +297,9 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 {
                     ...parentNode,
                     data: { ...parentNode.data, content: newParentContent }
-                } as any,
+                } as AppNode,
                 // New Node
-                newNode as any
+                newNode as AppNode
             ]);
         });
 
@@ -363,7 +366,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
 
 
-    const handleContentUpdate = useCallback((blocks: any[]) => {
+    const handleContentUpdate = useCallback((blocks: Block[]) => {
         updateNodeData(id, { content: blocks });
     }, [id, updateNodeData]);
 
@@ -422,10 +425,10 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                         bottom: 0,
                         zIndex: 9999,
                         cursor: 'pointer',
-                        backgroundColor: isHoveredLinking ? 'rgba(6, 182, 212, 0.15)' : 'rgba(6, 182, 212, 0.04)',
+                        backgroundColor: isHoveredLinking ? 'rgba(227, 162, 79, 0.15)' : 'rgba(227, 162, 79, 0.04)',
                         border: '2px solid transparent',
-                        borderColor: isHoveredLinking ? '#06b6d4' : 'transparent',
-                        boxShadow: isHoveredLinking ? '0 0 15px rgba(6, 182, 212, 0.4)' : 'none',
+                        borderColor: isHoveredLinking ? '#e3a24f' : 'transparent',
+                        boxShadow: isHoveredLinking ? '0 0 15px rgba(227, 162, 79, 0.4)' : 'none',
                         transition: 'all 0.2s ease',
                         borderRadius: 'inherit',
                         boxSizing: 'border-box',
@@ -528,8 +531,8 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <defs>
                         <linearGradient id="arc-gradient-fused" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="#A78BFA" />
-                            <stop offset="100%" stopColor="#60A5FA" />
+                            <stop offset="0%" stopColor="var(--accent)" />
+                            <stop offset="100%" stopColor="var(--secondary)" />
                         </linearGradient>
                     </defs>
                     <path

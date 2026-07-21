@@ -1,6 +1,7 @@
 import { BlockEditor } from '../editor/BlockEditor';
 import { useStore } from '../../store/useStore';
 import styles from './NoteContentPanel.module.css';
+import { getNodeBlocks } from '../../types';
 
 interface NoteContentPanelProps {
     nodeId: string;
@@ -26,7 +27,7 @@ export function NoteContentPanel({ nodeId }: NoteContentPanelProps) {
                 <BlockEditor
                     key={nodeId} // Reset Key on change
                     nodeId={nodeId}
-                    initialContent={(node.data as any).content}
+                    initialContent={getNodeBlocks(node.data)}
                     onUpdate={(blocks) => updateNodeData(nodeId, { content: blocks })}
                 />
             </div>

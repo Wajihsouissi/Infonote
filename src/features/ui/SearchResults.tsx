@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef, memo } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback, memo } from 'react';
 import { useStore } from '../../store/useStore';
 import styles from './BottomMenu.module.css';
 import { FileText, Cuboid, KanbanSquare, ChevronRight, Hash, Clock, LayoutGrid, Search, CornerDownRight } from 'lucide-react';
@@ -116,6 +116,15 @@ export const SearchResults = memo(function SearchResults({ query, onClose }: Sea
         };
     }, [query, nodes, worker]);
 
+    const handleSelect = useCallback((nodeId: string) => {
+        setFullscreenId(null);
+        setRightSidePanelId(null);
+        setLeftSidePanelId(null);
+        setCenterPanelId(null);
+        navigateToNode(nodeId);
+        onClose();
+    }, [setFullscreenId, setRightSidePanelId, setLeftSidePanelId, setCenterPanelId, navigateToNode, onClose]);
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Enter' && results[selectedIndex]) {
@@ -127,7 +136,7 @@ export const SearchResults = memo(function SearchResults({ query, onClose }: Sea
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [results, selectedIndex, onClose]);
+    }, [results, selectedIndex, onClose, handleSelect]);
 
     useEffect(() => {
         if (resultsRef.current && results[selectedIndex]) {
@@ -135,15 +144,6 @@ export const SearchResults = memo(function SearchResults({ query, onClose }: Sea
             el?.scrollIntoView({ block: 'nearest' });
         }
     }, [selectedIndex, results]);
-
-    const handleSelect = (nodeId: string) => {
-        setFullscreenId(null);
-        setRightSidePanelId(null);
-        setLeftSidePanelId(null);
-        setCenterPanelId(null);
-        navigateToNode(nodeId);
-        onClose();
-    };
 
     const groupedResults: GroupedResults[] = useMemo(() => {
         const groups: Record<string, RichSearchResult[]> = {};
@@ -237,10 +237,10 @@ export const SearchResults = memo(function SearchResults({ query, onClose }: Sea
                                     <div className={styles.resultCardAccent}
                                         style={{
                                             background: result.type === 'note'
-                                                ? 'linear-gradient(180deg, #8b5cf6, #6d28d9)'
+                                                ? 'linear-gradient(180deg, #f95d2e, #d94e22)'
                                                 : result.type === 'kanban'
                                                 ? 'linear-gradient(180deg, #f59e0b, #d97706)'
-                                                : 'linear-gradient(180deg, #06b6d4, #0891b2)'
+                                                : 'linear-gradient(180deg, #e3a24f, #b07818)'
                                         }}
                                     />
                                     <div className={styles.resultIcon}>

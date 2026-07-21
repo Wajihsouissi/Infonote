@@ -54,13 +54,13 @@ export const CustomGrid = memo(() => {
                 patternUnits="userSpaceOnUse"
             >
                 {/* Top-Left of gutter (Bottom-Right of previous node) */}
-                <rect x={p1 - scaledSize / 2} y={p1 - scaledSize / 2} width={scaledSize} height={scaledSize} fill="rgba(255, 255, 255, 0.15)" rx="0.5" />
+                <circle cx={p1} cy={p1} r={scaledSize / 2} fill="var(--dot)" />
                 {/* Top-Right of gutter (Bottom-Left of next node) */}
-                <rect x={p2 - scaledSize / 2} y={p1 - scaledSize / 2} width={scaledSize} height={scaledSize} fill="rgba(255, 255, 255, 0.15)" rx="0.5" />
+                <circle cx={p2} cy={p1} r={scaledSize / 2} fill="var(--dot)" />
                 {/* Bottom-Left of gutter (Top-Right of node below) */}
-                <rect x={p1 - scaledSize / 2} y={p2 - scaledSize / 2} width={scaledSize} height={scaledSize} fill="rgba(255, 255, 255, 0.15)" rx="0.5" />
+                <circle cx={p1} cy={p2} r={scaledSize / 2} fill="var(--dot)" />
                 {/* Bottom-Right of gutter (Top-Left of next node below) */}
-                <rect x={p2 - scaledSize / 2} y={p2 - scaledSize / 2} width={scaledSize} height={scaledSize} fill="rgba(255, 255, 255, 0.15)" rx="0.5" />
+                <circle cx={p2} cy={p2} r={scaledSize / 2} fill="var(--dot)" />
             </pattern>
             <rect width="100%" height="100%" fill="url(#pro-modular-grid)" />
         </svg>

@@ -11,6 +11,7 @@ import {
     PointerSensor,
     useSensor,
     useSensors,
+    type DragEndEvent,
 } from '@dnd-kit/core';
 import {
     arrayMove,
@@ -28,7 +29,14 @@ const DEFAULT_COLUMNS: KanbanColumn[] = [
 ];
 
 // Sortable Item Component
-const SortableColumnRow = ({ column, updateColumn, removeColumn, canDelete }: any) => {
+interface SortableColumnRowProps {
+    column: KanbanColumn;
+    updateColumn: (id: string, field: 'label' | 'statusValue', value: string) => void;
+    removeColumn: (id: string) => void;
+    canDelete: boolean;
+}
+
+const SortableColumnRow = ({ column, updateColumn, removeColumn, canDelete }: SortableColumnRowProps) => {
     const {
         attributes,
         listeners,
@@ -117,9 +125,9 @@ export function KanbanConfigModal() {
         })
     );
 
-    const handleDragEnd = (event: any) => {
+    const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
-        if (active.id !== over.id) {
+        if (over && active.id !== over.id) {
             setColumns((items) => {
                 const oldIndex = items.findIndex((i) => i.id === active.id);
                 const newIndex = items.findIndex((i) => i.id === over.id);
@@ -198,7 +206,6 @@ export function KanbanConfigModal() {
             const x = 400 + Math.random() * 50;
             const y = 200 + Math.random() * 50;
 
-            // @ts-ignore
             addNode('kanban', { x, y }, {
                 label: boardName,
                 columns: columns,

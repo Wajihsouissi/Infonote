@@ -7,11 +7,11 @@ import { ConvertCardModal, type ConvertCardResult } from '../card/ConvertCardMod
 
 import { useStore } from '../../store/useStore';
 
-import type { NoteNode } from '../../types';
+import type { AppNode, NoteNode } from '../../types';
+import type { Block } from '../editor/types';
 import styles from './BlockNode.module.css';
 import { toPastelColor, darkenColor } from '../../utils/colorUtils';
-import { snapMediaDimensions, MIN_EXPANDED_SIZE, ICON_SIZE } from '../../config/layout';
-import { v4 as uuidv4 } from 'uuid';
+import { MIN_EXPANDED_SIZE, ICON_SIZE } from '../../config/layout';
 
 const useGlobalListIndex = (nodeId: string, isSingleNumbered: boolean) => {
     return useStore(
@@ -20,12 +20,12 @@ const useGlobalListIndex = (nodeId: string, isSingleNumbered: boolean) => {
                 if (!isSingleNumbered) return undefined;
                 
                 const node = state.nodes.find(n => n.id === nodeId);
-                if (!node || node.type !== 'block' || !(node.data as any).isStandaloneBlock) return undefined;
-                
+                if (!node || node.type !== 'block' || !node.data.isStandaloneBlock) return undefined;
+
                 // Get all nodes in the same column that are also standalone blocks
-                const siblings = state.nodes.filter(n => 
-                    n.type === 'block' && 
-                    (n.data as any).isStandaloneBlock && 
+                const siblings = state.nodes.filter(n =>
+                    n.type === 'block' &&
+                    n.data.isStandaloneBlock &&
                     Math.abs(n.position.x - node.position.x) < 50
                 );
                 
@@ -39,7 +39,7 @@ const useGlobalListIndex = (nodeId: string, isSingleNumbered: boolean) => {
                 let count = 1;
                 for (let i = ourIndex - 1; i >= 0; i--) {
                     const sibling = siblings[i];
-                    const content = (sibling.data as any).content;
+                    const content = sibling.type === 'block' ? sibling.data.content : undefined;
                     const isNumbered = Array.isArray(content) && content.length === 1 && content[0].type === 'numbered';
                     
                     if (isNumbered) {
@@ -101,18 +101,20 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
 
     const isMultiSelected = selectedCanvasNodeIds.has(id) && selectedCanvasNodeIds.size > 1;
 
-    const isSingleMedia = Array.isArray(data.content) && data.content.length === 1 && (data.content[0].type === 'image' || data.content[0].type === 'video' || data.content[0].type === 'file');
-    const isSingleLink = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'link';
-    const isSingleColor = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'color';
-    const isSingleNumbered = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'numbered';
-    const singleColorValue = isSingleColor ? (data.content?.[0]?.content || '#1E944A') : undefined;
-    const isColumns = Array.isArray(data.content) && data.content.length === 1 && data.content[0].type === 'columns';
-    const isWideBlock = Array.isArray(data.content) && data.content.length === 1 && ['callout', 'code', 'quote', 'link', 'toggle'].includes(data.content[0].type);
+    const colorBlocks: Block[] = Array.isArray(data.content) ? data.content : [];
+    const singleBlock = colorBlocks.length === 1 ? colorBlocks[0] : undefined;
+    const isSingleMedia = singleBlock?.type === 'image' || singleBlock?.type === 'video' || singleBlock?.type === 'file';
+    const isSingleLink = singleBlock?.type === 'link';
+    const isSingleColor = singleBlock?.type === 'color';
+    const isSingleNumbered = singleBlock?.type === 'numbered';
+    const singleColorValue = isSingleColor ? (singleBlock?.content || '#1E944A') : undefined;
+    const isColumns = singleBlock?.type === 'columns';
+    const isWideBlock = !!singleBlock && ['callout', 'code', 'quote', 'link', 'toggle'].includes(singleBlock.type);
     // Text, headings & lists size to their content: start at 4 units (208px) and grow to a max of 8 units (432px), then wrap.
-    const isAutoWidthText = Array.isArray(data.content) && data.content.length === 1 && ['text', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered', 'todo'].includes(data.content[0].type);
+    const isAutoWidthText = !!singleBlock && ['text', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered', 'todo'].includes(singleBlock.type);
     const isResizable = isSingleMedia || isSingleLink;
 
-    const isMediaEmpty = isSingleMedia && (!data.content?.[0]?.content || data.content[0].content.trim() === '');
+    const isMediaEmpty = isSingleMedia && (!singleBlock?.content || singleBlock.content.trim() === '');
 
     const globalListIndex = useGlobalListIndex(id, isSingleNumbered);
 
@@ -187,7 +189,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
 
 
 
-    const handleUpdate = useCallback((blocks: any) => {
+    const handleUpdate = useCallback((blocks: Block[]) => {
         updateNodeData(id, { content: blocks });
     }, [id, updateNodeData]);
 
@@ -240,7 +242,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                         width,
                         height,
                     }
-                } as any;
+                } as AppNode;
             }
             return n;
         }));
@@ -291,7 +293,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     };
 
     const baseClassName = isSingleColor ? styles.colorBlockNode : styles.blockNode;
-    const isSkeleton = (data as any).isAISkeleton;
+    const isSkeleton = data.isAISkeleton;
 
     return (
         <div
@@ -400,9 +402,9 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 <ColorBlockModal
                     color={singleColorValue || '#1E944A'}
                     originalColor={colorOriginal}
-                    metadata={(data.content as any[])?.[0]?.metadata}
+                    metadata={colorBlocks[0]?.metadata}
                     onChange={(newColor, newMeta) => {
-                        const newBlocks = (data.content as any[]).map((b: any, i: number) =>
+                        const newBlocks = colorBlocks.map((b, i) =>
                             i === 0 ? { ...b, content: newColor, metadata: newMeta } : b
                         );
                         updateNodeData(id, { content: newBlocks });
@@ -414,8 +416,8 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             {convertModalOpen && (
                 <ConvertCardModal
                     initialTitle={convertInitialTitle}
-                    initialColor={(data as any).color}
-                    content={data.content as any[]}
+                    initialColor={data.color}
+                    content={colorBlocks}
                     onConfirm={confirmConvertToCard}
                     onClose={() => setConvertModalOpen(false)}
                 />
@@ -431,10 +433,10 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                         bottom: 0,
                         zIndex: 9999,
                         cursor: 'pointer',
-                        backgroundColor: isHoveredLinking ? 'rgba(6, 182, 212, 0.15)' : 'rgba(6, 182, 212, 0.04)',
+                        backgroundColor: isHoveredLinking ? 'rgba(227, 162, 79, 0.15)' : 'rgba(227, 162, 79, 0.04)',
                         border: '2px solid transparent',
-                        borderColor: isHoveredLinking ? '#06b6d4' : 'transparent',
-                        boxShadow: isHoveredLinking ? '0 0 15px rgba(6, 182, 212, 0.4)' : 'none',
+                        borderColor: isHoveredLinking ? '#e3a24f' : 'transparent',
+                        boxShadow: isHoveredLinking ? '0 0 15px rgba(227, 162, 79, 0.4)' : 'none',
                         transition: 'all 0.2s ease',
                         borderRadius: 'inherit',
                         boxSizing: 'border-box',
@@ -494,7 +496,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 } : undefined}
             >
                 {isSkeleton ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-primary, #8b5cf6)', fontWeight: 'bold', fontSize: '14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-primary, #f95d2e)', fontWeight: 'bold', fontSize: '14px' }}>
                         <Loader2 className="animate-spin" size={16} /> 
                         {Array.isArray(data.content) ? data.content[0]?.content : 'Generating...'}
                     </div>
@@ -538,8 +540,8 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <defs>
                             <linearGradient id="canvas-media-arc-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor="#A78BFA" />
-                                <stop offset="100%" stopColor="#60A5FA" />
+                                <stop offset="0%" stopColor="var(--accent)" />
+                                <stop offset="100%" stopColor="var(--secondary)" />
                             </linearGradient>
                         </defs>
                         <path

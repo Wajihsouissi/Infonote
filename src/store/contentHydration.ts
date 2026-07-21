@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import type { Block, BlockMetadata } from '../features/editor/types';
 
 /**
  * contentHydration
@@ -59,8 +60,18 @@ const LIST_TYPES = new Set([
 
 type Category = 'heading' | 'standalone' | 'list' | 'divider' | 'text';
 
-function categorize(block: any): Category {
+/** Minimal block shape the text/relatedness analysis needs. Canonical Blocks
+ *  and legacy loose shapes (label-only stand-ins, retired list types) both fit. */
+export type AnalyzableBlock = {
+    id?: string;
+    type: string;
+    content?: unknown;
+    metadata?: BlockMetadata;
+};
+
+function categorize(block: AnalyzableBlock | null | undefined): Category {
     const type = block?.type;
+    if (!type) return 'text';
     if (type in HEADING_LEVEL) return 'heading';
     if (STANDALONE_TYPES.has(type)) return 'standalone';
     if (LIST_TYPES.has(type)) return 'list';
@@ -88,15 +99,15 @@ const STOPWORDS = new Set([
 
 /** Pull a plain-text representation out of a block, regardless of whether its
  *  content is a string, an array of inline runs, or lives in metadata. */
-export function extractText(block: any): string {
+export function extractText(block: AnalyzableBlock | null | undefined): string {
     if (!block) return '';
     const parts: string[] = [];
 
-    const pushContent = (content: any) => {
+    const pushContent = (content: unknown) => {
         if (typeof content === 'string') {
             parts.push(content);
         } else if (Array.isArray(content)) {
-            for (const item of content) {
+            for (const item of content as Array<string | { text?: unknown; content?: unknown } | null | undefined>) {
                 if (typeof item === 'string') parts.push(item);
                 else if (item && typeof item.text === 'string') parts.push(item.text);
                 else if (item && Array.isArray(item.content)) pushContent(item.content);
@@ -110,7 +121,8 @@ export function extractText(block: any): string {
     if (meta && typeof meta === 'object') {
         // Captions / titles / names carry the semantics of media & links.
         for (const key of ['caption', 'title', 'name', 'alt', 'label', 'language']) {
-            if (typeof meta[key] === 'string') parts.push(meta[key]);
+            const value = meta[key];
+            if (typeof value === 'string') parts.push(value);
         }
         // Tables: flatten cell text.
         if (Array.isArray(meta.rows)) {
@@ -122,10 +134,13 @@ export function extractText(block: any): string {
                 }
             }
         }
-        // Columns: recurse into nested blocks.
+        // Columns: recurse into nested blocks (legacy saves used `blocks`, current uses `content`).
         if (Array.isArray(meta.columns)) {
-            for (const col of meta.columns) {
-                const colBlocks = Array.isArray(col?.blocks) ? col.blocks : Array.isArray(col) ? col : [];
+            for (const col of meta.columns as Array<{ blocks?: unknown; content?: unknown } | AnalyzableBlock[] | null | undefined>) {
+                const loose = col as { blocks?: unknown; content?: unknown } | null | undefined;
+                const colBlocks: AnalyzableBlock[] = Array.isArray(loose?.blocks) ? loose.blocks
+                    : Array.isArray(loose?.content) ? loose.content
+                        : Array.isArray(col) ? col : [];
                 for (const b of colBlocks) parts.push(extractText(b));
             }
         }
@@ -184,11 +199,11 @@ function cosine(a: TermFreq, b: TermFreq): number {
 export interface HydrationChunk {
     id: string;
     type: 'fused-note' | 'block';
-    blocks: any[];
+    blocks: Block[];
     level: number;
     /** Parent in the layout/hierarchy tree (a solid edge is drawn for this). */
     sourceId?: string;
-    style?: any;
+    style?: { width: number; height: number };
 }
 
 export interface RelatedEdge {
@@ -218,12 +233,12 @@ interface WorkChunk extends HydrationChunk {
  * Build a semantic hydration plan from an ordered list of (orphan) blocks.
  * Returns the chunks (canvas nodes) plus cross-topic related edges.
  */
-export function planHydration(orderedBlocks: any[]): HydrationPlan {
+export function planHydration(orderedBlocks: Block[]): HydrationPlan {
     const chunks: WorkChunk[] = [];
     const headingStack: WorkChunk[] = [];
     let current: WorkChunk | null = null;
 
-    const newChunk = (kind: Category, block: any | null): WorkChunk => {
+    const newChunk = (kind: Category, block: Block | null): WorkChunk => {
         const tf: TermFreq = new Map();
         let chars = 0;
         if (block) {
@@ -246,7 +261,7 @@ export function planHydration(orderedBlocks: any[]): HydrationPlan {
         return chunk;
     };
 
-    const appendBlock = (chunk: WorkChunk, block: any): void => {
+    const appendBlock = (chunk: WorkChunk, block: Block): void => {
         chunk.blocks.push(block);
         const text = extractText(block);
         mergeTermFreq(chunk.tf, tokenize(text));
@@ -501,7 +516,7 @@ function buildRelatednessForest(items: ScoredItem[]): RelatednessForest {
 }
 
 /** Term-frequency vector for a chunk built from all of its blocks' text. */
-function chunkTermFreq(blocks: any[]): TermFreq {
+function chunkTermFreq(blocks: AnalyzableBlock[]): TermFreq {
     const tf: TermFreq = new Map();
     for (const block of blocks) mergeTermFreq(tf, tokenize(extractText(block)));
     return tf;
@@ -513,7 +528,7 @@ function chunkTermFreq(blocks: any[]): TermFreq {
  * can drive a tidy, short-connector layout.
  */
 export function computeRelatednessForest(
-    items: { id: string; blocks: any[]; level?: number }[]
+    items: { id: string; blocks: AnalyzableBlock[]; level?: number }[]
 ): RelatednessForest {
     return buildRelatednessForest(
         items.map((it) => ({ id: it.id, tf: chunkTermFreq(it.blocks), level: it.level ?? 0 }))
@@ -521,7 +536,7 @@ export function computeRelatednessForest(
 }
 
 /** Heading level of a node based on its first block (0 = not a heading). */
-function nodeHeadingLevel(blocks: any[]): number {
+function nodeHeadingLevel(blocks: AnalyzableBlock[]): number {
     const first = blocks?.[0];
     return first && first.type in HEADING_LEVEL ? HEADING_LEVEL[first.type] : 0;
 }
@@ -534,7 +549,7 @@ function nodeHeadingLevel(blocks: any[]): number {
  * headings at all, this falls back to relatedness clustering.
  */
 export function computeSmartHierarchy(
-    items: { id: string; blocks: any[] }[]
+    items: { id: string; blocks: AnalyzableBlock[] }[]
 ): RelatednessForest {
     const parent = new Map<string, string | undefined>();
     items.forEach((it) => parent.set(it.id, undefined));

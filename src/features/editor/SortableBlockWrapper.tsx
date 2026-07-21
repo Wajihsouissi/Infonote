@@ -37,7 +37,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
 
         // Register cleanup function for when drag ends
         // This will clear selection in the source editor
-        (window as any).chnkItDragCleanup = () => {
+        window.chnkItDragCleanup = () => {
             console.log('Executing drag cleanup function');
             // Clear selection in the parent BlockEditor component
             const event = new CustomEvent('chnk-it-clear-selection');
@@ -68,7 +68,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         // next tick allows the browser to successfully start the native drag gesture.
         setTimeout(() => {
             document.body.classList.add('chnk-it-block-dragging');
-            (window as any).chnkItBlockDragging = true;
+            window.chnkItBlockDragging = true;
             if (ref.current) {
                 ref.current.classList.add(styles.dragging);
             }
@@ -83,13 +83,13 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
         });
         document.body.classList.remove('chnk-it-block-dragging');
 
-        const regularCleanup = (window as any).chnkItDragCleanup;
-        const multiCleanup = (window as any).chnkItMultiDragCleanup;
+        const regularCleanup = window.chnkItDragCleanup;
+        const multiCleanup = window.chnkItMultiDragCleanup;
 
         // Check if a cross-editor drop already happened (canvas onDrop dispatched the event).
         // If so, skip calling cleanup again to avoid double-dispatch of chnk-it-clear-selection.
-        const crossEditorDropAlreadyHandled = (window as any).chnkItCrossEditorDropHandled;
-        (window as any).chnkItCrossEditorDropHandled = false;
+        const crossEditorDropAlreadyHandled = window.chnkItCrossEditorDropHandled;
+        window.chnkItCrossEditorDropHandled = false;
 
         if (!crossEditorDropAlreadyHandled) {
             // Only call multiCleanup if present (it handles both single and multi)
@@ -100,7 +100,7 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
                 } catch (error) {
                     console.warn('Error during multi-drag cleanup:', error);
                 }
-                (window as any).chnkItMultiDragCleanup = undefined;
+                window.chnkItMultiDragCleanup = undefined;
             } else if (regularCleanup) {
                 try {
                     console.log('Executing regular drag cleanup for block:', block?.id);
@@ -111,20 +111,20 @@ export const SortableBlockWrapper = memo(function SortableBlockWrapper({ id, chi
             }
         } else {
             // Cross-editor drop already handled — just clean up refs
-            (window as any).chnkItMultiDragCleanup = undefined;
+            window.chnkItMultiDragCleanup = undefined;
         }
 
-        (window as any).chnkItDragCleanup = undefined;
+        window.chnkItDragCleanup = undefined;
 
         // Clear the dragging flag immediately if a cross-editor drop finished
         // (the drop already happened, so no risk of CanvasBoard stealing focus).
         // Only delay if it was a same-editor reorder so the drop target can
         // receive the pointer-down without being misidentified as a canvas click.
         if (crossEditorDropAlreadyHandled) {
-            (window as any).chnkItBlockDragging = false;
+            window.chnkItBlockDragging = false;
         } else {
             setTimeout(() => {
-                (window as any).chnkItBlockDragging = false;
+                window.chnkItBlockDragging = false;
             }, 100);
         }
     };

@@ -38,7 +38,7 @@ export class FileSystemStorage {
 
     private _isSaving = false;
     private _saveQueue: (() => Promise<void>)[] = [];
-    private _pendingResolvers: { resolve: () => void; reject: (e: any) => void }[] = [];
+    private _pendingResolvers: { resolve: () => void; reject: (e: unknown) => void }[] = [];
 
     constructor() {
         this.initDB();
@@ -58,8 +58,8 @@ export class FileSystemStorage {
 
     private initDB(): void {
         const request = indexedDB.open(this.DB_NAME, 1);
-        request.onupgradeneeded = (e: any) => {
-            const db = e.target.result;
+        request.onupgradeneeded = () => {
+            const db = request.result;
             if (!db.objectStoreNames.contains(this.STORE_NAME)) {
                 db.createObjectStore(this.STORE_NAME);
             }
@@ -72,9 +72,9 @@ export class FileSystemStorage {
     private async saveHandleToIndexedDB(handle: FileSystemDirectoryHandle): Promise<void> {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.DB_NAME, 1);
-            request.onsuccess = (e: any) => {
+            request.onsuccess = () => {
                 try {
-                    const db = e.target.result;
+                    const db = request.result;
                     const tx = db.transaction(this.STORE_NAME, 'readwrite');
                     const store = tx.objectStore(this.STORE_NAME);
                     store.put(handle, this.KEY);
@@ -94,9 +94,9 @@ export class FileSystemStorage {
     async getStoredHandle(): Promise<FileSystemDirectoryHandle | null> {
         return new Promise((resolve) => {
             const request = indexedDB.open(this.DB_NAME, 1);
-            request.onsuccess = (e: any) => {
+            request.onsuccess = () => {
                 try {
-                    const db = e.target.result;
+                    const db = request.result;
                     const tx = db.transaction(this.STORE_NAME, 'readonly');
                     const store = tx.objectStore(this.STORE_NAME);
                     const getReq = store.get(this.KEY);
@@ -114,9 +114,9 @@ export class FileSystemStorage {
     async clearStoredHandle(): Promise<void> {
         return new Promise((resolve) => {
             const request = indexedDB.open(this.DB_NAME, 1);
-            request.onsuccess = (e: any) => {
+            request.onsuccess = () => {
                 try {
-                    const db = e.target.result;
+                    const db = request.result;
                     const tx = db.transaction(this.STORE_NAME, 'readwrite');
                     const store = tx.objectStore(this.STORE_NAME);
                     store.delete(this.KEY);
@@ -144,8 +144,8 @@ export class FileSystemStorage {
             await this.saveHandleToIndexedDB(this.directoryHandle);
             console.log('[Storage] Directory selected:', this.directoryHandle.name);
             return true;
-        } catch (error: any) {
-            if (error.name === 'AbortError') {
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
                 console.log('[Storage] User cancelled directory selection');
             } else {
                 console.error('[Storage] Directory selection failed:', error);
@@ -195,8 +195,8 @@ export class FileSystemStorage {
 
             console.log('[Storage] Permission denied by user');
             return false;
-        } catch (error: any) {
-            console.error('[Storage] Reconnection failed:', error.message || error);
+        } catch (error) {
+            console.error('[Storage] Reconnection failed:', error instanceof Error ? error.message : error);
             // Handle is likely stale, clear it
             await this.clearStoredHandle();
             this.directoryHandle = null;
@@ -256,7 +256,7 @@ export class FileSystemStorage {
             try {
                 await this.readJsonFile<AppNode[]>(TEMP_NODES_FILE);
                 await this.readJsonFile<Edge[]>(TEMP_EDGES_FILE);
-            } catch (verifyError) {
+            } catch {
                 console.error('[Storage] Temp file verification failed');
                 throw new Error('Save verification failed');
             }
@@ -276,17 +276,18 @@ export class FileSystemStorage {
             //     );
             // }
 
-        } catch (error: any) {
+        } catch (error) {
             console.error('[Storage] Save failed:', error);
-            perfMonitor.endTimer('storage.save', { success: false, error: error.message });
+            perfMonitor.endTimer('storage.save', { success: false, error: error instanceof Error ? error.message : String(error) });
 
             await this.restoreFromBackup().catch(restoreErr =>
                 console.error('[Storage] Backup restore failed:', restoreErr)
             );
 
             // Check for invalid handle
-            if (error.name === 'NotFoundError' || error.name === 'NotAllowedError' ||
-                error.message?.includes('not found') || error.message?.includes('directory')) {
+            if (error instanceof Error && (
+                error.name === 'NotFoundError' || error.name === 'NotAllowedError' ||
+                error.message?.includes('not found') || error.message?.includes('directory'))) {
                 console.warn('[Storage] Handle invalidated, disconnecting');
                 this.directoryHandle = null;
             }
@@ -342,12 +343,12 @@ export class FileSystemStorage {
             // Data loaded
             perfMonitor.endTimer('storage.load', { success: true, nodeCount: nodes.length });
             return { nodes, edges };
-        } catch (error: any) {
-            console.error('[Storage] Load failed:', error.message || error);
+        } catch (error) {
+            console.error('[Storage] Load failed:', error instanceof Error ? error.message : error);
             perfMonitor.endTimer('storage.load', { success: false });
 
             // Check for invalid handle
-            if (error.name === 'NotFoundError' || error.name === 'NotAllowedError') {
+            if (error instanceof Error && (error.name === 'NotFoundError' || error.name === 'NotAllowedError')) {
                 this.directoryHandle = null;
             }
             return null;
@@ -437,7 +438,7 @@ export class FileSystemStorage {
         await writable.close();
     }
 
-    private async writeJsonFile(filename: string, data: any): Promise<void> {
+    private async writeJsonFile(filename: string, data: unknown): Promise<void> {
         if (!this.directoryHandle) throw new Error('Not connected');
 
         const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: true });

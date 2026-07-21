@@ -2,14 +2,14 @@ import { useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useReactFlow } from '@xyflow/react';
 import { useStore } from '../../../store/useStore';
-import type { BlockType } from '../../editor/types';
-import type { AppNode } from '../../../types';
+import type { Block, BlockType } from '../../editor/types';
+import { type AppNode, getNodeBlocks } from '../../../types';
 import { BASE_UNIT, MIN_FUSED_SIZE, ICON_SIZE, snapToGridValue, GRID_GAP } from '../../../config/layout';
 import { checkNodeCreationLimits } from '../../../store/nodeLimits';
 
 interface UseCanvasDropOptions {
-    updateNodeData: (id: string, data: any) => void;
-    extractPageFromBlock: (block: any, position: { x: number; y: number }, sourceNodeId?: string) => void;
+    updateNodeData: (id: string, data: Record<string, unknown>) => void;
+    extractPageFromBlock: (block: Block, position: { x: number; y: number }, sourceNodeId?: string) => void;
 }
 
 /**
@@ -20,7 +20,7 @@ export function useCanvasDrop({
     updateNodeData,
     extractPageFromBlock,
 }: UseCanvasDropOptions) {
-    const { screenToFlowPosition, getIntersectingNodes, deleteElements, getViewport } = useReactFlow();
+    const { screenToFlowPosition, getIntersectingNodes, deleteElements, getViewport } = useReactFlow<AppNode>();
 
     const onDragOver = useCallback((event: React.DragEvent) => {
         const { centerPanelId, fullscreenId } = useStore.getState();
@@ -56,7 +56,7 @@ export function useCanvasDrop({
                 try {
                     const parsed = JSON.parse(blockDataJson);
                     hasSourceNode = !!parsed.sourceNodeId;
-                } catch (e) {
+                } catch {
                     // Parse failed
                 }
             }
@@ -85,7 +85,7 @@ export function useCanvasDrop({
                 y: Math.round(rawPosition.y / BASE_UNIT) * BASE_UNIT
             };
 
-            let blocksToAdd: any[] = [];
+            let blocksToAdd: Block[] = [];
             let sourceNodeId: string | null = null;
 
             if (blockDataJson) {
@@ -125,7 +125,7 @@ export function useCanvasDrop({
                 height: checkSize
             };
 
-            const intersections = getIntersectingNodes(dropRect as any);
+            const intersections = getIntersectingNodes(dropRect);
             const targetNode = intersections.find(n =>
                 (n.type === 'block' || n.type === 'fused-note' || n.type === 'note') &&
                 n.id !== sourceNodeId &&
@@ -133,7 +133,7 @@ export function useCanvasDrop({
             );
 
             if (targetNode) {
-                const currentContent = Array.isArray((targetNode.data as any).content) ? (targetNode.data as any).content : [];
+                const currentContent = getNodeBlocks(targetNode.data) ?? [];
                 updateNodeData(targetNode.id, {
                     content: [...currentContent, ...blocksToAdd],
                     lastFusedAt: Date.now()
@@ -149,9 +149,10 @@ export function useCanvasDrop({
                 if (sourceNodeId) {
                     const { nodes: currentNodes } = useStore.getState();
                     const sourceNode = currentNodes.find((n: AppNode) => n.id === sourceNodeId);
-                    if (sourceNode && Array.isArray((sourceNode.data as any).content)) {
+                    const sourceBlocks = sourceNode ? getNodeBlocks(sourceNode.data) : undefined;
+                    if (sourceNode && sourceBlocks) {
                         const draggedBlockIds = blocksToAdd.map(b => b.id);
-                        let newContent = (sourceNode.data as any).content.filter((b: any) => !draggedBlockIds.includes(b.id));
+                        const newContent = sourceBlocks.filter((b) => !draggedBlockIds.includes(b.id));
                         console.log("[useCanvasDrop] Source cleanup - removing blocks:", draggedBlockIds);
                         updateNodeData(sourceNodeId, { content: newContent });
                         if (newContent.length === 0 && (sourceNode.type === 'fused-note' || sourceNode.type === 'block')) {
@@ -163,11 +164,11 @@ export function useCanvasDrop({
                 // Adding new node to canvas
                 if (blocksToAdd.length === 1 && blocksToAdd[0].type === 'page') {
                     extractPageFromBlock(blocksToAdd[0], position, sourceNodeId || undefined);
-                    if ((window as any).chnkItMultiDragCleanup) {
-                        (window as any).chnkItMultiDragCleanup();
-                        delete (window as any).chnkItMultiDragCleanup;
+                    if (window.chnkItMultiDragCleanup) {
+                        window.chnkItMultiDragCleanup();
+                        delete window.chnkItMultiDragCleanup;
                     }
-                    (window as any).chnkItCrossEditorDropHandled = true;
+                    window.chnkItCrossEditorDropHandled = true;
                     window.dispatchEvent(new CustomEvent('chnk-it-clear-selection'));
                     return;
                 }
@@ -231,9 +232,10 @@ export function useCanvasDrop({
                 if (sourceNodeId) {
                     const { nodes: freshNodes } = useStore.getState();
                     const sourceNode = freshNodes.find((n: AppNode) => n.id === sourceNodeId);
-                    if (sourceNode && Array.isArray((sourceNode.data as any).content)) {
+                    const sourceBlocks = sourceNode ? getNodeBlocks(sourceNode.data) : undefined;
+                    if (sourceNode && sourceBlocks) {
                         const draggedBlockIds = blocksToAdd.map(b => b.id);
-                        let newContent = (sourceNode.data as any).content.filter((b: any) => !draggedBlockIds.includes(b.id));
+                        const newContent = sourceBlocks.filter((b) => !draggedBlockIds.includes(b.id));
                         console.log("[useCanvasDrop] Source cleanup:", draggedBlockIds.length, "blocks");
                         updateNodeData(sourceNodeId, { content: newContent });
                         if (newContent.length === 0 && (sourceNode.type === 'fused-note' || sourceNode.type === 'block')) {
@@ -243,14 +245,14 @@ export function useCanvasDrop({
                 }
             }
 
-            if ((window as any).chnkItMultiDragCleanup) {
-                (window as any).chnkItMultiDragCleanup();
-                delete (window as any).chnkItMultiDragCleanup;
+            if (window.chnkItMultiDragCleanup) {
+                window.chnkItMultiDragCleanup();
+                delete window.chnkItMultiDragCleanup;
             }
             // Signal SortableBlockWrapper.handleDragEnd that the drop was already handled
             // here so it doesn't double-dispatch chnk-it-clear-selection.
-            (window as any).chnkItCrossEditorDropHandled = true;
-            (window as any).chnkItBlockDragging = false;
+            window.chnkItCrossEditorDropHandled = true;
+            window.chnkItBlockDragging = false;
             document.body.classList.remove('chnk-it-block-dragging');
             window.dispatchEvent(new CustomEvent('chnk-it-clear-selection'));
         },

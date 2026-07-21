@@ -28,7 +28,17 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 // Droppable Cell Component
-const CalendarCell = ({ dateKey, dayNum, cards, isToday, otherMonth, onCardClick, onAddCard }: any) => {
+interface CalendarCellProps {
+    dateKey: string;
+    dayNum: number;
+    cards: NoteNode[];
+    isToday: boolean;
+    otherMonth: boolean;
+    onCardClick: (card: NoteNode) => void;
+    onAddCard?: (isoDate: string) => void;
+}
+
+const CalendarCell = ({ dateKey, dayNum, cards, isToday, otherMonth, onCardClick, onAddCard }: CalendarCellProps) => {
     const { setNodeRef, isOver } = useDroppable({
         id: dateKey,
         data: { type: 'cell', date: dateKey }
@@ -89,7 +99,7 @@ export const KanbanCalendarView = ({ cards, onCardClick, onUpdateCard, onAddCard
                 const key = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
                 if (!map[key]) map[key] = [];
                 map[key].push(card);
-            } catch (e) { }
+            } catch { /* skip cards with unparseable dates */ }
         });
         return map;
     }, [cards]);

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import type { Block, BlockType } from '../types';
+import type { Block, BlockType, BlockMetadata } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 interface SlashCommandProps {
@@ -26,7 +26,7 @@ export function useSlashCommand({
     // Sync ref
     slashMenuStateRef.current = slashMenuState;
 
-    const convertBlock = useCallback((id: string | undefined, type: BlockType, metadata?: any, content?: string) => {
+    const convertBlock = useCallback((id: string | undefined, type: BlockType, metadata?: BlockMetadata, content?: string) => {
         const targetId = id || (slashMenuStateRef.current ? slashMenuStateRef.current.blockId : null);
         if (!targetId) return;
 
@@ -99,7 +99,7 @@ export function useSlashCommand({
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
             setSlashMenuState({
-                anchorRect: { top: rect.top, left: rect.left, bottom: rect.bottom, right: rect.right } as any,
+                anchorRect: { top: rect.top, left: rect.left, bottom: rect.bottom, right: rect.right },
                 blockId: id
             });
         }

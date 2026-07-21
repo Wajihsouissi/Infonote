@@ -3,6 +3,7 @@ import { useStore } from '../../store/useStore';
 import { BlockEditor } from '../editor/BlockEditor';
 import { NoteExpandedContent } from '../card/NoteExpandedContent';
 import { SidePeek } from './SidePeek';
+import { getNodeBlocks } from '../../types';
 
 interface SidePanelProps {
     nodeId: string | null;
@@ -43,13 +44,13 @@ export function SidePanel({ nodeId, side, onClose }: SidePanelProps) {
                 height: '100%', 
                 width: '100%', 
                 overflow: 'hidden',
-                backgroundColor: (activeNode.data as any).color || 'var(--color-bg-base)'
+                backgroundColor: ('color' in activeNode.data ? activeNode.data.color : undefined) || 'var(--color-bg-base)'
             }}>
                 {activeNode.type === 'note' ? (
                     <NoteExpandedContent
                         id={currentId!}
                         nodeId={currentId!}
-                        data={activeNode.data as any}
+                        data={activeNode.data}
                         onUpdate={updateNodeData}
                         onClose={onClose}
                         flatCorners={true}
@@ -59,7 +60,7 @@ export function SidePanel({ nodeId, side, onClose }: SidePanelProps) {
                         <BlockEditor
                             key={currentId!}
                             nodeId={currentId!}
-                            initialContent={(activeNode.data as any).content}
+                            initialContent={getNodeBlocks(activeNode.data)}
                             onUpdate={(blocks) => updateNodeData(currentId!, { content: blocks })}
                             autoFocus={true}
                         />

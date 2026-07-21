@@ -1,5 +1,8 @@
 import { useCallback, useEffect } from 'react';
-import type { Block, BlockType } from '../types';
+import type { Block, BlockType, BlockMetadata } from '../types';
+
+/** Payload for handleBlockMenuAction, keyed to the action being performed. */
+type BlockMenuActionValue = BlockType | { type: 'text' | 'background'; value: string } | number;
 import { v4 as uuidv4 } from 'uuid';
 import { parseFiles, parseTextOrHtml } from '../pasteUtils';
 
@@ -28,7 +31,7 @@ export function useBlockCommands({
     nodeId
 }: BlockCommandsProps) {
 
-    const addBlock = useCallback((afterId: string, type: BlockType = 'text', initialIndent: number = 0, initialMetadata?: any) => {
+    const addBlock = useCallback((afterId: string, type: BlockType = 'text', initialIndent: number = 0, initialMetadata?: BlockMetadata) => {
         const newBlock: Block = {
             id: uuidv4(),
             type,
@@ -41,9 +44,9 @@ export function useBlockCommands({
             const count = initialMetadata?.count || 2;
             newBlock.metadata = {
                 ...initialMetadata,
-                columns: Array.from({ length: count }).map(() => ({ 
-                    id: uuidv4(), 
-                    content: [{ id: uuidv4(), type: 'text', content: '' }] 
+                columns: Array.from({ length: count }).map(() => ({
+                    id: uuidv4(),
+                    content: [{ id: uuidv4(), type: 'text' as const, content: '' }]
                 }))
             };
         }
@@ -146,7 +149,7 @@ export function useBlockCommands({
         });
     }, [debouncedOnUpdate, setBlocks]);
 
-    const handleBlockMenuAction = useCallback((blockId: string, action: 'turnInto' | 'color' | 'duplicate' | 'delete' | 'split' | 'toggleHeader', value?: any) => {
+    const handleBlockMenuAction = useCallback((blockId: string, action: 'turnInto' | 'color' | 'duplicate' | 'delete' | 'split' | 'toggleHeader', value?: BlockMenuActionValue) => {
         const idsToUpdate = selectedBlockIds.has(blockId)
             ? Array.from(selectedBlockIds)
             : [blockId];
@@ -170,7 +173,7 @@ export function useBlockCommands({
                         if (!targetIds.includes(block.id)) continue;
 
                         const wasToggle = block.type === 'toggle';
-                        newBlocks[i] = { ...block, type: value };
+                        newBlocks[i] = { ...block, type: value as BlockType };
 
                         // Converting a toggle to a non-toggle: outdent its nested children so
                         // they aren't orphaned (indented with no parent toggle).
@@ -194,9 +197,10 @@ export function useBlockCommands({
                 break;
             case 'color':
                 applyToBlocks(b => {
+                    const colorValue = value as { type: 'text' | 'background'; value: string };
                     const newMetadata = { ...(b.metadata || {}) };
-                    if (value.type === 'text') newMetadata.textColor = value.value;
-                    else newMetadata.backgroundColor = value.value;
+                    if (colorValue.type === 'text') newMetadata.textColor = colorValue.value;
+                    else newMetadata.backgroundColor = colorValue.value;
                     return { ...b, metadata: newMetadata };
                 });
                 break;
@@ -533,9 +537,11 @@ export function useBlockCommands({
 
     useEffect(() => {
         if (!nodeId) return;
-        const handleBgClick = (e: any) => {
-            if (e.detail.nodeId === nodeId) {
-                handleEditorClick({ target: editorRef.current, preventDefault: () => {} } as any, false);
+        const handleBgClick = (e: Event) => {
+            const detail = (e as CustomEvent<{ nodeId: string }>).detail;
+            if (detail?.nodeId === nodeId) {
+                // Synthetic minimal event: handleEditorClick only reads target/preventDefault/ctrlKey.
+                handleEditorClick({ target: editorRef.current, preventDefault: () => {}, ctrlKey: false } as unknown as React.MouseEvent, false);
             }
         };
         window.addEventListener('chnk-it-editor-bg-click', handleBgClick);

@@ -18,6 +18,7 @@ import { acceptWorkspaceInvitation, activateWorkspace } from './services/collabo
 const CanvasBoard = lazy(() => import('./features/canvas/CanvasBoard').then(m => ({ default: m.CanvasBoard })));
 const LandingPage = lazy(() => import('./features/landing/LandingPage').then(m => ({ default: m.LandingPage })));
 const MarketingPage = lazy(() => import('./The-website/MarketingPage').then(m => ({ default: m.MarketingPage })));
+const FeaturesPage = lazy(() => import('./The-website/FeaturesPage').then(m => ({ default: m.FeaturesPage })));
 const MarketplacePage = lazy(() => import('./features/marketplace/MarketplacePage').then(m => ({ default: m.MarketplacePage })));
 const LoginPage = lazy(() => import('./features/auth/LoginPage').then(m => ({ default: m.LoginPage })));
 const SignupPage = lazy(() => import('./features/auth/SignupPage').then(m => ({ default: m.SignupPage })));
@@ -34,6 +35,7 @@ const INVITE_PATH_RE = /^\/invite\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89
 const VIEW_PATHS: Partial<Record<AppView, string>> = {
   landing: '/',
   marketing: '/',
+  features: '/features',
   canvas: '/canvas',
   marketplace: '/marketplace',
   login: '/login',
@@ -46,6 +48,7 @@ const VIEW_PATHS: Partial<Record<AppView, string>> = {
 function viewFromPath(rawPath: string, isAuthenticated: boolean): AppView {
   const path = rawPath.replace(/\/+$/, '') || '/';
   if (path === '/') return isAuthenticated ? 'landing' : 'marketing';
+  if (path === '/features') return 'features';
   if (path === '/wajihadmin') return 'wajihadmin';
   if (path.includes('admin')) return 'not-found';
   if (path === '/profile') return 'profile';
@@ -60,9 +63,9 @@ function viewFromPath(rawPath: string, isAuthenticated: boolean): AppView {
 const viewLoader = (
   <div style={{
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    minHeight: '100vh', width: '100%', backgroundColor: '#090a0f',
+    minHeight: '100vh', width: '100%', backgroundColor: 'var(--bg-base)',
   }}>
-    <Loader2 style={{ animation: 'spin 1s linear infinite', color: '#8b5cf6' }} size={32} />
+    <Loader2 style={{ animation: 'spin 1s linear infinite', color: 'var(--accent)' }} size={32} />
   </div>
 );
 
@@ -79,6 +82,30 @@ function App() {
   const historyOpRef = useRef<'push' | 'replace'>('push');
 
   // URL-based route detection (e.g. direct navigation to /wajihadmin)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Control' || e.key === 'Meta') {
+        document.body.classList.add('mod-key-held');
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Control' || e.key === 'Meta') {
+        document.body.classList.remove('mod-key-held');
+      }
+    };
+    const handleBlur = () => document.body.classList.remove('mod-key-held');
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
+
   useEffect(() => {
     const path = window.location.pathname.replace(/\/+$/, '') || '/';
     const params = new URLSearchParams(window.location.search);
@@ -195,7 +222,7 @@ function App() {
       Boolean(sessionStorage.getItem(PENDING_INVITE_KEY));
     if (hasPendingInvite) return;
 
-    if (!isAuthLoading && isAuthenticated && (currentView === 'login' || currentView === 'signup' || currentView === 'marketing')) {
+    if (!isAuthLoading && isAuthenticated && (currentView === 'login' || currentView === 'signup')) {
       // Replace instead of push: this is a bounce, not a navigation. Pushing
       // would trap the Back button in a login -> landing loop.
       historyOpRef.current = 'replace';
@@ -274,23 +301,21 @@ function App() {
           flexDirection: 'column', 
           alignItems: 'center', 
           justifyContent: 'center', 
-          minHeight: '100vh', 
+          minHeight: '100vh',
           width: '100%',
-          backgroundColor: '#090a0f', 
-          color: 'white', 
-          position: 'relative', 
-          overflow: 'hidden' 
+          backgroundColor: 'var(--bg-base)',
+          color: 'var(--text-main)',
+          position: 'relative',
+          overflow: 'hidden'
         }}
       >
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-[#8b5cf6]/20 blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-[#06b6d4]/20 blur-[100px] pointer-events-none" />
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', zIndex: 10 }}>
           <div style={{ position: 'relative', width: '4rem', height: '4rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '4px solid rgba(139, 92, 246, 0.2)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
-            <Loader2 style={{ animation: 'spin 1s linear infinite', position: 'relative', color: '#8b5cf6' }} size={36} />
+            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '4px solid var(--accent-dim)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+            <Loader2 style={{ animation: 'spin 1s linear infinite', position: 'relative', color: 'var(--accent)' }} size={36} />
           </div>
-          <span style={{ fontSize: '0.875rem', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'rgba(233, 213, 255, 0.6)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>
-            Syncing Secure Session...
+          <span style={{ fontSize: '0.875rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'var(--font-mono)', color: 'var(--text-faint)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>
+            Syncing session…
           </span>
         </div>
       </div>
@@ -315,15 +340,20 @@ function App() {
         return <UpdatePasswordPage />;
       case 'not-found':
         return (
-          <div className="min-h-screen flex items-center justify-center bg-[#090a0f] text-white">
+          <div
+            className="min-h-screen flex items-center justify-center"
+            style={{ background: 'var(--bg-base)', color: 'var(--text-main)' }}
+          >
             <div className="text-center">
-              <h1 className="text-3xl font-semibold mb-2">404</h1>
-              <p className="text-white/60">Page not found.</p>
+              <h1 className="text-3xl font-semibold mb-2" style={{ fontFamily: 'var(--font-serif)' }}>404</h1>
+              <p style={{ color: 'var(--text-soft)' }}>Page not found.</p>
             </div>
           </div>
         );
       case 'marketing':
         return <MarketingPage />;
+      case 'features':
+        return <FeaturesPage />;
       case 'canvas':
         return (
           <ReactFlowProvider>
@@ -352,9 +382,9 @@ function App() {
             maxWidth: 'min(520px, calc(100vw - 32px))',
             padding: '12px 16px',
             borderRadius: 10,
-            background: 'rgba(17, 24, 39, 0.94)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            color: '#fff',
+            background: 'var(--bg-raised)',
+            border: '1px solid var(--line-strong)',
+            color: 'var(--text-main)',
             fontSize: 13,
             fontWeight: 600,
             boxShadow: '0 20px 60px rgba(0,0,0,0.35)',

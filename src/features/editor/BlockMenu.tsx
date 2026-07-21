@@ -4,13 +4,15 @@ import { Trash2, Copy, Type, Palette, ArrowRight, Heading1, Heading2, Heading3, 
 import styles from './BlockEditor.module.css';
 import type { BlockType } from './types';
 
+type BlockMenuActionValue = BlockType | { type: 'text' | 'background'; value: string } | number;
+
 interface BlockMenuProps {
     x: number;
     y: number;
     // blockId: string; // Not needed
     currentType: BlockType;
     onClose: () => void;
-    onAction: (action: 'turnInto' | 'color' | 'duplicate' | 'delete' | 'split' | 'toggleHeader', value?: any) => void;
+    onAction: (action: 'turnInto' | 'color' | 'duplicate' | 'delete' | 'split' | 'toggleHeader', value?: BlockMenuActionValue) => void;
 }
 
 const TURN_INTO_ITEMS: { label: string; type: BlockType; icon: React.ReactNode }[] = [
@@ -101,7 +103,7 @@ export function BlockMenu({ x, y, currentType, onClose, onAction }: BlockMenuPro
         };
     }, [onClose]);
 
-    const handleMainAction = (action: 'duplicate' | 'delete') => {
+    const handleMainAction = (action: 'duplicate' | 'delete' | 'split') => {
         onAction(action);
         onClose();
     };
@@ -231,7 +233,7 @@ export function BlockMenu({ x, y, currentType, onClose, onAction }: BlockMenuPro
 
             <div className={styles.divider} />
 
-            <div className={styles.slashMenuItem} onMouseEnter={() => setActiveSubMenu(null)} onClick={(e) => { e.stopPropagation(); handleMainAction('split' as any); }}>
+            <div className={styles.slashMenuItem} onMouseEnter={() => setActiveSubMenu(null)} onClick={(e) => { e.stopPropagation(); handleMainAction('split'); }}>
                 <span className={styles.slashIcon}><ArrowRight size={16} /></span>
                 <span className={styles.slashLabel}>Split Note Here</span>
             </div>

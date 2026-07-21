@@ -8,6 +8,7 @@ import {
 import { useReactFlow } from '@xyflow/react';
 import html2canvas from 'html2canvas';
 import { useStore } from '../../store/useStore';
+import type { BlockMetadata } from '../editor/types';
 import { MENU_ITEMS } from '../editor/menuConstants';
 import styles from './CanvasContextMenu.module.css';
 
@@ -64,7 +65,7 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
         return () => window.removeEventListener('keydown', handleKey);
     }, [onClose, activeSubmenu, showClearConfirm]);
 
-    const handleAddBlock = useCallback((type: string, meta?: any) => {
+    const handleAddBlock = useCallback((type: string, meta?: BlockMetadata) => {
         const newId = () => crypto.randomUUID?.() || Math.random().toString(36);
         const flowPos = screenToFlowPosition({ x, y });
 
@@ -107,7 +108,7 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
         try {
             const canvasEl = document.querySelector('.react-flow') as HTMLElement;
             if (!canvasEl) { onClose(); return; }
-            const bg = getComputedStyle(canvasEl).backgroundColor || '#05060C';
+            const bg = getComputedStyle(canvasEl).backgroundColor || '#100f12';
             const canvas = await html2canvas(canvasEl, {
                 backgroundColor: bg,
                 scale: 2,
@@ -128,7 +129,7 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
     const handleClearCanvas = useCallback(() => {
         const targetIds = nodes.filter(n => (n.parentId || null) === (currentParentId || null)).map(n => n.id);
         if (targetIds.length > 0) {
-            bulkDeleteNodes(targetIds, true);
+            bulkDeleteNodes(targetIds);
             clearCanvasSelection();
         }
         onClose();

@@ -16,20 +16,29 @@ import {
     Sparkles,
     Send,
     ImagePlus,
-    Loader2
+    Loader2,
+    LayoutTemplate,
+    Square,
+    RectangleHorizontal,
+    File,
+    AppWindow
 } from 'lucide-react';
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useReactFlow } from '@xyflow/react';
+import { useReactFlow, type Edge } from '@xyflow/react';
 import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '../../store/useStore';
+import { type AppNode, type NoteNode, getNodeLabel, getNodeBlocks } from '../../types';
+import type { AppState } from '../../store/types';
 import styles from './BottomMenu.module.css';
 import { MENU_ITEMS } from '../editor/menuConstants';
 import { findNonOverlappingPosition } from '../../utils/findNonOverlappingPosition';
 import { parseSearchQuery } from './searchUtils';
 import { MultiSelectionToolbar } from './MultiSelectionToolbar';
 import { EdgeEditingToolbar } from './EdgeEditingToolbar';
-import { generateCanvasCards, generateImage, parseStructuredAction, generateText } from '../../services/aiService';
+import { generateImage, parseStructuredAction, generateText } from '../../services/aiService';
 import { parsePlainText } from '../editor/pasteUtils';
+import { TEMPLATES } from '../templates/templateDefinitions';
+import { TemplatePreviewModal } from '../templates/TemplatePreviewModal';
 
 export function BottomMenu() {
     // Atomic Selectors
@@ -51,11 +60,32 @@ export function BottomMenu() {
     const [aiQuery, setAiQuery] = useState('');
     const [aiModeType, setAiModeType] = useState<'text' | 'image'>('text');
     const [showFilters, setShowFilters] = useState(false);
-    const [activeMenu, setActiveMenu] = useState<'views' | 'blocks' | null>(null);
+    const [activeMenu, setActiveMenu] = useState<'views' | 'blocks' | 'templates' | 'addNoteModes' | null>(null);
+    const [hoveredTemplateId, setHoveredTemplateId] = useState<string | null>(null);
+    const hoverTimeoutRef = useRef<number | null>(null);
     const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
     const [aiError, setAiError] = useState<string | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const handleAddNoteRef = useRef<() => void>(() => {});
+
+    // Hide templates that depend on a beta-deferred surface (e.g. Kanban) so a
+    // disabled feature can't leak back in through a template drop.
+    const templates = useMemo(
+        () => TEMPLATES.filter(t => !t.requiresKanban || FEATURES.kanban),
+        []
+    );
+
+    // Compute the hovered template's preview once. getPreviewData() mints fresh
+    // node ids on every call, so calling it separately for nodes and edges made
+    // the edges reference ids that no longer existed — they never rendered.
+    const hoveredPreview = useMemo(
+        () => templates.find(t => t.id === hoveredTemplateId)?.getPreviewData() ?? null,
+        [hoveredTemplateId, templates]
+    );
+    const hoveredTemplate = useMemo(
+        () => templates.find(t => t.id === hoveredTemplateId) ?? null,
+        [hoveredTemplateId, templates]
+    );
 
     // Reset highlighted index when activeMenu changes
     useEffect(() => {
@@ -93,8 +123,8 @@ export function BottomMenu() {
     useEffect(() => {
         if (!activeMenu || highlightedIndex === null) return;
 
-        const columns = activeMenu === 'views' ? 4 : 6;
-        const totalItems = activeMenu === 'views' ? 4 : MENU_ITEMS.length;
+        const columns = activeMenu === 'views' ? 4 : activeMenu === 'templates' ? 4 : 6;
+        const totalItems = activeMenu === 'views' ? 4 : activeMenu === 'templates' ? templates.length : MENU_ITEMS.length;
 
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
@@ -127,7 +157,6 @@ export function BottomMenu() {
                         const BOARD_WIDTH = 700;
                         const BOARD_HEIGHT = 500;
                         const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, nodes, currentParentId, vp());
-                        // @ts-ignore
                         addNode('kanban', position, {
                             label: 'My Table',
                             columns: [
@@ -144,7 +173,6 @@ export function BottomMenu() {
                         const BOARD_WIDTH = 800;
                         const BOARD_HEIGHT = 600;
                         const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, nodes, currentParentId, vp());
-                        // @ts-ignore
                         addNode('kanban', position, {
                             label: 'Calendar',
                             columns: [
@@ -161,7 +189,6 @@ export function BottomMenu() {
                         const BOARD_WIDTH = 800;
                         const BOARD_HEIGHT = 400;
                         const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, nodes, currentParentId, vp());
-                        // @ts-ignore
                         addNode('kanban', position, {
                             label: 'Timeline',
                             columns: [
@@ -171,6 +198,11 @@ export function BottomMenu() {
                             ],
                             viewMode: 'timeline',
                         }, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, currentParentId || undefined);
+                    }
+                } else if (activeMenu === 'templates') {
+                    const template = templates[highlightedIndex];
+                    if (template) {
+                        handleTemplateClick(template.id);
                     }
                 } else {
                     const block = MENU_ITEMS[highlightedIndex];
@@ -201,6 +233,9 @@ export function BottomMenu() {
             } else if (e.key === 'v' && !e.metaKey && !e.ctrlKey && !e.altKey) {
                 e.preventDefault();
                 setActiveMenu(prev => prev === 'views' ? null : 'views');
+            } else if (e.key === 't' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+                e.preventDefault();
+                setActiveMenu(prev => prev === 'templates' ? null : 'templates');
             } else if (e.key === 'f' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
                 if (isSearchMode) {
@@ -250,7 +285,7 @@ export function BottomMenu() {
     const allTags = useMemo(() => {
         const tags = new Set<string>();
         nodes.forEach(node => {
-            const nodeTags = (node.data as any).tags;
+            const nodeTags = 'tags' in node.data ? node.data.tags : undefined;
             if (Array.isArray(nodeTags)) {
                 nodeTags.forEach(tag => tags.add(tag));
             }
@@ -266,10 +301,13 @@ export function BottomMenu() {
             } else {
                 filters.tags.push(value);
             }
-        } else if ((filters as any)[key] === value) {
-            delete (filters as any)[key];
         } else {
-            (filters as any)[key] = value;
+            const filterRecord = filters as unknown as Record<string, string | undefined>;
+            if (filterRecord[key] === value) {
+                delete filterRecord[key];
+            } else {
+                filterRecord[key] = value;
+            }
         }
 
         // Reconstruct query string
@@ -350,7 +388,7 @@ export function BottomMenu() {
  
                              const responseText = await generateText(prompt);
                              const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-                             let updateData: any = {};
+                             let updateData: Record<string, unknown> = {};
                              
                              if (jsonMatch) {
                                  try {
@@ -391,11 +429,11 @@ export function BottomMenu() {
                  }
  
                  const selectedNode = nodes.find(n => n.selected);
-                 let activeNodeColor: string | undefined = selectedNode ? (selectedNode.data as any).color : undefined;
+                 let activeNodeColor: string | undefined = selectedNode && 'color' in selectedNode.data ? selectedNode.data.color : undefined;
                  if (!activeNodeColor) {
-                     const coloredNodes = nodes.filter(n => n.type === 'note' && (n.data as any).color);
+                     const coloredNodes = nodes.filter((n): n is NoteNode => n.type === 'note' && !!n.data.color);
                      if (coloredNodes.length > 0) {
-                         activeNodeColor = (coloredNodes[Math.floor(Math.random() * coloredNodes.length)].data as any).color;
+                         activeNodeColor = coloredNodes[Math.floor(Math.random() * coloredNodes.length)].data.color;
                      }
                  }
 
@@ -405,7 +443,7 @@ export function BottomMenu() {
                  
                  if (isMindmapQuery) {
                      const rootPos = findNonOverlappingPosition(flowPos, { width: 260, height: 80 }, nodes, currentParentId, vp());
-                     const skelNodes: any[] = [{
+                     const skelNodes: AppNode[] = [{
                          id: skeletonId,
                          type: 'block',
                          position: rootPos,
@@ -417,7 +455,7 @@ export function BottomMenu() {
                          },
                          parentId: currentParentId || undefined
                      }];
-                     const skelEdges: any[] = [];
+                     const skelEdges: Edge[] = [];
                      
                      for (let i = 0; i < 3; i++) {
                          const childId = uuidv4();
@@ -446,7 +484,7 @@ export function BottomMenu() {
                          });
                      }
                      useStore.getState().setNodes(prev => [...prev, ...skelNodes]);
-                     useStore.setState((prev: any) => ({ edges: [...prev.edges, ...skelEdges] }));
+                     useStore.setState((prev: AppState) => ({ edges: [...prev.edges, ...skelEdges] }));
                  } else {
                      addNode(
                          'note',
@@ -470,14 +508,14 @@ export function BottomMenu() {
                      const currentNodes = useStore.getState().nodes;
                      const siblingNodes = currentNodes.filter(n => n.parentId === (currentParentId || null));
                      const contextString = siblingNodes.length > 0 
-                         ? `Existing nodes on canvas: ` + siblingNodes.map(n => `${(n.data as any).label || 'Untitled'} (${n.type})`).join(', ')
+                         ? `Existing nodes on canvas: ` + siblingNodes.map(n => `${getNodeLabel(n.data) || 'Untitled'} (${n.type})`).join(', ')
                          : '';
 
                      const actions = await parseStructuredAction(query, contextString);
                      
                      // Remove skeleton node(s) and edges
-                     useStore.getState().setNodes(nds => nds.filter(n => !(n.data as any).isAISkeleton));
-                     useStore.setState((prev: any) => ({ edges: prev.edges.filter((e: any) => !e.id.startsWith('skel-')) }));
+                     useStore.getState().setNodes(nds => nds.filter(n => !('isAISkeleton' in n.data && n.data.isAISkeleton)));
+                     useStore.setState((prev: AppState) => ({ edges: prev.edges.filter((e: Edge) => !e.id.startsWith('skel-')) }));
 
                      actions.forEach((action, idx) => {
                          const width = action.type === 'kanban' ? 700 : action.type === 'fused-note' ? 800 : 432;
@@ -547,12 +585,13 @@ export function BottomMenu() {
                          } else if (action.type === 'mindmap') {
                              if (!action.nodes || action.nodes.length === 0) return;
                              
-                             const newNodes: any[] = [];
-                             const newEdges: any[] = [];
-                             
+                             const newNodes: AppNode[] = [];
+                             const newEdges: Edge[] = [];
+
                              // Build node hierarchy
+                             type MindmapNode = (typeof action.nodes)[number];
                              const nodeMap = new Map(action.nodes.map(n => [n.id, n]));
-                             const childrenMap = new Map<string, any[]>();
+                             const childrenMap = new Map<string, MindmapNode[]>();
                              action.nodes.forEach(n => {
                                  if (n.parentId) {
                                      if (!childrenMap.has(n.parentId)) childrenMap.set(n.parentId, []);
@@ -616,7 +655,7 @@ export function BottomMenu() {
                              // Push to store
                              useStore.getState().setNodes(prev => [...prev, ...newNodes]);
                              if (newEdges.length > 0) {
-                                 useStore.setState((prev: any) => ({ edges: [...prev.edges, ...newEdges] }));
+                                 useStore.setState((prev: AppState) => ({ edges: [...prev.edges, ...newEdges] }));
                              }
                          }
                      });
@@ -624,8 +663,8 @@ export function BottomMenu() {
                      setIsAIMode(false);
                  } catch (err) {
                      // Clean up skeleton on failure
-                     useStore.getState().setNodes(nds => nds.filter(n => !(n.data as any).isAISkeleton));
-                     useStore.setState((prev: any) => ({ edges: prev.edges.filter((e: any) => !e.id.startsWith('skel-')) }));
+                     useStore.getState().setNodes(nds => nds.filter(n => !('isAISkeleton' in n.data && n.data.isAISkeleton)));
+                     useStore.setState((prev: AppState) => ({ edges: prev.edges.filter((e: Edge) => !e.id.startsWith('skel-')) }));
                      throw err;
                  }
             } else {
@@ -667,7 +706,7 @@ export function BottomMenu() {
         }
     };
 
-    const handleDragStart = (e: React.DragEvent, type: string, metadata?: any) => {
+    const handleDragStart = (e: React.DragEvent, type: string, metadata?: Record<string, unknown>) => {
         e.dataTransfer.setData('application/reactflow-block-type', type);
 
         const blockData = {
@@ -685,6 +724,25 @@ export function BottomMenu() {
             e.dataTransfer.setData('application/chnk-it-block-metadata', JSON.stringify(metadata));
         }
         e.dataTransfer.effectAllowed = 'copy';
+    };
+
+    const handleTemplateClick = (templateId: string) => {
+        const template = templates.find(t => t.id === templateId);
+        if (!template) return;
+
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
+        
+        // Use a large size approximation for template to find non-overlapping space
+        const position = findNonOverlappingPosition(flowPos, { width: 1200, height: 1000 }, nodes, currentParentId, vp());
+
+        const { nodes: newNodes, edges: newEdges } = template.generateNodes(position, currentParentId || null);
+        
+        useStore.getState().setNodes(prev => [...prev, ...newNodes]);
+        if (newEdges.length > 0) {
+            useStore.setState((prev: AppState) => ({ edges: [...prev.edges, ...newEdges] }));
+        }
     };
 
     const handleBlockClick = (block: typeof MENU_ITEMS[0]) => {
@@ -711,8 +769,7 @@ export function BottomMenu() {
         if (targetNodeId) {
             const activeNode = nodes.find(n => n.id === targetNodeId);
             if (activeNode) {
-                const currentContent = (activeNode.data as any).content || [];
-                const safeContent = Array.isArray(currentContent) ? currentContent : [];
+                const safeContent = getNodeBlocks(activeNode.data) ?? [];
                 updateNodeData(targetNodeId, {
                     content: [...safeContent, newBlock]
                 });
@@ -774,9 +831,9 @@ export function BottomMenu() {
                                 title="Text Generation"
                             >
                                 {isGenerating && aiModeType === 'text' ? (
-                                    <Loader2 size={16} className="animate-spin text-purple-400" />
+                                    <Loader2 size={16} className="animate-spin" style={{ color: "var(--accent)" }} />
                                 ) : (
-                                    <Sparkles size={16} color={aiModeType === 'text' ? "#c084fc" : "gray"} />
+                                    <Sparkles size={16} color={aiModeType === 'text' ? "var(--accent)" : "gray"} />
                                 )}
                             </button>
                             <button 
@@ -786,9 +843,9 @@ export function BottomMenu() {
                                 title="Image Generation"
                             >
                                 {isGenerating && aiModeType === 'image' ? (
-                                    <Loader2 size={16} className="animate-spin text-sky-400" />
+                                    <Loader2 size={16} className="animate-spin" style={{ color: "var(--accent)" }} />
                                 ) : (
-                                    <ImagePlus size={16} color={aiModeType === 'image' ? "#38bdf8" : "gray"} />
+                                    <ImagePlus size={16} color={aiModeType === 'image' ? "var(--accent)" : "gray"} />
                                 )}
                             </button>
                         </div>
@@ -985,9 +1042,77 @@ export function BottomMenu() {
                             <Search size={20} />
                         </button>
 
-                        <button className={styles.mainAddBtn} onClick={handleAddNote} title="Add New Note Card">
-                            <Plus size={24} />
-                        </button>
+                        <div 
+                            className={styles.blocksWrapper}
+                            onMouseEnter={() => {
+                                hoverTimeoutRef.current = window.setTimeout(() => {
+                                    setActiveMenu('addNoteModes');
+                                }, 1000);
+                            }}
+                            onMouseLeave={() => {
+                                if (hoverTimeoutRef.current) {
+                                    clearTimeout(hoverTimeoutRef.current);
+                                }
+                            }}
+                        >
+                            <button 
+                                className="special-primary-btn" 
+                                onClick={() => {
+                                    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+                                    handleAddNote();
+                                }} 
+                                title="Add New Note Card (Hover for modes)"
+                            >
+                                <Plus size={24} />
+                            </button>
+
+                            <div className={`${styles.hoverMenu} ${activeMenu === 'addNoteModes' ? styles.menuVisible : ''}`}>
+                                <div className={styles.menuHeader}>
+                                    <h3 className={styles.menuTitle}>Card Modes</h3>
+                                    <button 
+                                        className={styles.menuCloseBtn} 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveMenu(null);
+                                        }} 
+                                        title="Close"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                </div>
+                                <div className={styles.menuGrid} style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                                    {[
+                                        { id: 'expanded', label: 'Expanded', desc: 'Full card view', icon: Square },
+                                        { id: 'medium', label: 'Medium', desc: 'Compact view', icon: RectangleHorizontal },
+                                        { id: 'icon', label: 'Icon', desc: 'Minimal icon', icon: File },
+                                        { id: 'titleview', label: 'Title Only', desc: 'Just the title', icon: AppWindow }
+                                    ].map((mode) => (
+                                        <div
+                                            key={mode.id}
+                                            className={styles.draggableItem}
+                                            onClick={() => {
+                                                const centerX = window.innerWidth / 2;
+                                                const centerY = window.innerHeight / 2;
+                                                const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
+                                                const NOTE_WIDTH = mode.id === 'icon' ? 120 : 432;
+                                                const NOTE_HEIGHT = mode.id === 'icon' ? 120 : 432;
+                                                const position = findNonOverlappingPosition(flowPos, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, nodes, currentParentId, vp());
+                                                addNode('note', position, { viewMode: mode.id, showMetadata: false }, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, currentParentId || undefined);
+                                                setActiveMenu(null);
+                                            }}
+                                        >
+                                            <div className={styles.itemIconWrapper}>
+                                                <mode.icon size={20} />
+                                            </div>
+                                            <div className={styles.customTooltip}>
+                                                <div className={styles.tooltipLabel}>{mode.label}</div>
+                                                <div className={styles.tooltipDesc}>{mode.desc}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
 
                         {FEATURES.kanban && (
                         <div className={styles.blocksWrapper}>
@@ -1042,7 +1167,6 @@ export function BottomMenu() {
                                             const BOARD_WIDTH = 700;
                                             const BOARD_HEIGHT = 500;
                                             const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, nodes, currentParentId, vp());
-                                            // @ts-ignore
                                             addNode('kanban', position, {
                                                 label: 'My Table',
                                                 columns: [
@@ -1074,7 +1198,6 @@ export function BottomMenu() {
                                             const BOARD_WIDTH = 800;
                                             const BOARD_HEIGHT = 600;
                                             const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, nodes, currentParentId, vp());
-                                            // @ts-ignore
                                             addNode('kanban', position, {
                                                 label: 'Calendar',
                                                 columns: [
@@ -1106,7 +1229,6 @@ export function BottomMenu() {
                                             const BOARD_WIDTH = 800;
                                             const BOARD_HEIGHT = 400;
                                             const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, nodes, currentParentId, vp());
-                                            // @ts-ignore
                                             addNode('kanban', position, {
                                                 label: 'Timeline',
                                                 columns: [
@@ -1131,6 +1253,63 @@ export function BottomMenu() {
                             </div>
                         </div>
                         )}
+
+                        <div className={styles.blocksWrapper}>
+                            <button 
+                                className={`${styles.iconBtn} ${activeMenu === 'templates' ? styles.iconBtnActive : ''}`}
+                                onClick={() => setActiveMenu(activeMenu === 'templates' ? null : 'templates')}
+                                title="Templates"
+                                style={{ marginLeft: 8 }}
+                            >
+                                <LayoutTemplate size={20} />
+                            </button>
+
+                            <div className={`${styles.hoverMenu} ${activeMenu === 'templates' ? styles.menuVisible : ''}`}>
+                                <div className={styles.menuHeader}>
+                                    <h3 className={styles.menuTitle}>Templates</h3>
+                                    <button 
+                                        className={styles.menuCloseBtn} 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveMenu(null);
+                                        }} 
+                                        title="Close"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                </div>
+                                <div className={styles.menuGrid} style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                                    {templates.map((template, index) => {
+                                        const TemplateIcon = template.icon;
+                                        return (
+                                        <div
+                                            key={template.id}
+                                            className={`${styles.draggableItem} ${highlightedIndex === index ? styles.draggableItemHighlighted : ''}`}
+                                            onClick={() => {
+                                                handleTemplateClick(template.id);
+                                                setActiveMenu(null);
+                                            }}
+                                            onMouseEnter={() => {
+                                                if (hoverTimeoutRef.current) window.clearTimeout(hoverTimeoutRef.current);
+                                                hoverTimeoutRef.current = window.setTimeout(() => setHoveredTemplateId(template.id), 400);
+                                            }}
+                                            onMouseLeave={() => {
+                                                if (hoverTimeoutRef.current) window.clearTimeout(hoverTimeoutRef.current);
+                                                setHoveredTemplateId(null);
+                                            }}
+                                        >
+                                            <div className={styles.itemIconWrapper}>
+                                                <TemplateIcon size={20} />
+                                            </div>
+                                            <div className={styles.customTooltip}>
+                                                <div className={styles.tooltipLabel}>{template.name}</div>
+                                                <div className={styles.tooltipDesc}>{template.description}</div>
+                                            </div>
+                                        </div>
+                                    )})}
+                                </div>
+                            </div>
+                        </div>
 
                         <div className={styles.separator} />
 
@@ -1187,6 +1366,15 @@ export function BottomMenu() {
                     </>
                 )}
             </div>
+            
+            {/* Modal is rendered outside the menu container */}
+            <TemplatePreviewModal
+                nodes={hoveredPreview?.nodes || []}
+                edges={hoveredPreview?.edges || []}
+                name={hoveredTemplate?.name}
+                description={hoveredTemplate?.description}
+                isVisible={hoveredTemplateId !== null}
+            />
         </>
     );
 }

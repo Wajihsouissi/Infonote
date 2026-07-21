@@ -12,13 +12,13 @@ import {
     Edit3
 } from 'lucide-react';
 import { fetchMetadata, getDomain, getShortUrl } from '../../services/metadataService';
-import type { Block } from './types';
+import type { Block, BlockMetadata } from './types';
 import styles from './LinkBlock.module.css';
 
 interface LinkBlockProps {
     block: Block;
     readOnly?: boolean;
-    onChange: (content: string, metadata?: any) => void;
+    onChange: (content: string, metadata?: BlockMetadata) => void;
     onKeyDown?: (e: React.KeyboardEvent) => void;
     onPaste?: (e: React.ClipboardEvent) => void;
     domRef?: (el: HTMLDivElement | null) => void;
@@ -127,7 +127,7 @@ export const LinkBlock: React.FC<LinkBlockProps> = ({
     // Ref registry
     const handleRef = useCallback((el: HTMLDivElement | null) => {
         if (domRef) domRef(el);
-        (containerRef as any).current = el;
+        (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
     }, [domRef]);
 
     // Text link label change

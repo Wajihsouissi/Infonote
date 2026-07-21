@@ -6,9 +6,10 @@ import { BlockEditor } from '../editor/BlockEditor';
 import { IconPicker } from './IconPicker';
 import { defaultIconName, CardIcon } from './iconMap';
 import type { NoteNode } from '../../types';
+import type { Block } from '../editor/types';
 import { useStore } from '../../store/useStore';
 import { CoverPicker } from './CoverPicker';
-import { lightenColor, darkenColor, toPastelColor } from '../../utils/colorUtils';
+import { toPastelColor } from '../../utils/colorUtils';
 import { SkeletonLoader } from './SkeletonLoader';
 
 // Extracted components and hooks
@@ -81,7 +82,7 @@ export function NoteExpandedContent({
         e.preventDefault();
         e.stopPropagation();
 
-        let blocksToAdd: any[] = [];
+        let blocksToAdd: Block[] = [];
         let sourceNodeId: string | null = null;
 
         try {
@@ -101,11 +102,11 @@ export function NoteExpandedContent({
                     try {
                         const metaJson = e.dataTransfer.getData('application/chnk-it-block-metadata');
                         if (metaJson) metadata = JSON.parse(metaJson);
-                    } catch (e) { }
+                    } catch { /* malformed drag metadata — proceed without it */ }
 
                     blocksToAdd = [{
                         id: uuidv4(),
-                        type,
+                        type: type as Block['type'],
                         content: '',
                         metadata
                     }];
@@ -124,98 +125,42 @@ export function NoteExpandedContent({
                 const { nodes, updateNodeData, setNodes } = useStore.getState();
                 const sourceNode = nodes.find(n => n.id === sourceNodeId);
 
-                if (sourceNode && Array.isArray((sourceNode.data as any).content)) {
-                    const blockIds = blocksToAdd.map((b: any) => b.id);
-                    const currentContent = (sourceNode.data as any).content;
-                    const newContent = currentContent.filter((b: any) => !blockIds.includes(b.id));
+                const sourceContent = sourceNode && 'content' in sourceNode.data && Array.isArray(sourceNode.data.content)
+                    ? sourceNode.data.content : undefined;
+                if (sourceContent) {
+                    const blockIds = blocksToAdd.map((b) => b.id);
+                    const newContent = sourceContent.filter((b) => !blockIds.includes(b.id));
 
                     updateNodeData(sourceNodeId, { content: newContent });
 
-                    if (newContent.length === 0 && sourceNode.type === 'fused-note') {
+                    if (newContent.length === 0 && sourceNode?.type === 'fused-note') {
                         setTimeout(() => {
                             setNodes(nds => nds.filter(n => n.id !== sourceNodeId));
                         }, 0);
                     }
                 }
 
-                if ((window as any).chnkItMultiDragCleanup) {
-                    (window as any).chnkItMultiDragCleanup();
-                    delete (window as any).chnkItMultiDragCleanup;
+                if (window.chnkItMultiDragCleanup) {
+                    window.chnkItMultiDragCleanup();
+                    delete window.chnkItMultiDragCleanup;
                 }
                 window.dispatchEvent(new CustomEvent('chnk-it-clear-selection'));
             }
         }
     }, [data?.content, id, onUpdate]);
 
-    const handleContentUpdate = useCallback((blocks: any[]) => {
+    const handleContentUpdate = useCallback((blocks: Block[]) => {
         onUpdate(id, { content: blocks });
     }, [id, onUpdate]);
 
-    // Dynamic color styles
-    const dynamicStyles = useMemo(() => {
-        if (!data?.color) return {};
-        const tableBorderColor = darkenColor(data.color, 55);
-        return {
-            '--glass-border': `${tableBorderColor}33`,
-            '--note-bg-dynamic': data.color,
-        } as React.CSSProperties;
-    }, [data?.color]);
+    // Dynamic color styles removed to follow Paper & Ink guidelines
 
     const headerStyle = useMemo(() => {
-        if (!displayColor) return {};
-        const bg = displayColor;
-        const darkText = darkenColor(displayColor, 80); // Dark shade for icons/labels
-        const mutedText = darkenColor(displayColor, 65); // Slightly lighter for muted text
-        const activeBg = darkenColor(displayColor, 15); // Darker background for active state
-        return {
-            backgroundColor: bg,
-            color: darkText,
-            caretColor: darkText,
-            '--color-text-main': darkText,
-            '--color-text-muted': mutedText,
-            '--color-border': 'rgba(0,0,0,0.1)',
-            // Control button default state
-            '--control-btn-bg': `transparent`,
-            '--control-btn-border': `${darkText}30`,
-            '--control-btn-shadow': 'none',
-            // Control button hover state
-            '--control-btn-hover-border': darkText,
-            '--control-btn-hover-color': darkText,
-            // Control button active state
-            '--control-btn-active-bg': `${darkText}15`,
-            '--control-btn-active-border': darkText,
-            '--control-btn-active-color': darkText,
-        } as React.CSSProperties;
+        return {};
     }, [displayColor]);
 
     const noteAreaStyles = useMemo(() => {
-        if (!data?.color) return { backgroundColor: 'transparent' };
-        
-        // Reset the text colors back to the default theme so the block editor
-        // looks exactly like an uncolored card, matching global theme.
-        const isDark = theme !== 'light';
-        return {
-            backgroundColor: 'transparent',
-            boxShadow: `
-                inset 4px 0 12px -6px ${data.color}15,
-                inset -4px 0 12px -6px ${data.color}15,
-                inset 0 -6px 12px -6px ${data.color}15,
-                inset 1px 0 0 0 ${data.color}10,
-                inset -1px 0 0 0 ${data.color}10,
-                inset 0 -1px 0 0 ${data.color}10
-            `.trim().replace(/\s+/g, ' '),
-            '--color-text-main': isDark ? '#f3f4f6' : '#1f2937',
-            '--color-border': isDark ? '#333645' : '#e5e7eb',
-            '--glass-border': isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)',
-            '--icon-color': isDark ? '#f3f4f6' : '#1f2937',
-            caretColor: isDark ? '#f3f4f6' : '#1f2937',
-            // Reset links to prevent them from inheriting NoteCard tints
-            '--link-bg': 'initial',
-            '--link-bg-hover': 'initial',
-            '--link-border': 'initial',
-            '--link-border-hover': 'initial',
-            '--link-shadow': 'initial',
-        } as React.CSSProperties;
+        return {};
     }, [data?.color, theme]);
 
     // Early return AFTER all hooks — a conditional return above any hook
@@ -229,12 +174,11 @@ export function NoteExpandedContent({
             className={styles.expandedView}
             ref={containerRef}
             style={{
-                ...dynamicStyles,
                 ...(flatCorners ? { borderRadius: 0 } : {})
             }}
         >
             {showMetadata ? (
-                <div style={{ backgroundColor: displayColor || undefined, borderTopLeftRadius: flatCorners ? 0 : '12px', borderTopRightRadius: flatCorners ? 0 : '12px', flexShrink: 0 }}>
+                <div style={{ borderTopLeftRadius: flatCorners ? 0 : '12px', borderTopRightRadius: flatCorners ? 0 : '12px', flexShrink: 0 }}>
 
                     {/* Cover Section */}
                     <NoteCoverSection
@@ -267,6 +211,8 @@ export function NoteExpandedContent({
                                 handleSaveMetadata();
                             }
                         }}
+                        showIcon={data.showIcon}
+                        onToggleShowIcon={() => onUpdate(id, { showIcon: !data.showIcon })}
                     />
 
                     {/* NEW: Properties Panel */}
@@ -282,16 +228,18 @@ export function NoteExpandedContent({
                     ...(flatCorners ? { borderRadius: 0 } : {})
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-                        <div
-                            className={`${styles.minimalIconButton} nodrag`}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleIconClick(e);
-                            }}
-                            title="Change Icon"
-                        >
-                            <CardIcon icon={data.icon || defaultIconName} size={20} />
-                        </div>
+                        {data.showIcon && (
+                            <div
+                                className={`${styles.minimalIconButton} nodrag`}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleIconClick(e);
+                                }}
+                                title="Change Icon"
+                            >
+                                <CardIcon icon={data.icon || defaultIconName} size={20} />
+                            </div>
+                        )}
                         <input
                             type="text"
                             value={editedData.label}
@@ -315,11 +263,11 @@ export function NoteExpandedContent({
                         />
                     </div>
 
-                    {/* macOS-style traffic-light window controls: close (red), show metadata (yellow), open canvas (green) */}
-                    <div className={`${styles.controlsGroup} ${styles.trafficLights}`} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                    {/* Normal icon window controls */}
+                    <div className={styles.controlsGroup} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
                         {onClose && (
                             <button
-                                className={`${styles.controlBtn} ${styles.tlClose}`}
+                                className={styles.controlBtn}
                                 onClick={onClose}
                                 title="Close"
                                 aria-label="Close"
@@ -328,7 +276,7 @@ export function NoteExpandedContent({
                             </button>
                         )}
                         <button
-                            className={`${styles.controlBtn} ${styles.tlMeta} ${showMetadata ? styles.active : ''}`}
+                            className={`${styles.controlBtn} ${showMetadata ? styles.active : ''}`}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setShowMetadata(!showMetadata);
@@ -340,7 +288,7 @@ export function NoteExpandedContent({
                         </button>
                         {onNavigate && (
                             <button
-                                className={`${styles.controlBtn} ${styles.tlOpen}`}
+                                className={styles.controlBtn}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onNavigate();

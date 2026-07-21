@@ -7,8 +7,9 @@ import {
     SelectionMode,
     useReactFlow,
     Panel,
-    Background,
-    BackgroundVariant,
+    type NodeChange,
+    type Connection,
+    type Edge,
 } from '@xyflow/react';
 import { NoteCard } from '../card/NoteCard';
 import { BlockNode } from '../block/BlockNode';
@@ -36,7 +37,6 @@ import { CenteredEdge } from './CenteredEdge';
 import { CustomConnectionLine } from './CustomConnectionLine';
 import { CustomGrid } from './CustomGrid';
 import { ChunkItModal } from '../card/ChunkItModal';
-import { BASE_UNIT, GRID_GAP } from '../../config/layout';
 import { AuthModal } from '../auth/AuthModal';
 import { useStore } from '../../store/useStore';
 import type { AppNode } from '../../types';
@@ -142,7 +142,7 @@ export function CanvasBoard() {
     const focusArmTimeoutRef = useRef<number | null>(null);
     
     // Key focus improvements: track hovered/clicked nodes & visual indicators
-    const hoveredNodeRef = useRef<any | null>(null);
+    const hoveredNodeRef = useRef<AppNode | null>(null);
     const lastInteractedNodeIdRef = useRef<string | null>(null);
     const [justFocused, setJustFocused] = useState(false);
     const justFocusedTimeoutRef = useRef<number | null>(null);
@@ -229,7 +229,7 @@ export function CanvasBoard() {
 
     const blurActiveEditable = useCallback(() => {
         // Never blur during/just after a drag — let the editor's cleanup handler restore focus
-        if ((window as any).chnkItBlockDragging) return false;
+        if (window.chnkItBlockDragging) return false;
         const el = document.activeElement as HTMLElement | null;
         if (!el) return false;
         const isEditable = el.tagName === 'INPUT' ||
@@ -303,7 +303,7 @@ export function CanvasBoard() {
         updateCursor(flowPos.x, flowPos.y);
     }, [updateCursor]);
 
-    const onNodesChangeWrapped = useCallback((changes: any[]) => {
+    const onNodesChangeWrapped = useCallback((changes: NodeChange<AppNode>[]) => {
         onNodesChange(changes);
         changes.forEach(change => {
             if (change.type === 'position' && change.position) {
@@ -312,7 +312,7 @@ export function CanvasBoard() {
                     broadcastNodeChange(change.id, { position: change.position });
                 }
             } else if (change.type === 'replace') {
-                broadcastNodeChange((change as any).id, (change as any).item);
+                broadcastNodeChange(change.id, change.item);
             }
         });
     }, [onNodesChange, broadcastNodeChange]);
@@ -471,7 +471,7 @@ export function CanvasBoard() {
 
         const handlePointerDown = (e: PointerEvent) => {
             // Don't blur during/just after a block drag — let the cleanup handler restore focus
-            if ((window as any).chnkItBlockDragging) return;
+            if (window.chnkItBlockDragging) return;
 
             const target = e.target as HTMLElement | null;
             if (target) {
@@ -497,9 +497,9 @@ export function CanvasBoard() {
         };
 
         const handleGlobalDragEnd = () => {
-            if ((window as any).chnkItBlockDragging || document.body.classList.contains('chnk-it-block-dragging')) {
+            if (window.chnkItBlockDragging || document.body.classList.contains('chnk-it-block-dragging')) {
                 console.log("[CanvasBoard] Global dragend fallback cleanup executed");
-                (window as any).chnkItBlockDragging = false;
+                window.chnkItBlockDragging = false;
                 document.body.classList.remove('chnk-it-block-dragging');
                 document.body.classList.remove('chnk-it-node-dragging');
             }
@@ -566,11 +566,12 @@ export function CanvasBoard() {
             e.preventDefault();
 
             // Intelligent priority-based node focusing:
-            let nodesToFocus: any[] = [];
+            let nodesToFocus: AppNode[] = [];
 
             // Priority 1: Hovered node (immediate context)
-            if (hoveredNodeRef.current) {
-                const found = nodesRef.current.find(n => n.id === hoveredNodeRef.current.id);
+            const hoveredNode = hoveredNodeRef.current;
+            if (hoveredNode) {
+                const found = nodesRef.current.find(n => n.id === hoveredNode.id);
                 if (found) nodesToFocus = [found];
             }
 
@@ -904,7 +905,7 @@ export function CanvasBoard() {
     }), []);
 
     // Prevent self-loop connections (a node cannot connect to itself)
-    const isValidConnection = useCallback((connection: any) => {
+    const isValidConnection = useCallback((connection: Edge | Connection) => {
         return connection.source !== connection.target;
     }, []);
 
@@ -1046,7 +1047,7 @@ export function CanvasBoard() {
     useEffect(() => {
         if (!activeWorkspaceId) return; // workspace not yet provisioned
         if (currentParentId && activeParentNode) {
-            const data = activeParentNode.data as Record<string, any>;
+            const data = activeParentNode.data as Record<string, unknown>;
             trackNoteView(
                 activeParentNode.id, 
                 (data?.title as string) || 'Untitled', 
@@ -1056,7 +1057,7 @@ export function CanvasBoard() {
         } else if (nodes.length > 0) {
             // Track a general canvas visit with the first node as representative
             const firstNode = nodes[0];
-            const data = firstNode.data as Record<string, any>;
+            const data = firstNode.data as Record<string, unknown>;
             trackNoteView(
                 firstNode.id,
                 (data?.title as string) || 'Canvas',
@@ -1260,7 +1261,8 @@ export function CanvasBoard() {
                     onNodesDelete={(deletedNodes) => {
                         const ids = deletedNodes.map(n => n.id);
                         if (ids.length > 0) {
-                            useStore.getState().bulkDeleteNodes(ids);
+                            // React Flow already committed the removal; prompting here can't cancel it.
+                            useStore.getState().bulkDeleteNodes(ids, true);
                         }
                     }}
                     onEdgesDelete={(deletedEdges) => {

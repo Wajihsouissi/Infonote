@@ -1,7 +1,9 @@
 import { useRef, useMemo, memo } from 'react';
-import { List } from 'react-window';
+import { List, type RowComponentProps } from 'react-window';
 import { BlockItem } from './BlockItem';
-import type { Block } from './types';
+import type { Block, BlockMetadata } from './types';
+
+type UpdateBlockFn = (id: string, contentOrPatch: string | Partial<Block>, metadata?: BlockMetadata) => void;
 
 interface VirtualBlockListProps {
     blocks: Block[];
@@ -13,7 +15,7 @@ interface VirtualBlockListProps {
     disableMediaControls?: boolean;
     
     // Handlers
-    onUpdateBlock: (id: string, content: string, metadata?: any) => void;
+    onUpdateBlock: UpdateBlockFn;
     onKeyDown: (e: React.KeyboardEvent, id: string, content: string) => void;
     onPaste: (e: React.ClipboardEvent, id: string) => void;
     onMoveBlock: (sourceId: string, targetId: string, position: 'top' | 'bottom', dataTransfer?: DataTransfer) => void;
@@ -39,7 +41,7 @@ interface RowData {
     hideBlockHandles?: boolean;
     promoteBlockHandles?: boolean;
     disableMediaControls?: boolean;
-    onUpdateBlock: (id: string, content: string, metadata?: any) => void;
+    onUpdateBlock: UpdateBlockFn;
     onKeyDown: (e: React.KeyboardEvent, id: string, content: string) => void;
     onPaste: (e: React.ClipboardEvent, id: string) => void;
     onMoveBlock: (sourceId: string, targetId: string, position: 'top' | 'bottom', dataTransfer?: DataTransfer) => void;
@@ -50,11 +52,10 @@ interface RowData {
     onRegisterRef: (id: string, el: HTMLDivElement | null) => void;
 }
 
-const BlockRow = memo(function BlockRow({ index, style, ...rowProps }: { 
-    ariaAttributes: any; 
-    index: number; 
-    style: React.CSSProperties; 
-} & RowData) {
+// Not wrapped in memo: react-window's rowComponent prop requires a component
+// returning ReactElement | null (memo widens that to ReactNode). The list already
+// virtualizes and rowProps is memoized, so the row-level memo added little.
+function BlockRow({ index, style, ...rowProps }: RowComponentProps<RowData>) {
     const block = rowProps.blocks[index];
     if (!block) return null;
 
@@ -80,7 +81,7 @@ const BlockRow = memo(function BlockRow({ index, style, ...rowProps }: {
             />
         </div>
     );
-});
+}
 
 export const VirtualBlockList = memo(function VirtualBlockList({
     blocks,
@@ -102,7 +103,7 @@ export const VirtualBlockList = memo(function VirtualBlockList({
     containerHeight,
     containerWidth: _containerWidth,
 }: VirtualBlockListProps) {
-    const listRef = useRef<any>(null);
+    const listRef = useRef<React.ComponentRef<typeof List> | null>(null);
 
     const rowProps = useMemo((): RowData => ({
         blocks,
@@ -146,7 +147,7 @@ export const VirtualBlockList = memo(function VirtualBlockList({
             rowCount={blocks.length}
             rowHeight={ITEM_HEIGHT}
             rowProps={rowProps}
-            rowComponent={BlockRow as any}
+            rowComponent={BlockRow}
             overscanCount={OVERSCAN_COUNT}
             style={{ height: containerHeight }}
         />

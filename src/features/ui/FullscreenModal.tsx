@@ -3,6 +3,7 @@ import { useStore } from '../../store/useStore';
 import styles from './FullscreenModal.module.css';
 import { NoteExpandedContent } from '../card/NoteExpandedContent';
 import { BlockEditor } from '../editor/BlockEditor';
+import { getNodeBlocks } from '../../types';
 
 export function FullscreenModal({
     onCanvasDragOver,
@@ -83,7 +84,7 @@ export function FullscreenModal({
                         <NoteExpandedContent
                             id={fullscreenId}
                             nodeId={fullscreenId}
-                            data={activeNode.data as any}
+                            data={activeNode.data}
                             onUpdate={updateNodeData}
                             onClose={handleClose}
                             onNavigate={() => {
@@ -95,7 +96,7 @@ export function FullscreenModal({
                         <div className={styles.editorContainer}>
                             <BlockEditor
                                 nodeId={fullscreenId}
-                                initialContent={(activeNode.data as any).content}
+                                initialContent={getNodeBlocks(activeNode.data)}
                                 onUpdate={(blocks) => updateNodeData(fullscreenId, { content: blocks })}
                                 autoFocus={true}
                             />

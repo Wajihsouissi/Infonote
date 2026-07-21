@@ -6,7 +6,7 @@ interface PerformanceMetric {
     name: string;
     duration: number;
     timestamp: number;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
 }
 
 class PerformanceMonitor {
@@ -15,7 +15,7 @@ class PerformanceMonitor {
     private activeTimers: Map<string, number> = new Map();
 
     // Start timing an operation
-    startTimer(name: string, metadata?: Record<string, any>): void {
+    startTimer(name: string, metadata?: Record<string, unknown>): void {
         const startTime = performance.now();
         this.activeTimers.set(name, startTime);
         
@@ -25,7 +25,7 @@ class PerformanceMonitor {
     }
 
     // End timing and record metric
-    endTimer(name: string, metadata?: Record<string, any>): number {
+    endTimer(name: string, metadata?: Record<string, unknown>): number {
         const startTime = this.activeTimers.get(name);
         if (!startTime) {
             console.warn(`[Perf] No start time for: ${name}`);
@@ -132,7 +132,7 @@ export const perfMonitor = new PerformanceMonitor();
 export async function measureAsync<T>(
     name: string,
     fn: () => Promise<T>,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
 ): Promise<T> {
     perfMonitor.startTimer(name, metadata);
     try {
@@ -149,7 +149,7 @@ export async function measureAsync<T>(
 export function measureSync<T>(
     name: string,
     fn: () => T,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
 ): T {
     perfMonitor.startTimer(name, metadata);
     try {
@@ -179,6 +179,6 @@ export function useRenderTime(componentName: string) {
 
 // Expose to window for debugging
 if (DEBUG && typeof window !== 'undefined') {
-    (window as any).__perfMonitor = perfMonitor;
+    (window as Window & { __perfMonitor?: PerformanceMonitor }).__perfMonitor = perfMonitor;
     console.log('[Perf] Monitor available at window.__perfMonitor');
 }

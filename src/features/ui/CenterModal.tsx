@@ -2,6 +2,7 @@ import { useStore } from '../../store/useStore';
 import { BlockEditor } from '../editor/BlockEditor';
 import styles from './FullscreenModal.module.css';
 import { NoteExpandedContent } from '../card/NoteExpandedContent';
+import { getNodeBlocks } from '../../types';
 
 export function CenterModal({
     onCanvasDragOver,
@@ -53,7 +54,7 @@ export function CenterModal({
                         <NoteExpandedContent
                             id={centerPanelId}
                             nodeId={centerPanelId}
-                            data={activeNode.data as any}
+                            data={activeNode.data}
                             onUpdate={updateNodeData}
                             onClose={() => setCenterPanelId(null)}
                             onNavigate={handleNavigate}
@@ -63,7 +64,7 @@ export function CenterModal({
                             <BlockEditor
                                 key={centerPanelId}
                                 nodeId={centerPanelId}
-                                initialContent={(activeNode.data as any).content}
+                                initialContent={getNodeBlocks(activeNode.data)}
                                 onUpdate={(blocks) => updateNodeData(centerPanelId, { content: blocks })}
                                 autoFocus={true}
                             />

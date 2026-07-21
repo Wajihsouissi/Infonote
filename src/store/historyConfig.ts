@@ -16,7 +16,7 @@ function nodesEquivalent(a: AppNode, b: AppNode): boolean {
 
     for (const key in a) {
         if (VOLATILE_NODE_FIELDS.has(key)) continue;
-        if ((a as any)[key] === (b as any)[key]) continue;
+        if ((a as Record<string, unknown>)[key] === (b as Record<string, unknown>)[key]) continue;
         // `position` is re-created each drag frame; compare by value so a no-op
         // re-render with identical coordinates doesn't count as a move.
         if (key === 'position' && a.position && b.position &&
@@ -37,7 +37,7 @@ function edgesEquivalent(a: Edge, b: Edge): boolean {
     if (a === b) return true;
     for (const key in a) {
         if (VOLATILE_EDGE_FIELDS.has(key)) continue;
-        if ((a as any)[key] !== (b as any)[key]) return false;
+        if ((a as Record<string, unknown>)[key] !== (b as Record<string, unknown>)[key]) return false;
     }
     for (const key in b) {
         if (VOLATILE_EDGE_FIELDS.has(key)) continue;
@@ -93,10 +93,10 @@ export function historyEquality(past: HistoryState, curr: HistoryState): boolean
  * Typing commits land ~300ms apart (editor debounce), so they stay as separate,
  * sentence-sized steps rather than collapsing into one.
  */
-export function createCoalescingHandleSet<HS extends (...args: any[]) => void>(waitMs: number) {
+export function createCoalescingHandleSet(waitMs: number) {
     let timer: ReturnType<typeof setTimeout> | null = null;
-    return (handleSet: HS) =>
-        (...args: Parameters<HS>) => {
+    return <Args extends unknown[]>(handleSet: (...args: Args) => void) =>
+        (...args: Args) => {
             const isLeadingEdge = timer === null;
             if (timer) clearTimeout(timer);
             timer = setTimeout(() => { timer = null; }, waitMs);

@@ -6,12 +6,43 @@ import {
     useInternalNode,
     useReactFlow,
     Position,
-    type EdgeProps
+    type EdgeProps,
+    type Node,
+    type XYPosition
 } from '@xyflow/react';
 import { useStore } from '../../store/useStore';
 
+// Custom styling fields carried on edge.data (a superset of CanvasEdgeData).
+interface CenteredEdgeData {
+    edgeType?: 'bezier' | 'smoothstep' | 'straight';
+    lineStyle?: string;
+    markerStartType?: string;
+    markerEndType?: string;
+    label?: string;
+    strokeWidth?: number;
+    color?: string;
+    animated?: boolean;
+}
+
+// The flow nodes we hit-test are plain `getNodes()` nodes that may or may not
+// carry the measured/internals fields React Flow attaches once laid out.
+type NodeLike = Node & {
+    internals?: { positionAbsolute?: XYPosition };
+    measured?: { width?: number; height?: number };
+};
+
+// Minimal geometry surface shared by internal nodes, plain nodes, and the
+// synthetic drag-preview node — everything getSmartEdgeParams reads.
+type SmartNode = {
+    position?: XYPosition;
+    width?: number;
+    height?: number;
+    measured?: { width?: number; height?: number };
+    internals?: { positionAbsolute?: XYPosition };
+};
+
 // Helper to check if a coordinates point is inside any node, excluding a specific node id
-function findNodeAtPosition(nodes: any[], pos: { x: number; y: number }, excludeNodeId?: string) {
+function findNodeAtPosition(nodes: NodeLike[], pos: { x: number; y: number }, excludeNodeId?: string): NodeLike | null {
     for (const node of nodes) {
         if (excludeNodeId && node.id === excludeNodeId) {
             continue;
@@ -34,8 +65,8 @@ function findNodeAtPosition(nodes: any[], pos: { x: number; y: number }, exclude
 
 // Helper to calculate the shortest path between two nodes' border midpoints
 function getSmartEdgeParams(
-    sourceNode: any, 
-    targetNode: any,
+    sourceNode: SmartNode | null | undefined,
+    targetNode: SmartNode | null | undefined,
     fallbackSx: number,
     fallbackSy: number,
     fallbackTx: number,
@@ -56,6 +87,17 @@ function getSmartEdgeParams(
 
     const srcAbs = sourceNode.internals?.positionAbsolute ?? sourceNode.position;
     const tgtAbs = targetNode.internals?.positionAbsolute ?? targetNode.position;
+
+    if (!srcAbs || !tgtAbs) {
+        return {
+            sx: fallbackSx,
+            sy: fallbackSy,
+            tx: fallbackTx,
+            ty: fallbackTy,
+            sourcePos: fallbackSourcePos,
+            targetPos: fallbackTargetPos,
+        };
+    }
 
     // Use measured dimensions if available, fallback to width/height, or default to zero
     const srcW = sourceNode.measured?.width ?? (sourceNode.width ?? 0);
@@ -148,7 +190,7 @@ export const CenteredEdge = memo(function CenteredEdge({
         x: number;
         y: number;
         isValid: boolean;
-        hoveredNode: any | null;
+        hoveredNode: NodeLike | null;
     } | null>(null);
 
     useEffect(() => {
@@ -357,7 +399,7 @@ export const CenteredEdge = memo(function CenteredEdge({
     );
 
     // Retrieve custom styling configuration from edge data
-    const edgeData = (data ?? {}) as any;
+    const edgeData = (data ?? {}) as CenteredEdgeData;
     const edgeType = edgeData.edgeType || 'bezier';
     const lineStyle = edgeData.lineStyle || 'solid';
     const markerStartType = edgeData.markerStartType || 'none';
@@ -366,7 +408,7 @@ export const CenteredEdge = memo(function CenteredEdge({
 
     // Selected or hovered edge is thicker and glows
     const strokeWidth = edgeData.strokeWidth || (isSelected ? 3 : isHovered ? 2.5 : 1.75);
-    const strokeColor = edgeData.color || (isSelected || isHovered ? 'var(--color-primary, #8b5cf6)' : 'var(--glass-border, rgba(148, 163, 184, 0.6))');
+    const strokeColor = edgeData.color || (isSelected || isHovered ? 'var(--color-primary, #f95d2e)' : 'var(--glass-border, rgba(148, 163, 184, 0.6))');
     const isAnimated = animated || edgeData.animated || false;
 
     // Calculate paths based on the requested edge curve style
@@ -423,9 +465,9 @@ export const CenteredEdge = memo(function CenteredEdge({
 
     const markerId = `marker-${id}`;
 
-    const handleColor = dragState?.isValid ? '#10b981' : '#a855f7';
-    const glowColor = dragState?.isValid ? 'rgba(16, 185, 129, 0.25)' : 'rgba(168, 85, 247, 0.25)';
-    const strokeGlow = dragState?.isValid ? 'rgba(16, 185, 129, 0.6)' : 'rgba(168, 85, 247, 0.6)';
+    const handleColor = dragState?.isValid ? '#10b981' : '#f95d2e';
+    const glowColor = dragState?.isValid ? 'rgba(16, 185, 129, 0.25)' : 'rgba(249, 93, 46, 0.25)';
+    const strokeGlow = dragState?.isValid ? 'rgba(16, 185, 129, 0.6)' : 'rgba(249, 93, 46, 0.6)';
 
     return (
         <g
@@ -434,7 +476,7 @@ export const CenteredEdge = memo(function CenteredEdge({
         >
             <defs>
                 <linearGradient id="edge-handle-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#a855f7" />
+                    <stop offset="0%" stopColor="#f95d2e" />
                     <stop offset="100%" stopColor="#ec4899" />
                 </linearGradient>
                 <marker
@@ -613,8 +655,8 @@ export const CenteredEdge = memo(function CenteredEdge({
                             cx={sx}
                             cy={sy}
                             r={dragState?.point === 'source' ? 12.5 : 9.5}
-                            fill={dragState?.point === 'source' ? glowColor : 'rgba(168, 85, 247, 0.25)'}
-                            stroke={dragState?.point === 'source' ? strokeGlow : 'rgba(168, 85, 247, 0.6)'}
+                            fill={dragState?.point === 'source' ? glowColor : 'rgba(249, 93, 46, 0.25)'}
+                            stroke={dragState?.point === 'source' ? strokeGlow : 'rgba(249, 93, 46, 0.6)'}
                             strokeWidth={1}
                             style={{ transition: 'transform 0.15s ease, fill 0.2s, stroke 0.2s' }}
                         />
@@ -644,8 +686,8 @@ export const CenteredEdge = memo(function CenteredEdge({
                             cx={tx}
                             cy={ty}
                             r={dragState?.point === 'target' ? 12.5 : 9.5}
-                            fill={dragState?.point === 'target' ? glowColor : 'rgba(168, 85, 247, 0.25)'}
-                            stroke={dragState?.point === 'target' ? strokeGlow : 'rgba(168, 85, 247, 0.6)'}
+                            fill={dragState?.point === 'target' ? glowColor : 'rgba(249, 93, 46, 0.25)'}
+                            stroke={dragState?.point === 'target' ? strokeGlow : 'rgba(249, 93, 46, 0.6)'}
                             strokeWidth={1}
                             style={{ transition: 'transform 0.15s ease, fill 0.2s, stroke 0.2s' }}
                         />

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useStore } from '../../../store/useStore';
 import { defaultIconName } from '../iconMap';
+import type { NoteData } from '../../../types';
 
 interface NoteMetadataState {
     label: string;
@@ -21,7 +22,7 @@ interface UseNoteMetadataOptions {
         coverImage?: string;
         date?: string;
     } | null;
-    onUpdate: (id: string, data: any) => void;
+    onUpdate: (id: string, data: Partial<NoteData>) => void;
 }
 
 /**

@@ -84,7 +84,7 @@ export function AssigneeProperty({ value, onChange, onHide }: AssigneePropertyPr
                                     width: 24,
                                     height: 24,
                                     borderRadius: '50%',
-                                    background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                                    background: 'linear-gradient(135deg, var(--accent), var(--secondary))',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',

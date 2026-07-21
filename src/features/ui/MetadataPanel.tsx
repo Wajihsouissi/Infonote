@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Image as ImageIcon, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Image as ImageIcon } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { IconPicker } from '../card/IconPicker';
 import { defaultIconName, CardIcon } from '../card/iconMap';
@@ -22,7 +22,6 @@ export function MetadataPanel({ nodeId, isOpen, onClose, buttonRef }: MetadataPa
     const nodes = useStore(s => s.nodes);
     const updateNodeData = useStore(s => s.updateNodeData);
 
-    const panelRef = useRef<HTMLDivElement>(null);
     const node = nodeId ? nodes.find(n => n.id === nodeId) : null;
 
     // Local state for editing
@@ -173,7 +172,7 @@ export function MetadataPanel({ nodeId, isOpen, onClose, buttonRef }: MetadataPa
                             { label: 'Review', value: 'review' },
                             { label: 'Done', value: 'done' },
                         ]}
-                        onChange={(val) => handleImmediateUpdate({ status: val as any })}
+                        onChange={(val) => handleImmediateUpdate({ status: val as NoteData['status'] })}
                     />
                 </div>
 
@@ -188,7 +187,7 @@ export function MetadataPanel({ nodeId, isOpen, onClose, buttonRef }: MetadataPa
                             { label: 'High', value: 'high' },
                             { label: 'Urgent', value: 'urgent' },
                         ]}
-                        onChange={(val) => handleImmediateUpdate({ priority: val as any })}
+                        onChange={(val) => handleImmediateUpdate({ priority: val as NoteData['priority'] })}
                     />
                 </div>
 

@@ -115,8 +115,8 @@ export const ProfilePage: React.FC = () => {
             });
 
             setProfileFeedback({ kind: 'success', text: 'Profile updated successfully.' });
-        } catch (err: any) {
-            setProfileFeedback({ kind: 'error', text: err.message || 'Failed to save changes.' });
+        } catch (err) {
+            setProfileFeedback({ kind: 'error', text: (err instanceof Error && err.message) || 'Failed to save changes.' });
         } finally {
             setSaving(false);
         }
@@ -205,7 +205,7 @@ export const ProfilePage: React.FC = () => {
             style={{
                 minHeight: '100vh',
                 background:
-                    'radial-gradient(circle at 20% 0%, rgba(139,92,246,0.18), transparent 50%), radial-gradient(circle at 80% 100%, rgba(6,182,212,0.16), transparent 50%), #090a0f',
+                    'radial-gradient(circle at 20% 0%, rgba(249, 93, 46,0.18), transparent 50%), radial-gradient(circle at 80% 100%, rgba(227, 162, 79,0.16), transparent 50%), #131215',
                 color: '#fff',
                 padding: '32px 20px 80px',
                 fontFamily:
@@ -355,11 +355,11 @@ export const ProfilePage: React.FC = () => {
                         style={{
                             ...btnRow,
                             marginTop: 8,
-                            background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                            background: 'linear-gradient(135deg, var(--accent), var(--secondary))',
                             justifyContent: 'center',
                             border: 'none',
                             opacity: saving ? 0.7 : 1,
-                            boxShadow: '0 6px 20px rgba(99,102,241,0.3)',
+                            boxShadow: 'var(--shadow-sm)',
                         }}
                     >
                         {saving ? (
@@ -491,7 +491,7 @@ export const ProfilePage: React.FC = () => {
                         style={{
                             ...btnRow,
                             marginTop: 12,
-                            background: 'var(--color-accent, #6366f1)',
+                            background: 'var(--accent)',
                             color: '#fff',
                             justifyContent: 'center',
                             opacity: notionBusy !== null || !notionTarget || !notionToken ? 0.6 : 1,
@@ -572,7 +572,7 @@ const avatarBig: React.CSSProperties = {
     height: 72,
     flexShrink: 0,
     borderRadius: '50%',
-    background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+    background: 'linear-gradient(135deg, var(--accent), var(--secondary))',
     color: '#fff',
     fontSize: 26,
     fontWeight: 700,
@@ -661,7 +661,7 @@ const btnPrimary: React.CSSProperties = {
     alignItems: 'center',
     gap: 6,
     padding: '8px 16px',
-    background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+    background: 'linear-gradient(135deg, var(--accent), var(--secondary))',
     color: '#fff',
     border: 'none',
     borderRadius: 10,

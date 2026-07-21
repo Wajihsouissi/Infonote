@@ -148,7 +148,7 @@ export const OtpVerificationPage: React.FC = () => {
             // the row Supabase stored when the signup confirmation email was sent.
             // `type: 'signup'` matches the token Supabase generates for the
             // confirmation email when email confirmations are enabled.
-            // eslint-disable-next-line no-console
+             
             console.info('[OTP] verifyOtp request →', {
                 email: pendingEmail,
                 tokenLength: fullToken.length,
@@ -159,7 +159,7 @@ export const OtpVerificationPage: React.FC = () => {
                 token: fullToken,
                 type: 'signup',
             });
-            // eslint-disable-next-line no-console
+             
             console.info('[OTP] verifyOtp response ←', {
                 hasSession: Boolean(data?.session),
                 hasUser: Boolean(data?.user),
@@ -207,7 +207,7 @@ export const OtpVerificationPage: React.FC = () => {
         try {
             // ✅ REAL CALL — hits Supabase Auth, which in turn calls the
             // SMTP backend you configured (Resend) and emails the new token.
-            // eslint-disable-next-line no-console
+             
             console.info('[OTP] resend request →', { email: pendingEmail, type: 'signup' });
             const { error: resendError } = await supabase.auth.resend({
                 type: 'signup',
@@ -277,8 +277,8 @@ export const OtpVerificationPage: React.FC = () => {
                                 width: 48,
                                 height: 48,
                                 borderRadius: 12,
-                                background: 'rgba(139, 92, 246, 0.12)',
-                                color: '#a78bfa',
+                                background: 'rgba(249, 93, 46, 0.12)',
+                                color: '#ff8a5f',
                                 marginBottom: 12,
                             }}
                         >
@@ -378,8 +378,8 @@ export const OtpVerificationPage: React.FC = () => {
                                         transition: 'border-color .15s, background .15s',
                                     }}
                                     onFocus={(e) => {
-                                        e.currentTarget.style.borderColor = '#8b5cf6';
-                                        e.currentTarget.style.background = 'rgba(139, 92, 246, 0.08)';
+                                        e.currentTarget.style.borderColor = '#f95d2e';
+                                        e.currentTarget.style.background = 'rgba(249, 93, 46, 0.08)';
                                     }}
                                     onBlur={(e) => {
                                         e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';

@@ -40,8 +40,8 @@ export function DragChip() {
     if (!isChipActive || !activeNodeData) return null;
 
     // Use node color or fallback to magical purple
-    const data: any = activeNodeData.data || {};
-    const color = data.color || '#a855f7'; 
+    const data = activeNodeData.data;
+    const color = ('color' in data && data.color) || '#f95d2e';
     const styleVars = {
         '--chip-color': color,
         '--chip-color-rgb': hexToRgb(color)

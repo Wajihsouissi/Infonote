@@ -113,10 +113,10 @@ if (typeof window !== 'undefined') {
                     } else if (pn !== cn) {
                         // Skip selection-only changes — `selected` is a UI concern
                         // and must not mark nodes dirty for cloud sync.
-                        const { selected: _cs, ...cnRest } = cn as any;
-                        const { selected: _ps, ...pnRest } = pn as any;
+                        const { selected: _cs, ...cnRest } = cn;
+                        const { selected: _ps, ...pnRest } = pn;
                         const isOnlySelectedChange = Object.keys(cnRest).length === Object.keys(pnRest).length &&
-                            Object.keys(cnRest).every(k => (cnRest as any)[k] === (pnRest as any)[k]);
+                            Object.keys(cnRest).every(k => (cnRest as Record<string, unknown>)[k] === (pnRest as Record<string, unknown>)[k]);
                         if (!isOnlySelectedChange) {
                             dirty.push(cn.id);
                         }

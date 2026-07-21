@@ -83,7 +83,7 @@ export function useBlockSelection({ editorRef, blocks, blocksRef, blockRefs }: S
         if (!dragSelection && !mouseDownBlock) return;
 
         const handleGlobalMouseMove = (e: MouseEvent) => {
-            if (document.body.classList.contains('chnk-it-block-dragging') || (window as any).chnkItBlockDragging) {
+            if (document.body.classList.contains('chnk-it-block-dragging') || window.chnkItBlockDragging) {
                 return;
             }
             if (!editorRef.current) return;
@@ -151,7 +151,7 @@ export function useBlockSelection({ editorRef, blocks, blocksRef, blockRefs }: S
         };
 
         const handleGlobalMouseUp = (e: MouseEvent) => {
-            if (document.body.classList.contains('chnk-it-block-dragging') || (window as any).chnkItBlockDragging) {
+            if (document.body.classList.contains('chnk-it-block-dragging') || window.chnkItBlockDragging) {
                 setDragSelection(null);
                 setMouseDownBlock(null);
                 setTimeout(() => { wasDraggingRef.current = false; }, 0);

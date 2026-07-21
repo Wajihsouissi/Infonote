@@ -3,12 +3,13 @@ import { useReactFlow } from '@xyflow/react';
 import {
     Trash2, Copy, Palette, Layers, X, ArrowUpRight, ArrowRight, GitBranch,
     Grid3x3, CircleDot, ArrowRightLeft, Columns2, Rows2, Network, Sparkles,
-    Search, Eye, AppWindow, Maximize, Minus, AlignLeft, Scissors,
+    Search, Eye, Scissors,
     Square, RectangleHorizontal, StickyNote, PanelTop
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { Tooltip } from './Tooltip';
 import styles from './MultiSelectionToolbar.module.css';
+import type { AppNode } from '../../types';
 
 interface MultiSelectionToolbarProps {
     onOpenAI?: () => void;
@@ -171,7 +172,7 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
                     ...n,
                     style: { ...n.style, width: w, height: h },
                     data: { ...n.data, viewMode: mode }
-                } as any;
+                } as AppNode;
             }
             return n;
         }));
@@ -383,7 +384,7 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
                                                         <Tooltip key={opt.mode} label={opt.label} desc={opt.desc}>
                                                             <button
                                                                 className={styles.layoutOption}
-                                                                onClick={() => handleArrange(opt.mode as any)}
+                                                                onClick={() => handleArrange(opt.mode)}
                                                             >
                                                                 {opt.icon}
                                                             </button>

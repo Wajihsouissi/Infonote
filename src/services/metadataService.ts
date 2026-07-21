@@ -49,7 +49,7 @@ export function normalizeUrl(url: string): string {
     try {
         const parsed = new URL(clean);
         return parsed.toString();
-    } catch (e) {
+    } catch {
         return clean;
     }
 }
@@ -61,7 +61,7 @@ export function getDomain(url: string): string {
     try {
         const parsed = new URL(normalizeUrl(url));
         return parsed.hostname.replace('www.', '');
-    } catch (e) {
+    } catch {
         return 'website';
     }
 }
@@ -82,8 +82,8 @@ export function getShortUrl(url: string, maxLength = 35): string {
             return short.slice(0, maxLength) + '...';
         }
         return short;
-    } catch (e) {
-        let clean = url.replace(/^https?:\/\/(?:www\.)?/i, '');
+    } catch {
+        const clean = url.replace(/^https?:\/\/(?:www\.)?/i, '');
         if (clean.length > maxLength) {
             return clean.slice(0, maxLength) + '...';
         }

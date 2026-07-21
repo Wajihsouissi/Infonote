@@ -1,4 +1,5 @@
 import type { Node } from '@xyflow/react';
+import type { Block } from './features/editor/types';
 
 /**
  * Strongly-typed payload carried on every canvas edge.
@@ -12,13 +13,14 @@ export type CanvasEdgeData = {
 export type NoteData = {
     label: string;
     type?: 'text' | 'image' | 'task';
-    content?: string | any[];
+    content?: string | Block[];
     viewMode?: 'icon' | 'medium' | 'expanded' | 'chromeless' | 'titleview';
     icon?: string; // Lucide icon name
     description?: string;
     category?: string; // Allow legacy or keep as string
     coverImage?: string;
     date?: string; // User manually set date? Or purely decorative?
+    showIcon?: boolean;
 
     // New Fields
     tags?: string[];
@@ -47,20 +49,26 @@ export type NoteData = {
     // View State
     showMetadata?: boolean;
     hideHoverMenu?: boolean;
+
+    // Transient: AI generation placeholder card
+    isAISkeleton?: boolean;
 };
 
 export type NoteNode = Node<NoteData, 'note'> & { parentId?: string | null };
 
 export type BlockNodeData = {
-    content: any[];
+    content: Block[];
     isStandaloneBlock?: boolean; // Flag to indicate standalone canvas block (not part of parent content)
     lastFusedAt?: number;
+    color?: string;
+    // Transient: AI generation placeholder skeleton
+    isAISkeleton?: boolean;
 };
 
 export type BlockNode = Node<BlockNodeData, 'block'> & { parentId?: string | null };
 
 export type FusedNoteNodeData = {
-    content: any[];
+    content: Block[];
     isStandaloneBlock?: boolean; // Flag to indicate standalone canvas block (not part of parent content)
 
     // Animation Triggers
@@ -92,3 +100,14 @@ export type KanbanNodeData = {
 export type KanbanNode = Node<KanbanNodeData, 'kanban'> & { parentId?: string | null };
 
 export type AppNode = NoteNode | BlockNode | FusedNoteNode | KanbanNode;
+
+/** Data payload union across every canvas node type. */
+export type AppNodeData = AppNode['data'];
+
+/** Block-array content of a node, or undefined for string/absent content (e.g. kanban). */
+export const getNodeBlocks = (data: AppNodeData): Block[] | undefined =>
+    'content' in data && Array.isArray(data.content) ? data.content : undefined;
+
+/** Label of a node, or undefined for node types without one. */
+export const getNodeLabel = (data: AppNodeData): string | undefined =>
+    'label' in data ? data.label : undefined;

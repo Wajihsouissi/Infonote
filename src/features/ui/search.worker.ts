@@ -7,9 +7,9 @@ import {
     buildNodePath,
     estimateWordCount
 } from './searchUtils';
-import type { AppNode } from '../../types';
+import type { AppNode, NoteData } from '../../types';
 
-self.onmessage = (e: MessageEvent) => {
+self.onmessage = (e: MessageEvent<{ query: string; nodes: AppNode[] }>) => {
     const { query, nodes } = e.data;
 
     if (!query || !query.trim()) {
@@ -38,7 +38,7 @@ self.onmessage = (e: MessageEvent) => {
     const scored = nodes
         .filter((node: AppNode) => matchNode(node, filters))
         .map((node: AppNode) => {
-            const data = node.data as any;
+            const data = node.data as Partial<NoteData>;
             const score = calculateRelevance(node, filters);
             const allText = getText(node);
 
@@ -62,11 +62,11 @@ self.onmessage = (e: MessageEvent) => {
                 allText
             };
         })
-        .sort((a: any, b: any) => b.score - a.score)
+        .sort((a, b) => b.score - a.score)
         .slice(0, 10);
 
     // Only build rich results for the top matches
-    const results = scored.map(({ id, data, score, preview, allText }: any) => {
+    const results = scored.map(({ id, data, score, preview, allText }) => {
         let previewContext = '';
         if (searchText) {
             const matchingPart = allText.find((t: string) => t.toLowerCase().includes(searchText));

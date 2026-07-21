@@ -7,8 +7,9 @@ import {
     reconnectEdge,
 } from '@xyflow/react';
 import { v4 as uuidv4 } from 'uuid';
-import type { AppNode } from '../../types';
-import { MIN_FUSED_SIZE, BASE_UNIT, snapToGridValue, ICON_SIZE, GRID_GAP } from '../../config/layout';
+import { type AppNode, type AppNodeData, getNodeBlocks, getNodeLabel } from '../../types';
+import type { Block } from '../../features/editor/types';
+import { MIN_FUSED_SIZE, BASE_UNIT, snapToGridValue, ICON_SIZE } from '../../config/layout';
 import { computeParentContentUpdate } from '../contentSync';
 import { planHydration, layoutChunks, computeSmartHierarchy, type HydrationChunk } from '../contentHydration';
 import { withoutHistory } from '../temporalControl';
@@ -26,6 +27,10 @@ import type { AppState, NodeSlice } from '../types';
 
 // Debug flag - set to false in production
 const DEBUG = import.meta.env.DEV;
+
+// DEBUG-log helper: standalone flag only exists on block/fused-note payloads
+const isStandalone = (data: AppNodeData): boolean | undefined =>
+    'isStandaloneBlock' in data ? data.isStandaloneBlock : undefined;
 
 // Debounce map for parent content sync to prevent thrashing
 const pendingSyncTimers = new Map<string, number>();
@@ -110,9 +115,9 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             const importantChanges = changes.filter(c => c.type !== 'select' && c.type !== 'dimensions');
             if (importantChanges.length > 0) {
                 console.log("[onNodesChange] Received changes:", importantChanges.map(c => {
-                    const detail: any = { type: c.type, id: (c as any).id };
-                    if (c.type === 'remove') detail.removing = (c as any).id;
-                    else if (c.type === 'position') { detail.position = (c as any).position; detail.dragging = (c as any).dragging; }
+                    const detail: Record<string, unknown> = { type: c.type, id: 'id' in c ? c.id : undefined };
+                    if (c.type === 'remove') detail.removing = c.id;
+                    else if (c.type === 'position') { detail.position = c.position; detail.dragging = c.dragging; }
                     return detail;
                 }));
             }
@@ -121,21 +126,20 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         // CRITICAL FIX: Preserve parentId for nodes during 'replace' and other changes
         const filteredChanges = changes.map(change => {
             if (change.type === 'replace') {
-                const nodeId = (change as any).id;
-                const existingNode = get().nodes.find(n => n.id === nodeId);
+                const existingNode = get().nodes.find(n => n.id === change.id);
                 if (existingNode && existingNode.parentId) {
-                    if (DEBUG) console.log("[onNodesChange] Preserving parentId for node during replace:", nodeId);
+                    if (DEBUG) console.log("[onNodesChange] Preserving parentId for node during replace:", change.id);
                     return {
                         ...change,
                         item: {
-                            ...(change as any).item,
+                            ...change.item,
                             parentId: existingNode.parentId
                         }
                     };
                 }
             }
             return change;
-        }).filter(c => c !== null) as any[];
+        });
 
         const nodesBefore = get().nodes.length;
 
@@ -156,7 +160,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         // Mark cloud dirty on structural or position changes (not select/dimensions)
         const hasMeaningfulChange = filteredChanges.some(
-            (c: any) => c.type === 'remove' || c.type === 'add' || c.type === 'replace' ||
+            (c) => c.type === 'remove' || c.type === 'add' || c.type === 'replace' ||
                 (c.type === 'position' && c.dragging === false)
         );
         if (hasMeaningfulChange) {
@@ -264,7 +268,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 id: newNode.id,
                 type: newNode.type,
                 parentId: targetParentId,
-                isStandalone: (newNode.data as any).isStandaloneBlock,
+                isStandalone: isStandalone(newNode.data),
                 currentParentId
             });
         }
@@ -301,7 +305,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         // BIDIRECTIONAL SYNC: If updating a parent note's content, sync down to child nodes
         if (data.content && Array.isArray(data.content)) {
-            const parentContent = data.content as any[];
+            const parentContent = data.content as Block[];
             const updatedNode = get().nodes.find(n => n.id === id);
             
             // Only sync down if this is a parent note (has children) AND we're NOT in that parent's canvas
@@ -316,11 +320,11 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                             if (node.parentId === id) {
                                 // For fused-note and block nodes, update their content from parent
                                 if (node.type === 'fused-note' || node.type === 'block') {
-                                    const childContent = (node.data as any).content;
-                                    if (Array.isArray(childContent) && childContent.length > 0) {
+                                    const childContent = getNodeBlocks(node.data);
+                                    if (childContent && childContent.length > 0) {
                                         // Find matching blocks in parent content by ID
                                         const firstBlockId = childContent[0].id;
-                                        const matchingIndex = parentContent.findIndex((b: any) => b.id === firstBlockId);
+                                        const matchingIndex = parentContent.findIndex((b) => b.id === firstBlockId);
                                         
                                         if (matchingIndex !== -1) {
                                             // Extract the corresponding blocks from parent
@@ -352,7 +356,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
             // Update linked page block labels
             const linkedUpdates: { id: string, label: string }[] = [];
-            data.content.forEach((b: any) => {
+            parentContent.forEach((b) => {
                 if (b.type === 'page' && b.metadata?.nodeId) {
                     linkedUpdates.push({ id: b.metadata.nodeId, label: b.content });
                 }
@@ -362,7 +366,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 set((state) => {
                     const nodesToUpdate = state.nodes.filter(n => {
                         const update = linkedUpdates.find(u => u.id === n.id);
-                        return update && (n.data as any).label !== update.label;
+                        return update && getNodeLabel(n.data) !== update.label;
                     });
 
                     if (nodesToUpdate.length === 0) return state;
@@ -370,7 +374,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                     return {
                         nodes: state.nodes.map(n => {
                             const update = linkedUpdates.find(u => u.id === n.id);
-                            if (update && (n.data as any).label !== update.label) {
+                            if (update && getNodeLabel(n.data) !== update.label) {
                                 return { ...n, data: { ...n.data, label: update.label } };
                             }
                             return n;
@@ -419,15 +423,15 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         const sourceNode = nodes.find(n => n.id === nodeId);
         if (!sourceNode) return;
 
-        const rawContent = (sourceNode.data as any).content;
-        const isEmptyBlock = (b: any) => {
+        const rawContent = 'content' in sourceNode.data ? sourceNode.data.content : undefined;
+        const isEmptyBlock = (b: Block | null | undefined) => {
             if (!b) return true;
             if (b.type === 'divider') return true;
             if (b.type === 'table') {
                 const rows = b.metadata?.rows;
                 if (!Array.isArray(rows) || rows.length === 0) return true;
-                return rows.every((row: any) =>
-                    Array.isArray(row) && row.every((cell: any) => normalizeText(String(cell)).length === 0)
+                return rows.every((row) =>
+                    Array.isArray(row) && row.every((cell) => normalizeText(String(cell)).length === 0)
                 );
             }
             if (b.type === 'columns') {
@@ -436,13 +440,17 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             }
             return normalizeText(b.content).length === 0;
         };
-        const blocks = Array.isArray(rawContent)
-            ? rawContent.filter((b: any) => !isEmptyBlock(b))
+        const blocks: Block[] = Array.isArray(rawContent)
+            ? rawContent.filter((b) => !isEmptyBlock(b))
             : (typeof rawContent === 'string' && rawContent.trim().length > 0)
                 ? [{ id: uuidv4(), type: 'text', content: rawContent }]
                 : [];
 
         if (blocks.length === 0) return;
+
+        if (!skipConfirm && !window.confirm(
+            'Release this note\'s content into separate blocks? The original note will be removed. This can be undone via undo.'
+        )) return;
 
         const parentId = currentParentId || undefined;
         const parentIdForEdge = currentParentId ?? null;
@@ -453,13 +461,13 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         // --- Split into sections by heading boundaries ---
         const headingTypes = new Set(['heading1', 'heading2', 'heading3']);
-        const isHeadingBlock = (b: any) => b && headingTypes.has(b.type);
-        interface Section { heading: any | null; blocks: any[] }
+        const isHeadingBlock = (b: Block | null | undefined) => !!b && headingTypes.has(b.type);
+        interface Section { heading: Block | null; blocks: Block[] }
         const sections: Section[] = [];
 
         const headingIndices = blocks
-            .map((b: any, i: number) => (isHeadingBlock(b) ? i : -1))
-            .filter((i: number) => i >= 0);
+            .map((b, i) => (isHeadingBlock(b) ? i : -1))
+            .filter((i) => i >= 0);
 
         if (headingIndices.length === 0) {
             sections.push({ heading: null, blocks });
@@ -479,11 +487,11 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         }
 
         // --- Smart node sizing & cluster builders (shared: blockNodeStyle.ts) ---
-        const getNodeStyle = (block: any, isHeading: boolean) =>
+        const getNodeStyle = (block: Block, isHeading: boolean) =>
             getBlockNodeStyle(block, RELEASE_SIZE_PROFILE, isHeading);
-        const createBlockNode = (block: any, position: { x: number; y: number }, style: { width: number; height: number }) =>
+        const createBlockNode = (block: Block, position: { x: number; y: number }, style: { width: number; height: number }) =>
             createStandaloneBlockNode(block, position, style, parentId);
-        const buildRadialCluster = (centerNode: AppNode, outerBlocks: any[], centerPos: { x: number; y: number }) =>
+        const buildRadialCluster = (centerNode: AppNode, outerBlocks: Block[], centerPos: { x: number; y: number }) =>
             buildRadialClusterFromCenter(centerNode, outerBlocks, centerPos, { parentId, parentIdForEdge });
 
         const newNodes: AppNode[] = [];
@@ -569,8 +577,9 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
     splitNode: (nodeId, splitBlockId, currentBlocks, skipConfirm) => {
         const { nodes, edges } = get();
         const sourceNode = nodes.find(n => n.id === nodeId);
+        const sourceBlocks = sourceNode ? getNodeBlocks(sourceNode.data) : undefined;
 
-        if (!sourceNode || !('content' in sourceNode.data) || !Array.isArray((sourceNode.data as any).content)) return;
+        if (!sourceNode || !sourceBlocks) return;
 
         if (!skipConfirm && !window.confirm(
             'Split this node at the selected block? Content will be moved to a new fused note.'
@@ -579,8 +588,8 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         // Use caller-provided blocks if available (avoids stale store state from debounce),
         // otherwise fall back to store data
         const blocks = (currentBlocks && currentBlocks.length > 0)
-            ? currentBlocks
-            : (sourceNode.data as any).content as any[];
+            ? currentBlocks as Block[]
+            : sourceBlocks;
         const splitIndex = blocks.findIndex(b => b.id === splitBlockId);
 
         if (splitIndex === -1 || splitIndex === 0) return;
@@ -608,7 +617,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             data: {
                 content: blocksToMove,
                 isStandaloneBlock: true
-            } as any,
+            },
             style: {
                 width: MIN_FUSED_SIZE,
                 height: 208
@@ -647,8 +656,9 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         let nodesToUpdate = nodes;
         if (sourceNodeId) {
             nodesToUpdate = nodesToUpdate.map(n => {
-                if (n.id === sourceNodeId && Array.isArray((n.data as any).content)) {
-                    const newContent = (n.data as any).content.filter((b: any) => b.id !== block.id);
+                const nBlocks = getNodeBlocks(n.data);
+                if (n.id === sourceNodeId && nBlocks) {
+                    const newContent = nBlocks.filter((b) => b.id !== block.id);
                     return { ...n, data: { ...n.data, content: newContent } };
                 }
                 return n;
@@ -752,7 +762,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 nodes.filter(n => n.parentId === parentId).map(n => ({
                     id: n.id,
                     type: n.type,
-                    isStandalone: (n.data as any).isStandaloneBlock
+                    isStandalone: isStandalone(n.data)
                 }))
             );
         }
@@ -773,11 +783,11 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 set((state) => ({
                     nodes: state.nodes.map(n => {
                         if (n.id === parentId) {
-                            return { ...n, data: { ...n.data, content: result.parentContent } };
+                            return { ...n, data: { ...n.data, content: result.parentContent } } as AppNode;
                         }
                         const update = result.nodesToUpdate.find(u => u.id === n.id);
                         if (update) {
-                            return { ...n, data: update.data };
+                            return { ...n, data: update.data } as AppNode;
                         }
                         return n;
                     })
@@ -789,7 +799,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                     get().nodes.filter(n => n.parentId === parentId).map(n => ({
                         id: n.id,
                         type: n.type,
-                        isStandalone: (n.data as any).isStandaloneBlock
+                        isStandalone: isStandalone(n.data)
                     }))
                 );
             }
@@ -799,6 +809,11 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
     },
 
     bulkDeleteNodes: (nodeIds: string[], skipConfirm?: boolean) => {
+        if (nodeIds.length === 0) return;
+        if (!skipConfirm && !window.confirm(
+            `Delete ${nodeIds.length} node${nodeIds.length === 1 ? '' : 's'}? This can be undone via undo (up to 200 steps).`
+        )) return;
+
         const { nodes, edges } = get();
 
         if (DEBUG) {
@@ -854,9 +869,11 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 data: {
                     ...node.data,
                     // Deep clone content if it's an array
-                    content: Array.isArray((node.data as any).content)
-                        ? (node.data as any).content.map((block: any) => ({ ...block, id: uuidv4() }))
-                        : (node.data as any).content
+                    content: (() => {
+                        const blocks = getNodeBlocks(node.data);
+                        if (blocks) return blocks.map((block) => ({ ...block, id: uuidv4() }));
+                        return 'content' in node.data ? node.data.content : undefined;
+                    })()
                 }
             } as AppNode;
             newNodes.push(newNode);
@@ -928,20 +945,21 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         if (DEBUG) console.log("[fuseNodes] Average position:", { x: avgX, y: avgY });
 
         // Collect all content from all nodes
-        const allContent: any[] = [];
+        const allContent: Block[] = [];
         nodesToFuse.forEach(node => {
             if (DEBUG) console.log("[fuseNodes] Processing node:", node.id, "type:", node.type);
+            const nodeBlocks = getNodeBlocks(node.data);
             if (node.type === 'note') {
                 // Convert note to a page block
-                const pageBlock = {
+                const pageBlock: Block = {
                     id: uuidv4(),
                     type: 'page',
-                    content: (node.data as any).label || 'Untitled',
+                    content: getNodeLabel(node.data) || 'Untitled',
                     metadata: { nodeId: node.id }
                 };
                 allContent.push(pageBlock);
-            } else if (Array.isArray((node.data as any).content)) {
-                allContent.push(...(node.data as any).content);
+            } else if (nodeBlocks) {
+                allContent.push(...nodeBlocks);
             }
         });
 
@@ -1051,12 +1069,10 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         
         const parentNode = byId.get(nodeId);
 
-        if (!parentNode || !(parentNode.data as any).content || !Array.isArray((parentNode.data as any).content)) {
+        const parentContent = parentNode ? getNodeBlocks(parentNode.data) : undefined;
+        if (!parentNode || !parentContent || parentContent.length === 0) {
             return;
         }
-
-        const parentContent = (parentNode.data as any).content as any[];
-        if (parentContent.length === 0) return;
 
         // Get existing children using index
         const children = childrenByParent.get(nodeId) || [];
@@ -1064,9 +1080,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         // Collect all block IDs currently represented on the canvas
         const representedBlockIds = new Set<string>();
         children.forEach(child => {
-            if (Array.isArray((child.data as any).content)) {
-                (child.data as any).content.forEach((b: any) => representedBlockIds.add(b.id));
-            }
+            getNodeBlocks(child.data)?.forEach((b) => representedBlockIds.add(b.id));
             if (child.type === 'note') {
                 const matchingBlock = parentContent.find(b => b.type === 'page' && b.metadata?.nodeId === child.id);
                 if (matchingBlock) {
@@ -1100,9 +1114,9 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         if (validChunks.length === 0) return;
 
         // --- Layout (Horizontal Mind-Map / Flow) ---
-        const getNodeStyle = (block: any) => getBlockNodeStyle(block, HYDRATE_SIZE_PROFILE);
+        const getNodeStyle = (block: Block) => getBlockNodeStyle(block, HYDRATE_SIZE_PROFILE);
 
-        const getFusedNoteStyle = (blocks: any[]) => {
+        const getFusedNoteStyle = (blocks: Block[]) => {
             let estimatedHeight = 40; // Base padding/margin (reduced to exactly fit)
             blocks.forEach(b => {
                 if (b.type === 'heading1') estimatedHeight += 50;
@@ -1413,12 +1427,12 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 // Group selected nodes by content relatedness and pack each cluster
                 // compactly, so related cards sit together and connectors stay short.
                 const items = selected.map(n => {
-                    const content = (n.data as any).content;
+                    const blocks = getNodeBlocks(n.data);
                     return {
                         id: n.id,
-                        blocks: Array.isArray(content) && content.length > 0
-                            ? content
-                            : [{ type: 'text', content: (n.data as any).label || '' }],
+                        blocks: blocks && blocks.length > 0
+                            ? blocks
+                            : [{ type: 'text', content: getNodeLabel(n.data) || '' }],
                     };
                 });
                 const forest = computeSmartHierarchy(items);

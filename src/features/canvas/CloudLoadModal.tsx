@@ -441,7 +441,7 @@ const subtitle: React.CSSProperties = {
 const iconBadge: React.CSSProperties = {
     width: 38,
     height: 38,
-    background: 'linear-gradient(135deg, #06b6d4, #6366f1)',
+    background: 'linear-gradient(135deg, var(--accent), var(--secondary))',
     borderRadius: 10,
     display: 'inline-flex',
     alignItems: 'center',
@@ -549,13 +549,13 @@ const pageIcon: React.CSSProperties = {
     width: 36,
     height: 36,
     flexShrink: 0,
-    background: 'rgba(139, 92, 246, 0.15)',
-    border: '1px solid rgba(139, 92, 246, 0.3)',
+    background: 'rgba(249, 93, 46, 0.15)',
+    border: '1px solid rgba(249, 93, 46, 0.3)',
     borderRadius: 8,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: '#c4b5fd',
+    color: '#ff8a5f',
 };
 
 const pageTitle: React.CSSProperties = {
@@ -623,7 +623,7 @@ const btnPrimary: React.CSSProperties = {
     alignItems: 'center',
     gap: 6,
     padding: '9px 16px',
-    background: 'linear-gradient(135deg, #06b6d4, #6366f1)',
+    background: 'linear-gradient(135deg, var(--accent), var(--secondary))',
     color: '#fff',
     border: 'none',
     borderRadius: 8,

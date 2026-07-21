@@ -6,6 +6,7 @@ import styles from './ChunkItModal.module.css';
 import { BlockEditor } from '../editor/BlockEditor';
 import { MIN_EXPANDED_SIZE } from '../../config/layout';
 import type { AppNode } from '../../types';
+import type { Block } from '../editor/types';
 import type { Edge } from '@xyflow/react';
 
 type ChunkableNode = Exclude<AppNode, { type: 'kanban' }>;
@@ -18,7 +19,7 @@ const getNodeColor = (node: ChunkableNode): string | undefined => {
     return node.type === 'note' ? node.data.color : undefined;
 };
 
-const withChunkedContent = (node: ChunkableNode, content: any[]): AppNode => {
+const withChunkedContent = (node: ChunkableNode, content: Block[]): AppNode => {
     switch (node.type) {
         case 'note':
             return { ...node, data: { ...node.data, content } };
@@ -34,7 +35,6 @@ export const ChunkItModal: React.FC = () => {
     const setChunkItNodeId = useStore(s => s.setChunkItNodeId);
     const nodes = useStore(s => s.nodes);
     const setNodes = useStore(s => s.setNodes);
-    const edges = useStore(s => s.edges);
 
     const [cutIndices, setCutIndices] = useState<Set<number>>(new Set());
 
@@ -43,9 +43,9 @@ export const ChunkItModal: React.FC = () => {
         return nodes.find(n => n.id === chunkItNodeId);
     }, [chunkItNodeId, nodes]);
 
-    const blocks = useMemo(() => {
+    const blocks = useMemo<Block[]>(() => {
         if (!isChunkableNode(targetNode)) return [];
-        return targetNode.data.content as any[];
+        return Array.isArray(targetNode.data.content) ? targetNode.data.content : [];
     }, [targetNode]);
 
     const handleClose = useCallback(() => {
@@ -69,8 +69,8 @@ export const ChunkItModal: React.FC = () => {
     const getChunks = useCallback(() => {
         if (blocks.length === 0) return [];
         
-        const chunks: any[][] = [];
-        let currentChunk: any[] = [];
+        const chunks: Block[][] = [];
+        let currentChunk: Block[] = [];
         
         blocks.forEach((block, idx) => {
             currentChunk.push(block);
@@ -144,7 +144,7 @@ export const ChunkItModal: React.FC = () => {
                 target: newNodeId,
                 type: 'smoothstep',
                 animated: true,
-                style: { stroke: '#a78bfa', strokeWidth: 2 }
+                style: { stroke: '#ff8a5f', strokeWidth: 2 }
             };
 
             newNodes.push(newNode);
@@ -178,7 +178,7 @@ export const ChunkItModal: React.FC = () => {
         }
 
         const newNodes: AppNode[] = [];
-        const newPageBlocks: any[] = [];
+        const newPageBlocks: Block[] = [];
 
         // The first chunk stays inline. The remaining chunks become fused nested notes.
         const originalChunk = chunks[0];
@@ -209,7 +209,7 @@ export const ChunkItModal: React.FC = () => {
                 zIndex: 10
             };
 
-            const pageBlock = {
+            const pageBlock: Block = {
                 id: uuidv4(),
                 type: 'page',
                 content: label || 'Fused Note',

@@ -152,7 +152,7 @@ export const iconRegistry: IconData[] = [
     { name: 'X', iconName: 'X', category: 'Status', color: '#f87171' },
     { name: 'Error', iconName: 'XCircle', category: 'Status', color: '#f87171' },
     { name: 'X Square', iconName: 'XSquare', category: 'Status', color: '#f87171' },
-    { name: 'Help', iconName: 'HelpCircle', category: 'Status', color: '#a78bfa' },
+    { name: 'Help', iconName: 'HelpCircle', category: 'Status', color: '#ff8a5f' },
     { name: 'Up', iconName: 'ArrowUp', category: 'Status', color: '#94a3b8' },
     { name: 'Down', iconName: 'ArrowDown', category: 'Status', color: '#94a3b8' },
     { name: 'Left', iconName: 'ArrowLeft', category: 'Status', color: '#94a3b8' },
@@ -253,11 +253,11 @@ export const iconRegistry: IconData[] = [
     { name: 'Compass', iconName: 'Compass', category: 'Commerce', color: '#f59e0b' },
     { name: 'Flag', iconName: 'Flag', category: 'Commerce', color: '#ef4444' },
     { name: 'Target', iconName: 'Target', category: 'Commerce', color: '#ef4444' },
-    { name: 'Briefcase', iconName: 'Briefcase', category: 'Commerce', color: '#8b5cf6' },
-    { name: 'Glasses', iconName: 'Glasses', category: 'Commerce', color: '#8b5cf6' },
-    { name: 'User Plus', iconName: 'UserPlus', category: 'Commerce', color: '#8b5cf6' },
-    { name: 'User Minus', iconName: 'UserMinus', category: 'Commerce', color: '#8b5cf6' },
-    { name: 'User Check', iconName: 'UserCheck', category: 'Commerce', color: '#8b5cf6' },
+    { name: 'Briefcase', iconName: 'Briefcase', category: 'Commerce', color: '#f95d2e' },
+    { name: 'Glasses', iconName: 'Glasses', category: 'Commerce', color: '#f95d2e' },
+    { name: 'User Plus', iconName: 'UserPlus', category: 'Commerce', color: '#f95d2e' },
+    { name: 'User Minus', iconName: 'UserMinus', category: 'Commerce', color: '#f95d2e' },
+    { name: 'User Check', iconName: 'UserCheck', category: 'Commerce', color: '#f95d2e' },
 ];
 
 export const defaultIconName = 'FileText';

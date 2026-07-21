@@ -92,7 +92,7 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
                                 type="checkbox" 
                                 checked={isAutoSyncEnabled} 
                                 onChange={(e) => onAutoSyncChange(e.target.checked)} 
-                                style={{ width: '16px', height: '16px', accentColor: '#8b5cf6', cursor: 'pointer' }}
+                                style={{ width: '16px', height: '16px', accentColor: 'var(--accent)', cursor: 'pointer' }}
                             />
                             Auto-sync to cloud
                         </label>
@@ -108,27 +108,25 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
 const overlay: React.CSSProperties = {
     position: 'fixed',
     inset: 0,
-    background: 'rgba(5, 6, 12, 0.72)',
-    backdropFilter: 'blur(6px)',
-    WebkitBackdropFilter: 'blur(6px)',
+    background: 'rgba(0, 0, 0, 0.5)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 9999,
     padding: 20,
-    fontFamily: '"Poppins", system-ui, -apple-system, sans-serif',
+    fontFamily: 'var(--font-sans)',
 };
 
 const modal: React.CSSProperties = {
     width: '100%',
     maxWidth: 640,
-    background: 'rgba(20, 22, 32, 0.95)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 16,
-    boxShadow: '0 32px 96px rgba(0,0,0,0.5)',
+    background: 'var(--bg-raised)',
+    border: '1px solid var(--line)',
+    borderRadius: 'var(--radius-xl)',
+    boxShadow: 'var(--shadow-lg)',
     display: 'flex',
     flexDirection: 'column',
-    color: '#fff',
+    color: 'var(--text-main)',
     overflow: 'hidden',
 };
 
@@ -137,7 +135,7 @@ const header: React.CSSProperties = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '20px 24px',
-    borderBottom: '1px solid rgba(255,255,255,0.08)',
+    borderBottom: '1px solid var(--line)',
 };
 
 const title: React.CSSProperties = {
@@ -148,28 +146,28 @@ const title: React.CSSProperties = {
 
 const subtitle: React.CSSProperties = {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.55)',
+    color: 'var(--text-soft)',
     margin: '2px 0 0',
 };
 
 const iconBadge: React.CSSProperties = {
     width: 38,
     height: 38,
-    background: 'linear-gradient(135deg, #8b5cf6, #d946ef)',
-    borderRadius: 10,
+    background: 'linear-gradient(135deg, var(--accent), var(--secondary))',
+    borderRadius: 'var(--radius-md)',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: '#fff',
+    color: 'var(--on-accent)',
 };
 
 const closeBtn: React.CSSProperties = {
     background: 'transparent',
-    border: '1px solid rgba(255,255,255,0.08)',
-    color: 'rgba(255,255,255,0.6)',
+    border: '1px solid var(--line)',
+    color: 'var(--text-soft)',
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: 'var(--radius-sm)',
     cursor: 'pointer',
     display: 'inline-flex',
     alignItems: 'center',
@@ -195,21 +193,21 @@ const card: React.CSSProperties = {
     flexDirection: 'column',
     alignItems: 'center',
     textAlign: 'center',
-    background: 'rgba(255, 255, 255, 0.03)',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    borderRadius: 12,
+    background: 'var(--bg-card)',
+    border: '1px solid var(--line)',
+    borderRadius: 'var(--radius-lg)',
     padding: '32px 16px',
     cursor: 'pointer',
-    color: '#fff',
+    color: 'var(--text-main)',
     transition: 'all 0.2s ease',
 };
 
 const cardIconWrapperSave: React.CSSProperties = {
     width: 64,
     height: 64,
-    borderRadius: 16,
-    background: 'rgba(139, 92, 246, 0.1)',
-    color: '#c4b5fd',
+    borderRadius: 'var(--radius-xl)',
+    background: 'var(--accent-dim)',
+    color: 'var(--accent-ink)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -219,9 +217,9 @@ const cardIconWrapperSave: React.CSSProperties = {
 const cardIconWrapperLoad: React.CSSProperties = {
     width: 64,
     height: 64,
-    borderRadius: 16,
-    background: 'rgba(255, 255, 255, 0.05)',
-    color: '#fff',
+    borderRadius: 'var(--radius-xl)',
+    background: 'var(--hover-wash)',
+    color: 'var(--text-main)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -231,9 +229,9 @@ const cardIconWrapperLoad: React.CSSProperties = {
 const cardIconWrapperBackup: React.CSSProperties = {
     width: 64,
     height: 64,
-    borderRadius: 16,
-    background: 'rgba(245, 158, 11, 0.1)',
-    color: '#fcd34d',
+    borderRadius: 'var(--radius-xl)',
+    background: 'var(--secondary-dim)',
+    color: 'var(--secondary-ink)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -248,7 +246,7 @@ const cardTitle: React.CSSProperties = {
 
 const cardDesc: React.CSSProperties = {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
+    color: 'var(--text-soft)',
     margin: 0,
     lineHeight: 1.4,
 };
@@ -258,5 +256,5 @@ const footerOptions: React.CSSProperties = {
     justifyContent: 'flex-start',
     alignItems: 'center',
     paddingTop: 16,
-    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+    borderTop: '1px solid var(--line)',
 };

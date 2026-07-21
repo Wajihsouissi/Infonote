@@ -2,17 +2,16 @@ import React, { useState, useCallback, useEffect, useRef, useLayoutEffect } from
 import { v4 as uuidv4 } from 'uuid';
 import { createPortal } from 'react-dom';
 
-import type { Block } from './types';
+import type { Block, BlockMetadata } from './types';
 import styles from './BlockEditor.module.css';
 
 import { SlashMenu } from './SlashMenu';
 import { BlockMenu } from './BlockMenu';
 import { FloatingToolbar } from './FloatingToolbar';
-import { computeInlineFormat, getActiveInlineFormats, sourceText, targetText, type InlineFormat, type FormatTarget } from './inlineFormat';
+import { getActiveFormatsFromSelection, getActiveLinkUrlFromSelection, applyInlineFormat, applyLinkElement, serializeInline, type InlineFormat } from './inlineFormat';
 
 import { BlockItem } from './BlockItem';
 import { useStore } from '../../store/useStore';
-import { MIN_FUSED_SIZE } from '../../config/layout';
 
 // Hooks
 import { useBlockSelection } from './hooks/useBlockSelection';
@@ -42,6 +41,39 @@ interface BlockEditorProps {
 
 import { memo } from 'react';
 
+/**
+ * Build a DOM Range spanning [start, end) visible-character offsets within a
+ * block host. Walks the current text nodes, so it works even after the block
+ * re-rendered and replaced its nodes — the basis for a blur-proof selection
+ * restore. Offsets past the end clamp to the last text node.
+ */
+function offsetsToRange(host: HTMLElement, start: number, end: number): Range | null {
+    const locate = (target: number): { node: Node; offset: number } | null => {
+        const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
+        let acc = 0;
+        let node: Node | null;
+        let lastText: Node | null = null;
+        while ((node = walker.nextNode())) {
+            lastText = node;
+            const len = (node.nodeValue ?? '').length;
+            if (acc + len >= target) return { node, offset: target - acc };
+            acc += len;
+        }
+        return lastText ? { node: lastText, offset: (lastText.nodeValue ?? '').length } : null;
+    };
+    const s = locate(start);
+    const e = locate(end);
+    if (!s || !e) return null;
+    const r = document.createRange();
+    try {
+        r.setStart(s.node, s.offset);
+        r.setEnd(e.node, e.offset);
+    } catch {
+        return null;
+    }
+    return r;
+}
+
 export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles, disableMediaControls, promoteBlockHandles, selectionIslandPortalId, syncUpdate, editorId, renderBetweenBlocks, globalStartIndex = 1 }: BlockEditorProps) {
     const editorRef = useRef<HTMLDivElement>(null);
     const editorInstanceId = useRef(editorId || `editor-${uuidv4()}`);
@@ -50,23 +82,49 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
     // OFFSETS into the block's raw markdown (focused blocks are a single text
     // node). A toolbar click can then format that exact range even if the
     // drag-handle overlay or portal stole focus/selection on mousedown.
-    const savedSelectionRef = useRef<FormatTarget | null>(null);
+    const savedRangeRef = useRef<Range | null>(null);
+    const savedHostRef = useRef<HTMLElement | null>(null);
+    const savedOffsetsRef = useRef<{ blockId: string; start: number; end: number } | null>(null);
+    const [activeFormats, setActiveFormats] = useState<Set<InlineFormat>>(new Set());
+    const [activeLinkUrl, setActiveLinkUrl] = useState<string | null>(null);
+    const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
     useEffect(() => {
         const onSelChange = () => {
             const sel = window.getSelection();
             if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
             const range = sel.getRangeAt(0);
-            if (range.startContainer !== range.endContainer) return;
-            if (range.startContainer.nodeType !== Node.TEXT_NODE) return;
-            const editable = range.startContainer.parentElement?.closest('[contenteditable="true"]') as HTMLElement | null;
-            if (editable && editorRef.current?.contains(editable)) {
-                savedSelectionRef.current = { host: editable, start: range.startOffset, end: range.endOffset };
+            const anchor = range.commonAncestorContainer;
+            const el = anchor.nodeType === Node.ELEMENT_NODE ? (anchor as HTMLElement) : anchor.parentElement;
+            const host = el?.closest('[contenteditable="true"]') as HTMLElement | null;
+            if (host && editorRef.current?.contains(host)) {
+                savedRangeRef.current = range.cloneRange();
+                savedHostRef.current = host;
+                // Also remember the selection as visible-character offsets + block
+                // id. A real toolbar click blurs the editable (React's portal
+                // preventDefault is unreliable), whose onBlur can re-render and
+                // replace the text nodes — killing a saved DOM Range. Offsets let
+                // us rebuild the exact selection against the current DOM instead.
+                const pre = range.cloneRange();
+                pre.selectNodeContents(host);
+                pre.setEnd(range.startContainer, range.startOffset);
+                const start = pre.toString().length;
+                const end = start + range.toString().length;
+                let blockId: string | null = null;
+                for (const [id, node] of Object.entries(blockRefs.current)) {
+                    if (node && (node === host || node.contains(host))) { blockId = id; break; }
+                }
+                savedOffsetsRef.current = blockId ? { blockId, start, end } : null;
+                setActiveFormats(getActiveFormatsFromSelection());
+                setActiveLinkUrl(getActiveLinkUrlFromSelection());
             }
         };
         document.addEventListener('selectionchange', onSelChange);
         return () => document.removeEventListener('selectionchange', onSelChange);
     }, []);
-    const nodeColor = useStore(s => (s.nodes.find(n => n.id === nodeId)?.data as any)?.color);
+    const nodeColor = useStore(s => {
+        const data = s.nodes.find(n => n.id === nodeId)?.data;
+        return data && 'color' in data ? data.color : undefined;
+    });
     const theme = useStore(s => s.theme);
     const [blocks, setBlocks] = useState<Block[]>(() => {
         if (Array.isArray(initialContent) && initialContent.length > 0) return initialContent;
@@ -84,7 +142,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
     const autoFocusDoneRef = useRef(false);
 
     // Create a stable debounced update function
-    const timeoutRef = useRef<any>(null);
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const debouncedOnUpdate = useCallback((newBlocks: Block[]) => {
         if (syncUpdate) {
             onUpdate?.(newBlocks);
@@ -126,6 +184,11 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         handleSelectionMouseDown,
         selectedBlockIdsRef
     } = useBlockSelection({ editorRef, blocks, blocksRef, blockRefs });
+
+    const [lastSelectionRect, setLastSelectionRect] = useState<DOMRect | null>(null);
+    useEffect(() => {
+        if (selectionRect) setLastSelectionRect(selectionRect);
+    }, [selectionRect]);
 
     // 2. Slash Command Hook
     const {
@@ -493,7 +556,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             // Safari/older browser fallback, use nearest to avoid large canvas jumps
             try {
                 el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            } catch (e) {
+            } catch {
                 el.scrollIntoView({ block: 'nearest' });
             }
         }
@@ -547,15 +610,19 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 try {
                     if (typeof document.caretRangeFromPoint === 'function') {
                         rangeFromPoint = document.caretRangeFromPoint(x, y);
-                    } else if (typeof (document as any).caretPositionFromPoint === 'function') {
-                        const caretPos = (document as any).caretPositionFromPoint(x, y);
+                    } else {
+                        // Firefox fallback: caretPositionFromPoint is not in older lib.dom typings.
+                        const docWithCaretPos = document as Document & {
+                            caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+                        };
+                        const caretPos = docWithCaretPos.caretPositionFromPoint?.(x, y);
                         if (caretPos) {
                             rangeFromPoint = document.createRange();
                             rangeFromPoint.setStart(caretPos.offsetNode, caretPos.offset);
                             rangeFromPoint.collapse(true);
                         }
                     }
-                } catch (e) {
+                } catch {
                     // Ignore
                 }
                 
@@ -614,7 +681,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         return () => window.removeEventListener('chnk-it-ai-generate', handleAIGenerate);
     }, [setBlocks, debouncedOnUpdate, setFocusId]);
 
-    const updateBlock = useCallback((id: string, contentOrPatch: string | Partial<Block>, metadata?: any) => {
+    const updateBlock = useCallback((id: string, contentOrPatch: string | Partial<Block>, metadata?: BlockMetadata) => {
         setBlocks(prev => {
             const newBlocks = prev.map(b => {
                 if (b.id !== id) return b;
@@ -667,81 +734,171 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         removeBlock(id);
     }, [removeBlock]);
 
-    // Resolve a format target (saved offsets, else the live source-mode
-    // selection) to the block that owns it.
-    const resolveFormatTarget = useCallback((explicit?: FormatTarget | null): { target: FormatTarget; blockId: string } | null => {
-        let target = explicit && explicit.host.isConnected ? explicit : null;
-        if (!target) {
-            const sel = window.getSelection();
-            if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
-                const range = sel.getRangeAt(0);
-                if (range.startContainer === range.endContainer && range.startContainer.nodeType === Node.TEXT_NODE) {
-                    const host = range.startContainer.parentElement?.closest('[contenteditable="true"]') as HTMLElement | null;
-                    if (host && editorRef.current?.contains(host)) {
-                        target = { host, start: range.startOffset, end: range.endOffset };
-                    }
-                }
-            }
-        }
-        if (!target) return null;
+    // Which block owns a contentEditable host element.
+    const blockIdForHost = useCallback((host: HTMLElement): string | null => {
         for (const [id, el] of Object.entries(blockRefs.current)) {
-            if (el && (el === target.host || el.contains(target.host))) return { target, blockId: id };
+            if (el && (el === host || el.contains(host))) return id;
         }
         return null;
     }, []);
 
-    // Write new raw text to a block: persist to state (updateBlock) AND sync the
-    // focused block's text node directly for instant feedback, then restore the
-    // selection. No execCommand — deterministic and always persists.
-    const writeBlockText = useCallback((target: FormatTarget, blockId: string, text: string, selStart: number, selEnd: number) => {
-        updateBlock(blockId, text);
-        const host = target.host;
-        const node = host.firstChild;
-        if (node && node.nodeType === Node.TEXT_NODE) node.nodeValue = text;
-        else host.textContent = text;
+    // Re-apply the last saved selection into the live DOM and focus its block, so
+    // a toolbar click formats the exact range the user had highlighted (mousedown
+    // on the toolbar can otherwise move focus/selection first).
+    const restoreSavedSelection = useCallback((): { host: HTMLElement, range: Range } | null => {
+        const saved = savedOffsetsRef.current;
+        // Resolve the host from the block id when possible — it survives a
+        // re-render that would have detached savedRangeRef's original nodes.
+        let host = savedHostRef.current;
+        const byId = saved ? blockRefs.current[saved.blockId] : null;
+        if (byId && byId.isConnected) host = byId;
+        if (!host || !host.isConnected) return null;
         host.focus({ preventScroll: true });
-        const tn = host.firstChild;
-        if (tn && tn.nodeType === Node.TEXT_NODE) {
-            const len = (tn as Text).length;
-            const r = document.createRange();
-            r.setStart(tn, Math.min(selStart, len));
-            r.setEnd(tn, Math.min(selEnd, len));
+        // Rebuild the range from offsets against the CURRENT DOM; fall back to the
+        // cloned range only if offsets are unavailable.
+        const range = saved ? offsetsToRange(host, saved.start, saved.end) : savedRangeRef.current;
+        if (range) {
             const sel = window.getSelection();
             sel?.removeAllRanges();
-            sel?.addRange(r);
-            savedSelectionRef.current = { host, start: selStart, end: selEnd };
+            try { sel?.addRange(range); } catch { /* range no longer valid */ }
+            return { host, range };
         }
-    }, [updateBlock]);
+        return savedRangeRef.current ? { host, range: savedRangeRef.current } : null;
+    }, []);
 
-    // Toggle a markdown format on the current (or saved) selection.
-    const formatSelection = useCallback((format: InlineFormat, explicit?: FormatTarget | null) => {
-        const resolved = resolveFormatTarget(explicit);
-        if (!resolved) return;
-        const { target, blockId } = resolved;
-        const raw = sourceText(target.host);
-        if (raw === null) return; // block not in source mode — refuse to corrupt
-        const start = Math.min(target.start, raw.length);
-        const end = Math.min(target.end, raw.length);
-        const { text, selStart, selEnd } = computeInlineFormat(raw, start, end, format);
-        writeBlockText(target, blockId, text, selStart, selEnd);
-    }, [resolveFormatTarget, writeBlockText]);
+    // Persist the host's live HTML back to block state as markdown (serializeInline
+    // is the inverse of the on-blur render), then refresh the saved range + the
+    // active-format highlight to wherever the selection ended up.
+    const persistHost = useCallback((host: HTMLElement) => {
+        const blockId = blockIdForHost(host);
+        if (blockId) updateBlock(blockId, serializeInline(host));
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+        setActiveFormats(getActiveFormatsFromSelection());
+    }, [blockIdForHost, updateBlock]);
 
-    // Insert a markdown link [text](url) over the current (or saved) selection.
-    const linkSelection = useCallback((explicit?: FormatTarget | null) => {
-        const resolved = resolveFormatTarget(explicit);
-        if (!resolved) return;
-        const { target, blockId } = resolved;
-        const raw = sourceText(target.host);
-        if (raw === null) return;
-        const start = Math.min(target.start, raw.length);
-        const end = Math.min(target.end, raw.length);
-        const text = raw.slice(start, end);
-        if (!text.trim()) return;
-        const url = prompt('Enter URL:');
-        if (!url || !url.trim()) return;
-        const link = `[${text}](${url.trim()})`;
-        writeBlockText(target, blockId, raw.slice(0, start) + link + raw.slice(end), start, start + link.length);
-    }, [resolveFormatTarget, writeBlockText]);
+    // Toggle a mark on the current (or saved) selection — pure DOM, then persist.
+    const formatSelection = useCallback((format: InlineFormat) => {
+        let host = savedHostRef.current;
+        let activeRange: Range | undefined = undefined;
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0 || (host && !host.contains(sel.anchorNode))) {
+            const restored = restoreSavedSelection();
+            host = restored?.host || host;
+            activeRange = restored?.range;
+        }
+        if (!host) return;
+        applyInlineFormat(host, format, activeRange);
+        persistHost(host);
+    }, [restoreSavedSelection, persistHost]);
+
+    // Wrap the saved selection in a link.
+    const applyLink = useCallback((url: string) => {
+        let host = savedHostRef.current;
+        let activeRange: Range | undefined = undefined;
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0 || (host && !host.contains(sel.anchorNode))) {
+            const restored = restoreSavedSelection();
+            host = restored?.host || host;
+            activeRange = restored?.range;
+        }
+        if (!host) return;
+        applyLinkElement(host, { href: url.trim() }, activeRange);
+        persistHost(host);
+    }, [restoreSavedSelection, persistHost]);
+
+    // "Turn into Page": extract selection, split block into 3 (text, page block, text).
+    const createPageChip = useCallback(() => {
+        const text = (savedRangeRef.current?.toString() ?? '').trim();
+        let host = savedHostRef.current;
+        let activeRange: Range | undefined = undefined;
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0 || (host && !host.contains(sel.anchorNode))) {
+            const restored = restoreSavedSelection();
+            host = restored?.host || host;
+            activeRange = restored?.range;
+        }
+        if (!host || !text) return;
+
+        // Ensure range is selected so execCommand targets it
+        if (activeRange) {
+            sel?.removeAllRanges();
+            sel?.addRange(activeRange);
+        }
+
+        const id = useStore.getState().createPageFromText(text);
+        const marker = `___SPLIT_MARKER_${Date.now()}___`;
+        
+        // Natively replace selection with marker to preserve surrounding HTML
+        document.execCommand('insertText', false, marker);
+        
+        const newContent = serializeInline(host);
+        
+        // Immediately undo so the DOM doesn't permanently contain the marker
+        document.execCommand('undo');
+        // Blur the host so React is allowed to overwrite its DOM with the new sliced content
+        host.blur();
+        
+        const parts = newContent.split(marker);
+        const beforeText = parts[0] || '';
+        const afterText = parts[1] || '';
+
+        const hasBefore = beforeText.length > 0;
+        const hasAfter = afterText.length > 0;
+
+        let blockId: string | null = null;
+        for (const [bid, node] of Object.entries(blockRefs.current)) {
+            if (node && (node === host || node.contains(host))) { blockId = bid; break; }
+        }
+
+        if (blockId) {
+            setBlocks(prev => {
+                const index = prev.findIndex(b => b.id === blockId);
+                if (index === -1) return prev;
+                
+                const currentBlock = prev[index];
+                const newBlocks = [...prev];
+                const blocksToInsert: Block[] = [];
+                
+                const pageBlock: Block = {
+                    id: uuidv4(),
+                    type: 'page',
+                    content: text, // PageBlock reads title from content
+                    metadata: { nodeId: id },
+                    indent: currentBlock.indent
+                };
+                blocksToInsert.push(pageBlock);
+                
+                let focusTargetId = pageBlock.id;
+                
+                if (hasAfter) {
+                    const afterBlock: Block = {
+                        id: uuidv4(),
+                        type: 'text',
+                        content: afterText,
+                        indent: currentBlock.indent
+                    };
+                    blocksToInsert.push(afterBlock);
+                    focusTargetId = afterBlock.id;
+                }
+                
+                if (hasBefore) {
+                    newBlocks[index] = { ...currentBlock, content: beforeText };
+                    newBlocks.splice(index + 1, 0, ...blocksToInsert);
+                } else {
+                    newBlocks.splice(index, 1, ...blocksToInsert);
+                }
+                
+                debouncedOnUpdate(newBlocks);
+                
+                // Shift focus to the correct newly created block
+                caretPositionRef.current = 'start';
+                setTimeout(() => setFocusId(focusTargetId), 0);
+                
+                return newBlocks;
+            });
+        }
+    }, [restoreSavedSelection, setBlocks, debouncedOnUpdate, setFocusId]);
 
     const checkCaretFirstLine = useCallback((): boolean => {
         try {
@@ -764,7 +921,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             const lineHeight = parseFloat(style.lineHeight) || 24;
             
             return (caretTop - contentTop) < (lineHeight * 1.2);
-        } catch (err) {
+        } catch {
             return true;
         }
     }, []);
@@ -790,7 +947,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             const lineHeight = parseFloat(style.lineHeight) || 24;
             
             return (contentBottom - caretBottom) < (lineHeight * 1.2);
-        } catch (err) {
+        } catch {
             return true;
         }
     }, []);
@@ -832,7 +989,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         }
         if (isCtrl && !e.shiftKey && lowerKey === 'k') {
             e.preventDefault();
-            linkSelection();
+            setLinkPopoverOpen(true);
             return;
         }
 
@@ -894,10 +1051,15 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     // Ensure the selection is actually inside the target to avoid errors
                     if (!target.contains(range.commonAncestorContainer)) return 0;
 
+                    // Serialize the content BEFORE the caret to markdown so the
+                    // offset is in the same marker-space as block.content — this
+                    // keeps **bold**/[links] intact when a block is split.
                     const preCaretRange = range.cloneRange();
                     preCaretRange.selectNodeContents(target);
                     preCaretRange.setEnd(range.endContainer, range.endOffset);
-                    return preCaretRange.toString().length;
+                    const holder = document.createElement('div');
+                    holder.appendChild(preCaretRange.cloneContents());
+                    return serializeInline(holder).length;
                 } catch (err) {
                     console.warn('Error calculating caret offset:', err);
                     return 0;
@@ -1010,7 +1172,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                             const parentId = canvasNode.parentId || undefined;
                             const nodesInColumn = store.nodes.filter(n =>
                                 n.type === 'block' &&
-                                (n.data as any)?.isStandaloneBlock &&
+                                n.data.isStandaloneBlock &&
                                 Math.abs(n.position.x - canvasNode.position.x) < 10 &&
                                 n.parentId === parentId
                             );
@@ -1127,8 +1289,8 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     const parentId = node.parentId || undefined;
                     
                     const nodesInColumn = store.nodes.filter(n => 
-                        n.type === 'block' && 
-                        (n.data as any)?.isStandaloneBlock && 
+                        n.type === 'block' &&
+                        n.data.isStandaloneBlock &&
                         Math.abs(n.position.x - node.position.x) < 10 &&
                         n.parentId === parentId
                     );
@@ -1831,25 +1993,20 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 />
             )}
             {/* Floating Toolbar */}
-            {selectionRect && !slashMenuState && !blockMenuState && (
+            {(selectionRect || (linkPopoverOpen && lastSelectionRect)) && !slashMenuState && !blockMenuState && (
                 <FloatingToolbar
-                    selectionRect={selectionRect}
-                    activeFormats={getActiveInlineFormats()}
-                    onFormat={(format) => {
-                        // Use the selection captured when it was made — the toolbar
-                        // click may have stolen focus/selection on mousedown.
-                        const saved = savedSelectionRef.current;
+                    selectionRect={(selectionRect || lastSelectionRect)!}
+                    activeFormats={activeFormats}
+                    initialLinkUrl={activeLinkUrl}
+                    linkOpen={linkPopoverOpen}
+                    onLinkOpenChange={setLinkPopoverOpen}
+                    onFormat={(format, value) => {
                         if (format === 'createLink') {
-                            linkSelection(saved);
+                            if (value !== undefined) applyLink(value);
                         } else if (format === 'createPage') {
-                            if (!saved || !saved.host.isConnected) return;
-                            const text = targetText(saved);
-                            if (!text.trim()) return;
-                            const createPageFromText = useStore.getState().createPageFromText;
-                            const rect = saved.host.getBoundingClientRect();
-                            createPageFromText(text, { x: rect.left, y: rect.bottom + 20 });
+                            createPageChip();
                         } else {
-                            formatSelection(format as InlineFormat, saved);
+                            formatSelection(format as InlineFormat);
                         }
                     }}
                 />

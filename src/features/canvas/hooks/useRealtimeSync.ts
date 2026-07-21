@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useStore } from '../../../store/useStore';
 import { realtimeSync } from '../../../services/realtimeSync';
 import type { RealtimePresenceState, RealtimeMessage } from '../../../services/realtimeSync';
+import type { AppNode } from '../../../types';
 import { FEATURES } from '../../../config/featureFlags';
 
 export function useRealtimeSync(currentParentId: string | null) {
@@ -57,7 +58,7 @@ export function useRealtimeSync(currentParentId: string | null) {
     }, []);
 
     // Helper to broadcast changes
-    const broadcastNodeChange = useCallback((nodeId: string, changes: any) => {
+    const broadcastNodeChange = useCallback((nodeId: string, changes: Partial<AppNode>) => {
         if (!isInitialized.current) return;
         realtimeSync.broadcast({
             type: 'UPDATE_NODE',
@@ -84,6 +85,6 @@ function stringToColor(str: string) {
     for (let i = 0; i < str.length; i++) {
         hash = str.charCodeAt(i) + ((hash << 5) - hash);
     }
-    const colors = ['#f87171', '#fb923c', '#fbbf24', '#a3e635', '#4ade80', '#34d399', '#2dd4bf', '#38bdf8', '#60a5fa', '#818cf8', '#a78bfa', '#c084fc', '#f472b6', '#fb7185'];
+    const colors = ['#f87171', '#fb923c', '#fbbf24', '#a3e635', '#4ade80', '#34d399', '#2dd4bf', '#38bdf8', '#60a5fa', '#818cf8', '#ff8a5f', '#ff8a5f', '#f472b6', '#fb7185'];
     return colors[Math.abs(hash) % colors.length];
 }

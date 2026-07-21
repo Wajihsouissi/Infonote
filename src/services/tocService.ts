@@ -1,4 +1,5 @@
-import type { AppNode } from '../types';
+import { type AppNode, getNodeBlocks, getNodeLabel } from '../types';
+import type { Block, BlockMetadata } from '../features/editor/types';
 
 export interface OutlineItem {
     id: string;
@@ -10,7 +11,7 @@ export interface OutlineItem {
     headingLevel: number; // 1 for H1, 2 for H2, 3 for H3, 4 for pages/toggles/others
     nodeId?: string; // If it's a page block or sub-note
     checked?: boolean; // For checklist items
-    metadata?: any; // Raw block metadata
+    metadata?: BlockMetadata; // Raw block metadata
 }
 
 /**
@@ -29,7 +30,7 @@ function sortNodesVisually(nodes: AppNode[]): AppNode[] {
  * Builds the unified flat blocks list for a given parent node ID.
  * If nodeId is null (Home page), gathers all root canvas nodes.
  */
-function getUnifiedBlocksForNode(nodeId: string | null, allNodes: AppNode[]): any[] {
+function getUnifiedBlocksForNode(nodeId: string | null, allNodes: AppNode[]): Block[] {
     const parent = nodeId ? allNodes.find(n => n.id === nodeId) : null;
 
     // 1. Get child nodes belonging to this parent context
@@ -49,23 +50,23 @@ function getUnifiedBlocksForNode(nodeId: string | null, allNodes: AppNode[]): an
     const sortedChildren = sortNodesVisually(validChildren);
 
     // 3. Reconstruct content blocks sequentially
-    const unifiedBlocks: any[] = [];
-    const existingContent = (parent && Array.isArray((parent.data as any).content)) ? (parent.data as any).content : [];
+    const unifiedBlocks: Block[] = [];
+    const existingContent: Block[] = (parent && getNodeBlocks(parent.data)) || [];
 
     sortedChildren.forEach(child => {
         if (child.type === 'fused-note' || child.type === 'block') {
-            const content = (child.data as any).content;
-            if (Array.isArray(content)) {
-                content.forEach((b: any) => {
+            const content = getNodeBlocks(child.data);
+            if (content) {
+                content.forEach((b) => {
                     unifiedBlocks.push(b);
                 });
             }
         } else if (child.type === 'note' || child.type === 'kanban') {
-            const existingBlock = existingContent.find((b: any) => b.metadata?.nodeId === child.id);
+            const existingBlock = existingContent.find((b) => b.metadata?.nodeId === child.id);
             unifiedBlocks.push({
                 id: existingBlock?.id || child.id,
                 type: 'page',
-                content: child.data.label || (child.type === 'kanban' ? 'Kanban Board' : 'Untitled'),
+                content: getNodeLabel(child.data) || (child.type === 'kanban' ? 'Kanban Board' : 'Untitled'),
                 metadata: {
                     nodeId: child.id,
                     isKanban: child.type === 'kanban'
@@ -83,7 +84,7 @@ function getUnifiedBlocksForNode(nodeId: string | null, allNodes: AppNode[]): an
  * Handles page nesting recursively.
  */
 function parseBlocksToOutline(
-    blocks: any[],
+    blocks: Block[],
     allNodes: AppNode[],
     level = 0
 ): OutlineItem[] {
@@ -113,7 +114,7 @@ function parseBlocksToOutline(
             // 1. Indentation children (Toggles)
             if (isToggle) {
                 const toggleIndent = block.indent || 0;
-                const toggleChildrenBlocks: any[] = [];
+                const toggleChildrenBlocks: Block[] = [];
                 let j = i + 1;
                 while (j < blocks.length && (blocks[j].indent || 0) > toggleIndent) {
                     toggleChildrenBlocks.push(blocks[j]);
@@ -138,7 +139,8 @@ function parseBlocksToOutline(
 
             items.push({
                 id: block.id,
-                type: block.type,
+                // Guarded by `isSupported` above, so block.type is one of OutlineItem's types.
+                type: block.type as OutlineItem['type'],
                 label: block.content || (block.type === 'page' ? 'Untitled Page' : ''),
                 targetId: block.type === 'page' ? (block.metadata?.nodeId || block.id) : `block-${block.id}`,
                 children,

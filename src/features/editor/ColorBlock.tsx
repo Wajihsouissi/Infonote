@@ -1,6 +1,6 @@
 import React, { useState, useRef, memo } from 'react';
 import styles from './BlockEditor.module.css';
-import type { Block } from './types';
+import type { Block, BlockMetadata } from './types';
 import { getNearestColorName } from './colorUtils';
 import { ColorBlockModal } from './ColorBlockModal';
 import { ICON_SIZE } from '../../config/layout';
@@ -8,7 +8,7 @@ import { ICON_SIZE } from '../../config/layout';
 interface BlockProps {
     block: Block;
     readOnly?: boolean;
-    onChange: (content: string, metadata?: any) => void;
+    onChange: (content: string, metadata?: BlockMetadata) => void;
     disableMediaControls?: boolean;
     minimal?: boolean;
 }

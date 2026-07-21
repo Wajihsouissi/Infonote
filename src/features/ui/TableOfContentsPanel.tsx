@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
 import { useStore } from '../../store/useStore';
+import { type AppNode, getNodeBlocks } from '../../types';
 import { buildTOCTree, type OutlineItem } from '../../services/tocService';
 import styles from './TableOfContentsPanel.module.css';
 
@@ -79,13 +80,10 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
         e.stopPropagation();
         const blockId = item.id;
         
-        const ownerNode = nodes.find(n => 
-            Array.isArray((n.data as any).content) && 
-            (n.data as any).content.some((b: any) => b.id === blockId)
-        );
+        const ownerNode = nodes.find(n => getNodeBlocks(n.data)?.some(b => b.id === blockId));
 
         if (ownerNode) {
-            const content = (ownerNode.data as any).content.map((b: any) => {
+            const content = (getNodeBlocks(ownerNode.data) ?? []).map((b) => {
                 if (b.id === blockId) {
                     return {
                         ...b,
@@ -108,7 +106,7 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
             case 'heading1':
                 return <span className={styles.headingBadge} style={{ color: 'var(--color-primary, #6366f1)' }}>H1</span>;
             case 'heading2':
-                return <span className={styles.headingBadge} style={{ color: '#a78bfa' }}>H2</span>;
+                return <span className={styles.headingBadge} style={{ color: '#ff8a5f' }}>H2</span>;
             case 'heading3':
                 return <span className={styles.headingBadge} style={{ color: '#f472b6' }}>H3</span>;
             case 'page':
@@ -275,7 +273,7 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
                     };
                 }
                 return n;
-            }) as any[];
+            }) as AppNode[];
 
             useStore.getState().setNodes(updatedNodes);
 
@@ -288,14 +286,11 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
 
         // Case B: Block/Heading inside Card (swap array elements)
         const blockId = item.id;
-        const ownerNode = nodes.find(n => 
-            Array.isArray((n.data as any).content) && 
-            (n.data as any).content.some((b: any) => b.id === blockId)
-        );
+        const ownerNode = nodes.find(n => getNodeBlocks(n.data)?.some(b => b.id === blockId));
 
         if (ownerNode) {
-            const content = [...(ownerNode.data as any).content];
-            const index = content.findIndex((b: any) => b.id === blockId);
+            const content = [...(getNodeBlocks(ownerNode.data) ?? [])];
+            const index = content.findIndex((b) => b.id === blockId);
             if (index === -1) return;
 
             const swapIndex = direction === 'up' ? index - 1 : index + 1;
@@ -383,10 +378,7 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
 
         // Case 2: Block within a canvas card (headings, toggles, etc.)
         const blockId = item.id;
-        const ownerNode = nodes.find(n => 
-            Array.isArray((n.data as any).content) && 
-            (n.data as any).content.some((b: any) => b.id === blockId)
-        );
+        const ownerNode = nodes.find(n => getNodeBlocks(n.data)?.some(b => b.id === blockId));
 
         if (ownerNode) {
             if (ownerNode.id === currentParentId) {

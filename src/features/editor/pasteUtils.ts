@@ -172,17 +172,32 @@ export function renderContentWithLinks(content: string): string {
     // 2) Protect inline code spans so their contents aren't treated as
     //    bold/italic/links. Stash them and restore at the very end.
     const codeStash: string[] = [];
-    html = html.replace(/`([^`\n]+)`/g, (_m, code: string) => {
+    html = html.replace(/`([^`]+)`/g, (_m, code: string) => {
         const token = `\uE000${codeStash.length}\uE001`;
+        
+        // Parse basic markdown emphasis inside the code span so users can have bold code
+        const innerHTML = code
+            .replace(/\*\*\*([\s\S]*?)\*\*\*/g, '<strong><em>$1</em></strong>')
+            .replace(/\*\*([\s\S]*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\+\+([\s\S]*?)\+\+/g, '<u>$1</u>')
+            .replace(/(^|[^*])\*(?!\s)([\s\S]*?)\*(?!\*)/g, '$1<em>$2</em>')
+            .replace(/~~([\s\S]*?)~~/g, '<s>$1</s>');
+
         codeStash.push(
-            `<code style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; padding: 1px 5px; border-radius: 4px; background: var(--glass-bg, rgba(255,255,255,0.08)); border: 1px solid var(--glass-border, rgba(255,255,255,0.1));">${code}</code>`
+            `<code style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 0.85em; padding: 0.2em 0.4em; border-radius: 3px; color: #eb5757; background: var(--glass-bg, rgba(135,131,120,0.15));">${innerHTML}</code>`
         );
         return token;
     });
 
+    // 2.5) Inline page chips: [Title](chnk://page/<id>) -> an atomic, non-editable
+    //      chip. CSS adds the 📄 icon so the title stays clean for serialization.
+    html = html.replace(/\[([^\]]+)\]\(chnk:\/\/page\/([A-Za-z0-9_-]+)\)/g, (_m, title: string, id: string) =>
+        `<a data-page-id="${escapeHtml(id)}" contenteditable="false" class="editor-page-chip">${title}</a>`
+    );
+
     // 3) Links: [label](url) and bare URLs (operating on the escaped string).
     //    Groups: 1=label, 2=markdownUrl, 3=rawUrl.
-    const linkPattern = /\[([^\]]+)\]\(((?:https?:\/\/|www\.)[^\s()<>]+(?:\([\w\d]+\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))\)|((?:https?:\/\/|www\.)[^\s()<>]+(?:\([\w\d]+\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))/gi;
+    const linkPattern = /\[([^\]]+)\]\(([^\s()<>]+)\)|((?:https?:\/\/|www\.)[^\s()<>]+(?:\([\w\d]+\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))/gi;
     html = html.replace(linkPattern, (match, label: string, markdownUrl: string, rawUrl: string) => {
         const url = label ? markdownUrl : rawUrl;
         // The URL was escaped, so &→&amp;. Decode for validation/href value.
@@ -195,10 +210,11 @@ export function renderContentWithLinks(content: string): string {
     // 4) Emphasis. Bold before italic so ** isn't eaten by the * rule.
     //    Underline (++x++) runs before italic too so its plus signs are safe.
     html = html
-        .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
-        .replace(/\+\+([^+\n]+)\+\+/g, '<u>$1</u>')
-        .replace(/(^|[^*])\*(?!\s)([^*\n]+?)\*(?!\*)/g, '$1<em>$2</em>')
-        .replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
+        .replace(/\*\*\*([\s\S]*?)\*\*\*/g, '<strong><em>$1</em></strong>')
+        .replace(/\*\*([\s\S]*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\+\+([\s\S]*?)\+\+/g, '<u>$1</u>')
+        .replace(/(^|[^*])\*(?!\s)([\s\S]*?)\*(?!\*)/g, '$1<em>$2</em>')
+        .replace(/~~([\s\S]*?)~~/g, '<s>$1</s>');
 
     // 5) Restore protected code spans.
     html = html.replace(/\uE000(\d+)\uE001/g, (_m, i: string) => codeStash[Number(i)] || '');

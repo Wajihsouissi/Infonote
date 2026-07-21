@@ -10,6 +10,9 @@ import type { GraphBackend, BackendKind } from './storage/types';
 import { saveSnapshot, loadSnapshot } from './storage/LocalSnapshotStore';
 import { shallow } from 'zustand/shallow';
 import { useStore } from '../store/useStore';
+import type { AppState } from '../store/types';
+import type { AppNode } from '../types';
+import type { Edge } from '@xyflow/react';
 
 let isInitialized = false;
 let saveTimeout: number | null = null;
@@ -20,17 +23,17 @@ let autoReconnectPromise: Promise<void> | null = null;
 let activeBackend: GraphBackend = fileSystemBackend;
 
 let storeCallbacks: {
-    getState: () => { nodes: any[]; edges: any[] };
-    loadGraph: (nodes: any[], edges: any[]) => void;
+    getState: () => { nodes: AppNode[]; edges: Edge[] };
+    loadGraph: (nodes: AppNode[], edges: Edge[]) => void;
     setStorageStatus: (connected: boolean, dirName: string | null) => void;
     setIsSaving: (isSaving: boolean) => void;
     setLastSaved: (time: string | null) => void;
 } | null = null;
 
 export function initStorageManager(
-    getState: () => { nodes: any[]; edges: any[] },
-    subscribe: <T>(selector: (state: any) => T, listener: (curr: T, prev: T) => void, options?: { equalityFn?: (a: T, b: T) => boolean }) => () => void,
-    loadGraph: (nodes: any[], edges: any[]) => void,
+    getState: () => { nodes: AppNode[]; edges: Edge[] },
+    subscribe: <T>(selector: (state: AppState) => T, listener: (curr: T, prev: T) => void, options?: { equalityFn?: (a: T, b: T) => boolean }) => () => void,
+    loadGraph: (nodes: AppNode[], edges: Edge[]) => void,
     callbacks: {
         onStatusChange?: (connected: boolean, dirName: string | null) => void;
         onSaveStart?: () => void;
@@ -54,12 +57,12 @@ export function initStorageManager(
 
     // Subscribe to store changes for auto-save.
     subscribe(
-        (state: any) => ({
+        (state: AppState) => ({
             nodes: state.nodes,
             edges: state.edges,
             isConnected: state.storage.isConnected,
-            setLocalDirty: (state as any).setLocalDirty,
-            setCloudDirty: (state as any).setCloudDirty
+            setLocalDirty: state.setLocalDirty,
+            setCloudDirty: state.setCloudDirty
         }),
         (curr, prev) => {
             const nodesChanged = curr.nodes !== prev.nodes;
@@ -217,8 +220,8 @@ export function flushPendingSave(): void {
  * Kept intact so existing callers do not have to change.
  */
 export async function connectStorage(
-    getState: () => { nodes: any[]; edges: any[] },
-    loadGraph: (nodes: any[], edges: any[]) => void,
+    getState: () => { nodes: AppNode[]; edges: Edge[] },
+    loadGraph: (nodes: AppNode[], edges: Edge[]) => void,
     setStorageStatus: (connected: boolean, dirName: string | null) => void
 ): Promise<{ success: boolean; error?: string }> {
     return connectBackend('filesystem', { getState, loadGraph, setStorageStatus });
@@ -230,8 +233,8 @@ export async function connectStorage(
 export async function connectBackend(
     kind: BackendKind,
     ctx: {
-        getState: () => { nodes: any[]; edges: any[] };
-        loadGraph: (nodes: any[], edges: any[]) => void;
+        getState: () => { nodes: AppNode[]; edges: Edge[] };
+        loadGraph: (nodes: AppNode[], edges: Edge[]) => void;
         setStorageStatus: (connected: boolean, dirName: string | null) => void;
         mode?: 'load' | 'save';
     }

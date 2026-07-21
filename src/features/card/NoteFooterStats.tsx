@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { Image as ImageIcon, StickyNote, Video, FileText, Layers } from 'lucide-react';
 import styles from './NoteCard.module.css';
+import type { Block } from '../editor/types';
 
 interface NoteFooterStatsProps {
-    content: any[] | string | null | undefined;
+    content: Block[] | string | null | undefined;
     date?: string;
 }
 

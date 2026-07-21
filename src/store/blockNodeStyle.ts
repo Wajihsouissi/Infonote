@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Edge } from '@xyflow/react';
 import type { AppNode } from '../types';
+import type { Block } from '../features/editor/types';
 import { BASE_UNIT, snapToGridValue } from '../config/layout';
 
 /**
@@ -27,7 +28,7 @@ export const normalizeText = (value: unknown): string => {
 /** Plain text of a block's content. Canonical blocks store a string; the array
  *  branch defends against rich-text content shapes. */
 export const blockText = (content: unknown): string => {
-    if (Array.isArray(content)) return content.map((c: any) => c?.text || '').join('');
+    if (Array.isArray(content)) return content.map((c: { text?: string } | null | undefined) => c?.text || '').join('');
     return typeof content === 'string' ? content : '';
 };
 
@@ -56,13 +57,14 @@ export const HYDRATE_SIZE_PROFILE: NodeSizeProfile = {
 /** Canvas-node footprint for a single block. Matches the two former inline
  *  `getNodeStyle` helpers exactly; the media/code/table sizes come from `profile`. */
 export const getBlockNodeStyle = (
-    block: any,
+    block: Block,
     profile: NodeSizeProfile,
     isHeading: boolean = HEADING_TYPES.has(block?.type),
 ): BlockSize => {
     if (isHeading) return { width: 220, height: 80 };
 
-    switch (block.type) {
+    // Widened: legacy saves may carry retired types like 'numberedListItem'.
+    switch (block.type as string) {
         case 'image':
         case 'video':
         case 'file':
@@ -91,7 +93,7 @@ export const getBlockNodeStyle = (
 
 /** A single block wrapped as a standalone `block` canvas node. */
 export const createBlockNode = (
-    block: any,
+    block: Block,
     position: { x: number; y: number },
     style: BlockSize,
     parentId: string | undefined,
@@ -100,7 +102,7 @@ export const createBlockNode = (
     type: 'block',
     position,
     style,
-    data: { content: [block], isStandaloneBlock: true } as any,
+    data: { content: [block], isStandaloneBlock: true },
     parentId,
 } as AppNode);
 
@@ -114,7 +116,7 @@ export interface RadialCluster {
  *  center. Uses the release sizing profile (its only caller). */
 export const buildRadialCluster = (
     centerNode: AppNode,
-    outerBlocks: any[],
+    outerBlocks: Block[],
     centerPos: { x: number; y: number },
     opts: { parentId: string | undefined; parentIdForEdge: string | null },
 ): RadialCluster => {

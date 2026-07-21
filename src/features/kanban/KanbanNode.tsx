@@ -23,7 +23,8 @@ import {
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 
 import { useStore } from '../../store/useStore';
-import type { KanbanNode, NoteNode } from '../../types';
+import { type AppNode, type KanbanNode, type NoteNode, getNodeBlocks } from '../../types';
+import type { Block } from '../editor/types';
 import { KanbanCardPreview } from './KanbanCardPreview';
 import { KanbanColumn } from './KanbanColumn';
 import { KanbanToolbar } from './KanbanToolbar';
@@ -56,7 +57,7 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
     const setCenterPanelId = useStore(s => s.setCenterPanelId);
     const interactionState = useStore(s => s.interactionState);
 
-    const { setNodes, screenToFlowPosition, getIntersectingNodes } = useReactFlow();
+    const { setNodes, screenToFlowPosition, getIntersectingNodes } = useReactFlow<AppNode>();
     const connection = useConnection();
     const isConnecting = connection.inProgress;
 
@@ -263,7 +264,7 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
 
             Object.keys(map).forEach(status => {
                 map[status].sort((a, b) => {
-                    let aVal: any, bVal: any;
+                    let aVal: number | string, bVal: number | string;
 
                     switch (sortBy) {
                         case 'dueDate':
@@ -495,7 +496,7 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
         // Actually simplest check: check if the 'over' is one of our columns or cards.
         // If over is null, we definitely eject.
 
-        let shouldEject = !over;
+        const shouldEject = !over;
 
         // Also check if we 'missed' the board entirely? 
         // dnd-kit might return null if we drop on the canvas background since it's not a droppable.
@@ -517,7 +518,7 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                 const height = activeNode.style?.height as number || ICON_SIZE;
                 const dropRect = { x: p1.x, y: p1.y, width, height };
 
-                const intersections = getIntersectingNodes(dropRect as any);
+                const intersections = getIntersectingNodes(dropRect);
                 const targetNode = intersections.find((n) =>
                     n.id !== activeIdStr &&
                     n.id !== id && // Not self (board)
@@ -526,13 +527,13 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
 
                 if (targetNode && (targetNode.type === 'note' || targetNode.type === 'block' || targetNode.type === 'fused-note')) {
                     // NESTING
-                    const pageBlock = {
+                    const pageBlock: Block = {
                         id: uuidv4(),
                         type: 'page',
                         content: activeNode.data.label || 'Untitled',
                         metadata: { nodeId: activeIdStr }
                     };
-                    const currentContent = Array.isArray((targetNode.data as any).content) ? (targetNode.data as any).content : [];
+                    const currentContent = getNodeBlocks(targetNode.data) ?? [];
                     updateNodeData(targetNode.id, {
                         content: [...currentContent, pageBlock]
                     });

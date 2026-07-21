@@ -1,11 +1,21 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import type { DraggableAttributes, DraggableSyntheticListeners } from '@dnd-kit/core';
 import type { NoteNode } from '../../types';
 import styles from './KanbanCalendarView.module.css';
 
 interface SortableCalendarCardProps {
     card: NoteNode;
     onCardClick: (card: NoteNode) => void;
+}
+
+interface CalendarCardProps {
+    card: NoteNode;
+    onCardClick?: (card: NoteNode) => void;
+    style?: React.CSSProperties;
+    listeners?: DraggableSyntheticListeners;
+    attributes?: DraggableAttributes;
+    isOverlay?: boolean;
 }
 
 function getPriorityColor(priority?: string) {
@@ -18,7 +28,7 @@ function getPriorityColor(priority?: string) {
     }
 }
 
-export const CalendarCard = ({ card, onCardClick, style, listeners, attributes, isOverlay }: any) => {
+export const CalendarCard = ({ card, onCardClick, style, listeners, attributes, isOverlay }: CalendarCardProps) => {
     return (
         <div
             style={style}

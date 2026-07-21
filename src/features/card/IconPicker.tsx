@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Upload, XCircle, Lightbulb, Link, type LucideIcon } from 'lucide-react';
-import EmojiPicker, { EmojiStyle, Theme, type EmojiClickData } from 'emoji-picker-react';
 import styles from './IconPicker.module.css';
+
+// Deferred: the emoji dataset is large; only load it when the Emojis tab opens.
+const EmojiPickerPanel = lazy(() => import('./EmojiPickerPanel'));
 import { CardIcon, iconRegistry, iconMap, defaultIconName } from './iconMap';
 
 interface IconPickerProps {
@@ -23,7 +25,7 @@ const colorSwatches = [
     { name: 'Cyan', value: '#06b6d4' },
     { name: 'Blue', value: '#3b82f6' },
     { name: 'Indigo', value: '#6366f1' },
-    { name: 'Purple', value: '#8b5cf6' },
+    { name: 'Purple', value: '#a855f7' },
     { name: 'Pink', value: '#ec4899' },
     { name: 'Rose', value: '#f43f5e' },
 ];
@@ -249,17 +251,14 @@ export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconP
 
                 {activeTab === 'emojis' && (
                     <div style={{ width: '100%', height: '400px', display: 'flex', justifyContent: 'center' }}>
-                        <EmojiPicker 
-                            onEmojiClick={(emojiData: EmojiClickData) => {
-                                onSelect(`emoji::${emojiData.emoji}`);
-                                onClose();
-                            }}
-                            emojiStyle={EmojiStyle.NATIVE}
-                            theme={Theme.DARK}
-                            lazyLoadEmojis={true}
-                            width="100%"
-                            height={400}
-                        />
+                        <Suspense fallback={<div style={{ padding: 24, color: 'var(--color-text-muted)' }}>Loading emojis…</div>}>
+                            <EmojiPickerPanel
+                                onPick={(emoji) => {
+                                    onSelect(`emoji::${emoji}`);
+                                    onClose();
+                                }}
+                            />
+                        </Suspense>
                     </div>
                 )}
 

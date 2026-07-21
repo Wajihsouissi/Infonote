@@ -45,7 +45,8 @@ export function useRecentlyViewed(workspaceId?: string) {
       const { data, error } = await query;
       if (error) throw error;
       
-      const mappedNotes = (data || []).map((row: any) => {
+      type NoteRow = { id: string; type?: string; updated_at?: string; data_json?: { data?: Record<string, unknown> } };
+      const mappedNotes = ((data || []) as NoteRow[]).map((row) => {
         const inner = (row.data_json?.data || {}) as Record<string, unknown>;
         const rawTitle = inner.label || inner.title || inner.name || inner.text || '';
         const title = (typeof rawTitle === 'string' && rawTitle.trim())

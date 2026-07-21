@@ -20,7 +20,7 @@ import {
     Link,
     Sparkles
 } from 'lucide-react';
-import type { BlockType } from './types';
+import type { BlockType, BlockMetadata } from './types';
 
 export interface MenuItem {
     label: string;
@@ -28,7 +28,7 @@ export interface MenuItem {
     type: BlockType;
     icon: React.ElementType;
     keywords?: string[];
-    meta?: any;
+    meta?: BlockMetadata;
 }
 
 export const MENU_ITEMS: MenuItem[] = [

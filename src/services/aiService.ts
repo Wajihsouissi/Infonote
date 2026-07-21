@@ -169,7 +169,7 @@ const CanvasCardSchema = z.object({
     content: z.string(),
     x: z.number(),
     y: z.number(),
-    color: z.string().optional().default('#1a1a2e'),
+    color: z.string().optional().default('#1a191d'),
 });
 
 export type AICanvasCard = z.infer<typeof CanvasCardSchema>;
@@ -206,7 +206,7 @@ Respond ONLY with a valid JSON array. Each item must have:
 - "content": Body content whose depth MATCHES the request — concise (a few sentences or a short list) for simple cards, richly structured (## headings, bullet lists, '- [ ]' tasks) only when the topic genuinely warrants it. Use markdown including **bold** for key terms. Do not pad thin topics.
 - "x": x position (start at ${baseX}, increment by 340 per column, max 4 columns)
 - "y": y position (start at ${baseY}, increment by 260 per row)
-- "color": CSS hex color for background. You MUST choose ONLY from this exact premium preset palette: #8b5cf6, #ec4899, #f59e0b, #10b981, #3b82f6, #ef4444, #06b6d4, #6366f1
+- "color": CSS hex color for background. You MUST choose ONLY from this exact premium preset palette: #f95d2e, #ec4899, #f59e0b, #10b981, #3b82f6, #ef4444, #e3a24f, #6366f1
 
 Return exactly the number of cards requested. No markdown, no explanation — only the JSON array.`;
 
@@ -224,7 +224,7 @@ Return exactly the number of cards requested. No markdown, no explanation — on
             content: (card as Record<string, string>).content || '',
             x: baseX + (i % 4) * 340,
             y: baseY + Math.floor(i / 4) * 260,
-            color: '#8b5cf6', // Default to preset Violet
+            color: '#f95d2e', // Default to preset Violet
         };
     });
 }
@@ -298,7 +298,7 @@ Each action object must have:
 - "title": Title of the card/board/doc/mindmap
 - If type is "note" or "fused-note":
   - "content": Body content whose length and depth MATCH the user's request — concise for simple asks, richly structured only when the topic warrants it. Use markdown where it helps (headers, bullet lists, quote blocks, '- [ ] Task' lists, and **bold** for key terms). A "fused-note" is a document, so it can go deeper, but still avoid padding.
-  - "color": Optional background hex color. MUST choose ONLY from: #8b5cf6, #ec4899, #f59e0b, #10b981, #3b82f6, #ef4444, #06b6d4, #6366f1
+  - "color": Optional background hex color. MUST choose ONLY from: #f95d2e, #ec4899, #f59e0b, #10b981, #3b82f6, #ef4444, #e3a24f, #6366f1
 - If type is "kanban":
   - "viewMode": "board" | "table" | "calendar" | "timeline"
   - "columns": Array of objects: {"id": "slug", "label": "Name", "statusValue": "slug", "color": "#hex"}
@@ -307,7 +307,7 @@ Each action object must have:
 
 Example JSON response:
 [
-  {"type": "note", "title": "The Milky Way", "content": "The Milky Way galaxy is...", "color": "#8b5cf6"},
+  {"type": "note", "title": "The Milky Way", "content": "The Milky Way galaxy is...", "color": "#f95d2e"},
   {"type": "fused-note", "title": "Project Launch Doc", "content": "## Goals\\n- [ ] Task 1\\n- [ ] Task 2", "color": "#10b981"},
   {
     "type": "mindmap",
@@ -354,7 +354,7 @@ Example JSON response:
             type: 'note',
             title: prompt.length > 20 ? prompt.substring(0, 17) + '...' : prompt,
             content: cleanResponseText,
-            color: '#1a1a2e'
+            color: '#1a191d'
         }];
     }
 
@@ -367,7 +367,7 @@ Example JSON response:
             type: 'note',
             title: 'AI Generated Card',
             content: cleanResponseText,
-            color: '#1a1a2e'
+            color: '#1a191d'
         }];
     }
 }

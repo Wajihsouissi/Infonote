@@ -3,14 +3,14 @@ import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import { Search } from 'lucide-react';
 import styles from './BlockEditor.module.css';
-import type { BlockType } from './types';
+import type { BlockType, BlockMetadata } from './types';
 import { MENU_ITEMS } from './menuConstants';
 import { toPastelColor, darkenColor } from '../../utils/colorUtils';
 
 interface SlashMenuProps {
     anchorRect: DOMRect | { top: number; left: number; bottom: number }; // Virtual or real rect
     filter: string;
-    onSelect: (type: BlockType, metadata?: any) => void;
+    onSelect: (type: BlockType, metadata?: BlockMetadata) => void;
     onClose: () => void;
     nodeColor?: string;
     theme?: 'light' | 'dark';

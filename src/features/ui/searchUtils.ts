@@ -1,4 +1,5 @@
-import type { AppNode } from '../../types';
+import { type AppNode, type NoteData, getNodeLabel } from '../../types';
+import type { Block } from '../editor/types';
 
 export interface SearchFilters {
     tags: string[];
@@ -102,7 +103,9 @@ export function extractNodeSearchableText(node: AppNode): string[] {
     
     if (!node || !node.data) return textParts;
 
-    const data = node.data as any;
+    // A search indexer reads note-ish fields opportunistically; other node types
+    // simply lack them (undefined at runtime), which the guards below handle.
+    const data = node.data as Partial<NoteData>;
 
     // Label and Description
     if (data.label) textParts.push(data.label);
@@ -119,24 +122,24 @@ export function extractNodeSearchableText(node: AppNode): string[] {
     return textParts;
 }
 
-function extractBlocksText(blocks: any[], results: string[]) {
+function extractBlocksText(blocks: Block[], results: string[]) {
     blocks.forEach(block => {
         if (!block) return;
-        
+
         if (typeof block.content === 'string') {
             results.push(block.content);
         }
-        
+
         // Handle nested blocks in metadata
         if (block.metadata) {
             // 1. Recursive content (standard container pattern)
             if (Array.isArray(block.metadata.content)) {
                 extractBlocksText(block.metadata.content, results);
             }
-            
+
             // 2. Columns pattern
             if (Array.isArray(block.metadata.columns)) {
-                block.metadata.columns.forEach((col: any) => {
+                block.metadata.columns.forEach((col) => {
                     if (Array.isArray(col.content)) {
                         extractBlocksText(col.content, results);
                     }
@@ -154,7 +157,7 @@ function extractBlocksText(blocks: any[], results: string[]) {
  * Matches a node against the parsed filters.
  */
 export function matchNode(node: AppNode, filters: SearchFilters): boolean {
-    const data = node.data as any;
+    const data = node.data as Partial<NoteData>;
 
     // 1. Type filter
     if (filters.type) {
@@ -207,7 +210,7 @@ export function matchNode(node: AppNode, filters: SearchFilters): boolean {
  */
 export function calculateRelevance(node: AppNode, filters: SearchFilters): number {
     let score = 0;
-    const data = node.data as any;
+    const data = node.data as Partial<NoteData>;
     const searchText = filters.text.toLowerCase();
     
     if (!searchText) return 1;
@@ -291,8 +294,8 @@ export function buildNodePath(nodeId: string, nodes: AppNode[] | Map<string, App
     let current = nodeMap.get(nodeId);
 
     while (current) {
-        path.unshift({ id: current.id, label: String((current.data as any)?.label || 'Untitled') });
-        const parentId = (current as any).parentId;
+        path.unshift({ id: current.id, label: String(getNodeLabel(current.data) || 'Untitled') });
+        const parentId = current.parentId;
         current = parentId ? nodeMap.get(parentId) : undefined;
     }
 

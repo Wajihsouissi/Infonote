@@ -1,13 +1,14 @@
 import React, { useState, useRef, useLayoutEffect, useEffect, memo, useCallback } from 'react';
-import { FileText, Trash2, Sparkles, Loader2, Clock, Plus, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, AlignLeft, AlignCenter, AlignRight, GripHorizontal, GripVertical, Eraser } from 'lucide-react';
+import { FileText, Trash2, Sparkles, Loader2, Clock, Plus, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, AlignLeft, AlignCenter, AlignRight, GripHorizontal, GripVertical, Eraser, ChevronRight, Copy, Check } from 'lucide-react';
 import { FEATURES } from '../../config/featureFlags';
 import { useStore } from '../../store/useStore';
 import { renderContentWithLinks } from './pasteUtils';
+import { serializeInline } from './inlineFormat';
 import pageStyles from './PageBlock.module.css'; // Import page styles
 import { ContainerBlock } from './ContainerBlock'; // Import ContainerBlock
 import { ColumnsBlock } from './ColumnsBlock'; // Import ColumnsBlock
 export { ContainerBlock, ColumnsBlock };
-import type { Block } from './types';
+import type { Block, BlockMetadata } from './types';
 import styles from './BlockEditor.module.css';
 import { IconPicker, getIconByName } from '../card/IconPicker';
 import { generateText, FREEFORM_SYSTEM_PROMPT } from '../../services/aiService';
@@ -19,7 +20,7 @@ import { CustomDateTimePicker } from './CustomDateTimePicker';
 interface BlockProps {
     block: Block;
     readOnly?: boolean;
-    onChange: (content: string, metadata?: any) => void;
+    onChange: (content: string, metadata?: BlockMetadata) => void;
     onKeyDown?: (e: React.KeyboardEvent) => void;
     onPaste?: (e: React.ClipboardEvent) => void;
     domRef?: (el: HTMLDivElement | null) => void;
@@ -73,26 +74,9 @@ const useContentEditable = (content: string, domRef?: React.Ref<HTMLDivElement>,
     const handlers = {
         onFocus: () => {
             isFocused.current = true;
-            // Source-mode editing: a formatted block renders to HTML on blur
-            // (e.g. **x** -> <strong>x</strong>), which drops the markdown
-            // markers from innerText. On focus, restore the raw source so the
-            // markers are visible and editing is lossless. Plain blocks already
-            // show raw text (innerText === content), so this is a no-op for them.
-            const el = internalRef.current;
-            if (el && renderLinks) {
-                const raw = contentRef.current;
-                if (el.innerText !== raw) {
-                    el.innerText = raw;
-                    // Caret to end — the click's caret was placed in the old
-                    // rendered text and is no longer meaningful.
-                    const range = document.createRange();
-                    range.selectNodeContents(el);
-                    range.collapse(false);
-                    const sel = window.getSelection();
-                    sel?.removeAllRanges();
-                    sel?.addRange(range);
-                }
-            }
+            // Notion-style live editing: the block stays visually formatted while
+            // you edit (real <strong>/<em>/… remain in the DOM). No source-mode
+            // marker swap — onInput serializes the HTML back to markdown instead.
         },
         onBlur: () => {
             isFocused.current = false; 
@@ -116,8 +100,22 @@ const useContentEditable = (content: string, domRef?: React.Ref<HTMLDivElement>,
         onCompositionEnd: () => { isComposing.current = false; },
         onClick: (e: React.MouseEvent) => {
             if (!renderLinks) return;
-            const target = e.target as HTMLElement;
-            if (target.tagName === 'A' && target.getAttribute('href')) {
+            const target = (e.target as HTMLElement).closest('a');
+            if (!target) return;
+            
+            // Only follow links if Ctrl (Windows/Linux) or Cmd (Mac) is held
+            if (!e.ctrlKey && !e.metaKey) return;
+
+            // Inline page chip -> open the linked note instead of navigating.
+            const pageId = target.getAttribute('data-page-id');
+            if (pageId) {
+                e.preventDefault();
+                e.stopPropagation();
+                const store = useStore.getState();
+                (store.setFullscreenId ?? store.navigateToNode)?.(pageId);
+                return;
+            }
+            if (target.getAttribute('href')) {
                 window.open(target.getAttribute('href')!, '_blank', 'noopener,noreferrer');
                 e.preventDefault();
                 e.stopPropagation();
@@ -154,7 +152,7 @@ export const TextBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
             }}
             contentEditable={!readOnly}
             suppressContentEditableWarning
-            onInput={(e) => onChange(e.currentTarget.innerText)}
+            onInput={(e) => onChange(serializeInline(e.currentTarget))}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             data-placeholder={minimal ? "Text..." : "Type '/' for commands"}
@@ -190,7 +188,7 @@ export const HeadingBlock = memo(({ block, level, readOnly, onChange, onKeyDown,
             }}
             contentEditable={!readOnly}
             suppressContentEditableWarning
-            onInput={(e) => onChange(e.currentTarget.innerText)}
+            onInput={(e) => onChange(serializeInline(e.currentTarget))}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             data-placeholder={`Heading ${level}...`}
@@ -258,7 +256,7 @@ export const TodoBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
                 }}
                 contentEditable={!readOnly}
                 suppressContentEditableWarning
-                onInput={(e) => onChange(e.currentTarget.innerText)}
+                onInput={(e) => onChange(serializeInline(e.currentTarget))}
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
                 data-placeholder="To-do item"
@@ -316,7 +314,7 @@ export const QuoteBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste,
                 }}
                 contentEditable={!readOnly}
                 suppressContentEditableWarning
-                onInput={(e) => onChange(e.currentTarget.innerText)}
+                onInput={(e) => onChange(serializeInline(e.currentTarget))}
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
                 data-placeholder="Empty quote"
@@ -333,7 +331,7 @@ import { ResizableMediaWrapper } from './ResizableMediaWrapper';
 
 // ... (other blocks)
 
-export const ImageBlock = memo(({ block, readOnly, onChange, disableMediaControls, onDeleteBlock }: BlockProps) => {
+export const ImageBlock = memo(({ block, readOnly, onChange, disableMediaControls }: BlockProps) => {
     if (!block.content) {
         return (
             <MediaPlaceholder type="image" onUpload={onChange} />
@@ -403,14 +401,19 @@ export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
     } else if (block.type === 'toggle') {
         wrapperClass = styles.toggleWrapper;
         prefix = (
-            <div 
+            <div
                 className={`
-                    ${styles.toggleTriangle} 
-                    ${!isCollapsed ? styles.expanded : ''} 
+                    ${styles.toggleTriangle}
+                    ${!isCollapsed ? styles.expanded : ''}
                     ${(isCollapsed && hasChildren) ? styles.hasContent : ''}
-                `} 
+                `}
                 onClick={!readOnly ? toggleCollapse : undefined}
-            />
+                role="button"
+                aria-expanded={!isCollapsed}
+                aria-label={isCollapsed ? 'Expand toggle' : 'Collapse toggle'}
+            >
+                <ChevronRight />
+            </div>
         );
     }
 
@@ -452,7 +455,7 @@ export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
                 }}
                 contentEditable={!readOnly}
                 suppressContentEditableWarning
-                onInput={(e) => onChange(e.currentTarget.innerText)}
+                onInput={(e) => onChange(serializeInline(e.currentTarget))}
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
                 data-placeholder={placeholder}
@@ -529,7 +532,7 @@ export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPast
                 style={{ color: block.metadata?.textColor }}
                 contentEditable={!readOnly}
                 suppressContentEditableWarning
-                onInput={(e) => onChange(e.currentTarget.innerText)}
+                onInput={(e) => onChange(serializeInline(e.currentTarget))}
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
                 data-placeholder="Callout text..."
@@ -542,22 +545,154 @@ export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPast
 
 
 
+/** Languages offered in the code block's header. `text` = no highlighting intent. */
+const CODE_LANGUAGES = [
+    'text', 'bash', 'c', 'cpp', 'csharp', 'css', 'go', 'html', 'java',
+    'javascript', 'json', 'jsx', 'kotlin', 'markdown', 'php', 'python',
+    'ruby', 'rust', 'sql', 'swift', 'tsx', 'typescript', 'yaml',
+] as const;
+
+const CODE_INDENT = '  '; // 2 spaces — matches the block's own source style
+
+/**
+ * Copy without depending on navigator.clipboard, which is unavailable on
+ * insecure origins and can be permission-denied inside embedded webviews.
+ * Falling back here keeps the copy button from being silently dead.
+ */
+const legacyCopy = (text: string): boolean => {
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '0';
+        ta.style.opacity = '0';
+        ta.style.pointerEvents = 'none';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+    } catch {
+        return false;
+    }
+};
+
 export const CodeBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
     const { ref, handlers } = useContentEditable(block.content, domRef, false);
+    const [copied, setCopied] = useState(false);
+    const copyTimer = useRef<number | undefined>(undefined);
+
+    const language: string = block.metadata?.language || 'text';
+    const isEmpty = !block.content || block.content.trim() === '';
+    const lineCount = block.content ? block.content.split('\n').length : 0;
+
+    useEffect(() => () => window.clearTimeout(copyTimer.current), []);
+
+    const handleCopy = useCallback(async () => {
+        if (!block.content) return;
+        let ok = false;
+        try {
+            await navigator.clipboard.writeText(block.content);
+            ok = true;
+        } catch {
+            ok = legacyCopy(block.content);
+        }
+        // Only confirm on a real copy — never flash "Copied" over a failure.
+        if (!ok) return;
+        setCopied(true);
+        window.clearTimeout(copyTimer.current);
+        copyTimer.current = window.setTimeout(() => setCopied(false), 1600);
+    }, [block.content]);
+
+    const handleLanguageChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+        onChange(block.content, { ...block.metadata, language: e.target.value });
+    }, [block.content, block.metadata, onChange]);
+
+    /**
+     * Tab must indent, not escape the block. In a contentEditable, Tab is a
+     * focus move by default, which makes writing code here effectively
+     * impossible. Shift+Tab outdents one level from the line start.
+     */
+    const handleCodeKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            e.stopPropagation();
+            const sel = window.getSelection();
+            if (!sel || !sel.rangeCount) return;
+
+            if (!e.shiftKey) {
+                document.execCommand('insertText', false, CODE_INDENT);
+            } else {
+                // Outdent: drop up to CODE_INDENT worth of leading whitespace
+                // before the caret on the current line.
+                const range = sel.getRangeAt(0);
+                const node = range.startContainer;
+                const offset = range.startOffset;
+                const text = node.textContent || '';
+                const lineStart = text.lastIndexOf('\n', offset - 1) + 1;
+                const indent = text.slice(lineStart, offset);
+                const strip = indent.endsWith(CODE_INDENT)
+                    ? CODE_INDENT.length
+                    : (indent.endsWith(' ') ? 1 : 0);
+                if (strip > 0) {
+                    const r = document.createRange();
+                    r.setStart(node, offset - strip);
+                    r.setEnd(node, offset);
+                    sel.removeAllRanges();
+                    sel.addRange(r);
+                    document.execCommand('delete');
+                }
+            }
+            return;
+        }
+        onKeyDown?.(e);
+    }, [onKeyDown]);
 
     return (
         <div className={styles.codeBlockWrapper}>
+            <div className={styles.codeHeader} contentEditable={false}>
+                {readOnly ? (
+                    <span className={styles.codeLangStatic}>{language}</span>
+                ) : (
+                    <select
+                        className={styles.codeLangSelect}
+                        value={language}
+                        onChange={handleLanguageChange}
+                        aria-label="Code language"
+                    >
+                        {CODE_LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
+                    </select>
+                )}
+
+                <span className={styles.codeMeta}>
+                    {lineCount > 0 && `${lineCount} ${lineCount === 1 ? 'line' : 'lines'}`}
+                </span>
+
+                <button
+                    type="button"
+                    className={styles.codeCopyBtn}
+                    onClick={handleCopy}
+                    disabled={isEmpty}
+                    aria-label={copied ? 'Copied' : 'Copy code'}
+                    data-copied={copied ? 'true' : 'false'}
+                >
+                    {copied ? <Check /> : <Copy />}
+                    <span>{copied ? 'Copied' : 'Copy'}</span>
+                </button>
+            </div>
+
             <div
                 ref={ref}
                 className={`${styles.block} ${styles.codeBlock}`}
                 contentEditable={!readOnly}
                 suppressContentEditableWarning
-                onInput={(e) => onChange(e.currentTarget.innerText)}
-                onKeyDown={onKeyDown}
+                onInput={(e) => onChange(serializeInline(e.currentTarget))}
+                onKeyDown={handleCodeKeyDown}
                 onPaste={onPaste}
                 spellCheck={false}
-                data-placeholder="Code snippet..."
-                data-is-empty={!block.content || block.content.trim() === '' ? 'true' : 'false'}
+                data-placeholder="Write or paste code…"
+                data-is-empty={isEmpty ? 'true' : 'false'}
                 {...handlers}
             />
         </div>
@@ -566,7 +701,7 @@ export const CodeBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
 
 type TableAlign = 'left' | 'center' | 'right';
 
-export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
+export const TableBlock = memo(({ block, readOnly, onChange, disableMediaControls }: BlockProps) => {
     const rows: string[][] = block.metadata?.rows || [];
     const savedWidths: number[] = block.metadata?.columnWidths || [];
     const savedHeights: number[] = block.metadata?.rowHeights || [];
@@ -584,7 +719,7 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
     const [menu, setMenu] = useState<{ type: 'col' | 'row'; index: number; x: number; y: number } | null>(null);
     const dragData = useRef<{ type: 'col' | 'row'; index: number; startPos: number; startSize: number } | null>(null);
 
-    const commit = (patch: Record<string, any>) => onChange(block.content, { ...block.metadata, ...patch });
+    const commit = (patch: Partial<BlockMetadata>) => onChange(block.content, { ...block.metadata, ...patch });
 
     // Grow a textarea cell to fit its content (multi-line, wrapping cells).
     const autosize = (el: HTMLTextAreaElement | null) => {
@@ -667,7 +802,7 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
     const insertRow = (at: number) => {
         const newRow = Array(colCount || 2).fill('');
         const newRows = [...rows.slice(0, at), newRow, ...rows.slice(at)];
-        const patch: Record<string, any> = { rows: newRows };
+        const patch: Partial<BlockMetadata> = { rows: newRows };
         if (savedHeights.length > 0) patch.rowHeights = [...savedHeights.slice(0, at), 0, ...savedHeights.slice(at)];
         commit(patch);
         focusCell(at, 0, false);
@@ -675,7 +810,7 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
 
     const insertColumn = (at: number) => {
         const newRows = rows.map(row => [...row.slice(0, at), '', ...row.slice(at)]);
-        const patch: Record<string, any> = {
+        const patch: Partial<BlockMetadata> = {
             rows: newRows,
             alignments: [...alignments.slice(0, at), 'left' as TableAlign, ...alignments.slice(at)],
         };
@@ -687,7 +822,7 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
     const deleteRow = (rowIndex: number) => {
         if (rowCount <= 2) return; // keep the header plus at least one body row
         const newRows = rows.filter((_, ri) => ri !== rowIndex);
-        const patch: Record<string, any> = { rows: newRows };
+        const patch: Partial<BlockMetadata> = { rows: newRows };
         if (savedHeights.length > 0) patch.rowHeights = savedHeights.filter((_, ri) => ri !== rowIndex);
         commit(patch);
         setMenu(null);
@@ -696,7 +831,7 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
     const deleteColumn = (colIndex: number) => {
         if (colCount <= 1) return;
         const newRows = rows.map(row => row.filter((_, ci) => ci !== colIndex));
-        const patch: Record<string, any> = { rows: newRows };
+        const patch: Partial<BlockMetadata> = { rows: newRows };
         if (savedWidths.length > 0) patch.columnWidths = savedWidths.filter((_, ci) => ci !== colIndex);
         if (alignments.length > 0) patch.alignments = alignments.filter((_, ci) => ci !== colIndex);
         commit(patch);
@@ -824,7 +959,7 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
 
             const data = dragData.current;
             if (data && data.type === 'col' && table) {
-                let colgroup = table.querySelector('colgroup');
+                const colgroup = table.querySelector('colgroup');
                 if (!colgroup) {
                     const ths = table.querySelectorAll('thead th');
                     const newWidths: number[] = [];
@@ -842,7 +977,7 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
                     for (let i = 0; i < totalCells && i < colgroup.children.length; i++) {
                         const col = colgroup.children[i] as HTMLElement;
                         const w = col.style.width ? parseInt(col.style.width) : 0;
-                        newWidths.push(w > 0 ? w : Math.round((col as any).getBoundingClientRect?.()?.width || 120));
+                        newWidths.push(w > 0 ? w : Math.round(col.getBoundingClientRect?.()?.width || 120));
                     }
                     if (newWidths.length > 0) {
                         onChange(block.content, { ...block.metadata, columnWidths: newWidths });
@@ -862,13 +997,25 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
     const hasHeights = savedHeights.length > 0 && savedHeights.some(h => h > 0);
     const alignOf = (c: number): TableAlign => alignments[c] || 'left';
 
+    const handleResize = (newValue: number) => commit({ width: newValue });
+    const handleAlign = (alignment: 'left' | 'center' | 'right') => commit({ alignment });
+
     if (rowCount === 0) {
         // First paint of a fresh table — the init effect will populate it.
         return <div className={styles.tableWrapper} ref={wrapperRef} contentEditable={false} />;
     }
 
     return (
-        <div className={styles.tableWrapper} ref={wrapperRef} contentEditable={false}>
+        <ResizableMediaWrapper
+            width={block.metadata?.width}
+            resizeMode="width"
+            alignment={block.metadata?.alignment}
+            readOnly={readOnly}
+            onResize={handleResize}
+            onAlign={handleAlign}
+            disableMediaControls={disableMediaControls}
+        >
+            <div className={styles.tableWrapper} ref={wrapperRef} contentEditable={false}>
             <div className={styles.tableScroll}>
                 <div className={styles.tableInner}>
                     <div className={styles.tableMain}>
@@ -1004,7 +1151,8 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
                     )}
                 </div>
             )}
-        </div>
+            </div>
+        </ResizableMediaWrapper>
     );
 });
 
@@ -1055,7 +1203,7 @@ export const AIBlock = memo(({ block, readOnly }: BlockProps) => {
             const response = await generateText(prompt, inlineSystem);
 
             window.dispatchEvent(new CustomEvent('chnk-it-ai-generate', { detail: { id: block.id, content: response } }));
-        } catch (e) {
+        } catch {
             setError('Failed to generate. Please try again.');
         } finally {
             setIsGenerating(false);
@@ -1063,8 +1211,8 @@ export const AIBlock = memo(({ block, readOnly }: BlockProps) => {
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'rgba(139, 92, 246, 0.1)', borderRadius: '8px', border: '1px solid rgba(139, 92, 246, 0.3)', margin: '8px 0' }} contentEditable={false}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#c084fc', fontSize: '13px', fontWeight: 600 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'rgba(249, 93, 46, 0.1)', borderRadius: '8px', border: '1px solid rgba(249, 93, 46, 0.3)', margin: '8px 0' }} contentEditable={false}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ff8a5f', fontSize: '13px', fontWeight: 600 }}>
                 <Sparkles size={16} /> AI Generation
             </div>
             {error && <div style={{ color: '#ef4444', fontSize: '12px' }}>{error}</div>}
@@ -1083,13 +1231,13 @@ export const AIBlock = memo(({ block, readOnly }: BlockProps) => {
                     style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--color-text-main)', outline: 'none', fontSize: '14px' }}
                     disabled={isGenerating || readOnly}
                 />
-                {isGenerating ? <Loader2 size={16} className="animate-spin" color="#c084fc" /> : null}
+                {isGenerating ? <Loader2 size={16} className="animate-spin" color="#ff8a5f" /> : null}
             </div>
         </div>
     );
 });
 
-export const VideoBlock = memo(({ block, readOnly, onChange, disableMediaControls, onDeleteBlock }: BlockProps) => {
+export const VideoBlock = memo(({ block, readOnly, onChange, disableMediaControls }: BlockProps) => {
     if (!block.content) {
         return (
             <MediaPlaceholder type="video" onUpload={onChange} />
@@ -1120,7 +1268,7 @@ export const VideoBlock = memo(({ block, readOnly, onChange, disableMediaControl
     );
 });
 
-export const FileBlock = memo(({ block, readOnly, onChange, onDeleteBlock }: BlockProps) => {
+export const FileBlock = memo(({ block, onChange }: BlockProps) => {
     const fileName = block.metadata?.name || block.content.split('/').pop() || "File";
     const [showPDF, setShowPDF] = React.useState(false);
 

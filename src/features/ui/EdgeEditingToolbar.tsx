@@ -66,9 +66,11 @@ export function EdgeEditingToolbar() {
     // Helper to get common value or empty/fallback if mixed
     const getCommonValue = <T,>(key: string, fallback: T): T => {
         if (selectedEdges.length === 0) return fallback;
-        const firstVal = (selectedEdges[0].data as any)?.[key] ?? fallback;
-        const allSame = selectedEdges.every((e) => ((e.data as any)?.[key] ?? fallback) === firstVal);
-        return allSame ? firstVal : ('' as any);
+        const readKey = (e: (typeof selectedEdges)[number]) =>
+            ((e.data as Record<string, unknown> | undefined)?.[key] as T) ?? fallback;
+        const firstVal = readKey(selectedEdges[0]);
+        const allSame = selectedEdges.every((e) => readKey(e) === firstVal);
+        return allSame ? firstVal : ('' as unknown as T);
     };
 
     // Retrieve active edge styles with robust fallbacks
@@ -77,7 +79,7 @@ export function EdgeEditingToolbar() {
     const strokeWidth = getCommonValue<number>('strokeWidth', 1.75);
     const markerStartType = getCommonValue<'none' | 'arrow' | 'circle'>('markerStartType', 'none');
     const markerEndType = getCommonValue<'none' | 'arrow' | 'circle'>('markerEndType', 'none');
-    const isAnimated = selectedEdges.every((e) => e.animated || (e.data as any)?.animated);
+    const isAnimated = selectedEdges.every((e) => e.animated || (e.data as Record<string, unknown> | undefined)?.animated);
     const label = getCommonValue<string>('label', '');
     const activeColor = getCommonValue<string>('color', 'transparent');
 

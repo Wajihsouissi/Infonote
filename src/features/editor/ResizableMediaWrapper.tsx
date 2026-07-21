@@ -18,7 +18,6 @@ interface ResizableMediaWrapperProps {
 export const ResizableMediaWrapper = ({
     children,
     width,
-    height,
     resizeMode = 'width',
     alignment = 'left',
     readOnly,
@@ -168,15 +167,9 @@ export const ResizableMediaWrapper = ({
                         }}
                     >
                         <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <defs>
-                                <linearGradient id="media-arc-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" stopColor="#A78BFA" />
-                                    <stop offset="100%" stopColor="#60A5FA" />
-                                </linearGradient>
-                            </defs>
                             <path
                                 d="M 8 32 A 24 24 0 0 1 32 8"
-                                stroke="url(#media-arc-gradient)"
+                                stroke="currentColor"
                                 strokeWidth="6"
                                 strokeLinecap="round"
                                 className={styles.handlePath}

@@ -42,7 +42,7 @@ const priorityConfig: Record<string, { color: string; label: string }> = {
 const statusConfig: Record<string, { color: string; label: string; icon: typeof Circle }> = {
     'todo': { color: '#6b7280', label: 'To Do', icon: Circle },
     'in-progress': { color: '#eab308', label: 'In Progress', icon: Loader },
-    'review': { color: '#8b5cf6', label: 'Review', icon: Clock },
+    'review': { color: '#f95d2e', label: 'Review', icon: Clock },
     'done': { color: '#22c55e', label: 'Done', icon: CheckCircle },
 };
 

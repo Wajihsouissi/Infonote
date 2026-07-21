@@ -1,0 +1,507 @@
+/* ============================================================
+   chnk it — GLOBAL DESIGN SYSTEM · "Paper & Ink"
+   ------------------------------------------------------------
+   The single source of truth for every color, font, radius,
+   shadow and motion value in the app. Components must consume
+   these tokens (var(--…)) — never hardcode brand colors.
+
+   Art direction: flat editorial surfaces, hairline rules,
+   one persimmon accent, warm amber secondary. Dark theme is
+   warm graphite ("Ink"), light theme is warm paper ("Paper").
+   No glassmorphism, no glow.
+
+   Sections:
+     1. Static tokens (typography, radius, motion)
+     2. Ink theme (dark — default)
+     3. Paper theme (light)
+     4. Legacy aliases (old variable names → new tokens) so
+        existing modules keep working; prefer the new names
+        in new code.
+     5. Corner shape — Apple-style continuous curvature
+        (squircle) applied globally to every rounded corner.
+   ============================================================ */
+
+/* ---------- 1. static tokens ---------- */
+
+:root {
+  /* type families */
+  --font-sans: 'Outfit', sans-serif;
+  --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia,
+    'Times New Roman', serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+
+  /* radius scale */
+  --radius-xs: 4px;
+  --radius-sm: 7px;
+  --radius-md: 9px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-pill: 999px;
+
+  /* corner shape — Apple-style continuous curvature. superellipse(2)
+     is the canonical "squircle": corners flow gradually into the sides
+     instead of the abrupt circular arc of a normal border-radius.
+     Tune globally here (round = 1, squircle = 2, squarer > 2). */
+  --corner-smooth: superellipse(2);
+
+  /* motion */
+  --transition-fast: 0.15s ease;
+  --transition-smooth: 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  --ease-rise: cubic-bezier(0.22, 0.9, 0.3, 1);
+}
+
+/* ---------- 2. Ink (dark — default) ---------- */
+
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* surfaces */
+  --bg-base: #131215;
+  --bg-rail: #161519;
+  --bg-card: #18171b;
+  --bg-inset: #100f12;
+  --bg-raised: #1e1d22;
+
+  /* hairlines & washes */
+  --line: rgba(240, 236, 227, 0.08);
+  --line-strong: rgba(240, 236, 227, 0.17);
+  --hover-wash: rgba(240, 236, 227, 0.06);
+  --active-wash: rgba(240, 236, 227, 0.12);
+  --dot: rgba(240, 236, 227, 0.14);
+
+  /* text */
+  --text-main: #eeeae0;
+  --text-soft: #b4b0a4;
+  --text-faint: #7d7a70;
+
+  /* accent — persimmon */
+  --accent: #f95d2e;
+  --accent-hover: #ff7040;
+  --accent-ink: #ff8a5f; /* accent for text/icons/borders on dark */
+  --accent-deep: #d94e22;
+  --accent-dim: rgba(249, 93, 46, 0.13);
+  --accent-wash: rgba(249, 93, 46, 0.16);
+  --on-accent: #1c0e07;
+  --accent-rgb: 249, 93, 46;
+
+  /* secondary — warm amber */
+  --secondary: #e3a24f;
+  --secondary-ink: #ecc07f;
+  --secondary-dim: rgba(227, 162, 79, 0.14);
+  --secondary-rgb: 227, 162, 79;
+
+  /* feedback */
+  --ok: #7fc98b;
+  --warn: #e5b567;
+  --danger: #e5766a;
+
+  /* elevation */
+  --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 6px 18px rgba(0, 0, 0, 0.28);
+  --focus-ring: 0 0 0 3px var(--accent-dim);
+}
+
+/* ---------- 3. Paper (light) ---------- */
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  /* surfaces */
+  --bg-base: #f6f4ee;
+  --bg-rail: #f1efe7;
+  --bg-card: #fdfcf9;
+  --bg-inset: #edebe3;
+  --bg-raised: #ffffff;
+
+  /* hairlines & washes */
+  --line: rgba(28, 24, 16, 0.1);
+  --line-strong: rgba(28, 24, 16, 0.2);
+  --hover-wash: rgba(28, 24, 16, 0.05);
+  --active-wash: rgba(28, 24, 16, 0.1);
+  --dot: rgba(28, 24, 16, 0.18);
+
+  /* text */
+  --text-main: #211e18;
+  --text-soft: #5c584e;
+  --text-faint: #8b8779;
+
+  /* accent — persimmon (deepened for paper contrast) */
+  --accent: #c9411a;
+  --accent-hover: #b53a15;
+  --accent-ink: #c2410c;
+  --accent-deep: #a53312;
+  --accent-dim: rgba(201, 65, 26, 0.1);
+  --accent-wash: rgba(201, 65, 26, 0.12);
+  --on-accent: #fff8f3;
+  --accent-rgb: 201, 65, 26;
+
+  /* secondary — warm amber (deepened) */
+  --secondary: #b07818;
+  --secondary-ink: #8f620f;
+  --secondary-dim: rgba(176, 120, 24, 0.12);
+  --secondary-rgb: 176, 120, 24;
+
+  /* feedback */
+  --ok: #2f7d43;
+  --warn: #9c6f14;
+  --danger: #b3402f;
+
+  /* elevation */
+  --shadow-lg: 0 18px 44px rgba(38, 28, 14, 0.12);
+  --shadow-sm: 0 6px 18px rgba(38, 28, 14, 0.08);
+  --focus-ring: 0 0 0 3px var(--accent-dim);
+}
+
+/* ---------- 4. legacy aliases ----------
+   Old token names still referenced across feature modules.
+   They now resolve to Paper & Ink values. New code should use
+   the tokens above directly. */
+
+:root,
+:root[data-theme='dark'] {
+  --color-bg-base: var(--bg-base);
+  --color-bg-surface: var(--bg-card);
+  --color-bg-card: var(--bg-card);
+
+  --color-primary: var(--accent);
+  --color-primary-glow: var(--accent-dim);
+  --color-secondary: var(--secondary);
+
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-soft);
+  --color-border: var(--line);
+
+  --border: var(--line);
+  --border-hover: var(--line-strong);
+  --surface-elevated: rgba(30, 29, 34, 0.94);
+
+  /* former "glass" system — now near-solid flat panels */
+  --glass-bg: rgba(24, 23, 27, 0.94);
+  --glass-bg-hover: rgba(32, 31, 36, 0.97);
+  --glass-border: var(--line-strong);
+  --glass-shadow: none;
+  --backdrop-blur: 10px;
+
+  --handle-glass-bg: rgba(240, 236, 227, 0.1);
+  --handle-glass-border: rgba(240, 236, 227, 0.2);
+  --handle-glass-shadow: none;
+
+  --ui-hover: var(--hover-wash);
+  --ui-active: var(--active-wash);
+  --ui-border-low: rgba(240, 236, 227, 0.05);
+
+  --modal-bg: var(--bg-raised);
+  --note-bg: transparent;
+
+  /* React Flow: the canvas is the paper — in both themes */
+  --xy-background-color-default: #f6f4ee;
+  --rf-controls-bg: var(--glass-bg);
+  --rf-controls-border: var(--glass-border);
+  --rf-controls-text: var(--text-main);
+  --rf-controls-hover-bg: var(--glass-bg-hover);
+}
+
+:root[data-theme='light'] {
+  --color-bg-base: var(--bg-base);
+  --color-bg-surface: var(--bg-card);
+  --color-bg-card: var(--bg-card);
+
+  --color-primary: var(--accent);
+  --color-primary-glow: var(--accent-dim);
+  --color-secondary: var(--secondary);
+
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-soft);
+  --color-border: var(--line);
+
+  --border: var(--line);
+  --border-hover: var(--line-strong);
+  --surface-elevated: #ffffff;
+
+  --glass-bg: rgba(255, 255, 255, 0.94);
+  --glass-bg-hover: rgba(255, 255, 255, 0.99);
+  --glass-border: var(--line);
+  --glass-shadow: none;
+  --backdrop-blur: 10px;
+
+  --handle-glass-bg: rgba(28, 24, 16, 0.1);
+  --handle-glass-border: rgba(28, 24, 16, 0.2);
+  --handle-glass-shadow: none;
+
+  --ui-hover: var(--hover-wash);
+  --ui-active: var(--active-wash);
+  --ui-border-low: rgba(28, 24, 16, 0.06);
+
+  --modal-bg: var(--bg-raised);
+  --note-bg: #ffffff;
+
+  --xy-background-color-default: var(--bg-base);
+  --rf-controls-bg: var(--glass-bg);
+  --rf-controls-border: var(--glass-border);
+  --rf-controls-text: var(--text-main);
+  --rf-controls-hover-bg: var(--glass-bg-hover);
+}
+
+/* ---------- 5. corner shape (Apple squircle) ----------
+   Continuous corner curvature applied to EVERY element. corner-shape
+   only affects corners that already have a border-radius, so square
+   corners are untouched, and browsers without support silently fall
+   back to normal rounded corners. This is why it can be global: it
+   upgrades every rounded rectangle in the app to a squircle without
+   editing a single component.
+
+   The one exception is true circles/pills (border-radius: 50%): a
+   superellipse would turn a circle into a rounded-square, so the
+   circular primitives below (avatars, icon buttons, the FAB, dots,
+   swatches, connection handles, …) are pinned back to `round`. */
+*,
+*::before,
+*::after {
+  corner-shape: var(--corner-smooth);
+}
+
+/* Keep genuinely circular / pill primitives perfectly round.
+   Substring selectors so they also match CSS-module-hashed classes
+   (e.g. `_iconBtn_ab12` still contains "iconBtn").
+
+   NOTE: this overrides the *token*, not `corner-shape` directly. Custom
+   properties inherit — and a pseudo-element inherits from the element it
+   hangs off — so setting the token here reaches ::before/::after too.
+   Setting `corner-shape: round` instead would only fix the element itself
+   and leave its rings squircled inside a circle (which is exactly what
+   happened to the add-card orb's rim light). */
+[class*="avatar" i],
+[class*="Avatar"],
+[class*="iconBtn" i],
+[class*="SendBtn"],
+[class*="closeBtn" i],
+[class*="closeSearchBtn"],
+[class*="controlBtn" i],
+[class*="actionBtn" i],
+[class*="historyBtn" i],
+[class*="menuBtn" i],
+[class*="toolbarBtn" i],
+[class*="convertBtn" i],
+[class*="removeBtn" i],
+[class*="removeCoverBtn"],
+[class*="columnBtn" i],
+[class*="neonOpenBtn"],
+[class*="searchBtn" i],
+[class*="aiBtn" i],
+[class*="special-primary-btn"],
+[class*="homeButton"],
+[class*="themeSwitcher"],
+[class*="modeToggleBtn"],
+[class*="Dot"],
+[class*="dot" i],
+[class*="swatch" i],
+[class*="Swatch"],
+[class*="Indicator"],
+[class*="indicator" i],
+[class*="orb" i],
+[class*="Orb"],
+[class*="Ring"],
+[class*="particle" i],
+[class*="sparkle" i],
+[class*="Badge"],
+[class*="trafficLights"],
+[class*="macDot"],
+[class*="crumb" i],
+[class*="topRightHandle"],
+[class*="colorBlockHandle"],
+.react-flow__handle,
+.react-flow__handle-source,
+.react-flow__handle-target {
+  --corner-smooth: round;
+}
+
+/* ---------- 6. Special Primary Button ----------
+   The primary create/action orb. Lit from the upper-left, ringed by a
+   rim light that's brightest at the crown, floating over an accent
+   halo that breathes. */
+.special-primary-btn {
+  /* Warm specular white for the rim/sheen — the "light" in the orb. */
+  --orb-rim: 255, 224, 210;
+
+  /* Ink: the orb is a light source in a dark room, so it blooms. */
+  --orb-glow-rest-a: rgba(var(--accent-rgb), 0.38);
+  --orb-glow-rest-b: rgba(var(--accent-rgb), 0.22);
+  --orb-glow-peak-a: rgba(var(--accent-rgb), 0.55);
+  --orb-glow-peak-b: rgba(var(--accent-rgb), 0.42);
+  --orb-glow-hover-a: rgba(var(--accent-rgb), 0.55);
+  --orb-glow-hover-b: rgba(var(--accent-rgb), 0.45);
+  --orb-ground: transparent;
+
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 50% !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  color: #fff;
+  background: radial-gradient(125% 125% at 32% 24%,
+          var(--accent-ink) 0%,
+          var(--accent) 46%,
+          var(--accent-deep) 100%);
+  box-shadow:
+      0 4px 14px var(--orb-glow-rest-a),
+      0 0 20px var(--orb-glow-rest-b),
+      0 2px 6px var(--orb-ground);
+  z-index: 10;
+  animation: orbBreathe 4.5s ease-in-out infinite;
+  transition:
+      transform 0.3s cubic-bezier(0.34, 1.4, 0.5, 1),
+      box-shadow 0.3s ease;
+}
+
+:global([data-theme='light']) .special-primary-btn,
+[data-theme='light'] .special-primary-btn {
+  --orb-glow-rest-a: rgba(var(--accent-rgb), 0.20);
+  --orb-glow-rest-b: rgba(var(--accent-rgb), 0.10);
+  --orb-glow-peak-a: rgba(var(--accent-rgb), 0.30);
+  --orb-glow-peak-b: rgba(var(--accent-rgb), 0.16);
+  --orb-glow-hover-a: rgba(var(--accent-rgb), 0.34);
+  --orb-glow-hover-b: rgba(var(--accent-rgb), 0.20);
+  --orb-ground: rgba(38, 28, 14, 0.22);
+}
+
+.special-primary-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  padding: 1.5px;
+  background: linear-gradient(168deg,
+          rgba(var(--orb-rim), 0.95) 0%,
+          rgba(var(--orb-rim), 0.4) 34%,
+          rgba(var(--orb-rim), 0.08) 58%,
+          transparent 76%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.special-primary-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg,
+          transparent 0deg,
+          rgba(var(--orb-rim), 0.5) 26deg,
+          transparent 70deg);
+  opacity: 0;
+  pointer-events: none;
+  animation: orbSweep 4s linear infinite;
+  transition: opacity 0.35s ease;
+}
+
+.special-primary-btn:hover {
+  animation: none;
+  transform: translateY(-3px) scale(1.07);
+  box-shadow:
+      0 10px 26px var(--orb-glow-hover-a),
+      0 0 34px var(--orb-glow-hover-b),
+      0 4px 10px var(--orb-ground);
+}
+
+.special-primary-btn:hover::after {
+  opacity: 0.8;
+}
+
+.special-primary-btn:active {
+  transform: translateY(-1px) scale(0.94);
+  transition-duration: 0.09s;
+}
+
+.special-primary-btn:focus-visible {
+  box-shadow:
+      0 0 0 3px var(--bg-base),
+      0 0 0 5px var(--accent),
+      0 8px 24px rgba(var(--accent-rgb), 0.5);
+}
+
+.special-primary-btn svg {
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 1px 2px rgba(var(--accent-rgb), 0.55));
+  transition: transform 0.3s cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+
+.special-primary-btn:hover svg {
+  transform: rotate(90deg) scale(1.06);
+}
+
+@keyframes orbBreathe {
+  0%, 100% {
+      box-shadow:
+          0 4px 14px var(--orb-glow-rest-a),
+          0 0 18px var(--orb-glow-rest-b),
+          0 2px 6px var(--orb-ground);
+  }
+  50% {
+      box-shadow:
+          0 5px 18px var(--orb-glow-peak-a),
+          0 0 30px var(--orb-glow-peak-b),
+          0 3px 8px var(--orb-ground);
+  }
+}
+
+@keyframes orbSweep {
+  to {
+      transform: rotate(1turn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .special-primary-btn,
+  .special-primary-btn::after {
+      animation: none;
+  }
+  .special-primary-btn:hover {
+      transform: none;
+  }
+  .special-primary-btn:hover svg {
+      transform: none;
+  }
+}
+
+/* ============================================================
+   Editor Inline Links (Text Mode)
+   ============================================================ */
+
+.editor-inline-link {
+    cursor: text;
+    position: relative;
+    transition: color var(--transition-fast);
+}
+
+/* Add a visual indicator (icon) after the link */
+.editor-inline-link::after {
+    content: " ↗";
+    font-size: 0.85em;
+    opacity: 0.6;
+    text-decoration: none;
+    display: inline-block;
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.editor-inline-link:hover::after {
+    opacity: 1;
+    transform: translate(1px, -1px);
+}
+
+/* Transform to pointer ONLY when Ctrl/Cmd is held */
+body.mod-key-held .editor-inline-link {
+    cursor: pointer;
+}

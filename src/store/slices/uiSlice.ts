@@ -138,7 +138,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
             if (n.selected === shouldBeSelected) return n;
             return { ...n, selected: shouldBeSelected };
         });
-        set({ nodes: updatedNodes } as any);
+        set({ nodes: updatedNodes });
     },
 
     setLastCreatedCanvasNodeId: (id: string | null) => set({ lastCreatedCanvasNodeId: id }),

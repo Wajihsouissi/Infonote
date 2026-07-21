@@ -248,7 +248,7 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
         >
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#a78bfa', fontSize: '13px', fontWeight: 600 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ff8a5f', fontSize: '13px', fontWeight: 600 }}>
                     <Sparkles size={14} />
                     <span>AI Generate</span>
                 </div>
@@ -303,8 +303,8 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
                         padding: '8px 12px',
                         borderRadius: '8px',
                         border: 'none',
-                        background: isGeneratingText ? 'rgba(167,139,250,0.3)' : 'rgba(167,139,250,0.2)',
-                        color: '#a78bfa',
+                        background: isGeneratingText ? 'rgba(255, 138, 95,0.3)' : 'rgba(255, 138, 95,0.2)',
+                        color: '#ff8a5f',
                         fontSize: '12px',
                         fontWeight: 600,
                         cursor: isGenerating || !prompt.trim() ? 'not-allowed' : 'pointer',
@@ -329,8 +329,8 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
                             padding: '8px 12px',
                             borderRadius: '8px',
                             border: 'none',
-                            background: isGeneratingImage ? 'rgba(6,182,212,0.3)' : 'rgba(6,182,212,0.2)',
-                            color: '#06b6d4',
+                            background: isGeneratingImage ? 'rgba(227, 162, 79,0.3)' : 'rgba(227, 162, 79,0.2)',
+                            color: '#e3a24f',
                             fontSize: '12px',
                             fontWeight: 600,
                             cursor: isGenerating || !prompt.trim() ? 'not-allowed' : 'pointer',

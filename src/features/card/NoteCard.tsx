@@ -13,7 +13,6 @@ import { CoverPicker } from './CoverPicker';
 import { AISkeletonCard } from './AISkeletonCard';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { calculateNoteLayout } from '../../config/layout';
-import { toPastelColor, darkenColor } from '../../utils/colorUtils';
 import { generateText } from '../../services/aiService';
 
 export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<NoteNode>) => {
@@ -33,7 +32,6 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     const updateNode = useStore(s => s.updateNode);
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
     const interactionState = useStore(s => s.interactionState);
-    const theme = useStore(s => s.theme);
     const isLinkingMode = useStore(s => s.isLinkingMode);
     const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
     const linkSelectedNodes = useStore(s => s.linkSelectedNodes);
@@ -84,30 +82,16 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     const viewMode = data.viewMode || 'medium';
     const isMultiSelected = selectedCanvasNodeIds.has(id) && selectedCanvasNodeIds.size > 1;
 
-    // Convert color to pastel for better readability
-    const displayColor = data.color ? toPastelColor(data.color, theme === 'light') : undefined;
+    // Use the raw color without converting to pastel/glow
+    const displayColor = data.color;
 
     // Dynamic styles for contrast
     const dynamicStyles = useMemo(() => {
         if (!displayColor) return {};
 
-        // Smart high-contrast colors derived from the bg color for exceptional readability
-        const darkText = darkenColor(displayColor, 80); // 80% darken for main text (flawless readability)
-        const mutedText = darkenColor(displayColor, 65); // 65% darken for secondary text
-        const borderColor = darkenColor(displayColor, 40); // 40% darken for borders
-
+        // Use the raw color as a functional indicator (a 4px top border) instead of tinting the whole card.
         return {
-            '--color-text-main': darkText,
-            '--color-text-muted': mutedText,
-            '--color-border': `${borderColor}40`,
-            '--glass-border': `${borderColor}40`,
-            '--icon-color': darkText,
-            '--link-bg': `${borderColor}15`,
-            '--link-bg-hover': `${borderColor}25`,
-            '--link-border': `${borderColor}25`,
-            '--link-border-hover': `${borderColor}40`,
-            '--link-shadow': `${darkText}1a`,
-            caretColor: darkText,
+            '--card-indicator-color': displayColor,
         } as React.CSSProperties;
     }, [displayColor]);
 
@@ -194,9 +178,9 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
         e.stopPropagation();
         e.preventDefault();
         
-        const contentBlocks = data.content as any[];
-        if (!contentBlocks || contentBlocks.length === 0) return;
-        
+        const contentBlocks = Array.isArray(data.content) ? data.content : [];
+        if (contentBlocks.length === 0) return;
+
         const textContent = contentBlocks.map(b => b.content).join('\n');
         if (!textContent.trim()) return;
 
@@ -318,10 +302,10 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                         bottom: 0,
                         zIndex: 9999,
                         cursor: 'pointer',
-                        backgroundColor: isHoveredLinking ? 'rgba(6, 182, 212, 0.15)' : 'rgba(6, 182, 212, 0.04)',
+                        backgroundColor: isHoveredLinking ? 'rgba(227, 162, 79, 0.15)' : 'rgba(227, 162, 79, 0.04)',
                         border: '2px solid transparent',
-                        borderColor: isHoveredLinking ? '#06b6d4' : 'transparent',
-                        boxShadow: isHoveredLinking ? '0 0 15px rgba(6, 182, 212, 0.4)' : 'none',
+                        borderColor: isHoveredLinking ? '#e3a24f' : 'transparent',
+                        boxShadow: isHoveredLinking ? '0 0 15px rgba(227, 162, 79, 0.4)' : 'none',
                         transition: 'all 0.2s ease',
                         borderRadius: 'inherit',
                         boxSizing: 'border-box',
@@ -444,7 +428,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                             if (dimChanged || modeChanged) {
                                 updateNode(id, {
                                     style: { width: targetW, height: targetH },
-                                    ...(modeChanged && { data: { ...data, viewMode: targetMode as any } })
+                                    ...(modeChanged && { data: { ...data, viewMode: targetMode } })
                                 });
                             }
                         }
@@ -467,7 +451,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
                         updateNode(id, {
                             style: { width: finalW, height: finalH },
-                            data: { ...data, viewMode: finalMode as any }
+                            data: { ...data, viewMode: finalMode }
                         });
                     };
 
@@ -478,8 +462,8 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                 <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <defs>
                         <linearGradient id="arc-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="#A78BFA" />
-                            <stop offset="100%" stopColor="#60A5FA" />
+                            <stop offset="0%" stopColor="var(--accent)" />
+                            <stop offset="100%" stopColor="var(--secondary)" />
                         </linearGradient>
                     </defs>
                     <path
@@ -509,7 +493,8 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                     </button>
                     <div className={styles.menuDivider} />
                     <button 
-                        className={`${styles.menuBtn} ${styles.neonOpenBtn}`} 
+                        className="special-primary-btn" 
+                        style={{ width: 32, height: 32, minWidth: 32, minHeight: 32 }}
                         onClick={(e) => {
                             e.stopPropagation();
                             navigateToNode(id);
@@ -664,7 +649,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                         <button 
                             className={styles.summarizeBtn}
                             onClick={handleSummarize}
-                            disabled={isSummarizing || !data.content || (data.content as any[]).length === 0}
+                            disabled={isSummarizing || !Array.isArray(data.content) || data.content.length === 0}
                             title="Auto-summarize content"
                         >
                             {isSummarizing ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
@@ -677,7 +662,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             {viewMode === 'expanded' && (
                 <div className={styles.expandedView} key="expanded">
                     <ErrorBoundary>
-                        {(data as any).isAISkeleton ? (
+                        {data.isAISkeleton ? (
                             <AISkeletonCard />
                         ) : (
                             <NoteExpandedContent

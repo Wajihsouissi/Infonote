@@ -2,7 +2,7 @@ import React from 'react';
 import type { NoteNode } from '../../types';
 import styles from './KanbanTimeline.module.css';
 import { GripVertical, Plus } from 'lucide-react';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -57,10 +57,10 @@ export const TimelineSidebar: React.FC<TimelineSidebarProps> = ({ cards, onScrol
         })
     );
 
-    const handleDragEnd = (event: any) => {
+    const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
 
-        if (active.id !== over?.id) {
+        if (over && active.id !== over.id) {
             const oldIndex = cards.findIndex((item) => item.id === active.id);
             const newIndex = cards.findIndex((item) => item.id === over.id);
             const newOrder = arrayMove(cards, oldIndex, newIndex).map(c => c.id);

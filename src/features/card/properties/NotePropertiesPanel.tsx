@@ -43,13 +43,13 @@ export function NotePropertiesPanel({ data, onUpdate }: NotePropertiesPanelProps
 
     const handleAdd = (key: string) => {
         // Initialize with default value to make it visible
-        let defaultVal: any = '';
+        let defaultVal: string | number | string[] = '';
         if (key === 'status') defaultVal = 'todo';
         if (key === 'priority') defaultVal = 'medium';
         if (key === 'progress') defaultVal = 0;
         if (key === 'subtasks') defaultVal = [];
 
-        onUpdate({ [key]: defaultVal });
+        onUpdate({ [key]: defaultVal } as Partial<NoteData>);
     };
 
     const handleHide = (key: string) => {
@@ -57,8 +57,8 @@ export function NotePropertiesPanel({ data, onUpdate }: NotePropertiesPanelProps
         onUpdate({ [key]: undefined });
     };
 
-    const handleChange = (key: string, val: any) => {
-        onUpdate({ [key]: val });
+    const handleChange = (key: string, val: unknown) => {
+        onUpdate({ [key]: val } as Partial<NoteData>);
     };
 
     // Calculate available (hidden) properties for the menu

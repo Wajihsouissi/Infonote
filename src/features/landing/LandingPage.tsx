@@ -1,51 +1,192 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FEATURES } from '../../config/featureFlags';
 import { useStore } from '../../store/useStore';
 import { useAuth } from '../auth/useAuth';
 import { useSiteTelemetry } from '../admin/hooks/useSiteTelemetry';
 import { useRecentlyViewed, useGlobalSearch } from './hooks/useDashboardData';
 import {
-  Layout,
-  ShoppingBag,
-  LogIn,
-  LogOut,
-  Search,
-  Settings,
-  Clock,
-  Sun,
-  Moon,
-  Menu,
-  X,
   ArrowRight,
-  Command,
-  Zap,
+  ArrowUpRight,
   BookOpen,
-  Play,
-  ChevronRight,
-  Sparkles,
-  Infinity as InfinityIcon,
-  Workflow,
+  Check,
+  ClipboardList,
+  Clock,
   FileText,
+  Frame,
+  Home,
   Image as ImageIcon,
   Link2,
-  Check,
+  LogIn,
+  LogOut,
+  Menu,
+  Moon,
+  PenLine,
+  Search,
+  Settings,
+  ShoppingBag,
+  Square,
+  Sun,
+  X,
+  Zap,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import styles from './LandingPage.module.css';
+
+const FEEDBACK_MAILTO =
+  'mailto:wajih.souissi.ws@gmail.com?subject=chnk%20it%20beta%20%E2%80%94%20feedback';
+
+/* ---------- static content ---------- */
+
+const STARTERS: { name: string; desc: string; Icon: LucideIcon }[] = [
+  {
+    name: 'Clean sheet',
+    desc: 'An empty canvas and a cursor. No structure until you ask for it.',
+    Icon: Square,
+  },
+  {
+    name: 'Brainstorm',
+    desc: 'Scatter cards fast, judge nothing, connect the survivors later.',
+    Icon: Zap,
+  },
+  {
+    name: 'Research trail',
+    desc: 'Collect sources and notes side by side, link the threads as you read.',
+    Icon: BookOpen,
+  },
+];
+
+const WORKS_TODAY = [
+  'Infinite canvas — cards, connections, nesting',
+  'Block editor with slash menu & markdown',
+  'AI text generation (signed in, rate-limited)',
+  'Local-first saves with cloud sync',
+  'Sign-in: email, one-time code, or Google',
+];
+
+const ON_THE_BENCH = [
+  'Live collaboration & shared cursors',
+  'Kanban & board views',
+  'PDF blocks',
+  'Notion import',
+  'AI image generation',
+];
+
+const HOUSE_RULES = [
+  '50 nodes per canvas — keeps the beta fast',
+  'Blocks inside cards are unlimited',
+  'Cloud sync is free for the whole beta',
+  'Rough edges expected — tell us about them',
+];
+
+const SHORTCUTS: { keys: string[]; label: string }[] = [
+  { keys: ['/'], label: 'Block menu inside a card' },
+  { keys: ['Ctrl', 'K'], label: 'Search from here' },
+  { keys: ['K'], label: 'Shortcut panel on the canvas' },
+  { keys: ['Ctrl', 'D'], label: 'Duplicate selection' },
+  { keys: ['5'], label: 'Fit canvas to view' },
+];
+
+/* ---------- helpers ---------- */
+
+function daypartGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 5) return 'Up late';
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function relativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return '';
+  const mins = Math.floor((Date.now() - then) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(then).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function nodeTypeIcon(nodeType: string): LucideIcon {
+  const t = nodeType.toLowerCase();
+  if (t.includes('image')) return ImageIcon;
+  if (t.includes('link')) return Link2;
+  return FileText;
+}
+
+function SectionHead({ index, title, aside }: { index: string; title: string; aside?: string }) {
+  return (
+    <div className={styles.sectionHead}>
+      <span className={styles.sectionIndex}>{index}</span>
+      <h2 className={styles.sectionTitle}>{title}</h2>
+      {aside && <span className={styles.sectionAside}>{aside}</span>}
+    </div>
+  );
+}
+
+/* ---------- page ---------- */
 
 export const LandingPage: React.FC = () => {
   const setCurrentView = useStore((state) => state.setCurrentView);
   const navigateToNode = useStore((state) => state.navigateToNode);
-  const currentView = useStore((state) => state.currentView);
   const theme = useStore((state) => state.theme);
   const toggleTheme = useStore((state) => state.toggleTheme);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
-
   const auth = useStore((state) => state.auth);
-  const isAuthenticated = auth.isAuthenticated;
   const { signOut } = useAuth();
-  const [isSigningOut, setIsSigningOut] = React.useState(false);
 
-  const handleSignOut = React.useCallback(async () => {
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Log a site visit row for admin analytics (deduped per browser session).
+  useSiteTelemetry();
+
+  const activeWorkspaceId =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('chnk it.activeWorkspaceId') || undefined
+      : undefined;
+
+  const { recentNotes } = useRecentlyViewed(activeWorkspaceId);
+  const { search, results, isSearching } = useGlobalSearch(activeWorkspaceId);
+
+  useEffect(() => {
+    const timer = setTimeout(() => search(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, search]);
+
+  // Ctrl/⌘+K focuses search; Escape dismisses results.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchRef.current?.focus();
+      } else if (e.key === 'Escape') {
+        setSearchQuery('');
+        searchRef.current?.blur();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const openCanvas = useCallback(() => {
+    setIsDrawerOpen(false);
+    setCurrentView('canvas');
+  }, [setCurrentView]);
+
+  const openNode = useCallback(
+    (nodeId: string) => {
+      setIsDrawerOpen(false);
+      setCurrentView('canvas');
+      navigateToNode(nodeId);
+    },
+    [setCurrentView, navigateToNode]
+  );
+
+  const handleSignOut = useCallback(async () => {
     if (isSigningOut) return;
     setIsSigningOut(true);
     try {
@@ -57,407 +198,377 @@ export const LandingPage: React.FC = () => {
     }
   }, [isSigningOut, signOut, setCurrentView]);
 
-  // Log a site visit row for admin analytics (deduped per browser session).
-  useSiteTelemetry();
+  const scrollToBetaNotes = useCallback(() => {
+    setIsDrawerOpen(false);
+    document.getElementById('beta-notes')?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
 
-  const activeWorkspaceId = typeof window !== 'undefined'
-    ? localStorage.getItem('chnk it.activeWorkspaceId') || undefined
-    : undefined;
-
-  const { recentNotes } = useRecentlyViewed(activeWorkspaceId);
-  const { search, results, isSearching } = useGlobalSearch(activeWorkspaceId);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    const timer = setTimeout(() => search(searchQuery), 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery, search]);
+  const displayName = auth.displayName || auth.email?.split('@')[0] || '';
+  const firstName = displayName.split(' ')[0];
+  const initial = (firstName[0] || '?').toUpperCase();
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
 
   return (
-    <div className={styles.container}>
+    <div className={styles.shell}>
+      {isDrawerOpen && <div className={styles.overlay} onClick={() => setIsDrawerOpen(false)} />}
 
-      <div className={styles.orbPrimary} />
-      <div className={styles.orbSecondary} />
-      <div className={styles.orbAccent} />
-
-      <div className={styles.particles} aria-hidden="true">
-        {([
-          { size: 3, top: '12%', left: '18%', dur: '7s', delay: '0s', opacity: 0.45 },
-          { size: 2, top: '34%', left: '8%', dur: '9s', delay: '1.2s', opacity: 0.3 },
-          { size: 4, top: '58%', left: '22%', dur: '6s', delay: '2.5s', opacity: 0.4 },
-          { size: 2, top: '78%', left: '12%', dur: '11s', delay: '0.8s', opacity: 0.25 },
-          { size: 3, top: '20%', left: '72%', dur: '8s', delay: '3.1s', opacity: 0.35 },
-          { size: 2, top: '45%', left: '88%', dur: '10s', delay: '1.7s', opacity: 0.3 },
-          { size: 3, top: '70%', left: '65%', dur: '7s', delay: '4.2s', opacity: 0.4 },
-          { size: 2, top: '88%', left: '80%', dur: '12s', delay: '2s', opacity: 0.2 },
-        ] as const).map((p, i) => (
-          <div
-            key={i}
-            className={styles.particle}
-            style={{
-              width: p.size, height: p.size,
-              top: p.top, left: p.left, opacity: p.opacity,
-              '--dur': p.dur, '--delay': p.delay,
-            } as React.CSSProperties}
-          />
-        ))}
-      </div>
-
-      {isMobileMenuOpen && (
-        <div className={styles.drawerOverlay} onClick={() => setIsMobileMenuOpen(false)} />
-      )}
-
-      <aside className={`${styles.sidebar} ${isMobileMenuOpen ? styles.sidebarOpen : ''}`}>
-        <div className={styles.logoSection}>
-          <div className={styles.logo}>
-            <img src="/ChnkLogo.svg" alt="Chnk" style={{height: 28}} />
-            <span>Chnk it</span>
-          </div>
+      {/* ── sidebar ── */}
+      <aside className={`${styles.sidebar} ${isDrawerOpen ? styles.sidebarOpen : ''}`}>
+        <div 
+          className={styles.brand}
+          onClick={() => {
+            setIsDrawerOpen(false);
+            setCurrentView('marketing');
+          }}
+          style={{ cursor: 'pointer' }}
+        >
+          <span className={styles.brandMark} aria-hidden="true" />
+          <span className={styles.brandName}>chnk it</span>
+          <span className={styles.betaChip}>BETA</span>
           <button
-            className={styles.drawerCloseButton}
-            onClick={() => setIsMobileMenuOpen(false)}
+            className={styles.brandClose}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsDrawerOpen(false);
+            }}
             aria-label="Close menu"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
-        </div>
-
-        <div className={styles.sidebarSearch}>
-          <Search size={14} />
-          <input type="text" placeholder="Search..." />
         </div>
 
         <nav className={styles.nav}>
-          <div className={styles.navGroup}>
+          <span className={styles.navOverline}>Workspace</span>
+          <button className={`${styles.navItem} ${styles.navItemActive}`}>
+            <Home size={17} />
+            <span>Home</span>
+          </button>
+          <button className={styles.navItem} onClick={openCanvas}>
+            <Frame size={17} />
+            <span>Canvas</span>
+          </button>
+          {FEATURES.marketplace && (
             <button
-              className={`${styles.navItem} ${currentView === 'canvas' ? styles.active : ''}`}
-              onClick={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }}
+              className={styles.navItem}
+              onClick={() => {
+                setIsDrawerOpen(false);
+                setCurrentView('marketplace');
+              }}
             >
-              <Layout size={18} />
-              <span>Canvas</span>
+              <ShoppingBag size={17} />
+              <span>Marketplace</span>
             </button>
-            {FEATURES.marketplace && (
-              <button
-                className={`${styles.navItem} ${currentView === 'marketplace' ? styles.active : ''}`}
-                onClick={() => { setCurrentView('marketplace'); setIsMobileMenuOpen(false); }}
-              >
-                <ShoppingBag size={18} />
-                <span>Marketplace</span>
-              </button>
-            )}
-          </div>
+          )}
 
+          <span className={styles.navOverline}>This beta</span>
+          <button className={styles.navItem} onClick={scrollToBetaNotes}>
+            <ClipboardList size={17} />
+            <span>State of the beta</span>
+          </button>
+          <a className={styles.navItem} href={FEEDBACK_MAILTO}>
+            <PenLine size={17} />
+            <span>Send feedback</span>
+            <ArrowUpRight size={13} className={styles.navItemExternalIcon} />
+          </a>
         </nav>
 
-        <div className={styles.sidebarFooter}>
-          <button className={styles.settingsButton} onClick={toggleTheme}>
-            <div className={styles.pillSwitch}>
-              <div className={`${styles.pillThumb} ${theme === 'light' ? styles.thumbLight : styles.thumbDark}`} />
-              <Moon size={12} className={`${styles.pillIcon} ${theme === 'dark' ? styles.iconActive : styles.iconInactive}`} />
-              <Sun size={12} className={`${styles.pillIcon} ${theme === 'light' ? styles.iconActive : styles.iconInactive}`} />
-            </div>
-            <span>{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
-          </button>
-          <button className={styles.settingsButton} onClick={() => { setCurrentView('profile'); setIsMobileMenuOpen(false); }}>
-            <Settings size={18} />
+        <div className={styles.railFoot}>
+          <div className={styles.themeRow} role="group" aria-label="Theme">
+            <button
+              className={`${styles.themeBtn} ${theme === 'dark' ? styles.themeBtnActive : ''}`}
+              onClick={() => theme !== 'dark' && toggleTheme()}
+            >
+              <Moon size={13} />
+              <span>Ink</span>
+            </button>
+            <button
+              className={`${styles.themeBtn} ${theme === 'light' ? styles.themeBtnActive : ''}`}
+              onClick={() => theme !== 'light' && toggleTheme()}
+            >
+              <Sun size={13} />
+              <span>Paper</span>
+            </button>
+          </div>
+          <button
+            className={styles.navItem}
+            onClick={() => {
+              setIsDrawerOpen(false);
+              setCurrentView('profile');
+            }}
+          >
+            <Settings size={17} />
             <span>Settings</span>
           </button>
+          {auth.isAuthenticated && (
+            <button className={styles.navItem} onClick={handleSignOut} disabled={isSigningOut}>
+              <LogOut size={17} />
+              <span>{isSigningOut ? 'Signing out…' : 'Sign out'}</span>
+            </button>
+          )}
+          <span className={styles.version}>v0.1.0-beta</span>
         </div>
       </aside>
 
-      <div className={styles.mainArea}>
-        <header className={styles.topBar}>
-          <div className={styles.topBarDecor} />
+      {/* ── stage ── */}
+      <div className={styles.stage}>
+        <header className={styles.topbar}>
+          <button
+            className={styles.hamburger}
+            onClick={() => setIsDrawerOpen(true)}
+            aria-label="Open menu"
+          >
+            <Menu size={18} />
+          </button>
 
-          <div className={styles.mobileHeaderLeft}>
-            <button
-              className={styles.hamburgerButton}
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              aria-label="Toggle menu"
-            >
-              {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
-            <div className={styles.mobileLogo} onClick={() => setCurrentView('landing')}>
-              <img src="/ChnkLogo.svg" alt="Chnk" style={{height: 22}} />
-              <span>Chnk it</span>
-            </div>
+          <div className={styles.crumb}>
+            <span className={styles.crumbPage}>Home</span>
+            <span className={styles.crumbDate}>{today}</span>
           </div>
 
-          <div className={styles.searchSection} style={{ position: 'relative' }}>
-            <div className={styles.searchBar}>
-              <Search size={16} />
+          <div className={styles.searchWrap}>
+            <div className={styles.search}>
+              <Search size={15} />
               <input
+                ref={searchRef}
                 type="text"
-                placeholder="Search notes and content..."
+                placeholder="Search your notes…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+              <kbd className={`${styles.kbd} ${styles.searchKbd}`}>Ctrl K</kbd>
             </div>
             {searchQuery && (
-              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--glass-bg, #ffffff)', border: '1px solid var(--color-border)', borderRadius: '8px', marginTop: '8px', padding: '8px', zIndex: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                {isSearching ? (
-                  <div style={{ padding: '8px', fontSize: '13px', opacity: 0.7 }}>Searching...</div>
-                ) : results.length > 0 ? (
-                  results.map((res) => (
-                    <div key={res.node_id} style={{ padding: '8px', cursor: 'pointer', borderRadius: '4px' }} onClick={() => setCurrentView('canvas')}>
-                      <div style={{ fontSize: '13px', fontWeight: 600 }}>{res.node_title}</div>
-                      <div style={{ fontSize: '11px', opacity: 0.7, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{res.content_snippet}</div>
-                    </div>
-                  ))
-                ) : (
-                  <div style={{ padding: '8px', fontSize: '13px', opacity: 0.7 }}>No results found</div>
+              <div className={styles.results}>
+                <span className={styles.resultsLabel}>
+                  {isSearching ? 'Searching…' : 'Results'}
+                </span>
+                {!isSearching && results.length === 0 && (
+                  <div className={styles.resultsEmpty}>Nothing matches “{searchQuery}” yet.</div>
                 )}
+                {results.map((res) => (
+                  <button
+                    key={res.node_id}
+                    className={styles.resultItem}
+                    onClick={() => {
+                      setSearchQuery('');
+                      openNode(res.node_id);
+                    }}
+                  >
+                    <div className={styles.resultTitle}>{res.node_title}</div>
+                    <div className={styles.resultSnippet}>{res.content_snippet}</div>
+                  </button>
+                ))}
               </div>
             )}
           </div>
 
-          <div className={styles.userSection} style={{ display: 'flex', alignItems: 'center' }}>
-            {isAuthenticated ? (
+          <div className={styles.userArea}>
+            {auth.isAuthenticated ? (
               <>
-                <span style={{ marginRight: '16px', fontSize: '14px', fontWeight: 500, opacity: 0.9 }}>
-                  Welcome, {auth.displayName || auth.email?.split('@')[0] || 'User'}
-                </span>
                 <button
-                  className={styles.logoutButton}
+                  className={styles.avatar}
+                  onClick={() => setCurrentView('profile')}
+                  aria-label="Open profile"
+                  title={displayName}
+                >
+                  {initial}
+                </button>
+                <button
+                  className={styles.iconBtn}
                   onClick={handleSignOut}
                   disabled={isSigningOut}
-                aria-label="Log out"
-                style={{ opacity: isSigningOut ? 0.5 : 1 }}
-              >
-                <LogOut size={20} />
-              </button>
+                  aria-label="Sign out"
+                >
+                  <LogOut size={16} />
+                </button>
               </>
             ) : (
               <>
-                <button className={styles.loginButton} onClick={() => { setCurrentView('login'); setIsMobileMenuOpen(false); }}>
-                  <LogIn size={15} />
+                <button className={styles.authGhost} onClick={() => setCurrentView('login')}>
+                  <LogIn size={14} />
                   <span>Log in</span>
                 </button>
-                <button className={styles.signupButton} onClick={() => { setCurrentView('signup'); setIsMobileMenuOpen(false); }}>
-                  <span>Sign up free</span>
+                <button className={styles.authSolid} onClick={() => setCurrentView('signup')}>
+                  Create account
                 </button>
               </>
             )}
           </div>
         </header>
 
-        <main className={styles.content}>
-          {/* ── Hero: split copy + live canvas preview ── */}
-          <section className={styles.hero}>
-            <div className={styles.heroCopy}>
-              <div className={styles.heroBadge}>
-                <Sparkles size={12} />
-                <span>AI-native canvas · v2.0</span>
+        <main className={styles.main}>
+          <div className={styles.inner}>
+            {/* masthead */}
+            <section className={styles.masthead}>
+              <div className={styles.status}>
+                <span className={styles.statusDot} aria-hidden="true" />
+                <span>Public beta — your work saves local-first</span>
               </div>
-              <h1 className={styles.heroTitle}>
-                Think in <span className={styles.heroGradient}>space</span>,
-                <br />
-                not in stacks.
+              <h1 className={styles.headline}>
+                {daypartGreeting()}
+                {firstName ? (
+                  <>
+                    , <em>{firstName}</em>
+                  </>
+                ) : null}
+                .
               </h1>
-              <p className={styles.heroSubtitle}>
-                Chnk it turns the blank page into an infinite canvas. Drop notes, images,
-                PDFs and links anywhere — then let AI find the threads between them and
-                shape the chaos into clarity.
+              <p className={styles.lede}>
+                Everything you put on the canvas is written to this machine first and synced
+                quietly behind it. Pick up where you left off, or pull a clean sheet.
               </p>
-              <div className={styles.heroActions}>
-                <button
-                  className={styles.primaryButton}
-                  onClick={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }}
-                >
-                  <Layout size={18} />
+              <div className={styles.mastActions}>
+                <button className={styles.btnPrimary} onClick={openCanvas}>
                   <span>Open your canvas</span>
-                  <ArrowRight size={16} className={styles.btnArrow} />
+                  <ArrowRight size={15} />
                 </button>
-                <button className={styles.ghostButton}>
-                  <Play size={15} />
-                  <span>Watch the 60s tour</span>
-                </button>
+                <a className={styles.btnGhost} href={FEEDBACK_MAILTO}>
+                  <PenLine size={14} />
+                  <span>Send feedback</span>
+                </a>
+                <span className={styles.mastHint}>tip: press / inside any card for blocks</span>
               </div>
-              <div className={styles.heroMeta}>
-                <span className={styles.heroMetaItem}><Check size={13} /> No credit card</span>
-                <span className={styles.heroMetaItem}><Check size={13} /> Free forever plan</span>
-                <span className={styles.heroMetaItem}><Check size={13} /> Yours in 10 seconds</span>
-              </div>
-            </div>
+            </section>
 
-            {/* Decorative "live canvas" — pure CSS/SVG, non-interactive */}
-            <div className={styles.heroPreview} aria-hidden="true">
-              <div className={styles.previewCanvas}>
-                <div className={styles.previewToolbar}>
-                  <span className={styles.previewDot} data-c="r" />
-                  <span className={styles.previewDot} data-c="y" />
-                  <span className={styles.previewDot} data-c="g" />
-                  <span className={styles.previewToolbarLabel}>untitled canvas</span>
+            {/* 01 — recent */}
+            <section>
+              <SectionHead
+                index="01"
+                title="Pick up where you left off"
+                aside={recentNotes.length > 0 ? `${recentNotes.length} recent` : undefined}
+              />
+              {recentNotes.length === 0 ? (
+                <div className={styles.empty}>
+                  <Clock size={20} className={styles.emptyIcon} />
+                  <span className={styles.emptyTitle}>Nothing on the desk yet</span>
+                  <span className={styles.emptyCopy}>
+                    Open the canvas and drop your first card — it will be waiting here the next
+                    time you sign in.
+                  </span>
                 </div>
-
-                <svg className={styles.previewWires} viewBox="0 0 320 240" preserveAspectRatio="none">
-                  <path d="M86 70 C 150 70, 150 150, 214 150" />
-                  <path d="M86 70 C 120 130, 60 150, 96 196" />
-                  <path d="M214 150 C 250 110, 200 70, 234 64" />
-                </svg>
-
-                <div className={`${styles.previewNode} ${styles.nodeA}`}>
-                  <FileText size={13} />
-                  <span>Research notes</span>
-                </div>
-                <div className={`${styles.previewNode} ${styles.nodeB}`}>
-                  <ImageIcon size={13} />
-                  <span>Moodboard.png</span>
-                </div>
-                <div className={`${styles.previewNode} ${styles.nodeC}`}>
-                  <Link2 size={13} />
-                  <span>Source link</span>
-                </div>
-                <div className={`${styles.previewNode} ${styles.nodeAi}`}>
-                  <Sparkles size={13} />
-                  <span>AI grouped 3 ideas</span>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* ── Value props ── */}
-          <section className={styles.features}>
-            {[
-              {
-                icon: <InfinityIcon size={20} />,
-                color: 'primary',
-                title: 'An infinite canvas',
-                copy: 'Pan, zoom and place anything anywhere. No folders, no margins — just room to think.',
-              },
-              {
-                icon: <Sparkles size={20} />,
-                color: 'secondary',
-                title: 'AI that connects the dots',
-                copy: 'Ask it to summarize, cluster or expand. Watch loose notes resolve into structure.',
-              },
-              {
-                icon: <Workflow size={20} />,
-                color: 'amber',
-                title: 'Drop in anything',
-                copy: 'Notes, images, PDFs and links become living nodes you can link and rearrange.',
-              },
-            ].map((f, idx) => (
-              <div key={idx} className={styles.featureCard} style={{ '--i': idx } as React.CSSProperties}>
-                <div className={styles.featureIcon} data-color={f.color}>{f.icon}</div>
-                <h3>{f.title}</h3>
-                <p>{f.copy}</p>
-              </div>
-            ))}
-          </section>
-
-          {/* ── Guided hub: blueprints + recent activity ── */}
-          <div className={styles.hubGrid}>
-            <div className={styles.hubMain}>
-              <section className={styles.hubSection}>
-                <div className={styles.sectionHeader}>
-                  <div>
-                    <h2>Start from a blueprint</h2>
-                    <p>Skip the blank page — drop in a ready-made structure.</p>
-                  </div>
-                </div>
-                <div className={styles.templateGrid}>
-                  {[
-                    { title: "Brainstorm", desc: "Diverge fast, cluster later", icon: <Zap size={20} />, color: "primary" },
-                    { title: "Weekly planner", desc: "Map the week at a glance", icon: <Layout size={20} />, color: "secondary" },
-                    { title: "Research hub", desc: "Sources, notes & synthesis", icon: <BookOpen size={20} />, color: "amber" }
-                  ].map((template, idx) => (
-                    <button
-                      key={idx}
-                      className={styles.templateCard}
-                      onClick={() => { setCurrentView('canvas'); setIsMobileMenuOpen(false); }}
-                    >
-                      <div className={styles.templateIcon} data-color={template.color}>
-                        {template.icon}
-                      </div>
-                      <div className={styles.templateInfo}>
-                        <h3>{template.title}</h3>
-                        <p>{template.desc}</p>
-                      </div>
-                      <ChevronRight size={16} className={styles.templateArrow} />
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              <section className={styles.hubSection}>
-                <div className={styles.sectionHeader}>
-                  <div>
-                    <h2>Learn the moves</h2>
-                    <p>Two minutes to your first connected canvas.</p>
-                  </div>
-                  <button className={styles.textButton}>View all</button>
-                </div>
-                <div className={styles.tutorialGrid}>
-                  {[
-                    { title: "Connecting nodes", duration: "1:20", color: "blue" },
-                    { title: "Organizing with AI", duration: "2:45", color: "purple" },
-                    { title: "Spatial workflows", duration: "3:10", color: "amber" }
-                  ].map((tutorial, idx) => (
-                    <div key={idx} className={styles.tutorialCard}>
-                      <div className={styles.videoPlaceholder} data-color={tutorial.color}>
-                        <Play size={24} className={styles.playIcon} />
-                        <span className={styles.duration}>{tutorial.duration}</span>
-                      </div>
-                      <h3>{tutorial.title}</h3>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </div>
-
-            <div className={styles.hubSidebar}>
-              <section className={styles.hubSection}>
-                <div className={styles.sectionHeader}>
-                  <div><h2>Jump back in</h2></div>
-                </div>
-                <div className={styles.activityFeed}>
-                  {recentNotes.length === 0 ? (
-                    <div className={styles.emptyActivity}>
-                      <Clock size={24} className={styles.emptyActivityIcon} />
-                      <p>Nothing here yet.</p>
-                      <span>Your recent canvases will appear here.</span>
-                    </div>
-                  ) : (
-                    recentNotes.map((note, i) => (
-                      <div
+              ) : (
+                <div className={styles.recentList}>
+                  {recentNotes.map((note) => {
+                    const RowIcon = nodeTypeIcon(note.node_type);
+                    return (
+                      <button
                         key={note.id}
-                        className={styles.noteCard}
-                        onClick={() => {
-                          setCurrentView('canvas');
-                          navigateToNode(note.node_id || note.id);
-                          setIsMobileMenuOpen(false);
-                        }}
-                        style={{ '--i': i } as React.CSSProperties}
+                        className={styles.recentRow}
+                        onClick={() => openNode(note.node_id || note.id)}
                       >
-                        <div className={styles.noteCardDot} />
-                        <div className={styles.noteCardTitle}>{note.node_title}</div>
-                        <span className={styles.noteCardTime}>Recently</span>
-                      </div>
-                    ))
-                  )}
+                        <span className={styles.rowIcon}>
+                          <RowIcon size={14} />
+                        </span>
+                        <span className={styles.rowTitle}>{note.node_title}</span>
+                        <span className={styles.rowType}>{note.node_type}</span>
+                        <span className={styles.rowTime}>{relativeTime(note.last_opened_at)}</span>
+                        <ArrowRight size={15} className={styles.rowArrow} />
+                      </button>
+                    );
+                  })}
                 </div>
-              </section>
-            </div>
-          </div>
+              )}
+            </section>
 
-          {/* ── Shortcuts ── */}
-          <footer className={styles.shortcutsFooter}>
-            <div className={styles.shortcut}>
-              <kbd className={styles.kbd}><Command size={12} /></kbd>
-              <kbd className={styles.kbd}>K</kbd>
-              <span>Search</span>
-            </div>
-            <div className={styles.shortcut}>
-              <kbd className={styles.kbd}>⌘</kbd>
-              <kbd className={styles.kbd}>B</kbd>
-              <span>Toggle sidebar</span>
-            </div>
-            <div className={styles.shortcut}>
-              <kbd className={styles.kbd}>?</kbd>
-              <span>View shortcuts</span>
-            </div>
-          </footer>
+            {/* 02 — starters */}
+            <section>
+              <SectionHead index="02" title="Start with a shape" />
+              <div className={styles.starters}>
+                {STARTERS.map((s, i) => (
+                  <button key={s.name} className={styles.starter} onClick={openCanvas}>
+                    <div className={styles.starterTop}>
+                      <span className={styles.starterIcon}>
+                        <s.Icon size={15} />
+                      </span>
+                      <span className={styles.starterIndex}>{String(i + 1).padStart(2, '0')}</span>
+                    </div>
+                    <span className={styles.starterName}>{s.name}</span>
+                    <span className={styles.starterDesc}>{s.desc}</span>
+                  </button>
+                ))}
+              </div>
+              <p className={styles.startersNote}>
+                Every starter opens the same infinite canvas — a way to begin, not a template to
+                obey.
+              </p>
+            </section>
+
+            {/* 03 — state of the beta */}
+            <section id="beta-notes">
+              <SectionHead index="03" title="The state of the beta" aside="updated July 2026" />
+              <div className={styles.betaGrid}>
+                <div className={styles.betaCol}>
+                  <span className={`${styles.betaColTitle} ${styles.betaColTitleOk}`}>
+                    Works today
+                  </span>
+                  {WORKS_TODAY.map((item) => (
+                    <div key={item} className={styles.betaItem}>
+                      <Check size={13} className={styles.betaCheck} />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className={styles.betaCol}>
+                  <span className={`${styles.betaColTitle} ${styles.betaColTitleNext}`}>
+                    On the bench
+                  </span>
+                  {ON_THE_BENCH.map((item) => (
+                    <div key={item} className={styles.betaItem}>
+                      <span>{item}</span>
+                      <span className={styles.soonTag}>NEXT</span>
+                    </div>
+                  ))}
+                </div>
+                <div className={styles.betaCol}>
+                  <span className={styles.betaColTitle}>House rules</span>
+                  {HOUSE_RULES.map((item) => (
+                    <div key={item} className={styles.betaItem}>
+                      <span className={styles.betaDash}>—</span>
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* 04 — feedback */}
+            <section>
+              <SectionHead index="04" title="Help shape it" />
+              <div className={styles.feedback}>
+                <div>
+                  <div className={styles.feedbackTitle}>Built in the open.</div>
+                  <p className={styles.feedbackCopy}>
+                    You are one of the first people in here. If something breaks, confuses, or is
+                    plainly missing — say it. Every note lands directly in the builder&rsquo;s
+                    inbox and gets read.
+                  </p>
+                </div>
+                <a className={styles.btnPrimary} href={FEEDBACK_MAILTO}>
+                  <span>Write to us</span>
+                  <ArrowUpRight size={15} />
+                </a>
+              </div>
+            </section>
+
+            {/* shortcuts strip */}
+            <footer className={styles.shortcuts}>
+              <span className={styles.shortcutsLabel}>Shortcuts</span>
+              {SHORTCUTS.map((s) => (
+                <span key={s.label} className={styles.shortcut}>
+                  {s.keys.map((k) => (
+                    <kbd key={k} className={styles.kbd}>
+                      {k}
+                    </kbd>
+                  ))}
+                  <span>{s.label}</span>
+                </span>
+              ))}
+            </footer>
+          </div>
         </main>
       </div>
     </div>

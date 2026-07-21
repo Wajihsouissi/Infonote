@@ -4,6 +4,7 @@ import { HexColorPicker } from 'react-colorful';
 import { Copy, Check, X } from 'lucide-react';
 import editorStyles from './BlockEditor.module.css';
 import modalStyles from './ColorBlockModal.module.css';
+import type { BlockMetadata } from './types';
 import { getNearestColorName, normalizeHex, hexToRgb, rgbToHex, rgbToRgbaString, rgbToHslString } from './colorUtils';
 
 function HexInput({ color, onChange }: { color: string; onChange: (c: string) => void }) {
@@ -125,9 +126,9 @@ function RgbInput({ color, onChange }: { color: string; onChange: (c: string) =>
 interface ColorBlockModalProps {
     color: string;
     originalColor?: string;
-    metadata?: any;
+    metadata?: BlockMetadata;
     displayName?: string;
-    onChange: (content: string, metadata?: any) => void;
+    onChange: (content: string, metadata?: BlockMetadata) => void;
     onClose: () => void;
 }
 

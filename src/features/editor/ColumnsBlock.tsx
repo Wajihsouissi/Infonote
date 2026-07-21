@@ -2,11 +2,11 @@ import { useCallback } from 'react';
 import { Plus, Minus, X } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { BlockEditor } from './BlockEditor';
-import type { Block } from './types';
+import type { Block, ColumnData } from './types';
 import styles from './ColumnsBlock.module.css';
 
 const MIN_COLUMNS = 1;
-const MAX_COLUMNS = 4;
+const MAX_COLUMNS = 20;
 
 interface ColumnsBlockProps {
     block: Block;
@@ -18,7 +18,7 @@ interface ColumnsBlockProps {
     disableMediaControls?: boolean;
 }
 
-const makeColumn = () => ({
+const makeColumn = (): ColumnData => ({
     id: uuidv4(),
     content: [{ id: uuidv4(), type: 'text', content: '' }],
 });
@@ -34,10 +34,10 @@ export const ColumnsBlock = ({
 }: ColumnsBlockProps) => {
     const columns = block.metadata?.columns || []; // Array of { id: string, content: Block[] }
     const columnCount = columns.length;
-    // 4 columns render as a 2x2 grid (2 on top, 2 on bottom); 2 and 3 stay in a single row.
-    const gridColumnCount = columnCount === 4 ? 2 : columnCount;
+    // Allow up to 20 columns in a single row without forced wrapping
+    const gridColumnCount = columnCount;
 
-    const commitColumns = useCallback((newColumns: any[]) => {
+    const commitColumns = useCallback((newColumns: ColumnData[]) => {
         onUpdate({
             metadata: {
                 ...block.metadata,
@@ -62,7 +62,7 @@ export const ColumnsBlock = ({
 
     const handleRemoveColumn = useCallback((colIndex: number) => {
         if (columnCount <= MIN_COLUMNS) return;
-        commitColumns(columns.filter((_: any, i: number) => i !== colIndex));
+        commitColumns(columns.filter((_, i: number) => i !== colIndex));
     }, [columns, columnCount, commitColumns]);
 
     return (
@@ -93,7 +93,7 @@ export const ColumnsBlock = ({
                 </div>
             )}
             <div className={styles.columnsContainer} style={{ gridTemplateColumns: `repeat(${gridColumnCount}, 1fr)` }}>
-                {columns.map((col: any, index: number) => (
+                {columns.map((col, index: number) => (
                     <div key={col.id || index} className={styles.column}>
                         {!readOnly && columnCount > MIN_COLUMNS && (
                             <button

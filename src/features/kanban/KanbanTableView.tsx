@@ -18,7 +18,10 @@ import {
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { NoteNode, KanbanColumn } from '../../types';
+import type { NoteNode, KanbanColumn, NoteData } from '../../types';
+
+/** Value of an extra (metadata) table cell. */
+type CellValue = string | number | string[];
 import styles from './KanbanTableView.module.css';
 
 // --- Types ---
@@ -39,7 +42,7 @@ interface KanbanTableViewProps {
     onCardClick: (node: NoteNode) => void;
     onAddCard: (statusValue: string) => void;
     onReorderCards: (orderedIds: string[]) => void;
-    onUpdateCard: (cardId: string, data: Record<string, any>) => void;
+    onUpdateCard: (cardId: string, data: Partial<NoteData>) => void;
     visibleExtraColumns: string[];
     onVisibleExtraColumnsChange: (cols: string[]) => void;
 }
@@ -199,7 +202,7 @@ const SortableRow = memo(({
     activeExtraCols: TableColumnDef[];
     editingCell: EditingCell;
     onCellClick: (cardId: string, columnId: string) => void;
-    onCellSave: (cardId: string, field: string, value: any) => void;
+    onCellSave: (cardId: string, field: string, value: CellValue) => void;
 }) => {
     const {
         attributes,
@@ -355,7 +358,7 @@ const SortableRow = memo(({
 // --- Extra Cell Renderers ---
 
 function renderExtraCell(card: NoteNode, col: TableColumnDef): React.ReactNode {
-    const value = (card.data as any)[col.field];
+    const value = (card.data as unknown as Record<string, CellValue | undefined>)[col.field];
     if (value === undefined || value === null || value === '') return <span className={styles.muted}>—</span>;
 
     switch (col.id) {
@@ -369,8 +372,8 @@ function renderExtraCell(card: NoteNode, col: TableColumnDef): React.ReactNode {
             );
         case 'url':
             try {
-                return <a href={value} className={styles.urlLink} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>{new URL(value).hostname}</a>;
-            } catch { return <span className={styles.muted}>{value}</span>; }
+                return <a href={String(value)} className={styles.urlLink} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>{new URL(String(value)).hostname}</a>;
+            } catch { return <span className={styles.muted}>{String(value)}</span>; }
         case 'progress':
             const pct = Math.min(100, Math.max(0, Number(value)));
             return (
@@ -382,25 +385,25 @@ function renderExtraCell(card: NoteNode, col: TableColumnDef): React.ReactNode {
         case 'description':
             return <span className={styles.descriptionCell}>{String(value).slice(0, 60)}{String(value).length > 60 ? '…' : ''}</span>;
         case 'category':
-            return <span className={styles.categoryChip}>{value}</span>;
+            return <span className={styles.categoryChip}>{String(value)}</span>;
         default:
             return <span>{String(value)}</span>;
     }
 }
 
-function renderExtraCellEditor(card: NoteNode, col: TableColumnDef, onSave: (v: any) => void): React.ReactNode {
-    const value = (card.data as any)[col.field];
+function renderExtraCellEditor(card: NoteNode, col: TableColumnDef, onSave: (v: CellValue) => void): React.ReactNode {
+    const value = (card.data as unknown as Record<string, CellValue | undefined>)[col.field];
     switch (col.id) {
         case 'tags':
             return <InlineTextInput value={Array.isArray(value) ? value.join(', ') : ''} onSave={v => onSave(v.split(',').map((s: string) => s.trim()).filter(Boolean))} placeholder="tag1, tag2" />;
         case 'url':
-            return <InlineTextInput value={value || ''} onSave={onSave} placeholder="https://..." />;
+            return <InlineTextInput value={String(value ?? '')} onSave={onSave} placeholder="https://..." />;
         case 'progress':
             return <InlineTextInput value={String(value ?? '')} onSave={v => onSave(Math.min(100, Math.max(0, parseInt(v) || 0)))} placeholder="0-100" />;
         case 'description':
-            return <InlineTextInput value={value || ''} onSave={onSave} placeholder="Description" />;
+            return <InlineTextInput value={String(value ?? '')} onSave={onSave} placeholder="Description" />;
         case 'category':
-            return <InlineTextInput value={value || ''} onSave={onSave} placeholder="Category" />;
+            return <InlineTextInput value={String(value ?? '')} onSave={onSave} placeholder="Category" />;
         default:
             return <InlineTextInput value={String(value ?? '')} onSave={onSave} />;
     }
@@ -465,8 +468,8 @@ export const KanbanTableView = memo(({
         setEditingCell({ cardId, columnId });
     }, []);
 
-    const handleCellSave = useCallback((cardId: string, field: string, value: any) => {
-        onUpdateCard(cardId, { [field]: value });
+    const handleCellSave = useCallback((cardId: string, field: string, value: CellValue) => {
+        onUpdateCard(cardId, { [field]: value } as Partial<NoteData>);
         setEditingCell(null);
     }, [onUpdateCard]);
 

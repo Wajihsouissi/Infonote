@@ -169,7 +169,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ ownerEmail }) =>
         <div className={styles.shell}>
             <header className={styles.header}>
                 <div className={styles.headerLeft}>
-                    <Shield size={20} style={{ color: 'var(--color-primary, #8b5cf6)' }} />
+                    <Shield size={20} style={{ color: 'var(--color-primary, #f95d2e)' }} />
                     <div>
                         <span className={styles.headerTitle}>Admin Dashboard</span>
                         <span className={styles.ownerLabel}>{ownerEmail}</span>

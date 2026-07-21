@@ -1,8 +1,9 @@
 import { useCallback } from 'react';
 import type { MutableRefObject } from 'react';
-import type { Block, BlockType } from '../types';
+import type { Block, BlockType, BlockMetadata } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '../../../store/useStore';
+import { getNodeBlocks } from '../../../types';
 
 interface DragAndDropProps {
     blocks: Block[];
@@ -10,7 +11,7 @@ interface DragAndDropProps {
     debouncedOnUpdate: (newBlocks: Block[]) => void;
     selectedBlockIds: Set<string>;
     nodeId?: string;
-    addBlock: (afterId: string, type: BlockType, indent?: number, metadata?: any) => void;
+    addBlock: (afterId: string, type: BlockType, indent?: number, metadata?: BlockMetadata) => void;
     editorId: string;
     pendingDropTarget?: MutableRefObject<{ blockId: string; position: 'top' | 'bottom' } | null>;
 }
@@ -40,9 +41,9 @@ export function useBlockDragAndDrop({
 
             console.log("[useBlockDragAndDrop] Source node found:", !!sourceNode);
 
-            if (sourceNode && Array.isArray((sourceNode.data as any).content)) {
-                const currentContent = (sourceNode.data as any).content;
-                const newContent = currentContent.filter((b: any) => !blockIds.includes(b.id));
+            const currentContent = sourceNode ? getNodeBlocks(sourceNode.data) : undefined;
+            if (sourceNode && currentContent) {
+                const newContent = currentContent.filter((b) => !blockIds.includes(b.id));
 
                 console.log("[useBlockDragAndDrop] Removing blocks from source:", {
                     sourceNodeId,
@@ -63,13 +64,13 @@ export function useBlockDragAndDrop({
             }
 
             // Trigger cleanup events
-            if ((window as any).chnkItMultiDragCleanup) {
-                (window as any).chnkItMultiDragCleanup();
-                delete (window as any).chnkItMultiDragCleanup;
+            if (window.chnkItMultiDragCleanup) {
+                window.chnkItMultiDragCleanup();
+                delete window.chnkItMultiDragCleanup;
             }
             // Signal SortableBlockWrapper.handleDragEnd that the drop was already handled.
-            (window as any).chnkItCrossEditorDropHandled = true;
-            (window as any).chnkItBlockDragging = false;
+            window.chnkItCrossEditorDropHandled = true;
+            window.chnkItBlockDragging = false;
             document.body.classList.remove('chnk-it-block-dragging');
             window.dispatchEvent(new CustomEvent('chnk-it-clear-selection'));
         } else {
@@ -100,7 +101,7 @@ export function useBlockDragAndDrop({
                         console.log("[useBlockDragAndDrop] Cross-node move detected in handleMoveBlock", { sourceNodeId, nodeId });
 
                         let blocksToRemove: string[] = [];
-                        if (parsed.blocks) blocksToRemove = parsed.blocks.map((b: any) => b.id);
+                        if (parsed.blocks) blocksToRemove = parsed.blocks.map((b: { id: string }) => b.id);
                         else if (parsed.block) blocksToRemove = [parsed.block.id];
 
                         // If parsing failed to get blocks but we have sourceId, use that
@@ -194,9 +195,9 @@ export function useBlockDragAndDrop({
             debouncedOnUpdate(newBlocks);
 
             // If it is a cross-editor drop, trigger source removal callback
-            if (isCrossEditor && typeof (window as any).chnkItRemoveDraggedBlocks === 'function') {
-                (window as any).chnkItRemoveDraggedBlocks(sourceIds);
-                (window as any).chnkItRemoveDraggedBlocks = null;
+            if (isCrossEditor && typeof window.chnkItRemoveDraggedBlocks === 'function') {
+                window.chnkItRemoveDraggedBlocks(sourceIds);
+                window.chnkItRemoveDraggedBlocks = null;
             }
 
             return newBlocks;
@@ -214,7 +215,7 @@ export function useBlockDragAndDrop({
             ? blocks.filter(b => selectedBlockIds.has(b.id))
             : [block];
 
-        (window as any).chnkItRemoveDraggedBlocks = (ids: string[]) => {
+        window.chnkItRemoveDraggedBlocks = (ids: string[]) => {
             console.log("[chnkItRemoveDraggedBlocks] Removing blocks from source:", ids);
             setBlocks(prev => {
                 const newBlocks = prev.filter(b => !ids.includes(b.id));
@@ -232,7 +233,7 @@ export function useBlockDragAndDrop({
         // Register global cleanup for multi-block drag operations
         if (isMulti) {
             console.log('Registering multi-block drag cleanup for', blocksToDrag.length, 'blocks');
-            (window as any).chnkItMultiDragCleanup = () => {
+            window.chnkItMultiDragCleanup = () => {
                 console.log('Executing multi-block drag cleanup');
                 // Dispatch both events to ensure cleanup
                 const event1 = new CustomEvent('chnk-it-clear-selection');
@@ -322,9 +323,9 @@ export function useBlockDragAndDrop({
                         debouncedOnUpdate(blocksFromData);
 
                         const sourceEditorId = e.dataTransfer.getData('application/chnk-it-editor-id');
-                        if (sourceEditorId && sourceEditorId !== editorId && typeof (window as any).chnkItRemoveDraggedBlocks === 'function') {
-                            (window as any).chnkItRemoveDraggedBlocks(blocksFromData.map(b => b.id));
-                            (window as any).chnkItRemoveDraggedBlocks = null;
+                        if (sourceEditorId && sourceEditorId !== editorId && typeof window.chnkItRemoveDraggedBlocks === 'function') {
+                            window.chnkItRemoveDraggedBlocks(blocksFromData.map(b => b.id));
+                            window.chnkItRemoveDraggedBlocks = null;
                         } else {
                             // Remove from source node if cross-node drop
                             removeBlocksFromSource(blocksFromData.map(b => b.id), sourceNodeId);

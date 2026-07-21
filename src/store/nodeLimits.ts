@@ -3,12 +3,12 @@
  *
  * - Everyone: max 50 nodes on any single canvas. Applies to CREATION only —
  *   a canvas loaded with more nodes renders untouched (never trim on load).
- * - Anonymous only: max 3 cards total and canvases nested max 3 levels deep.
+ * - Anonymous only: max 25 cards total and canvases nested max 3 levels deep.
  *   Signing in lifts the anonymous limits.
  */
 
 export const MAX_NODES_PER_CANVAS = 50;
-export const ANON_MAX_CARDS = 3;
+export const ANON_MAX_CARDS = 25;
 export const ANON_MAX_NESTING_DEPTH = 3;
 
 export type LimitViolation =

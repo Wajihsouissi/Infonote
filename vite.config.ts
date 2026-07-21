@@ -987,6 +987,31 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), aiGatewayDevPlugin()],
+    build: {
+      // Our largest deliberate chunks are the split vendors (pdf ~462kB) and the
+      // canvas feature entry (BottomMenu ~500kB); 700 keeps the warning meaningful
+      // without flagging these intentional bundles.
+      chunkSizeWarningLimit: 700,
+      rollupOptions: {
+        output: {
+          // Split heavy third-party libs into their own cacheable chunks so the
+          // app entry / feature chunks (BottomMenu pulled the whole AI SDK stack,
+          // ~928kB) stay lean and vendors cache independently across deploys.
+          manualChunks(id: string) {
+            if (!id.includes('node_modules')) return
+            if (/node_modules\/(ai|@ai-sdk|openai|@google\/genai|@huggingface)\//.test(id)) return 'vendor-ai'
+            if (id.includes('pdfjs-dist') || id.includes('react-pdf')) return 'vendor-pdf'
+            if (id.includes('@xyflow')) return 'vendor-xyflow'
+            if (id.includes('@supabase')) return 'vendor-supabase'
+            if (id.includes('/motion/') || id.includes('framer-motion')) return 'vendor-motion'
+            if (id.includes('lucide-react')) return 'vendor-icons'
+            if (id.includes('@dnd-kit')) return 'vendor-dnd'
+            if (id.includes('html2canvas')) return 'vendor-html2canvas'
+            if (id.includes('react-dom') || id.includes('/react/') || id.includes('/scheduler/')) return 'vendor-react'
+          },
+        },
+      },
+    },
     server: {
       host: 'localhost',
       port: 5173,

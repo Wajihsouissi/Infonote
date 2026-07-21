@@ -7,10 +7,11 @@ import { generateText } from '../../services/aiService';
 import { toPastelColor, darkenColor } from '../../utils/colorUtils';
 import { useStore } from '../../store/useStore';
 import { CardIcon, defaultIconName } from './iconMap';
+import type { Block } from '../editor/types';
 
 export interface ConvertCardResult {
     title: string;
-    content: any[];
+    content: Block[];
     color?: string;
     tags: string[];
     viewMode: 'icon' | 'titleview' | 'medium' | 'expanded';
@@ -19,7 +20,7 @@ export interface ConvertCardResult {
 interface ConvertCardModalProps {
     initialTitle: string;
     initialColor?: string;
-    content: any[];
+    content: Block[];
     onConfirm: (result: ConvertCardResult) => void;
     onClose: () => void;
 }
@@ -41,7 +42,7 @@ export function ConvertCardModal({ initialTitle, initialColor, content, onConfir
     const [tagsInput, setTagsInput] = useState('');
     const [color, setColor] = useState<string | undefined>(initialColor);
     const [viewMode, setViewMode] = useState<'icon' | 'titleview' | 'medium' | 'expanded'>('expanded');
-    const [currentContent, setCurrentContent] = useState<any[]>(content);
+    const [currentContent, setCurrentContent] = useState<Block[]>(content);
     
     const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
     const [isSummarizing, setIsSummarizing] = useState(false);
@@ -92,7 +93,6 @@ export function ConvertCardModal({ initialTitle, initialColor, content, onConfir
 
     const noteAreaStyles = useMemo(() => {
         if (!color) return { backgroundColor: 'transparent' };
-        const isDark = theme !== 'light';
         return {
             backgroundColor: 'transparent',
             boxShadow: `
@@ -103,9 +103,9 @@ export function ConvertCardModal({ initialTitle, initialColor, content, onConfir
                 inset -1px 0 0 0 ${color}10,
                 inset 0 -1px 0 0 ${color}10
             `.trim().replace(/\s+/g, ' '),
-            '--color-text-main': isDark ? '#f3f4f6' : '#1f2937',
+            '--color-text-main': 'var(--text-main)',
         } as React.CSSProperties;
-    }, [color, theme]);
+    }, [color]);
 
     const previewText = useMemo(() => {
         let text = '';
@@ -174,7 +174,7 @@ export function ConvertCardModal({ initialTitle, initialColor, content, onConfir
             if (cleanedText) {
                 // Create a single new page block with the cleaned text
                 import('uuid').then(({ v4: uuidv4 }) => {
-                    const newBlock = {
+                    const newBlock: Block = {
                         id: uuidv4(),
                         type: 'page',
                         content: cleanedText

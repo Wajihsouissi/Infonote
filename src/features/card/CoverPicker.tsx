@@ -15,7 +15,7 @@ export function CoverPicker({ currentCover, onSelect, onClose }: CoverPickerProp
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleFile = (file: File) => {
+    const handleFile = useCallback((file: File) => {
         if (!file.type.startsWith('image/')) {
             alert("Please upload an image file");
             return;
@@ -29,7 +29,7 @@ export function CoverPicker({ currentCover, onSelect, onClose }: CoverPickerProp
             }
         };
         reader.readAsDataURL(file);
-    };
+    }, [onSelect, onClose]);
 
     const onDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -39,7 +39,7 @@ export function CoverPicker({ currentCover, onSelect, onClose }: CoverPickerProp
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
             handleFile(e.dataTransfer.files[0]);
         }
-    }, []);
+    }, [handleFile]);
 
     const onDragOver = (e: React.DragEvent) => {
         e.preventDefault();

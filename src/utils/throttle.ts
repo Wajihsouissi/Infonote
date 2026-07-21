@@ -4,14 +4,14 @@
  * @param delay Delay in milliseconds
  * @returns Throttled function
  */
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: never[]) => unknown>(
   func: T,
   delay: number
 ): (...args: Parameters<T>) => void {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let lastExecTime = 0;
 
-  return function (this: any, ...args: Parameters<T>) {
+  return function (this: unknown, ...args: Parameters<T>) {
     const currentTime = Date.now();
 
     if (currentTime - lastExecTime > delay) {
