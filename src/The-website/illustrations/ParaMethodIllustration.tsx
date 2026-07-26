@@ -25,7 +25,7 @@ export const ParaMethodIllustration: React.FC = () => (
     {/* Central hub: the brain */}
     <g transform="translate(400, 200)">
       <g transform="scale(3) translate(-12, -13)" strokeLinecap="square" strokeLinejoin="miter">
-        <g fill="var(--bg-raised)" stroke="none">
+        <g fill="var(--bg-rail)" stroke="none">
           <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
           <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
         </g>

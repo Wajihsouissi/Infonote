@@ -408,7 +408,7 @@ export const CenteredEdge = memo(function CenteredEdge({
 
     // Selected or hovered edge is thicker and glows
     const strokeWidth = edgeData.strokeWidth || (isSelected ? 3 : isHovered ? 2.5 : 1.75);
-    const strokeColor = edgeData.color || (isSelected || isHovered ? 'var(--color-primary, #f95d2e)' : 'var(--glass-border, rgba(148, 163, 184, 0.6))');
+    const strokeColor = edgeData.color || (isSelected || isHovered ? 'var(--edge-selected)' : 'var(--edge)');
     const isAnimated = animated || edgeData.animated || false;
 
     // Calculate paths based on the requested edge curve style
@@ -476,8 +476,8 @@ export const CenteredEdge = memo(function CenteredEdge({
         >
             <defs>
                 <linearGradient id="edge-handle-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#f95d2e" />
-                    <stop offset="100%" stopColor="#ec4899" />
+                    <stop offset="0%" style={{ stopColor: 'var(--accent)' }} />
+                    <stop offset="100%" style={{ stopColor: 'var(--secondary)' }} />
                 </linearGradient>
                 <marker
                     id={`${markerId}-arrow-end`}
@@ -540,8 +540,8 @@ export const CenteredEdge = memo(function CenteredEdge({
                     border-radius: 6px;
                     padding: 4px 8px;
                     font-size: 11px;
-                    font-family: 'Poppins', sans-serif;
-                    color: var(--text-primary, #ffffff);
+                    font-family: var(--font-sans);
+                    color: var(--text-main);
                     font-weight: 500;
                     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
                     pointer-events: none;

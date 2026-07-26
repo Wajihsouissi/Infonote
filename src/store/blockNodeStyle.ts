@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Edge } from '@xyflow/react';
 import type { AppNode } from '../types';
 import type { Block } from '../features/editor/types';
-import { BASE_UNIT, snapToGridValue } from '../config/layout';
+import { BASE_UNIT, snapToGridValue, MIN_EXPANDED_SIZE } from '../config/layout';
 
 /**
  * blockNodeStyle
@@ -76,7 +76,7 @@ export const getBlockNodeStyle = (
         case 'callout':
         case 'quote':
         case 'link':
-            return { width: 432, height: 100 };
+            return { width: MIN_EXPANDED_SIZE, height: 100 };
         case 'todo':
         case 'bullet':
         case 'numbered':

@@ -382,7 +382,7 @@ function App() {
             maxWidth: 'min(520px, calc(100vw - 32px))',
             padding: '12px 16px',
             borderRadius: 10,
-            background: 'var(--bg-raised)',
+            background: 'var(--bg-rail)',
             border: '1px solid var(--line-strong)',
             color: 'var(--text-main)',
             fontSize: 13,

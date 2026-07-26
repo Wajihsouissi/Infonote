@@ -192,17 +192,12 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
 
     const colors = [
         { name: 'Default', value: 'transparent', displayValue: 'transparent' },
-        { name: 'Red', value: '#ef4444', displayValue: '#ef4444' },
-        { name: 'Orange', value: '#f97316', displayValue: '#f97316' },
-        { name: 'Yellow', value: '#eab308', displayValue: '#eab308' },
-        { name: 'Green', value: '#22c55e', displayValue: '#22c55e' },
-        { name: 'Blue', value: '#3b82f6', displayValue: '#3b82f6' },
-        { name: 'Purple', value: '#a855f7', displayValue: '#a855f7' },
-        { name: 'Pink', value: '#ec4899', displayValue: '#ec4899' },
-        { name: 'Gray', value: '#6b7280', displayValue: '#6b7280' },
-        { name: 'Cyan', value: '#06b6d4', displayValue: '#06b6d4' },
-        { name: 'Teal', value: '#14b8a6', displayValue: '#14b8a6' },
-        { name: 'Lime', value: '#84cc16', displayValue: '#84cc16' },
+        { name: 'Red', value: 'var(--t-red)', displayValue: 'var(--t-red)' },
+        { name: 'Pink', value: 'var(--t-pink)', displayValue: 'var(--t-pink)' },
+        { name: 'Purple', value: 'var(--t-purple)', displayValue: 'var(--t-purple)' },
+        { name: 'Blue', value: 'var(--t-blue)', displayValue: 'var(--t-blue)' },
+        { name: 'Green', value: 'var(--t-green)', displayValue: 'var(--t-green)' },
+        { name: 'Yellow', value: 'var(--t-yellow)', displayValue: 'var(--t-yellow)' },
     ];
 
     return (

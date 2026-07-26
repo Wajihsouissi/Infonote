@@ -4,7 +4,7 @@ import { useReactFlow } from '@xyflow/react';
 import { type AppNode, type KanbanNode, getNodeBlocks, getNodeLabel } from '../../../types';
 import type { Block } from '../../editor/types';
 import type { UISlice } from '../../../store/types';
-import { snapToGridValue, snapFusedDimensions, MAX_HEIGHT } from '../../../config/layout';
+import { snapFusedDimensions, MAX_HEIGHT } from '../../../config/layout';
 
 type SetNodesFn = (updater: (nodes: AppNode[]) => AppNode[]) => void;
 
@@ -285,53 +285,33 @@ export function useCanvasNodeDrag({
         document.body.classList.remove('chnk-it-node-dragging');
         document.body.classList.remove('chnk-it-multi-drag');
 
-        // Reveal the dragged node(s) again (drop the drag-chip hide class). Runs before the
-        // branch updates below, which spread the now-cleaned node.
-        setNodes(nds => nds.map(n => (n.className && n.className.includes('chnk-it-drag-source'))
-            ? { ...n, className: n.className.replace('chnk-it-drag-source', '').replace(/\s+/g, ' ').trim() }
-            : n));
+        // Reveal the dragged node(s) again and restore z-index — single pass, no extra re-renders.
+        const nodeIdsToRestore = isMultiDrag
+            ? Array.from(selectedCanvasNodeIds)
+            : [node.id];
 
-        // Snap the node (or the whole group) to grid and restore z-index.
-        // For multi-drag we use GROUP-DELTA snapping: compute the nudge that snaps the
-        // primary node, then apply the exact same dx/dy to every other node in the group
-        // so relative positions are preserved perfectly.
-        const snapSingleNode = () => {
-            setNodes(nds => nds.map(n => {
-                if (n.id !== node.id) return n;
-                return {
-                    ...n,
-                    zIndex: 10,
-                    extent: n.parentId ? 'parent' : undefined,
-                    position: {
-                        x: snapToGridValue(n.position.x),
-                        y: snapToGridValue(n.position.y),
-                    },
-                };
-            }));
-        };
-
-        const snapGroupNodes = () => {
-            // Anchor the snap to the primary dragged node so all others shift by the same delta.
-            const dx = snapToGridValue(node.position.x) - node.position.x;
-            const dy = snapToGridValue(node.position.y) - node.position.y;
-            setNodes(nds => nds.map(n => {
-                if (!selectedCanvasNodeIds.has(n.id)) return n;
-                return {
-                    ...n,
-                    zIndex: 10,
-                    extent: n.parentId ? 'parent' : undefined,
-                    position: { x: n.position.x + dx, y: n.position.y + dy },
-                };
-            }));
-        };
+        const nodeIdSet = new Set(nodeIdsToRestore);
+        setNodes(nds => nds.map(n => {
+            if (!nodeIdSet.has(n.id)) return n;
+            const cls = n.className ?? '';
+            const needsClassClean = cls.includes('chnk-it-drag-source');
+            const needsZIndex = n.zIndex !== 10;
+            const needsExtent = n.extent !== (n.parentId ? 'parent' : undefined);
+            if (!needsClassClean && !needsZIndex && !needsExtent) return n;
+            return {
+                ...n,
+                className: needsClassClean ? cls.replace('chnk-it-drag-source', '').replace(/\s+/g, ' ').trim() : cls,
+                zIndex: 10,
+                extent: n.parentId ? 'parent' : undefined,
+            };
+        }));
 
         const isSourceBlock = node.type === 'block';
         const isSourceFused = node.type === 'fused-note';
         const isSourceNote = node.type === 'note';
 
-        // Multi-drag: skip fusion/nesting/kanban — snap as a group and return.
+        // Multi-drag: skip fusion/nesting/kanban — restore already handled above.
         if (isMultiDrag) {
-            snapGroupNodes();
             if (currentParentId) syncParentContent(currentParentId);
             return;
         }
@@ -409,7 +389,6 @@ export function useCanvasNodeDrag({
             if (targetNode) {
                 // Dropped onto its own parent → keep as-is (no re-nest / no un-nest).
                 if (targetNode.id === node.parentId) {
-                    snapSingleNode();
                     return;
                 }
 
@@ -421,7 +400,6 @@ export function useCanvasNodeDrag({
                     const sourceContent = getNodeBlocks(node.data) ?? [];
                     // Nothing to merge — keep the source intact instead of deleting it (no data loss).
                     if (sourceContent.length === 0) {
-                        snapSingleNode();
                         return;
                     }
                     handleFusionDrop(targetNode, node, pending.insertBlockId, pending.insertPosition, setNodes);
@@ -465,8 +443,8 @@ export function useCanvasNodeDrag({
                 // React Flow 11 exposed positionAbsolute on the callback node; v12 doesn't, so fall back to parent + relative.
                 const legacyAbs = (node as AppNode & { positionAbsolute?: { x: number; y: number } }).positionAbsolute;
                 const absPos = {
-                    x: snapToGridValue(legacyAbs?.x ?? (parentNode.position.x + node.position.x)),
-                    y: snapToGridValue(legacyAbs?.y ?? (parentNode.position.y + node.position.y))
+                    x: legacyAbs?.x ?? (parentNode.position.x + node.position.x),
+                    y: legacyAbs?.y ?? (parentNode.position.y + node.position.y)
                 };
                 setNodes(nds => nds.map(n => n.id === node.id ? {
                     ...n,
@@ -479,7 +457,7 @@ export function useCanvasNodeDrag({
             return;
         }
 
-        snapSingleNode();
+        // Restore already handled above — just sync parent content.
         if (currentParentId) {
             syncParentContent(currentParentId);
         }

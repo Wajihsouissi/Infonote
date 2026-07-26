@@ -30,6 +30,10 @@ Paper &amp; Ink replaced an older "cosmic dark" direction. These are **banned** 
 
 If a design idea needs blur or glow to look good, it is the wrong idea for this system.
 
+### The one sanctioned exception
+
+**The canvas FAB** (`.special-primary-btn`, §7 of `design-system.css`) is deliberately exempt from the no-glow and no-idle-motion rules. It keeps a warm accent glow, a white rim-light, and a slow `orbBreathe` animation because it is the single hero action in the product. This is intentional — do not "fix" it during a consistency pass, and **do not copy the treatment onto any other control**. Its colour still comes from tokens, so it stays theme-aware. Nothing else in the app may glow.
+
 ---
 
 ## 2. First principles (the non-negotiable laws)

@@ -26,14 +26,14 @@ interface ConvertCardModalProps {
 }
 
 const PRESET_COLORS = [
-    '#8b5cf6', // Violet
-    '#ec4899', // Pink
+    '#c96f4c', // Terracotta
+    '#f2795a', // Coral
     '#f59e0b', // Amber
     '#10b981', // Emerald
-    '#3b82f6', // Blue
+    '#a5673f', // Clay
     '#ef4444', // Red
-    '#06b6d4', // Cyan
-    '#6366f1', // Indigo
+    '#cc8b3c', // Ochre
+    '#8a4b38', // Sienna
 ];
 
 export function ConvertCardModal({ initialTitle, initialColor, content, onConfirm, onClose }: ConvertCardModalProps) {
@@ -261,7 +261,7 @@ export function ConvertCardModal({ initialTitle, initialColor, content, onConfir
                                     onClick={() => setColor(undefined)}
                                     title="Default"
                                 >
-                                    {!color && <Check size={14} style={{ margin: 'auto', color: 'var(--text-primary)' }} />}
+                                    {!color && <Check size={14} style={{ margin: 'auto', color: 'var(--text-main)' }} />}
                                 </button>
                                 {PRESET_COLORS.map(c => (
                                     <button
@@ -332,7 +332,7 @@ export function ConvertCardModal({ initialTitle, initialColor, content, onConfir
                             style={{ 
                                 ...dynamicStyles,
                                 minHeight: '250px', // Ensure it has some height in preview
-                                backgroundColor: !displayColor ? 'var(--glass-bg)' : undefined, // Ensure default glass bg works
+                                backgroundColor: !displayColor ? 'var(--bg-rail)' : undefined, // Ensure default glass bg works
                             }}
                         >
                             <div className={noteStyles.minimalHeader} style={headerStyle}>

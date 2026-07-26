@@ -174,7 +174,11 @@ export const BlockItem = memo(function BlockItem({
             onDragStart={onDragStart}
             onMenuOpen={onMenuOpen}
             onMouseDown={handleWrapperMouseDown}
-            style={{ paddingLeft: `${Math.max(0, ((block.indent || 0) - (parentToggleIndent || 0)) * 24)}px` }}
+            // Indent is published as a CSS variable rather than an inline
+            // padding-left, so the wrapper's own left gutter can compose with it
+            // (`calc(gutter + indent)`). As an inline padding it always won the
+            // cascade and flattened the gutter to 0 for every unindented block.
+            style={{ '--block-indent': `${Math.max(0, ((block.indent || 0) - (parentToggleIndent || 0)) * 24)}px` } as React.CSSProperties}
             hideHandle={hideBlockHandles}
             promoteBlockHandles={promoteBlockHandles}
             isFirstChildOfToggle={isFirstChildOfToggle}

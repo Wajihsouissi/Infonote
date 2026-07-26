@@ -1,48 +1,45 @@
 .fusedNoteNode {
     position: relative;
-    /* Essential for absolute positioning of handles */
     display: block;
-    /* Use block to wrap tightly */
-    background: var(--glass-bg);
-    backdrop-filter: blur(var(--backdrop-blur));
-    -webkit-backdrop-filter: blur(var(--backdrop-blur));
-    border: 1px solid var(--glass-border);
-    border-left: 4px solid var(--color-primary); /* Document binding indicator */
-    border-radius: 4px 16px 16px 4px; /* Asymmetric, document-like */
-    padding: 16px;
-    /* Minimal padding */
+    background: var(--node-bg);
+    border: none;
+    border-top: var(--node-spine-w, 3px) solid var(--node-accent-color, transparent);
+    border-radius: var(--node-radius);
+    padding: 0;
     width: 100%;
     height: 100%;
-    min-height: 40px;
+    min-height: 0;
     box-sizing: border-box;
-    transition:width 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    transition:
+        width 0.18s cubic-bezier(0.4, 0, 0.2, 1),
         height 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-        background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1),
-        transform 0.15s cubic-bezier(0.2, 0, 0.2, 1),
-        border-color 0.2s ease, 0.2s ease;
-    box-shadow: none;
-    color: var(--color-text-main);
+        background-color var(--transition-fast),
+        transform var(--transition-fast),
+        border-color var(--transition-fast),
+        box-shadow var(--transition-fast);
+    box-shadow: var(--node-ring);
+    color: var(--text-main);
     will-change: transform, box-shadow, border-color;
 }
 
 .dragging {
-    transform: scale(0.98) rotate(2deg);
-    box-shadow: none;
-    opacity: 0.95;
+    transform: scale(0.98) rotate(1.5deg);
+    box-shadow: var(--node-ring-drag);
+    border-top: var(--node-spine-w, 3px) solid var(--node-accent-color, transparent);
+    opacity: 0.96;
     z-index: 10000 !important;
 }
 
-/* Nesting target = primary ring; fusion target = secondary ring (breathing outline). */
 .dropTarget {
-    border-color: var(--color-primary);
-    outline: 2px solid var(--color-primary);
+    border-color: var(--accent-ink);
+    outline: 2px solid var(--accent-ink);
     outline-offset: 3px;
     animation: targetPulse 1s ease-in-out infinite;
 }
 
 .fusionTarget {
-    border-color: var(--color-secondary);
-    outline: 2px solid var(--color-secondary);
+    border-color: var(--secondary-ink);
+    outline: 2px solid var(--secondary-ink);
     outline-offset: 3px;
     animation: fusionPulse 1s ease-in-out infinite;
 }
@@ -81,24 +78,20 @@
 .floatingHandle {
     position: absolute;
     top: -20px;
-    /* Float above closer */
     left: 50%;
     transform: translateX(-50%) translateY(4px);
-    /* Centered */
     width: 24px;
     height: 16px;
     display: flex;
     justify-content: center;
     align-items: center;
     background: transparent;
-    /* Transparent default */
-    border-radius: 4px;
-    color: var(--color-text-muted, rgba(255, 255, 255, 0.3));
+    border-radius: var(--r-xs);
+    color: var(--text-faint);
     cursor: grab;
     opacity: 0;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
     z-index: 50;
-    /* Ensure above everything */
 }
 
 .fusedNoteNode:hover .floatingHandle {
@@ -107,25 +100,20 @@
 }
 
 .floatingHandle:hover {
-    color: var(--color-text-main, rgba(255, 255, 255, 0.9));
-    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-main);
+    background: var(--active-wash);
 }
 
 .fusedNoteNode:hover {
-    background: var(--glass-bg-hover);
-    border-color: rgba(255, 255, 255, 0.15);
-    border-left-color: var(--color-primary);
+    box-shadow: var(--node-ring-hover);
     transform: translateY(-1px);
-    box-shadow: var(--shadow-sm);
 }
 
 .fusedNoteNode.selected,
 .fusedNoteNode.selected:hover,
 .fusedNoteNode.multiSelected,
 .fusedNoteNode.multiSelected:hover {
-    border-color: rgba(255, 255, 255, 0.2);
-    border-left-color: var(--color-primary);
-    box-shadow: 0 0 0 1px var(--color-primary);
+    box-shadow: var(--node-ring-selected);
 }
 
 .content {
@@ -136,21 +124,19 @@
     box-sizing: border-box;
     cursor: text;
     overflow-y: auto;
-    /* Scroll if max height reached */
 }
 
-/* Modern scrollbar */
 .content::-webkit-scrollbar {
     width: 4px;
 }
 
 .content::-webkit-scrollbar-thumb {
-    background: var(--color-border);
+    background: var(--line);
     border-radius: 2px;
 }
 
 .content::-webkit-scrollbar-thumb:hover {
-    background: var(--color-text-muted);
+    background: var(--text-soft);
 }
 
 .selectionIslandContainer {
@@ -175,27 +161,18 @@
     right: -32px;
     width: 32px;
     height: 32px;
-    border-radius: 100px;
-    /* Squircle-ish */
-
-    /* Glassy Style */
-    background: rgba(30, 30, 30, 0.4);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(139, 92, 246, 0.2);
-    /* Subtle violet tint border */
+    border-radius: var(--radius-pill);
+    background: var(--bg-rail);
+    border: 1px solid var(--accent-wash);
     box-shadow: none;
-
-    color: #e2e8f0;
+    color: var(--text-soft);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-
-    /* Transitions & Visibility */
     opacity: 0;
     transform: scale(0.9) translateY(4px);
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: all var(--transition-smooth);
     z-index: 50;
 }
 
@@ -205,23 +182,22 @@
 }
 
 .convertBtn:hover {
-    background: rgba(139, 92, 246, 0.2);
-    /* Violet glass hover */
-    border-color: rgba(139, 92, 246, 0.6);
+    background: var(--accent-wash);
+    border-color: var(--accent);
     box-shadow: none;
     transform: scale(1.1) rotate(3deg) !important;
-    color: white;
+    color: var(--on-accent);
 }
 
 .handle {
     opacity: 0;
     visibility: hidden;
-    width: 10px !important;
-    height: 10px !important;
+    width: var(--handle-size) !important;
+    height: var(--handle-size) !important;
     border-radius: 50%;
-    background: var(--color-primary) !important;
-    border: 2px solid var(--bg-dark) !important;
-    transition:opacity 0.3s ease, transform 0.3s ease, 0.3s ease;
+    background: var(--handle-bg) !important;
+    border: var(--handle-ring) !important;
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
     pointer-events: none;
     left: auto !important;
     right: -6px !important;
@@ -238,28 +214,24 @@
 
 .handle:hover {
     transform: scale(1.4) !important;
-    box-shadow: none;
+    box-shadow: var(--handle-halo);
 }
 
-/* Apple Vision Pro Style Resize Handle - Truly Curved Arc, Outside */
 .modernResizeHandle {
     position: absolute;
     bottom: -20px;
-    /* Increased distance from node */
     right: -20px;
     width: 44px;
-    /* Smaller size */
     height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity var(--transition-smooth), transform var(--transition-smooth);
     cursor: nwse-resize !important;
     z-index: 30;
     pointer-events: auto;
     transform: rotate(180deg);
-    /* Rotate 180 degrees */
 }
 
 .modernResizeHandle svg {
@@ -267,14 +239,13 @@
     height: 60%;
     display: block;
     pointer-events: none;
-    /* Base soft glow */
-    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
-    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+    transition: transform var(--transition-smooth), opacity var(--transition-smooth);
 }
 
 .handlePath {
     stroke-opacity: 0.9;
-    transition: background-color 0.3s ease, transform 0.3s ease;
+    transition: background-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .fusedNoteNode:hover .modernResizeHandle,
@@ -282,16 +253,12 @@
     opacity: 1;
 }
 
-/* Hover State - Initial Glow */
 .modernResizeHandle:hover svg {
-    filter:
-        drop-shadow(0 0 15px rgba(167, 139, 250, 0.7)) drop-shadow(0 0 30px rgba(96, 165, 250, 0.5));
+    filter: none;
     transform: scale(1.1) rotate(-5deg);
 }
 
-/* Active/Dragging State - Intense Neon Glow */
 .modernResizeHandle:active svg {
-    filter:
-        drop-shadow(0 0 25px rgba(167, 139, 250, 1)) drop-shadow(0 0 50px rgba(96, 165, 250, 0.8)) drop-shadow(0 0 80px rgba(96, 165, 250, 0.4));
+    filter: none;
     transform: scale(1.2) rotate(-10deg);
 }

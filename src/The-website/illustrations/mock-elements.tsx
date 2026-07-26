@@ -52,7 +52,7 @@ export const SharedVideoMock: React.FC<SharedVideoMockProps> = ({ size = 'sm' })
         position: 'absolute',
         inset: 0,
         borderRadius: 'var(--radius-lg)',
-        background: 'var(--bg-raised)',
+        background: 'var(--bg-rail)',
         overflow: 'hidden',
         border: '1px solid var(--line-strong)',
         display: 'flex',

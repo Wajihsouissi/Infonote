@@ -8,7 +8,6 @@ import { useStore } from '../../store/useStore';
 import type { Node } from '@xyflow/react';
 import styles from './FusedNoteNode.module.css';
 import { snapFusedDimensions, MIN_EXPANDED_SIZE } from '../../config/layout';
-import { toPastelColor, darkenColor } from '../../utils/colorUtils';
 import type { AppNode } from '../../types';
 import type { Block } from '../editor/types';
 
@@ -27,7 +26,6 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     const updateNodeData = useStore(s => s.updateNodeData);
     const updateNode = useStore(s => s.updateNode);
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
-    const interactionState = useStore(s => s.interactionState);
     const theme = useStore(s => s.theme);
     const isLinkingMode = useStore(s => s.isLinkingMode);
     const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
@@ -35,12 +33,10 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     const clearCanvasSelection = useStore(s => s.clearCanvasSelection);
     const setNodesStore = useStore(s => s.setNodes);
 
-    // Scale + tilt is reserved for single-drag (the grabbed card "lifts").
-    // Multi-drag uses a unified subtle lift on every selected card via global CSS
-    // (.chnk-it-multi-drag .react-flow__node.selected) — so we deliberately skip it here.
-    const isDragging = interactionState.draggedNodeId === id && !interactionState.isMultiDragging;
-    const isDropTarget = interactionState.dropTarget?.id === id;
-    const dropType = isDropTarget ? interactionState.dropTarget?.type : null;
+    // Narrow selectors — only re-render when THIS node's status changes
+    const isDragging = useStore(s => s.interactionState.draggedNodeId === id && !s.interactionState.isMultiDragging);
+    const isDropTarget = useStore(s => s.interactionState.dropTarget?.id === id);
+    const dropType = useStore(s => s.interactionState.dropTarget?.id === id ? s.interactionState.dropTarget?.type : null);
 
     // Track fusion event for animation
     const [isFusing, setIsFusing] = useState(false);
@@ -83,51 +79,12 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
     const isMultiSelected = selectedCanvasNodeIds.has(id) && selectedCanvasNodeIds.size > 1;
 
-    // Convert color to pastel for better readability
-    const displayColor = data.color ? toPastelColor(data.color, theme === 'light') : undefined;
-
-    // Dynamic styles for contrast
-    const dynamicStyles = useMemo(() => {
-        if (!displayColor) return {};
-
-        // Smart high-contrast colors derived from the bg color for exceptional readability
-        const darkText = darkenColor(displayColor, 80); // 80% darken for main text (flawless readability)
-        const mutedText = darkenColor(displayColor, 65); // 65% darken for secondary text
-        const borderColor = darkenColor(displayColor, 40); // 40% darken for borders
-
-        return {
-            '--color-text-main': darkText,
-            '--color-text-muted': mutedText,
-            '--color-border': `${borderColor}40`,
-            '--glass-border': `${borderColor}40`,
-            '--icon-color': darkText,
-            '--note-bg-dynamic': data.color,
-            '--table-bg': `${displayColor}26`,
-            '--table-header-bg': `${displayColor}3d`,
-            '--table-row-hover-bg': `${displayColor}33`,
-            '--table-cell-focus-bg': `${displayColor}4d`,
-            '--table-controls-bg': `${displayColor}22`,
-            '--table-btn-hover-bg': `${displayColor}33`,
-            '--table-border': `${borderColor}33`,
-            '--table-border-strong': `${borderColor}55`,
-            '--table-focus-ring': `${borderColor}80`,
-            '--link-bg': `${borderColor}15`,
-            '--link-bg-hover': `${borderColor}25`,
-            '--link-border': `${borderColor}25`,
-            '--link-border-hover': `${borderColor}40`,
-            '--link-shadow': `${darkText}1a`,
-            color: darkText,
-            caretColor: darkText,
-        } as React.CSSProperties;
-    }, [displayColor, data.color]);
-
     // Get the node's style from the store to check if it has been manually resized
     const nodeStyle = useStore(s => s.nodes.find(n => n.id === id)?.style);
     const hasManualHeight = nodeStyle?.height !== undefined;
 
     const dynamicStyle = {
-        backgroundColor: displayColor || undefined,
-        ...dynamicStyles,
+        '--node-accent-color': data.color || 'transparent',
         display: 'flex',
         flexDirection: 'column' as const,
         ...(hasManualHeight ? {
@@ -137,7 +94,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             minHeight: '208px', // 4 units
             maxHeight: '432px', // 8 units
         })
-    };
+    } as React.CSSProperties;
 
     const contentStyle = {
         flex: hasManualHeight ? '1 1 0%' : '1 1 auto',
@@ -425,11 +382,11 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                         bottom: 0,
                         zIndex: 9999,
                         cursor: 'pointer',
-                        backgroundColor: isHoveredLinking ? 'rgba(227, 162, 79, 0.15)' : 'rgba(227, 162, 79, 0.04)',
+                        backgroundColor: isHoveredLinking ? 'rgba(var(--secondary-rgb), 0.15)' : 'rgba(var(--secondary-rgb), 0.04)',
                         border: '2px solid transparent',
-                        borderColor: isHoveredLinking ? '#e3a24f' : 'transparent',
-                        boxShadow: isHoveredLinking ? '0 0 15px rgba(227, 162, 79, 0.4)' : 'none',
-                        transition: 'all 0.2s ease',
+                        borderColor: isHoveredLinking ? 'var(--secondary)' : 'transparent',
+                        boxShadow: isHoveredLinking ? '0 0 15px rgba(var(--secondary-rgb), 0.4)' : 'none',
+                        transition: 'all var(--transition-fast)',
                         borderRadius: 'inherit',
                         boxSizing: 'border-box',
                     }}

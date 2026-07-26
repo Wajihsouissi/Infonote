@@ -4,7 +4,7 @@ import { useReactFlow } from '@xyflow/react';
 import { useStore } from '../../../store/useStore';
 import type { Block, BlockType } from '../../editor/types';
 import { type AppNode, getNodeBlocks } from '../../../types';
-import { BASE_UNIT, MIN_FUSED_SIZE, ICON_SIZE, snapToGridValue, GRID_GAP } from '../../../config/layout';
+import { BASE_UNIT, MIN_FUSED_SIZE, ICON_SIZE, GRID_GAP } from '../../../config/layout';
 import { checkNodeCreationLimits } from '../../../store/nodeLimits';
 
 interface UseCanvasDropOptions {
@@ -181,8 +181,8 @@ export function useCanvasDrop({
                 const BLOCK_HEIGHT = isFusedLink ? MIN_FUSED_SIZE : ICON_SIZE;
 
                 const centeredPosition = {
-                    x: snapToGridValue(position.x - (BLOCK_WIDTH / 2)),
-                    y: snapToGridValue(position.y - (BLOCK_HEIGHT / 2)),
+                    x: position.x - (BLOCK_WIDTH / 2),
+                    y: position.y - (BLOCK_HEIGHT / 2),
                 };
 
                 const nodeId = uuidv4();

@@ -5,7 +5,7 @@
     right: -8px;
     width: 32px;
     height: 32px;
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.9), rgba(59, 130, 246, 0.9));
+    background: linear-gradient(135deg, var(--accent), var(--secondary));
     border: 2px solid rgba(255, 255, 255, 0.2);
     border-radius: var(--radius-md);
     display: flex;
@@ -25,7 +25,7 @@
 }
 
 .modernResizeHandle:hover {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 1), rgba(59, 130, 246, 1));
+    background: linear-gradient(135deg, var(--accent), var(--secondary));
     box-shadow: none;
     transform: scale(1.1);
 }
@@ -64,7 +64,7 @@
 .mediumIconButton:hover,
 .expandedIconButton:hover {
     border-color: var(--color-primary);
-    background: rgba(139, 92, 246, 0.1);
+    background: rgba(249, 93, 46, 0.1);
     transform: scale(1.05);
 }
 
@@ -148,7 +148,7 @@
 .coverUrlInput:focus,
 .dateInput:focus {
     border-color: var(--color-primary);
-    background: rgba(139, 92, 246, 0.05);
+    background: rgba(249, 93, 46, 0.05);
 }
 
 /* Placeholder styles */
@@ -172,7 +172,6 @@
     z-index: 20;
     padding: 4px;
     background: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(4px);
     border-radius: var(--radius-md);
     opacity: 0;
     transition: opacity 0.2s;

@@ -316,26 +316,26 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
                                 display: 'flex',
                                 flexDirection: 'column',
                                 padding: '14px 16px',
-                                borderRadius: 10,
-                                backgroundColor: inviteDeliveryError ? 'rgba(245, 158, 11, 0.1)' : 'rgba(34, 197, 94, 0.08)',
-                                border: inviteDeliveryError ? '1px solid rgba(245, 158, 11, 0.24)' : '1px solid rgba(34, 197, 94, 0.2)',
+                                borderRadius: 'var(--r-control)',
+                                backgroundColor: inviteDeliveryError ? 'rgba(var(--warn-rgb), 0.10)' : 'rgba(var(--ok-rgb), 0.08)',
+                                border: inviteDeliveryError ? '1px solid rgba(var(--warn-rgb), 0.24)' : '1px solid rgba(var(--ok-rgb), 0.20)',
                                 marginTop: 12,
                             }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                                     {inviteDeliveryError ? (
-                                        <AlertCircle size={16} style={{ color: '#fbbf24' }} />
+                                        <AlertCircle size={16} style={{ color: 'var(--warn)' }} />
                                     ) : (
-                                        <CheckCircle2 size={16} style={{ color: '#4ade80' }} />
+                                        <CheckCircle2 size={16} style={{ color: 'var(--ok)' }} />
                                     )}
                                     <span style={{
                                         fontWeight: 600,
-                                        color: inviteDeliveryError ? '#fde68a' : '#86efac',
+                                        color: inviteDeliveryError ? 'var(--warn)' : 'var(--ok)',
                                         fontSize: 13,
                                     }}>
                                         {inviteDeliveryError ? 'Invitation created, email not delivered' : 'Invitation email queued'}
                                     </span>
                                 </div>
-                                <p style={{ margin: '0 0 10px 0', fontSize: 12, color: 'rgba(255,255,255,0.85)', lineHeight: 1.4 }}>
+                                <p style={{ margin: '0 0 10px 0', fontSize: 12, color: 'var(--text-soft)', lineHeight: 1.4 }}>
                                     {inviteDeliveryError
                                         ? `Delivery error: ${inviteDeliveryError} Copy and share this accept link directly while the email configuration is fixed.`
                                         : `The email has been accepted${inviteProvider ? ` by ${inviteProvider}` : ' by the provider'}${inviteSender ? ` from ${inviteSender}` : ''}. You can also copy the accept link directly.`}
@@ -349,12 +349,13 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
                                             flex: 1,
                                             height: 36,
                                             minWidth: 0,
-                                            borderRadius: 6,
-                                            border: '1px solid rgba(255, 255, 255, 0.15)',
-                                            backgroundColor: 'rgba(0,0,0,0.3)',
-                                            color: '#fff',
+                                            borderRadius: 'var(--input-radius)',
+                                            border: '1px solid var(--input-border)',
+                                            backgroundColor: 'var(--input-bg)',
+                                            color: 'var(--text-main)',
                                             padding: '0 10px',
                                             outline: 'none',
+                                            fontFamily: 'var(--font-mono)',
                                             fontSize: 12,
                                         }}
                                         onFocus={(event) => event.currentTarget.select()}
@@ -368,11 +369,12 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
                                             gap: 6,
                                             padding: '0 14px',
                                             height: 36,
-                                            borderRadius: 6,
+                                            borderRadius: 'var(--btn-radius)',
                                             border: 'none',
-                                            background: 'linear-gradient(135deg, #2563eb, #22c55e)',
-                                            color: '#fff',
+                                            background: 'var(--btn-primary-bg)',
+                                            color: 'var(--btn-primary-fg)',
                                             cursor: 'pointer',
+                                            fontFamily: 'inherit',
                                             fontSize: 12,
                                             fontWeight: 700,
                                         }}
@@ -565,6 +567,10 @@ function extractInvitationId(value: string): string | null {
     return trimmed.match(INVITATION_ID_RE)?.[0] ?? null;
 }
 
+/* Paper & Ink. Inline styles read tokens fine, so nothing here is theme-specific —
+   this modal was previously dark-only (white-alpha text on a fixed dark panel),
+   which meant white-on-white in Paper. */
+
 const overlay: React.CSSProperties = {
     position: 'fixed',
     inset: 0,
@@ -573,9 +579,8 @@ const overlay: React.CSSProperties = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
-    background: 'rgba(5, 6, 12, 0.68)',
-    backdropFilter: 'blur(8px)',
-    WebkitBackdropFilter: 'blur(8px)',
+    // plain scrim, no blur
+    background: 'rgba(0, 0, 0, 0.5)',
 };
 
 const modal: React.CSSProperties = {
@@ -584,12 +589,12 @@ const modal: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
-    borderRadius: 14,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: 'rgba(18, 20, 29, 0.98)',
-    color: '#fff',
-    boxShadow: '0 32px 90px rgba(0,0,0,0.45)',
-    fontFamily: '"Poppins", system-ui, sans-serif',
+    borderRadius: 'var(--r-panel)',
+    border: '1px solid var(--line)',
+    background: 'var(--bg-rail)',
+    color: 'var(--text-main)',
+    boxShadow: 'var(--shadow-lg)',
+    fontFamily: 'var(--font-sans)',
 };
 
 const header: React.CSSProperties = {
@@ -597,29 +602,31 @@ const header: React.CSSProperties = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '18px 20px',
-    borderBottom: '1px solid rgba(255,255,255,0.08)',
+    borderBottom: '1px solid var(--line)',
 };
 
 const iconBadge: React.CSSProperties = {
     width: 38,
     height: 38,
-    borderRadius: 10,
+    borderRadius: 'var(--r-control)',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'linear-gradient(135deg, #2563eb, #22c55e)',
+    background: 'linear-gradient(135deg, var(--accent), var(--secondary))',
+    color: 'var(--on-accent)',
 };
 
 const title: React.CSSProperties = {
     margin: 0,
     fontSize: 17,
     fontWeight: 700,
+    color: 'var(--text-main)',
 };
 
 const subtitle: React.CSSProperties = {
     margin: '2px 0 0',
     fontSize: 12,
-    color: 'rgba(255,255,255,0.56)',
+    color: 'var(--text-faint)',
 };
 
 const iconButton: React.CSSProperties = {
@@ -628,10 +635,10 @@ const iconButton: React.CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: 'var(--btn-radius)',
+    border: '1px solid var(--line)',
     background: 'transparent',
-    color: 'rgba(255,255,255,0.68)',
+    color: 'var(--btn-ghost-fg)',
     cursor: 'pointer',
 };
 
@@ -644,9 +651,9 @@ const body: React.CSSProperties = {
 
 const panel: React.CSSProperties = {
     padding: 13,
-    borderRadius: 12,
-    border: '1px solid rgba(255,255,255,0.08)',
-    background: 'rgba(255,255,255,0.04)',
+    borderRadius: 'var(--r-md)',
+    border: '1px solid var(--line)',
+    background: 'var(--bg-card)',
 };
 
 const sectionHeader: React.CSSProperties = {
@@ -661,11 +668,12 @@ const sectionTitle: React.CSSProperties = {
     margin: 0,
     fontSize: 14,
     fontWeight: 700,
+    color: 'var(--text-main)',
 };
 
 const sectionCopy: React.CSSProperties = {
     margin: '3px 0 0',
-    color: 'rgba(255,255,255,0.55)',
+    color: 'var(--text-soft)',
     fontSize: 12,
     lineHeight: 1.45,
 };
@@ -679,12 +687,13 @@ const input: React.CSSProperties = {
     flex: 1,
     height: 40,
     minWidth: 0,
-    borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.1)',
-    background: 'rgba(0,0,0,0.22)',
-    color: '#fff',
+    borderRadius: 'var(--input-radius)',
+    border: '1px solid var(--input-border)',
+    background: 'var(--input-bg)',
+    color: 'var(--text-main)',
     padding: '0 11px',
     outline: 'none',
+    fontFamily: 'inherit',
     fontSize: 13,
 };
 
@@ -699,34 +708,35 @@ const row: React.CSSProperties = {
     alignItems: 'center',
     gap: 10,
     padding: 10,
-    borderRadius: 10,
-    border: '1px solid rgba(255,255,255,0.07)',
-    background: 'rgba(0,0,0,0.16)',
+    borderRadius: 'var(--r-control)',
+    border: '1px solid var(--line)',
+    background: 'var(--bg-inset)',
 };
 
 const rowButton: React.CSSProperties = {
     ...row,
     width: '100%',
-    color: '#fff',
+    color: 'var(--text-main)',
+    fontFamily: 'inherit',
     textAlign: 'left',
     cursor: 'pointer',
 };
 
 const rowButtonActive: React.CSSProperties = {
-    borderColor: 'rgba(34,197,94,0.55)',
-    background: 'rgba(34,197,94,0.12)',
+    borderColor: 'var(--accent)',
+    background: 'var(--accent-dim)',
 };
 
 const avatar: React.CSSProperties = {
     width: 34,
     height: 34,
-    borderRadius: 10,
+    borderRadius: 'var(--r-control)',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    background: 'rgba(255,255,255,0.07)',
-    color: '#dbeafe',
+    background: 'linear-gradient(135deg, var(--accent), var(--secondary))',
+    color: 'var(--on-accent)',
     fontSize: 12,
     fontWeight: 800,
 };
@@ -734,6 +744,7 @@ const avatar: React.CSSProperties = {
 const rowTitle: React.CSSProperties = {
     fontSize: 13,
     fontWeight: 700,
+    color: 'var(--text-main)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
@@ -742,16 +753,16 @@ const rowTitle: React.CSSProperties = {
 const rowMeta: React.CSSProperties = {
     marginTop: 2,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.52)',
+    color: 'var(--text-faint)',
 };
 
 const pill: React.CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
     padding: '4px 8px',
-    borderRadius: 999,
-    background: 'rgba(255,255,255,0.08)',
-    color: 'rgba(255,255,255,0.66)',
+    borderRadius: 'var(--chip-radius)',
+    background: 'var(--chip-bg)',
+    color: 'var(--chip-fg)',
     fontSize: 11,
     fontWeight: 700,
     whiteSpace: 'nowrap',
@@ -759,7 +770,7 @@ const pill: React.CSSProperties = {
 
 const empty: React.CSSProperties = {
     padding: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'var(--text-faint)',
     fontSize: 13,
     textAlign: 'center',
 };
@@ -768,7 +779,7 @@ const inlineState: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    color: 'rgba(255,255,255,0.64)',
+    color: 'var(--text-soft)',
     fontSize: 13,
 };
 
@@ -777,9 +788,9 @@ const errorBox: React.CSSProperties = {
     alignItems: 'center',
     gap: 8,
     padding: '10px 12px',
-    borderRadius: 9,
-    background: 'rgba(239,68,68,0.11)',
-    color: '#fca5a5',
+    borderRadius: 'var(--r-control)',
+    background: 'rgba(var(--danger-rgb), 0.11)',
+    color: 'var(--danger)',
     fontSize: 13,
 };
 
@@ -788,9 +799,9 @@ const successBox: React.CSSProperties = {
     alignItems: 'center',
     gap: 8,
     padding: '10px 12px',
-    borderRadius: 9,
-    background: 'rgba(34,197,94,0.12)',
-    color: '#86efac',
+    borderRadius: 'var(--r-control)',
+    background: 'rgba(var(--ok-rgb), 0.12)',
+    color: 'var(--ok)',
     fontSize: 13,
 };
 
@@ -799,17 +810,18 @@ const footer: React.CSSProperties = {
     justifyContent: 'flex-end',
     gap: 10,
     padding: '15px 20px',
-    borderTop: '1px solid rgba(255,255,255,0.08)',
-    background: 'rgba(0,0,0,0.18)',
+    borderTop: '1px solid var(--line)',
+    background: 'var(--bg-rail)',
 };
 
 const ghostButton: React.CSSProperties = {
     padding: '8px 13px',
-    borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: 'var(--btn-radius)',
+    border: '1px solid var(--btn-secondary-border)',
     background: 'transparent',
-    color: 'rgba(255,255,255,0.72)',
+    color: 'var(--btn-ghost-fg)',
     cursor: 'pointer',
+    fontFamily: 'inherit',
     fontSize: 13,
     fontWeight: 600,
 };
@@ -819,11 +831,12 @@ const smallButton: React.CSSProperties = {
     alignItems: 'center',
     gap: 6,
     padding: '7px 10px',
-    borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.1)',
-    background: 'rgba(255,255,255,0.07)',
-    color: '#fff',
+    borderRadius: 'var(--btn-radius)',
+    border: '1px solid var(--btn-secondary-border)',
+    background: 'var(--btn-secondary-bg)',
+    color: 'var(--btn-secondary-fg)',
     cursor: 'pointer',
+    fontFamily: 'inherit',
     fontSize: 12,
     fontWeight: 700,
 };
@@ -834,11 +847,12 @@ const primaryButton: React.CSSProperties = {
     justifyContent: 'center',
     gap: 7,
     padding: '9px 14px',
-    borderRadius: 8,
+    borderRadius: 'var(--btn-radius)',
     border: 'none',
-    background: 'linear-gradient(135deg, #2563eb, #22c55e)',
-    color: '#fff',
+    background: 'var(--btn-primary-bg)',
+    color: 'var(--btn-primary-fg)',
     cursor: 'pointer',
+    fontFamily: 'inherit',
     fontSize: 13,
     fontWeight: 700,
 };

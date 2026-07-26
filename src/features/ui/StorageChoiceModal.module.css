@@ -7,8 +7,7 @@
   justify-content: center;
   padding: 24px;
   background: rgba(5, 2, 10, 0.65);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+
   animation: storageFadeIn 0.2s ease-out;
 }
 
@@ -20,10 +19,10 @@
 .card {
   width: min(480px, 100%);
   padding: 28px;
-  border-radius: 18px;
-  background: var(--color-bg-surface, #17121f);
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--elev-3);
   animation: storageCardIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -37,14 +36,14 @@
   font-size: 20px;
   font-weight: 700;
   text-align: center;
-  color: var(--color-text-main, #fff);
+  color: var(--color-text-main);
 }
 
 .subtitle {
   margin: 0 0 22px;
   font-size: 13.5px;
   text-align: center;
-  color: var(--color-text-muted, rgba(255, 255, 255, 0.6));
+  color: var(--color-text-muted);
 }
 
 .options {
@@ -60,16 +59,16 @@
   width: 100%;
   padding: 14px 16px;
   border-radius: 12px;
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--color-border);
+  background: var(--hover-wash);
   text-align: left;
   cursor: pointer;
   transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
 }
 
 .option:hover:not(:disabled) {
-  border-color: rgba(168, 85, 247, 0.55);
-  background: rgba(168, 85, 247, 0.07);
+  border-color: rgba(var(--accent-rgb), 0.55);
+  background: rgba(var(--accent-rgb), 0.07);
   transform: translateY(-1px);
 }
 
@@ -79,8 +78,8 @@
 }
 
 .optionChosen {
-  border-color: #a855f7;
-  background: rgba(168, 85, 247, 0.12);
+  border-color: var(--accent-ink);
+  background: rgba(var(--accent-rgb), 0.12);
   opacity: 1 !important;
 }
 
@@ -92,9 +91,9 @@
   height: 40px;
   flex-shrink: 0;
   border-radius: 10px;
-  color: #c084fc;
-  background: rgba(168, 85, 247, 0.12);
-  border: 1px solid rgba(168, 85, 247, 0.25);
+  color: var(--accent-ink);
+  background: rgba(var(--accent-rgb), 0.12);
+  border: 1px solid rgba(var(--accent-rgb), 0.25);
 }
 
 .optionText {
@@ -105,11 +104,11 @@
   font-size: 14.5px;
   font-weight: 700;
   margin-bottom: 3px;
-  color: var(--color-text-main, #fff);
+  color: var(--color-text-main);
 }
 
 .optionBody {
   font-size: 12.5px;
   line-height: 1.45;
-  color: var(--color-text-muted, rgba(255, 255, 255, 0.6));
+  color: var(--color-text-muted);
 }

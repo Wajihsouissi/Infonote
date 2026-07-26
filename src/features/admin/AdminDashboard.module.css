@@ -12,8 +12,7 @@
     justify-content: space-between;
     padding: 16px 24px;
     border-bottom: 1px solid rgba(22, 22, 22, 0.08);
-    background: rgba(255, 255, 255, 0.78);
-    backdrop-filter: blur(12px);
+    background: var(--bg-card);
 }
 
 .headerLeft {
@@ -41,7 +40,7 @@
     align-items: center;
     gap: 6px;
     padding: 6px 12px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     border: 1px solid rgba(22, 22, 22, 0.12);
     background: transparent;
     color: #161616;
@@ -69,10 +68,9 @@
 
 .statCard {
     padding: 20px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.74);
-    border: 1px solid rgba(22, 22, 22, 0.08);
-    backdrop-filter: blur(8px);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    border: 1px solid var(--line);
     transition:transform 0.15s ease, 0.15s ease;
 }
 
@@ -94,7 +92,7 @@
     font-size: 32px;
     font-weight: 700;
     line-height: 1;
-    background: linear-gradient(135deg, #2563eb, #0891b2);
+    background: linear-gradient(135deg, var(--accent), var(--secondary));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -128,7 +126,7 @@
     gap: 8px;
     height: 38px;
     padding: 0 12px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     border: 1px solid rgba(22, 22, 22, 0.1);
     background: rgba(255, 255, 255, 0.72);
     color: rgba(22, 22, 22, 0.52);
@@ -154,7 +152,7 @@
     align-items: center;
     gap: 7px;
     padding: 0 13px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     border: 1px solid rgba(22, 22, 22, 0.1);
     background: rgba(255, 255, 255, 0.72);
     color: rgba(22, 22, 22, 0.72);
@@ -236,7 +234,7 @@
     align-items: center;
     gap: 4px;
     padding: 3px 8px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     font-size: 11px;
     font-weight: 600;
     text-transform: capitalize;
@@ -257,7 +255,7 @@
     align-items: center;
     gap: 4px;
     padding: 5px 10px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     border: 1px solid rgba(239, 68, 68, 0.25);
     background: transparent;
     color: #f87171;
@@ -337,7 +335,7 @@
 
 .barFill {
     height: 100%;
-    background: linear-gradient(90deg, #2563eb, #0891b2);
+    background: linear-gradient(90deg, var(--accent), var(--secondary));
     border-radius: 4px;
     transition: width 0.4s ease;
 }

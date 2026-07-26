@@ -40,7 +40,7 @@ const priorityConfig: Record<string, { color: string; label: string }> = {
 
 // Status config
 const statusConfig: Record<string, { color: string; label: string; icon: typeof Circle }> = {
-    'todo': { color: '#6b7280', label: 'To Do', icon: Circle },
+    'todo': { color: 'var(--text-faint)', label: 'To Do', icon: Circle },
     'in-progress': { color: '#eab308', label: 'In Progress', icon: Loader },
     'review': { color: '#f95d2e', label: 'Review', icon: Clock },
     'done': { color: '#22c55e', label: 'Done', icon: CheckCircle },
@@ -52,7 +52,7 @@ const getProgressColor = (progress: number) => {
     if (progress >= 75) return '#84cc16';
     if (progress >= 50) return '#eab308';
     if (progress >= 25) return '#f97316';
-    return '#6b7280';
+    return 'var(--text-faint)';
 };
 
 // Get initials from name

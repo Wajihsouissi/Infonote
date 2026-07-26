@@ -1,8 +1,8 @@
 .overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(4px);
+    /* plain dark scrim, no blur */
+    background: rgba(0, 0, 0, 0.5);
     z-index: 10000;
     display: flex;
     align-items: center;
@@ -11,15 +11,15 @@
 }
 
 .modal {
-    background: var(--color-bg-surface, var(--glass-bg, #1a1b23));
-    color: var(--color-text-main, #ffffff);
-    border: 1px solid var(--color-border, rgba(255,255,255,0.1));
-    border-radius: 16px;
+    background: var(--bg-rail);
+    color: var(--text-main);
+    border: 1px solid var(--line);
+    border-radius: var(--r-panel);
     width: 360px;
     max-width: 90vw;
     overflow-y: visible;
-    box-shadow: none;
-    animation: slideUp 0.2s ease-out;
+    box-shadow: var(--shadow-lg);
+    animation: slideUp 0.2s var(--ease-rise);
 }
 
 .modalHeader {
@@ -27,25 +27,30 @@
     align-items: center;
     justify-content: space-between;
     padding: 16px 20px 0;
-    gap: 8px;
+    gap: var(--block-marker-gap);
 }
 
 .modalTitle {
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-sans);
     font-size: 1rem;
     font-weight: 600;
-    color: var(--color-text-main, #ffffff);
+    color: var(--text-main);
     border: none;
     background: transparent;
     outline: none;
     flex: 1;
-    padding: 6px 8px;
-    border-radius: 6px;
-    transition: background 0.15s;
+    padding: 6px var(--block-marker-gap);
+    border-radius: var(--input-radius);
+    transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.modalTitle::placeholder {
+    color: var(--text-faint);
 }
 
 .modalTitle:focus {
-    background: var(--color-bg-elevated, rgba(255, 255, 255, 0.1));
+    background: var(--input-bg);
+    box-shadow: var(--focus-ring);
 }
 
 .closeBtn {
@@ -53,18 +58,23 @@
     border: none;
     cursor: pointer;
     padding: 6px;
-    border-radius: 8px;
-    color: var(--color-text-muted, #9ca3af);
+    border-radius: var(--btn-radius);
+    color: var(--btn-ghost-fg);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.15s;
+    transition: background var(--transition-fast), color var(--transition-fast);
     flex-shrink: 0;
 }
 
 .closeBtn:hover {
-    background: var(--color-bg-elevated, rgba(255, 255, 255, 0.1));
-    color: var(--color-text-main, #ffffff);
+    background: var(--btn-ghost-hover);
+    color: var(--text-main);
+}
+
+.closeBtn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
 }
 
 .pickerSection {
@@ -81,8 +91,8 @@
 }
 
 .footerSection {
-    padding: 12px 20px 16px;
-    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    padding: var(--block-inset) 20px 16px;
+    border-top: 1px solid var(--line);
 }
 
 @keyframes fadeIn {

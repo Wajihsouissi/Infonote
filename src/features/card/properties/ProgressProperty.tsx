@@ -26,7 +26,7 @@ export function ProgressProperty({ value = 0, onChange, onHide }: ProgressProper
         if (progress >= 75) return '#84cc16';
         if (progress >= 50) return '#eab308';
         if (progress >= 25) return '#f97316';
-        return '#6b7280';
+        return 'var(--text-faint)';
     };
 
     const color = getProgressColor(localValue);

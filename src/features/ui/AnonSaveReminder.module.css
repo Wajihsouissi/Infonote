@@ -28,10 +28,10 @@
   width: 30px;
   height: 30px;
   flex-shrink: 0;
-  border-radius: 8px;
-  color: #c084fc;
-  background: rgba(168, 85, 247, 0.12);
-  border: 1px solid rgba(168, 85, 247, 0.25);
+  border-radius: var(--radius-md);
+  color: var(--accent-ink);
+  background: rgba(249, 93, 46, 0.12);
+  border: 1px solid rgba(249, 93, 46, 0.25);
 }
 
 .text {
@@ -49,8 +49,8 @@
   flex-shrink: 0;
   padding: 7px 12px;
   border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #8b5cf6, #d946ef);
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
   color: #fff;
   font-size: 12.5px;
   font-weight: 600;

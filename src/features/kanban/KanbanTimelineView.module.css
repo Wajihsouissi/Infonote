@@ -35,7 +35,7 @@
     color: var(--color-text-muted);
     width: 28px;
     height: 28px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -96,7 +96,7 @@
 }
 
 .dayColumn.today {
-    background: rgba(139, 92, 246, 0.03);
+    background: rgba(249, 93, 46, 0.03);
     /* Subtle tint for today */
 }
 

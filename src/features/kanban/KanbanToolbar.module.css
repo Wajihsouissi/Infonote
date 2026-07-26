@@ -12,7 +12,7 @@
     align-items: center;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     padding: 2px;
     gap: 2px;
 }
@@ -26,7 +26,7 @@
     color: rgba(255, 255, 255, 0.35);
     cursor: pointer;
     padding: 5px 8px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     transition: background 0.15s, color 0.15s;
 }
 
@@ -36,7 +36,7 @@
 }
 
 .viewToggleActive {
-    background: rgba(139, 92, 246, 0.2);
+    background: rgba(249, 93, 46, 0.2);
     color: var(--color-primary);
     box-shadow: none;
 }
@@ -47,7 +47,7 @@
     align-items: center;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     padding: 6px 12px;
     gap: 8px;
     min-width: 200px;
@@ -108,7 +108,7 @@
     gap: 6px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     padding: 6px 12px;
     font-size: 0.85rem;
     color: var(--color-text-muted);
@@ -124,7 +124,7 @@
 .filterBtn.active {
     border-color: var(--color-primary);
     color: var(--color-text-main);
-    background: rgba(139, 92, 246, 0.1);
+    background: rgba(249, 93, 46, 0.1);
 }
 
 .filterBadge {
@@ -143,10 +143,8 @@
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
-    background: var(--glass-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--glass-border);
+    background: var(--bg-rail);
+    border: 1px solid var(--line);
     border-radius: 10px;
     padding: 6px;
     min-width: 160px;
@@ -162,7 +160,7 @@
     align-items: center;
     gap: 8px;
     padding: 6px 8px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     font-size: 0.85rem;
     color: var(--color-text-main);
     cursor: pointer;
@@ -192,7 +190,7 @@
 .assigneeInput {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     padding: 6px 12px;
     font-size: 0.85rem;
     color: var(--color-text-main);
@@ -218,7 +216,7 @@
     gap: 4px;
     background: rgba(239, 68, 68, 0.1);
     border: 1px solid rgba(239, 68, 68, 0.2);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     padding: 6px 12px;
     font-size: 0.8rem;
     color: #ef4444;
@@ -238,7 +236,7 @@
     justify-content: space-between;
     gap: 8px;
     padding: 8px 10px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     font-size: 0.85rem;
     color: var(--color-text-main);
     cursor: pointer;
@@ -250,7 +248,7 @@
 }
 
 .sortActive {
-    background: rgba(139, 92, 246, 0.15);
+    background: rgba(249, 93, 46, 0.15);
     color: var(--color-primary);
 }
 
@@ -259,7 +257,7 @@
     align-items: center;
     gap: 6px;
     padding: 8px 10px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     font-size: 0.8rem;
     color: #ef4444;
     cursor: pointer;

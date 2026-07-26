@@ -160,8 +160,11 @@ export function NoteExpandedContent({
     }, [displayColor]);
 
     const noteAreaStyles = useMemo(() => {
-        return {};
-    }, [data?.color, theme]);
+        if (!displayColor) return {};
+        return {
+            backgroundColor: displayColor
+        };
+    }, [displayColor]);
 
     // Early return AFTER all hooks — a conditional return above any hook
     // makes React throw "Rendered more hooks than during the previous render".

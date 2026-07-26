@@ -87,7 +87,7 @@ const overlay: React.CSSProperties = {
 const modal: React.CSSProperties = {
     width: '100%',
     maxWidth: 540,
-    background: 'var(--bg-raised)',
+    background: 'var(--bg-rail)',
     border: '1px solid var(--line)',
     borderRadius: 'var(--radius-xl)',
     boxShadow: 'var(--shadow-lg)',

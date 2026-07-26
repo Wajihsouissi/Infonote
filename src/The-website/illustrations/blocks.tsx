@@ -14,7 +14,7 @@ type Tone = 'card' | 'raised' | 'inset';
 
 const toneBg: Record<Tone, string> = {
   card: 'var(--bg-card)',
-  raised: 'var(--bg-raised)',
+  raised: 'var(--bg-rail)',
   inset: 'var(--bg-inset)',
 };
 
@@ -56,8 +56,8 @@ export const BlockShell: React.FC<BlockShellProps> = ({
       width,
       padding,
       background: accent ? 'var(--accent-wash)' : toneBg[tone],
-      border: `1px ${dashed ? 'dashed' : 'solid'} ${accent ? 'var(--accent)' : 'var(--line-strong)'}`,
-      borderLeft: spine ? '3px solid var(--accent)' : undefined,
+      border: `1px ${dashed ? 'dashed' : 'solid'} ${accent ? 'var(--accent-ink)' : 'var(--line-strong)'}`,
+      borderLeft: spine ? '3px solid var(--accent-ink)' : undefined,
       borderRadius: 'var(--radius-lg)',
       boxSizing: 'border-box',
       ...style,
@@ -74,7 +74,7 @@ export const BlockShell: React.FC<BlockShellProps> = ({
           width: 9,
           height: 9,
           borderRadius: '50%',
-          background: 'var(--bg-raised)',
+          background: 'var(--bg-rail)',
           border: `2px solid ${handleColor}`,
         }}
       />
@@ -100,8 +100,8 @@ export const BlockHeader: React.FC<BlockHeaderProps> = ({ icon: Icon, label, acc
           width: 18,
           height: 18,
           borderRadius: 5,
-          background: 'var(--bg-raised)',
-          border: `1px solid ${accent ? 'var(--accent)' : 'var(--line-strong)'}`,
+          background: 'var(--bg-rail)',
+          border: `1px solid ${accent ? 'var(--accent-ink)' : 'var(--line-strong)'}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -225,7 +225,7 @@ export const TableBlock: React.FC<Omit<BlockShellProps, 'children'> & { label?: 
           gap: 10,
           padding: '10px 12px',
           borderBottom: r < 2 ? '1px solid var(--line)' : 'none',
-          background: r === 0 ? 'var(--bg-raised)' : 'transparent',
+          background: r === 0 ? 'var(--bg-rail)' : 'transparent',
         }}
       >
         {[0, 1, 2].map((c) => (
@@ -244,7 +244,7 @@ export const HeadingBlock: React.FC<Omit<BlockShellProps, 'children'>> = (rest) 
           width: 18,
           height: 18,
           borderRadius: 4,
-          background: 'var(--bg-raised)',
+          background: 'var(--bg-rail)',
           border: '1px solid var(--line-strong)',
           display: 'flex',
           alignItems: 'center',

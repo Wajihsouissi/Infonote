@@ -7,10 +7,8 @@
     right: 20px;
     z-index: 1000;
 
-    background: var(--glass-bg);
-    backdrop-filter: blur(var(--backdrop-blur));
-    -webkit-backdrop-filter: blur(var(--backdrop-blur));
-    border: 1px solid var(--glass-border);
+    background: var(--bg-rail);
+    border: 1px solid var(--line);
     border-radius: 12px;
 
     width: 44px;
@@ -27,7 +25,7 @@
 }
 
 .authButton:hover {
-    background: var(--glass-bg-hover);
+    background: var(--bg-rail);
     border-color: var(--color-primary);
     transform: translateY(-2px);
     box-shadow: none;
@@ -38,8 +36,8 @@
 }
 
 .authed {
-    border-color: var(--color-primary);
-    background: rgba(139, 92, 246, 0.08);
+    border-color: var(--accent);
+    background: linear-gradient(var(--active-wash), var(--active-wash)), var(--bg-rail);
 }
 
 .iconWrapper {
@@ -62,7 +60,7 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #22c55e;
+    background: var(--ok);
     border: 2px solid var(--color-bg-base);
     box-shadow: none;
 }

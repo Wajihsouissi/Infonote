@@ -3,33 +3,43 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Card Shape (3x5 ratio approximation) */
     width: 100%;
     height: 150px;
-    /* Fixed 5:3 aspect ratio size */
-    padding: 12px;
+    padding: var(--block-inset);
     background: transparent;
-    border: 1px dashed rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--block-radius-lg);
     cursor: pointer;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast),
+        color var(--transition-fast);
 }
 
 .trigger:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.3);
+    background: var(--block-hover);
+    border-color: var(--text-faint);
+}
+
+.trigger:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
 }
 
 .triggerDragOver {
-    background: rgba(139, 92, 246, 0.1);
-    border-color: #8b5cf6;
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    border-style: solid;
 }
 
 .triggerContent {
     display: flex;
     align-items: center;
-    gap: 8px;
-    color: var(--color-text-muted);
+    gap: var(--block-marker-gap);
+    color: var(--text-faint);
+}
+
+.trigger:hover .triggerContent,
+.triggerDragOver .triggerContent {
+    color: var(--text-soft);
 }
 
 .triggerText {
@@ -38,20 +48,18 @@
 }
 
 .triggerIcon {
-    opacity: 0.7;
+    flex-shrink: 0;
 }
 
-/* Modal Overlay */
+/* Modal Overlay — plain dark scrim, no blur. */
 .overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.5);
     z-index: 99999;
-    /* Highest priority */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -62,16 +70,16 @@
 .modal {
     width: 100%;
     max-width: 500px;
-    background: #1e1e1e;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 16px;
-    box-shadow: none;
+    background: var(--bg-rail);
+    border: 1px solid var(--line);
+    border-radius: var(--r-panel);
+    padding: var(--block-inset);
+    box-shadow: var(--shadow-lg);
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--block-inset);
     transform: translateY(0);
-    animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: slideUp 0.2s var(--ease-rise);
 }
 
 @keyframes fadeIn {
@@ -100,31 +108,32 @@
 .tabs {
     display: flex;
     gap: 0;
-    border-bottom: none;
-    /* Removed separator */
-    margin-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: var(--block-marker-gap);
 }
 
 .tab {
-    padding: 8px 16px;
+    padding: var(--block-marker-gap) var(--block-inset);
     font-size: 0.85rem;
-    color: var(--color-text-muted);
+    color: var(--text-soft);
     cursor: pointer;
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    margin-bottom: -1px;
+    transition: background-color var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
     font-weight: 500;
 }
 
 .tab:hover {
-    color: var(--color-text);
-    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+    background: var(--hover-wash);
 }
 
 .tab.active {
-    color: #8b5cf6;
-    border-bottom-color: #8b5cf6;
+    color: var(--accent-ink);
+    border-bottom-color: var(--accent);
 }
 
 /* Content Area */
@@ -137,101 +146,115 @@
 
 /* Upload / Drag Drop */
 .dropZone {
-    border: 2px dashed rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
+    border: 2px dashed var(--line-strong);
+    border-radius: var(--block-radius-lg);
     padding: 24px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 12px;
+    gap: var(--block-inset);
     cursor: pointer;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-    background: rgba(0, 0, 0, 0.1);
+    transition: background-color var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
+    background: var(--bg-inset);
     text-align: center;
     min-height: 140px;
 }
 
 .dropZone:hover,
 .dropZone.dragOver {
-    border-color: #8b5cf6;
-    background: rgba(139, 92, 246, 0.05);
+    border-color: var(--accent);
+    background: var(--accent-dim);
 }
 
 .dropIcon {
-    color: var(--color-text-muted);
-    opacity: 0.7;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    color: var(--text-faint);
+    transition: color var(--transition-fast), transform var(--transition-fast);
 }
 
 .dropZone:hover .dropIcon {
-    color: #8b5cf6;
+    color: var(--accent-ink);
     transform: scale(1.1);
-    opacity: 1;
 }
 
 .dropText {
     font-size: 0.9rem;
-    color: var(--color-text-muted);
+    color: var(--text-soft);
 }
 
 .uploadBtn {
-    background: rgba(139, 92, 246, 0.2);
-    border: 1px solid rgba(139, 92, 246, 0.3);
-    color: var(--color-text);
-    padding: 6px 12px;
-    border-radius: 6px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(var(--accent-rgb), 0.3);
+    color: var(--accent-ink);
+    padding: 6px var(--block-inset);
+    border-radius: var(--btn-radius);
+    font-family: inherit;
     font-size: 0.8rem;
+    font-weight: 500;
     cursor: pointer;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .uploadBtn:hover {
-    background: rgba(139, 92, 246, 0.4);
+    background: var(--accent-wash);
+    border-color: var(--accent);
 }
 
 /* Embed Link */
 .embedContainer {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 12px 0;
+    gap: var(--block-inset);
+    padding: var(--block-inset) 0;
 }
 
 .inputWrapper {
     display: flex;
-    gap: 8px;
+    gap: var(--block-marker-gap);
     width: 100%;
 }
 
 .urlInput {
     flex: 1;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
-    padding: 8px 12px;
-    color: var(--color-text);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--input-radius);
+    padding: var(--input-pad);
+    color: var(--text-main);
+    font-family: inherit;
     font-size: 0.9rem;
     outline: none;
-    transition: border-color 0.2s;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.urlInput::placeholder {
+    color: var(--text-faint);
 }
 
 .urlInput:focus {
-    border-color: #8b5cf6;
+    border-color: var(--input-border-focus);
+    box-shadow: var(--focus-ring);
 }
 
 .embedBtn {
-    background: #8b5cf6;
-    color: white;
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-fg);
     border: none;
-    border-radius: 6px;
-    padding: 0 16px;
+    border-radius: var(--btn-radius);
+    padding: 0 var(--block-inset);
+    font-family: inherit;
     font-size: 0.9rem;
     cursor: pointer;
     font-weight: 500;
-    transition: background 0.2s;
+    transition: background var(--transition-fast);
 }
 
 .embedBtn:hover {
-    background: #7c3aed;
+    background: var(--btn-primary-bg-hover);
+}
+
+.embedBtn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
 }

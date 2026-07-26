@@ -46,7 +46,7 @@ export function StepCaptureIllustration({ activeStep }: StepCaptureIllustrationP
               <Hash size={12} /> WORD COUNT: 1,402
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-raised)', padding: '4px 10px', borderRadius: '12px', border: '1px solid var(--line-strong)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-rail)', padding: '4px 10px', borderRadius: '12px', border: '1px solid var(--line-strong)' }}>
             <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent)' }} />
             <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.05em', color: 'var(--text-main)' }}>STATUS: DRAFT</span>
           </div>

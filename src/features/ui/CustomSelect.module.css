@@ -5,8 +5,8 @@
 }
 
 .trigger {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--hover-wash);
+    border: 1px solid var(--line-strong);
     border-radius: 12px;
     padding: 12px 14px;
     font-size: 0.95rem;
@@ -19,13 +19,13 @@
 }
 
 .trigger:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--hover-wash);
+    border-color: var(--line-strong);
 }
 
 .open {
     border-color: var(--color-primary);
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--hover-wash);
 }
 
 .arrow {
@@ -44,8 +44,8 @@
     top: calc(100% + 4px);
     left: 0;
     right: 0;
-    background: #1e1e1e;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-rail);
+    border: 1px solid var(--line-strong);
     border-radius: 12px;
     box-shadow: none;
     z-index: 200;
@@ -77,16 +77,16 @@
 }
 
 .option:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--active-wash);
 }
 
 .selected {
-    background: rgba(139, 92, 246, 0.15);
+    background: rgba(var(--accent-rgb), 0.15);
     /* Primary color low opacity */
     color: var(--color-primary);
     font-weight: 500;
 }
 
 .selected:hover {
-    background: rgba(139, 92, 246, 0.25);
+    background: rgba(var(--accent-rgb), 0.25);
 }

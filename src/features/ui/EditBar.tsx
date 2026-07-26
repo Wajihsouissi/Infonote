@@ -14,14 +14,12 @@ interface EditBarProps {
 }
 
 const PRESET_COLORS = [
-    '#8b5cf6', // Violet
-    '#ec4899', // Pink
-    '#f59e0b', // Amber
-    '#10b981', // Emerald
-    '#3b82f6', // Blue
-    '#ef4444', // Red
-    '#06b6d4', // Cyan
-    '#6366f1', // Indigo
+    'var(--t-red)',
+    'var(--t-pink)',
+    'var(--t-purple)',
+    'var(--t-blue)',
+    'var(--t-green)',
+    'var(--t-yellow)'
 ];
 
 export function EditBar({

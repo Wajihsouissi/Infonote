@@ -17,11 +17,9 @@ interface KanbanColumnProps {
 }
 
 export const KanbanColumn = ({ column, cards, onAddCard, onToggleCollapse, onCardClick, onCardDoubleClick, kanbanId }: KanbanColumnProps) => {
-    const interactionState = useStore(s => s.interactionState);
-
-    // Check if this specific column is being hovered from canvas drag
-    const isHoveredFromCanvas = interactionState.hoveredKanbanColumn?.kanbanId === kanbanId &&
-        interactionState.hoveredKanbanColumn?.columnId === column.statusValue;
+    // Narrow selector — only re-render when THIS column's hover status changes
+    const isHoveredFromCanvas = useStore(s => s.interactionState.hoveredKanbanColumn?.kanbanId === kanbanId &&
+        s.interactionState.hoveredKanbanColumn?.columnId === column.statusValue);
 
     // We make the column itself droppable so we can drop items into empty columns
     const { setNodeRef, isOver } = useDroppable({

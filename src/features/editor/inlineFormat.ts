@@ -413,7 +413,6 @@ export function applyLinkElement(host: HTMLElement, opts: { href?: string; pageI
     if (opts.href) {
         a.setAttribute('href', opts.href);
         a.className = 'editor-inline-link';
-        a.style.color = 'var(--color-text-muted)';
         a.style.textDecoration = 'underline';
         a.style.fontWeight = '500';
         try {

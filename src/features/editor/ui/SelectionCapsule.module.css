@@ -1,11 +1,9 @@
 .capsule {
     position: relative;
-    background: rgba(20, 20, 23, 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-rail);
+    border: 1px solid var(--line);
     box-shadow: none;
-    border-radius: 9999px;
+    border-radius: var(--radius-pill);
     padding: 8px 16px;
     z-index: 100;
     color: white;

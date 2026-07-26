@@ -1912,9 +1912,12 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         const isCollapsed = node.block.metadata?.isCollapsed;
                         return (
                             <React.Fragment key={node.block.id}>
-                                <div 
+                                <div
                                     className={styles.toggleGroupContainer}
-                                    style={{ marginLeft: `${relativeIndent * 24}px` }}
+                                    // Published as a variable, not an inline margin-left: as an
+                                    // inline style it beat every stylesheet rule and flattened the
+                                    // canvas gutter to 0 on the left (same trap as --block-indent).
+                                    style={{ '--toggle-indent': `${relativeIndent * 24}px` } as React.CSSProperties}
                                 >
                                     <BlockItem
                                         block={node.block}

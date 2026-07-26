@@ -24,6 +24,7 @@ import {
     AppWindow
 } from 'lucide-react';
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useReactFlow, type Edge } from '@xyflow/react';
 import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '../../store/useStore';
@@ -797,11 +798,25 @@ export function BottomMenu() {
         }, { width: BLOCK_WIDTH, height: BLOCK_HEIGHT }, currentParentId || undefined);
     };
 
+    const transitionVariants = {
+        initial: { opacity: 0, scale: 0.95 },
+        animate: { opacity: 1, scale: 1, transition: { type: 'spring', stiffness: 400, damping: 32 } },
+        exit: { opacity: 0, scale: 0.95, transition: { duration: 0.15, ease: "easeOut" } }
+    };
+
     return (
         <>
-            <div ref={menuRef} className={`${styles.bottomMenu} ${isAIMode ? (aiModeType === 'text' ? styles.bottomMenuAIText : styles.bottomMenuAIImage) : ''}`}>
+            <motion.div 
+                layout 
+                ref={menuRef as any} 
+                className={`${styles.bottomMenu} ${isAIMode ? (aiModeType === 'text' ? styles.bottomMenuAIText : styles.bottomMenuAIImage) : ''}`}
+                style={{ borderRadius: 24, overflow: 'hidden' }}
+                transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                whileHover={{ y: -4 }}
+            >
+                <AnimatePresence mode="popLayout" initial={false}>
                 {isAIMode ? (
-                    <div style={{ position: 'relative', display: 'flex', width: '100%' }}>
+                    <motion.div key="ai" variants={transitionVariants} initial="initial" animate="animate" exit="exit" style={{ position: 'relative', display: 'flex', width: '100%' }}>
                         {aiError && (
                             <div style={{
                                 position: 'absolute',
@@ -809,10 +824,10 @@ export function BottomMenu() {
                                 left: '50%',
                                 transform: 'translateX(-50%)',
                                 marginBottom: '12px',
-                                background: 'rgba(239, 68, 68, 0.95)',
-                                color: 'white',
+                                background: 'var(--danger)',
+                                color: 'var(--on-accent)',
                                 padding: '8px 16px',
-                                borderRadius: '8px',
+                                borderRadius: 'var(--btn-radius)',
                                 fontSize: '13px',
                                 fontWeight: 500,
                                 whiteSpace: 'nowrap',
@@ -891,9 +906,9 @@ export function BottomMenu() {
                             )}
                         </button>
                     </div>
-                    </div>
+                    </motion.div>
                 ) : isSearchMode ? (
-                    <div className={styles.searchContainer}>
+                    <motion.div key="search" variants={transitionVariants} initial="initial" animate="animate" exit="exit" className={styles.searchContainer}>
                         <SearchResults
                             query={searchQuery}
                             onClose={() => {
@@ -1017,16 +1032,20 @@ export function BottomMenu() {
                                 </div>
                             </div>
                         )}
-                    </div>
+                    </motion.div>
                 ) : selectedCanvasNodeIds.size > 0 ? (
-                    <MultiSelectionToolbar 
-                        onOpenAI={() => { setIsAIMode(true); setAiModeType('text'); }} 
-                        onOpenSearch={() => setIsSearchMode(true)}
-                    />
+                    <motion.div key="multi" variants={transitionVariants} initial="initial" animate="animate" exit="exit" style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center' }}>
+                        <MultiSelectionToolbar 
+                            onOpenAI={() => { setIsAIMode(true); setAiModeType('text'); }} 
+                            onOpenSearch={() => setIsSearchMode(true)}
+                        />
+                    </motion.div>
                 ) : hasSelectedEdges ? (
-                    <EdgeEditingToolbar />
+                    <motion.div key="edge" variants={transitionVariants} initial="initial" animate="animate" exit="exit" style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center' }}>
+                        <EdgeEditingToolbar />
+                    </motion.div>
                 ) : (
-                    <>
+                    <motion.div key="default" variants={transitionVariants} initial="initial" animate="animate" exit="exit" style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                         <button
                             className={styles.aiIconBtn}
                             onClick={() => { setIsAIMode(true); setAiModeType('text'); }}
@@ -1363,9 +1382,10 @@ export function BottomMenu() {
                                 </div>
                             </div>
                         </div>
-                    </>
+                    </motion.div>
                 )}
-            </div>
+                </AnimatePresence>
+            </motion.div>
             
             {/* Modal is rendered outside the menu container */}
             <TemplatePreviewModal

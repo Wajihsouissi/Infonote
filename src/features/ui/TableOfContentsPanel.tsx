@@ -104,11 +104,11 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
     const renderItemIcon = (item: OutlineItem) => {
         switch (item.type) {
             case 'heading1':
-                return <span className={styles.headingBadge} style={{ color: 'var(--color-primary, #6366f1)' }}>H1</span>;
+                return <span className={styles.headingBadge} style={{ color: 'var(--accent-ink)' }}>H1</span>;
             case 'heading2':
-                return <span className={styles.headingBadge} style={{ color: '#ff8a5f' }}>H2</span>;
+                return <span className={styles.headingBadge} style={{ color: 'var(--accent-ink)' }}>H2</span>;
             case 'heading3':
-                return <span className={styles.headingBadge} style={{ color: '#f472b6' }}>H3</span>;
+                return <span className={styles.headingBadge} style={{ color: 'var(--secondary-ink)' }}>H3</span>;
             case 'page':
                 return <StickyNote size={13} className={styles.cardIcon} />;
             case 'toggle':
@@ -130,7 +130,7 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
                     />
                 );
             case 'callout':
-                return <Info size={13} style={{ color: '#60a5fa' }} />;
+                return <Info size={13} style={{ color: 'var(--secondary-ink)' }} />;
             case 'quote':
                 return <Quote size={11} style={{ color: '#fbbf24', opacity: 0.8 }} />;
             case 'code':

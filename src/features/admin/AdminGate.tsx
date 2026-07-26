@@ -89,7 +89,7 @@ export default function AdminGate() {
             >
                 {state.kind === 'checking' ? (
                     <>
-                        <Loader2 size={28} className="animate-spin" style={{ margin: '0 auto 14px', color: '#2563eb' }} />
+                        <Loader2 size={28} className="animate-spin" style={{ margin: '0 auto 14px', color: 'var(--accent)' }} />
                         <h1 style={{ fontSize: 18, margin: 0 }}>Verifying owner session</h1>
                         <p style={{ margin: '8px 0 0', color: 'rgba(22,22,22,0.58)', fontSize: 13 }}>
                             Checking the active Supabase profile before opening operations.

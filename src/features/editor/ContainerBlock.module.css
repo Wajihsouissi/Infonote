@@ -1,15 +1,13 @@
 .containerBlock {
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    padding: 12px;
-    /* Breathing room */
-    margin: 8px 0;
-    background: rgba(20, 20, 20, 0.3);
-    /* No heavy border-left */
+    border: 1px solid var(--line);
+    border-radius: var(--block-radius-lg);
+    padding: var(--block-inset);
+    margin: var(--block-marker-gap) 0;
+    background: var(--block-well);
     box-shadow: none;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .containerBlock:hover {
-    border-color: rgba(255, 255, 255, 0.1);
-    background: rgba(30, 30, 30, 0.4);
+    border-color: var(--line-strong);
 }

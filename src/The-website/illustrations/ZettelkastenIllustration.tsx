@@ -119,7 +119,7 @@ export const ZettelkastenIllustration: React.FC = () => (
       height={70}
       label="[Z] PERMANENT"
       headerHeight={22}
-      fill="var(--bg-raised)"
+      fill="var(--bg-rail)"
       headerFill="var(--bg-card)"
       stroke="var(--text-soft)"
       strokeWidth={1.5}
@@ -137,11 +137,11 @@ export const ZettelkastenIllustration: React.FC = () => (
       <circle cx="55" cy="50" r="35" fill="var(--accent)" opacity="0.05" />
 
       {/* Box body */}
-      <rect x="5" y="20" width="110" height="70" rx="4" fill="var(--bg-raised)" />
+      <rect x="5" y="20" width="110" height="70" rx="4" fill="var(--bg-rail)" />
       <rect x="5" y="20" width="110" height="70" rx="4" fill="none" stroke="var(--accent)" strokeWidth="2" />
 
       {/* Lid */}
-      <rect x="0" y="10" width="120" height="15" rx="3" fill="var(--bg-raised)" />
+      <rect x="0" y="10" width="120" height="15" rx="3" fill="var(--bg-rail)" />
       <rect x="0" y="10" width="120" height="15" rx="3" fill="none" stroke="var(--accent)" strokeWidth="2" />
       <line x1="5" y1="20" x2="115" y2="20" stroke="var(--accent)" strokeWidth="1" opacity="0.5" />
 

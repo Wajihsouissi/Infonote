@@ -4,8 +4,8 @@
 }
 
 .trigger {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--hover-wash);
+    border: 1px solid var(--line-strong);
     border-radius: 12px;
     padding: 12px 14px;
     font-size: 0.95rem;
@@ -15,13 +15,13 @@
 }
 
 .trigger:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--hover-wash);
+    border-color: var(--line-strong);
 }
 
 .open {
     border-color: var(--color-primary);
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--hover-wash);
 }
 
 .triggerContent {
@@ -40,10 +40,10 @@
     left: 0;
     width: 280px;
     /* Fixed calendar width */
-    background: #1e1e1e;
-    background: #18181b;
+    background: var(--bg-rail);
+    background: var(--bg-card);
     /* Zinc 900 */
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--line-strong);
     border-radius: 16px;
     box-shadow: none;
     z-index: 200;
@@ -82,7 +82,7 @@
     color: var(--color-text-muted);
     width: 28px;
     height: 28px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -91,7 +91,7 @@
 }
 
 .navBtn:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--active-wash);
     color: var(--color-text-main);
 }
 
@@ -121,13 +121,13 @@
     justify-content: center;
     font-size: 0.85rem;
     color: var(--color-text-main);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     transition: background 0.1s;
 }
 
 .day:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--active-wash);
 }
 
 .today {

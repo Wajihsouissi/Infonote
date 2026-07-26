@@ -78,7 +78,7 @@ export const BlueprintCard: React.FC<BlueprintCardProps> = ({
   strokeWidth = 1,
   dashed = false,
   fill = 'var(--bg-card)',
-  headerFill = 'var(--bg-raised)',
+  headerFill = 'var(--bg-rail)',
   radius = 8,
   statusDot,
   children,

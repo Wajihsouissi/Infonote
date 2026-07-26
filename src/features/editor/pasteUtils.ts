@@ -204,7 +204,7 @@ export function renderContentWithLinks(content: string): string {
         const href = toSafeHttpUrl((url || '').replace(/&amp;/g, '&'));
         if (!href) return match;
         const text = label || rawUrl;
-        return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" class="editor-inline-link" style="color: var(--color-text-muted); text-decoration: underline; font-weight: 500;">${text}</a>`;
+        return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" class="editor-inline-link" style="text-decoration: underline; font-weight: 500;">${text}</a>`;
     });
 
     // 4) Emphasis. Bold before italic so ** isn't eaten by the * rule.

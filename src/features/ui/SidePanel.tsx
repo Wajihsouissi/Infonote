@@ -44,7 +44,7 @@ export function SidePanel({ nodeId, side, onClose }: SidePanelProps) {
                 height: '100%', 
                 width: '100%', 
                 overflow: 'hidden',
-                backgroundColor: ('color' in activeNode.data ? activeNode.data.color : undefined) || 'var(--color-bg-base)'
+                backgroundColor: ('color' in activeNode.data ? activeNode.data.color : undefined) || 'var(--modal-bg)'
             }}>
                 {activeNode.type === 'note' ? (
                     <NoteExpandedContent

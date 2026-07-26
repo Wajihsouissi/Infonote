@@ -3,12 +3,11 @@
     align-items: center;
     gap: 4px;
     padding: 6px 8px;
-    background: var(--glass-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--glass-border);
-    border-radius: 99px;
-    box-shadow: none;
+    background: var(--bg-rail);
+
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    box-shadow: var(--toolbar-shadow);
     height: 48px;
     box-sizing: border-box;
 }
@@ -28,8 +27,8 @@
 }
 
 .historyBtn:hover:not(:disabled) {
-    background: rgba(139, 92, 246, 0.08);
-    color: var(--color-primary);
+    background: var(--hover-wash);
+    color: var(--accent-ink);
     transform: translateY(-2px) scale(1.05);
 }
 

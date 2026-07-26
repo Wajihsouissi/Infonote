@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* ============================================================
    chnk it — GLOBAL DESIGN SYSTEM · "Paper & Ink"
    ------------------------------------------------------------
@@ -6,19 +10,17 @@
    these tokens (var(--…)) — never hardcode brand colors.
 
    Art direction: flat editorial surfaces, hairline rules,
-   one persimmon accent, warm amber secondary. Dark theme is
-   warm graphite ("Ink"), light theme is warm paper ("Paper").
-   No glassmorphism, no glow.
+   electric persimmon accent, warm golden secondary. Dark theme is
+   deep warm graphite ("Ink"), light theme is tactile warm parchment ("Paper").
+   No glassmorphism, no cheap glows.
 
    Sections:
      1. Static tokens (typography, radius, motion)
      2. Ink theme (dark — default)
      3. Paper theme (light)
-     4. Legacy aliases (old variable names → new tokens) so
-        existing modules keep working; prefer the new names
-        in new code.
-     5. Corner shape — Apple-style continuous curvature
-        (squircle) applied globally to every rounded corner.
+     4. Legacy aliases (old variable names → new tokens)
+     5. Canvas & UI Component layer
+     6. Corner shape — Apple-style continuous curvature
    ============================================================ */
 
 /* ---------- 1. static tokens ---------- */
@@ -39,10 +41,23 @@
   --radius-xl: 14px;
   --radius-pill: 999px;
 
+  /* squircle radius scale — "Paper & Ink v2". A six-step scale that
+     pairs with the global superellipse corner-shape:
+       xs        4px → chips, ticks, small insets
+       control   8px → buttons, inputs, menu items
+       md       12px → block nodes, secondary cards
+       surface  16px → nodes, cards, menus, popovers
+       lg       24px → large cards, sheets
+       panel    32px → modals, large floating panels */
+  --r-xs: 4px;
+  --r-control: 8px;
+  --r-md: 12px;
+  --r-surface: 16px;
+  --r-lg: 24px;
+  --r-panel: 32px;
+
   /* corner shape — Apple-style continuous curvature. superellipse(2)
-     is the canonical "squircle": corners flow gradually into the sides
-     instead of the abrupt circular arc of a normal border-radius.
-     Tune globally here (round = 1, squircle = 2, squarer > 2). */
+     is the canonical "squircle". */
   --corner-smooth: superellipse(2);
 
   /* motion */
@@ -57,49 +72,70 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  /* surfaces */
-  --bg-base: #131215;
-  --bg-rail: #161519;
-  --bg-card: #18171b;
-  --bg-inset: #100f12;
-  --bg-raised: #1e1d22;
+  /* surfaces: layered depth hierarchy — warm graphite "Ink".
+     Every step keeps R > G > B so the darks read lamp-lit rather than slate;
+     the previous ramp (#09090b → #2e2d33) was blue-leaning and put the floating
+     chrome ~5 steps above the canvas, which made toolbars read as grey slabs.
+     The spread is now tight enough that the --line hairline does the separating. */
+  --bg-inset: #0a0908;   /* canvas ground / inset wells (deepest ink) */
+  --bg-base: #0e0d0c;    /* primary container ground */
+  --bg-rail: #161514;    /* structural rails, sidebar, resting nodes */
+  --bg-card: #1c1a19;    /* note content, expanded cards */
+  --bg-raised: #232120;  /* modals, popovers, floating menus, toolbars */
 
   /* hairlines & washes */
   --line: rgba(240, 236, 227, 0.08);
-  --line-strong: rgba(240, 236, 227, 0.17);
+  --line-strong: rgba(240, 236, 227, 0.16);
+  --line-heavy: rgba(240, 236, 227, 0.25);
   --hover-wash: rgba(240, 236, 227, 0.06);
   --active-wash: rgba(240, 236, 227, 0.12);
-  --dot: rgba(240, 236, 227, 0.14);
+  --dot: rgba(240, 236, 227, 0.12);
 
   /* text */
-  --text-main: #eeeae0;
-  --text-soft: #b4b0a4;
-  --text-faint: #7d7a70;
+  --text-main: #eeeae2;
+  --text-soft: #b2ad9f;
+  --text-faint: #7b776c;
 
-  /* accent — persimmon */
-  --accent: #f95d2e;
-  --accent-hover: #ff7040;
-  --accent-ink: #ff8a5f; /* accent for text/icons/borders on dark */
-  --accent-deep: #d94e22;
-  --accent-dim: rgba(249, 93, 46, 0.13);
-  --accent-wash: rgba(249, 93, 46, 0.16);
-  --on-accent: #1c0e07;
-  --accent-rgb: 249, 93, 46;
+  /* accent — electric persimmon */
+  --accent: #ff5e2b;
+  --accent-hover: #ff7345;
+  --accent-ink: #ff8d66; /* accent for text/icons/borders on dark */
+  --accent-deep: #e04b1a;
+  --accent-dim: rgba(255, 94, 43, 0.14);
+  --accent-wash: rgba(255, 94, 43, 0.18);
+  --on-accent: #1a0903;
+  --on-accent-rgb: 26, 9, 3;
+  --accent-rgb: 255, 94, 43;
 
-  /* secondary — warm amber */
-  --secondary: #e3a24f;
-  --secondary-ink: #ecc07f;
-  --secondary-dim: rgba(227, 162, 79, 0.14);
-  --secondary-rgb: 227, 162, 79;
+  /* secondary — warm golden amber */
+  --secondary: #f0a848;
+  --secondary-ink: #f5c578;
+  --secondary-dim: rgba(240, 168, 72, 0.14);
+  --secondary-rgb: 240, 168, 72;
 
   /* feedback */
-  --ok: #7fc98b;
-  --warn: #e5b567;
-  --danger: #e5766a;
+  --ok: #65d487;
+  --warn: #f3be65;
+  --danger: #ff6b5b;
+  --ok-rgb: 101, 212, 135;
+  --warn-rgb: 243, 190, 101;
+  --danger-rgb: 255, 107, 91;
 
-  /* elevation */
-  --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.45);
-  --shadow-sm: 0 6px 18px rgba(0, 0, 0, 0.28);
+  /* tertiary — warm-adapted functional hues (tags, categories, syntax).
+     Muted and never cosmic; the -ink variants read on the dark ground. */
+  --t-blue: #6f9bb3;
+  --t-pink: #dd8fa2;
+  --t-yellow: #e3c268;
+  --t-purple: #ad8ab8;
+  --t-green: #94bd82;
+  --t-red: #e07a63;
+
+  /* elevation — neutral contact shadow + ambient depth */
+  --elev-1: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
+  --elev-2: 0 6px 16px rgba(0, 0, 0, 0.40), 0 12px 28px rgba(0, 0, 0, 0.35);
+  --elev-3: 0 20px 48px rgba(0, 0, 0, 0.50), 0 32px 72px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.52);
+  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.32);
   --focus-ring: 0 0 0 3px var(--accent-dim);
 }
 
@@ -108,61 +144,74 @@
 :root[data-theme='light'] {
   color-scheme: light;
 
-  /* surfaces */
-  --bg-base: #f6f4ee;
-  --bg-rail: #f1efe7;
-  --bg-card: #fdfcf9;
-  --bg-inset: #edebe3;
-  --bg-raised: #ffffff;
+  /* surfaces: warm tactile parchment hierarchy */
+  --bg-inset: #faf9f6;   /* desk inset ground (light creamy) */
+  --bg-base: #f8f7f5;    /* softer gray from design system */
+  --bg-rail: #ffffff;    /* sidebar, rails, resting nodes (white) */
+  --bg-card: #ffffff;    /* expanded card & editor paper surface */
+  --bg-raised: #ffffff;  /* floating popovers & modals */
 
   /* hairlines & washes */
-  --line: rgba(28, 24, 16, 0.1);
-  --line-strong: rgba(28, 24, 16, 0.2);
-  --hover-wash: rgba(28, 24, 16, 0.05);
-  --active-wash: rgba(28, 24, 16, 0.1);
-  --dot: rgba(28, 24, 16, 0.18);
+  --line: rgba(26, 22, 14, 0.09);
+  --line-strong: rgba(26, 22, 14, 0.18);
+  --line-heavy: rgba(26, 22, 14, 0.30);
+  --hover-wash: rgba(26, 22, 14, 0.05);
+  --active-wash: rgba(26, 22, 14, 0.10);
+  --dot: rgba(26, 22, 14, 0.16);
 
   /* text */
-  --text-main: #211e18;
-  --text-soft: #5c584e;
-  --text-faint: #8b8779;
+  --text-main: #1e1a14;
+  --text-soft: #565145;
+  --text-faint: #888374;
 
-  /* accent — persimmon (deepened for paper contrast) */
-  --accent: #c9411a;
-  --accent-hover: #b53a15;
-  --accent-ink: #c2410c;
-  --accent-deep: #a53312;
-  --accent-dim: rgba(201, 65, 26, 0.1);
-  --accent-wash: rgba(201, 65, 26, 0.12);
-  --on-accent: #fff8f3;
-  --accent-rgb: 201, 65, 26;
+  /* accent — deep editorial persimmon */
+  --accent: #d43d15;
+  --accent-hover: #bd320d;
+  --accent-ink: #be3410;
+  --accent-deep: #9e2608;
+  --accent-dim: rgba(212, 61, 21, 0.11);
+  --accent-wash: rgba(212, 61, 21, 0.14);
+  --on-accent: #fff9f5;
+  --on-accent-rgb: 255, 249, 245;
+  --accent-rgb: 212, 61, 21;
 
-  /* secondary — warm amber (deepened) */
-  --secondary: #b07818;
-  --secondary-ink: #8f620f;
-  --secondary-dim: rgba(176, 120, 24, 0.12);
-  --secondary-rgb: 176, 120, 24;
+  /* secondary — warm golden bronze */
+  --secondary: #b57a14;
+  --secondary-ink: #966209;
+  --secondary-dim: rgba(181, 122, 20, 0.12);
+  --secondary-rgb: 181, 122, 20;
 
   /* feedback */
-  --ok: #2f7d43;
-  --warn: #9c6f14;
-  --danger: #b3402f;
+  --ok: #277a3f;
+  --warn: #9e6e10;
+  --danger: #b83b2a;
+  --ok-rgb: 39, 122, 63;
+  --warn-rgb: 158, 110, 16;
+  --danger-rgb: 184, 59, 42;
 
-  /* elevation */
-  --shadow-lg: 0 18px 44px rgba(38, 28, 14, 0.12);
-  --shadow-sm: 0 6px 18px rgba(38, 28, 14, 0.08);
+  /* tertiary — warm-adapted functional hues (deepened for paper contrast) */
+  --t-blue: #3a6d87;
+  --t-pink: #a85570;
+  --t-yellow: #8f7016;
+  --t-purple: #7a5384;
+  --t-green: #4f7d3f;
+  --t-red: #ab4326;
+
+  /* elevation — warm brown-grey shadows so paper never casts cold grey */
+  --elev-1: 0 1px 3px rgba(36, 26, 12, 0.07), 0 1px 2px rgba(36, 26, 12, 0.05);
+  --elev-2: 0 6px 16px rgba(36, 26, 12, 0.10), 0 12px 28px rgba(36, 26, 12, 0.08);
+  --elev-3: 0 20px 48px rgba(36, 26, 12, 0.16), 0 32px 72px rgba(36, 26, 12, 0.14);
+  --shadow-lg: 0 20px 50px rgba(36, 26, 12, 0.15);
+  --shadow-sm: 0 4px 14px rgba(36, 26, 12, 0.08);
   --focus-ring: 0 0 0 3px var(--accent-dim);
 }
 
-/* ---------- 4. legacy aliases ----------
-   Old token names still referenced across feature modules.
-   They now resolve to Paper & Ink values. New code should use
-   the tokens above directly. */
+/* ---------- 4. legacy aliases ---------- */
 
 :root,
 :root[data-theme='dark'] {
   --color-bg-base: var(--bg-base);
-  --color-bg-surface: var(--bg-card);
+  --color-bg-surface: var(--bg-rail);
   --color-bg-card: var(--bg-card);
 
   --color-primary: var(--accent);
@@ -175,14 +224,13 @@
 
   --border: var(--line);
   --border-hover: var(--line-strong);
-  --surface-elevated: rgba(30, 29, 34, 0.94);
+  --surface-elevated: var(--bg-raised);
 
-  /* former "glass" system — now near-solid flat panels */
-  --glass-bg: rgba(24, 23, 27, 0.94);
-  --glass-bg-hover: rgba(32, 31, 36, 0.97);
+  --glass-bg: var(--bg-raised);
+  --glass-bg-hover: rgba(36, 34, 42, 0.98);
   --glass-border: var(--line-strong);
-  --glass-shadow: none;
-  --backdrop-blur: 10px;
+  --glass-shadow: var(--elev-2);
+  --backdrop-blur: 12px;
 
   --handle-glass-bg: rgba(240, 236, 227, 0.1);
   --handle-glass-border: rgba(240, 236, 227, 0.2);
@@ -193,19 +241,18 @@
   --ui-border-low: rgba(240, 236, 227, 0.05);
 
   --modal-bg: var(--bg-raised);
-  --note-bg: transparent;
+  --note-bg: var(--bg-card);
 
-  /* React Flow: the canvas is the paper — in both themes */
-  --xy-background-color-default: #f6f4ee;
-  --rf-controls-bg: var(--glass-bg);
-  --rf-controls-border: var(--glass-border);
+  --xy-background-color-default: var(--bg-inset);
+  --rf-controls-bg: var(--bg-raised);
+  --rf-controls-border: var(--line-strong);
   --rf-controls-text: var(--text-main);
-  --rf-controls-hover-bg: var(--glass-bg-hover);
+  --rf-controls-hover-bg: var(--hover-wash);
 }
 
 :root[data-theme='light'] {
   --color-bg-base: var(--bg-base);
-  --color-bg-surface: var(--bg-card);
+  --color-bg-surface: var(--bg-rail);
   --color-bg-card: var(--bg-card);
 
   --color-primary: var(--accent);
@@ -218,13 +265,13 @@
 
   --border: var(--line);
   --border-hover: var(--line-strong);
-  --surface-elevated: #ffffff;
+  --surface-elevated: var(--bg-raised);
 
-  --glass-bg: rgba(255, 255, 255, 0.94);
+  --glass-bg: var(--bg-raised);
   --glass-bg-hover: rgba(255, 255, 255, 0.99);
   --glass-border: var(--line);
-  --glass-shadow: none;
-  --backdrop-blur: 10px;
+  --glass-shadow: var(--elev-2);
+  --backdrop-blur: 12px;
 
   --handle-glass-bg: rgba(28, 24, 16, 0.1);
   --handle-glass-border: rgba(28, 24, 16, 0.2);
@@ -235,43 +282,170 @@
   --ui-border-low: rgba(28, 24, 16, 0.06);
 
   --modal-bg: var(--bg-raised);
-  --note-bg: #ffffff;
+  --note-bg: var(--bg-card);
 
-  --xy-background-color-default: var(--bg-base);
-  --rf-controls-bg: var(--glass-bg);
-  --rf-controls-border: var(--glass-border);
+  --xy-background-color-default: var(--bg-inset);
+  --rf-controls-bg: var(--bg-raised);
+  --rf-controls-border: var(--line-strong);
   --rf-controls-text: var(--text-main);
-  --rf-controls-hover-bg: var(--glass-bg-hover);
+  --rf-controls-hover-bg: var(--hover-wash);
 }
 
-/* ---------- 5. corner shape (Apple squircle) ----------
-   Continuous corner curvature applied to EVERY element. corner-shape
-   only affects corners that already have a border-radius, so square
-   corners are untouched, and browsers without support silently fall
-   back to normal rounded corners. This is why it can be global: it
-   upgrades every rounded rectangle in the app to a squircle without
-   editing a single component.
+/* ---------- 5. Canvas & UI Component layer ---------- */
+:root {
+  /* canvas desk ground */
+  --canvas-bg: var(--bg-inset);
+  --canvas-dot: var(--dot);
 
-   The one exception is true circles/pills (border-radius: 50%): a
-   superellipse would turn a circle into a rounded-square, so the
-   circular primitives below (avatars, icon buttons, the FAB, dots,
-   swatches, connection handles, …) are pinned back to `round`. */
+  /* node surfaces */
+  --node-bg: var(--bg-rail);
+  --node-radius: var(--r-surface);
+  --node-pad: 12px;
+  --node-spine-w: 3px;
+  --node-ring: 0 0 0 1px var(--line-strong);
+  --node-ring-hover: 0 0 0 1px var(--line-heavy);
+  --node-ring-selected: 0 0 0 1.5px var(--accent);
+  --node-ring-drag: 0 0 0 2px var(--accent);
+  --node-shadow-rest: var(--elev-1);
+  --node-shadow-hover: var(--elev-2);
+  --node-shadow-drag: var(--elev-3);
+  --node-title: var(--text-main);
+  --node-subtle: var(--text-soft);
+  --node-meta: var(--text-faint);
+  --node-field-hover: var(--hover-wash);
+  --node-field-active: var(--active-wash);
+
+  /* connection handles */
+  --handle-size: 14px;
+  --handle-bg: var(--bg-raised);
+  --handle-ring: 2px solid var(--accent);
+  --handle-bg-active: var(--accent);
+  --handle-halo: 0 0 0 4px var(--accent-dim);
+
+  /* canvas edges */
+  --edge: var(--line-strong);
+  --edge-selected: var(--accent);
+  --edge-w: 1.5px;
+  --edge-w-selected: 2px;
+
+  /* floating menus & popovers (context, slash, metadata) */
+  --menu-bg: var(--bg-raised);
+  --menu-border: var(--line-strong);
+  --menu-radius: var(--r-surface);
+  --menu-shadow: var(--elev-2);
+  --menu-pad: 6px;
+  --menu-item-radius: var(--r-control);
+  --menu-item-hover: var(--hover-wash);
+  --menu-item-active: var(--active-wash);
+  --menu-divider: var(--line);
+  --menu-chevron: var(--text-faint);
+
+  /* floating pill toolbars (edit bar, multi-select, edge editing) */
+  --toolbar-bg: var(--bg-raised);
+  --toolbar-border: var(--line-strong);
+  --toolbar-radius: var(--radius-pill);
+  --toolbar-shadow: var(--elev-2);
+  --toolbar-btn-hover: var(--hover-wash);
+  --toolbar-btn-active: var(--active-wash);
+
+  /* buttons */
+  --btn-radius: var(--r-control);
+  --btn-pad: 9px 16px;
+  --btn-primary-bg: var(--accent);
+  --btn-primary-bg-hover: var(--accent-hover);
+  --btn-primary-fg: var(--on-accent);
+  --btn-secondary-bg: var(--bg-raised);
+  --btn-secondary-border: var(--line-strong);
+  --btn-secondary-fg: var(--text-main);
+  --btn-secondary-hover: var(--hover-wash);
+  --btn-ghost-fg: var(--text-soft);
+  --btn-ghost-hover: var(--hover-wash);
+  --btn-danger-bg: var(--danger);
+  --btn-danger-fg: var(--on-accent);
+
+  /* form controls & chips */
+  --input-bg: var(--bg-inset);
+  --input-border: var(--line);
+  --input-border-focus: var(--accent);
+  --input-radius: var(--r-control);
+  --input-pad: 9px 12px;
+  --chip-radius: var(--radius-pill);
+  --chip-bg: var(--accent-dim);
+  --chip-fg: var(--accent-ink);
+
+  /* ---- content blocks ----
+     The atomic editor blocks (text, headings, lists, todo, quote, code,
+     callout, toggle, table, media, link) — rendered both standalone on the
+     canvas and stacked inside note cards. One dial for the whole block
+     family: change it here, every block type follows. */
+
+  /* standalone block NODES on the canvas — one uniform footprint so a column
+     of mixed block types reads as an even stack. The node is the outer box;
+     its inner .content fills it edge-to-edge, and the breathing space around
+     the text lives on the inner gutter below (never on the outer box). */
+  --block-node-w: 260px;
+  --block-node-h: 56px;
+  --block-node-gutter-x: 14px;
+  --block-node-gutter-y: 8px;
+  /* the visible inner box, once the gutter is removed — every block type's
+     inner container resolves to this, so callout/quote/toggle match plain text */
+  --block-node-inner-h: calc(var(--block-node-h) - 2 * var(--block-node-gutter-y));
+
+  /* rhythm & metrics */
+  --block-gap: 6px;
+  --block-pad-x: 8px;
+  --block-pad-y: 2px;
+  --block-min-h: 24px;
+  --block-font: 0.95rem;
+  --block-leading: 1.55;
+  --block-inset: 12px;
+  /* indent of a marker column (bullet, number, checkbox, triangle) */
+  --block-marker-gap: 8px;
+
+  /* radii — small for inline text targets, md for boxed blocks */
+  --block-radius: var(--r-control);
+  --block-radius-lg: var(--r-md);
+
+  /* structure & marks */
+  --block-rail-w: 3px;
+  --block-rail: var(--accent-ink);
+  --block-marker: var(--text-faint);
+  --block-handle: var(--text-faint);
+  --block-handle-hover: var(--accent-ink);
+
+  /* surfaces & states */
+  --block-well: var(--bg-inset);
+  --block-well-line: var(--line);
+  --block-hover: var(--hover-wash);
+  --block-selected: var(--accent-dim);
+  --block-selected-ring: inset 0 0 0 1px var(--accent);
+  --block-drop-line: var(--accent);
+  --block-media-ring: 0 0 0 2px var(--accent-ink);
+
+  /* table block */
+  --table-bg: var(--bg-card);
+  --table-header-bg: var(--hover-wash);
+  --table-border: var(--line);
+  --table-border-strong: var(--line-strong);
+  --table-row-hover: var(--hover-wash);
+  --table-selected: var(--accent-dim);
+  --table-cell-focus: var(--accent-dim);
+  --table-cell-min-h: 38px;
+
+  /* link / bookmark block */
+  --link-bg: var(--accent-dim);
+  --link-border: rgba(var(--accent-rgb), 0.22);
+  --link-bg-hover: var(--accent-wash);
+  --link-border-hover: var(--accent);
+}
+
+/* ---------- 6. corner shape (Apple squircle) ---------- */
 *,
 *::before,
 *::after {
   corner-shape: var(--corner-smooth);
 }
 
-/* Keep genuinely circular / pill primitives perfectly round.
-   Substring selectors so they also match CSS-module-hashed classes
-   (e.g. `_iconBtn_ab12` still contains "iconBtn").
-
-   NOTE: this overrides the *token*, not `corner-shape` directly. Custom
-   properties inherit — and a pseudo-element inherits from the element it
-   hangs off — so setting the token here reaches ::before/::after too.
-   Setting `corner-shape: round` instead would only fix the element itself
-   and leave its rings squircled inside a circle (which is exactly what
-   happened to the add-card orb's rim light). */
 [class*="avatar" i],
 [class*="Avatar"],
 [class*="iconBtn" i],
@@ -311,21 +485,31 @@
 [class*="crumb" i],
 [class*="topRightHandle"],
 [class*="colorBlockHandle"],
+/* pill-shaped block chrome: floating toolbars, toggle tracks, drop bars */
+[class*="floatingToolbar" i],
+[class*="floatingControls" i],
+[class*="alignmentMenu" i],
+[class*="slider" i],
 .react-flow__handle,
 .react-flow__handle-source,
 .react-flow__handle-target {
   --corner-smooth: round;
 }
 
-/* ---------- 6. Special Primary Button ----------
-   The primary create/action orb. Lit from the upper-left, ringed by a
-   rim light that's brightest at the crown, floating over an accent
-   halo that breathes. */
+/* ---------- 7. Special Primary Action Button ----------
+   THE ONE SANCTIONED EXCEPTION to the no-glow / no-idle-motion rules.
+
+   This is the canvas FAB — the single hero action in the app. It deliberately
+   keeps a warm accent glow, a white rim-light, and the slow `orbBreathe` idle
+   animation, all of which §3.11 / §9 / §11 otherwise ban. That is intentional,
+   confirmed 2026-07-24; do NOT "fix" it in a consistency pass, and do not copy
+   this treatment onto any other control. Everything else in the app stays flat.
+
+   All of its colour still comes from tokens (--accent-rgb / --on-accent), so it
+   remains theme-aware in Ink and Paper.                                        */
 .special-primary-btn {
-  /* Warm specular white for the rim/sheen — the "light" in the orb. */
   --orb-rim: 255, 224, 210;
 
-  /* Ink: the orb is a light source in a dark room, so it blooms. */
   --orb-glow-rest-a: rgba(var(--accent-rgb), 0.38);
   --orb-glow-rest-b: rgba(var(--accent-rgb), 0.22);
   --orb-glow-peak-a: rgba(var(--accent-rgb), 0.55);
@@ -345,7 +529,7 @@
   border: none;
   outline: none;
   cursor: pointer;
-  color: #fff;
+  color: var(--on-accent);
   background: radial-gradient(125% 125% at 32% 24%,
           var(--accent-ink) 0%,
           var(--accent) 46%,
@@ -484,9 +668,15 @@
     cursor: text;
     position: relative;
     transition: color var(--transition-fast);
+    /* !important overrides the muted colour baked inline into content
+       saved before links moved onto the accent. */
+    color: var(--accent-ink) !important;
 }
 
-/* Add a visual indicator (icon) after the link */
+.editor-inline-link:hover {
+    color: var(--accent) !important;
+}
+
 .editor-inline-link::after {
     content: " ↗";
     font-size: 0.85em;
@@ -501,7 +691,420 @@
     transform: translate(1px, -1px);
 }
 
-/* Transform to pointer ONLY when Ctrl/Cmd is held */
 body.mod-key-held .editor-inline-link {
     cursor: pointer;
+}
+
+/* ============================================================
+   Base Resets & Global Layout
+   ============================================================ */
+
+/* Theme Transition Helper */
+.theme-transitioning,
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+  transition-delay: 0s !important;
+  pointer-events: none !important;
+}
+
+.theme-transitioning .glass-panel,
+.theme-transitioning .card,
+.theme-transitioning .react-flow__pane,
+.theme-transitioning .react-flow__node,
+.theme-transitioning .react-flow__edge-path {
+  will-change: background-color, border-color, color;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-main);
+  caret-color: var(--text-main);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  cursor: auto;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: var(--radius-xs);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-faint);
+}
+
+/* ============================================================
+   React Flow Palette Bridge & Tooltips
+   ============================================================ */
+/* ── React Flow palette bridge ─────────────────────────────────────────
+   React Flow scopes its own `--xy-*-default` vars to `.react-flow` (and
+   `.react-flow.dark`), which BEATS the `:root` aliases in design-system.css —
+   a closer element always wins for custom properties. That is why the canvas
+   was painting React Flow's neutral #141414 instead of our warm --canvas-bg,
+   and why the UI stopped matching the canvas once the Ink ramp went warm.
+
+   Every rule is `var(--xy-foo, var(--xy-foo-default))`, so setting the
+   NON-default var here takes priority without fighting specificity. */
+.react-flow {
+  --xy-background-color: var(--canvas-bg);
+  --xy-background-pattern-color: var(--canvas-dot);
+  --xy-node-background-color: var(--node-bg);
+  --xy-node-color: var(--text-main);
+  --xy-node-border: 1px solid var(--line);
+  --xy-edge-stroke: var(--edge);
+  --xy-edge-stroke-selected: var(--edge-selected);
+  --xy-handle-background-color: var(--handle-bg);
+  --xy-edge-label-background-color: var(--bg-raised);
+  --xy-edge-label-color: var(--text-main);
+
+  /* MiniMap — same bridge. React Flow resolves these into a CSS `fill`
+     property (not an SVG attribute), so tokens work and the minimap tracks
+     the live palette in both themes with no literals to keep in sync. */
+  --xy-minimap-node-background-color: var(--accent);
+  --xy-minimap-node-stroke-width: 0;
+  --xy-minimap-mask-background-color: rgba(var(--on-accent-rgb), 0.55);
+}
+
+.react-flow__minimap {
+  background: var(--bg-raised) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--r-md) !important;
+}
+
+/* React Flow Controls & MiniMap */
+.react-flow__controls {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-raised) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: var(--radius-xs) !important;
+  box-shadow: none !important;
+  gap: var(--radius-xs) !important;
+  margin: 15px !important;
+}
+
+.react-flow__controls-button {
+  background: var(--bg-card) !important;
+  border: none !important;
+  border-radius: var(--radius-md) !important;
+  width: 34px !important;
+  height: 34px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-main) !important;
+  transition: all var(--transition-fast) !important;
+  margin: 0 !important;
+}
+
+.react-flow__controls-button:hover {
+  background: var(--bg-raised) !important;
+  transform: scale(1.05);
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.react-flow__minimap {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--line) !important;
+  background: var(--bg-raised) !important;
+  margin: 15px 64px 15px 15px !important;
+  box-shadow: none !important;
+}
+
+/* Hide React Flow Attribution Badge */
+.react-flow__attribution {
+  display: none !important;
+}
+
+/* Global override for dragging nodes (CanvasBoard) */
+.chnk-it-node-dragging,
+.chnk-it-node-dragging .react-flow__node {
+  cursor: grabbing !important;
+}
+.chnk-it-node-dragging .react-flow__node {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* MULTI-NODE DRAG — unified group visual. */
+.chnk-it-multi-drag .react-flow__node.selected,
+.chnk-it-multi-drag .react-flow__node.is-selected {
+  z-index: 10000 !important;
+  opacity: 0.92;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  transition: opacity 0.12s ease, filter 0.12s ease;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.18));
+  cursor: grabbing !important;
+}
+
+/* Global override for resizing nodes */
+.chnk-it-resizing-active,
+.chnk-it-resizing-active * {
+  cursor: nwse-resize !important;
+  transition: none !important;
+}
+
+/* Allow handles positioned outside node boundaries to be visible */
+.react-flow__node {
+  overflow: visible !important;
+}
+
+/* The node being dragged is hidden (a small drag chip follows the cursor instead). */
+.react-flow__node.chnk-it-drag-source {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Highlight Flash Animation for Outline/TOC Navigation */
+@keyframes chnkItHighlightFlash {
+  0% {
+    background-color: var(--accent-dim);
+    box-shadow: none;
+    transform: scale(1.015);
+  }
+  30% {
+    background-color: var(--accent-dim);
+    box-shadow: none;
+    transform: scale(1.015);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+    transform: scale(1);
+  }
+}
+
+.chnk-it-highlight-flash {
+  animation: chnkItHighlightFlash 1.6s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  border-radius: var(--radius-sm);
+  position: relative;
+  z-index: 10;
+}
+
+/* Highlighting during active connection drag */
+.react-flow__node.connecting {
+  border-color: var(--secondary-ink) !important;
+  box-shadow: none !important;
+  transition: border-color 0.2s, 0.2s !important;
+}
+
+.react-flow__node.connecting:hover {
+  border-color: var(--accent-ink) !important;
+  box-shadow: none !important;
+}
+
+/* Source handles hidden by default — shown only on NoteCard hover */
+.topRightHandle,
+.react-flow__handle-source,
+.react-flow__handle.source {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  z-index: 3000 !important;
+  top: 8px !important;
+  right: 8px !important;
+  left: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  width: var(--handle-size) !important;
+  height: var(--handle-size) !important;
+  border-radius: 50% !important;
+  background: var(--handle-bg) !important;
+  border: var(--handle-ring) !important;
+  box-shadow: none !important;
+  transition: opacity 0.25s ease, background 0.25s ease, border-color 0.25s ease, transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+/* Fade-in the source handles when hovering over any React Flow node */
+.react-flow__node:hover .topRightHandle,
+.react-flow__node:hover .react-flow__handle-source,
+.react-flow__node:hover .react-flow__handle.source {
+  opacity: 0.8 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+/* Force-hide all top-right source handles while actively dragging a connection line */
+.react-flow__node.connecting .topRightHandle,
+.react-flow__node.connecting .react-flow__handle-source,
+.react-flow__node.connecting .react-flow__handle.source,
+.react-flow:has(.react-flow__handle-connecting) .topRightHandle,
+.react-flow:has(.react-flow__handle-connecting) .react-flow__handle-source,
+.react-flow:has(.react-flow__handle-connecting) .react-flow__handle.source,
+.react-flow__connection-connecting .topRightHandle,
+.react-flow__connection-connecting .react-flow__handle-source,
+.react-flow__connection-connecting .react-flow__handle.source,
+.react-flow__connection-drag .topRightHandle,
+.react-flow__connection-drag .react-flow__handle-source,
+.react-flow__connection-drag .react-flow__handle.source {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Hover scales and highlights the source handle dot */
+.topRightHandle:hover,
+.react-flow__handle-source:hover,
+.react-flow__handle.source:hover {
+  transform: scale(1.3) !important;
+  opacity: 1 !important;
+  background: var(--handle-bg-active) !important;
+  border: var(--handle-ring) !important;
+  box-shadow: var(--handle-halo) !important;
+}
+
+/* Temporarily raise target handles during active connection dragging */
+.react-flow__node.connecting .react-flow__handle.target,
+.react-flow__node.connecting .react-flow__handle-target {
+  z-index: 2500 !important;
+}
+
+/* Render a soft centered snap dot target inside the target handle during active dragging */
+.react-flow__node.connecting .react-flow__handle.target::before,
+.react-flow__node.connecting .react-flow__handle-target::before {
+  content: '';
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: var(--handle-size) !important;
+  height: var(--handle-size) !important;
+  background: var(--handle-bg) !important;
+  border: var(--handle-ring) !important;
+  border-radius: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  box-shadow: none !important;
+  opacity: 0.65 !important;
+  pointer-events: none !important;
+  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.25s, border-color 0.25s, opacity 0.25s !important;
+}
+
+/* Highlight the centered snap dot when hovering over a valid target node */
+.react-flow__node.connecting:hover .react-flow__handle.target::before,
+.react-flow__node.connecting:hover .react-flow__handle-target::before {
+  transform: translate(-50%, -50%) scale(1.4) !important;
+  background: var(--handle-bg-active) !important;
+  border-color: var(--accent) !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+
+/* Premium Linking Mode Styling */
+.react-flow__node.is-linking-mode {
+  cursor: pointer !important;
+  opacity: 0.4;
+  transition: opacity 0.3s, filter 0.3s !important;
+  filter: grayscale(40%);
+  pointer-events: auto !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+.react-flow__node.is-linking-mode.is-selected {
+  cursor: pointer !important;
+  opacity: 1 !important;
+  filter: none !important;
+  box-shadow: none !important;
+  border-color: var(--secondary-ink) !important;
+  pointer-events: auto !important;
+}
+
+.react-flow__node.is-linking-mode.is-selected:hover {
+  box-shadow: none !important;
+  border-color: var(--accent-ink) !important;
+}
+
+/* Disable selection box pointer events to allow clicking nodes underneath */
+.react-flow .react-flow__nodesselection,
+.react-flow .react-flow__nodesselection-rect,
+.react-flow .react-flow__selection {
+  pointer-events: none !important;
+}
+
+/* Global Custom Tooltip Styling */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-5px);
+  background: var(--bg-raised);
+  color: var(--text-main);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 100000;
+  pointer-events: none;
+  box-shadow: var(--shadow-sm);
+}
+
+[data-tooltip]:hover::before {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Variant for top placement */
+[data-tooltip-position="top"]::before {
+  top: auto;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(5px);
+}
+
+[data-tooltip-position="top"]:hover::before {
+  transform: translateX(-50%) translateY(0);
 }

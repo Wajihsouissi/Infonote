@@ -4,12 +4,11 @@
     padding: 0 16px;
     height: 48px;
     box-sizing: border-box;
-    background: var(--glass-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--glass-border);
-    border-radius: 99px;
-    box-shadow: none;
+    background: var(--bg-rail);
+
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    box-shadow: var(--toolbar-shadow);
     gap: 8px;
 }
 
@@ -36,21 +35,21 @@
     align-items: center;
     gap: 6px;
     padding: 6px 12px;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .crumb:hover:not(:disabled) {
-    background: rgba(139, 92, 246, 0.08);
-    color: var(--color-primary);
+    background: var(--hover-wash);
+    color: var(--accent);
     transform: translateY(-1px) scale(1.02);
 }
 
 .crumb.active {
-    color: var(--color-primary);
+    color: var(--accent);
     cursor: default;
     font-weight: 600;
-    background: rgba(139, 92, 246, 0.12);
+    background: var(--active-wash);
 }
 
 .levelBadge {
@@ -63,30 +62,21 @@
     font-size: 9px;
     font-weight: 500;
     line-height: 1;
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--color-text-muted, rgba(255, 255, 255, 0.5));
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--hover-wash);
+    color: var(--text-faint);
+    border: 1px solid var(--line);
     margin-left: 2px;
-    transition: all 0.2s ease;
+    transition: background var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
     box-sizing: border-box;
     padding-top: 1px;
     /* Optical vertical centering adjustment for Outfit numbers (pushes text down) */
 }
 
-:global(.light-theme) .levelBadge {
-    background: rgba(0, 0, 0, 0.04);
-    color: rgba(0, 0, 0, 0.4);
-    border-color: rgba(0, 0, 0, 0.06);
-}
-
+/* The old :global(.light-theme) overrides here were dead — the app stamps
+   data-theme on :root and never sets that class. Tokens handle both themes. */
 .crumb.active .levelBadge {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--color-text-muted, rgba(255, 255, 255, 0.6));
-    border-color: rgba(255, 255, 255, 0.15);
-}
-
-:global(.light-theme) .crumb.active .levelBadge {
-    background: rgba(0, 0, 0, 0.08);
-    color: rgba(0, 0, 0, 0.7);
-    border-color: rgba(0, 0, 0, 0.12);
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+    border-color: rgba(var(--accent-rgb), 0.3);
 }

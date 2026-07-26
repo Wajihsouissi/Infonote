@@ -11,7 +11,7 @@ interface StatusPropertyProps {
 }
 
 const statusOptions = [
-    { value: 'todo', label: 'To Do', color: '#6b7280', icon: Circle },
+    { value: 'todo', label: 'To Do', color: 'var(--text-faint)', icon: Circle },
     { value: 'in-progress', label: 'In Progress', color: '#eab308', icon: Loader },
     { value: 'review', label: 'In Review', color: '#f95d2e', icon: Clock },
     { value: 'done', label: 'Done', color: '#22c55e', icon: CheckCircle },

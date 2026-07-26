@@ -10,7 +10,7 @@ interface PriorityPropertyProps {
 }
 
 const priorityOptions = [
-    { value: undefined, label: 'None', color: '#6b7280' },
+    { value: undefined, label: 'None', color: 'var(--text-faint)' },
     { value: 'low', label: 'Low', color: '#22c55e' },
     { value: 'medium', label: 'Medium', color: '#eab308' },
     { value: 'high', label: 'High', color: '#f97316' },

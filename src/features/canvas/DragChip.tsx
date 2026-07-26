@@ -5,29 +5,20 @@ import { useStore } from '../../store/useStore';
 import styles from './DragChip.module.css';
 
 /**
- * A magical, glowing floating block icon that follows the cursor
- * while a canvas node is being dragged.
+ * Small drag indicator — follows the cursor only when dragging a node
+ * over a valid fusion/nesting target (dropTarget is set).
  */
 export function DragChip() {
-    const activeNodeData = useStore(s => {
-        const id = s.interactionState.draggedNodeId;
-        if (!id) return null;
-        const n = s.nodes.find(x => x.id === id);
-        if (n && (n.className ?? '').includes('chnk-it-drag-source')) {
-            return n;
-        }
-        return null;
-    });
-
-    const isChipActive = !!activeNodeData;
+    const dropTarget = useStore(s => s.interactionState.dropTarget);
     const ref = useRef<HTMLDivElement>(null);
 
+    const isActive = !!dropTarget;
+
     useEffect(() => {
-        if (!isChipActive) return;
+        if (!isActive) return;
         const onMove = (e: PointerEvent) => {
             const el = ref.current;
             if (!el) return;
-            // Center the icon on the cursor
             el.style.left = `${e.clientX}px`;
             el.style.top = `${e.clientY}px`;
             el.style.opacity = '1';
@@ -35,41 +26,16 @@ export function DragChip() {
         };
         window.addEventListener('pointermove', onMove);
         return () => window.removeEventListener('pointermove', onMove);
-    }, [isChipActive]);
+    }, [isActive]);
 
-    if (!isChipActive || !activeNodeData) return null;
-
-    // Use node color or fallback to magical purple
-    const data = activeNodeData.data;
-    const color = ('color' in data && data.color) || '#f95d2e';
-    const styleVars = {
-        '--chip-color': color,
-        '--chip-color-rgb': hexToRgb(color)
-    } as React.CSSProperties;
+    if (!isActive) return null;
 
     return createPortal(
-        <div ref={ref} className={styles.dragChipContainer} style={styleVars}>
-            <div className={styles.glowRing1} />
-            <div className={styles.glowRing2} />
+        <div ref={ref} className={styles.dragChipContainer}>
             <div className={styles.magicalBlock}>
                 <Box size={24} className={styles.icon} />
-                <div className={styles.sparkle1} />
-                <div className={styles.sparkle2} />
             </div>
         </div>,
         document.body
     );
-}
-
-// Simple helper to generate rgb comma-separated string for box-shadows
-function hexToRgb(hex: string) {
-    hex = hex.replace(/^#/, '');
-    if (hex.length === 3) {
-        hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
-    }
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-    if (isNaN(r) || isNaN(g) || isNaN(b)) return '168, 85, 247'; // fallback to purple
-    return `${r}, ${g}, ${b}`;
 }

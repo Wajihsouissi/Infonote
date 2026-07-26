@@ -6,19 +6,9 @@
     display: flex;
     justify-content: center;
     padding: 40px;
-    animation: fadeIn 0.2s ease-out;
     will-change: transform;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-}
 
 .modal {
     width: 100%;
@@ -29,7 +19,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid var(--glass-border);
+    border: 1px solid var(--line);
     border-radius: 12px;
     box-shadow: none;
     will-change: transform;
@@ -43,7 +33,7 @@
     height: 90vh;
     /* Not full height */
     border-radius: 12px;
-    border: 1px solid var(--glass-border);
+    border: 1px solid var(--line);
     box-shadow: none;
     background: var(--modal-bg);
     will-change: transform;
@@ -51,7 +41,7 @@
 
 .header {
     padding: 24px 40px;
-    border-bottom: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--line);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -74,7 +64,7 @@
     color: var(--color-text-muted);
     cursor: pointer;
     padding: 8px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     transition: all 0.2s;
     margin-left: 16px;
 }

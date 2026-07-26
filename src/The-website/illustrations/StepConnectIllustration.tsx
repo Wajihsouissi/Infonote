@@ -89,7 +89,7 @@ export function StepConnectIllustration({ activeStep }: StepConnectIllustrationP
             width: '340px',
             background: 'var(--bg-card)',
             borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--accent)',
+            border: '1px solid var(--accent-ink)',
             padding: '24px',
             zIndex: 5,
             boxShadow: 'var(--shadow-sm)',
@@ -140,7 +140,7 @@ export function StepConnectIllustration({ activeStep }: StepConnectIllustrationP
           <NodeHeader icon={<Link2 size={12} color="var(--accent)" />} label="REFERENCES" color="var(--accent)" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {[1, 2].map((_, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-raised)', padding: '8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--line)' }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-rail)', padding: '8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--line)' }}>
                 <div style={{ width: '20px', height: '20px', borderRadius: 'var(--radius-xs)', background: 'var(--line-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Layout size={10} color="var(--text-soft)" />
                 </div>
@@ -190,9 +190,9 @@ export function StepConnectIllustration({ activeStep }: StepConnectIllustrationP
         >
           <NodeHeader icon={<ImageIcon size={12} color="var(--text-soft)" />} label="ASSETS" />
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-            <div style={{ width: 'calc(50% - 4px)', aspectRatio: '1', background: 'var(--bg-raised)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--line-strong)', backgroundImage: 'linear-gradient(45deg, var(--line) 25%, transparent 25%, transparent 75%, var(--line) 75%, var(--line)), linear-gradient(45deg, var(--line) 25%, transparent 25%, transparent 75%, var(--line) 75%, var(--line))', backgroundSize: '8px 8px', backgroundPosition: '0 0, 4px 4px' }} />
-            <div style={{ width: 'calc(50% - 4px)', aspectRatio: '1', background: 'var(--bg-raised)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--line-strong)' }} />
-            <div style={{ width: '100%', height: '24px', background: 'var(--bg-raised)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--line-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 'calc(50% - 4px)', aspectRatio: '1', background: 'var(--bg-rail)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--line-strong)', backgroundImage: 'linear-gradient(45deg, var(--line) 25%, transparent 25%, transparent 75%, var(--line) 75%, var(--line)), linear-gradient(45deg, var(--line) 25%, transparent 25%, transparent 75%, var(--line) 75%, var(--line))', backgroundSize: '8px 8px', backgroundPosition: '0 0, 4px 4px' }} />
+            <div style={{ width: 'calc(50% - 4px)', aspectRatio: '1', background: 'var(--bg-rail)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--line-strong)' }} />
+            <div style={{ width: '100%', height: '24px', background: 'var(--bg-rail)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--line-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span style={{ fontSize: '14px', color: 'var(--text-soft)' }}>+</span>
             </div>
           </div>

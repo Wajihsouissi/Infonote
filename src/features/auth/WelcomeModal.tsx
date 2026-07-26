@@ -55,9 +55,6 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose }) =
 
   return (
     <div className={styles.backdrop} role="dialog" aria-modal="true" aria-label="Welcome to Infonote">
-      {/* Animated background orbs */}
-      <div className={styles.orb1} />
-      <div className={styles.orb2} />
 
       <div className={styles.card}>
         {/* Progress bar at top */}

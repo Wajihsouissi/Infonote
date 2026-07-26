@@ -16,7 +16,7 @@ export const TimelineBar: React.FC<TimelineBarProps> = ({ label, width, left, co
             style={{
                 left,
                 width: Math.max(width, 24), // Minimum width
-                backgroundColor: color || '#3b82f6',
+                backgroundColor: color || 'var(--accent)',
             }}
             onMouseDown={(e) => {
                 e.stopPropagation();

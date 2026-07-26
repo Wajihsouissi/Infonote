@@ -104,8 +104,8 @@ export const FeaturesPage: React.FC = () => {
           </div>
           {/* Aesthetic background graphic */}
           <div style={{ position: 'absolute', right: -100, bottom: -100, opacity: 0.4, pointerEvents: 'none', display: 'flex', gap: 20, transform: 'rotate(-15deg)' }}>
-            <div style={{ width: 200, height: 200, borderRadius: 24, border: '1px solid var(--line-strong)', background: 'var(--bg-raised)' }} />
-            <div style={{ width: 200, height: 200, borderRadius: 24, border: '1px dashed var(--accent)', background: 'transparent' }} />
+            <div style={{ width: 200, height: 200, borderRadius: 24, border: '1px solid var(--line-strong)', background: 'var(--bg-rail)' }} />
+            <div style={{ width: 200, height: 200, borderRadius: 24, border: '1px dashed var(--accent-ink)', background: 'transparent' }} />
           </div>
         </motion.div>
 
@@ -117,7 +117,7 @@ export const FeaturesPage: React.FC = () => {
           transition={{ delay: 0.1 }}
           className="bento-card col-span-4"
         >
-          <div style={{ width: 48, height: 48, background: 'var(--bg-raised)', color: 'var(--text-main)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24, border: '1px solid var(--line-strong)' }}>
+          <div style={{ width: 48, height: 48, background: 'var(--bg-rail)', color: 'var(--text-main)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24, border: '1px solid var(--line-strong)' }}>
             <HardDrive size={24} />
           </div>
           <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 16, letterSpacing: '-0.02em' }}>Local-First Speed</h2>
@@ -132,15 +132,15 @@ export const FeaturesPage: React.FC = () => {
           transition={{ delay: 0.15 }}
           className="bento-card col-span-6"
         >
-          <div style={{ width: 48, height: 48, background: 'var(--bg-raised)', color: 'var(--text-main)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24, border: '1px solid var(--line-strong)' }}>
+          <div style={{ width: 48, height: 48, background: 'var(--bg-rail)', color: 'var(--text-main)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24, border: '1px solid var(--line-strong)' }}>
             <Workflow size={24} />
           </div>
           <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 16, letterSpacing: '-0.02em' }}>Embedded Kanban</h2>
           <p style={{ fontSize: 16, color: 'var(--text-soft)', lineHeight: 1.6 }}>Drop fully functional Kanban boards directly onto your canvas. Manage tasks contextually next to your research.</p>
           <div style={{ marginTop: 'auto', paddingTop: 32, display: 'flex', gap: 12, opacity: 0.5 }}>
-             <div style={{ height: 60, flex: 1, background: 'var(--bg-raised)', borderRadius: 8, border: '1px solid var(--line-strong)' }} />
-             <div style={{ height: 80, flex: 1, background: 'var(--bg-raised)', borderRadius: 8, border: '1px solid var(--line-strong)' }} />
-             <div style={{ height: 40, flex: 1, background: 'var(--bg-raised)', borderRadius: 8, border: '1px solid var(--line-strong)' }} />
+             <div style={{ height: 60, flex: 1, background: 'var(--bg-rail)', borderRadius: 8, border: '1px solid var(--line-strong)' }} />
+             <div style={{ height: 80, flex: 1, background: 'var(--bg-rail)', borderRadius: 8, border: '1px solid var(--line-strong)' }} />
+             <div style={{ height: 40, flex: 1, background: 'var(--bg-rail)', borderRadius: 8, border: '1px solid var(--line-strong)' }} />
           </div>
         </motion.div>
 
@@ -152,7 +152,7 @@ export const FeaturesPage: React.FC = () => {
           transition={{ delay: 0.2 }}
           className="bento-card col-span-6"
         >
-          <div style={{ width: 48, height: 48, background: 'var(--bg-raised)', color: 'var(--text-main)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24, border: '1px solid var(--line-strong)' }}>
+          <div style={{ width: 48, height: 48, background: 'var(--bg-rail)', color: 'var(--text-main)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24, border: '1px solid var(--line-strong)' }}>
             <Share2 size={24} />
           </div>
           <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 16, letterSpacing: '-0.02em' }}>Ecosystem Ready</h2>
@@ -272,7 +272,7 @@ export const FeaturesPage: React.FC = () => {
       </section>
 
       {/* Footer CTA */}
-      <section style={{ padding: '100px 24px', textAlign: 'center', background: 'var(--bg-raised)', borderTop: '1px solid var(--line-strong)' }}>
+      <section style={{ padding: '100px 24px', textAlign: 'center', background: 'var(--bg-rail)', borderTop: '1px solid var(--line-strong)' }}>
         <h2 style={{ fontSize: 42, fontWeight: 800, marginBottom: 32, letterSpacing: '-0.02em' }}>Start building your second brain.</h2>
         <button 
           onClick={() => setCurrentView('signup')}

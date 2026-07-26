@@ -242,7 +242,7 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
                     )}
 
                     {status.kind === 'error' && (
-                        <div style={{ ...centerState, color: '#fca5a5' }}>
+                        <div style={{ ...centerState, color: 'var(--danger)' }}>
                             <AlertCircle size={24} />
                             <span>{status.message}</span>
                             <button type="button" onClick={refresh} style={btnSecondary}>
@@ -342,7 +342,7 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
                         <button 
                             type="button" 
                             onClick={onRestoreBackup} 
-                            style={{ ...btnGhost, color: '#fcd34d', border: '1px solid rgba(252, 211, 77, 0.2)', marginRight: 8, display: 'flex', alignItems: 'center', gap: 6 }}
+                            style={{ ...btnGhost, color: 'var(--warn)', border: '1px solid rgba(var(--warn-rgb), 0.25)', marginRight: 8, display: 'flex', alignItems: 'center', gap: 6 }}
                         >
                             <History size={14} />
                             <span>Restore Backup</span>
@@ -388,33 +388,31 @@ const Stat: React.FC<{ icon: React.ReactNode; label: string; value: string }> = 
     </div>
 );
 
-// ───── Inline styles ─────
+// ───── Inline styles (Paper & Ink tokens — theme-aware, no glass) ─────
 const overlay: React.CSSProperties = {
     position: 'fixed',
     inset: 0,
-    background: 'rgba(5, 6, 12, 0.72)',
-    backdropFilter: 'blur(6px)',
-    WebkitBackdropFilter: 'blur(6px)',
+    // plain scrim, no blur
+    background: 'rgba(0, 0, 0, 0.5)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 9999,
     padding: 20,
-    fontFamily:
-        '"Poppins", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    fontFamily: 'var(--font-sans)',
 };
 
 const modal: React.CSSProperties = {
     width: '100%',
     maxWidth: 640,
     maxHeight: '90vh',
-    background: 'rgba(20, 22, 32, 0.95)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 16,
-    boxShadow: '0 32px 96px rgba(0,0,0,0.5)',
+    background: 'var(--bg-rail)',
+    border: '1px solid var(--line)',
+    borderRadius: 'var(--r-panel)',
+    boxShadow: 'var(--shadow-lg)',
     display: 'flex',
     flexDirection: 'column',
-    color: '#fff',
+    color: 'var(--text-main)',
     overflow: 'hidden',
 };
 
@@ -423,18 +421,19 @@ const header: React.CSSProperties = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '20px 24px',
-    borderBottom: '1px solid rgba(255,255,255,0.08)',
+    borderBottom: '1px solid var(--line)',
 };
 
 const title: React.CSSProperties = {
     fontSize: 17,
     fontWeight: 700,
     margin: 0,
+    color: 'var(--text-main)',
 };
 
 const subtitle: React.CSSProperties = {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.55)',
+    color: 'var(--text-faint)',
     margin: '2px 0 0',
 };
 
@@ -442,20 +441,20 @@ const iconBadge: React.CSSProperties = {
     width: 38,
     height: 38,
     background: 'linear-gradient(135deg, var(--accent), var(--secondary))',
-    borderRadius: 10,
+    borderRadius: 'var(--r-control)',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: '#fff',
+    color: 'var(--on-accent)',
 };
 
 const closeBtn: React.CSSProperties = {
     background: 'transparent',
-    border: '1px solid rgba(255,255,255,0.08)',
-    color: 'rgba(255,255,255,0.6)',
+    border: '1px solid var(--line)',
+    color: 'var(--btn-ghost-fg)',
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: 'var(--btn-radius)',
     cursor: 'pointer',
     display: 'inline-flex',
     alignItems: 'center',
@@ -478,7 +477,7 @@ const centerState: React.CSSProperties = {
 };
 
 const muted: React.CSSProperties = {
-    color: 'rgba(255,255,255,0.55)',
+    color: 'var(--text-soft)',
     fontSize: 13,
     maxWidth: 360,
 };
@@ -491,9 +490,9 @@ const statsGrid: React.CSSProperties = {
 };
 
 const statTile: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.06)',
-    borderRadius: 10,
+    background: 'var(--bg-card)',
+    border: '1px solid var(--line)',
+    borderRadius: 'var(--r-control)',
     padding: '12px 14px',
 };
 
@@ -501,29 +500,32 @@ const statLabel: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
     gap: 6,
+    fontFamily: 'var(--font-mono)',
     fontSize: 11,
     fontWeight: 500,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'var(--text-faint)',
     textTransform: 'uppercase',
-    letterSpacing: '0.04em',
+    letterSpacing: '0.08em',
     marginBottom: 4,
 };
 
 const statValue: React.CSSProperties = {
     fontSize: 14,
     fontWeight: 600,
+    color: 'var(--text-main)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
 };
 
 const listHeader: React.CSSProperties = {
+    fontFamily: 'var(--font-mono)',
     fontSize: 12,
     fontWeight: 600,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'var(--text-faint)',
     margin: '8px 0 12px',
     textTransform: 'uppercase',
-    letterSpacing: '0.06em',
+    letterSpacing: '0.08em',
 };
 
 const pageList: React.CSSProperties = {
@@ -540,27 +542,28 @@ const pageRow: React.CSSProperties = {
     alignItems: 'center',
     gap: 12,
     padding: '12px 14px',
-    background: 'rgba(255,255,255,0.03)',
-    border: '1px solid rgba(255,255,255,0.06)',
-    borderRadius: 10,
+    background: 'var(--bg-card)',
+    border: '1px solid var(--line)',
+    borderRadius: 'var(--r-control)',
 };
 
 const pageIcon: React.CSSProperties = {
     width: 36,
     height: 36,
     flexShrink: 0,
-    background: 'rgba(249, 93, 46, 0.15)',
-    border: '1px solid rgba(249, 93, 46, 0.3)',
-    borderRadius: 8,
+    background: 'var(--accent-dim)',
+    border: '1px solid rgba(var(--accent-rgb), 0.3)',
+    borderRadius: 'var(--btn-radius)',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: '#ff8a5f',
+    color: 'var(--accent-ink)',
 };
 
 const pageTitle: React.CSSProperties = {
     fontSize: 14,
     fontWeight: 600,
+    color: 'var(--text-main)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
@@ -568,7 +571,7 @@ const pageTitle: React.CSSProperties = {
 
 const pageMeta: React.CSSProperties = {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'var(--text-faint)',
     marginTop: 2,
 };
 
@@ -579,9 +582,9 @@ const emptyState: React.CSSProperties = {
     gap: 10,
     padding: '32px 20px',
     textAlign: 'center',
-    background: 'rgba(255,255,255,0.02)',
-    border: '1px dashed rgba(255,255,255,0.08)',
-    borderRadius: 12,
+    background: 'var(--bg-inset)',
+    border: '1px dashed var(--line)',
+    borderRadius: 'var(--r-md)',
 };
 
 const footer: React.CSSProperties = {
@@ -589,17 +592,18 @@ const footer: React.CSSProperties = {
     alignItems: 'center',
     gap: 10,
     padding: '16px 20px',
-    borderTop: '1px solid rgba(255,255,255,0.08)',
-    background: 'rgba(0,0,0,0.18)',
+    borderTop: '1px solid var(--line)',
+    background: 'var(--bg-rail)',
 };
 
 const btnGhost: React.CSSProperties = {
     padding: '8px 14px',
     background: 'transparent',
-    color: 'rgba(255,255,255,0.7)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 8,
+    color: 'var(--btn-ghost-fg)',
+    border: '1px solid var(--btn-secondary-border)',
+    borderRadius: 'var(--btn-radius)',
     cursor: 'pointer',
+    fontFamily: 'inherit',
     fontSize: 13,
     fontWeight: 500,
 };
@@ -609,11 +613,12 @@ const btnSecondary: React.CSSProperties = {
     alignItems: 'center',
     gap: 6,
     padding: '8px 14px',
-    background: 'rgba(255,255,255,0.05)',
-    color: '#fff',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 8,
+    background: 'var(--btn-secondary-bg)',
+    color: 'var(--btn-secondary-fg)',
+    border: '1px solid var(--btn-secondary-border)',
+    borderRadius: 'var(--btn-radius)',
     cursor: 'pointer',
+    fontFamily: 'inherit',
     fontSize: 13,
     fontWeight: 500,
 };
@@ -623,14 +628,14 @@ const btnPrimary: React.CSSProperties = {
     alignItems: 'center',
     gap: 6,
     padding: '9px 16px',
-    background: 'linear-gradient(135deg, var(--accent), var(--secondary))',
-    color: '#fff',
+    background: 'var(--btn-primary-bg)',
+    color: 'var(--btn-primary-fg)',
     border: 'none',
-    borderRadius: 8,
+    borderRadius: 'var(--btn-radius)',
     cursor: 'pointer',
+    fontFamily: 'inherit',
     fontSize: 13,
     fontWeight: 600,
-    boxShadow: '0 6px 16px rgba(99,102,241,0.35)',
 };
 
 export default CloudLoadModal;

@@ -16,18 +16,12 @@ interface IconPickerProps {
 
 const colorSwatches = [
     { name: 'Default', value: '' }, // Empty uses category color
-    { name: 'Slate', value: '#94a3b8' },
-    { name: 'Red', value: '#ef4444' },
-    { name: 'Orange', value: '#f97316' },
-    { name: 'Amber', value: '#f59e0b' },
-    { name: 'Yellow', value: '#eab308' },
-    { name: 'Emerald', value: '#10b981' },
-    { name: 'Cyan', value: '#06b6d4' },
-    { name: 'Blue', value: '#3b82f6' },
-    { name: 'Indigo', value: '#6366f1' },
-    { name: 'Purple', value: '#a855f7' },
-    { name: 'Pink', value: '#ec4899' },
-    { name: 'Rose', value: '#f43f5e' },
+    { name: 'Red', value: 'var(--t-red)' },
+    { name: 'Pink', value: 'var(--t-pink)' },
+    { name: 'Purple', value: 'var(--t-purple)' },
+    { name: 'Blue', value: 'var(--t-blue)' },
+    { name: 'Green', value: 'var(--t-green)' },
+    { name: 'Yellow', value: 'var(--t-yellow)' },
 ];
 
 export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconPickerProps) {

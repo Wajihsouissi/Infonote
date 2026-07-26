@@ -31,19 +31,16 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     const updateNodeData = useStore(s => s.updateNodeData);
     const updateNode = useStore(s => s.updateNode);
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
-    const interactionState = useStore(s => s.interactionState);
     const isLinkingMode = useStore(s => s.isLinkingMode);
     const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
     const linkSelectedNodes = useStore(s => s.linkSelectedNodes);
     const clearCanvasSelection = useStore(s => s.clearCanvasSelection);
     const setNodesStore = useStore(s => s.setNodes);
 
-    // Scale + tilt is reserved for single-drag (the grabbed card "lifts").
-    // Multi-drag uses a unified subtle lift on every selected card via global CSS
-    // (.chnk-it-multi-drag .react-flow__node.selected) — so we deliberately skip it here.
-    const isDragging = interactionState.draggedNodeId === id && !interactionState.isMultiDragging;
-    const isDropTarget = interactionState.dropTarget?.id === id;
-    const dropType = isDropTarget ? interactionState.dropTarget?.type : null;
+    // Narrow selectors — only re-render when THIS node's status changes
+    const isDragging = useStore(s => s.interactionState.draggedNodeId === id && !s.interactionState.isMultiDragging);
+    const isDropTarget = useStore(s => s.interactionState.dropTarget?.id === id);
+    const dropType = useStore(s => s.interactionState.dropTarget?.id === id ? s.interactionState.dropTarget?.type : null);
 
     // Track fusion event for animation
     const [isFusing, setIsFusing] = useState(false);
@@ -288,7 +285,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                 height: '100%',
                 // Ensure the card fills the resized node area
                 boxSizing: 'border-box',
-                backgroundColor: viewMode !== 'expanded' ? (displayColor || undefined) : undefined,
+                backgroundColor: displayColor || undefined,
                 ...dynamicStyles
             }}
         >
@@ -620,9 +617,10 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                             }}
                         />
                     </div>
-                    <div className={styles.mediumDescContainer}>
+                    <div className={styles.mediumDescContainer} style={{ backgroundColor: displayColor || undefined }}>
                         <textarea
                             className={`${styles.mediumDescInput} nodrag`}
+                            style={{ backgroundColor: displayColor ? 'transparent' : undefined }}
                             value={isEditingMetadata ? editedData.description : (data.description || '')}
                             onChange={(e) => {
                                 setEditedData({ ...editedData, description: e.target.value });

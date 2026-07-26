@@ -7,8 +7,7 @@
   justify-content: center;
   padding: 24px;
   background: rgba(5, 2, 10, 0.6);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+
   animation: limitFadeIn 0.18s ease-out;
 }
 
@@ -21,9 +20,9 @@
   width: min(420px, 100%);
   padding: 28px 28px 24px;
   border-radius: 16px;
-  background: var(--color-bg-surface, #17121f);
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--elev-3);
   text-align: center;
   animation: limitCardIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -41,23 +40,23 @@
   align-items: center;
   justify-content: center;
   border-radius: 14px;
-  color: #c084fc;
-  background: rgba(168, 85, 247, 0.12);
-  border: 1px solid rgba(168, 85, 247, 0.25);
+  color: var(--accent-ink);
+  background: rgba(var(--accent-rgb), 0.12);
+  border: 1px solid rgba(var(--accent-rgb), 0.25);
 }
 
 .title {
   margin: 0 0 10px;
   font-size: 19px;
   font-weight: 700;
-  color: var(--color-text-main, #fff);
+  color: var(--color-text-main);
 }
 
 .body {
   margin: 0 0 22px;
   font-size: 14px;
   line-height: 1.55;
-  color: var(--color-text-muted, rgba(255, 255, 255, 0.65));
+  color: var(--color-text-muted);
 }
 
 .actions {
@@ -74,8 +73,8 @@
   padding: 11px 18px;
   border: none;
   border-radius: 10px;
-  background: linear-gradient(135deg, #8b5cf6, #d946ef);
-  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  color: var(--on-accent);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -89,10 +88,10 @@
 
 .secondaryButton {
   padding: 10px 18px;
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--color-border);
   border-radius: 10px;
   background: transparent;
-  color: var(--color-text-muted, rgba(255, 255, 255, 0.65));
+  color: var(--color-text-muted);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -100,6 +99,6 @@
 }
 
 .secondaryButton:hover {
-  color: var(--color-text-main, #fff);
-  border-color: rgba(255, 255, 255, 0.3);
+  color: var(--color-text-main);
+  border-color: var(--line-strong);
 }

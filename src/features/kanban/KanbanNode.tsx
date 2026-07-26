@@ -55,13 +55,12 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
     const setKanbanModalOpen = useStore(s => s.setKanbanModalOpen);
     const setEditingKanbanId = useStore(s => s.setEditingKanbanId);
     const setCenterPanelId = useStore(s => s.setCenterPanelId);
-    const interactionState = useStore(s => s.interactionState);
-
     const { setNodes, screenToFlowPosition, getIntersectingNodes } = useReactFlow<AppNode>();
     const connection = useConnection();
     const isConnecting = connection.inProgress;
 
-    const isDraggingBoard = interactionState.draggedNodeId === id;
+    // Narrow selector — only re-render when THIS kanban's drag status changes
+    const isDraggingBoard = useStore(s => s.interactionState.draggedNodeId === id);
 
     const boardRef = useRef<HTMLDivElement>(null);
 

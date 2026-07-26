@@ -5,7 +5,7 @@
     background-color: var(--color-bg-surface, #191919);
     color: var(--color-text-main, #ececec);
     overflow: hidden;
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-sans);
     user-select: none;
 }
 
@@ -177,7 +177,7 @@
     height: 24px;
     top: 8px;
     /* (40 - 24) / 2 */
-    background-color: #3b82f6;
+    background-color: var(--accent);
     border-radius: 4px;
     cursor: grab;
     display: flex;

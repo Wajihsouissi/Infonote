@@ -1,35 +1,51 @@
 .blockNode {
+    position: relative;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
     margin: 0 auto;
-    gap: 6px;
-    background: var(--glass-bg);
-    backdrop-filter: blur(var(--backdrop-blur));
-    -webkit-backdrop-filter: blur(var(--backdrop-blur));
-    border: 1px solid var(--glass-border);
-    border-radius: 9px;
-    padding: 2px 2px;
+    background: var(--node-bg);
+    border: none;
+    border-radius: var(--node-radius);
+    padding: 0;
     width: 100%;
     min-width: 208px;
-    /* 4 * 56px - 16px */
     max-width: 432px;
-    /* 8 * 56px - 16px */
     height: auto;
-    min-height: 40px;
+    min-height: 0;
     box-sizing: border-box;
-    transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
-    box-shadow: none;
+    transition:
+        background-color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        border-color var(--transition-fast),
+        transform var(--transition-fast);
+    box-shadow: var(--node-ring);
+    color: var(--text-main);
+}
+
+/* Accent spine as an overlay, not a border — a border-top would eat
+   --node-spine-w from the box, leaving the inner container 3px shorter than
+   the outer one. As a pseudo-element it costs zero layout, so inner === outer. */
+.blockNode::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--node-spine-w, 3px);
+    background: var(--node-accent-color, transparent);
+    border-radius: var(--node-radius) var(--node-radius) 0 0;
+    pointer-events: none;
+    z-index: 1;
 }
 
 .dragHandleLeft {
     flex-shrink: 0;
     margin-top: 2px;
-    /* Align with first line of text roughly */
     cursor: grab;
-    color: var(--color-text-muted);
+    color: var(--text-faint);
     opacity: 0.3;
-    transition: opacity 0.2s, background-color 0.2s;
+    transition: opacity var(--transition-fast), color var(--transition-fast);
     width: 16px;
     display: flex;
     justify-content: center;
@@ -37,47 +53,41 @@
 
 .blockNode:hover .dragHandleLeft {
     opacity: 0.7;
-    color: var(--color-text-main);
+    color: var(--text-soft);
 }
 
 .dragHandleLeft:hover {
     opacity: 1 !important;
-    color: var(--color-primary) !important;
+    color: var(--accent-ink) !important;
 }
 
 .blockNode:hover {
-    background: var(--glass-bg-hover);
-    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: var(--node-ring-hover);
     transform: translateY(-1px);
-    box-shadow: none;
 }
 
 .blockNode.selected {
-    border-color: var(--color-primary);
-    box-shadow: none;
+    box-shadow: var(--node-ring-selected);
 }
 
 .blockNode.selected:hover {
-    box-shadow: none;
+    box-shadow: var(--node-ring-selected);
 }
 
 .blockNode.multiSelected {
-    border-color: var(--color-primary);
-    box-shadow: none;
+    box-shadow: var(--node-ring-selected);
 }
 
 .blockNode.multiSelected:hover {
-    box-shadow: none;
+    box-shadow: var(--node-ring-selected);
 }
 
 .content {
     width: 100%;
     height: auto;
-    min-height: 100%;
     cursor: pointer;
 }
 
-/* For media blocks, the content must fill the fixed pixel width of the node */
 .mediaBlockNode .content {
     width: 100%;
     height: auto;
@@ -86,19 +96,18 @@
     background: transparent;
 }
 
-/* Handles */
 .topRightHandle {
-    width: 12px !important;
-    height: 12px !important;
-    background: var(--color-primary) !important;
-    border: 2px solid white !important;
+    width: var(--handle-size) !important;
+    height: var(--handle-size) !important;
+    background: var(--handle-bg) !important;
+    border: var(--handle-ring) !important;
     border-radius: 50% !important;
     position: absolute !important;
     top: -6px !important;
     right: -6px !important;
     cursor: crosshair !important;
     z-index: 100 !important;
-    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), 0.2s ease !important;
+    transition: transform var(--transition-smooth), opacity var(--transition-fast) !important;
     opacity: 0 !important;
     visibility: hidden !important;
 }
@@ -111,17 +120,16 @@
 
 .topRightHandle:hover {
     transform: scale(1.3) !important;
-    box-shadow: none !important;
+    box-shadow: var(--handle-halo) !important;
 }
-
 
 .blockNode.mediaBlockNode {
     display: block;
-    background: transparent !important;
+    background: var(--node-bg);
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     border: none !important;
-    border-radius: 12px;
+    border-radius: var(--block-radius-lg);
     padding: 0;
     width: 100% !important;
     min-width: 208px;
@@ -131,7 +139,7 @@
     box-sizing: border-box;
     visibility: visible;
     opacity: 1;
-    transition: border-color 0.2s ease;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
     box-shadow: none !important;
     overflow: visible;
 }
@@ -144,16 +152,15 @@
     width: 208px !important;
     min-width: 208px !important;
     max-width: 208px !important;
-    background: var(--glass-bg) !important;
-    backdrop-filter: blur(var(--backdrop-blur)) !important;
-    -webkit-backdrop-filter: blur(var(--backdrop-blur)) !important;
+    background: var(--node-bg) !important;
     border: none !important;
-    box-shadow: var(--shadow-sm) !important;
+    box-shadow: none !important;
 }
 
-
 .blockNode.mediaBlockNode .content {
-    border-radius: 10px;
+    /* must match .mediaBlockNode's own radius or the media corner clips square */
+    border-radius: var(--block-radius-lg);
+    overflow: hidden;
 }
 
 .blockNode.wideBlock {
@@ -164,7 +171,152 @@
     align-items: stretch;
 }
 
-/* Force interior wrappers to stretch to fill the wideBlock container */
+/* OUTER box — one identical footprint for every standard block type. */
+.blockNode.standardBlock {
+    width: var(--block-node-w);
+    min-width: var(--block-node-w);
+    max-width: var(--block-node-w);
+    height: var(--block-node-h);
+    min-height: var(--block-node-h);
+    align-items: stretch;
+    padding: 0;
+    overflow: hidden;
+}
+
+/* Only genuinely multi-line chrome escapes the uniform height: a code block
+   (header strip + code area) and a toggle that is actually EXPANDED — the
+   latter detected by the presence of its rendered children container. A
+   collapsed toggle and a callout are single-line and stay at 56 like the rest. */
+.blockNode.standardBlock:has([data-block-type="code"]),
+.blockNode.standardBlock:has([class*="toggleChildrenContainer"]) {
+    height: auto;
+    overflow: visible;
+}
+
+.blockNode:focus-visible,
+.colorBlockNode:focus-visible {
+    outline: none;
+    box-shadow: var(--node-ring-selected), var(--focus-ring);
+}
+
+/* INNER box — exactly equal to the outer box: full width, full height, no
+   padding of its own. The gap the user sees around the text is produced by
+   the gutter on the row below, not by insetting this container. */
+.blockNode.standardBlock > .content,
+.blockNode.standardBlock > .content > div {
+    height: 100%;
+}
+
+.blockNode.standardBlock > .content {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* The editor stack fills the inner box too, so nothing is left floating. */
+.blockNode.standardBlock [class*="editor"] {
+    height: 100%;
+    justify-content: center;
+}
+
+/* BREATHING SPACE — the single gutter between the block's visible box and the
+   node edge. Scoped to the editor's DIRECT children, so blocks nested inside a
+   toggle don't collect a second gutter on top of their parent's.
+   The left side composes the gutter with the block's nesting indent
+   (--block-indent, published by BlockItem) so an indented block keeps its
+   inset instead of overwriting the gutter. */
+.blockNode.standardBlock [class*="editor"] > [class*="sortableWrapper"] {
+    height: 100%;
+    width: 100%;
+    align-items: center;
+    padding-top: var(--block-node-gutter-y);
+    padding-bottom: var(--block-node-gutter-y);
+    padding-left: calc(var(--block-node-gutter-x) + var(--block-indent, 0px));
+    padding-right: var(--block-node-gutter-x);
+    box-sizing: border-box;
+}
+
+/* A toggle's group container paints its own background + left rail, so its
+   gutter has to be a MARGIN — padding would inset the text but leave the
+   tinted box flush with the node edge, which is exactly what made toggles
+   look unlike callouts and quotes. */
+.blockNode.standardBlock [class*="editor"] > [class*="toggleGroupContainer"] {
+    margin-top: var(--block-node-gutter-y);
+    margin-bottom: var(--block-node-gutter-y);
+    margin-left: calc(var(--block-node-gutter-x) + var(--toggle-indent, 0px));
+    margin-right: var(--block-node-gutter-x);
+    width: auto;
+    /* collapsed: identical inner height to a plain text block */
+    height: var(--block-node-inner-h);
+    padding-top: 0;
+    padding-bottom: 0;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
+/* Expanded, the toggle has to grow around its children. */
+.blockNode.standardBlock:has([class*="toggleChildrenContainer"]) [class*="toggleGroupContainer"] {
+    height: auto;
+    padding-top: var(--block-marker-gap);
+    padding-bottom: var(--block-marker-gap);
+}
+
+/* Empty "paste a URL" input and the inline text-link: the node now supplies the
+   surface, spine and gutter, so the link's own container chrome (outer margins,
+   the dashed input box) is stripped and its content sits flush in the gutter,
+   exactly like a text or callout block. (Bookmark / embed CARDS never get the
+   standardBlock class — they stay resizable and keep their own surface.) */
+.blockNode.standardBlock [class*="inputContainer"],
+.blockNode.standardBlock [class*="LinkBlock"] [class*="container"] {
+    margin: 0;
+    width: 100%;
+}
+
+.blockNode.standardBlock [class*="inputWrapper"] {
+    height: var(--block-node-inner-h);
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+}
+
+.blockNode.standardBlock [class*="textLinkWrapper"] {
+    margin: 0;
+}
+
+/* The callout and quote paint their own inner box; pin both to the same inner
+   height and centre their content, so all four block types present an
+   identical inner container. Their own vertical padding is dropped — it is
+   what made the callout 56px tall and the quote 28px against text's 40px. */
+.blockNode.standardBlock [class*="calloutWrapper"],
+.blockNode.standardBlock [class*="quoteWrapper"] {
+    height: var(--block-node-inner-h);
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.blockNode.standardBlock [class*="blockContent"] {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    /* the gutter above already provides the inset — no double padding */
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.blockNode.standardBlock [class*="blockContent"] > * {
+    flex-grow: 0 !important;
+}
+
 .blockNode.wideBlock>.content,
 .blockNode.wideBlock>.content>div,
 .blockNode.wideBlock>.content [contenteditable="true"] {
@@ -191,35 +343,28 @@
     margin: 0 !important;
     display: flex;
     align-items: center;
-    border-radius: 8px !important;
+    border-radius: var(--block-radius-lg) !important;
 }
 
-/* Text & headings: hug their content, starting at 4 units (208px) and growing
-   up to 8 units (432px) before wrapping to the next line. */
 .blockNode.autoWidth {
     width: max-content;
     min-width: 208px;
-    /* 4 units */
     max-width: 432px;
-    /* 8 units */
 }
 
-/* Fusion / nesting drop-target rings (driven by interactionState during a node drag).
-   Uses outline so it survives the media blocks' border:none / box-shadow:none resets.
-   Fusion = secondary color, nesting = primary color. */
 .blockNode.fusionTarget,
 .colorBlockNode.fusionTarget {
-    outline: 2px solid var(--color-secondary);
+    outline: 2px solid var(--secondary);
     outline-offset: 3px;
-    border-radius: 8px;
+    border-radius: var(--node-radius);
     animation: blockTargetPulse 1s ease-in-out infinite;
 }
 
 .blockNode.dropTarget,
 .colorBlockNode.dropTarget {
-    outline: 2px solid var(--color-primary);
+    outline: 2px solid var(--accent);
     outline-offset: 3px;
-    border-radius: 8px;
+    border-radius: var(--node-radius);
     animation: blockTargetPulse 1s ease-in-out infinite;
 }
 
@@ -241,12 +386,12 @@
     align-items: flex-start;
     background: transparent;
     border: none;
-    border-radius: 20px;
+    border-radius: var(--node-radius);
     padding: 0;
     width: 100%;
     height: 100%;
     box-sizing: border-box;
-    transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), border-radius 0.2s ease;
+    transition: background-color var(--transition-fast), border-radius var(--transition-fast);
     box-shadow: none;
     overflow: hidden;
 }
@@ -260,13 +405,13 @@
 }
 
 .colorBlockNode.selected {
-    border: 2px solid var(--color-primary);
+    border: 2px solid var(--accent);
     background: transparent;
     box-shadow: none;
 }
 
 .colorBlockNode.multiSelected {
-    border: 2px solid var(--color-primary);
+    border: 2px solid var(--accent);
     background: transparent;
     box-shadow: none;
 }
@@ -275,15 +420,13 @@
     opacity: 1;
 }
 
-/* Media nodes force `border: none !important`, so a border won't show when selected.
-   Use an outline ring instead (matches the in-editor media selected state). */
 .blockNode.mediaBlockNode.selected,
 .blockNode.mediaBlockNode.multiSelected {
-    background: transparent;
+    background: var(--node-bg);
     box-shadow: none;
-    outline: 2px solid var(--color-primary);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
-    border-radius: 8px;
+    border-radius: var(--block-radius-lg);
 }
 
 .mediaBlockNode {
@@ -306,7 +449,7 @@
     cursor: nwse-resize;
     z-index: 50;
     opacity: 0;
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity var(--transition-smooth);
     pointer-events: auto;
     transform: rotate(180deg);
 }
@@ -321,31 +464,25 @@
     height: 60%;
     display: block;
     pointer-events: none;
-    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
-    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: transform var(--transition-smooth);
 }
 
 .resizeHandle:hover svg {
-    filter: drop-shadow(0 0 15px rgba(167, 139, 250, 0.7)) drop-shadow(0 0 30px rgba(96, 165, 250, 0.5));
-    transform: scale(1.1) rotate(-5deg);
+    transform: scale(1.1);
 }
 
 .resizeHandle:active svg {
-    filter: drop-shadow(0 0 25px rgba(167, 139, 250, 1)) drop-shadow(0 0 50px rgba(96, 165, 250, 0.8));
-    transform: scale(1.2) rotate(-10deg);
+    transform: scale(1.15);
 }
 
 .blockNode.mediaBlockNode.linkBlockNode {
     overflow: visible !important;
-    padding: 8px;
+    padding: 0;
 }
 
 .blockNode.mediaBlockNode.linkBlockNode .content {
     width: 100%;
     height: auto;
-}
-
-.blockNode.mediaBlockNode.linkBlockNode .content {
     overflow: visible !important;
 }
 
@@ -355,20 +492,18 @@
     right: -32px;
     width: 32px;
     height: 32px;
-    border-radius: 100px;
-    background: rgba(30, 30, 30, 0.4);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: var(--radius-pill);
+    background: var(--bg-rail);
+    border: 1px solid var(--line-strong);
     box-shadow: none;
-    color: #e2e8f0;
+    color: var(--text-soft);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     opacity: 0;
     transform: scale(0.9) translateY(4px);
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: all var(--transition-smooth);
     z-index: 50;
 }
 
@@ -379,9 +514,16 @@
 }
 
 .convertBtn:hover {
-    background: rgba(139, 92, 246, 0.2);
-    border-color: rgba(139, 92, 246, 0.6);
+    /* a wash, not a fill — so the icon takes accent *ink*, not on-accent */
+    background: var(--accent-wash);
+    border-color: var(--accent);
     box-shadow: none;
-    transform: scale(1.1) rotate(3deg) !important;
-    color: white;
+    transform: scale(1.05) !important;
+    color: var(--accent-ink);
+}
+
+.convertBtn:focus-visible {
+    opacity: 1;
+    outline: none;
+    box-shadow: var(--focus-ring);
 }

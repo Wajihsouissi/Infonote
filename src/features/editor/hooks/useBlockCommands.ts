@@ -288,6 +288,21 @@ export function useBlockCommands({
             return;
         }
 
+        // Code block: it is a literal, multi-line text area, so a paste must go
+        // in RAW at the caret — never run through the block parser, which would
+        // split the code on its newlines and drop the pieces as text blocks
+        // BELOW the code area. serializeInline() turns the inserted line breaks
+        // back into \n, so the code stays inside this one block.
+        const targetBlock = blocksRef.current.find(b => b.id === blockId);
+        if (targetBlock?.type === 'code') {
+            const raw = e.clipboardData.getData('text/plain');
+            if (raw) {
+                e.preventDefault();
+                document.execCommand('insertText', false, raw);
+            }
+            return;
+        }
+
         // Sync path for Text/HTML to preserve user gesture for execCommand
         const parsedBlocks = parseTextOrHtml(e);
         if (parsedBlocks.length === 0) return;

@@ -4,8 +4,6 @@
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.06);
     background: rgba(10, 10, 10, 0.4);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
 }
 
 .table {
@@ -32,8 +30,6 @@
     position: sticky;
     top: 0;
     background: rgba(15, 15, 15, 0.9);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
     z-index: 2;
     user-select: none;
 }
@@ -92,7 +88,7 @@
     cursor: pointer;
     color: rgba(255, 255, 255, 0.2);
     padding: 2px;
-    border-radius: 3px;
+    border-radius: var(--radius-xs);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -116,7 +112,7 @@
     cursor: pointer;
     color: rgba(255, 255, 255, 0.25);
     padding: 4px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -134,8 +130,6 @@
     top: calc(100% + 4px);
     right: 0;
     background: rgba(20, 20, 20, 0.95);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 10px;
     padding: 4px;
@@ -149,7 +143,7 @@
     align-items: center;
     gap: 8px;
     padding: 7px 10px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     font-size: 0.82rem;
     color: rgba(255, 255, 255, 0.75);
     cursor: pointer;
@@ -204,7 +198,7 @@
 }
 
 .rowDragging {
-    background: rgba(139, 92, 246, 0.08) !important;
+    background: rgba(249, 93, 46, 0.08) !important;
     box-shadow: none;
 }
 
@@ -245,7 +239,7 @@
     align-items: center;
     gap: 5px;
     padding: 3px 10px;
-    border-radius: 20px;
+    border-radius: var(--radius-xl);
     font-size: 0.72rem;
     font-weight: 600;
     border: 1px solid;
@@ -338,21 +332,21 @@
     border-radius: 4px;
     font-size: 0.7rem;
     font-weight: 500;
-    background: rgba(139, 92, 246, 0.15);
-    color: rgba(139, 92, 246, 0.85);
+    background: rgba(249, 93, 46, 0.15);
+    color: rgba(249, 93, 46, 0.85);
     white-space: nowrap;
 }
 
 /* URL Link */
 .urlLink {
-    color: rgba(96, 165, 250, 0.8);
+    color: var(--accent-ink);
     text-decoration: none;
     font-size: 0.75rem;
     transition: color 0.15s;
 }
 
 .urlLink:hover {
-    color: #60a5fa;
+    color: var(--accent);
     text-decoration: underline;
 }
 
@@ -375,7 +369,7 @@
 
 .progressFill {
     height: 100%;
-    background: linear-gradient(90deg, #8b5cf6, #6366f1);
+    background: linear-gradient(90deg, var(--accent), var(--accent-deep));
     border-radius: 2px;
     transition: width 0.3s ease;
 }
@@ -441,7 +435,7 @@
 
 .tableWrapper::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+    border-radius: var(--radius-xs);
 }
 
 /* === Inline Editors === */
@@ -449,8 +443,8 @@
 .inlineInput {
     width: 100%;
     background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(139, 92, 246, 0.4);
-    border-radius: 6px;
+    border: 1px solid rgba(249, 93, 46, 0.4);
+    border-radius: var(--radius-sm);
     padding: 5px 8px;
     color: rgba(255, 255, 255, 0.92);
     font-size: 0.82rem;
@@ -460,15 +454,15 @@
 }
 
 .inlineInput:focus {
-    border-color: rgba(139, 92, 246, 0.7);
+    border-color: rgba(249, 93, 46, 0.7);
     background: rgba(255, 255, 255, 0.08);
     box-shadow: none;
 }
 
 .inlineDateInput {
     background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(139, 92, 246, 0.4);
-    border-radius: 6px;
+    border: 1px solid rgba(249, 93, 46, 0.4);
+    border-radius: var(--radius-sm);
     padding: 4px 8px;
     color: rgba(255, 255, 255, 0.92);
     font-size: 0.78rem;
@@ -480,15 +474,13 @@
 }
 
 .inlineDateInput:focus {
-    border-color: rgba(139, 92, 246, 0.7);
+    border-color: rgba(249, 93, 46, 0.7);
     box-shadow: none;
 }
 
 /* Inline Select (status / priority dropdown) */
 .inlineSelect {
     background: rgba(18, 18, 18, 0.96);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 10px;
     padding: 4px;
@@ -514,7 +506,7 @@
     align-items: center;
     gap: 7px;
     padding: 7px 10px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     font-size: 0.78rem;
     color: rgba(255, 255, 255, 0.7);
     cursor: pointer;
@@ -527,7 +519,7 @@
 }
 
 .inlineSelectActive {
-    background: rgba(139, 92, 246, 0.12);
+    background: rgba(249, 93, 46, 0.12);
     color: #fff;
 }
 

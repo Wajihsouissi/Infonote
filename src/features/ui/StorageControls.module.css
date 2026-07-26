@@ -16,7 +16,7 @@
 }
 
 .iconBtn:hover {
-    background: rgba(139, 92, 246, 0.08);
+    background: rgba(249, 93, 46, 0.08);
     color: var(--color-primary);
     transform: translateY(-2px) scale(1.05);
 }
@@ -27,7 +27,7 @@
 
 /* 1. Never Saved */
 .neverSaved {
-    border-color: var(--glass-border);
+    border-color: var(--line);
     opacity: 0.75;
 }
 .neverSaved svg {
@@ -78,7 +78,7 @@
 
 .saving {
     animation: pulse 1.6s infinite ease-in-out;
-    background: rgba(139, 92, 246, 0.12) !important;
+    background: rgba(249, 93, 46, 0.12) !important;
     border-color: var(--color-primary) !important;
 }
 .saving svg {

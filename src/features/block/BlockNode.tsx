@@ -10,7 +10,6 @@ import { useStore } from '../../store/useStore';
 import type { AppNode, NoteNode } from '../../types';
 import type { Block } from '../editor/types';
 import styles from './BlockNode.module.css';
-import { toPastelColor, darkenColor } from '../../utils/colorUtils';
 import { MIN_EXPANDED_SIZE, ICON_SIZE } from '../../config/layout';
 
 const useGlobalListIndex = (nodeId: string, isSingleNumbered: boolean) => {
@@ -105,47 +104,45 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const singleBlock = colorBlocks.length === 1 ? colorBlocks[0] : undefined;
     const isSingleMedia = singleBlock?.type === 'image' || singleBlock?.type === 'video' || singleBlock?.type === 'file';
     const isSingleLink = singleBlock?.type === 'link';
+    // A link renders in one of four ways. The bookmark / embed CARDS bring their
+    // own full-bleed surface and are resizable objects (like media), so they sit
+    // on a transparent node. The empty "paste a URL" input and the inline text
+    // link are lightweight — they should look like every other block: node
+    // surface + accent spine + the standard gutter.
+    const linkMode = (singleBlock?.metadata?.displayMode || 'bookmark') as 'bookmark' | 'embed' | 'text';
+    const isLinkEmpty = isSingleLink && (!singleBlock?.content || singleBlock.content.trim() === '');
+    const isLinkCard = isSingleLink && !isLinkEmpty && (linkMode === 'bookmark' || linkMode === 'embed');
     const isSingleColor = singleBlock?.type === 'color';
     const isSingleNumbered = singleBlock?.type === 'numbered';
     const singleColorValue = isSingleColor ? (singleBlock?.content || '#1E944A') : undefined;
     const isColumns = singleBlock?.type === 'columns';
-    const isWideBlock = !!singleBlock && ['callout', 'code', 'quote', 'link', 'toggle'].includes(singleBlock.type);
-    // Text, headings & lists size to their content: start at 4 units (208px) and grow to a max of 8 units (432px), then wrap.
-    const isAutoWidthText = !!singleBlock && ['text', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered', 'todo'].includes(singleBlock.type);
-    const isResizable = isSingleMedia || isSingleLink;
+    const standardBlockTypes = ['text', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered', 'todo', 'callout', 'code', 'quote', 'link', 'toggle'];
+    // A toggle keeps its nested children in the SAME node, so `singleBlock`
+    // (which requires exactly one block) is undefined as soon as it has any
+    // content — which silently dropped toggle nodes out of the standard-block
+    // sizing/gutter treatment. A toggle-rooted node is still one logical block.
+    const isToggleRoot = colorBlocks[0]?.type === 'toggle';
+    // Link CARDS (bookmark/embed) are resizable rich objects, not uniform 56px
+    // blocks — they must not get the standardBlock footprint. Empty and text
+    // links still do, so they match the rest of the blocks.
+    const isStandardBlock = (!!singleBlock && standardBlockTypes.includes(singleBlock.type) && !isLinkCard) || isToggleRoot;
+    const isWideBlock = false;
+    const isAutoWidthText = false;
+    // Only the rich link cards resize — the empty input and text link do not.
+    const isResizable = isSingleMedia || isLinkCard;
 
     const isMediaEmpty = isSingleMedia && (!singleBlock?.content || singleBlock.content.trim() === '');
 
     const globalListIndex = useGlobalListIndex(id, isSingleNumbered);
 
-    // Convert color to pastel for better readability
-    const displayColor = singleColorValue || (data.color ? toPastelColor(data.color, theme === 'light') : undefined);
-    // Dynamic styles for contrast
+    const accentColor = singleColorValue || data.color;
+    
     const dynamicStyles = useMemo(() => {
-        if (!displayColor) return {};
-
-        // Smart high-contrast colors derived from the bg color for exceptional readability
-        const darkText = darkenColor(displayColor, 80); // 80% darken for main text (flawless readability)
-        const mutedText = darkenColor(displayColor, 65); // 65% darken for secondary text
-        const borderColor = darkenColor(displayColor, 40); // 40% darken for borders
-
+        if (!accentColor) return {};
         return {
-            '--color-text-main': darkText,
-            '--color-text-muted': mutedText,
-            '--color-border': `${borderColor}40`, // 40% opacity
-            '--glass-border': `${borderColor}40`,
-            '--icon-color': darkText,
-            '--table-bg': `${displayColor}26`,
-            '--table-header-bg': `${displayColor}3d`,
-            '--table-row-hover-bg': `${displayColor}33`,
-            '--table-cell-focus-bg': `${displayColor}4d`,
-            '--table-controls-bg': `${displayColor}22`,
-            '--table-btn-hover-bg': `${displayColor}33`,
-            '--table-border': `${borderColor}33`,
-            '--table-border-strong': `${borderColor}55`,
-            '--table-focus-ring': `${borderColor}80`,
+            '--node-accent-color': accentColor,
         } as React.CSSProperties;
-    }, [displayColor]);
+    }, [accentColor]);
 
     useLayoutEffect(() => {
         setNodes(nodes => {
@@ -156,23 +153,25 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     // Text & headings flow with their content (4 -> 8 units, then wrap) instead of a fixed width.
                     const needsAutoWidthInit = isAutoWidthText && !isResizable && !isColumns && !isSingleColor && !isWideBlock && n.style?.width !== 'fit-content';
                     const needsWidthInit = !isAutoWidthText && !isResizable && !isColumns && !isSingleColor && !isWideBlock && (n.style?.width === 'auto' || n.style?.width === undefined);
-                    const needsResizableWidthInit = isResizable && (n.style?.width === 'auto' || n.style?.width === undefined);
+                    // A link that just became a card may carry the 260 standard
+                    // width from its empty state — widen it to the card default.
+                    const needsResizableWidthInit = isResizable && (n.style?.width === 'auto' || n.style?.width === undefined || (isLinkCard && n.style?.width === 260));
                     const shouldForcePlaceholderWidth = isMediaEmpty && n.style?.width !== 208 && n.style?.width !== '208px';
                     const needsColumnsWidthInit = isColumns && (n.style?.width === 'auto' || n.style?.width === undefined);
                     const needsColorInit = isSingleColor && (n.style?.width !== ICON_SIZE || n.style?.height !== ICON_SIZE);
-                    const needsWideBlockInit = isWideBlock && (n.style?.width !== MIN_EXPANDED_SIZE);
+                    // Resizable blocks (media, link cards) own their width — don't
+                    // snap them back to the 260 standard footprint every render.
+                    const needsStandardInit = isStandardBlock && !isResizable && (n.style?.width !== 260);
 
-                    if (needsHeightAuto || needsAutoWidthInit || needsWidthInit || needsResizableWidthInit || shouldForcePlaceholderWidth || needsColumnsWidthInit || needsColorInit || needsWideBlockInit) {
+                    if (needsHeightAuto || needsAutoWidthInit || needsWidthInit || needsResizableWidthInit || shouldForcePlaceholderWidth || needsColumnsWidthInit || needsColorInit || needsStandardInit) {
                         changed = true;
                         return {
                             ...n,
                             style: {
                                 ...n.style,
                                 ...(needsHeightAuto ? { height: 'auto' } : {}),
-                                ...(needsAutoWidthInit ? { width: 'fit-content' } : {}),
-                                ...(needsWidthInit ? { width: MIN_EXPANDED_SIZE } : {}),
-                                ...(needsWideBlockInit ? { width: MIN_EXPANDED_SIZE } : {}),
-                                ...((needsResizableWidthInit || shouldForcePlaceholderWidth) ? { width: isSingleLink ? 432 : 208 } : {}),
+                                ...(needsStandardInit ? { width: 260 } : {}),
+                                ...((needsResizableWidthInit || shouldForcePlaceholderWidth) ? { width: isLinkCard ? 432 : 208 } : {}),
                                 ...(needsColumnsWidthInit ? { width: 550 } : {}),
                                 ...(needsColorInit ? { width: ICON_SIZE, height: ICON_SIZE } : {})
                             }
@@ -183,7 +182,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             });
             return changed ? newNodes : nodes;
         });
-    }, [id, setNodes, isResizable, isColumns, isSingleLink, isSingleColor, isWideBlock, isAutoWidthText, isMediaEmpty]);
+    }, [id, setNodes, isResizable, isColumns, isSingleLink, isLinkCard, isSingleColor, isStandardBlock, isMediaEmpty]);
 
 
 
@@ -298,9 +297,21 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     return (
         <div
             ref={nodeRef}
-            className={`${baseClassName} ${(isSingleMedia || isSingleLink) ? styles.mediaBlockNode : ''} ${isMediaEmpty ? styles.mediaPlaceholderBlock : ''} ${isSingleLink ? styles.linkBlockNode : ''} ${isWideBlock ? styles.wideBlock : ''} ${isAutoWidthText ? styles.autoWidth : ''} ${selected ? styles.selected : ''} ${isMultiSelected ? styles.multiSelected : ''} ${isDropTarget && dropType === 'fusion' ? styles.fusionTarget : ''} ${isDropTarget && dropType === 'nesting' ? styles.dropTarget : ''} custom-drag-handle`}
+            className={`
+                ${baseClassName} 
+                ${selected ? styles.selected : ''} 
+                ${isMultiSelected ? styles.multiSelected : ''} 
+                ${isMediaEmpty ? styles.mediaPlaceholderBlock : ''}
+                ${isSingleMedia ? styles.mediaBlockNode : ''}
+                ${isStandardBlock ? styles.standardBlock : ''}
+                ${isDropTarget ? styles.dropTarget : ''}
+                ${isHoveredLinking ? styles.linkingHover : ''}
+                ${dropType === 'fusion' ? styles.fusionTarget : ''}
+                ${isDropTarget && dropType === 'nesting' ? styles.dropTarget : ''} 
+                custom-drag-handle
+            `}
             style={{
-                backgroundColor: ((isSingleMedia && !isMediaEmpty) || isSingleLink) ? 'transparent' : (displayColor || undefined),
+                backgroundColor: ((isSingleMedia && !isMediaEmpty) || isLinkCard) ? 'transparent' : (isSingleColor ? singleColorValue : undefined),
                 ...dynamicStyles
             }}
         >
@@ -363,19 +374,21 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     }}
                     title="Edit color"
                 >
-                    <div 
+                    {/* Solid raised chip, not glass — it must stay legible on top of
+                        an arbitrary user-picked colour in both themes. */}
+                    <div
                         style={{
-                            background: 'rgba(0, 0, 0, 0.4)',
-                            backdropFilter: 'blur(4px)',
-                            color: '#fff',
+                            background: 'var(--bg-rail)',
+                            border: '1px solid var(--line-strong)',
+                            color: 'var(--text-main)',
                             padding: '4px 10px',
-                            borderRadius: '6px',
+                            borderRadius: 'var(--r-control)',
                             fontSize: '0.75rem',
-                            fontFamily: 'monospace',
+                            fontFamily: 'var(--font-mono)',
                             alignSelf: 'center',
                             cursor: 'copy',
-                            transition: 'all 0.2s',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                            transition: 'opacity var(--transition-fast), transform var(--transition-fast), background var(--transition-fast)',
+                            boxShadow: 'var(--shadow-sm)',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '6px',
@@ -389,8 +402,8 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                             setCopiedHex(true);
                             setTimeout(() => setCopiedHex(false), 2000);
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.6)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.4)'}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-card)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-rail)'}
                     >
                         {copiedHex ? <Check size={12} /> : <Copy size={12} />}
                         {copiedHex ? 'Copied!' : (singleColorValue || '#1E944A').toUpperCase()}
@@ -433,11 +446,10 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                         bottom: 0,
                         zIndex: 9999,
                         cursor: 'pointer',
-                        backgroundColor: isHoveredLinking ? 'rgba(227, 162, 79, 0.15)' : 'rgba(227, 162, 79, 0.04)',
+                        backgroundColor: isHoveredLinking ? 'var(--secondary-dim)' : 'rgba(var(--secondary-rgb), 0.04)',
                         border: '2px solid transparent',
-                        borderColor: isHoveredLinking ? '#e3a24f' : 'transparent',
-                        boxShadow: isHoveredLinking ? '0 0 15px rgba(227, 162, 79, 0.4)' : 'none',
-                        transition: 'all 0.2s ease',
+                        borderColor: isHoveredLinking ? 'var(--secondary)' : 'transparent',
+                        transition: 'background-color var(--transition-fast), border-color var(--transition-fast)',
                         borderRadius: 'inherit',
                         boxSizing: 'border-box',
                     }}
@@ -496,7 +508,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 } : undefined}
             >
                 {isSkeleton ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-primary, #f95d2e)', fontWeight: 'bold', fontSize: '14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)', fontWeight: 'bold', fontSize: '14px' }}>
                         <Loader2 className="animate-spin" size={16} /> 
                         {Array.isArray(data.content) ? data.content[0]?.content : 'Generating...'}
                     </div>

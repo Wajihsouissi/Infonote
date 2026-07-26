@@ -235,11 +235,10 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
                 marginTop: '8px',
                 width: '320px',
                 padding: '16px',
-                borderRadius: '12px',
-                background: 'rgba(20, 22, 32, 0.95)',
-                backdropFilter: 'blur(16px)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                boxShadow: '0 16px 48px rgba(0,0,0,0.4)',
+                borderRadius: 'var(--menu-radius)',
+                background: 'var(--menu-bg)',
+                border: '1px solid var(--menu-border)',
+                boxShadow: 'var(--menu-shadow)',
                 zIndex: 9999,
                 display: 'flex',
                 flexDirection: 'column' as const,
@@ -248,13 +247,13 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
         >
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ff8a5f', fontSize: '13px', fontWeight: 600 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-ink)', fontSize: '13px', fontWeight: 600 }}>
                     <Sparkles size={14} />
                     <span>AI Generate</span>
                 </div>
                 <button
                     onClick={onClose}
-                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', padding: '2px' }}
+                    style={{ background: 'none', border: 'none', color: 'var(--btn-ghost-fg)', cursor: 'pointer', padding: '2px' }}
                 >
                     <X size={14} />
                 </button>
@@ -277,10 +276,10 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
                     width: '100%',
                     minHeight: '72px',
                     padding: '10px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    background: 'rgba(255,255,255,0.04)',
-                    color: '#fff',
+                    borderRadius: 'var(--input-radius)',
+                    border: '1px solid var(--input-border)',
+                    background: 'var(--input-bg)',
+                    color: 'var(--text-main)',
                     fontSize: '13px',
                     lineHeight: '1.5',
                     resize: 'vertical',
@@ -301,10 +300,10 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
                         justifyContent: 'center',
                         gap: '6px',
                         padding: '8px 12px',
-                        borderRadius: '8px',
+                        borderRadius: 'var(--btn-radius)',
                         border: 'none',
-                        background: isGeneratingText ? 'rgba(255, 138, 95,0.3)' : 'rgba(255, 138, 95,0.2)',
-                        color: '#ff8a5f',
+                        background: isGeneratingText ? 'var(--accent-wash)' : 'var(--accent-dim)',
+                        color: 'var(--accent-ink)',
                         fontSize: '12px',
                         fontWeight: 600,
                         cursor: isGenerating || !prompt.trim() ? 'not-allowed' : 'pointer',
@@ -327,10 +326,10 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
                             justifyContent: 'center',
                             gap: '6px',
                             padding: '8px 12px',
-                            borderRadius: '8px',
+                            borderRadius: 'var(--btn-radius)',
                             border: 'none',
-                            background: isGeneratingImage ? 'rgba(227, 162, 79,0.3)' : 'rgba(227, 162, 79,0.2)',
-                            color: '#e3a24f',
+                            background: isGeneratingImage ? 'rgba(var(--secondary-rgb), 0.22)' : 'var(--secondary-dim)',
+                            color: 'var(--secondary-ink)',
                             fontSize: '12px',
                             fontWeight: 600,
                             cursor: isGenerating || !prompt.trim() ? 'not-allowed' : 'pointer',
@@ -346,12 +345,12 @@ export const AIGeneratePanel: React.FC<AIGeneratePanelProps> = ({ nodeId, onClos
 
             {/* Status Messages */}
             {error && (
-                <div style={{ fontSize: '11px', color: '#f87171', padding: '6px 8px', borderRadius: '6px', background: 'rgba(248,113,113,0.1)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--danger)', padding: '6px 8px', borderRadius: 'var(--r-xs)', background: 'rgba(var(--danger-rgb), 0.1)' }}>
                     {error}
                 </div>
             )}
             {success && (
-                <div style={{ fontSize: '11px', color: '#4ade80', padding: '6px 8px', borderRadius: '6px', background: 'rgba(74,222,128,0.1)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--ok)', padding: '6px 8px', borderRadius: 'var(--r-xs)', background: 'rgba(var(--ok-rgb), 0.1)' }}>
                     {success}
                 </div>
             )}

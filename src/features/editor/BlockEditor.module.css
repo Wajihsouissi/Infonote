@@ -1,17 +1,15 @@
+/* The block stack. One vertical rhythm token drives the gap between every
+   sibling block, on the canvas and inside cards alike. */
 .editor {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--block-gap);
     width: 100%;
     min-width: 50px;
-    /* Ensure droppable width */
     flex-grow: 1;
-    /* Allow editor to take available space */
     min-height: 100%;
-    /* Ensure it treats full height */
-    /* Bottom padding for "click to type at bottom" feel */
-    cursor: default;
-    /* Indicate clickable but not text everywhere */
+    position: relative;
+    cursor: text;
 }
 
 /* Minimal mode (for chromeless blocks): No extra bottom padding */
@@ -34,16 +32,18 @@
 .minimal .todo,
 .minimal .listBullet,
 .minimal .listNumber {
-    line-height: 1.6;
-    font-size: 0.95rem;
+    line-height: var(--block-leading);
+    font-size: var(--block-font);
 }
 
 .sortableWrapper {
     position: relative;
     display: flex;
     align-items: flex-start;
-    gap: 6px;
+    gap: var(--block-gap);
     cursor: pointer;
+    /* nesting depth, published by BlockItem as --block-indent */
+    padding-left: var(--block-indent, 0px);
 }
 
 .minimal .sortableWrapper {
@@ -68,8 +68,8 @@
 }
 
 .sortableWrapper:has(.calloutWrapper) .dragHandle {
-    margin-top: 22px;
-    /* 2px margin + 16px padding + 4px text offset */
+    /* block margin + callout inset + text offset */
+    margin-top: calc(var(--block-pad-y) + var(--block-inset) + 4px);
 }
 
 .sortableWrapper:has(.mediaWrapper) .dragHandle {
@@ -83,28 +83,22 @@
 }
 
 .dragHandle {
-    /* Position in flow */
     position: relative;
     left: auto;
-    /* top: 0; Removed manual offset */
-
     flex-shrink: 0;
     width: 18px;
     height: 20px;
     margin-top: 4px;
-    /* Default for standard text blocks */
-
     cursor: grab;
-    color: var(--color-text-muted);
+    color: var(--block-handle);
     opacity: 0;
     transform: scale(0.85);
-    transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s;
-    border-radius: 4px;
-
+    transition: opacity var(--transition-fast), transform var(--transition-fast),
+        background var(--transition-fast), color var(--transition-fast);
+    border-radius: var(--r-xs);
     display: flex;
     align-items: center;
     justify-content: center;
-
     user-select: none;
     -webkit-user-select: none;
 }
@@ -126,9 +120,7 @@
 /* ENABLED HANDLES in minimal mode per user request */
 
 .sortableWrapper:hover {
-    /* background: rgba(255, 255, 255, 0.08); */
-    /* Dark contrast */
-    border-radius: 4px;
+    border-radius: var(--r-xs);
 }
 
 /* Remove hover background when handles are hidden (e.g. FusedNoteNode), show line instead */
@@ -139,8 +131,15 @@
 
 .dragHandle:hover {
     opacity: 1 !important;
-    background: rgba(255, 255, 255, 0.1) !important;
-    border-radius: 4px;
+    color: var(--block-handle-hover);
+    background: var(--block-hover) !important;
+    border-radius: var(--r-xs);
+}
+
+.dragHandle:focus-visible {
+    opacity: 1 !important;
+    outline: none;
+    box-shadow: var(--focus-ring);
 }
 
 /* Unselected text/heading/list blocks on canvas: 8px padding on both sides for breathing room */
@@ -151,9 +150,9 @@
 .minimal .sortableWrapper.hideHandle[data-block-type="bullet"] .blockContent,
 .minimal .sortableWrapper.hideHandle[data-block-type="numbered"] .blockContent,
 .minimal .sortableWrapper.hideHandle[data-block-type="todo"] .blockContent {
-    padding-left: 8px;
-    padding-right: 8px;
-    transition: padding 0.2s ease-out;
+    padding-left: var(--block-pad-x);
+    padding-right: var(--block-pad-x);
+    transition: padding var(--transition-fast);
 }
 
 /* Selected text/heading/list blocks on canvas: 0px left (handle takes space), 8px right */
@@ -165,8 +164,8 @@
 .minimal .sortableWrapper:not(.hideHandle)[data-block-type="numbered"] .blockContent,
 .minimal .sortableWrapper:not(.hideHandle)[data-block-type="todo"] .blockContent {
     padding-left: 0;
-    padding-right: 8px;
-    transition: padding 0.2s ease-out;
+    padding-right: var(--block-pad-x);
+    transition: padding var(--transition-fast);
 }
 
 /* (Moved to bottom) */
@@ -182,13 +181,11 @@
 .block {
     position: relative;
     outline: none;
-    border-radius: 4px;
+    border-radius: var(--r-xs);
     padding: 0;
-    /* Removed padding */
-    min-height: 24px;
-    /* Reduced min-height */
-    color: var(--color-text-main);
-    transition: background 0.2s ease;
+    min-height: var(--block-min-h);
+    color: var(--text-main);
+    transition: background var(--transition-fast);
     white-space: pre-wrap;
     /* Preserve whitespace */
     word-break: break-word;
@@ -210,10 +207,10 @@
 .block[data-is-empty="true"]:before {
     content: attr(data-placeholder);
     position: absolute;
-    color: var(--color-text-muted);
-    opacity: 0.35;
+    color: var(--text-faint);
+    opacity: 0.7;
     pointer-events: none;
-    transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity var(--transition-fast);
 }
 
 /* Smart Placeholder: Hide empty placeholders when not focused to keep layout clean */
@@ -223,78 +220,84 @@
 
 /* Standalone blocks on the canvas (inside minimal editors) should always show their empty placeholder, even when unfocused! */
 .minimal .block[data-is-empty="true"]:not(:focus):before {
-    opacity: 0.35 !important;
+    opacity: 0.7 !important;
 }
 
 /* Always show placeholder more prominently when the block is actively focused */
 .block[data-is-empty="true"]:focus:before {
-    opacity: 0.5 !important;
+    opacity: 1 !important;
 }
 
 .text {
-    font-size: 0.95rem;
-    line-height: 1.55;
-    /* Balanced line height for density and readability */
-    min-height: 24px;
-    padding: 2px 0;
+    font-size: var(--block-font);
+    line-height: var(--block-leading);
+    min-height: var(--block-min-h);
+    padding: var(--block-pad-y) 0;
     display: block;
     flex-grow: 1;
     /* Take up remaining space in flex containers like callout */
 }
 
-.heading1 {
-    font-size: 1.85rem;
-    font-weight: 700;
+/* Headings share one scale: 1.85 / 1.45 / 1.2rem on a tight 1.3 leading,
+   so a stack of them reads as one typographic ladder. */
+.heading1,
+.heading2,
+.heading3 {
     margin-top: 0;
     margin-bottom: 0;
     padding: 1px 0;
-    color: var(--color-text-main);
-    letter-spacing: -0.02em;
+    color: var(--node-title);
     line-height: 1.3;
+}
+
+.heading1 {
+    font-size: 1.85rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
 }
 
 .heading2 {
     font-size: 1.45rem;
     font-weight: 600;
-    margin-top: 0;
-    margin-bottom: 0;
-    padding: 1px 0;
-    color: var(--color-text-main);
-    line-height: 1.3;
+    letter-spacing: -0.015em;
 }
 
 .heading3 {
     font-size: 1.2rem;
     font-weight: 600;
-    margin-top: 0;
-    margin-bottom: 0;
-    padding: 1px 0;
-    color: var(--color-text-main);
-    line-height: 1.3;
+    letter-spacing: -0.01em;
 }
 
 .todoWrapper,
 .quoteWrapper {
     display: flex;
-    gap: 8px;
+    gap: var(--block-marker-gap);
     align-items: flex-start;
 }
 
 .todoCheckbox {
     margin-top: 7px;
     cursor: pointer;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+}
+
+.todoCheckbox:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-radius: var(--r-xs);
 }
 
 .todo {
     flex-grow: 1;
-    font-size: 0.95rem;
-    line-height: 1.5;
-    transition: color 0.2s, opacity 0.2s;
+    font-size: var(--block-font);
+    line-height: var(--block-leading);
+    transition: color var(--transition-fast), opacity var(--transition-fast);
 }
 
 .todoChecked {
     text-decoration: line-through;
-    opacity: 0.65;
+    color: var(--text-faint);
 }
 
 .todoDateWrapper {
@@ -302,7 +305,7 @@
     align-items: center;
     gap: 4px;
     margin-left: auto;
-    color: var(--color-text-muted);
+    color: var(--text-soft);
     font-size: 0.75rem;
     position: relative;
     user-select: none;
@@ -325,7 +328,7 @@
 
 .todoWrapper:hover .todoDateIcon:hover {
     opacity: 1;
-    color: var(--color-primary);
+    color: var(--accent-ink);
     transform: scale(1.1);
 }
 
@@ -340,25 +343,31 @@
 }
 
 .todoDateDisplay {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--block-hover);
+    color: var(--text-faint);
+    font-family: var(--font-mono);
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--r-xs);
     cursor: pointer;
-    transition: background 0.2s;
+    transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .todoDateDisplay:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--active-wash);
+    color: var(--text-soft);
 }
 
 .quoteWrapper {
-    border-left: 3px solid var(--color-primary);
-    padding: 2px 0 2px 16px;
+    border-left: var(--block-rail-w) solid var(--block-rail);
+    padding: var(--block-pad-y) 0 var(--block-pad-y) var(--block-inset);
     margin: 0;
     font-style: italic;
-    color: var(--color-text-muted);
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 0 4px 4px 0;
+    color: var(--text-soft);
+    background: var(--block-hover);
+    /* Full radius (not `0 r r 0`) so the rail curves into the top and bottom
+       edges exactly like the callout's — square left corners made it read as a
+       different component. */
+    border-radius: var(--block-radius-lg);
 }
 
 .quote {
@@ -368,15 +377,12 @@
 
 .mediaWrapper {
     width: 100%;
-    margin: 2px 0;
+    margin: var(--block-pad-y) 0;
     position: relative;
     padding: 0;
-    /* Removed padding */
     background: transparent !important;
-    /* Removed background */
-    border-radius: 8px;
+    border-radius: var(--block-radius-lg);
     border: none;
-    /* Removed border */
 }
 
 .mediaWrapper:hover {
@@ -388,74 +394,192 @@
 }
 
 .mediaImage {
-    transition: outline 0.15s ease;
-}
-
-.mediaImage {
     width: 100%;
     max-width: 100%;
     height: auto;
-    border-radius: 8px;
+    border-radius: var(--block-radius-lg);
     display: block;
     object-fit: contain;
     background: transparent !important;
+    transition: outline var(--transition-fast);
 }
 
 
 .mediaPlaceholder {
     width: 100%;
-    padding: 20px;
-    border: 1px dashed var(--color-border);
-    border-radius: 12px;
-    background: rgba(0, 0, 0, 0.2);
+    padding: var(--block-inset);
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--block-radius-lg);
+    background: var(--block-well);
 }
 
 .mediaInput {
     width: 100%;
     background: transparent;
     border: none;
-    color: var(--color-text-main);
+    color: var(--text-main);
     font-family: inherit;
     outline: none;
     text-align: center;
 }
 
-/* Code Block */
+/* Code Block — a flat sunken well with a hairline-separated header strip.
+   The wrapper owns the box; the header and the code area sit seamlessly
+   inside it, so there is only ever one border and one radius. */
 .codeBlockWrapper {
     position: relative;
     width: 100%;
     margin: 0;
+    background: var(--block-well);
+    border: 1px solid var(--block-well-line);
+    border-radius: var(--block-radius-lg);
+    overflow: hidden;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.codeBlockWrapper:focus-within {
+    border-color: var(--accent);
+    box-shadow: var(--focus-ring);
+}
+
+.codeHeader {
+    display: flex;
+    align-items: center;
+    gap: var(--block-marker-gap);
+    padding: 5px var(--block-marker-gap) 5px var(--block-inset);
+    background: var(--hover-wash);
+    border-bottom: 1px solid var(--block-well-line);
+    user-select: none;
+}
+
+/* Language: a bare mono label that only reveals its control affordance on hover. */
+.codeLangSelect,
+.codeLangStatic {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--r-xs);
+    padding: 2px 4px;
+    max-width: 8rem;
+}
+
+.codeLangSelect {
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
+}
+
+.codeHeader:hover .codeLangSelect {
+    color: var(--text-soft);
+    border-color: var(--line);
+}
+
+.codeLangSelect:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.codeLangSelect:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.codeLangSelect option {
+    background: var(--bg-rail);
+    color: var(--text-main);
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.codeMeta {
+    flex: 1;
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--text-faint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.codeCopyBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    padding: 3px var(--block-marker-gap);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--r-xs);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), background var(--transition-fast),
+        color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.codeBlockWrapper:hover .codeCopyBtn,
+.codeCopyBtn:focus-visible,
+.codeCopyBtn[data-copied="true"] {
+    opacity: 1;
+}
+
+.codeCopyBtn svg {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+}
+
+.codeCopyBtn:hover:not(:disabled) {
+    background: var(--hover-wash);
+    border-color: var(--line);
+    color: var(--text-main);
+}
+
+.codeCopyBtn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.codeCopyBtn[data-copied="true"] {
+    color: var(--ok);
+    border-color: transparent;
+}
+
+.codeCopyBtn:disabled {
+    opacity: 0;
+    cursor: default;
 }
 
 .codeBlock {
-    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', monospace;
+    font-family: var(--font-mono);
     font-size: 0.85rem;
     line-height: 1.6;
-    background: linear-gradient(145deg, rgba(24, 24, 27, 0.95) 0%, rgba(15, 15, 17, 0.95) 100%);
-    color: #f87171;
-    padding: 12px 16px;
-    border-radius: 8px;
+    background: transparent;
+    color: var(--text-main);
+    padding: var(--block-inset) calc(var(--block-inset) + 4px);
+    border-radius: 0;
     white-space: pre-wrap;
     overflow-wrap: break-word;
     word-break: break-word;
     overflow-x: hidden;
     outline: none;
     min-height: 28px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 12px rgba(0, 0, 0, 0.2);
-    backdrop-filter: blur(8px);
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.codeBlock:focus {
-    border-color: rgba(255, 255, 255, 0.15);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 24px rgba(0, 0, 0, 0.3);
+    border: none;
 }
 
 /* Lists */
 .listWrapper {
     display: flex;
-    gap: 8px;
+    gap: var(--block-marker-gap);
     align-items: flex-start;
 }
 
@@ -463,59 +587,91 @@
     margin-top: 4px;
     font-size: 1.2rem;
     line-height: 1;
-    color: var(--color-text-main);
+    color: var(--block-marker);
     user-select: none;
+    flex-shrink: 0;
 }
 
 .listNumber {
     margin-top: 3px;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 600;
-    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--block-marker);
     min-width: 20px;
     user-select: none;
+    flex-shrink: 0;
 }
 
 .toggleWrapper {
     display: flex;
-    gap: 6px;
-    align-items: flex-start;
+    align-items: center;
+    /* chevron sits one marker-gap from its label, like every other block marker */
+    gap: var(--block-marker-gap);
+    position: relative;
+    width: 100%;
 }
 
+/* Toggle disclosure control.
+   This used to be a 0x0 CSS border-triangle that ALSO contained a 24px
+   <ChevronRight> SVG — so it painted two glyphs, and the oversized SVG spilled
+   out of its zero-size parent. It is now a single real icon button: one glyph,
+   pointing right when closed and rotating down when open (the standard
+   disclosure convention, so the direction reads as "where it will open"). */
 .toggleTriangle {
-    margin-top: 9px;
-    width: 0;
-    height: 0;
-    border-top: 5px solid transparent;
-    border-bottom: 5px solid transparent;
-    border-left: 8px solid var(--color-text-muted);
-    cursor: pointer;
-    transition: transform 0.2s ease, border-left-color 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--block-marker);
+    cursor: pointer;
+    transition: transform var(--transition-fast), color var(--transition-fast),
+        background var(--transition-fast);
+    transform: rotate(0deg);
+}
+
+.toggleTriangle svg {
+    width: 16px;
+    height: 16px;
+    display: block;
 }
 
 .toggleTriangle:hover {
-    border-left-color: var(--color-text-main);
+    color: var(--text-main);
+    background: var(--block-hover);
 }
 
+.toggleTriangle:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* open → chevron points down at the content it revealed */
 .toggleTriangle.expanded {
     transform: rotate(90deg);
 }
 
+/* closed but holding content — accent hints there is something inside */
 .toggleTriangle.hasContent {
-    border-left-color: var(--color-primary);
-    filter: drop-shadow(0 0 2px var(--color-primary-glow));
+    color: var(--accent-ink);
 }
 
 /* Callout */
 .calloutWrapper {
     display: flex;
-    gap: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 16px;
-    border-radius: 12px;
-    border-left: 4px solid var(--color-primary);
-    margin: 2px 0;
+    gap: var(--block-inset);
+    background: var(--block-hover);
+    padding: var(--block-inset);
+    border-radius: var(--block-radius-lg);
+    border-left: var(--block-rail-w) solid var(--block-rail);
+    margin: var(--block-pad-y) 0;
     box-shadow: none;
 }
 
@@ -528,9 +684,9 @@
     /* Adjust alignment to sit nicely */
     flex-shrink: 0;
     user-select: none;
-    color: var(--color-text-main);
-    border-radius: 4px;
-    transition: background-color 0.2s ease, border-color 0.2s ease, 0.2s ease;
+    color: var(--text-main);
+    border-radius: var(--r-xs);
+    transition: background-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .calloutIconWrapper.clickable {
@@ -538,13 +694,13 @@
 }
 
 .calloutIconWrapper.clickable:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--active-wash);
     transform: scale(1.05);
 }
 
 .calloutIconWrapper.clickable:active {
     transform: scale(0.95);
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--active-wash);
 }
 
 /* ============================ Table Block ============================ */
@@ -558,7 +714,7 @@
     width: 100%;
     overflow-x: auto;
     overflow-y: visible;
-    border-radius: 10px;
+    border-radius: var(--block-radius-lg);
     /* Thin, unobtrusive horizontal scrollbar for wide tables */
     scrollbar-width: thin;
 }
@@ -571,10 +727,10 @@
 .tableMain {
     display: flex;
     align-items: stretch;
-    border: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.1)));
-    border-radius: 10px;
+    border: 1px solid var(--table-border);
+    border-radius: var(--block-radius-lg);
     overflow: hidden;
-    background: var(--table-bg, var(--note-area-bg, var(--color-bg-card, rgba(255, 255, 255, 0.03))));
+    background: var(--table-bg);
 }
 
 .table {
@@ -587,21 +743,21 @@
 .tableHeader {
     position: relative;
     vertical-align: top;
-    background: var(--table-header-bg, rgba(255, 255, 255, 0.05));
-    border-bottom: 1.5px solid var(--table-border-strong, var(--glass-border, rgba(255, 255, 255, 0.14)));
+    background: var(--table-header-bg);
+    border-bottom: 1.5px solid var(--table-border-strong);
     padding: 0;
 }
 
 .tableData {
     position: relative;
     vertical-align: top;
-    border-bottom: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.06)));
+    border-bottom: 1px solid var(--table-border);
     padding: 0;
 }
 
 .tableData:not(:last-child),
 .tableHeader:not(:last-child) {
-    border-right: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.06)));
+    border-right: 1px solid var(--table-border);
 }
 
 .table tr:last-child .tableData {
@@ -609,26 +765,26 @@
 }
 
 .table tbody tr:hover .tableData {
-    background: var(--table-row-hover-bg, rgba(255, 255, 255, 0.025));
+    background: var(--table-row-hover);
 }
 
 /* Tint the column/row whose options menu is open */
 .colSelected,
 .table tbody tr.rowSelected .tableData {
-    background: var(--table-selected-bg, rgba(139, 92, 246, 0.1)) !important;
+    background: var(--table-selected) !important;
 }
 
 .tableCell {
     display: block;
     width: 100%;
-    min-height: 38px;
-    padding: 9px 12px;
+    min-height: var(--table-cell-min-h);
+    padding: 9px var(--block-inset);
     background: transparent;
     border: none;
     outline: none;
     resize: none;
     overflow: hidden;
-    color: var(--color-text-main);
+    color: var(--text-main);
     font-family: inherit;
     font-size: 0.9rem;
     line-height: 1.5;
@@ -638,20 +794,19 @@
 }
 
 .tableCell::placeholder {
-    color: var(--color-text-muted);
-    opacity: 0.5;
+    color: var(--text-faint);
 }
 
 .tableCell:focus {
-    background: var(--table-cell-focus-bg, rgba(139, 92, 246, 0.06));
-    box-shadow: inset 0 0 0 1.5px var(--table-focus-ring, var(--color-primary, rgba(139, 92, 246, 0.5)));
-    border-radius: 2px;
+    background: var(--table-cell-focus);
+    box-shadow: inset 0 0 0 1.5px var(--accent);
+    border-radius: var(--r-xs);
 }
 
 .tableHeader .tableCell {
     font-weight: 600;
     font-size: 0.85rem;
-    color: var(--color-text-main);
+    color: var(--text-main);
 }
 
 /* Reserve a little room in the first column for the row grip */
@@ -667,13 +822,14 @@
     align-items: center;
     justify-content: center;
     padding: 0;
-    color: var(--color-text-muted);
-    background: var(--table-header-bg, rgba(255, 255, 255, 0.08));
-    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
-    border-radius: 5px;
+    color: var(--text-soft);
+    background: var(--table-header-bg);
+    border: 1px solid var(--table-border-strong);
+    border-radius: var(--r-xs);
     cursor: pointer;
     opacity: 0;
-    transition: opacity 0.12s, color 0.12s, background 0.12s, border-color 0.12s;
+    transition: opacity var(--transition-fast), color var(--transition-fast),
+        background var(--transition-fast), border-color var(--transition-fast);
     z-index: 6;
 }
 
@@ -704,9 +860,9 @@
 .colGrip:hover,
 .rowGrip:hover,
 .gripActive {
-    color: var(--color-text-main);
-    background: var(--table-btn-hover-bg, rgba(139, 92, 246, 0.25));
-    border-color: var(--table-focus-ring, var(--color-primary, rgba(139, 92, 246, 0.5)));
+    color: var(--accent-ink);
+    background: var(--accent-dim);
+    border-color: var(--accent);
 }
 
 /* ---- Add row / column affordances ---- */
@@ -715,12 +871,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--color-text-muted);
+    color: var(--text-faint);
     background: transparent;
     border: none;
-    border-left: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.06)));
+    border-left: 1px solid var(--table-border);
     cursor: pointer;
-    transition: background 0.12s, color 0.12s;
+    transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .addRowBtn {
@@ -730,19 +886,20 @@
     width: 100%;
     height: 22px;
     margin-top: 4px;
-    color: var(--color-text-muted);
-    background: var(--table-controls-bg, rgba(255, 255, 255, 0.02));
-    border: 1px solid var(--table-border, var(--glass-border, rgba(255, 255, 255, 0.06)));
-    border-radius: 8px;
+    color: var(--text-faint);
+    background: transparent;
+    border: 1px solid var(--table-border);
+    border-radius: var(--block-radius);
     cursor: pointer;
-    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    transition: background var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
 }
 
 .addColBtn:hover,
 .addRowBtn:hover {
-    color: var(--color-text-main);
-    background: var(--table-btn-hover-bg, rgba(139, 92, 246, 0.12));
-    border-color: var(--table-focus-ring, var(--color-primary, rgba(139, 92, 246, 0.35)));
+    color: var(--accent-ink);
+    background: var(--accent-dim);
+    border-color: var(--accent);
 }
 
 /* ---- Row / column options menu (popover) ---- */
@@ -750,13 +907,11 @@
     position: absolute;
     z-index: 50;
     min-width: 184px;
-    padding: 5px;
-    background: var(--slash-bg, var(--glass-bg, rgba(20, 22, 30, 0.95)));
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
-    border-radius: 10px;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    padding: var(--menu-pad);
+    background: var(--menu-bg);
+    border: 1px solid var(--menu-border);
+    border-radius: var(--menu-radius);
+    box-shadow: var(--menu-shadow);
 }
 
 .menuItem {
@@ -768,16 +923,16 @@
     font-size: 0.82rem;
     font-weight: 500;
     text-align: left;
-    color: var(--color-text-main);
+    color: var(--text-main);
     background: transparent;
     border: none;
-    border-radius: 6px;
+    border-radius: var(--menu-item-radius);
     cursor: pointer;
-    transition: background 0.12s, color 0.12s;
+    transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .menuItem:hover:not(:disabled) {
-    background: var(--table-btn-hover-bg, rgba(139, 92, 246, 0.16));
+    background: var(--menu-item-hover);
 }
 
 .menuItem:disabled {
@@ -786,14 +941,14 @@
 }
 
 .menuDanger:hover:not(:disabled) {
-    background: rgba(239, 68, 68, 0.15);
-    color: #f87171;
+    background: rgba(var(--danger-rgb), 0.14);
+    color: var(--danger);
 }
 
 .menuDivider {
     height: 1px;
     margin: 5px 4px;
-    background: var(--glass-border, rgba(255, 255, 255, 0.08));
+    background: var(--menu-divider);
 }
 
 .menuAlignRow {
@@ -808,23 +963,25 @@
     align-items: center;
     justify-content: center;
     height: 30px;
-    color: var(--color-text-muted);
+    color: var(--text-soft);
     background: transparent;
-    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
-    border-radius: 6px;
+    border: 1px solid var(--line);
+    border-radius: var(--btn-radius);
     cursor: pointer;
-    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    transition: background var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
 }
 
 .alignBtn:hover {
-    color: var(--color-text-main);
-    background: var(--table-btn-hover-bg, rgba(255, 255, 255, 0.06));
+    color: var(--text-main);
+    background: var(--hover-wash);
+    border-color: var(--line-strong);
 }
 
 .alignActive {
-    color: var(--color-text-main);
-    background: var(--table-btn-hover-bg, rgba(139, 92, 246, 0.22));
-    border-color: var(--table-focus-ring, var(--color-primary, rgba(139, 92, 246, 0.5)));
+    color: var(--accent-ink);
+    background: var(--accent-dim);
+    border-color: var(--accent);
 }
 
 /* ---- Column Resize Handle ---- */
@@ -847,8 +1004,8 @@
     top: 0;
     bottom: 0;
     width: 2px;
-    background: var(--color-primary, rgba(139, 92, 246, 0.85));
-    border-radius: 2px;
+    background: var(--accent);
+    border-radius: var(--radius-xs);
 }
 
 .tableHeader:hover .colResizeHandle,
@@ -857,11 +1014,12 @@
     opacity: 1;
 }
 
-/* Divider */
+/* Divider — a hairline rule, the system's primary separator. */
 .divider {
     height: 1px;
-    background: var(--glass-border);
-    margin: 16px 0;
+    background: var(--line);
+    border: none;
+    margin: var(--block-inset) 0;
     width: 100%;
 }
 
@@ -869,15 +1027,13 @@
 .slashMenu {
     position: fixed;
     /* Must be fixed to float over everything */
-    background: var(--slash-bg, var(--glass-bg));
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--glass-border);
-    border-radius: 14px;
-    padding: 8px;
+    background: var(--menu-bg);
+    border: 1px solid var(--menu-border);
+    border-radius: var(--menu-radius);
+    padding: var(--menu-pad);
     width: 270px;
     max-height: 380px;
-    box-shadow: none;
+    box-shadow: var(--menu-shadow);
     z-index: 10000;
     display: flex;
     flex-direction: column;
@@ -895,7 +1051,7 @@
     gap: 2px;
     padding-right: 2px;
     scrollbar-width: thin;
-    scrollbar-color: var(--slash-scrollbar, rgba(255, 255, 255, 0.1)) transparent;
+    scrollbar-color: var(--line-strong) transparent;
 }
 
 /* Persistent Search Bar in Slash Menu */
@@ -905,13 +1061,13 @@
     align-items: center;
     padding: 2px 4px 6px;
     margin-bottom: 4px;
-    border-bottom: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--menu-divider);
 }
 
 .slashSearchIcon {
     position: absolute;
     left: 12px;
-    color: var(--color-text-muted);
+    color: var(--text-soft);
     pointer-events: none;
     opacity: 0.65;
 }
@@ -919,38 +1075,42 @@
 .slashMenuInput {
     width: 100%;
     padding: 6px 10px 6px 26px;
-    background: var(--slash-input-bg, rgba(255, 255, 255, 0.03));
-    border: 1px solid var(--glass-border);
-    border-radius: 8px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--input-radius);
     outline: none;
-    color: var(--color-text-main);
+    color: var(--text-main);
     font-size: 0.8rem;
     font-family: inherit;
-    transition: border-color 0.15s ease, background-color 0.15s ease, 0.15s ease;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.slashMenuInput::placeholder {
+    color: var(--text-faint);
 }
 
 .slashMenuInput:focus {
-    background: var(--slash-input-bg-focus, rgba(255, 255, 255, 0.05));
-    border-color: var(--selected-accent, var(--color-primary));
-    box-shadow: none;
+    border-color: var(--input-border-focus);
+    box-shadow: var(--focus-ring);
 }
 
 .slashMenuEmpty {
     padding: 16px;
     font-size: 0.8rem;
-    color: var(--color-text-muted);
+    color: var(--text-soft);
     text-align: center;
     font-style: italic;
 }
 
+/* Mono uppercase overline — the system's section label. */
 .menuHeader {
     padding: 4px 10px 6px;
-    font-size: 0.7rem;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-text-muted);
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
     font-weight: 600;
-    opacity: 0.8;
 }
 
 .slashMenuItem {
@@ -958,24 +1118,24 @@
     align-items: center;
     gap: 12px;
     padding: 6px 10px;
-    border-radius: 8px;
+    border-radius: var(--menu-item-radius);
     cursor: pointer;
     font-size: 0.85rem;
-    color: var(--color-text-main);
-    transition: background-color 0.15s ease, transform 0.15s ease, color 0.15s ease, border-left-color 0.15s ease;
-    border-left: 3px solid transparent;
+    color: var(--text-main);
+    transition: background-color var(--transition-fast), transform var(--transition-fast),
+        color var(--transition-fast), border-left-color var(--transition-fast);
+    border-left: var(--block-rail-w) solid transparent;
 }
 
 .slashMenuItem:hover {
-    background: var(--slash-item-hover-bg, rgba(255, 255, 255, 0.04));
+    background: var(--menu-item-hover);
     transform: translateX(2px);
 }
 
 .slashMenuItem.selected {
-    background: var(--selected-bg, rgba(139, 92, 246, 0.12));
-    /* Beautiful tinted light purple */
-    border-left-color: var(--selected-accent, var(--color-primary));
-    color: var(--color-text-main);
+    background: var(--accent-dim);
+    border-left-color: var(--accent);
+    color: var(--text-main);
     transform: translateX(4px);
 }
 
@@ -985,41 +1145,43 @@
     justify-content: center;
     width: 24px;
     height: 24px;
-    border-radius: 6px;
-    background: var(--slash-icon-bg, rgba(255, 255, 255, 0.05));
-    border: 1px solid var(--slash-icon-border, rgba(255, 255, 255, 0.05));
-    color: var(--color-text-muted);
-    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    border-radius: var(--r-control);
+    background: var(--hover-wash);
+    border: 1px solid var(--line);
+    color: var(--text-soft);
+    transition: background-color var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
 }
 
 .slashMenuItem:hover .slashIcon {
-    background: var(--slash-icon-hover-bg, rgba(255, 255, 255, 0.08));
-    color: var(--color-text-main);
-    border-color: var(--slash-icon-hover-border, rgba(255, 255, 255, 0.1));
+    background: var(--active-wash);
+    color: var(--text-main);
+    border-color: var(--line-strong);
 }
 
 .slashMenuItem.selected .slashIcon {
-    background: var(--selected-icon-bg, rgba(139, 92, 246, 0.2));
-    color: var(--selected-accent, var(--color-primary));
-    border-color: var(--selected-icon-border, rgba(139, 92, 246, 0.35));
+    background: var(--accent-wash);
+    color: var(--accent-ink);
+    border-color: rgba(var(--accent-rgb), 0.35);
 }
 
 .dangerItem {
-    color: #ff4d4f;
+    color: var(--danger);
 }
 
 .dangerItem:hover {
-    background: rgba(255, 77, 79, 0.1);
-    color: #ff4d4f;
+    background: rgba(var(--danger-rgb), 0.12);
+    color: var(--danger);
 }
 
 .dangerItem:hover .slashIcon {
-    background: #ff4d4f;
-    color: white;
+    background: var(--danger);
+    border-color: var(--danger);
+    color: var(--on-accent);
 }
 
 .menuArrow {
-    color: var(--color-text-muted);
+    color: var(--menu-chevron);
     font-size: 1.2rem;
     line-height: 1;
 }
@@ -1027,18 +1189,15 @@
 /* Floating Toolbar */
 .floatingToolbar {
     position: fixed;
-    background: var(--glass-bg);
-    backdrop-filter: blur(var(--backdrop-blur));
-    -webkit-backdrop-filter: blur(var(--backdrop-blur));
-    border: 1px solid var(--glass-border);
-    box-shadow: none;
-    border-radius: 6px;
+    background: var(--toolbar-bg);
+    border: 1px solid var(--toolbar-border);
+    box-shadow: var(--toolbar-shadow);
+    border-radius: var(--radius-pill);
     padding: 4px;
     display: flex;
     align-items: center;
     gap: 2px;
     z-index: 10001;
-    /* animation: fadeIn 0.15s ease-out;  <-- Replaced by Motion */
 }
 
 .toolbarBtn {
@@ -1047,43 +1206,49 @@
     justify-content: center;
     width: 28px;
     height: 28px;
-    border-radius: 4px;
+    border-radius: var(--r-control);
     border: none;
     background: transparent;
-    color: var(--color-text-muted);
+    color: var(--btn-ghost-fg);
     cursor: pointer;
-    transition: background 0.1s;
+    transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .toolbarBtn:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--toolbar-btn-hover);
+    color: var(--text-main);
+}
+
+.toolbarBtn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
 }
 
 .toolbarBtn.active,
 .toolbarBtnActive {
-    background: var(--color-primary, #8b5cf6);
-    color: #fff;
+    background: var(--accent);
+    color: var(--on-accent);
 }
 
 .toolbarBtnActive:hover {
-    background: var(--color-primary, #8b5cf6);
-    filter: brightness(1.1);
+    background: var(--accent-hover);
+    color: var(--on-accent);
 }
 
 .toolbarDivider {
     width: 1px;
     height: 16px;
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--line-strong);
     margin: 0 4px;
 }
 
 /* Color Tab Switcher */
 .tabContainer {
     display: flex;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--bg-inset);
     padding: 4px;
-    border-radius: 8px;
-    margin: 4px 12px 12px;
+    border-radius: var(--r-control);
+    margin: 4px var(--block-inset) var(--block-inset);
     gap: 4px;
 }
 
@@ -1091,68 +1256,47 @@
     flex: 1;
     border: none;
     background: transparent;
-    color: var(--color-text-muted);
+    color: var(--text-soft);
     padding: 6px 4px;
     font-size: 0.85rem;
     font-weight: 500;
     cursor: pointer;
-    border-radius: 6px;
-    transition: background-color 0.2s ease, border-color 0.2s ease, 0.2s ease;
+    border-radius: var(--r-xs);
+    transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .tabButton:hover {
-    color: var(--color-text-main);
-    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+    background: var(--hover-wash);
 }
 
 .tabButton.active {
-    background: rgba(255, 255, 255, 0.15);
-    color: white;
+    background: var(--accent-dim);
+    color: var(--accent-ink);
     box-shadow: none;
 }
-
-.editor {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    width: 100%;
-    min-width: 50px;
-    /* Ensure droppable width */
-    flex-grow: 1;
-    /* Allow editor to take available space */
-    min-height: 100%;
-    /* Ensure it treats full height */
-    /* Bottom padding for "click to type at bottom" feel */
-    cursor: text;
-    /* Indicate clickable */
-    position: relative;
-    /* Context for selection rect */
-}
-
-/* ... */
 
 /* Selection Box */
 .selectionRect {
     position: absolute;
     /* Relative to .editor */
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--accent);
+    background: var(--accent-dim);
     z-index: 9999;
     pointer-events: none;
-    border-radius: 4px;
+    border-radius: var(--r-xs);
 }
 
-/* Multi-select State */
+/* Multi-select State — a faint accent wash, no border shift (keeps layout still) */
 .sortableWrapper.selected {
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(91, 78, 103, 0.1);
-    border-radius: 6px;
-    transition: all 150ms ease;
+    background: var(--block-selected);
+    box-shadow: var(--block-selected-ring);
+    border-radius: var(--block-radius);
+    transition: background var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .sortableWrapper.selected:focus-within {
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    box-shadow: none;
+    box-shadow: var(--block-selected-ring);
 }
 
 
@@ -1164,12 +1308,6 @@
 .editor:not(:focus-within) .selectionCounter {
     display: none;
 }
-
-.slashMenuItem[style*="background: white"] {
-    background-color: var(--color-bg-elevated-hover) !important;
-    color: var(--color-text-main) !important;
-}
-
 
 /* Strict Overrides for Media Blocks placed at the end */
 .sortableWrapper[data-block-type="image"],
@@ -1209,9 +1347,9 @@
 .sortableWrapper[data-block-type="image"].selected .resizeWrapper,
 .sortableWrapper[data-block-type="video"].selected .resizeWrapper,
 .sortableWrapper[data-block-type="file"].selected .fileWrapper {
-    outline: 2px solid var(--color-primary);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
-    border-radius: 8px;
+    border-radius: var(--block-radius-lg);
 }
 
 .sortableWrapper[data-block-type="image"]:active .blockContent,
@@ -1226,32 +1364,28 @@
 .fileWrapper {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 8px 8px;
+    gap: var(--block-inset);
+    padding: var(--block-pad-x);
     background: transparent;
     border: none;
-    border-radius: 0;
+    border-radius: var(--block-radius-lg);
     margin: 0;
     width: 100%;
     height: 100%;
     cursor: pointer;
-    transition: none;
+    transition: background var(--transition-fast);
     user-select: none;
     position: relative;
     max-width: none;
 }
 
 .fileWrapper:hover {
-    background: transparent;
-    border-color: transparent;
-    transform: none;
-    box-shadow: none;
-    border-radius: 8px;
+    background: var(--block-hover);
 }
 
 .fileLink {
     text-decoration: none;
-    color: var(--color-text-main);
+    color: var(--text-main);
     font-weight: 600;
     font-size: 1rem;
     white-space: nowrap;
@@ -1272,8 +1406,9 @@
     align-items: center;
     justify-content: center;
     padding: 10px;
-    background: rgba(96, 165, 250, 0.15);
-    border-radius: 8px;
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+    border-radius: var(--block-radius);
     flex-shrink: 0;
 }
 
@@ -1288,11 +1423,9 @@
     min-width: 0;
 }
 
-/* Drag & Drop Visuals */
+/* Drag & Drop Visuals — the source block recedes, it doesn't distort. */
 .dragging {
     opacity: 0.4;
-    filter: grayscale(0.5);
-    transform: scale(0.98);
 }
 
 .dropTargetTop,
@@ -1307,8 +1440,9 @@
     top: -2px;
     left: 0;
     right: 0;
-    height: 4px;
-    background: var(--color-primary);
+    height: 2px;
+    border-radius: var(--radius-pill);
+    background: var(--block-drop-line);
     z-index: 100;
     pointer-events: none;
 }
@@ -1325,8 +1459,9 @@
     bottom: -2px;
     left: 0;
     right: 0;
-    height: 4px;
-    background: var(--color-primary);
+    height: 2px;
+    border-radius: var(--radius-pill);
+    background: var(--block-drop-line);
     z-index: 100;
     pointer-events: none;
 }
@@ -1338,11 +1473,11 @@
     position: relative;
     background: transparent;
     overflow: visible;
-    border-radius: 8px;
+    border-radius: var(--block-radius-lg);
 }
 
 .resizeWrapper:hover {
-    outline: 2px solid rgba(167, 139, 250, 0.5);
+    outline: 2px solid var(--accent-ink);
     outline-offset: 2px;
 }
 
@@ -1356,35 +1491,33 @@
 /* Color Block */
 .colorBlockWrapper {
     position: relative;
-    border-radius: 20px;
-    margin: 8px 0;
+    border-radius: var(--block-radius-lg);
+    margin: var(--block-pad-y) 0;
     cursor: pointer;
-    transition: transform 0.15s ease, 0.15s ease;
+    transition: transform var(--transition-fast);
     flex-shrink: 0;
 }
 
 .colorBlockWrapper:hover {
-    transform: scale(1.05);
-    box-shadow: none;
+    transform: translateY(-1px);
 }
 
 .colorBlockCard {
     width: 100%;
     height: 100%;
-    border-radius: 14px;
+    border-radius: var(--block-radius-lg);
     display: flex;
     flex-direction: column;
     position: relative;
     overflow: hidden;
-    background: #f7f7f7;
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: var(--bg-card);
+    border: 1px solid var(--line);
     box-shadow: none;
-    transition: transform 0.2s ease, 0.2s ease;
+    transition: transform var(--transition-fast), border-color var(--transition-fast);
 }
 
 .colorBlockCard:hover {
-    transform: translateY(-2px);
-    box-shadow: none;
+    border-color: var(--line-strong);
 }
 
 .colorSection {
@@ -1395,26 +1528,26 @@
 }
 
 .infoSection {
-    padding: 16px 18px 18px;
-    background: #f7f7f7;
+    padding: var(--block-inset);
+    background: var(--bg-card);
     display: flex;
     flex-direction: column;
     gap: 10px;
     flex-shrink: 0;
-    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    border-top: 1px solid var(--line);
 }
 
 .colorInfoTop {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: var(--block-inset);
 }
 
 .colorBlockName {
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-sans);
     font-size: 1.1rem;
-    color: #141414;
+    color: var(--text-main);
     font-weight: 600;
     letter-spacing: 0.01em;
 }
@@ -1422,7 +1555,7 @@
 .colorCodeGroup {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
+    gap: var(--block-marker-gap);
 }
 
 .colorCodeButton {
@@ -1430,25 +1563,31 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 6px;
-    padding: 8px 10px;
-    background: var(--color-bg-surface, rgba(255, 255, 255, 0.05));
-    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
-    border-radius: 10px;
+    padding: var(--block-marker-gap) 10px;
+    background: var(--bg-inset);
+    border: 1px solid var(--line);
+    border-radius: var(--block-radius);
     cursor: pointer;
-    transition: transform 0.15s ease, border-color 0.15s ease;
+    transition: transform var(--transition-fast), border-color var(--transition-fast),
+        background var(--transition-fast);
 }
 
 .colorCodeButton:hover {
-    transform: translateY(-1px);
-    box-shadow: none;
-    border-color: var(--color-text-muted, rgba(255, 255, 255, 0.2));
+    background: var(--hover-wash);
+    border-color: var(--line-strong);
+}
+
+.colorCodeButton:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
 }
 
 .colorCodeLabel {
+    font-family: var(--font-mono);
     font-size: 0.65rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--color-text-muted, #9ca3af);
+    color: var(--text-faint);
 }
 
 .colorCodeValueRow {
@@ -1460,21 +1599,21 @@
 }
 
 .colorCodeValue {
-    font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+    font-family: var(--font-mono);
     font-size: 0.78rem;
-    color: var(--color-text-main, #ffffff);
+    color: var(--text-main);
 }
 
 .colorCodeIcon {
     width: 14px;
     height: 14px;
-    color: var(--color-text-muted, #9ca3af);
+    color: var(--text-faint);
 }
 
 .colorCodeIconActive {
     width: 14px;
     height: 14px;
-    color: #22c55e;
+    color: var(--ok);
 }
 
 /* Handle (Picker Trigger) */
@@ -1484,13 +1623,13 @@
     right: 10px;
     width: 22px;
     height: 22px;
-    background: white;
-    border: 1px solid rgba(0, 0, 0, 0.15);
+    background: var(--bg-rail);
+    border: 1px solid var(--line-strong);
     border-radius: 50%;
     box-shadow: none;
     cursor: pointer;
     z-index: 20;
-    transition: transform 0.2s;
+    transition: transform var(--transition-fast);
 }
 
 .colorBlockHandle:hover {
@@ -1502,12 +1641,12 @@
     position: absolute;
     top: 30px;
     left: 100%;
-    margin-left: 12px;
-    background: #ffffff;
+    margin-left: var(--block-inset);
+    background: var(--menu-bg);
     padding: 0;
-    border-radius: 14px;
-    box-shadow: none;
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: var(--menu-radius);
+    box-shadow: var(--menu-shadow);
+    border: 1px solid var(--menu-border);
     z-index: 1000;
     width: 100%;
     max-width: 280px;
@@ -1521,40 +1660,41 @@
 }
 
 .colorPopoverInputs {
-    padding: 14px 16px 16px;
+    padding: var(--block-inset);
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    background: var(--color-bg-surface, rgba(255, 255, 255, 0.05));
-    border-top: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+    gap: var(--block-inset);
+    background: var(--bg-rail);
+    border-top: 1px solid var(--line);
 }
 
 .colorInputModeSelect {
     width: 100%;
-    padding: 8px 10px;
-    background: var(--color-bg-elevated, rgba(255, 255, 255, 0.05));
-    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
-    border-radius: 6px;
-    color: var(--color-text-main, #ffffff);
+    padding: var(--input-pad);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--input-radius);
+    color: var(--text-main);
+    font-family: inherit;
     font-size: 0.85rem;
     font-weight: 500;
     cursor: pointer;
-    transition: border-color 0.2s, background-color 0.2s;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .colorInputModeSelect:hover {
-    border-color: var(--color-text-muted, rgba(255, 255, 255, 0.3));
+    border-color: var(--line-strong);
 }
 
 .colorInputModeSelect:focus {
     outline: none;
-    border-color: #8b5cf6;
-    box-shadow: none;
+    border-color: var(--input-border-focus);
+    box-shadow: var(--focus-ring);
 }
 
 .colorInputModeSelect option {
-    background: #1a1b23;
-    color: #ffffff;
+    background: var(--bg-rail);
+    color: var(--text-main);
 }
 
 .colorInputRow {
@@ -1572,19 +1712,29 @@
 }
 
 .colorInput {
-    background: var(--color-bg-elevated, rgba(255, 255, 255, 0.05));
-    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
-    color: var(--color-text-main, #ffffff);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--text-main);
     padding: 6px;
-    border-radius: 6px;
+    border-radius: var(--input-radius);
     width: 100%;
     text-align: center;
+    font-family: var(--font-mono);
     font-size: 0.8rem;
 }
 
+.colorInput:focus {
+    outline: none;
+    border-color: var(--input-border-focus);
+    box-shadow: var(--focus-ring);
+}
+
 .colorInputLabel {
+    font-family: var(--font-mono);
     font-size: 0.7rem;
-    color: var(--color-text-muted, #9ca3af);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
 }
 
 
@@ -1620,19 +1770,16 @@
 
 .handlePath {
     stroke-opacity: 0.9;
-    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
-    transition: background-color 0.3s ease, transform 0.3s ease;
+    transition: transform var(--transition-smooth);
 }
 
 .resizeHandle:hover svg {
-    filter:
-        drop-shadow(0 0 15px rgba(167, 139, 250, 0.7)) drop-shadow(0 0 30px rgba(96, 165, 250, 0.5));
+    filter: none;
     transform: scale(1.1) rotate(-5deg);
 }
 
 .resizeHandle:active svg {
-    filter:
-        drop-shadow(0 0 25px rgba(167, 139, 250, 1)) drop-shadow(0 0 50px rgba(96, 165, 250, 0.8)) drop-shadow(0 0 80px rgba(96, 165, 250, 0.4));
+    filter: none;
     transform: scale(1.2) rotate(-10deg);
 }
 
@@ -1656,32 +1803,37 @@
 .inlinePageChip {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
-    border-radius: 6px;
-    padding: 4px 8px;
-    margin: 0 4px;
-    color: var(--color-text-main);
+    gap: 6px;
+    background: var(--hover-wash);
+    border: 1px solid var(--line);
+    border-radius: var(--r-xs);
+    padding: 2px var(--block-pad-x);
+    margin: 0 2px;
+    color: var(--text-main);
     text-decoration: none;
     font-size: 0.9em;
     cursor: pointer;
     user-select: none;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    transition: background-color var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
     vertical-align: middle;
     white-space: nowrap;
 }
 
 .inlinePageChip:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: var(--color-text-muted);
+    background: var(--accent-dim);
+    border-color: rgba(var(--accent-rgb), 0.35);
+    color: var(--accent-ink);
     text-decoration: none;
 }
 
 .inlinePageIcon {
     font-size: 1em;
-    color: var(--color-text-muted);
-    opacity: 0.8;
+    color: var(--text-faint);
+}
+
+.inlinePageChip:hover .inlinePageIcon {
+    color: var(--accent-ink);
 }
 
 .alignmentContainer[data-alignment="center"] {
@@ -1699,19 +1851,16 @@
     left: 50%;
     transform: translateX(-50%);
 
-    /* Glass Style */
-    background: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(4px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-
-    border-radius: 8px;
+    background: var(--toolbar-bg);
+    border: 1px solid var(--toolbar-border);
+    border-radius: var(--radius-pill);
     padding: 4px;
     display: flex;
     gap: 4px;
-    box-shadow: none;
+    box-shadow: var(--toolbar-shadow);
 
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: opacity var(--transition-fast);
     pointer-events: none;
     z-index: 30;
 }
@@ -1726,67 +1875,64 @@
 .alignmentBtn {
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 4px;
+    border-radius: var(--r-control);
     padding: 4px;
-    color: var(--color-text-secondary);
+    color: var(--btn-ghost-fg);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    transition: background-color var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
     width: 24px;
     height: 24px;
 }
 
 .alignmentBtn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
+    background: var(--toolbar-btn-hover);
+    color: var(--text-main);
 }
 
 .alignmentBtn.active {
-    background: var(--color-primary);
-    color: white;
-    border-color: var(--color-primary);
+    background: var(--accent);
+    color: var(--on-accent);
+    border-color: var(--accent);
 }
 
 /* Toggle Group Container & Nested Children styling */
+/* Nested toggle children sit in a faint accent well behind a left rail —
+   the same grammar as the quote block, one step quieter. */
 .toggleGroupContainer {
     display: flex;
     flex-direction: column;
     width: auto;
     margin-top: 4px;
     margin-bottom: 4px;
-    padding: 8px 12px 8px 12px;
-    border-radius: 12px;
-    background: rgba(139, 92, 246, 0.03);
-    /* Soft purple background aligned with theme */
-    border-left: 2.5px solid rgba(139, 92, 246, 0.18);
-    /* Soft left border matching theme */
-    transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    /* nesting depth, published by BlockEditor as --toggle-indent */
+    margin-left: var(--toggle-indent, 0px);
+    padding: var(--block-marker-gap) var(--block-inset);
+    /* Same rail treatment as the callout: full radius so the line curves into
+       the top and bottom edges, and the full-strength --block-rail colour
+       (it was dimmed to 20% accent, which read as a different, faded system). */
+    border-radius: var(--block-radius-lg);
+    background: var(--block-hover);
+    border-left: var(--block-rail-w) solid var(--block-rail);
+    transition: background-color var(--transition-fast);
 }
 
 .toggleGroupContainer:hover {
-    background: rgba(139, 92, 246, 0.05);
-    border-left-color: rgba(139, 92, 246, 0.4);
+    background: var(--active-wash);
 }
 
-/* Light mode overrides for toggle children background */
-:global([data-theme="light"]) .toggleGroupContainer {
-    background: rgba(124, 58, 237, 0.02);
-    border-left-color: rgba(124, 58, 237, 0.12);
-}
-
-:global([data-theme="light"]) .toggleGroupContainer:hover {
-    background: rgba(124, 58, 237, 0.04);
-    border-left-color: rgba(124, 58, 237, 0.3);
-}
-
+/* The indent for nested children comes from .toggleGroupContainer's rail +
+   inset alone — adding padding here as well double-counts and pushes the
+   child text past its parent label. */
 .toggleChildrenContainer {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--block-gap);
     width: 100%;
-    margin-top: 6px;
+    margin-top: var(--block-gap);
 }
 
 /* When a toggle preserves heading typography (toggle header), override heading margins
@@ -1810,12 +1956,9 @@
     pointer-events: auto;
 }
 
-.toggleWrapper {
-    display: flex;
-    align-items: flex-start;
-    position: relative;
-    width: 100%;
-}
+/* (merged into the .toggleWrapper rule above — this duplicate was silently
+   re-setting align-items back to flex-start, so the chevron never centred
+   against its label.) */
 
 .toggleHint {
     position: absolute;
@@ -1823,17 +1966,17 @@
     top: 50%;
     transform: translateY(-50%);
     font-size: 0.75rem;
-    color: var(--color-text-muted, #9ca3af);
+    color: var(--text-faint);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s ease;
+    transition: opacity var(--transition-fast);
     user-select: none;
     background: transparent;
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--r-xs);
 }
 
 .toggleWrapper:has([data-is-empty="true"]):hover .toggleHint,
@@ -1844,14 +1987,13 @@
 }
 
 .toggleHint kbd {
-    font-family: inherit;
-    background: var(--color-bg-secondary, rgba(0, 0, 0, 0.05));
-    border: 1px solid var(--color-border, rgba(0, 0, 0, 0.1));
-    border-radius: 3px;
+    font-family: var(--font-mono);
+    background: var(--bg-inset);
+    border: 1px solid var(--line);
+    border-radius: var(--r-xs);
     padding: 0 4px;
     font-size: 0.7rem;
-    color: var(--color-text-main, #374151);
-    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+    color: var(--text-soft);
 }
 
 .toggleHint span {

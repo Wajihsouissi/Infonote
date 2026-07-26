@@ -66,7 +66,7 @@ const ImageBlockComponent = memo(({ data }: { data: { url?: string } }) => {
       <Handle
         type="source"
         position={Position.Right}
-        style={{ right: -4, background: 'var(--accent)', border: '2px solid var(--bg-raised)', width: 10, height: 10, borderRadius: '50%', boxShadow: 'var(--shadow-sm)' }}
+        style={{ right: -4, background: 'var(--accent)', border: '2px solid var(--bg-rail)', width: 10, height: 10, borderRadius: '50%', boxShadow: 'var(--shadow-sm)' }}
       />
     </div>
   );
@@ -662,7 +662,7 @@ export const MarketingPage: React.FC = () => {
 
             <div className={styles.ftDualVisual}>
               {/* 3D Master Card inside viewport */}
-              <div className={`${styles.ftUiCard} ${styles.ftNodeFloat1}`} style={{ width: '60%', transform: 'perspective(1000px) rotateY(-14deg) rotateX(6deg)', padding: '28px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', background: 'var(--bg-raised)', border: '1px solid var(--line-strong)' }}>
+              <div className={`${styles.ftUiCard} ${styles.ftNodeFloat1}`} style={{ width: '60%', transform: 'perspective(1000px) rotateY(-14deg) rotateX(6deg)', padding: '28px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', background: 'var(--bg-rail)', border: '1px solid var(--line-strong)' }}>
                 <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--bg-card)', border: '1px solid var(--line-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                   <ShieldCheck size={28} color="var(--text-main)" />
                 </div>
@@ -707,7 +707,7 @@ export const MarketingPage: React.FC = () => {
                 </svg>
 
                 {/* Source Note */}
-                <div style={{ position: 'absolute', top: '15px', left: '10px', width: '140px', background: 'var(--bg-raised)', border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-lg)', padding: '12px', zIndex: 1, boxShadow: 'var(--shadow-sm)' }}>
+                <div style={{ position: 'absolute', top: '15px', left: '10px', width: '140px', background: 'var(--bg-rail)', border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-lg)', padding: '12px', zIndex: 1, boxShadow: 'var(--shadow-sm)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
                     <FileText size={14} color="var(--text-main)" />
                     <span style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600 }}>User Interview</span>
@@ -717,17 +717,17 @@ export const MarketingPage: React.FC = () => {
                     <div style={{ width: '70%', height: '4px', background: 'var(--line-strong)', borderRadius: '2px' }} />
 
                     {/* Highlighted text block to extract */}
-                    <div style={{ background: 'var(--accent-wash)', border: '1px solid var(--accent)', borderRadius: 'var(--radius-sm)', padding: '8px', marginTop: '4px', position: 'relative' }}>
+                    <div style={{ background: 'var(--accent-wash)', border: '1px solid var(--accent-ink)', borderRadius: 'var(--radius-sm)', padding: '8px', marginTop: '4px', position: 'relative' }}>
                       <div style={{ width: '90%', height: '4px', background: 'var(--accent)', borderRadius: '2px', marginBottom: '6px' }} />
                       <div style={{ width: '50%', height: '4px', background: 'var(--accent)', borderRadius: '2px', opacity: 0.7 }} />
                       {/* Visual Handle */}
-                      <div style={{ position: 'absolute', right: '-5px', top: '50%', transform: 'translateY(-50%)', width: '10px', height: '10px', borderRadius: '50%', background: 'var(--bg-raised)', border: '2px solid var(--accent)' }} />
+                      <div style={{ position: 'absolute', right: '-5px', top: '50%', transform: 'translateY(-50%)', width: '10px', height: '10px', borderRadius: '50%', background: 'var(--bg-rail)', border: '2px solid var(--accent-ink)' }} />
                     </div>
                   </div>
                 </div>
 
                 {/* Destination Project Board / Kanban Card */}
-                <div style={{ position: 'absolute', top: '55px', right: '10px', width: '150px', background: 'var(--bg-raised)', border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-lg)', padding: '12px', zIndex: 1, boxShadow: 'var(--shadow-sm)' }}>
+                <div style={{ position: 'absolute', top: '55px', right: '10px', width: '150px', background: 'var(--bg-rail)', border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-lg)', padding: '12px', zIndex: 1, boxShadow: 'var(--shadow-sm)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', position: 'relative' }}>
                     <Kanban size={14} color="var(--text-main)" />
                     <span style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600 }}>Launch Plan</span>
@@ -742,7 +742,7 @@ export const MarketingPage: React.FC = () => {
                     {/* The extracted block now as a task */}
                     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-md)', padding: '10px', position: 'relative', borderLeft: '3px solid var(--accent)' }}>
                       {/* Visual Handle */}
-                      <div style={{ position: 'absolute', left: '-6px', top: '50%', transform: 'translateY(-50%)', width: '10px', height: '10px', borderRadius: '50%', background: 'var(--bg-raised)', border: '2px solid var(--text-main)' }} />
+                      <div style={{ position: 'absolute', left: '-6px', top: '50%', transform: 'translateY(-50%)', width: '10px', height: '10px', borderRadius: '50%', background: 'var(--bg-rail)', border: '2px solid var(--text-main)' }} />
                       <div style={{ width: '85%', height: '4px', background: 'var(--line-strong)', borderRadius: '2px', marginBottom: '10px' }} />
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 600 }}>New Feature</span>
@@ -1014,7 +1014,7 @@ export const MarketingPage: React.FC = () => {
               <img src="https://i.pravatar.cc/100?img=4" alt="user" style={{ width: 26, height: 26, borderRadius: '50%', border: '2px solid var(--line-strong)' }} />
               <img src="https://i.pravatar.cc/100?img=5" alt="user" style={{ width: 26, height: 26, borderRadius: '50%', border: '2px solid var(--line-strong)', marginLeft: '-10px' }} />
               <img src="https://i.pravatar.cc/100?img=6" alt="user" style={{ width: 26, height: 26, borderRadius: '50%', border: '2px solid var(--line-strong)', marginLeft: '-10px' }} />
-              <div style={{ width: 26, height: 26, borderRadius: '50%', border: '2px solid var(--line-strong)', marginLeft: '-10px', background: 'var(--bg-raised)', color: 'var(--text-main)', fontSize: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>+1k</div>
+              <div style={{ width: 26, height: 26, borderRadius: '50%', border: '2px solid var(--line-strong)', marginLeft: '-10px', background: 'var(--bg-rail)', color: 'var(--text-main)', fontSize: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>+1k</div>
             </div>
             Trusted by 1,200+ teams who turned ideas into real digital products.
           </div>
@@ -1187,7 +1187,7 @@ export const MarketingPage: React.FC = () => {
           width: '48px',
           height: '48px',
           borderRadius: '50%',
-          background: 'var(--bg-raised)',
+          background: 'var(--bg-rail)',
           border: '1px solid var(--line-strong)',
           display: 'flex',
           alignItems: 'center',

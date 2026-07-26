@@ -22,7 +22,7 @@ const Column: React.FC<{ x: number; y: number; height: number; label: string; ch
   children,
 }) => (
   <g transform={`translate(${x}, ${y})`}>
-    <rect width="160" height={height} rx="12" fill="var(--bg-raised)" />
+    <rect width="160" height={height} rx="12" fill="var(--bg-rail)" />
     <rect width="160" height={height} rx="12" fill="none" stroke="var(--line-strong)" strokeWidth="1" />
     <MonoLabel x={80} y={32} size={10} anchor="middle">
       {label}
@@ -84,7 +84,7 @@ export const AgileWorkflowsIllustration: React.FC = () => (
 
     {/* In-progress column: the focal point of the scene */}
     <g transform="translate(320, 50)">
-      <rect width="160" height="300" rx="12" fill="var(--bg-raised)" />
+      <rect width="160" height="300" rx="12" fill="var(--bg-rail)" />
       <rect width="160" height="300" rx="12" fill="none" stroke="var(--line-strong)" strokeWidth="1" />
       <CornerBrackets x={0} y={0} width={160} height={300} inset={0} size={16} stroke="var(--text-main)" />
 

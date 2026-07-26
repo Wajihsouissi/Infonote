@@ -490,7 +490,9 @@ export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPast
         return (
             <div
                 className={styles.calloutWrapper}
-                style={{ backgroundColor: block.metadata?.backgroundColor || 'var(--color-bg-secondary)' }}
+                // No inline fallback: with no custom colour the stylesheet's
+                // --block-hover wash governs, so the callout stays theme-aware.
+                style={{ backgroundColor: block.metadata?.backgroundColor || undefined }}
             >
                 <div className={styles.calloutIconWrapper}>
                     <Icon size={24} className={styles.calloutIconSvg} />
@@ -507,7 +509,7 @@ export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPast
     return (
         <div
             className={styles.calloutWrapper}
-            style={{ backgroundColor: block.metadata?.backgroundColor || 'var(--color-bg-secondary)' }}
+            style={{ backgroundColor: block.metadata?.backgroundColor || undefined }}
         >
             <div
                 className={`${styles.calloutIconWrapper} ${!readOnly ? styles.clickable : ''}`}
@@ -1211,11 +1213,11 @@ export const AIBlock = memo(({ block, readOnly }: BlockProps) => {
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'rgba(249, 93, 46, 0.1)', borderRadius: '8px', border: '1px solid rgba(249, 93, 46, 0.3)', margin: '8px 0' }} contentEditable={false}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ff8a5f', fontSize: '13px', fontWeight: 600 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--block-marker-gap)', padding: 'var(--block-inset)', background: 'var(--accent-dim)', borderRadius: 'var(--block-radius-lg)', border: '1px solid rgba(var(--accent-rgb), 0.3)', margin: 'var(--block-marker-gap) 0' }} contentEditable={false}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--block-marker-gap)', color: 'var(--accent-ink)', fontSize: '0.8125rem', fontWeight: 600 }}>
                 <Sparkles size={16} /> AI Generation
             </div>
-            {error && <div style={{ color: '#ef4444', fontSize: '12px' }}>{error}</div>}
+            {error && <div style={{ color: 'var(--danger)', fontSize: '0.75rem' }}>{error}</div>}
             <div style={{ display: 'flex', gap: '8px' }}>
                 <input 
                     autoFocus
@@ -1228,10 +1230,10 @@ export const AIBlock = memo(({ block, readOnly }: BlockProps) => {
                         }
                     }}
                     placeholder="Tell AI what to write..."
-                    style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--color-text-main)', outline: 'none', fontSize: '14px' }}
+                    style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-main)', outline: 'none', fontFamily: 'inherit', fontSize: '0.875rem' }}
                     disabled={isGenerating || readOnly}
                 />
-                {isGenerating ? <Loader2 size={16} className="animate-spin" color="#ff8a5f" /> : null}
+                {isGenerating ? <Loader2 size={16} className="animate-spin" color="var(--accent-ink)" /> : null}
             </div>
         </div>
     );
@@ -1299,7 +1301,7 @@ export const FileBlock = memo(({ block, onChange }: BlockProps) => {
                 onClick={handleClick}
             >
                 <div className={styles.fileIconWrapper}>
-                    <FileText size={32} color="#60A5FA" />
+                    <FileText size={32} />
                 </div>
                 <div className={styles.fileInfo}>
                     <span className={styles.fileLink}>{fileName}</span>

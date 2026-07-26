@@ -250,7 +250,7 @@ export function BlockMenu({ x, y, currentType, onClose, onAction }: BlockMenuPro
             <div
                 className={styles.slashMenuItem}
                 onMouseEnter={() => setActiveSubMenu('turnInto')}
-                style={activeSubMenu === 'turnInto' ? { background: 'white', color: 'black' } : {}} // Highlight parent
+                style={activeSubMenu === 'turnInto' ? { background: 'var(--menu-item-active)' } : {}} // Highlight parent
             >
                 <span className={styles.slashIcon}><ArrowRight size={16} /></span>
                 <span className={styles.slashLabel} style={{ flexGrow: 1 }}>Turn into</span>
@@ -260,7 +260,7 @@ export function BlockMenu({ x, y, currentType, onClose, onAction }: BlockMenuPro
             <div
                 className={styles.slashMenuItem}
                 onMouseEnter={() => setActiveSubMenu('color')}
-                style={activeSubMenu === 'color' ? { background: 'white', color: 'black' } : {}} // Highlight parent
+                style={activeSubMenu === 'color' ? { background: 'var(--menu-item-active)' } : {}} // Highlight parent
             >
                 <span className={styles.slashIcon}><Palette size={16} /></span>
                 <span className={styles.slashLabel} style={{ flexGrow: 1 }}>Color</span>

@@ -57,7 +57,7 @@ export function StepChunkIllustration({ activeStep }: StepChunkIllustrationProps
                 position: 'relative',
                 background: 'var(--bg-card)',
                 padding: '16px',
-                border: '1px solid var(--accent)',
+                border: '1px solid var(--accent-ink)',
                 borderRadius: 'var(--radius-lg)',
                 zIndex: 10,
                 transformStyle: 'preserve-3d',
@@ -91,7 +91,7 @@ export function StepChunkIllustration({ activeStep }: StepChunkIllustrationProps
       {/* Floating Canvas UI status chip */}
       <FloatingChip
         leading={
-          <div style={{ padding: '6px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-raised)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ padding: '6px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-rail)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Expand size={14} color="var(--text-main)" />
           </div>
         }

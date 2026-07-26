@@ -276,17 +276,17 @@ export const LinkBlock: React.FC<LinkBlockProps> = ({
                                 if (e.key === 'Escape') setIsEditingLabel(false);
                             }}
                             className={styles.textLinkLabel}
-                            style={{ 
-                                background: 'rgba(255, 255, 255, 0.05)', 
-                                border: '1px solid rgba(99, 102, 241, 0.3)',
-                                borderRadius: '4px',
+                            style={{
+                                background: 'var(--input-bg)',
+                                border: '1px solid var(--input-border-focus)',
+                                borderRadius: 'var(--r-xs)',
                                 padding: '2px 6px',
-                                color: 'var(--color-primary, #6366f1)',
+                                color: 'var(--accent-ink)',
                                 width: '180px'
                             }}
                             autoFocus
                         />
-                        <button onClick={handleSaveLabel} className={styles.controlBtn} style={{ color: '#10b981' }}>
+                        <button onClick={handleSaveLabel} className={styles.controlBtn} style={{ color: 'var(--ok)' }}>
                             <Check size={14} />
                         </button>
                     </div>
@@ -368,7 +368,7 @@ export const LinkBlock: React.FC<LinkBlockProps> = ({
                         className={styles.controlBtn} 
                         title={copied ? "Copied!" : "Copy link"}
                     >
-                        {copied ? <Check size={13} style={{ color: '#10b981' }} /> : <Copy size={13} />}
+                        {copied ? <Check size={13} style={{ color: 'var(--ok)' }} /> : <Copy size={13} />}
                     </button>
                     <button 
                         onClick={() => loadMetadata(true)} 

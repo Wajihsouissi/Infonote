@@ -196,8 +196,6 @@ export const NotionImportModal: React.FC<NotionImportModalProps> = ({ open, onCl
         <div style={overlay} role="dialog" aria-modal="true" aria-label="Import Notion workspace">
             <div style={modal}>
                 {/* Ambient glows */}
-                <div style={ambientGlowLeft} />
-                <div style={ambientGlowRight} />
 
                 <div style={header}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -370,6 +368,10 @@ export const NotionImportModal: React.FC<NotionImportModalProps> = ({ open, onCl
 
 // --- STYLES ---
 
+/* Paper & Ink. This modal was cosmic-glass and used GREEN as a second brand
+   hue throughout; persimmon is the single accent, so selection/primary states
+   are accent now. Green survives only where it means "success". */
+
 const overlay: React.CSSProperties = {
     position: 'fixed',
     inset: 0,
@@ -378,9 +380,8 @@ const overlay: React.CSSProperties = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
-    background: 'rgba(5, 6, 12, 0.75)',
-    backdropFilter: 'blur(16px)',
-    WebkitBackdropFilter: 'blur(16px)',
+    // plain scrim, no blur
+    background: 'rgba(0, 0, 0, 0.5)',
 };
 
 const modal: React.CSSProperties = {
@@ -389,37 +390,13 @@ const modal: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
-    borderRadius: 20,
-    border: '1px solid rgba(255,255,255,0.08)',
-    background: 'rgba(12, 14, 21, 0.85)', // Deep dark, highly translucent
-    backdropFilter: 'blur(40px)',
-    color: '#fff',
-    boxShadow: '0 0 0 1px rgba(0,0,0,0.5), 0 32px 90px rgba(0,0,0,0.6)',
-    fontFamily: '"Plus Jakarta Sans", "Inter", system-ui, sans-serif',
+    borderRadius: 'var(--r-panel)',
+    border: '1px solid var(--line)',
+    background: 'var(--bg-rail)',
+    color: 'var(--text-main)',
+    boxShadow: 'var(--shadow-lg)',
+    fontFamily: 'var(--font-sans)',
     position: 'relative',
-};
-
-// Ambient subtle glows to give that premium glassmorphism feel
-const ambientGlowLeft: React.CSSProperties = {
-    position: 'absolute',
-    top: '-20%',
-    left: '-10%',
-    width: '60%',
-    height: '60%',
-    background: 'radial-gradient(circle, rgba(34, 197, 94, 0.15) 0%, rgba(0,0,0,0) 70%)',
-    pointerEvents: 'none',
-    zIndex: -1,
-};
-
-const ambientGlowRight: React.CSSProperties = {
-    position: 'absolute',
-    bottom: '-10%',
-    right: '-10%',
-    width: '60%',
-    height: '50%',
-    background: 'radial-gradient(circle, rgba(14, 165, 233, 0.1) 0%, rgba(0,0,0,0) 70%)',
-    pointerEvents: 'none',
-    zIndex: -1,
 };
 
 const header: React.CSSProperties = {
@@ -427,21 +404,20 @@ const header: React.CSSProperties = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '24px 28px',
-    borderBottom: '1px solid rgba(255,255,255,0.06)',
+    borderBottom: '1px solid var(--line)',
     zIndex: 1,
 };
 
 const iconBadge: React.CSSProperties = {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: 'var(--r-md)',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(14, 165, 233, 0.1))',
-    color: '#4ade80',
-    border: '1px solid rgba(34, 197, 94, 0.2)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)',
+    background: 'var(--accent-dim)',
+    color: 'var(--accent-ink)',
+    border: '1px solid rgba(var(--accent-rgb), 0.25)',
 };
 
 const title: React.CSSProperties = {
@@ -449,13 +425,13 @@ const title: React.CSSProperties = {
     fontSize: 18,
     fontWeight: 600,
     letterSpacing: '-0.01em',
-    color: '#ffffff',
+    color: 'var(--text-main)',
 };
 
 const subtitle: React.CSSProperties = {
     margin: '4px 0 0',
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'var(--text-soft)',
     fontWeight: 400,
 };
 
@@ -465,12 +441,12 @@ const iconButton: React.CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: 'var(--btn-radius)',
     border: 'none',
     background: 'transparent',
-    color: 'rgba(255,255,255,0.4)',
+    color: 'var(--btn-ghost-fg)',
     cursor: 'pointer',
-    transition: 'all 0.2s',
+    transition: 'background var(--transition-fast), color var(--transition-fast)',
 };
 
 const body: React.CSSProperties = {
@@ -487,16 +463,16 @@ const searchContainer: React.CSSProperties = {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
-    background: 'rgba(0,0,0,0.3)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: 12,
-    transition: 'all 0.2s ease',
+    background: 'var(--input-bg)',
+    border: '1px solid var(--input-border)',
+    borderRadius: 'var(--r-md)',
+    transition: 'border-color var(--transition-fast)',
 };
 
 const searchIcon: React.CSSProperties = {
     position: 'absolute',
     left: 16,
-    color: 'rgba(255,255,255,0.4)',
+    color: 'var(--text-faint)',
     pointerEvents: 'none',
 };
 
@@ -507,7 +483,8 @@ const searchInput: React.CSSProperties = {
     border: 'none',
     outline: 'none',
     padding: '0 48px',
-    color: '#fff',
+    color: 'var(--text-main)',
+    fontFamily: 'inherit',
     fontSize: 15,
     fontWeight: 500,
 };
@@ -515,23 +492,23 @@ const searchInput: React.CSSProperties = {
 const searchActionBtn: React.CSSProperties = {
     position: 'absolute',
     right: 12,
-    background: 'rgba(255,255,255,0.08)',
+    background: 'var(--hover-wash)',
     border: 'none',
-    borderRadius: 6,
+    borderRadius: 'var(--r-xs)',
     width: 28,
     height: 28,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: 'rgba(255,255,255,0.7)',
+    color: 'var(--text-soft)',
     cursor: 'pointer',
-    transition: 'background 0.2s',
+    transition: 'background var(--transition-fast)',
 };
 
 const searchActionSpinner: React.CSSProperties = {
     position: 'absolute',
     right: 18,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'var(--text-faint)',
 };
 
 const listContainer: React.CSSProperties = {
@@ -549,37 +526,37 @@ const resultRow: React.CSSProperties = {
     alignItems: 'center',
     gap: 14,
     padding: '12px 14px',
-    borderRadius: 12,
+    borderRadius: 'var(--r-md)',
     border: '1px solid transparent',
     background: 'transparent',
-    color: '#fff',
+    color: 'var(--text-main)',
     cursor: 'pointer',
     textAlign: 'left',
-    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+    fontFamily: 'inherit',
+    transition: 'background var(--transition-fast), border-color var(--transition-fast)',
 };
 
 const resultRowActive: React.CSSProperties = {
-    background: 'rgba(34, 197, 94, 0.08)',
-    borderColor: 'rgba(34, 197, 94, 0.3)',
-    boxShadow: 'inset 0 0 0 1px rgba(34, 197, 94, 0.1)',
+    background: 'var(--accent-dim)',
+    borderColor: 'var(--accent)',
 };
 
 const itemIcon: React.CSSProperties = {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: 'var(--btn-radius)',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'rgba(255,255,255,0.04)',
-    color: 'rgba(255,255,255,0.7)',
+    background: 'var(--hover-wash)',
+    color: 'var(--text-soft)',
     flexShrink: 0,
-    transition: 'all 0.2s',
+    transition: 'background var(--transition-fast), color var(--transition-fast)',
 };
 
 const itemIconActive: React.CSSProperties = {
-    background: 'rgba(34, 197, 94, 0.15)',
-    color: '#4ade80',
+    background: 'var(--accent-wash)',
+    color: 'var(--accent-ink)',
 };
 
 const itemDetails: React.CSSProperties = {
@@ -590,7 +567,7 @@ const itemDetails: React.CSSProperties = {
 const itemTitle: React.CSSProperties = {
     fontSize: 14,
     fontWeight: 600,
-    color: '#f8fafc',
+    color: 'var(--text-main)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
@@ -599,17 +576,16 @@ const itemTitle: React.CSSProperties = {
 const itemMeta: React.CSSProperties = {
     marginTop: 3,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    color: 'var(--text-faint)',
     fontWeight: 500,
 };
 
 const itemLinkIcon: React.CSSProperties = {
-    opacity: 0.3,
-    color: '#fff',
+    color: 'var(--text-faint)',
 };
 
 const selectedIndicator: React.CSSProperties = {
-    color: '#4ade80',
+    color: 'var(--accent-ink)',
     display: 'flex',
     alignItems: 'center',
     marginLeft: 8,
@@ -621,12 +597,12 @@ const compactEmpty: React.CSSProperties = {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    color: 'rgba(255,255,255,0.4)',
+    color: 'var(--text-faint)',
     fontSize: 14,
     textAlign: 'center',
-    background: 'rgba(0,0,0,0.1)',
-    borderRadius: 12,
-    border: '1px dashed rgba(255,255,255,0.08)',
+    background: 'var(--bg-inset)',
+    borderRadius: 'var(--r-md)',
+    border: '1px dashed var(--line)',
 };
 
 const manualEntryContainer: React.CSSProperties = {
@@ -642,7 +618,7 @@ const manualInputWrapper: React.CSSProperties = {
 const manualInputIcon: React.CSSProperties = {
     position: 'absolute',
     left: 14,
-    color: 'rgba(255,255,255,0.3)',
+    color: 'var(--text-faint)',
     pointerEvents: 'none',
 };
 
@@ -650,14 +626,15 @@ const manualInput: React.CSSProperties = {
     width: '100%',
     height: 44,
     boxSizing: 'border-box',
-    borderRadius: 10,
-    border: '1px solid rgba(255,255,255,0.08)',
-    background: 'rgba(255,255,255,0.03)',
-    color: '#fff',
+    borderRadius: 'var(--input-radius)',
+    border: '1px solid var(--input-border)',
+    background: 'var(--input-bg)',
+    color: 'var(--text-main)',
     padding: '0 100px 0 42px',
     outline: 'none',
+    fontFamily: 'inherit',
     fontSize: 13,
-    transition: 'all 0.2s',
+    transition: 'border-color var(--transition-fast)',
 };
 
 const manualValidBadge: React.CSSProperties = {
@@ -668,10 +645,11 @@ const manualValidBadge: React.CSSProperties = {
     gap: 4,
     fontSize: 11,
     fontWeight: 600,
-    color: '#4ade80',
-    background: 'rgba(34, 197, 94, 0.15)',
+    // genuinely a validity signal — stays green
+    color: 'var(--ok)',
+    background: 'rgba(var(--ok-rgb), 0.14)',
     padding: '4px 8px',
-    borderRadius: 6,
+    borderRadius: 'var(--r-xs)',
 };
 
 const emptyState: React.CSSProperties = {
@@ -686,26 +664,26 @@ const emptyState: React.CSSProperties = {
 const mutedIcon: React.CSSProperties = {
     width: 64,
     height: 64,
-    borderRadius: 16,
+    borderRadius: 'var(--r-surface)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'rgba(255,255,255,0.04)',
-    color: 'rgba(255,255,255,0.4)',
+    background: 'var(--hover-wash)',
+    color: 'var(--text-faint)',
     marginBottom: 20,
-    border: '1px solid rgba(255,255,255,0.05)',
+    border: '1px solid var(--line)',
 };
 
 const emptyTitle: React.CSSProperties = {
     margin: 0,
     fontSize: 18,
     fontWeight: 600,
-    color: '#fff',
+    color: 'var(--text-main)',
 };
 
 const emptyCopy: React.CSSProperties = {
     margin: '8px 0 24px',
-    color: 'rgba(255,255,255,0.5)',
+    color: 'var(--text-soft)',
     fontSize: 14,
     lineHeight: 1.5,
     maxWidth: 320,
@@ -716,10 +694,10 @@ const errorBox: React.CSSProperties = {
     alignItems: 'center',
     gap: 10,
     padding: '14px 16px',
-    borderRadius: 10,
-    background: 'rgba(239, 68, 68, 0.1)',
-    border: '1px solid rgba(239, 68, 68, 0.2)',
-    color: '#f87171',
+    borderRadius: 'var(--r-control)',
+    background: 'rgba(var(--danger-rgb), 0.10)',
+    border: '1px solid rgba(var(--danger-rgb), 0.20)',
+    color: 'var(--danger)',
     fontSize: 14,
     fontWeight: 500,
 };
@@ -729,18 +707,18 @@ const successBox: React.CSSProperties = {
     alignItems: 'center',
     gap: 10,
     padding: '14px 16px',
-    borderRadius: 10,
-    background: 'rgba(34, 197, 94, 0.1)',
-    border: '1px solid rgba(34, 197, 94, 0.2)',
-    color: '#4ade80',
+    borderRadius: 'var(--r-control)',
+    background: 'rgba(var(--ok-rgb), 0.10)',
+    border: '1px solid rgba(var(--ok-rgb), 0.20)',
+    color: 'var(--ok)',
     fontSize: 14,
     fontWeight: 500,
 };
 
 const footer: React.CSSProperties = {
     padding: '20px 28px',
-    borderTop: '1px solid rgba(255,255,255,0.06)',
-    background: 'rgba(0,0,0,0.2)',
+    borderTop: '1px solid var(--line)',
+    background: 'var(--bg-rail)',
     zIndex: 1,
 };
 
@@ -752,14 +730,15 @@ const footerActions: React.CSSProperties = {
 
 const ghostButton: React.CSSProperties = {
     padding: '10px 16px',
-    borderRadius: 8,
+    borderRadius: 'var(--btn-radius)',
     border: 'none',
     background: 'transparent',
-    color: 'rgba(255,255,255,0.6)',
+    color: 'var(--btn-ghost-fg)',
     cursor: 'pointer',
+    fontFamily: 'inherit',
     fontSize: 14,
     fontWeight: 600,
-    transition: 'all 0.2s',
+    transition: 'background var(--transition-fast), color var(--transition-fast)',
 };
 
 const primaryButton: React.CSSProperties = {
@@ -768,21 +747,20 @@ const primaryButton: React.CSSProperties = {
     justifyContent: 'center',
     gap: 8,
     padding: '10px 20px',
-    borderRadius: 8,
+    borderRadius: 'var(--btn-radius)',
     border: 'none',
-    background: '#22c55e',
-    color: '#000',
+    background: 'var(--btn-primary-bg)',
+    color: 'var(--btn-primary-fg)',
     cursor: 'pointer',
+    fontFamily: 'inherit',
     fontSize: 14,
     fontWeight: 700,
-    boxShadow: '0 4px 14px rgba(34, 197, 94, 0.3)',
-    transition: 'all 0.2s',
+    transition: 'background var(--transition-fast)',
 };
 
 const primaryButtonDisabled: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.1)',
-    color: 'rgba(255,255,255,0.3)',
-    boxShadow: 'none',
+    background: 'var(--active-wash)',
+    color: 'var(--text-faint)',
     cursor: 'not-allowed',
 };
 
@@ -808,7 +786,7 @@ const progressLabel: React.CSSProperties = {
     gap: 8,
     fontSize: 14,
     fontWeight: 600,
-    color: '#4ade80',
+    color: 'var(--accent-ink)',
 };
 
 export default NotionImportModal;

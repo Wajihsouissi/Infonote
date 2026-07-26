@@ -34,6 +34,8 @@ export function useCanvasViewport({ nodes, currentParentId }: UseCanvasViewportO
         });
     }, [nodes, currentParentId]);
 
+    const nodeCacheRef = useRef<Map<string, { original: AppNode, stripped: AppNode }>>(new Map());
+
     // Filter nodes for the current view using viewport culling
     const visibleNodes = useMemo(() => {
         let culledNodes = rootNodes;
@@ -66,8 +68,11 @@ export function useCanvasViewport({ nodes, currentParentId }: UseCanvasViewportO
             if (DEBUG) console.log("[visibleNodes] Culled:", rootNodes.length, "->", culledNodes.length);
         }
 
+        const cache = nodeCacheRef.current;
+        const newCache = new Map<string, { original: AppNode, stripped: AppNode }>();
+
         // Strip parentId for ReactFlow rendering (root level nodes) and dynamically apply custom drag handle
-        return culledNodes.map(n => {
+        const result = culledNodes.map(n => {
             const hasDragHandle = n.type === 'note' || n.type === 'fused-note';
             const shouldStripParent = n.parentId === currentParentId;
             const shouldAddDragHandle = hasDragHandle;
@@ -80,12 +85,23 @@ export function useCanvasViewport({ nodes, currentParentId }: UseCanvasViewportO
                 return n;
             }
             
-            return {
+            const cached = cache.get(n.id);
+            if (cached && cached.original === n) {
+                newCache.set(n.id, cached);
+                return cached.stripped;
+            }
+
+            const stripped = {
                 ...n,
                 ...(shouldStripParent ? { parentId: undefined } : {}),
                 ...(shouldAddDragHandle ? { dragHandle: '.custom-drag-handle' } : {})
             };
+            newCache.set(n.id, { original: n, stripped });
+            return stripped;
         });
+
+        nodeCacheRef.current = newCache;
+        return result;
     }, [rootNodes, currentParentId, viewport, selectedCanvasNodeIds]);
 
     // Track viewport changes (throttled to 200ms)

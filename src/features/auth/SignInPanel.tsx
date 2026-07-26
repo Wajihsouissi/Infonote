@@ -142,7 +142,7 @@ export const SignInPanel: React.FC<Props> = ({ onSignedIn, compact }) => {
                         setMessage(null);
                     }}
                     style={{
-                        background: 'none', border: 'none', color: 'var(--color-primary, #3b82f6)',
+                        background: 'none', border: 'none', color: 'var(--color-primary)',
                         cursor: 'pointer', fontSize: 12, textDecoration: 'underline', padding: 0
                     }}
                 >
@@ -188,8 +188,8 @@ export const SignInPanel: React.FC<Props> = ({ onSignedIn, compact }) => {
                     style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                         padding: '6px 10px', borderRadius: 6,
-                        border: '1px solid var(--color-primary, #3b82f6)',
-                        background: 'var(--color-primary, #3b82f6)', color: 'white',
+                        border: '1px solid var(--color-primary)',
+                        background: 'var(--color-primary)', color: 'white',
                         cursor: loading ? 'not-allowed' : 'pointer', fontSize: 13, marginTop: 4
                     }}
                 >

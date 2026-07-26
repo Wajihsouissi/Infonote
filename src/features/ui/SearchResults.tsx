@@ -60,10 +60,10 @@ function getTypeLabel(type: string): string {
 
 function getPriorityColor(priority?: string): string {
     switch (priority) {
-        case 'urgent': return '#ef4444';
-        case 'high': return '#f59e0b';
-        case 'medium': return '#3b82f6';
-        case 'low': return '#10b981';
+        case 'urgent': return 'var(--danger)';
+        case 'high': return 'var(--warn)';
+        case 'medium': return 'var(--accent)';
+        case 'low': return 'var(--ok)';
         default: return 'transparent';
     }
 }

@@ -2,8 +2,6 @@
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -22,10 +20,8 @@
 }
 
 .modal {
-    background: var(--glass-bg);
-    backdrop-filter: blur(var(--backdrop-blur));
-    -webkit-backdrop-filter: blur(var(--backdrop-blur));
-    border: 1px solid var(--glass-border);
+    background: var(--bg-rail);
+    border: 1px solid var(--line);
     border-radius: 16px;
     width: 90%;
     max-width: 560px;
@@ -55,7 +51,7 @@
     right: 16px;
     background: rgba(255, 255, 255, 0.05);
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     padding: 8px;
     cursor: pointer;
     color: var(--color-text-muted);
@@ -100,7 +96,7 @@
 /* Divider */
 .divider {
     height: 1px;
-    background: var(--glass-border);
+    background: var(--line);
     margin: 12px 24px;
 }
 
@@ -124,7 +120,7 @@
     width: 100%;
     background: rgba(0, 0, 0, 0.03);
     border: 1px solid transparent;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     padding: 12px;
     font-size: 0.9rem;
     color: var(--color-text-main);
@@ -156,5 +152,5 @@
 
 .modal::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+    border-radius: var(--radius-xs);
 }

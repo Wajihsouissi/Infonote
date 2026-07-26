@@ -9,10 +9,9 @@
     height: 44px;
     border-radius: 12px;
 
-    background: var(--glass-bg);
-    backdrop-filter: blur(var(--backdrop-blur));
-    -webkit-backdrop-filter: blur(var(--backdrop-blur));
-    border: 1px solid var(--glass-border);
+    background: var(--bg-rail);
+
+    border: 1px solid var(--line);
 
     display: flex;
     align-items: center;
@@ -26,7 +25,7 @@
 }
 
 .toggleBtn:hover {
-    background: var(--glass-bg-hover);
+    background: var(--bg-rail);
     border-color: var(--color-primary);
     transform: translateY(-2px);
     box-shadow: none;
@@ -55,14 +54,13 @@
     width: 360px;
     /* Wider */
     max-height: calc(100vh - 100px);
-    background: #121212;
+    background: var(--menu-bg);
     /* Solid dark or deep glass */
-    background: linear-gradient(145deg, rgba(20, 20, 20, 0.95), rgba(30, 30, 30, 0.95));
-    backdrop-filter: blur(40px);
-    -webkit-backdrop-filter: blur(40px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--menu-bg);
+
+    border: 1px solid var(--line);
     box-shadow: none;
-    border-radius: 20px;
+    border-radius: var(--radius-xl);
     display: flex;
     flex-direction: column;
     z-index: 1000;
@@ -88,17 +86,17 @@
     align-items: center;
     gap: 16px;
     padding: 24px 24px 12px;
-    /* border-bottom: 1px solid var(--glass-border); Remove border for cleaner look */
+    /* border-bottom: 1px solid var(--line); Remove border for cleaner look */
     flex-shrink: 0;
 }
 
 .backBtn {
     background: var(--color-bg-card);
-    border: 1px solid var(--glass-border);
+    border: 1px solid var(--line);
     color: var(--color-text-main);
     width: 32px;
     height: 32px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -107,7 +105,7 @@
 }
 
 .backBtn:hover {
-    background: var(--glass-bg-hover);
+    background: var(--bg-rail);
     border-color: var(--color-primary);
     transform: translateX(-2px);
 }
@@ -127,7 +125,7 @@
     flex-direction: column;
     gap: 20px;
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    scrollbar-color: var(--line-strong) transparent;
 }
 
 /* Cover Image */
@@ -138,10 +136,10 @@
 .coverPreview {
     width: 100%;
     height: 120px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     overflow: hidden;
     position: relative;
-    border: 1px solid var(--glass-border);
+    border: 1px solid var(--line);
 }
 
 .coverPreview img {
@@ -169,7 +167,7 @@
 .addCoverBtn {
     width: 100%;
     height: 80px;
-    border: 2px dashed var(--glass-border);
+    border: 2px dashed var(--line);
     border-radius: 12px;
     background: transparent;
     color: var(--color-text-muted);
@@ -200,8 +198,8 @@
     width: 48px;
     height: 48px;
     border-radius: 12px;
-    background: rgba(139, 92, 246, 0.1);
-    border: 1px solid rgba(139, 92, 246, 0.3);
+    background: rgba(var(--accent-rgb), 0.1);
+    border: 1px solid rgba(var(--accent-rgb), 0.3);
     color: var(--color-primary);
     display: flex;
     align-items: center;
@@ -212,7 +210,7 @@
 }
 
 .iconBtn:hover {
-    background: rgba(139, 92, 246, 0.2);
+    background: rgba(var(--accent-rgb), 0.2);
     transform: scale(1.05);
 }
 
@@ -253,8 +251,8 @@
 .descriptionInput,
 .dateInput,
 .selectInput {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--hover-wash);
+    border: 1px solid var(--line-strong);
     border-radius: 12px;
     padding: 12px 14px;
     /* Taller inputs */
@@ -293,7 +291,7 @@
 .dateInput:focus,
 .selectInput:focus {
     border-color: var(--color-primary);
-    background: var(--glass-bg-hover);
+    background: var(--bg-rail);
 }
 
 .descriptionInput {
@@ -309,6 +307,6 @@
 
 .divider {
     border: none;
-    border-top: 1px solid var(--glass-border);
+    border-top: 1px solid var(--line);
     margin: 4px 0;
 }

@@ -204,12 +204,11 @@ export const ProfilePage: React.FC = () => {
         <div
             style={{
                 minHeight: '100vh',
-                background:
-                    'radial-gradient(circle at 20% 0%, rgba(249, 93, 46,0.18), transparent 50%), radial-gradient(circle at 80% 100%, rgba(227, 162, 79,0.16), transparent 50%), #131215',
-                color: '#fff',
+                // flat paper, no ambient radial washes
+                background: 'var(--bg-base)',
+                color: 'var(--text-main)',
                 padding: '32px 20px 80px',
-                fontFamily:
-                    '"Poppins", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+                fontFamily: 'var(--font-sans)',
             }}
         >
             <div style={{ maxWidth: 760, margin: '0 auto' }}>
@@ -272,7 +271,7 @@ export const ProfilePage: React.FC = () => {
                             <p
                                 style={{
                                     margin: '6px 0 0',
-                                    color: 'rgba(255,255,255,0.62)',
+                                    color: 'var(--text-soft)',
                                     fontSize: 14,
                                     overflow: 'hidden',
                                     textOverflow: 'ellipsis',
@@ -329,7 +328,7 @@ export const ProfilePage: React.FC = () => {
                             style={{ ...inputStyle, opacity: workspaceId ? 1 : 0.5 }}
                         />
                         {!workspaceId && (
-                            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 4, marginBottom: 0 }}>
+                            <p style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 4, marginBottom: 0 }}>
                                 No active workspace found in local storage.
                             </p>
                         )}
@@ -382,10 +381,10 @@ export const ProfilePage: React.FC = () => {
                                 gap: 8,
                                 background:
                                     profileFeedback.kind === 'success'
-                                        ? 'rgba(34,197,94,0.1)'
-                                        : 'rgba(239,68,68,0.1)',
-                                color: profileFeedback.kind === 'success' ? '#22c55e' : '#ef4444',
-                                border: `1px solid ${profileFeedback.kind === 'success' ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)'}`,
+                                        ? 'rgba(var(--ok-rgb), 0.1)'
+                                        : 'rgba(var(--danger-rgb), 0.1)',
+                                color: profileFeedback.kind === 'success' ? 'var(--ok)' : 'var(--danger)',
+                                border: `1px solid ${profileFeedback.kind === 'success' ? 'rgba(var(--ok-rgb), 0.25)' : 'rgba(var(--danger-rgb), 0.25)'}`,
                             }}
                         >
                             {profileFeedback.kind === 'success' ? <CheckCircle size={15} /> : <AlertCircle size={15} />}
@@ -412,7 +411,7 @@ export const ProfilePage: React.FC = () => {
                     <button
                         type="button"
                         onClick={handleLogout}
-                        style={{ ...btnRow, color: '#fca5a5' }}
+                        style={{ ...btnRow, color: 'var(--danger)' }}
                     >
                         <LogOut size={16} />
                         <span style={{ flex: 1, textAlign: 'left' }}>Log out</span>
@@ -492,7 +491,7 @@ export const ProfilePage: React.FC = () => {
                             ...btnRow,
                             marginTop: 12,
                             background: 'var(--accent)',
-                            color: '#fff',
+                            color: 'var(--on-accent)',
                             justifyContent: 'center',
                             opacity: notionBusy !== null || !notionTarget || !notionToken ? 0.6 : 1,
                         }}
@@ -516,9 +515,9 @@ export const ProfilePage: React.FC = () => {
                                 fontSize: 13,
                                 background:
                                     notionFeedback.kind === 'success'
-                                        ? 'rgba(34,197,94,0.1)'
-                                        : 'rgba(239,68,68,0.1)',
-                                color: notionFeedback.kind === 'success' ? '#22c55e' : '#ef4444',
+                                        ? 'rgba(var(--ok-rgb), 0.1)'
+                                        : 'rgba(var(--danger-rgb), 0.1)',
+                                color: notionFeedback.kind === 'success' ? 'var(--ok)' : 'var(--danger)',
                             }}
                         >
                             {notionFeedback.text}
@@ -557,14 +556,12 @@ const Field: React.FC<{
 
 // ───── Inline styles (kept self-contained so we don't add a new CSS module) ─────
 const card: React.CSSProperties = {
-    background: 'rgba(20, 22, 32, 0.72)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: 16,
+    background: 'var(--bg-card)',
+    border: '1px solid var(--line)',
+    borderRadius: 'var(--r-surface)',
     padding: 28,
     marginBottom: 20,
-    backdropFilter: 'blur(18px)',
-    WebkitBackdropFilter: 'blur(18px)',
-    boxShadow: '0 16px 48px rgba(0,0,0,0.32)',
+    boxShadow: 'var(--shadow-sm)',
 };
 
 const avatarBig: React.CSSProperties = {
@@ -573,13 +570,12 @@ const avatarBig: React.CSSProperties = {
     flexShrink: 0,
     borderRadius: '50%',
     background: 'linear-gradient(135deg, var(--accent), var(--secondary))',
-    color: '#fff',
+    color: 'var(--on-accent)',
     fontSize: 26,
     fontWeight: 700,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 8px 24px rgba(99,102,241,0.35)',
 };
 
 const fieldGrid: React.CSSProperties = {
@@ -589,9 +585,9 @@ const fieldGrid: React.CSSProperties = {
 };
 
 const fieldBox: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.06)',
-    borderRadius: 12,
+    background: 'var(--bg-inset)',
+    border: '1px solid var(--line)',
+    borderRadius: 'var(--r-md)',
     padding: '12px 14px',
 };
 
@@ -599,30 +595,32 @@ const fieldLabel: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
+    fontFamily: 'var(--font-mono)',
     fontSize: 12,
     fontWeight: 500,
-    color: 'rgba(255,255,255,0.6)',
+    color: 'var(--text-faint)',
     marginBottom: 6,
     textTransform: 'uppercase',
-    letterSpacing: '0.04em',
+    letterSpacing: '0.08em',
 };
 
 const fieldValue: React.CSSProperties = {
     fontSize: 14,
     fontWeight: 600,
-    color: '#fff',
+    color: 'var(--text-main)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
 };
 
 const sectionTitle: React.CSSProperties = {
+    fontFamily: 'var(--font-mono)',
     fontSize: 13,
     fontWeight: 600,
-    color: 'rgba(255,255,255,0.72)',
+    color: 'var(--text-faint)',
     margin: '0 0 14px',
     textTransform: 'uppercase',
-    letterSpacing: '0.06em',
+    letterSpacing: '0.08em',
 };
 
 const btnRow: React.CSSProperties = {
@@ -631,15 +629,16 @@ const btnRow: React.CSSProperties = {
     alignItems: 'center',
     gap: 12,
     padding: '14px 14px',
-    borderRadius: 10,
-    border: '1px solid rgba(255,255,255,0.08)',
-    background: 'rgba(255,255,255,0.02)',
-    color: '#fff',
+    borderRadius: 'var(--r-control)',
+    border: '1px solid var(--line)',
+    background: 'var(--bg-inset)',
+    color: 'var(--text-main)',
+    fontFamily: 'inherit',
     fontSize: 14,
     fontWeight: 500,
     cursor: 'pointer',
     marginBottom: 8,
-    transition: 'background 0.15s ease, transform 0.1s ease',
+    transition: 'background var(--transition-fast)',
 };
 
 const btnGhost: React.CSSProperties = {
@@ -647,11 +646,12 @@ const btnGhost: React.CSSProperties = {
     alignItems: 'center',
     gap: 6,
     padding: '8px 14px',
-    background: 'rgba(255,255,255,0.05)',
-    color: '#fff',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 10,
+    background: 'var(--btn-secondary-bg)',
+    color: 'var(--btn-secondary-fg)',
+    border: '1px solid var(--btn-secondary-border)',
+    borderRadius: 'var(--btn-radius)',
     cursor: 'pointer',
+    fontFamily: 'inherit',
     fontSize: 13,
     fontWeight: 500,
 };
@@ -661,23 +661,24 @@ const btnPrimary: React.CSSProperties = {
     alignItems: 'center',
     gap: 6,
     padding: '8px 16px',
-    background: 'linear-gradient(135deg, var(--accent), var(--secondary))',
-    color: '#fff',
+    background: 'var(--btn-primary-bg)',
+    color: 'var(--btn-primary-fg)',
     border: 'none',
-    borderRadius: 10,
+    borderRadius: 'var(--btn-radius)',
     cursor: 'pointer',
+    fontFamily: 'inherit',
     fontSize: 13,
     fontWeight: 600,
-    boxShadow: '0 6px 16px rgba(99,102,241,0.35)',
 };
 
 const inputStyle: React.CSSProperties = {
     width: '100%',
     padding: '11px 12px',
-    borderRadius: 10,
-    border: '1px solid rgba(255,255,255,0.1)',
-    background: 'rgba(0,0,0,0.25)',
-    color: '#fff',
+    borderRadius: 'var(--input-radius)',
+    border: '1px solid var(--input-border)',
+    background: 'var(--input-bg)',
+    color: 'var(--text-main)',
+    fontFamily: 'inherit',
     fontSize: 13,
     outline: 'none',
     boxSizing: 'border-box',
@@ -690,29 +691,31 @@ const modeButton: React.CSSProperties = {
     justifyContent: 'center',
     gap: 6,
     padding: '8px 12px',
-    borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.08)',
-    background: 'rgba(255,255,255,0.03)',
-    color: 'rgba(255,255,255,0.7)',
+    borderRadius: 'var(--btn-radius)',
+    border: '1px solid var(--line)',
+    background: 'transparent',
+    color: 'var(--text-soft)',
+    fontFamily: 'inherit',
     fontSize: 12,
     fontWeight: 500,
     cursor: 'pointer',
 };
 
 const modeButtonActive: React.CSSProperties = {
-    background: 'rgba(99,102,241,0.18)',
-    border: '1px solid rgba(99,102,241,0.45)',
-    color: '#fff',
+    background: 'var(--accent-dim)',
+    border: '1px solid var(--accent)',
+    color: 'var(--accent-ink)',
 };
 
 const editableLabel: React.CSSProperties = {
     display: 'block',
+    fontFamily: 'var(--font-mono)',
     fontSize: 12,
     fontWeight: 600,
-    color: 'rgba(255,255,255,0.6)',
+    color: 'var(--text-faint)',
     marginBottom: 6,
     textTransform: 'uppercase',
-    letterSpacing: '0.04em',
+    letterSpacing: '0.08em',
 };
 
 /** Inline Notion glyph — stays scoped to ProfilePage to avoid icon-set bloat. */

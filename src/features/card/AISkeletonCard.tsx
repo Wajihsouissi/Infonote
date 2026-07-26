@@ -5,15 +5,6 @@ import styles from './AISkeletonCard.module.css';
 export const AISkeletonCard = memo(() => {
     return (
         <div className={styles.skeletonWrapper}>
-            {/* Ambient Background Glows */}
-            <div className={`${styles.glowOrb} ${styles.glowOrb1}`} />
-            <div className={`${styles.glowOrb} ${styles.glowOrb2}`} />
-
-            {/* Twinkling Sparkle Decorations */}
-            <div className={`${styles.sparkle} ${styles.sparkle1}`}>✦</div>
-            <div className={`${styles.sparkle} ${styles.sparkle2}`}>✧</div>
-            <div className={`${styles.sparkle} ${styles.sparkle3}`}>✦</div>
-
             <div className={styles.content}>
                 {/* Heading Structure */}
                 <div className={styles.headerGroup}>
@@ -42,7 +33,7 @@ export const AISkeletonCard = memo(() => {
             
             {/* Status Badge */}
             <div className={styles.statusBadge}>
-                <Loader2 size={12} className="animate-spin" /> SYNTHESIZING
+                <Loader2 size={12} className="animate-spin" /> Generating…
             </div>
         </div>
     );

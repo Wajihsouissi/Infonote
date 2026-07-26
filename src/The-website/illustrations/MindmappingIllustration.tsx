@@ -85,7 +85,7 @@ export const MindmappingIllustration: React.FC = () => (
     {/* Leaf satellites */}
     <g>
       {LEAVES.map(({ cx, cy, r }) => (
-        <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={r} fill="var(--bg-raised)" stroke="var(--line-strong)" strokeWidth="1" />
+        <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={r} fill="var(--bg-rail)" stroke="var(--line-strong)" strokeWidth="1" />
       ))}
     </g>
 

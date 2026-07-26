@@ -85,15 +85,15 @@ export function EdgeEditingToolbar() {
 
     // Premium Color Swatches
     const colors = [
-        { name: 'Default', value: 'transparent', displayValue: '#94a3b8' },
+        { name: 'Default', value: 'transparent', displayValue: 'var(--text-faint)' },
         { name: 'Red', value: '#ef4444', displayValue: '#ef4444' },
         { name: 'Orange', value: '#f97316', displayValue: '#f97316' },
         { name: 'Yellow', value: '#eab308', displayValue: '#eab308' },
         { name: 'Green', value: '#22c55e', displayValue: '#22c55e' },
-        { name: 'Blue', value: '#3b82f6', displayValue: '#3b82f6' },
-        { name: 'Purple', value: '#8b5cf6', displayValue: '#8b5cf6' },
-        { name: 'Pink', value: '#ec4899', displayValue: '#ec4899' },
-        { name: 'Gray', value: '#64748b', displayValue: '#64748b' }
+        { name: 'Clay', value: '#a5673f', displayValue: '#a5673f' },
+        { name: 'Terracotta', value: '#c96f4c', displayValue: '#c96f4c' },
+        { name: 'Coral', value: '#f2795a', displayValue: '#f2795a' },
+        { name: 'Gray', value: '#7d7669', displayValue: '#7d7669' }
     ];
 
     // Live-Update property handlers (batch updates across all selected edges)

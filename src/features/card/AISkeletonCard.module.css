@@ -4,61 +4,12 @@
     display: flex;
     flex-direction: column;
     padding: 24px;
-    background: rgba(15, 10, 25, 0.65);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: var(--node-bg);
+    border: 1px solid var(--line);
     border-radius: inherit;
     position: relative;
     overflow: hidden;
     box-shadow: none;
-}
-
-/* Glassy moving light sweep */
-.skeletonWrapper::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -150%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(
-        120deg,
-        transparent,
-        rgba(255, 255, 255, 0.1) 20%,
-        rgba(168, 85, 247, 0.4) 50%,
-        rgba(255, 255, 255, 0.1) 80%,
-        transparent
-    );
-    transform: skewX(-20deg);
-    animation: glassSweep 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-    pointer-events: none;
-    z-index: 1;
-}
-
-@keyframes glassSweep {
-    0% { left: -150%; }
-    50%, 100% { left: 150%; }
-}
-
-/* Background glowing orbs */
-.glowOrb {
-    position: absolute;
-    width: 150px;
-    height: 150px;
-    background: radial-gradient(circle, rgba(168, 85, 247, 0.6) 0%, transparent 70%);
-    border-radius: 50%;
-    filter: blur(20px);
-    animation: floatGlow 6s infinite ease-in-out alternate;
-    z-index: 0;
-}
-
-.glowOrb1 { top: -20px; left: -20px; animation-delay: 0s; }
-.glowOrb2 { bottom: -40px; right: -20px; background: radial-gradient(circle, rgba(236, 72, 153, 0.5) 0%, transparent 70%); animation-delay: -3s; }
-
-@keyframes floatGlow {
-    0% { transform: translate(0, 0) scale(1); opacity: 0.6; }
-    100% { transform: translate(30px, 20px) scale(1.2); opacity: 1; }
 }
 
 .content {
@@ -70,11 +21,10 @@
     gap: 20px;
 }
 
-/* Base style for skeleton shapes */
+/* Skeleton shapes — a quiet pulse/shimmer, no glow, glass, or sweep */
 .shimmerBlock {
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 8px;
+    background: var(--hover-wash);
+    border-radius: var(--radius-md);
     position: relative;
     overflow: hidden;
 }
@@ -86,12 +36,7 @@
     left: -100%;
     width: 200%;
     height: 100%;
-    background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, 0.15),
-        transparent
-    );
+    background: linear-gradient(90deg, transparent, var(--active-wash), transparent);
     animation: shimmerSlide 2s infinite linear;
 }
 
@@ -110,13 +55,13 @@
 .iconPlaceholder {
     width: 48px;
     height: 48px;
-    border-radius: 12px;
+    border-radius: var(--r-control);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--accent-ink);
+    background: var(--accent-dim);
     box-shadow: none;
-    background: rgba(168, 85, 247, 0.1);
 }
 
 .iconPlaceholder svg {
@@ -124,8 +69,8 @@
 }
 
 @keyframes pulseIcon {
-    0%, 100% { opacity: 0.6; transform: scale(0.9); color: rgba(255,255,255,0.6); }
-    50% { opacity: 1; transform: scale(1.1); color: rgba(232, 121, 249, 1); }
+    0%, 100% { opacity: 0.55; transform: scale(0.92); color: var(--text-faint); }
+    50% { opacity: 1; transform: scale(1.06); color: var(--accent-ink); }
 }
 
 .titleLines {
@@ -138,7 +83,7 @@
 .titleLineMain {
     height: 20px;
     width: 70%;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
 }
 
 .titleLineSub {
@@ -162,61 +107,51 @@
 /* Image Wireframe */
 .imageWireframe {
     flex: 1;
-    border-radius: 12px;
+    border-radius: var(--r-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px dashed rgba(255, 255, 255, 0.3);
-    background: rgba(0, 0, 0, 0.2);
+    border: 1px dashed var(--line-strong);
+    background: var(--bg-inset);
     position: relative;
     min-height: 120px;
 }
 
 .imageWireframeIcon {
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--text-faint);
     animation: floatVertical 4s infinite ease-in-out;
 }
 
 @keyframes floatVertical {
     0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
+    50% { transform: translateY(-6px); }
 }
 
-/* Sparkles decorations */
-.sparkle {
-    position: absolute;
-    color: #e879f9;
-    animation: twinkle 3s infinite ease-in-out;
-    opacity: 0;
-    z-index: 3;
-}
-
-.sparkle1 { top: 10%; right: 15%; animation-delay: 0s; font-size: 16px; }
-.sparkle2 { top: 40%; left: 5%; animation-delay: 1s; font-size: 12px; }
-.sparkle3 { bottom: 20%; right: 10%; animation-delay: 2s; font-size: 18px; color: #c084fc; }
-
-@keyframes twinkle {
-    0%, 100% { opacity: 0; transform: scale(0.5) rotate(0deg); }
-    50% { opacity: 1; transform: scale(1.2) rotate(45deg); text-shadow: none; }
-}
-
-/* Status text */
+/* Status text — honest, calm, sentence case */
 .statusBadge {
     position: absolute;
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(168, 85, 247, 0.2);
-    border: 1px solid rgba(168, 85, 247, 0.4);
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-wash);
     padding: 6px 16px;
-    border-radius: 20px;
+    border-radius: var(--radius-pill);
     display: flex;
     align-items: center;
     gap: 8px;
     font-size: 11px;
     font-weight: 700;
-    color: #f0abfc;
-    letter-spacing: 1px;
+    color: var(--accent-ink);
+    letter-spacing: 0.06em;
     box-shadow: none;
     z-index: 4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shimmerBlock::after,
+    .iconPlaceholder svg,
+    .imageWireframeIcon {
+        animation: none;
+    }
 }

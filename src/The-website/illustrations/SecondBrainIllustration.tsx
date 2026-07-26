@@ -40,7 +40,7 @@ const ImagePlaceholder: React.FC<{ height: number }> = ({ height }) => (
   <div
     style={{
       height,
-      background: 'var(--bg-raised)',
+      background: 'var(--bg-rail)',
       border: '1px solid var(--line-strong)',
       borderRadius: 'var(--radius-sm)',
       display: 'flex',
@@ -129,7 +129,7 @@ const MindNode: React.FC<{
       <div className={styles.ftUiCardHeader}>
         <div
           className={styles.ftUiIconBox}
-          style={{ width: 20, height: 20, background: 'var(--bg-raised)', border: `1px solid ${edge}`, color: ink }}
+          style={{ width: 20, height: 20, background: 'var(--bg-rail)', border: `1px solid ${edge}`, color: ink }}
         >
           <Icon size={12} />
         </div>
@@ -170,8 +170,8 @@ export const SecondBrainIllustration: React.FC = () => {
               <Line w="60%" h={4} />
             </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-              <div style={{ width: 36, height: 12, borderRadius: 6, background: 'var(--bg-raised)', border: '1px solid var(--line-strong)' }} />
-              <div style={{ width: 48, height: 12, borderRadius: 6, background: 'var(--bg-raised)', border: '1px solid var(--line-strong)' }} />
+              <div style={{ width: 36, height: 12, borderRadius: 6, background: 'var(--bg-rail)', border: '1px solid var(--line-strong)' }} />
+              <div style={{ width: 48, height: 12, borderRadius: 6, background: 'var(--bg-rail)', border: '1px solid var(--line-strong)' }} />
             </div>
           </Ghost>
 
@@ -261,7 +261,7 @@ export const SecondBrainIllustration: React.FC = () => {
             }}
           >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 12, borderBottom: '1px solid var(--line-strong)', marginBottom: 4 }}>
-            <div style={{ width: 28, height: 28, background: 'var(--bg-raised)', border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 28, height: 28, background: 'var(--bg-rail)', border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <FileText size={16} />
             </div>
             <span style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: 18, letterSpacing: '-0.01em', fontFamily: 'var(--font-sans, system-ui, sans-serif)' }}>Meeting Notes</span>
@@ -271,7 +271,7 @@ export const SecondBrainIllustration: React.FC = () => {
             {/* Block: Heading */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 20, height: 20, borderRadius: 4, background: 'var(--bg-raised)', border: '1px solid var(--line-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 20, height: 20, borderRadius: 4, background: 'var(--bg-rail)', border: '1px solid var(--line-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-soft)' }}>H</span>
                 </div>
                 <Line w="70%" h={8} />
@@ -309,7 +309,7 @@ export const SecondBrainIllustration: React.FC = () => {
             <div
               style={{
                 height: 80,
-                background: 'var(--bg-raised)',
+                background: 'var(--bg-rail)',
                 border: '1px solid var(--line-strong)',
                 borderRadius: 'var(--radius-sm)',
                 display: 'flex',
@@ -403,13 +403,13 @@ export const SecondBrainIllustration: React.FC = () => {
           </Ghost>
           
           <Ghost x={300} y={-10} w={140} h={96} float="ftNodeFloat4" tilt={5} tz={20} scale={0.7} opacity={0.3} pad={10} delay={0.4}>
-            <div style={{ flex: 1, background: 'var(--bg-raised)', border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ flex: 1, background: 'var(--bg-rail)', border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <ImageIcon size={16} color="var(--text-soft)" />
             </div>
           </Ghost>
 
           <Ghost x={380} y={220} w={150} h={112} float="ftNodeFloat3" tilt={8} tz={60} scale={0.8} opacity={0.25} pad={0} delay={0.5}>
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--line-strong)', background: 'var(--bg-raised)', padding: '10px 12px', gap: 10 }}>
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--line-strong)', background: 'var(--bg-rail)', padding: '10px 12px', gap: 10 }}>
               <Line w="100%" /><Line w="100%" /><Line w="100%" />
             </div>
             <div style={{ display: 'flex', padding: 12, gap: 10 }}>
@@ -422,7 +422,7 @@ export const SecondBrainIllustration: React.FC = () => {
 
           <Ghost x={-10} y={320} w={165} h={58} float="ftNodeFloat4" tilt={-8} tz={30} scale={0.9} opacity={0.35} pad={12} gap={12} delay={0.6}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--line-strong)', padding: 6, borderRadius: 'var(--radius-sm)' }}>
+              <div style={{ background: 'var(--bg-rail)', border: '1px solid var(--line-strong)', padding: 6, borderRadius: 'var(--radius-sm)' }}>
                 <Link2 size={12} color="var(--text-soft)" />
               </div>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -433,7 +433,7 @@ export const SecondBrainIllustration: React.FC = () => {
 
           <Ghost x={220} y={370} w={195} h={82} float="ftNodeFloat1" tilt={-4} tz={50} scale={0.72} opacity={0.25} pad={16} gap={12} delay={0.7}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 18, height: 18, borderRadius: 4, background: 'var(--bg-raised)', border: '1px solid var(--line-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 18, height: 18, borderRadius: 4, background: 'var(--bg-rail)', border: '1px solid var(--line-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: 9, color: 'var(--text-soft)', fontWeight: 700 }}>H1</span>
               </div>
               <Line w="60%" h={6} />
@@ -486,10 +486,10 @@ export const SecondBrainIllustration: React.FC = () => {
           className={`${styles.ftUiCursor} ${styles.ftCursorAnim2}`} 
           style={{ top: 152, left: 194, zIndex: 100 }}
         >
-          <svg width="17" height="17" viewBox="0 0 16 16" fill="var(--text-main)" stroke="var(--bg-raised)" strokeWidth="1.5" strokeLinejoin="round">
+          <svg width="17" height="17" viewBox="0 0 16 16" fill="var(--text-main)" stroke="var(--bg-rail)" strokeWidth="1.5" strokeLinejoin="round">
             <path d="M0,0 L6,16 L9.5,9.5 L16,6 Z" />
           </svg>
-          <div className={styles.ftUiCursorLabel} style={{ background: 'var(--bg-raised)', color: 'var(--text-main)', border: '1px solid var(--line-strong)' }}>Double-click to open</div>
+          <div className={styles.ftUiCursorLabel} style={{ background: 'var(--bg-rail)', color: 'var(--text-main)', border: '1px solid var(--line-strong)' }}>Double-click to open</div>
         </motion.div>
       </div>
     </div>

@@ -7,17 +7,16 @@
 }
 
 .modalContent {
-    background: var(--color-bg-card, #1e1e24);
-    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
-    border-radius: 12px;
+    background: var(--menu-bg);
+    border: 1px solid var(--menu-border);
+    border-radius: var(--menu-radius);
     padding: 16px;
     width: 280px;
-    box-shadow: none;
-    backdrop-filter: blur(20px);
+    box-shadow: var(--menu-shadow);
     display: flex;
     flex-direction: column;
     gap: 16px;
-    animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: slideUp 0.2s var(--ease-rise);
 }
 
 @keyframes slideUp {
@@ -31,13 +30,13 @@
     gap: 8px;
     font-size: 0.9rem;
     font-weight: 600;
-    color: var(--color-text-main);
-    border-bottom: 1px solid var(--glass-border);
+    color: var(--text-main);
+    border-bottom: 1px solid var(--line);
     padding-bottom: 12px;
 }
 
 .headerIcon {
-    color: var(--color-primary);
+    color: var(--accent);
 }
 
 .calendarContainer {
@@ -55,16 +54,16 @@
 .monthYear {
     font-size: 0.85rem;
     font-weight: 600;
-    color: var(--color-text-main);
+    color: var(--text-main);
 }
 
 .navButton {
     background: transparent;
     border: none;
-    color: var(--color-text-muted);
+    color: var(--text-soft);
     cursor: pointer;
     padding: 4px;
-    border-radius: 6px;
+    border-radius: var(--btn-radius);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -72,8 +71,8 @@
 }
 
 .navButton:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--color-text-main);
+    background: var(--active-wash);
+    color: var(--text-main);
 }
 
 .weekDays {
@@ -82,7 +81,7 @@
     text-align: center;
     font-size: 0.7rem;
     font-weight: 600;
-    color: var(--color-text-muted);
+    color: var(--text-soft);
     margin-bottom: 4px;
 }
 
@@ -98,25 +97,25 @@
     align-items: center;
     justify-content: center;
     font-size: 0.8rem;
-    color: var(--color-text-main);
+    color: var(--text-main);
     cursor: pointer;
-    border-radius: 6px;
+    border-radius: var(--btn-radius);
     transition: background 0.15s, transform 0.1s;
 }
 
 .day:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--active-wash);
 }
 
 .day.today {
-    color: var(--color-primary);
+    color: var(--accent);
     font-weight: bold;
-    background: rgba(139, 92, 246, 0.1);
+    background: rgba(var(--accent-rgb), 0.1);
 }
 
 .day.selected {
-    background: var(--color-primary);
-    color: white;
+    background: var(--accent);
+    color: var(--on-accent);
     font-weight: 600;
     transform: scale(1.05);
     box-shadow: none;
@@ -130,10 +129,10 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--bg-inset);
     padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid var(--glass-border);
+    border-radius: var(--r-control);
+    border: 1px solid var(--line);
 }
 
 .timeSectionHeader {
@@ -147,7 +146,7 @@
     justify-content: space-between;
     align-items: center;
     padding-top: 8px;
-    border-top: 1px dashed var(--glass-border);
+    border-top: 1px dashed var(--line);
 }
 
 .timeLabel {
@@ -155,18 +154,19 @@
     align-items: center;
     gap: 6px;
     font-size: 0.8rem;
-    color: var(--color-text-muted);
+    color: var(--text-soft);
 }
 
 .timeInput {
     background: transparent;
     border: none;
-    color: var(--color-text-main);
+    color: var(--text-main);
     font-size: 0.9rem;
     font-weight: 600;
     outline: none;
     cursor: pointer;
-    color-scheme: dark;
+    font-family: var(--font-mono);
+    /* inherit the theme's color-scheme so the native picker matches Ink/Paper */
 }
 
 .timeInput::-webkit-calendar-picker-indicator {
@@ -192,9 +192,9 @@
     position: absolute;
     cursor: pointer;
     top: 0; left: 0; right: 0; bottom: 0;
-    background-color: rgba(255, 255, 255, 0.1);
-    transition: .3s;
-    border-radius: 18px;
+    background-color: var(--active-wash);
+    transition: background-color var(--transition-fast);
+    border-radius: var(--radius-pill);
 }
 
 .slider:before {
@@ -204,18 +204,18 @@
     width: 14px;
     left: 2px;
     bottom: 2px;
-    background-color: var(--color-text-muted);
+    background-color: var(--text-soft);
     transition: .3s;
     border-radius: 50%;
 }
 
 input:checked + .slider {
-    background-color: var(--color-primary);
+    background-color: var(--accent);
 }
 
 input:checked + .slider:before {
     transform: translateX(14px);
-    background-color: white;
+    background-color: var(--on-accent);
 }
 
 .actions {
@@ -227,7 +227,7 @@ input:checked + .slider:before {
 
 .cancelButton, .saveButton {
     padding: 8px 16px;
-    border-radius: 6px;
+    border-radius: var(--btn-radius);
     font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
@@ -236,19 +236,19 @@ input:checked + .slider:before {
 
 .cancelButton {
     background: transparent;
-    border: 1px solid var(--glass-border);
-    color: var(--color-text-muted);
+    border: 1px solid var(--line);
+    color: var(--text-soft);
 }
 
 .cancelButton:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--color-text-main);
+    background: var(--hover-wash);
+    color: var(--text-main);
 }
 
 .saveButton {
-    background: var(--color-primary);
+    background: var(--accent);
     border: none;
-    color: white;
+    color: var(--on-accent);
 }
 
 .saveButton:hover:not(:disabled) {

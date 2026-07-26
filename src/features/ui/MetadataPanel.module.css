@@ -12,7 +12,7 @@
     width: 310px;
     height: 100%;
     background: var(--color-bg-base);
-    border-left: 1px solid var(--glass-border);
+    border-left: 1px solid var(--line);
     display: flex;
     flex-direction: column;
     z-index: 100;
@@ -23,7 +23,7 @@
     transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-left-color 0.3s ease;
     
     /* Professional Sans-Serif Base Font Stack for Premium Inspector Look */
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--font-sans);
 }
 
 .panelOpen {
@@ -46,8 +46,8 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse 160% 40% at 50% 0%, rgba(139, 92, 246, 0.16) 0%, transparent 65%),
-                radial-gradient(ellipse 120% 30% at 50% 100%, rgba(6, 182, 212, 0.08) 0%, transparent 65%);
+    background: radial-gradient(ellipse 160% 40% at 50% 0%, rgba(var(--accent-rgb), 0.16) 0%, transparent 65%),
+                radial-gradient(ellipse 120% 30% at 50% 100%, rgba(var(--secondary-rgb), 0.08) 0%, transparent 65%);
     pointer-events: none;
     z-index: 1;
 }
@@ -87,10 +87,10 @@
 .coverPreview {
     width: 100%;
     height: 80px; /* Snug height */
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     overflow: hidden;
     position: relative;
-    border: 1px solid var(--glass-border);
+    border: 1px solid var(--line);
     box-shadow: none;
 }
 
@@ -105,7 +105,7 @@
     top: 5px;
     right: 5px;
     background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
+
     color: white;
     border: none;
     width: 18px;
@@ -120,14 +120,14 @@
 }
 
 .removeCoverBtn:hover {
-    background: rgba(220, 38, 38, 0.9);
+    background: rgba(var(--danger-rgb), 0.9);
 }
 
 .addCoverBtn {
     width: 100%;
     height: 60px; /* Snug height */
-    border: 1px dashed var(--glass-border);
-    border-radius: 8px;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius-md);
     background: transparent;
     color: var(--color-text-muted);
     display: flex;
@@ -136,7 +136,7 @@
     justify-content: center;
     gap: 5px;
     cursor: pointer;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--font-sans);
     font-size: 0.7rem;
     font-weight: 500;
     transition: all var(--transition-fast);
@@ -158,9 +158,9 @@
 .iconBtn {
     width: 34px; /* Optimized smaller icon button */
     height: 34px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: var(--color-primary-glow);
-    border: 1px solid rgba(139, 92, 246, 0.2);
+    border: 1px solid rgba(var(--accent-rgb), 0.2);
     color: var(--color-primary);
     display: flex;
     align-items: center;
@@ -205,7 +205,7 @@
 
 .fieldGroup label {
     /* Crisp Vercel/Linear style uppercase properties labels */
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-sans);
     font-size: 0.62rem; /* Clean 10px tiny text */
     font-weight: 500; /* Refined legibility - avoids bloated blocky bold */
     color: var(--color-text-muted);
@@ -217,10 +217,10 @@
 
 .descriptionInput {
     background: var(--color-bg-surface);
-    border: 1px solid var(--glass-border);
-    border-radius: 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
     padding: 8px 10px;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: var(--font-sans);
     font-size: 0.8rem; /* Highly readable snug size */
     color: var(--color-text-main);
     outline: none;
@@ -236,13 +236,13 @@
 
 .descriptionInput:focus {
     border-color: var(--color-primary);
-    background: var(--glass-bg-hover);
+    background: var(--bg-rail);
     box-shadow: none;
 }
 
 .divider {
     border: none;
-    border-top: 1px solid var(--glass-border);
+    border-top: 1px solid var(--line);
     margin: 2px 0;
 }
 
@@ -253,7 +253,7 @@
 .panel :global(button),
 .panel :global(div),
 .panel :global(span) {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-family: var(--font-sans) !important;
 }
 
 /* Maintain high-end geometric Poppins solely on the Page Title */

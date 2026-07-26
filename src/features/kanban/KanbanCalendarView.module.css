@@ -4,8 +4,6 @@
     display: flex;
     flex-direction: column;
     background: rgba(10, 10, 10, 0.4);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.06);
     overflow: hidden;
@@ -39,7 +37,7 @@
     display: flex;
     align-items: center;
     background: rgba(255, 255, 255, 0.03);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     padding: 2px;
     border: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -78,7 +76,7 @@
     justify-content: center;
     width: 28px;
     height: 28px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.03);
     color: rgba(255, 255, 255, 0.6);
@@ -187,7 +185,7 @@
 }
 
 .today .dayNumber {
-    background: #8b5cf6;
+    background: var(--accent);
     color: #fff;
     font-weight: 600;
 }
@@ -257,5 +255,5 @@
 
 .calendarWrapper::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+    border-radius: var(--radius-xs);
 }

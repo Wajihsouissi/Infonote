@@ -1,10 +1,13 @@
 import { useMemo, useEffect, Suspense, lazy, useRef, useCallback, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { FEATURES } from '../../config/featureFlags';
 import {
     ReactFlow,
     Controls,
     MiniMap,
     SelectionMode,
+    Background,
+    BackgroundVariant,
     useReactFlow,
     Panel,
     type NodeChange,
@@ -35,7 +38,6 @@ import { CanvasContextMenu } from './CanvasContextMenu';
 
 import { CenteredEdge } from './CenteredEdge';
 import { CustomConnectionLine } from './CustomConnectionLine';
-import { CustomGrid } from './CustomGrid';
 import { ChunkItModal } from '../card/ChunkItModal';
 import { AuthModal } from '../auth/AuthModal';
 import { useStore } from '../../store/useStore';
@@ -1145,8 +1147,16 @@ export function CanvasBoard() {
                     top={76}
                 />
 
-
-                <ReactFlow
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={currentParentId || 'root'}
+                        initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
+                        animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                        exit={{ opacity: 0, scale: 1.02, filter: 'blur(4px)' }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                        style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}
+                    >
+                        <ReactFlow
                     className={isLinkingMode ? 'is-linking-mode' : ''}
                     nodes={processedNodes}
                     edges={visibleEdges}
@@ -1274,20 +1284,25 @@ export function CanvasBoard() {
                     {FEATURES.collaboration && <LiveCursors presenceData={presenceData} currentUserId={currentUserId} />}
                     <CanvasSlashMenu />
                     <DragChip />
-                    <CustomGrid />
+                    <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color="var(--dot)" />
                     <Panel position="top-center">
 
                     </Panel>
                     <Panel position="bottom-right" className={styles.bottomRightControls}>
+                        {/* No nodeColor/maskColor props: those become SVG presentation
+                            attributes that can't read var(). We style .react-flow__minimap-*
+                            in index.css instead, where `fill` IS a CSS property and does
+                            resolve tokens — so the minimap tracks the live palette and the
+                            theme automatically, with no literals to keep in sync (§10). */}
                         <MiniMap
-                            nodeColor="var(--color-primary)"
-                            maskColor="var(--glass-bg)"
                             className={styles.canvasMiniMap}
                             style={{ width: 160, height: 116 }}
                         />
                         <Controls className={styles.canvasControls} />
                     </Panel>
                 </ReactFlow>
+                    </motion.div>
+                </AnimatePresence>
             </div>
 
             <MetadataPanel

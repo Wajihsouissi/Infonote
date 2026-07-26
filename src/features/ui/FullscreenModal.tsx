@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useRef } from 'react';
 import { useStore } from '../../store/useStore';
 import styles from './FullscreenModal.module.css';
@@ -49,8 +50,6 @@ export function FullscreenModal({
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, [fullscreenId, setFullscreenId]);
 
-    if (!fullscreenId || !activeNode) return null;
-
     const handleClose = () => {
         if (document.fullscreenElement) {
             document.exitFullscreen().catch(() => { });
@@ -59,51 +58,66 @@ export function FullscreenModal({
     };
 
     return (
-        <div
-            className={styles.overlay}
-            onClick={handleClose}
-            onDragOver={(e) => {
-                if (onCanvasDragOver) {
-                    onCanvasDragOver(e);
-                } else {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
-            }}
-            onDrop={(e) => {
-                if (onCanvasDrop) {
-                    onCanvasDrop(e);
-                } else {
-                    e.stopPropagation();
-                }
-            }}
-        >
-            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-                <div style={{ height: '100%', width: '100%', overflow: 'hidden' }}>
-                    {activeNode.type === 'note' ? (
-                        <NoteExpandedContent
-                            id={fullscreenId}
-                            nodeId={fullscreenId}
-                            data={activeNode.data}
-                            onUpdate={updateNodeData}
-                            onClose={handleClose}
-                            onNavigate={() => {
-                                handleClose();
-                                navigateToNode(fullscreenId);
-                            }}
-                        />
-                    ) : (
-                        <div className={styles.editorContainer}>
-                            <BlockEditor
-                                nodeId={fullscreenId}
-                                initialContent={getNodeBlocks(activeNode.data)}
-                                onUpdate={(blocks) => updateNodeData(fullscreenId, { content: blocks })}
-                                autoFocus={true}
-                            />
+        <AnimatePresence>
+            {fullscreenId && activeNode && (
+                <motion.div
+                    className={styles.overlay}
+                    initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+                    animate={{ opacity: 1, backdropFilter: 'blur(4px)' }}
+                    exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+                    transition={{ duration: 0.2 }}
+                    onClick={handleClose}
+                    onDragOver={(e: any) => {
+                        if (onCanvasDragOver) {
+                            onCanvasDragOver(e);
+                        } else {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }
+                    }}
+                    onDrop={(e: any) => {
+                        if (onCanvasDrop) {
+                            onCanvasDrop(e);
+                        } else {
+                            e.stopPropagation();
+                        }
+                    }}
+                >
+                    <motion.div 
+                        className={styles.modal} 
+                        onClick={(e: any) => e.stopPropagation()}
+                        initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                    >
+                        <div style={{ height: '100%', width: '100%', overflow: 'hidden' }}>
+                            {activeNode.type === 'note' ? (
+                                <NoteExpandedContent
+                                    id={fullscreenId}
+                                    nodeId={fullscreenId}
+                                    data={activeNode.data}
+                                    onUpdate={updateNodeData}
+                                    onClose={handleClose}
+                                    onNavigate={() => {
+                                        handleClose();
+                                        navigateToNode(fullscreenId);
+                                    }}
+                                />
+                            ) : (
+                                <div className={styles.editorContainer}>
+                                    <BlockEditor
+                                        nodeId={fullscreenId}
+                                        initialContent={getNodeBlocks(activeNode.data)}
+                                        onUpdate={(blocks) => updateNodeData(fullscreenId, { content: blocks })}
+                                        autoFocus={true}
+                                    />
+                                </div>
+                            )}
                         </div>
-                    )}
-                </div>
-            </div>
-        </div>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
     );
 }

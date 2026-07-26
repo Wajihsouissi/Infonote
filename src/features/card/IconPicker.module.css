@@ -15,8 +15,6 @@
     right: 0;
     bottom: 0;
     background: rgba(10, 11, 15, 0.75);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
     display: flex;
     align-items: flex-start; /* Align modal at the top vertically */
     justify-content: center; /* Center modal horizontally */
@@ -40,8 +38,6 @@
     display: flex !important;
     align-items: stretch !important;
     justify-content: stretch !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
     overflow: hidden !important; /* Constrain any vertical rendering */
     animation: slideInLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
@@ -76,8 +72,8 @@
 
 /* Standard centered modal box (for canvas card note click triggers) */
 .modal {
-    background: linear-gradient(135deg, #0C0E15, #05060C);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--bg-rail);
+    border: 1px solid var(--line);
     border-radius: 16px;
     padding: 20px;
     width: 720px;
@@ -89,7 +85,7 @@
     box-shadow: none;
     position: relative;
     overflow: hidden;
-    font-family: 'Inter', -apple-system, sans-serif;
+    font-family: var(--font-sans);
     animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -114,8 +110,8 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse 160% 40% at 50% 0%, rgba(139, 92, 246, 0.16) 0%, transparent 65%),
-                radial-gradient(ellipse 120% 30% at 50% 100%, rgba(6, 182, 212, 0.08) 0%, transparent 65%);
+    background: radial-gradient(ellipse 160% 40% at 50% 0%, rgba(var(--accent-rgb), 0.16) 0%, transparent 65%),
+                radial-gradient(ellipse 120% 30% at 50% 100%, rgba(var(--secondary-rgb), 0.08) 0%, transparent 65%);
     pointer-events: none;
     z-index: 1;
 }
@@ -152,10 +148,10 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--bg-inset);
     padding: 4px;
-    border-radius: 8px;
-    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--line);
 }
 
 .tabBtn {
@@ -165,7 +161,7 @@
     font-size: 0.82rem;
     font-weight: 500;
     padding: 6px 12px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     transition: all 0.2s;
     outline: none;
@@ -176,7 +172,7 @@
 }
 
 .tabActive {
-    background: rgba(255, 255, 255, 0.1) !important;
+    background: var(--active-wash) !important;
     color: var(--color-text-main);
     box-shadow: none;
 }
@@ -187,7 +183,7 @@
     color: var(--color-text-muted);
     cursor: pointer;
     padding: 4px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -198,7 +194,7 @@
 }
 
 .closeBtn:hover {
-    background: var(--glass-bg-hover) !important;
+    background: var(--bg-rail) !important;
     color: var(--color-text-main);
 }
 
@@ -228,13 +224,13 @@
 }
 
 .swatchSelected {
-    border-color: #fff;
+    border-color: var(--text-main);
     box-shadow: none;
     transform: scale(1.1);
 }
 
 .swatchDefault {
-    background: linear-gradient(135deg, #94a3b8, #60a5fa, #8b5cf6, #ec4899);
+    background: linear-gradient(135deg, var(--text-faint), var(--secondary), var(--accent), var(--accent-ink));
     position: relative;
 }
 .swatchDefault::after {
@@ -242,7 +238,7 @@
     position: absolute;
     inset: -2px;
     border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid var(--line-strong);
 }
 
 /* Search input container */
@@ -250,9 +246,9 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid var(--glass-border);
-    border-radius: 8px;
+    background: var(--bg-inset);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
     padding: 8px 10px;
     margin-bottom: 14px;
     transition: all 0.2s ease;
@@ -261,7 +257,7 @@
 
 .searchBox:focus-within {
     border-color: var(--color-primary);
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--bg-inset);
     box-shadow: none;
 }
 
@@ -279,7 +275,7 @@
     width: 100%;
     padding: 0;
     margin: 0;
-    font-family: 'Inter', sans-serif !important;
+    font-family: var(--font-sans) !important;
 }
 
 .searchBox input::placeholder {
@@ -297,7 +293,7 @@
     flex: 1;
     min-height: 0; /* CRITICAL for flex scroll */
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    scrollbar-color: var(--line-strong) transparent;
 }
 
 .categorySection {
@@ -314,7 +310,7 @@
     font-weight: 600;
     margin-left: 4px;
     padding-bottom: 4px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--line);
 }
 
 /* Grid layout for icons inside category */
@@ -341,7 +337,7 @@
     overflow: hidden;
     width: 48px;
     height: 48px;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--hover-wash);
 }
 
 /* Big Upload Area for Custom Tab */
@@ -351,8 +347,8 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 2px dashed var(--glass-border);
+    background: var(--hover-wash);
+    border: 2px dashed var(--line);
     border-radius: 12px;
     padding: 32px 20px;
     text-align: center;
@@ -389,10 +385,10 @@
 }
 
 .uploadButtonLabel {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--glass-border);
+    background: var(--hover-wash);
+    border: 1px solid var(--line);
     padding: 6px 16px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     font-size: 0.75rem;
     color: var(--color-text-main);
     cursor: pointer;
@@ -400,7 +396,7 @@
 }
 
 .uploadButtonLabel:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--active-wash);
 }
 
 /* URL Input Row */
@@ -408,9 +404,9 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid var(--glass-border);
-    border-radius: 8px;
+    background: var(--bg-inset);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
     padding: 6px 10px;
     transition: all 0.2s ease;
 }
@@ -436,7 +432,7 @@
 }
 
 .urlInputRow input::placeholder {
-    color: rgba(255, 255, 255, 0.3);
+    color: var(--text-faint);
 }
 
 .urlApplyBtn {
@@ -444,7 +440,7 @@
     color: white;
     border: none;
     padding: 4px 12px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     font-size: 0.75rem;
     cursor: pointer;
     font-weight: 500;
@@ -456,8 +452,8 @@
 }
 
 .urlApplyBtn:disabled {
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.3);
+    background: var(--active-wash);
+    color: var(--text-faint);
     cursor: not-allowed;
 }
 
@@ -467,8 +463,8 @@
     flex-direction: column;
     align-items: center;
     gap: 12px;
-    background: rgba(0, 0, 0, 0.15);
-    border: 1px solid var(--glass-border);
+    background: var(--bg-inset);
+    border: 1px solid var(--line);
     border-radius: 12px;
     padding: 20px;
     margin-top: auto;
@@ -490,8 +486,8 @@
     overflow: hidden;
     width: 80px;
     height: 80px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: var(--hover-wash);
+    border: 1px solid var(--line);
     box-shadow: none;
 }
 
@@ -499,19 +495,19 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    background: rgba(248, 113, 113, 0.1);
-    color: #f87171;
-    border: 1px solid rgba(248, 113, 113, 0.2);
+    background: rgba(var(--danger-rgb), 0.1);
+    color: var(--danger);
+    border: 1px solid rgba(var(--danger-rgb), 0.2);
     padding: 6px 12px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     font-size: 0.75rem;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .removeCustomBtn:hover {
-    background: rgba(248, 113, 113, 0.2);
-    border-color: rgba(248, 113, 113, 0.4);
+    background: rgba(var(--danger-rgb), 0.2);
+    border-color: rgba(var(--danger-rgb), 0.4);
 }
 
 .categoriesContainer::-webkit-scrollbar {
@@ -523,19 +519,19 @@
 }
 
 .categoriesContainer::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--active-wash);
     border-radius: 2px;
 }
 
 .categoriesContainer::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--line-strong);
 }
 
 /* Compact and Premium Icon Selection Grid Buttons */
 .iconOption {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid var(--glass-border);
-    border-radius: 8px;
+    background: var(--hover-wash);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
     padding: 10px;
     cursor: pointer;
     display: flex;
