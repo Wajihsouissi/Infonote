@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Deutsch B2 — Arbeitsfläche laden</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center;
+    font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: #14120F; color: #F3EFE9;
+  }
+  .card {
+    width: min(560px, 92vw); padding: 40px; border-radius: 24px;
+    background: #1C1A17; border: 1px solid rgba(255,255,255,.08);
+    box-shadow: 0 24px 60px rgba(0,0,0,.45);
+  }
+  h1 { margin: 0 0 6px; font-size: 1.5rem; letter-spacing: -.01em; }
+  p  { margin: 0 0 18px; color: #A9A297; }
+  button {
+    appearance: none; border: 0; cursor: pointer; font: inherit; font-weight: 600;
+    padding: 14px 22px; border-radius: 14px; background: #F95D2E; color: #fff;
+  }
+  button:disabled { opacity: .55; cursor: default; }
+  button.ghost { background: transparent; color: #F3EFE9; border: 1px solid rgba(255,255,255,.16); margin-left: 8px; }
+  #log { margin-top: 20px; font-size: .9rem; white-space: pre-wrap; color: #A9A297; }
+  .ok { color: #6FCF97; }
+  .err { color: #EB5757; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Deutsch B2 — Arbeitsfläche</h1>
+    <p>Schreibt die fertige Lern-Arbeitsfläche (46 Karten, 38 Verbindungen) in den lokalen Speicher dieses Browsers. Vorhandene Karten auf der Fläche werden dabei ersetzt.</p>
+    <button id="load">Arbeitsfläche laden</button>
+    <button id="open" class="ghost">Zur App</button>
+    <div id="log"></div>
+  </div>
+
+<script>
+const log = (msg, cls) => {
+  const el = document.getElementById('log');
+  el.className = cls || '';
+  el.textContent = msg;
+};
+
+document.getElementById('open').onclick = () => { location.href = '/'; };
+
+document.getElementById('load').onclick = async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  try {
+    log('Lade Daten …');
+    const res = await fetch('/deutsch-b2-workspace.json?t=' + Date.now());
+    if (!res.ok) throw new Error('deutsch-b2-workspace.json nicht gefunden (HTTP ' + res.status + ')');
+    const graph = await res.json();
+
+    log('Schreibe in den lokalen Speicher …');
+    const db = await new Promise((resolve, reject) => {
+      const rq = indexedDB.open('chnk-it-local', 1);
+      rq.onupgradeneeded = () => {
+        const d = rq.result;
+        if (!d.objectStoreNames.contains('snapshots')) d.createObjectStore('snapshots');
+      };
+      rq.onsuccess = () => resolve(rq.result);
+      rq.onerror = () => reject(rq.error);
+    });
+
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('snapshots', 'readwrite');
+      tx.objectStore('snapshots').put(
+        { nodes: graph.nodes, edges: graph.edges, savedAt: Date.now() },
+        'latest'
+      );
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+
+    localStorage.removeItem('chnk-it-current-parent-id');
+
+    log('Fertig: ' + graph.nodes.length + ' Karten, ' + graph.edges.length + ' Verbindungen.\nWeiterleitung zur App …', 'ok');
+    setTimeout(() => { location.href = '/'; }, 1200);
+  } catch (err) {
+    log('Fehlgeschlagen: ' + err.message, 'err');
+    btn.disabled = false;
+  }
+};
+</script>
+</body>
+</html>
