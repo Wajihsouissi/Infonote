@@ -5,9 +5,10 @@ import { BlockEditor } from '../editor/BlockEditor';
 import { ConvertCardModal, type ConvertCardResult } from '../card/ConvertCardModal';
 
 import { useStore } from '../../store/useStore';
+import { getNodeById } from '../../store/nodeIndex';
 import type { Node } from '@xyflow/react';
 import styles from './FusedNoteNode.module.css';
-import { snapFusedDimensions, MIN_EXPANDED_SIZE } from '../../config/layout';
+import { snapFusedDimensions, MIN_EXPANDED_SIZE, MAX_HEIGHT } from '../../config/layout';
 import type { AppNode } from '../../types';
 import type { Block } from '../editor/types';
 
@@ -80,21 +81,22 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     const isMultiSelected = selectedCanvasNodeIds.has(id) && selectedCanvasNodeIds.size > 1;
 
     // Get the node's style from the store to check if it has been manually resized
-    const nodeStyle = useStore(s => s.nodes.find(n => n.id === id)?.style);
+    const nodeStyle = useStore(s => getNodeById(s.nodes, id)?.style);
     const hasManualHeight = nodeStyle?.height !== undefined;
 
-    const dynamicStyle = {
-        '--node-accent-color': data.color || 'transparent',
+    const dynamicStyle: React.CSSProperties = {
+        ['--node-accent-color' as string]: data.color || 'var(--block-rail)',
         display: 'flex',
-        flexDirection: 'column' as const,
+        flexDirection: 'column',
         ...(hasManualHeight ? {
             height: '100%',
+            maxHeight: `${MAX_HEIGHT}px`,
         } : {
             height: 'auto',
             minHeight: '208px', // 4 units
-            maxHeight: '432px', // 8 units
+            maxHeight: `${MAX_HEIGHT}px`,
         })
-    } as React.CSSProperties;
+    };
 
     const contentStyle = {
         flex: hasManualHeight ? '1 1 0%' : '1 1 auto',

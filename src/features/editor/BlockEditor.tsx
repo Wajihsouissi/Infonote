@@ -12,6 +12,7 @@ import { getActiveFormatsFromSelection, getActiveLinkUrlFromSelection, applyInli
 
 import { BlockItem } from './BlockItem';
 import { useStore } from '../../store/useStore';
+import { getNodeById } from '../../store/nodeIndex';
 
 // Hooks
 import { useBlockSelection } from './hooks/useBlockSelection';
@@ -121,8 +122,12 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         document.addEventListener('selectionchange', onSelChange);
         return () => document.removeEventListener('selectionchange', onSelChange);
     }, []);
+    /* Indexed lookup, not nodes.find(): this selector re-runs on every store
+       change for every mounted editor, so a linear scan here costs
+       O(nodes × editors) per update — the single biggest cost of opening a
+       large canvas. See store/nodeIndex.ts. */
     const nodeColor = useStore(s => {
-        const data = s.nodes.find(n => n.id === nodeId)?.data;
+        const data = getNodeById(s.nodes, nodeId)?.data;
         return data && 'color' in data ? data.color : undefined;
     });
     const theme = useStore(s => s.theme);

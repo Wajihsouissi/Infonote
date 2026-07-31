@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../../store/useStore';
+import { getNodeById } from '../../store/nodeIndex';
 import { BlockEditor } from '../editor/BlockEditor';
 import styles from './FullscreenModal.module.css';
 import { NoteExpandedContent } from '../card/NoteExpandedContent';
@@ -18,7 +19,7 @@ export function CenterModal({
     const updateNodeData = useStore(s => s.updateNodeData);
     const navigateToNode = useStore(s => s.navigateToNode);
     // Only subscribe to the specific node we need, not the entire array
-    const activeNode = useStore(s => centerPanelId ? s.nodes.find(n => n.id === centerPanelId) : undefined);
+    const activeNode = useStore(s => getNodeById(s.nodes, centerPanelId ?? undefined));
 
     const handleNavigate = () => {
         // Close the modal and navigate to the card's nested canvas

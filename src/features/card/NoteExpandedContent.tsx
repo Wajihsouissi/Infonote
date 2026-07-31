@@ -10,10 +10,11 @@ import type { Block } from '../editor/types';
 import { useStore } from '../../store/useStore';
 import { CoverPicker } from './CoverPicker';
 import { toPastelColor } from '../../utils/colorUtils';
-import { SkeletonLoader } from './SkeletonLoader';
+import { NoteBody } from './NoteBody';
+import { useCanvasDetail } from '../canvas/hooks/useCanvasDetail';
 
 // Extracted components and hooks
-import { useNoteMetadata, useLazyRender } from './hooks';
+import { useNoteMetadata, useLazyRender, useScheduledMount } from './hooks';
 import { NoteCoverSection } from './NoteCoverSection';
 import { NoteMetadataSection } from './NoteMetadataSection';
 import { NoteFooterStats } from './NoteFooterStats';
@@ -31,6 +32,13 @@ interface NoteExpandedContentProps {
     flatCorners?: boolean; // Remove border radius
     readOnly?: boolean;
     hideBlockHandles?: boolean;
+    /**
+     * Opt in to swapping the editor for a static preview when the canvas is
+     * zoomed out (see useCanvasDetail). Only the card sitting on the canvas
+     * wants this — a card opened in a panel or fullscreen must stay editable
+     * regardless of what the canvas behind it is doing.
+     */
+    zoomAwareBody?: boolean;
 }
 
 export function NoteExpandedContent({
@@ -44,7 +52,8 @@ export function NoteExpandedContent({
     selectionIslandPortalId,
     flatCorners,
     readOnly,
-    hideBlockHandles
+    hideBlockHandles,
+    zoomAwareBody
 }: NoteExpandedContentProps) {
     // Use data state (persistent) or fallback to false
     const showMetadata = data?.showMetadata ?? false;
@@ -56,8 +65,22 @@ export function NoteExpandedContent({
     const theme = useStore(s => s.theme);
     const displayColor = data?.color ? toPastelColor(data.color, theme === 'light') : undefined;
 
-    // Lazy rendering hook
-    const { hasRendered, containerRef } = useLazyRender();
+    /* Two gates decide whether the live editor is worth building:
+       isNearViewport = the card is at or near the viewport, isDetailed = the
+       canvas is zoomed in far enough for the body to be legible. Below either
+       one the card shows a static text preview, so the cost of a canvas tracks
+       how many cards are actually readable on screen rather than how many
+       exist. */
+    const { isNearViewport, containerRef } = useLazyRender();
+    const detailTier = useCanvasDetail(nodeId ?? id);
+    const blocks = useMemo(() => (Array.isArray(data.content) ? data.content : []), [data.content]);
+
+    const wantsLiveEditor = isNearViewport && (detailTier === 'full' || !zoomAwareBody);
+    /* Both gates can flip for a whole screenful of cards at once — a pan, or a
+       zoom crossing the threshold — so the rising edge is paced across frames. */
+    const showLiveEditor = useScheduledMount(wantsLiveEditor);
+    /* Wanted but not built yet — the wireframe animates to show it is coming. */
+    const isEditorPending = wantsLiveEditor && !showLiveEditor;
 
     // Metadata editing hook
     const {
@@ -152,6 +175,21 @@ export function NoteExpandedContent({
     const handleContentUpdate = useCallback((blocks: Block[]) => {
         onUpdate(id, { content: blocks });
     }, [id, onUpdate]);
+
+    /* Passed to NoteBody rather than inlined at the call site: an inline arrow
+       would be a new prop on every render and defeat NoteBody's memo, which
+       matters here because this is the hot path on a busy canvas. */
+    const renderEditor = useCallback(() => (
+        <BlockEditor
+            initialContent={blocks}
+            readOnly={readOnly || false}
+            minimal={false}
+            onUpdate={handleContentUpdate}
+            nodeId={nodeId}
+            selectionIslandPortalId={selectionIslandPortalId}
+            hideBlockHandles={hideBlockHandles}
+        />
+    ), [blocks, readOnly, handleContentUpdate, nodeId, selectionIslandPortalId, hideBlockHandles]);
 
     // Dynamic color styles removed to follow Paper & Ink guidelines
 
@@ -330,19 +368,12 @@ export function NoteExpandedContent({
                     e.dataTransfer.dropEffect = 'copy';
                 }}
             >
-                {hasRendered ? (
-                    <BlockEditor
-                        initialContent={Array.isArray(data.content) ? data.content : []}
-                        readOnly={readOnly || false}
-                        minimal={false}
-                        onUpdate={handleContentUpdate}
-                        nodeId={nodeId}
-                        selectionIslandPortalId={selectionIslandPortalId}
-                        hideBlockHandles={hideBlockHandles}
-                    />
-                ) : (
-                    <SkeletonLoader />
-                )}
+                <NoteBody
+                    blocks={blocks}
+                    showLiveEditor={showLiveEditor}
+                    isEditorPending={isEditorPending}
+                    renderEditor={renderEditor}
+                />
             </div>
 
             {/* Footer (only when metadata visible) */}

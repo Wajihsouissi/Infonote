@@ -14,6 +14,8 @@ import { AISkeletonCard } from './AISkeletonCard';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { calculateNoteLayout } from '../../config/layout';
 import { generateText } from '../../services/aiService';
+import { useCanvasDetail } from '../canvas/hooks/useCanvasDetail';
+import { NoteCardMinimal } from './NoteCardMinimal';
 
 export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<NoteNode>) => {
     const { setNodes, getViewport } = useReactFlow();
@@ -78,6 +80,11 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
     const viewMode = data.viewMode || 'medium';
     const isMultiSelected = selectedCanvasNodeIds.has(id) && selectedCanvasNodeIds.size > 1;
+
+    /* This card's own level of detail — set by how far it is from the viewport
+       as well as by zoom. `minimal` means its chrome would be a few pixels tall
+       or it is well off to one side, so it draws as a labelled rectangle. */
+    const isMinimalDetail = useCanvasDetail(id) === 'minimal';
 
     // Use the raw color without converting to pastel/glow
     const displayColor = data.color;
@@ -378,7 +385,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             )}
 
             {/* custom strict resize handle */}
-            <div
+            {!isMinimalDetail && <div
                 className={`${styles.modernResizeHandle} nodrag`}
                 onMouseDown={(e) => {
                     e.stopPropagation(); // prevent react flow node drag
@@ -471,10 +478,10 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                         className={styles.handlePath}
                     />
                 </svg>
-            </div>
+            </div>}
 
             {/* Floating Hover Menu - Hide in Chromeless mode or when specifically requested */}
-            {!data.hideHoverMenu && (
+            {!isMinimalDetail && !data.hideHoverMenu && (
                 <div className={styles.hoverMenu}>
                     <button className={styles.menuBtn} onClick={handleLeftSidePeak} title="Side Panel (Left)">
                         <PanelLeft size={16} />
@@ -521,7 +528,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             )}
 
             {/* Icon Picker Modal */}
-            {showIconPicker && (
+            {!isMinimalDetail && showIconPicker && (
                 <IconPicker
                     currentIcon={editedData.icon}
                     onSelect={handleIconSelect}
@@ -530,7 +537,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             )}
 
             {/* View 1: Icon Mode - Icon + Text */}
-            {viewMode === 'icon' && (
+            {!isMinimalDetail && viewMode === 'icon' && (
                 <div className={styles.iconView} key="icon">
                     <button
                         className={`${styles.iconButton} nodrag`}
@@ -561,7 +568,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             )}
 
             {/* View 1.5: Title View - Icon + Text (Horizontal) */}
-            {viewMode === 'titleview' && (
+            {!isMinimalDetail && viewMode === 'titleview' && (
                 <div className={styles.titleView} key="titleview">
                     <button
                         className={`${styles.iconButton} nodrag`}
@@ -592,7 +599,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             )}
 
             {/* View 2: Medium Mode - Icon + Title Row, Description Below */}
-            {viewMode === 'medium' && (
+            {!isMinimalDetail && viewMode === 'medium' && (
                 <div className={styles.mediumView} key="medium">
                     <div className={styles.mediumHeader}>
                         <input
@@ -657,7 +664,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             )}
 
             {/* View 3: Expanded Mode - Cover + Icon/Title Row + Description + Date + Note Area */}
-            {viewMode === 'expanded' && (
+            {!isMinimalDetail && viewMode === 'expanded' && (
                 <div className={styles.expandedView} key="expanded">
                     <ErrorBoundary>
                         {data.isAISkeleton ? (
@@ -672,6 +679,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                                 contentRef={contentRef}
                                 nodeId={id}
                                 selectionIslandPortalId={`selection-island-${id}`}
+                                zoomAwareBody
                             />
                         )}
                     </ErrorBoundary>
@@ -689,7 +697,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
 
 
-            {showCoverPicker && (
+            {!isMinimalDetail && showCoverPicker && (
                 <CoverPicker
                     currentCover={data.coverImage || ''}
                     onSelect={(url) => {
@@ -699,6 +707,8 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                     onClose={() => setShowCoverPicker(false)}
                 />
             )}
+
+            {isMinimalDetail && <NoteCardMinimal label={data.label} color={displayColor} />}
         </div>
     );
 });

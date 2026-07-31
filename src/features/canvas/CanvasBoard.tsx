@@ -48,6 +48,7 @@ import { loadCanvasFromCloud } from '../../services/cloudSync';
 import { isSupabaseConfigured, supabase } from '../../services/supabase/client';
 
 // Hooks
+import { setStreaming } from './hooks/lodStore';
 import {
     useCanvasStoreSelectors,
     useCanvasViewport,
@@ -162,6 +163,11 @@ export function CanvasBoard() {
     const { presenceData, updateCursor, broadcastNodeChange, currentUserId } = useRealtimeSync(currentParentId);
 
     // Viewport culling and visible nodes
+    /* Detail streams in when the gesture stops rather than during it: promoting
+       a row of cards to a richer tier mid-pan is what makes the drag stutter. */
+    const handleMoveStart = useCallback(() => setStreaming(true), []);
+    const handleMoveEnd = useCallback(() => setStreaming(false), []);
+
     const { visibleNodes, handleViewportChange } = useCanvasViewport({
         nodes,
         currentParentId,
@@ -1226,6 +1232,8 @@ export function CanvasBoard() {
                     onNodeDrag={onNodeDrag}
                     onNodeDragStop={onNodeDragStop}
                     onMove={handleViewportChange}
+                    onMoveStart={handleMoveStart}
+                    onMoveEnd={handleMoveEnd}
                     onSelectionStart={() => {
                         isBoxSelectingRef.current = true;
                         setSelectedEdgeId(null);
@@ -1267,6 +1275,7 @@ export function CanvasBoard() {
                     autoPanOnConnect={false}
                     autoPanOnNodeDrag={false}
                     connectOnClick={false}
+                    nodeDragThreshold={0}
                     deleteKeyCode={['Delete', 'Backspace']}
                     onNodesDelete={(deletedNodes) => {
                         const ids = deletedNodes.map(n => n.id);

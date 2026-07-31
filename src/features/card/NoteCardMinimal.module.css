@@ -1,0 +1,48 @@
+/* Lowest level of detail: a labelled rectangle.
+   Kept to two elements on purpose — this renders for hundreds of cards at once
+   when the user zooms out to survey a canvas. */
+
+.minimal {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: flex-start;
+    padding: 20px 22px;
+    border-radius: inherit;
+    overflow: hidden;
+    /* Nothing here is interactive at this size; let the node handle drags. */
+    pointer-events: none;
+}
+
+.label {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    /* Oversized on purpose: the canvas transform scales this down, so a normal
+       body size would be sub-pixel. At 0.2 zoom this lands around 7px — enough
+       to tell cards apart, the way a label on a map does. */
+    font-size: 34px;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: var(--text-main);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+}
+
+/* Colour spine, mirroring the card's file-tab signature at full detail so a
+   colour-coded canvas stays recognisable when zoomed out. */
+.spine {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 10px;
+    border-top-left-radius: inherit;
+    border-bottom-left-radius: inherit;
+    background: var(--accent);
+    opacity: 0.85;
+}

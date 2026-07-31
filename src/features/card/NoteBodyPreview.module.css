@@ -1,0 +1,170 @@
+/* Wireframe stand-in for the block editor at middle zoom.
+   Shapes mirror the real blocks — heading weights, list markers, table grids —
+   so a card is recognisable by its layout without rendering any text. */
+
+.preview {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: var(--block-inset, 8px) 0;
+    overflow: hidden;
+    pointer-events: none;
+    user-select: none;
+}
+
+/* The wireframe doubles as the loading state: while a card is queued to become
+   editable, its own skeleton breathes. That reads as "this is filling in" at
+   the place it is happening, instead of a modal that covers the board — and
+   unlike a modal it costs nothing, because the shapes are already on screen. */
+.loading {
+    animation: wireframePulse 1.25s ease-in-out infinite;
+}
+
+/* A sweep travelling down the card, so a long card visibly resolves top-first
+   rather than every bar blinking in unison. */
+.loading .bar,
+.loading .codeLine,
+.loading .tableCell,
+.loading .media,
+.loading .calloutIcon,
+.loading .marker,
+.loading .markerSquare {
+    animation: wireframeSweep 1.25s ease-in-out infinite;
+    animation-delay: calc(var(--wf-i, 0) * 45ms);
+}
+
+@keyframes wireframePulse {
+    0%, 100% { opacity: 0.75; }
+    50%      { opacity: 1; }
+}
+
+@keyframes wireframeSweep {
+    0%, 100% { filter: none; opacity: 0.7; }
+    50%      { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .loading,
+    .loading .bar,
+    .loading .codeLine,
+    .loading .tableCell,
+    .loading .media,
+    .loading .calloutIcon,
+    .loading .marker,
+    .loading .markerSquare {
+        animation: none;
+        opacity: 0.85;
+    }
+}
+
+/* --- generic bar ------------------------------------------------------- */
+
+.bar {
+    height: 7px;
+    border-radius: 3px;
+    background: var(--hover-wash);
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+/* --- headings: taller, darker, shorter --------------------------------- */
+
+.h1 { height: 15px; border-radius: 4px; background: var(--active-wash); margin-top: 6px; }
+.h2 { height: 12px; border-radius: 4px; background: var(--active-wash); margin-top: 5px; }
+.h3 { height: 10px; border-radius: 3px; background: var(--active-wash); margin-top: 3px; }
+
+/* --- list markers ------------------------------------------------------ */
+
+.marker {
+    flex: 0 0 auto;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--active-wash);
+}
+
+.markerSquare {
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    border: 1.5px solid var(--active-wash);
+}
+
+.indent { padding-left: 14px; }
+
+/* --- callout / quote --------------------------------------------------- */
+
+.callout {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 8px 9px;
+    border-radius: 6px;
+    background: var(--hover-wash);
+}
+
+.calloutIcon {
+    flex: 0 0 auto;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    background: var(--accent);
+    opacity: 0.65;
+}
+
+.quote {
+    padding-left: 10px;
+    border-left: 3px solid var(--accent);
+    opacity: 0.75;
+}
+
+/* --- code -------------------------------------------------------------- */
+
+.code {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 9px 10px;
+    border-radius: 6px;
+    background: var(--code-bg, rgba(0, 0, 0, 0.28));
+}
+
+.codeLine { height: 5px; border-radius: 2px; background: var(--active-wash); }
+
+/* --- table ------------------------------------------------------------- */
+
+.table {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid var(--hover-wash);
+}
+
+.tableRow { display: flex; gap: 2px; }
+.tableCell { flex: 1 1 0; height: 9px; background: var(--hover-wash); }
+.tableHead .tableCell { background: var(--active-wash); height: 11px; }
+
+/* --- media / divider --------------------------------------------------- */
+
+.media {
+    height: 46px;
+    border-radius: 6px;
+    background: var(--hover-wash);
+    border: 1px dashed var(--active-wash);
+}
+
+.divider { height: 1px; background: var(--hover-wash); margin: 3px 0; }
+
+.swatch { width: 22px; height: 22px; border-radius: 5px; }
+
+/* --- columns ----------------------------------------------------------- */
+
+.columns { display: flex; gap: 10px; }
+.column { flex: 1 1 0; display: flex; flex-direction: column; gap: 6px; }

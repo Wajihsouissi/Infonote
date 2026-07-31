@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useRef } from 'react';
 import { useStore } from '../../store/useStore';
+import { getNodeById } from '../../store/nodeIndex';
 import styles from './FullscreenModal.module.css';
 import { NoteExpandedContent } from '../card/NoteExpandedContent';
 import { BlockEditor } from '../editor/BlockEditor';
@@ -18,7 +19,7 @@ export function FullscreenModal({
     const setFullscreenId = useStore(s => s.setFullscreenId);
     const updateNodeData = useStore(s => s.updateNodeData);
     // Only subscribe to the specific node we need, not the entire array
-    const activeNode = useStore(s => fullscreenId ? s.nodes.find(n => n.id === fullscreenId) : undefined);
+    const activeNode = useStore(s => getNodeById(s.nodes, fullscreenId ?? undefined));
     const navigateToNode = useStore(s => s.navigateToNode);
     const isLocalFullscreen = useRef(false);
 

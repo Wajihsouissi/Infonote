@@ -495,7 +495,7 @@ export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPast
                 style={{ backgroundColor: block.metadata?.backgroundColor || undefined }}
             >
                 <div className={styles.calloutIconWrapper}>
-                    <Icon size={24} className={styles.calloutIconSvg} />
+                    <Icon size={20} className={styles.calloutIconSvg} />
                 </div>
                 <div
                     className={`${styles.block} ${styles.text}`}
@@ -515,7 +515,7 @@ export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPast
                 className={`${styles.calloutIconWrapper} ${!readOnly ? styles.clickable : ''}`}
                 onClick={!readOnly ? () => setShowIconPicker(true) : undefined}
             >
-                <Icon size={24} className={styles.calloutIconSvg} />
+                <Icon size={20} className={styles.calloutIconSvg} />
             </div>
 
             {showIconPicker && (
@@ -723,18 +723,49 @@ export const TableBlock = memo(({ block, readOnly, onChange, disableMediaControl
 
     const commit = (patch: Partial<BlockMetadata>) => onChange(block.content, { ...block.metadata, ...patch });
 
-    // Grow a textarea cell to fit its content (multi-line, wrapping cells).
+    /* Grow a textarea cell to fit its content (multi-line, wrapping cells).
+       Reading scrollHeight right after writing style.height forces a synchronous
+       layout of the whole document, so this must only ever be called for ONE
+       cell (a keystroke). Sizing many cells goes through autosizeAll, which
+       batches the writes and reads instead — see the note there. */
     const autosize = (el: HTMLTextAreaElement | null) => {
         if (!el) return;
         el.style.height = 'auto';
         el.style.height = `${el.scrollHeight}px`;
     };
 
-    const setCellRef = (r: number, c: number) => (el: HTMLTextAreaElement | null) => {
-        const key = `${r}:${c}`;
-        if (el) { cellRefs.current.set(key, el); autosize(el); }
-        else cellRefs.current.delete(key);
+    /* Size every cell in two layout passes instead of one per cell.
+       The naive loop (write height, read scrollHeight, write height — per cell)
+       makes the browser re-lay-out the entire document once per cell: a 300-cell
+       table cost ~2.5s and scaled quadratically with the rest of the canvas.
+       Grouping the writes and reads makes it ~30ms. */
+    const autosizeAll = () => {
+        const cells = [...cellRefs.current.values()];
+        if (cells.length === 0) return;
+        if (cells.length === 1) { autosize(cells[0]); return; }
+        for (const el of cells) el.style.height = 'auto';        // all writes
+        const heights = cells.map((el) => el.scrollHeight);      // all reads (one layout)
+        cells.forEach((el, i) => { el.style.height = `${heights[i]}px`; }); // all writes
     };
+
+    /* Cells register here and are sized together by the layout effect below.
+       The callback per cell is cached by key: returning a fresh `(el) => …` each
+       render would make React detach and re-attach every cell ref on every
+       render, so the whole table would re-register (and previously re-size)
+       constantly instead of just on mount. */
+    const cellRefCallbacks = useRef<Map<string, (el: HTMLTextAreaElement | null) => void>>(new Map());
+    const setCellRef = useCallback((r: number, c: number) => {
+        const key = `${r}:${c}`;
+        let cb = cellRefCallbacks.current.get(key);
+        if (!cb) {
+            cb = (el: HTMLTextAreaElement | null) => {
+                if (el) cellRefs.current.set(key, el);
+                else cellRefs.current.delete(key);
+            };
+            cellRefCallbacks.current.set(key, cb);
+        }
+        return cb;
+    }, []);
 
     const focusCell = (r: number, c: number, toEnd = true) => {
         const key = `${r}:${c}`;
@@ -762,9 +793,10 @@ export const TableBlock = memo(({ block, readOnly, onChange, disableMediaControl
         pendingFocus.current = null;
     });
 
-    // Keep every cell sized to its content after any data change (e.g. undo, paste).
+    // Size every cell on mount and after any data change (e.g. undo, paste).
     useLayoutEffect(() => {
-        cellRefs.current.forEach(el => autosize(el));
+        autosizeAll();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [rows]);
 
     // Seed an empty table without mutating state during render.

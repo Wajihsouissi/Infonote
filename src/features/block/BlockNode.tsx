@@ -6,11 +6,24 @@ import { ColorBlockModal } from '../editor/ColorBlockModal';
 import { ConvertCardModal, type ConvertCardResult } from '../card/ConvertCardModal';
 
 import { useStore } from '../../store/useStore';
+import { getNodeById } from '../../store/nodeIndex';
 
 import type { AppNode, NoteNode } from '../../types';
 import type { Block } from '../editor/types';
 import styles from './BlockNode.module.css';
-import { MIN_EXPANDED_SIZE, ICON_SIZE } from '../../config/layout';
+import { MIN_EXPANDED_SIZE, ICON_SIZE, MAX_HEIGHT } from '../../config/layout';
+
+/* Resize bounds for a standard block. These mirror --block-node-w and
+   --block-node-max-user in design-system.css §5; the drag clamps to them and
+   CSS enforces the same floor, so the two can't disagree. A block grows to
+   --block-node-max (432) on its own — dragging is what takes it past that. */
+const BLOCK_MIN_W = 260;
+const BLOCK_MAX_USER_W = 800;
+const BLOCK_MIN_H = 56;
+/* Taking a hand-size is a one-way door out of intrinsic sizing, so it has to be
+   a deliberate drag: a plain click on the handle (mousedown + a pixel of
+   tremor + mouseup) must leave the block sizing itself. */
+const RESIZE_THRESHOLD_PX = 3;
 
 const useGlobalListIndex = (nodeId: string, isSingleNumbered: boolean) => {
     return useStore(
@@ -18,7 +31,7 @@ const useGlobalListIndex = (nodeId: string, isSingleNumbered: boolean) => {
             (state) => {
                 if (!isSingleNumbered) return undefined;
                 
-                const node = state.nodes.find(n => n.id === nodeId);
+                const node = getNodeById(state.nodes, nodeId);
                 if (!node || node.type !== 'block' || !node.data.isStandaloneBlock) return undefined;
 
                 // Get all nodes in the same column that are also standalone blocks
@@ -99,6 +112,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     }, [selected]);
 
     const isMultiSelected = selectedCanvasNodeIds.has(id) && selectedCanvasNodeIds.size > 1;
+    const isDragging = useStore(s => s.interactionState.draggedNodeId === id && !s.interactionState.isMultiDragging);
 
     const colorBlocks: Block[] = Array.isArray(data.content) ? data.content : [];
     const singleBlock = colorBlocks.length === 1 ? colorBlocks[0] : undefined;
@@ -131,6 +145,15 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     // Only the rich link cards resize — the empty input and text link do not.
     const isResizable = isSingleMedia || isLinkCard;
 
+    // A standard block sizes itself to its text until the user drags the resize
+    // handle; from then on it keeps whatever they set. Width lives on the React
+    // Flow node style (RF needs it for edges and selection bounds); height is a
+    // CSS floor rather than a fixed value, so content longer than the dragged
+    // height still expands the block instead of being clipped.
+    const userWidth = typeof data.userWidth === 'number' ? data.userWidth : undefined;
+    const userHeight = typeof data.userHeight === 'number' ? data.userHeight : undefined;
+    const isUserSized = userWidth !== undefined || userHeight !== undefined;
+
     const isMediaEmpty = isSingleMedia && (!singleBlock?.content || singleBlock.content.trim() === '');
 
     const globalListIndex = useGlobalListIndex(id, isSingleNumbered);
@@ -138,51 +161,86 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const accentColor = singleColorValue || data.color;
     
     const dynamicStyles = useMemo(() => {
-        if (!accentColor) return {};
-        return {
-            '--node-accent-color': accentColor,
-        } as React.CSSProperties;
-    }, [accentColor]);
+        const vars: Record<string, string> = {};
+        if (accentColor) vars['--node-accent-color'] = accentColor;
+        // Applied by CSS as min-height, so a dragged height is a floor the
+        // content can still push past rather than a lid that clips it.
+        if (userHeight !== undefined) vars['--block-user-h'] = `${userHeight}px`;
+        return vars as React.CSSProperties;
+    }, [accentColor, userHeight]);
 
     useLayoutEffect(() => {
         setNodes(nodes => {
             let changed = false;
+            let newStyle: Record<string, string | number> = {};
+            
             const newNodes = nodes.map(n => {
                 if (n.id === id) {
                     const needsHeightAuto = !isSingleColor && n.style?.height !== 'auto';
                     // Text & headings flow with their content (4 -> 8 units, then wrap) instead of a fixed width.
                     const needsAutoWidthInit = isAutoWidthText && !isResizable && !isColumns && !isSingleColor && !isWideBlock && n.style?.width !== 'fit-content';
-                    const needsWidthInit = !isAutoWidthText && !isResizable && !isColumns && !isSingleColor && !isWideBlock && (n.style?.width === 'auto' || n.style?.width === undefined);
+                    const needsWidthInit = !isStandardBlock && !isAutoWidthText && !isResizable && !isColumns && !isSingleColor && !isWideBlock && (n.style?.width === 'auto' || n.style?.width === undefined);
                     // A link that just became a card may carry the 260 standard
                     // width from its empty state — widen it to the card default.
                     const needsResizableWidthInit = isResizable && (n.style?.width === 'auto' || n.style?.width === undefined || (isLinkCard && n.style?.width === 260));
                     const shouldForcePlaceholderWidth = isMediaEmpty && n.style?.width !== 208 && n.style?.width !== '208px';
                     const needsColumnsWidthInit = isColumns && (n.style?.width === 'auto' || n.style?.width === undefined);
                     const needsColorInit = isSingleColor && (n.style?.width !== ICON_SIZE || n.style?.height !== ICON_SIZE);
-                    // Resizable blocks (media, link cards) own their width — don't
-                    // snap them back to the 260 standard footprint every render.
-                    const needsStandardInit = isStandardBlock && !isResizable && (n.style?.width !== 260);
+                    // A standard block leaves width unset so CSS max-content can
+                    // grow it with its text (260 → --block-node-max, then wrap).
+                    // Pinning 260 here would defeat that. Hand-resized blocks own
+                    // their width and are left alone.
+                    const needsStandardInit = isStandardBlock && !isAutoWidthText && !isResizable && !isUserSized && (n.style?.width !== 'auto');
 
                     if (needsHeightAuto || needsAutoWidthInit || needsWidthInit || needsResizableWidthInit || shouldForcePlaceholderWidth || needsColumnsWidthInit || needsColorInit || needsStandardInit) {
                         changed = true;
+                        newStyle = {
+                            ...(needsHeightAuto ? { height: 'auto' } : {}),
+                            ...(needsStandardInit ? { width: 'auto' } : {}),
+                            ...(needsAutoWidthInit ? { width: 'fit-content' } : {}),
+                            ...(needsWidthInit ? { width: 260 } : {}),
+                            ...((needsResizableWidthInit || shouldForcePlaceholderWidth) ? { width: isLinkCard ? 432 : 208 } : {}),
+                            ...(needsColumnsWidthInit ? { width: 550 } : {}),
+                            ...(needsColorInit ? { width: ICON_SIZE, height: ICON_SIZE } : {})
+                        };
                         return {
                             ...n,
                             style: {
                                 ...n.style,
-                                ...(needsHeightAuto ? { height: 'auto' } : {}),
-                                ...(needsStandardInit ? { width: 260 } : {}),
-                                ...((needsResizableWidthInit || shouldForcePlaceholderWidth) ? { width: isLinkCard ? 432 : 208 } : {}),
-                                ...(needsColumnsWidthInit ? { width: 550 } : {}),
-                                ...(needsColorInit ? { width: ICON_SIZE, height: ICON_SIZE } : {})
+                                ...newStyle
                             }
                         };
                     }
                 }
                 return n;
             });
+            
+            // Synchronously update the store so that CanvasBoard doesn't overwrite our initialization 
+            // on its next render (which caused an infinite render loop when ResizeObserver fired).
+            if (changed) {
+                const storeNodes = useStore.getState().nodes;
+                const storeNode = storeNodes.find(node => node.id === id);
+                if (storeNode) {
+                    let needsSync = false;
+                    for (const key in newStyle) {
+                        if (storeNode.style?.[key as keyof typeof storeNode.style] !== newStyle[key]) {
+                            needsSync = true;
+                            break;
+                        }
+                    }
+                    if (needsSync) {
+                        setNodesStore(nodes => nodes.map(node => 
+                            node.id === id 
+                                ? { ...node, style: { ...node.style, ...newStyle } } 
+                                : node
+                        ));
+                    }
+                }
+            }
+            
             return changed ? newNodes : nodes;
         });
-    }, [id, setNodes, isResizable, isColumns, isSingleLink, isLinkCard, isSingleColor, isStandardBlock, isMediaEmpty]);
+    }, [id, setNodes, setNodesStore, isResizable, isColumns, isSingleLink, isLinkCard, isSingleColor, isStandardBlock, isMediaEmpty, isUserSized]);
 
 
 
@@ -256,26 +314,40 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
 
         const { zoom } = getViewport();
         const startX = e.clientX;
+        const startY = e.clientY;
 
         if (!nodeRef.current) return;
         const rect = nodeRef.current.getBoundingClientRect();
+        // Screen pixels -> flow units, or the block outruns the cursor at any
+        // zoom other than 100%.
         const startW = rect.width / zoom;
+        const startH = rect.height / zoom;
 
         activeResize.current = true;
-        document.body.style.cursor = 'ew-resize';
+        document.body.style.cursor = isStandardBlock ? 'nwse-resize' : 'ew-resize';
         document.body.classList.add('chnk-it-resizing-active');
 
         const onMouseMove = (moveEvent: MouseEvent) => {
+            if (Math.abs(moveEvent.clientX - startX) + Math.abs(moveEvent.clientY - startY) < RESIZE_THRESHOLD_PX) return;
+
             const deltaX = (moveEvent.clientX - startX) / zoom;
             const rawW = startW + deltaX;
 
-            const width = Math.max(100, rawW);
+            const width = isStandardBlock
+                ? Math.min(BLOCK_MAX_USER_W, Math.max(BLOCK_MIN_W, rawW))
+                : Math.max(100, rawW);
+            const height = Math.min(MAX_HEIGHT, Math.max(BLOCK_MIN_H, startH + (moveEvent.clientY - startY) / zoom));
 
+            // Size and data must move in ONE store write: as two (setNodes then
+            // updateNodeData) they raced, and the node ended a drag with a
+            // stale userWidth that disagreed with its rendered width.
             setNodes(nodes => nodes.map(n => {
-                if (n.id === id) {
-                    return { ...n, style: { ...n.style, width } };
-                }
-                return n;
+                if (n.id !== id) return n;
+                const style = { ...n.style, width };
+                if (!isStandardBlock) return { ...n, style };
+                // userHeight lands in CSS as a min-height floor, not style.height.
+                const data = { ...n.data, userWidth: width, userHeight: height } as typeof n.data;
+                return { ...n, style, data };
             }));
         };
 
@@ -290,6 +362,17 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
         window.addEventListener('mousemove', onMouseMove);
         window.addEventListener('mouseup', onMouseUp);
     };
+
+    // Double-clicking the handle hands the block back to intrinsic sizing —
+    // the only way out of a drag you didn't want.
+    const handleResizeReset = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setNodes(nodes => nodes.map(n => (
+            n.id === id ? { ...n, style: { ...n.style, width: 'auto' } } : n
+        )));
+        updateNodeData(id, { userWidth: undefined, userHeight: undefined });
+    }, [id, setNodes, updateNodeData]);
 
     const baseClassName = isSingleColor ? styles.colorBlockNode : styles.blockNode;
     const isSkeleton = data.isAISkeleton;
@@ -308,8 +391,10 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 ${isHoveredLinking ? styles.linkingHover : ''}
                 ${dropType === 'fusion' ? styles.fusionTarget : ''}
                 ${isDropTarget && dropType === 'nesting' ? styles.dropTarget : ''} 
+                ${isDragging ? styles.dragging : ''}
                 custom-drag-handle
             `}
+            data-user-sized={isUserSized ? 'true' : undefined}
             style={{
                 backgroundColor: ((isSingleMedia && !isMediaEmpty) || isLinkCard) ? 'transparent' : (isSingleColor ? singleColorValue : undefined),
                 ...dynamicStyles
@@ -543,11 +628,13 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 />
             )}
 
-            {/* Resize Handle for Resizable or Column Blocks */}
-            {(isResizable || isColumns) && (
+            {/* Resize Handle for Resizable, Column, or standard text blocks */}
+            {(isResizable || isColumns || isStandardBlock) && (
                 <div
                     className={`${styles.resizeHandle} nodrag`}
                     onMouseDown={handleResizeStart}
+                    onDoubleClick={isStandardBlock ? handleResizeReset : undefined}
+                    title={isStandardBlock ? 'Drag to resize · double-click to fit content' : undefined}
                 >
                     <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <defs>

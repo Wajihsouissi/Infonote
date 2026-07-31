@@ -1,0 +1,33 @@
+/* Crossfade between a card's static preview and its live block editor.
+   Both layers exist only for the length of the transition; the one being
+   replaced is taken out of flow so the incoming layer drives the height. */
+
+.body {
+    position: relative;
+    width: 100%;
+    min-height: 0;
+}
+
+.layer {
+    width: 100%;
+    opacity: 0;
+    transition: opacity var(--lod-fade, 180ms) ease;
+}
+
+/* The layer on its way out sits on top and stops catching input. */
+.overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.visible {
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .layer {
+        transition: none;
+    }
+}
