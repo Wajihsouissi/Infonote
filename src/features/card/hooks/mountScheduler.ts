@@ -12,6 +12,8 @@
  * interactive and cards appear as they are ready.
  */
 
+import { isStreaming } from '../../canvas/hooks/lodStore';
+
 type Job = () => void;
 
 /** Snapshot of the current burst, for the canvas-level progress overlay. */
@@ -115,6 +117,16 @@ export function notifyMountCommitted(): void {
 const drain = () => {
     if (awaitingCommit) {
         // Still waiting on the previous card; check again next frame.
+        requestAnimationFrame(drain);
+        return;
+    }
+
+    /* Pause while a pan/zoom gesture is streaming. Cards cross the lazy-render
+       margin all through a pan, and each crossing schedules a mount that would
+       otherwise commit mid-gesture and steal frames — the same jank the tier
+       system already holds back. The queue parks until the gesture ends, then
+       fills in at the usual one-card-per-commit pace. */
+    if (isStreaming()) {
         requestAnimationFrame(drain);
         return;
     }

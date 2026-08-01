@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { MENU_ITEMS } from '../editor/menuConstants';
 import styles from './CanvasSlashMenu.module.css';
 import { findNonOverlappingPosition } from '../../utils/findNonOverlappingPosition';
+import { MIN_EXPANDED_SIZE } from '../../config/layout';
 
 interface SlashMenuItem {
     id: string;
@@ -104,7 +105,16 @@ export function CanvasSlashMenu() {
 
                 const columnCount = item.type === 'columns' ? (item.meta?.count || 2) : 0;
                 const columnsPerRow = columnCount === 4 ? 2 : columnCount;
-                const BLOCK_WIDTH = item.type === 'columns' ? Math.max(550, columnsPerRow * 220) : 300;
+                // Mirrors BottomMenu.handleBlockClick — media starts at its own
+                // 208 footprint (without this branch an image created from `/`
+                // spawned at 300 and visibly snapped to 208 on mount), and a
+                // table starts wide enough for its default columns instead of
+                // opening with a permanent horizontal scrollbar.
+                const BLOCK_WIDTH = item.type === 'columns'
+                    ? Math.max(550, columnsPerRow * 220)
+                    : ['image', 'video', 'file'].includes(item.type) ? 208
+                        : item.type === 'table' ? MIN_EXPANDED_SIZE
+                            : 300;
                 const BLOCK_HEIGHT = 100;
 
                 addNode('block', pos, { content: [newBlock], isStandaloneBlock: true }, { width: BLOCK_WIDTH, height: BLOCK_HEIGHT }, currentParentId || undefined);

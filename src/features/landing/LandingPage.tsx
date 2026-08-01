@@ -20,6 +20,8 @@ import {
   LogOut,
   Menu,
   Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
   PenLine,
   Search,
   Settings,
@@ -34,6 +36,8 @@ import styles from './LandingPage.module.css';
 
 const FEEDBACK_MAILTO =
   'mailto:wajih.souissi.ws@gmail.com?subject=chnk%20it%20beta%20%E2%80%94%20feedback';
+
+const RAIL_COLLAPSED_KEY = 'chnk it.landingRailCollapsed';
 
 /* ---------- static content ---------- */
 
@@ -137,6 +141,9 @@ export const LandingPage: React.FC = () => {
   const { signOut } = useAuth();
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isRailCollapsed, setIsRailCollapsed] = useState(
+    () => typeof window !== 'undefined' && localStorage.getItem(RAIL_COLLAPSED_KEY) === '1'
+  );
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
@@ -198,6 +205,13 @@ export const LandingPage: React.FC = () => {
     }
   }, [isSigningOut, signOut, setCurrentView]);
 
+  const toggleRail = useCallback(() => {
+    setIsRailCollapsed((collapsed) => {
+      localStorage.setItem(RAIL_COLLAPSED_KEY, collapsed ? '0' : '1');
+      return !collapsed;
+    });
+  }, []);
+
   const scrollToBetaNotes = useCallback(() => {
     setIsDrawerOpen(false);
     document.getElementById('beta-notes')?.scrollIntoView({ behavior: 'smooth' });
@@ -212,29 +226,36 @@ export const LandingPage: React.FC = () => {
     day: 'numeric',
   });
 
+  // Collapsed rail shows icons only, so each target borrows the global
+  // [data-tooltip] treatment from the design system to keep its name.
+  const tip = (label: string) => (isRailCollapsed ? { 'data-tooltip': label } : {});
+
   return (
     <div className={styles.shell}>
       {isDrawerOpen && <div className={styles.overlay} onClick={() => setIsDrawerOpen(false)} />}
 
       {/* ── sidebar ── */}
-      <aside className={`${styles.sidebar} ${isDrawerOpen ? styles.sidebarOpen : ''}`}>
-        <div 
-          className={styles.brand}
-          onClick={() => {
-            setIsDrawerOpen(false);
-            setCurrentView('marketing');
-          }}
-          style={{ cursor: 'pointer' }}
-        >
-          <span className={styles.brandMark} aria-hidden="true" />
-          <span className={styles.brandName}>chnk it</span>
-          <span className={styles.betaChip}>BETA</span>
+      <aside
+        className={`${styles.sidebar} ${isDrawerOpen ? styles.sidebarOpen : ''} ${
+          isRailCollapsed ? styles.sidebarCollapsed : ''
+        }`}
+      >
+        <div className={styles.brand}>
+          <button
+            className={styles.brandLink}
+            onClick={() => {
+              setIsDrawerOpen(false);
+              setCurrentView('marketing');
+            }}
+            {...tip('chnk it — home page')}
+          >
+            <span className={styles.brandMark} aria-hidden="true" />
+            <span className={styles.brandName}>chnk it</span>
+            <span className={styles.betaChip}>BETA</span>
+          </button>
           <button
             className={styles.brandClose}
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsDrawerOpen(false);
-            }}
+            onClick={() => setIsDrawerOpen(false)}
             aria-label="Close menu"
           >
             <X size={16} />
@@ -243,13 +264,13 @@ export const LandingPage: React.FC = () => {
 
         <nav className={styles.nav}>
           <span className={styles.navOverline}>Workspace</span>
-          <button className={`${styles.navItem} ${styles.navItemActive}`}>
-            <Home size={17} />
-            <span>Home</span>
+          <button className={`${styles.navItem} ${styles.navItemActive}`} {...tip('Home')}>
+            <Home size={17} className={styles.navIcon} />
+            <span className={styles.navLabel}>Home</span>
           </button>
-          <button className={styles.navItem} onClick={openCanvas}>
-            <Frame size={17} />
-            <span>Canvas</span>
+          <button className={styles.navItem} onClick={openCanvas} {...tip('Canvas')}>
+            <Frame size={17} className={styles.navIcon} />
+            <span className={styles.navLabel}>Canvas</span>
           </button>
           {FEATURES.marketplace && (
             <button
@@ -258,57 +279,98 @@ export const LandingPage: React.FC = () => {
                 setIsDrawerOpen(false);
                 setCurrentView('marketplace');
               }}
+              {...tip('Marketplace')}
             >
-              <ShoppingBag size={17} />
-              <span>Marketplace</span>
+              <ShoppingBag size={17} className={styles.navIcon} />
+              <span className={styles.navLabel}>Marketplace</span>
             </button>
           )}
 
           <span className={styles.navOverline}>This beta</span>
-          <button className={styles.navItem} onClick={scrollToBetaNotes}>
-            <ClipboardList size={17} />
-            <span>State of the beta</span>
+          <span className={styles.navRule} aria-hidden="true" />
+          <button
+            className={styles.navItem}
+            onClick={scrollToBetaNotes}
+            {...tip('State of the beta')}
+          >
+            <ClipboardList size={17} className={styles.navIcon} />
+            <span className={styles.navLabel}>State of the beta</span>
           </button>
-          <a className={styles.navItem} href={FEEDBACK_MAILTO}>
-            <PenLine size={17} />
-            <span>Send feedback</span>
+          <a className={styles.navItem} href={FEEDBACK_MAILTO} {...tip('Send feedback')}>
+            <PenLine size={17} className={styles.navIcon} />
+            <span className={styles.navLabel}>Send feedback</span>
             <ArrowUpRight size={13} className={styles.navItemExternalIcon} />
           </a>
         </nav>
 
         <div className={styles.railFoot}>
-          <div className={styles.themeRow} role="group" aria-label="Theme">
+          {isRailCollapsed ? (
             <button
-              className={`${styles.themeBtn} ${theme === 'dark' ? styles.themeBtnActive : ''}`}
-              onClick={() => theme !== 'dark' && toggleTheme()}
+              className={styles.navItem}
+              onClick={toggleTheme}
+              {...tip(theme === 'dark' ? 'Switch to Paper' : 'Switch to Ink')}
             >
-              <Moon size={13} />
-              <span>Ink</span>
+              {theme === 'dark' ? (
+                <Moon size={17} className={styles.navIcon} />
+              ) : (
+                <Sun size={17} className={styles.navIcon} />
+              )}
             </button>
-            <button
-              className={`${styles.themeBtn} ${theme === 'light' ? styles.themeBtnActive : ''}`}
-              onClick={() => theme !== 'light' && toggleTheme()}
-            >
-              <Sun size={13} />
-              <span>Paper</span>
-            </button>
-          </div>
+          ) : (
+            <div className={styles.themeRow} role="group" aria-label="Theme">
+              <button
+                className={`${styles.themeBtn} ${theme === 'dark' ? styles.themeBtnActive : ''}`}
+                onClick={() => theme !== 'dark' && toggleTheme()}
+              >
+                <Moon size={13} />
+                <span>Ink</span>
+              </button>
+              <button
+                className={`${styles.themeBtn} ${theme === 'light' ? styles.themeBtnActive : ''}`}
+                onClick={() => theme !== 'light' && toggleTheme()}
+              >
+                <Sun size={13} />
+                <span>Paper</span>
+              </button>
+            </div>
+          )}
           <button
             className={styles.navItem}
             onClick={() => {
               setIsDrawerOpen(false);
               setCurrentView('profile');
             }}
+            {...tip('Settings')}
           >
-            <Settings size={17} />
-            <span>Settings</span>
+            <Settings size={17} className={styles.navIcon} />
+            <span className={styles.navLabel}>Settings</span>
           </button>
           {auth.isAuthenticated && (
-            <button className={styles.navItem} onClick={handleSignOut} disabled={isSigningOut}>
-              <LogOut size={17} />
-              <span>{isSigningOut ? 'Signing out…' : 'Sign out'}</span>
+            <button
+              className={styles.navItem}
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+              {...tip('Sign out')}
+            >
+              <LogOut size={17} className={styles.navIcon} />
+              <span className={styles.navLabel}>
+                {isSigningOut ? 'Signing out…' : 'Sign out'}
+              </span>
             </button>
           )}
+          <button
+            className={`${styles.navItem} ${styles.railToggle}`}
+            onClick={toggleRail}
+            aria-expanded={!isRailCollapsed}
+            {...tip('Expand sidebar')}
+          >
+            {isRailCollapsed ? (
+              <PanelLeftOpen size={17} className={styles.navIcon} />
+            ) : (
+              <PanelLeftClose size={17} className={styles.navIcon} />
+            )}
+            <span className={styles.navLabel}>Collapse</span>
+          </button>
           <span className={styles.version}>v0.1.0-beta</span>
         </div>
       </aside>

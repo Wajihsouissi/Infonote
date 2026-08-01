@@ -95,6 +95,11 @@ if (typeof window !== 'undefined') {
 
             const state = useStore.getState();
 
+            /* Not while a card is in flight. This diff allocates two maps of
+               the whole canvas and walks every node, and a drag would run it
+               once per frame to learn what the drop will tell it anyway. */
+            if (state.interactionState.draggedNodeId) return;
+
             if (curr.nodes !== prev.nodes) {
                 const prevNodesMap = new Map(prev.nodes.map(n => [n.id, n]));
                 const currNodesMap = new Map(curr.nodes.map(n => [n.id, n]));

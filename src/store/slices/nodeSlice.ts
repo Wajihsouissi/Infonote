@@ -112,7 +112,16 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
     onNodesChange: (changes) => {
         // Only build detailed logging for non-trivial changes to reduce console noise
         if (DEBUG) {
-            const importantChanges = changes.filter(c => c.type !== 'select' && c.type !== 'dimensions');
+            /* Live drag frames are excluded on purpose. React Flow emits a
+               position change per node per frame while dragging, and building
+               + logging that object every frame is itself enough to make the
+               drag stutter in dev — the console was measuring the thing it was
+               supposed to be observing. Only the final, settled position and
+               genuine structural changes are worth a line. */
+            const importantChanges = changes.filter(c =>
+                c.type !== 'select' && c.type !== 'dimensions' &&
+                !(c.type === 'position' && c.dragging)
+            );
             if (importantChanges.length > 0) {
                 console.log("[onNodesChange] Received changes:", importantChanges.map(c => {
                     const detail: Record<string, unknown> = { type: c.type, id: 'id' in c ? c.id : undefined };
@@ -140,6 +149,17 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             }
             return change;
         });
+        /* Position changes are NOT filtered while dragging, however tempting
+           that is. React Flow runs as a controlled component here: it does not
+           keep its own copy of the nodes, so a change it emits and we drop is a
+           frame the card does not move. Dropping them left the card pinned in
+           place until some unrelated re-render happened to flush the mutated
+           position through — which is the trailing, lurching drag this was
+           meant to cure. The cost it was avoiding is real, but it lives
+           downstream (culling, persistence, sync), and that is where it is
+           now held back: see useCanvasViewport and StorageManager. */
+
+        if (filteredChanges.length === 0) return;
 
         const nodesBefore = get().nodes.length;
 

@@ -12,6 +12,11 @@ import type { AppNode, NoteNode } from '../../types';
 import type { Block } from '../editor/types';
 import styles from './BlockNode.module.css';
 import { MIN_EXPANDED_SIZE, ICON_SIZE, MAX_HEIGHT } from '../../config/layout';
+import { useCanvasDetail } from '../canvas/hooks/useCanvasDetail';
+import { useScheduledMount } from '../card/hooks/useScheduledMount';
+import { BlockLodBody } from './BlockLodBody';
+import { samePropsIgnoringPosition } from '../canvas/nodeMemo';
+import { MIN_COL_W } from '../editor/tableLayout';
 
 /* Resize bounds for a standard block. These mirror --block-node-w and
    --block-node-max-user in design-system.css §5; the drag clamps to them and
@@ -20,6 +25,8 @@ import { MIN_EXPANDED_SIZE, ICON_SIZE, MAX_HEIGHT } from '../../config/layout';
 const BLOCK_MIN_W = 260;
 const BLOCK_MAX_USER_W = 800;
 const BLOCK_MIN_H = 56;
+/* Narrowest a table node may be dragged. */
+const TABLE_MIN_W = 240;
 /* Taking a hand-size is a one-way door out of intrinsic sizing, so it has to be
    a deliberate drag: a plain click on the handle (mousedown + a pixel of
    tremor + mouseup) must leave the block sizing itself. */
@@ -75,6 +82,14 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const connection = useConnection();
     const isConnecting = connection.inProgress;
     const updateNodeData = useStore(s => s.updateNodeData);
+    const detailTier = useCanvasDetail(id);
+    // Full detail is the only tier that pays for the block editor. Anything
+    // below renders a static wireframe via BlockLodBody — at the default
+    // zoomed-out view a whole workspace is on screen at once, and mounting
+    // one editor per visible block node is what stalls the first LOD. The
+    // rising edge is paced by the shared frame budget so a zoom-in that flips
+    // a whole row to full detail builds them over a few frames, not one.
+    const showEditor = useScheduledMount(detailTier === 'full');
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
     const theme = useStore(s => s.theme);
     // Narrow selectors: a block only re-renders when ITS own drop-target status changes
@@ -128,6 +143,20 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const isLinkCard = isSingleLink && !isLinkEmpty && (linkMode === 'bookmark' || linkMode === 'embed');
     const isSingleColor = singleBlock?.type === 'color';
     const isSingleNumbered = singleBlock?.type === 'numbered';
+    // A table is a wide object like a column set: it gets its own default width
+    // and the drag handle, and resizes in width only (rows set the height).
+    const isSingleTable = singleBlock?.type === 'table';
+    /* Once every column has a hand-set width, the TABLE owns the width and the
+       node shrink-wraps to it (CSS: .blockNode:has([data-table-sized])). A
+       pinned px width here would leave node background stranded beside a
+       narrowed table — the gap this state exists to prevent. "Fit columns to
+       width" in the column menu clears the widths and hands control back. */
+    const tableColCount = isSingleTable ? (singleBlock?.metadata?.rows?.[0]?.length ?? 0) : 0;
+    const tableWidths = isSingleTable ? singleBlock?.metadata?.columnWidths : undefined;
+    const isTableSized = tableColCount > 0
+        && Array.isArray(tableWidths)
+        && tableWidths.length === tableColCount
+        && tableWidths.every((w) => typeof w === 'number' && w > 0);
     const singleColorValue = isSingleColor ? (singleBlock?.content || '#1E944A') : undefined;
     const isColumns = singleBlock?.type === 'columns';
     const standardBlockTypes = ['text', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered', 'todo', 'callout', 'code', 'quote', 'link', 'toggle'];
@@ -179,12 +208,17 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     const needsHeightAuto = !isSingleColor && n.style?.height !== 'auto';
                     // Text & headings flow with their content (4 -> 8 units, then wrap) instead of a fixed width.
                     const needsAutoWidthInit = isAutoWidthText && !isResizable && !isColumns && !isSingleColor && !isWideBlock && n.style?.width !== 'fit-content';
-                    const needsWidthInit = !isStandardBlock && !isAutoWidthText && !isResizable && !isColumns && !isSingleColor && !isWideBlock && (n.style?.width === 'auto' || n.style?.width === undefined);
+                    const needsWidthInit = !isStandardBlock && !isAutoWidthText && !isResizable && !isColumns && !isSingleTable && !isSingleColor && !isWideBlock && (n.style?.width === 'auto' || n.style?.width === undefined);
                     // A link that just became a card may carry the 260 standard
                     // width from its empty state — widen it to the card default.
                     const needsResizableWidthInit = isResizable && (n.style?.width === 'auto' || n.style?.width === undefined || (isLinkCard && n.style?.width === 260));
                     const shouldForcePlaceholderWidth = isMediaEmpty && n.style?.width !== 208 && n.style?.width !== '208px';
                     const needsColumnsWidthInit = isColumns && (n.style?.width === 'auto' || n.style?.width === undefined);
+                    // 260 (the generic block default) cuts a three-column table in
+                    // half; match the hydration profile's table footprint instead.
+                    const needsTableWidthInit = isSingleTable && !isTableSized && (n.style?.width === 'auto' || n.style?.width === undefined);
+                    // Hand-sized columns: hand the width back to CSS max-content.
+                    const needsTableAutoWidth = isTableSized && n.style?.width !== 'auto';
                     const needsColorInit = isSingleColor && (n.style?.width !== ICON_SIZE || n.style?.height !== ICON_SIZE);
                     // A standard block leaves width unset so CSS max-content can
                     // grow it with its text (260 → --block-node-max, then wrap).
@@ -192,7 +226,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     // their width and are left alone.
                     const needsStandardInit = isStandardBlock && !isAutoWidthText && !isResizable && !isUserSized && (n.style?.width !== 'auto');
 
-                    if (needsHeightAuto || needsAutoWidthInit || needsWidthInit || needsResizableWidthInit || shouldForcePlaceholderWidth || needsColumnsWidthInit || needsColorInit || needsStandardInit) {
+                    if (needsHeightAuto || needsAutoWidthInit || needsWidthInit || needsResizableWidthInit || shouldForcePlaceholderWidth || needsColumnsWidthInit || needsTableWidthInit || needsTableAutoWidth || needsColorInit || needsStandardInit) {
                         changed = true;
                         newStyle = {
                             ...(needsHeightAuto ? { height: 'auto' } : {}),
@@ -201,6 +235,8 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                             ...(needsWidthInit ? { width: 260 } : {}),
                             ...((needsResizableWidthInit || shouldForcePlaceholderWidth) ? { width: isLinkCard ? 432 : 208 } : {}),
                             ...(needsColumnsWidthInit ? { width: 550 } : {}),
+                            ...(needsTableWidthInit ? { width: 450 } : {}),
+                            ...(needsTableAutoWidth ? { width: 'auto' } : {}),
                             ...(needsColorInit ? { width: ICON_SIZE, height: ICON_SIZE } : {})
                         };
                         return {
@@ -240,7 +276,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             
             return changed ? newNodes : nodes;
         });
-    }, [id, setNodes, setNodesStore, isResizable, isColumns, isSingleLink, isLinkCard, isSingleColor, isStandardBlock, isMediaEmpty, isUserSized]);
+    }, [id, setNodes, setNodesStore, isResizable, isColumns, isSingleTable, isTableSized, isSingleLink, isLinkCard, isSingleColor, isStandardBlock, isMediaEmpty, isUserSized]);
 
 
 
@@ -308,7 +344,65 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const activeResize = useRef(false);
     const nodeRef = useRef<HTMLDivElement>(null);
 
+    /* Node handle on a hand-sized table: the node is shrink-wrapped to the
+       columns, so there is no node width to drag — instead the drag scales
+       every column by the same ratio and the node follows them. That closes
+       the loop: resize the table and the container follows (max-content),
+       resize the container and the table follows (this). */
+    const handleTableScaleStart = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+
+        const table = nodeRef.current?.querySelector('table') as HTMLTableElement | null;
+        const colgroup = table?.querySelector('colgroup');
+        if (!table || !colgroup) return;
+
+        const { zoom } = getViewport();
+        const cols = [...colgroup.children] as HTMLElement[];
+        const ths = [...table.querySelectorAll('thead th')] as HTMLElement[];
+        const startWidths = ths.map((th) => Math.round(th.offsetWidth));
+        const startTotal = startWidths.reduce((a, b) => a + b, 0);
+        if (startTotal <= 0) return;
+
+        const startX = e.clientX;
+        let nextWidths = [...startWidths];
+
+        activeResize.current = true;
+        document.body.style.cursor = 'ew-resize';
+        document.body.classList.add('chnk-it-resizing-active');
+
+        const onMouseMove = (moveEvent: MouseEvent) => {
+            const deltaX = (moveEvent.clientX - startX) / zoom;
+            // Floor the ratio so no column can be squeezed under MIN_COL_W.
+            const minTotal = startWidths.length * MIN_COL_W;
+            const total = Math.max(minTotal, startTotal + deltaX);
+            const ratio = total / startTotal;
+            nextWidths = startWidths.map((w) => Math.max(MIN_COL_W, Math.round(w * ratio)));
+            cols.forEach((col, i) => { col.style.width = `${nextWidths[i]}px`; });
+        };
+
+        const onMouseUp = () => {
+            activeResize.current = false;
+            document.body.style.cursor = '';
+            document.body.classList.remove('chnk-it-resizing-active');
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+
+            const blocks = Array.isArray(data.content) ? (data.content as Block[]) : [];
+            updateNodeData(id, {
+                content: blocks.map((b, i) => (
+                    i === 0 ? { ...b, metadata: { ...b.metadata, columnWidths: nextWidths } } : b
+                )),
+            });
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    };
+
     const handleResizeStart = (e: React.MouseEvent) => {
+        if (isTableSized) { handleTableScaleStart(e); return; }
+
         e.stopPropagation();
         e.preventDefault();
 
@@ -335,7 +429,9 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
 
             const width = isStandardBlock
                 ? Math.min(BLOCK_MAX_USER_W, Math.max(BLOCK_MIN_W, rawW))
-                : Math.max(100, rawW);
+                // A table narrower than this is unreadable — even two columns
+                // collapse to a stack of single characters.
+                : Math.max(isSingleTable ? TABLE_MIN_W : 100, rawW);
             const height = Math.min(MAX_HEIGHT, Math.max(BLOCK_MIN_H, startH + (moveEvent.clientY - startY) / zoom));
 
             // Size and data must move in ONE store write: as two (setNodes then
@@ -423,7 +519,11 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     style={{
                         position: 'absolute',
                         inset: 0,
-                        zIndex: 10,
+                        // Must beat every piece of block chrome, not tie with it:
+                        // at 10 it drew level with .alignmentContainer and lost on
+                        // DOM order, so tables (and media) swallowed the drag and
+                        // the node couldn't be moved at all.
+                        zIndex: 20,
                         cursor: 'grab',
                         borderRadius: 'inherit'
                     }}
@@ -572,14 +672,16 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 />
             )}
 
-            <button
-                className={styles.convertBtn}
-                onClick={handleConvertToCard}
-                title="Convert to Card"
-                onMouseDown={(e) => e.stopPropagation()}
-            >
-                <StickyNote size={16} />
-            </button>
+            {showEditor && (
+                <button
+                    className={styles.convertBtn}
+                    onClick={handleConvertToCard}
+                    title="Convert to Card"
+                    onMouseDown={(e) => e.stopPropagation()}
+                >
+                    <StickyNote size={16} />
+                </button>
+            )}
 
             <div 
                 className={styles.content}
@@ -597,7 +699,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                         <Loader2 className="animate-spin" size={16} /> 
                         {Array.isArray(data.content) ? data.content[0]?.content : 'Generating...'}
                     </div>
-                ) : (
+                ) : showEditor ? (
                     <BlockEditor
                         initialContent={data.content}
                         readOnly={false}
@@ -609,7 +711,9 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                         promoteBlockHandles={true}
                         globalStartIndex={globalListIndex}
                     />
-                )}
+                ) : !isSingleColor ? (
+                    <BlockLodBody blocks={colorBlocks} />
+                ) : null}
             </div>
 
             <Handle 
@@ -629,7 +733,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             )}
 
             {/* Resize Handle for Resizable, Column, or standard text blocks */}
-            {(isResizable || isColumns || isStandardBlock) && (
+            {showEditor && (isResizable || isColumns || isStandardBlock || isSingleTable) && (
                 <div
                     className={`${styles.resizeHandle} nodrag`}
                     onMouseDown={handleResizeStart}
@@ -656,4 +760,4 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
 
         </div>
     );
-});
+}, samePropsIgnoringPosition);

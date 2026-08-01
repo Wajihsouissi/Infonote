@@ -1,0 +1,85 @@
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loader {
+  position: relative;
+  width: var(--loader-size, 100px);
+  height: var(--loader-size, 100px);
+  perspective: calc(var(--loader-size, 100px) * 4);
+}
+
+.crystal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--loader-size, 100px) * 0.3);
+  height: calc(var(--loader-size, 100px) * 0.3);
+  opacity: 0;
+  transform-origin: bottom center;
+  transform: translate(-50%, -50%) rotateX(45deg) rotateZ(0deg);
+  animation: spin 4s linear infinite, emerge 2s ease-in-out infinite alternate,
+    fadeIn 0.3s ease-out forwards;
+  border-radius: 6px;
+  visibility: hidden;
+}
+
+@keyframes spin {
+  from {
+    transform: translate(-50%, -50%) rotateX(45deg) rotateZ(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotateX(45deg) rotateZ(360deg);
+  }
+}
+
+@keyframes emerge {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  to {
+    visibility: visible;
+    opacity: 0.8;
+  }
+}
+
+.crystal:nth-child(1) {
+  background: linear-gradient(45deg, #8a1c00, #b52600);
+  animation-delay: 0s;
+}
+
+.crystal:nth-child(2) {
+  background: linear-gradient(45deg, #b52600, #d93400);
+  animation-delay: 0.3s;
+}
+
+.crystal:nth-child(3) {
+  background: linear-gradient(45deg, #d93400, #f74b12);
+  animation-delay: 0.6s;
+}
+
+.crystal:nth-child(4) {
+  background: linear-gradient(45deg, #f74b12, var(--accent, #ff5e2b));
+  animation-delay: 0.9s;
+}
+
+.crystal:nth-child(5) {
+  background: linear-gradient(45deg, var(--accent, #ff5e2b), #ff8359);
+  animation-delay: 1.2s;
+}
+
+.crystal:nth-child(6) {
+  background: linear-gradient(45deg, #ff8359, #ffa686);
+  animation-delay: 1.5s;
+}

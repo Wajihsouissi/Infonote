@@ -1,6 +1,6 @@
 .card {
     border-radius: var(--r-panel);
-    background: var(--node-bg);
+    background: var(--bg-rail);
 
     /* Paper & Ink node: a hairline ring and (optional) contact shadow — a
        quiet paper slip on the desk. Regular cards carry NO accent line;
@@ -13,7 +13,6 @@
     color: var(--node-title);
     transition: box-shadow 0.2s var(--ease-rise),
         transform 0.15s cubic-bezier(0.2, 0, 0.2, 1);
-    will-change: transform;
     display: flex;
     flex-direction: column;
 }
@@ -31,6 +30,11 @@
         var(--node-shadow-drag);
     opacity: 0.96;
     z-index: 10000 !important;
+    /* Only the card in flight earns a compositor layer. Declaring this at rest
+       instead promoted every card on the canvas, and a hundred always-live
+       layers cost more GPU memory and compositing time than the one transform
+       they were meant to accelerate. */
+    will-change: transform;
 }
 
 /* Nesting target = primary ring; fusion target = secondary ring. A breathing
@@ -807,7 +811,6 @@
     scrollbar-color: var(--line-strong) transparent;
     position: relative;
     contain: layout paint style;
-    will-change: transform;
 
     /* Inner card styling */
     background: var(--bg-inset);
@@ -1074,12 +1077,11 @@
     overflow-y: auto;
     overflow-x: hidden;
     padding: 20px;
-    padding: 20px;
     scrollbar-width: thin;
     scrollbar-color: var(--line) transparent;
     position: relative;
     contain: layout paint style;
-    will-change: transform;
+    min-width: 0;
 
     /* Visual Separation - use dynamic override or default */
     background: var(--bg-base);

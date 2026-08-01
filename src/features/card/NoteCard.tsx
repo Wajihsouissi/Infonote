@@ -14,8 +14,7 @@ import { AISkeletonCard } from './AISkeletonCard';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { calculateNoteLayout } from '../../config/layout';
 import { generateText } from '../../services/aiService';
-import { useCanvasDetail } from '../canvas/hooks/useCanvasDetail';
-import { NoteCardMinimal } from './NoteCardMinimal';
+import { samePropsIgnoringPosition } from '../canvas/nodeMemo';
 
 export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<NoteNode>) => {
     const { setNodes, getViewport } = useReactFlow();
@@ -81,11 +80,6 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     const viewMode = data.viewMode || 'medium';
     const isMultiSelected = selectedCanvasNodeIds.has(id) && selectedCanvasNodeIds.size > 1;
 
-    /* This card's own level of detail — set by how far it is from the viewport
-       as well as by zoom. `minimal` means its chrome would be a few pixels tall
-       or it is well off to one side, so it draws as a labelled rectangle. */
-    const isMinimalDetail = useCanvasDetail(id) === 'minimal';
-
     // Use the raw color without converting to pastel/glow
     const displayColor = data.color;
 
@@ -107,28 +101,6 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     // Metadata visibility state for Expanded view is now derived from data.showMetadata
 
 
-
-    // Performance: Visibility tracking for heavy features (ResizeObserver, etc.)
-    const [_isVisible, setIsVisible] = useState(true);
-    const observerRef = useRef<IntersectionObserver | null>(null);
-
-    useEffect(() => {
-        if (!cardRef.current) return;
-
-        observerRef.current = new IntersectionObserver(
-            (entries) => {
-                const entry = entries[0];
-                setIsVisible(entry.isIntersecting);
-            },
-            { rootMargin: '200px' } // Buffer to start heavy logic just before entering viewport
-        );
-
-        observerRef.current.observe(cardRef.current);
-
-        return () => {
-            if (observerRef.current) observerRef.current.disconnect();
-        };
-    }, []);
 
     // Derived state for icon picker visibility
     const showIconPicker = activeIconMenuId === id;
@@ -385,7 +357,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             )}
 
             {/* custom strict resize handle */}
-            {!isMinimalDetail && <div
+            <div
                 className={`${styles.modernResizeHandle} nodrag`}
                 onMouseDown={(e) => {
                     e.stopPropagation(); // prevent react flow node drag
@@ -478,10 +450,10 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                         className={styles.handlePath}
                     />
                 </svg>
-            </div>}
+            </div>
 
             {/* Floating Hover Menu - Hide in Chromeless mode or when specifically requested */}
-            {!isMinimalDetail && !data.hideHoverMenu && (
+            {!data.hideHoverMenu && (
                 <div className={styles.hoverMenu}>
                     <button className={styles.menuBtn} onClick={handleLeftSidePeak} title="Side Panel (Left)">
                         <PanelLeft size={16} />
@@ -528,7 +500,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             )}
 
             {/* Icon Picker Modal */}
-            {!isMinimalDetail && showIconPicker && (
+            {showIconPicker && (
                 <IconPicker
                     currentIcon={editedData.icon}
                     onSelect={handleIconSelect}
@@ -537,7 +509,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             )}
 
             {/* View 1: Icon Mode - Icon + Text */}
-            {!isMinimalDetail && viewMode === 'icon' && (
+            {viewMode === 'icon' && (
                 <div className={styles.iconView} key="icon">
                     <button
                         className={`${styles.iconButton} nodrag`}
@@ -568,7 +540,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             )}
 
             {/* View 1.5: Title View - Icon + Text (Horizontal) */}
-            {!isMinimalDetail && viewMode === 'titleview' && (
+            {viewMode === 'titleview' && (
                 <div className={styles.titleView} key="titleview">
                     <button
                         className={`${styles.iconButton} nodrag`}
@@ -599,7 +571,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             )}
 
             {/* View 2: Medium Mode - Icon + Title Row, Description Below */}
-            {!isMinimalDetail && viewMode === 'medium' && (
+            {viewMode === 'medium' && (
                 <div className={styles.mediumView} key="medium">
                     <div className={styles.mediumHeader}>
                         <input
@@ -664,7 +636,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             )}
 
             {/* View 3: Expanded Mode - Cover + Icon/Title Row + Description + Date + Note Area */}
-            {!isMinimalDetail && viewMode === 'expanded' && (
+            {viewMode === 'expanded' && (
                 <div className={styles.expandedView} key="expanded">
                     <ErrorBoundary>
                         {data.isAISkeleton ? (
@@ -697,7 +669,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
 
 
-            {!isMinimalDetail && showCoverPicker && (
+            {showCoverPicker && (
                 <CoverPicker
                     currentCover={data.coverImage || ''}
                     onSelect={(url) => {
@@ -708,7 +680,6 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                 />
             )}
 
-            {isMinimalDetail && <NoteCardMinimal label={data.label} color={displayColor} />}
         </div>
     );
-});
+}, samePropsIgnoringPosition);

@@ -4,7 +4,7 @@
     align-items: stretch;
     justify-content: center;
     margin: 0 auto;
-    background: var(--node-bg);
+    background: var(--bg-rail);
     border: none;
     border-radius: var(--node-radius);
     padding: 0;
@@ -82,6 +82,15 @@
     box-shadow: var(--node-ring-selected);
 }
 
+.dragging {
+    transform: scale(0.98) rotate(1.5deg);
+    box-shadow:
+        var(--node-ring-drag),
+        var(--node-shadow-drag);
+    opacity: 0.96;
+    z-index: 10000 !important;
+}
+
 .content {
     width: 100%;
     height: auto;
@@ -125,7 +134,7 @@
 
 .blockNode.mediaBlockNode {
     display: block;
-    background: var(--node-bg);
+    background: var(--bg-rail);
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     border: none !important;
@@ -148,19 +157,55 @@
     box-shadow: none !important;
 }
 
+/* An EMPTY media block is a drop zone, so it needs an edge: with no ring and
+   no border it measured 1.05:1 against the Paper canvas and read as a hole in
+   the page. Filled media stays ring-free on purpose (see .mediaBlockNode) —
+   a ring there double-strokes the image's own edge. */
 .blockNode.mediaPlaceholderBlock {
     width: 208px !important;
     min-width: 208px !important;
     max-width: 208px !important;
-    background: var(--node-bg) !important;
+    background: var(--bg-rail) !important;
     border: none !important;
-    box-shadow: none !important;
+    box-shadow: var(--node-ring) !important;
+}
+
+.blockNode.mediaBlockNode.mediaPlaceholderBlock:hover {
+    box-shadow: var(--node-ring-hover) !important;
+}
+
+.blockNode.mediaPlaceholderBlock > .content {
+    border: 1px dashed var(--line-heavy);
+    border-radius: var(--block-radius-lg);
 }
 
 .blockNode.mediaBlockNode .content {
     /* must match .mediaBlockNode's own radius or the media corner clips square */
     border-radius: var(--block-radius-lg);
     overflow: hidden;
+}
+
+/* A columns node is created wide enough for its columns (550+, from
+   BottomMenu.handleBlockClick), but the base .blockNode caps every shell at
+   432 and centres it with `margin: 0 auto`. That left ~69px of dead margin on
+   each side — five times the 12px gutter between the columns themselves, in
+   the one block whose whole job is horizontal layout. */
+.blockNode:has([data-block-type="columns"]) {
+    max-width: none;
+}
+
+/* Same reason as columns: a table node is created at 450 and is resizable past
+   it, so the shared 432 cap would clip the last column off every wide table. */
+.blockNode:has([data-block-type="table"]) {
+    max-width: none;
+}
+
+/* Hand-sized columns own the width (see BlockComponents' data-table-sized):
+   the node shrink-wraps them, so the selection ring lands on the table's edge
+   instead of stranding node background beside a narrowed table. */
+.blockNode:has([data-table-sized="true"]) {
+    width: max-content;
+    min-width: 0;
 }
 
 .blockNode.wideBlock {
@@ -171,26 +216,35 @@
     align-items: stretch;
 }
 
-/* OUTER box — one identical footprint for every standard block type. */
+/* OUTER box — grows with its own content on both axes.
+   Width tracks the longest unwrapped line, floored at --block-node-w and
+   capped at --block-node-max; past that the text wraps and the block grows
+   downward instead.
+   Height is never fixed. It used to be pinned to --block-node-h with
+   overflow:hidden, which silently clipped everything past ~2 lines — the text
+   stayed in the data but scrolled up out of the card with no scrollbar and no
+   way to get it back. min-height keeps the uniform 56px resting footprint. */
 .blockNode.standardBlock {
-    width: var(--block-node-w);
+    width: max-content;
     min-width: var(--block-node-w);
-    max-width: var(--block-node-w);
-    height: var(--block-node-h);
+    max-width: var(--block-node-max);
+    height: auto;
     min-height: var(--block-node-h);
     align-items: stretch;
     padding: 0;
-    overflow: hidden;
+    overflow: visible;
 }
 
-/* Only genuinely multi-line chrome escapes the uniform height: a code block
-   (header strip + code area) and a toggle that is actually EXPANDED — the
-   latter detected by the presence of its rendered children container. A
-   collapsed toggle and a callout are single-line and stay at 56 like the rest. */
-.blockNode.standardBlock:has([data-block-type="code"]),
-.blockNode.standardBlock:has([class*="toggleChildrenContainer"]) {
-    height: auto;
-    overflow: visible;
+/* A hand-resized block owns its width: fill whatever React Flow stores on the
+   wrapper, released from the auto cap (the drag clamps to
+   --block-node-max-user instead). The dragged height is applied as a
+   min-height floor, never a fixed height, so content that outgrows it still
+   expands the block rather than reviving the clipping bug. */
+.blockNode.standardBlock[data-user-sized='true'] {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    min-height: var(--block-user-h, var(--block-node-h));
 }
 
 .blockNode:focus-visible,
@@ -204,21 +258,27 @@
    the gutter on the row below, not by insetting this container. */
 .blockNode.standardBlock > .content,
 .blockNode.standardBlock > .content > div {
-    height: 100%;
+    min-height: 100%;
 }
 
 .blockNode.standardBlock > .content {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     width: 100%;
     padding: 0;
     box-sizing: border-box;
+    min-width: 0;
 }
 
 /* The editor stack fills the inner box too, so nothing is left floating. */
 .blockNode.standardBlock [class*="editor"] {
-    height: 100%;
+    min-height: 100%;
     justify-content: center;
+}
+
+/* When the user manually resizes the block, align text to the top */
+.blockNode.standardBlock[data-user-sized='true'] [class*="editor"] {
+    justify-content: flex-start;
 }
 
 /* BREATHING SPACE — the single gutter between the block's visible box and the
@@ -228,14 +288,20 @@
    (--block-indent, published by BlockItem) so an indented block keeps its
    inset instead of overwriting the gutter. */
 .blockNode.standardBlock [class*="editor"] > [class*="sortableWrapper"] {
-    height: 100%;
     width: 100%;
-    align-items: center;
+    align-items: stretch;
     padding-top: var(--block-node-gutter-y);
     padding-bottom: var(--block-node-gutter-y);
     padding-left: calc(var(--block-node-gutter-x) + var(--block-indent, 0px));
     padding-right: var(--block-node-gutter-x);
     box-sizing: border-box;
+}
+
+/* Only stretch wrappers that contain rich blocks that must fill the resized height */
+.blockNode.standardBlock [class*="editor"] > [class*="sortableWrapper"]:has([class*="calloutWrapper"]),
+.blockNode.standardBlock [class*="editor"] > [class*="sortableWrapper"]:has([class*="quoteWrapper"]),
+.blockNode.standardBlock [class*="editor"] > [class*="sortableWrapper"]:has([class*="codeBlockWrapper"]) {
+    flex-grow: 1;
 }
 
 /* A toggle's group container paints its own background + left rail, so its
@@ -249,16 +315,18 @@
     margin-right: var(--block-node-gutter-x);
     width: auto;
     /* collapsed: identical inner height to a plain text block */
-    height: var(--block-node-inner-h);
-    padding-top: 0;
-    padding-bottom: 0;
-    justify-content: center;
+    min-height: var(--block-node-inner-h);
+    height: 100%;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    justify-content: flex-start;
     box-sizing: border-box;
 }
 
 /* Expanded, the toggle has to grow around its children. */
 .blockNode.standardBlock:has([class*="toggleChildrenContainer"]) [class*="toggleGroupContainer"] {
-    height: auto;
+    min-height: fit-content;
+    height: 100%;
     padding-top: var(--block-marker-gap);
     padding-bottom: var(--block-marker-gap);
 }
@@ -275,7 +343,8 @@
 }
 
 .blockNode.standardBlock [class*="inputWrapper"] {
-    height: var(--block-node-inner-h);
+    min-height: var(--block-node-inner-h);
+    height: 100%;
     margin: 0;
     padding: 0;
     border: none;
@@ -293,13 +362,27 @@
    what made the callout 56px tall and the quote 28px against text's 40px. */
 .blockNode.standardBlock [class*="calloutWrapper"],
 .blockNode.standardBlock [class*="quoteWrapper"] {
-    height: var(--block-node-inner-h);
+    min-height: var(--block-node-inner-h);
+    height: 100%;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    display: flex;
+    align-items: flex-start;
+    box-sizing: border-box;
+}
+
+.blockNode.standardBlock [class*="codeBlockWrapper"] {
+    min-height: var(--block-node-inner-h);
+    height: 100%;
     margin-top: 0;
     margin-bottom: 0;
     padding-top: 0;
     padding-bottom: 0;
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    justify-content: stretch;
     box-sizing: border-box;
 }
 
@@ -313,9 +396,7 @@
     padding-right: 0 !important;
 }
 
-.blockNode.standardBlock [class*="blockContent"] > * {
-    flex-grow: 0 !important;
-}
+
 
 .blockNode.wideBlock>.content,
 .blockNode.wideBlock>.content>div,
@@ -422,7 +503,7 @@
 
 .blockNode.mediaBlockNode.selected,
 .blockNode.mediaBlockNode.multiSelected {
-    background: var(--node-bg);
+    background: var(--bg-rail);
     box-shadow: none;
     outline: 2px solid var(--accent);
     outline-offset: 2px;
@@ -455,6 +536,7 @@
 }
 
 .mediaBlockNode:hover .resizeHandle,
+.blockNode:hover .resizeHandle,
 .resizeHandle:hover {
     opacity: 1;
 }

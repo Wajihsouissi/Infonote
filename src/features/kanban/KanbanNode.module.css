@@ -13,14 +13,15 @@
     overflow: visible;
     height: auto;
     width: fit-content;
-    will-change: transform, box-shadow;
 }
 
 .dragging {
     transform: scale(0.98) rotate(1deg);
     /* Less rotation for large board */
-    box-shadow: none;
-    opacity: 0.95;
+    box-shadow:
+        var(--node-ring-drag),
+        var(--node-shadow-drag);
+    opacity: 0.96;
     z-index: 10000 !important;
 }
 

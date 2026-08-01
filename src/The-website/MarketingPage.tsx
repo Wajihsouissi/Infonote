@@ -20,7 +20,10 @@ import {
   FileText,
   Kanban,
   Sun,
-  Moon
+  Moon,
+  MoveUp,
+  Play,
+  Calendar
 } from 'lucide-react';
 import styles from './MarketingPage.module.css';
 // Import actual app components
@@ -35,10 +38,157 @@ import { StepChunkIllustration } from './illustrations/StepChunkIllustration';
 import { StepConnectIllustration } from './illustrations/StepConnectIllustration';
 import { SecondBrainIllustration } from './illustrations/SecondBrainIllustration';
 import { InfiniteCanvasIllustration } from './illustrations/InfiniteCanvasIllustration';
+import { LocalStorageIllustration } from './illustrations/LocalStorageIllustration';
+import { FlowStateIllustration } from './illustrations/FlowStateIllustration';
 import { ParaMethodIllustration } from './illustrations/ParaMethodIllustration';
 import { ZettelkastenIllustration } from './illustrations/ZettelkastenIllustration';
 import { MindmappingIllustration } from './illustrations/MindmappingIllustration';
 import { AgileWorkflowsIllustration } from './illustrations/AgileWorkflowsIllustration';
+import { LinkPreview } from '../components/ui/link-preview';
+
+// -------------------------------------------------------------------------
+// MAIN COMPONENT
+// -------------------------------------------------------------------------
+const MarqueeItem = memo(() => (
+  <div className={styles.marqueeItem}>
+    <span>Visual Thinking</span> <span className={styles.marqueeStar}>✦</span>
+    <span>Infinite Canvas</span> <span className={styles.marqueeStar}>✦</span>
+    <span>Knowledge Graph</span> <span className={styles.marqueeStar}>✦</span>
+    <span>Fluid Connections</span> <span className={styles.marqueeStar}>✦</span>
+    <span>Absolute Privacy</span> <span className={styles.marqueeStar}>✦</span>
+  </div>
+));
+MarqueeItem.displayName = "MarqueeItem";
+
+export function CinematicFooter() {
+  const scrollToTop = () => {
+    const scrollContainer = document.getElementById('marketing-scroll-container');
+    if (scrollContainer) {
+      scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  return (
+    <div className={styles.wrapper}>
+      {/* The actual footer stays fixed to the viewport underneath everything */}
+      <footer className={styles.footer}>
+        {/* 1. Sleek Marquee */}
+        <div className={styles.marqueeContainer}>
+          <div className={styles.marqueeTrack}>
+            <MarqueeItem />
+            <MarqueeItem />
+          </div>
+        </div>
+
+        {/* 2. Main Center Content */}
+        <motion.div 
+          className={styles.centerContent}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+          variants={{
+            hidden: { opacity: 0, y: 30 },
+            visible: { 
+              opacity: 1, 
+              y: 0, 
+              transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1], staggerChildren: 0.15 } 
+            }
+          }}
+        >
+          <motion.h2 
+            className={styles.heading}
+            variants={{
+              hidden: { opacity: 0, y: 20 },
+              visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } }
+            }}
+          >
+            Ready to begin?
+          </motion.h2>
+
+          <motion.div 
+            className={styles.buttonContainer}
+            variants={{
+              hidden: { opacity: 0, y: 20 },
+              visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } }
+            }}
+          >
+            {/* Primary Calls to Action */}
+            <div className={styles.primaryButtonGroup}>
+              <a href="#" className={`${styles.editorialPill} ${styles.primaryPill} ${styles.accentPill}`}>
+                <Play className={styles.icon} />
+                Start for Free
+              </a>
+              
+              <a href="#" className={`${styles.editorialPill} ${styles.primaryPill}`}>
+                <Calendar className={styles.icon} />
+                Book a Demo
+              </a>
+            </div>
+
+            {/* Secondary Text Links */}
+            <div className={styles.secondaryButtonGroup}>
+              <a href="#" className={`${styles.editorialPill} ${styles.secondaryPill}`}>
+                Privacy Policy
+              </a>
+              <a href="#" className={`${styles.editorialPill} ${styles.secondaryPill}`}>
+                Terms of Service
+              </a>
+              <a href="#" className={`${styles.editorialPill} ${styles.secondaryPill}`}>
+                Support
+              </a>
+            </div>
+          </motion.div>
+        </motion.div>
+
+        {/* 3. Bottom Bar / Credits */}
+        <motion.div 
+          className={styles.bottomBar}
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 1, delay: 0.4 }}
+        >
+          
+          <div className={styles.copyright}>
+            © 2026 Infonote. All rights reserved.
+          </div>
+
+          <div className={`${styles.editorialPill} ${styles.madeWithBadge}`}>
+            <span className={styles.badgeText}>Crafted with</span>
+            <span className={styles.heart}>❤</span>
+            <span className={styles.badgeText}>by</span>
+            <span className={styles.badgeBrand}>Wajih</span>
+          </div>
+
+          <button
+            onClick={scrollToTop}
+            className={`${styles.editorialPill} ${styles.backToTop}`}
+            aria-label="Scroll to top"
+          >
+            <MoveUp />
+          </button>
+        </motion.div>
+      </footer>
+    </div>
+  );
+}
+
+const lpWordVariants = {
+  hidden: { filter: 'blur(10px)', opacity: 0, y: 10 },
+  visible: { filter: 'blur(0px)', opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] as const } },
+};
+
+const AnimatedText = ({ text }: { text: string }) => (
+  <>
+    {text.split(' ').map((word, i) => (
+      <motion.span key={i} variants={lpWordVariants} style={{ display: 'inline-block', marginRight: '0.25em' }}>
+        {word}
+      </motion.span>
+    ))}
+  </>
+);
 
 const ImageBlockComponent = memo(({ data }: { data: { url?: string } }) => {
   return (
@@ -47,7 +197,7 @@ const ImageBlockComponent = memo(({ data }: { data: { url?: string } }) => {
       height: '100%',
       borderRadius: 12,
       overflow: 'hidden',
-      boxShadow: '0 12px 30px rgba(0,0,0,0.3)',
+      boxShadow: 'var(--elev-2)',
       border: '1px solid var(--color-border)',
       position: 'relative'
     }}>
@@ -82,13 +232,13 @@ const YouTubeModal = memo(({ videoId, onClose }: { videoId: string; onClose: () 
   return createPortal(
     <div style={{
       position: 'fixed', inset: 0, zIndex: 99999,
-      background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+      background: 'var(--bg-raised)', backdropFilter: 'blur(8px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }} onClick={onClose}>
       <div style={{
         position: 'relative', width: '90vw', maxWidth: 1000,
         aspectRatio: '16/9', borderRadius: 'var(--radius-lg)', overflow: 'hidden',
-        boxShadow: '0 30px 80px rgba(0,0,0,0.8)',
+        boxShadow: 'var(--elev-3)',
       }} onClick={(e) => e.stopPropagation()}>
         <iframe
           src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
@@ -100,7 +250,7 @@ const YouTubeModal = memo(({ videoId, onClose }: { videoId: string; onClose: () 
       <button style={{
         position: 'absolute', top: 24, right: 24,
         width: 40, height: 40, borderRadius: '50%',
-        background: 'rgba(255,255,255,0.15)', border: 'none',
+        background: 'var(--active-wash)', border: 'none',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: 'pointer', color: 'white',
       }} onClick={onClose}>
@@ -121,7 +271,7 @@ const YouTubeBlock = memo(({ data }: { data: { videoId: string } }) => {
         width: '100%', height: '100%', borderRadius: 'var(--radius-md)',
         overflow: 'hidden', position: 'relative',
         background: 'var(--bg-inset)', border: '1px solid var(--color-border)',
-        boxShadow: '0 12px 30px rgba(0,0,0,0.3)',
+        boxShadow: 'var(--elev-2)',
         cursor: videoId ? 'pointer' : 'default',
       }} onClick={() => { if (videoId) setOpen(true); }}>
         {videoId ? (
@@ -412,31 +562,35 @@ export const MarketingPage: React.FC = () => {
 
   const accordionData = [
     {
+      kicker: "Capture & organise",
       title: "Second Brain",
       desc: "Capture your thoughts, ideas, and knowledge in a centralized digital repository. Chunkit naturally accommodates the P.A.R.A method.",
+      tags: ["P.A.R.A", "Capture", "Retrieve"],
       icon: <Database />,
-      color: "var(--accent)",
       svg: <ParaMethodIllustration />
     },
     {
+      kicker: "Link & connect",
       title: "Zettelkasten",
       desc: "Create atomic notes and interconnect them organically. Foster emergent ideas through bidirectional linking and spatial mapping.",
+      tags: ["Atomic notes", "Backlinks", "Emergence"],
       icon: <Link2 />,
-      color: "var(--secondary)",
       svg: <ZettelkastenIllustration />
     },
     {
+      kicker: "Think visually",
       title: "Mindmapping",
       desc: "Brainstorm visually on the infinite canvas. Group, connect, and hierarchize concepts without linear constraints.",
+      tags: ["Infinite canvas", "Freeform", "Hierarchy"],
       icon: <Target />,
-      color: "var(--accent)",
       svg: <MindmappingIllustration />
     },
     {
+      kicker: "Ship the work",
       title: "Agile Workflows",
       desc: "Turn insights into action. Extract tasks directly from your notes to build dynamic, fully-integrated Kanban boards.",
+      tags: ["Kanban", "Task extraction", "Sprints"],
       icon: <Kanban />,
-      color: "var(--text-main)",
       svg: <AgileWorkflowsIllustration />
     }
   ];
@@ -507,12 +661,12 @@ export const MarketingPage: React.FC = () => {
   }, []);
 
   return (
-    <div className={styles.pageContainer}>
-      <div className={styles.orbBg} />
+    <div id="marketing-scroll-container" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden' }}>
+      <div className={styles.pageContainer}>
+        <div className={styles.orbBg} />
 
-      {/* Top Navigation */}
-      <nav className={`${styles.topNav} ${scrolled ? styles.scrolled : ''}`} onMouseMove={handleNavMouseMove}>
-        <div className={styles.navGlow} />
+        {/* Top Navigation */}
+        <nav className={`${styles.topNav} ${scrolled ? styles.scrolled : ''}`} onMouseMove={handleNavMouseMove}>
         <div className={styles.navLogo}>
           <div className={styles.navLogoMark}>
             <img src="/ChnkLogo.svg" alt="Chnk" style={{ height: 18 }} />
@@ -541,6 +695,13 @@ export const MarketingPage: React.FC = () => {
             <span>Get Started</span>
             <ArrowRight size={14} className={styles.navButtonIcon} />
           </button>
+          <button
+            onClick={toggleTheme}
+            className={styles.themeToggleNav}
+            aria-label="Toggle Theme"
+          >
+            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
         </div>
       </nav>
 
@@ -566,7 +727,7 @@ export const MarketingPage: React.FC = () => {
             <div className={styles.browserSearch}>
               <Search size={14} />
               <span>Find anything you are looking for...</span>
-              <span style={{ marginLeft: 'auto', opacity: 0.5, fontSize: 10, background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: 4 }}>⌘K</span>
+              <span style={{ marginLeft: 'auto', opacity: 0.5, fontSize: 10, background: 'var(--hover-wash)', padding: '2px 6px', borderRadius: 4 }}>⌘K</span>
             </div>
 
             <div className={styles.browserActions}>
@@ -661,23 +822,7 @@ export const MarketingPage: React.FC = () => {
             </div>
 
             <div className={styles.ftDualVisual}>
-              {/* 3D Master Card inside viewport */}
-              <div className={`${styles.ftUiCard} ${styles.ftNodeFloat1}`} style={{ width: '60%', transform: 'perspective(1000px) rotateY(-14deg) rotateX(6deg)', padding: '28px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', background: 'var(--bg-rail)', border: '1px solid var(--line-strong)' }}>
-                <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--bg-card)', border: '1px solid var(--line-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                  <ShieldCheck size={28} color="var(--text-main)" />
-                </div>
-
-                <span style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '6px' }}>Saved securely</span>
-                <span style={{ fontSize: '13px', color: 'var(--text-soft)', marginBottom: '24px' }}>Encrypted on your local disk</span>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', padding: '10px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--line-strong)', width: '100%' }}>
-                  <HardDrive size={14} color="var(--text-soft)" />
-                  <span style={{ fontSize: '12px', color: 'var(--text-soft)', fontFamily: 'var(--font-mono)', flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    ~/local_data/vault.enc
-                  </span>
-                  <Lock size={12} color="var(--text-main)" />
-                </div>
-              </div>
+              <LocalStorageIllustration />
             </div>
           </div>
 
@@ -699,59 +844,7 @@ export const MarketingPage: React.FC = () => {
             </div>
 
             <div className={styles.ftDualVisual}>
-              {/* 3D Flow Visual inside viewport */}
-              <div className={`${styles.ftNodeFloat2}`} style={{ position: 'relative', width: '380px', height: '220px', margin: '0 auto', transform: 'perspective(1000px) rotateY(-12deg) rotateX(4deg)' }}>
-                {/* Abstract SVG Connection */}
-                <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }}>
-                  <path d="M 150 102 C 185 102, 185 170, 220 170" fill="none" stroke="var(--line-strong)" strokeWidth="2" strokeLinecap="round" strokeDasharray="6 6" />
-                </svg>
-
-                {/* Source Note */}
-                <div style={{ position: 'absolute', top: '15px', left: '10px', width: '140px', background: 'var(--bg-rail)', border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-lg)', padding: '12px', zIndex: 1, boxShadow: 'var(--shadow-sm)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-                    <FileText size={14} color="var(--text-main)" />
-                    <span style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600 }}>User Interview</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ width: '100%', height: '4px', background: 'var(--line-strong)', borderRadius: '2px' }} />
-                    <div style={{ width: '70%', height: '4px', background: 'var(--line-strong)', borderRadius: '2px' }} />
-
-                    {/* Highlighted text block to extract */}
-                    <div style={{ background: 'var(--accent-wash)', border: '1px solid var(--accent-ink)', borderRadius: 'var(--radius-sm)', padding: '8px', marginTop: '4px', position: 'relative' }}>
-                      <div style={{ width: '90%', height: '4px', background: 'var(--accent)', borderRadius: '2px', marginBottom: '6px' }} />
-                      <div style={{ width: '50%', height: '4px', background: 'var(--accent)', borderRadius: '2px', opacity: 0.7 }} />
-                      {/* Visual Handle */}
-                      <div style={{ position: 'absolute', right: '-5px', top: '50%', transform: 'translateY(-50%)', width: '10px', height: '10px', borderRadius: '50%', background: 'var(--bg-rail)', border: '2px solid var(--accent-ink)' }} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Destination Project Board / Kanban Card */}
-                <div style={{ position: 'absolute', top: '55px', right: '10px', width: '150px', background: 'var(--bg-rail)', border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-lg)', padding: '12px', zIndex: 1, boxShadow: 'var(--shadow-sm)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', position: 'relative' }}>
-                    <Kanban size={14} color="var(--text-main)" />
-                    <span style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600 }}>Launch Plan</span>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', position: 'relative' }}>
-                    <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-md)', padding: '10px', position: 'relative', border: '1px solid var(--line-strong)' }}>
-                      <div style={{ width: '100%', height: '4px', background: 'var(--line-strong)', borderRadius: '2px', marginBottom: '8px' }} />
-                      <div style={{ width: '40%', height: '4px', background: 'var(--line-strong)', borderRadius: '2px' }} />
-                    </div>
-
-                    {/* The extracted block now as a task */}
-                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--line-strong)', borderRadius: 'var(--radius-md)', padding: '10px', position: 'relative', borderLeft: '3px solid var(--accent)' }}>
-                      {/* Visual Handle */}
-                      <div style={{ position: 'absolute', left: '-6px', top: '50%', transform: 'translateY(-50%)', width: '10px', height: '10px', borderRadius: '50%', background: 'var(--bg-rail)', border: '2px solid var(--text-main)' }} />
-                      <div style={{ width: '85%', height: '4px', background: 'var(--line-strong)', borderRadius: '2px', marginBottom: '10px' }} />
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 600 }}>New Feature</span>
-                        <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'var(--text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', color: 'var(--bg-base)', fontWeight: 'bold' }}>J</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <FlowStateIllustration />
             </div>
           </div>
         </div>
@@ -904,7 +997,6 @@ export const MarketingPage: React.FC = () => {
 
       {/* ── Competitor Fusion Section ── */}
       <section className={styles.fusionSection}>
-        <div className={styles.fusionGlowBg} />
 
         <div className={styles.fusionHeader} style={{ position: 'relative', zIndex: 1 }}>
           <div className={styles.wtWatermarkSection}>All-in-One Optimization</div>
@@ -1009,7 +1101,7 @@ export const MarketingPage: React.FC = () => {
           <button className={styles.navButton} style={{ padding: '14px 36px', fontSize: '15px' }}>
             <span>VIEW DEMO</span>
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text-faint)', fontWeight: 500 }}>
             <div style={{ display: 'flex', position: 'relative' }}>
               <img src="https://i.pravatar.cc/100?img=4" alt="user" style={{ width: 26, height: 26, borderRadius: '50%', border: '2px solid var(--line-strong)' }} />
               <img src="https://i.pravatar.cc/100?img=5" alt="user" style={{ width: 26, height: 26, borderRadius: '50%', border: '2px solid var(--line-strong)', marginLeft: '-10px' }} />
@@ -1019,6 +1111,58 @@ export const MarketingPage: React.FC = () => {
             Trusted by 1,200+ teams who turned ideas into real digital products.
           </div>
         </div>
+      </section>
+
+      {/* ── Link Preview Demo Section ── */}
+      <section className={styles.lpSection}>
+        <motion.p 
+          className={styles.lpText}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={{
+            hidden: { opacity: 1 },
+            visible: {
+              opacity: 1,
+              transition: { staggerChildren: 0.08 },
+            },
+          }}
+        >
+          <AnimatedText text="Experience Infonote's unique visual features. Watch the" />
+          <motion.span variants={lpWordVariants} style={{ display: 'inline-block', marginRight: '0.25em' }}>
+            <LinkPreview
+              url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+              imageSrc="https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=640&auto=format&fit=crop"
+              isStatic
+              className={styles.lpLink}
+            >
+              Product Tour ↗
+            </LinkPreview>
+          </motion.span>
+          <AnimatedText text="for a deep dive, explore a" />
+          <motion.span variants={lpWordVariants} style={{ display: 'inline-block', marginRight: '0.25em' }}>
+            <LinkPreview
+              url="/templates"
+              imageSrc="https://images.unsplash.com/photo-1542626991-cbc4e32524cc?q=80&w=640&auto=format&fit=crop"
+              isStatic
+              className={styles.lpLink}
+            >
+              Sample Canvas ↗
+            </LinkPreview>
+          </motion.span>
+          <AnimatedText text="to see how ideas flow, or navigate your" />
+          <motion.span variants={lpWordVariants} style={{ display: 'inline-block', marginRight: '0.25em' }}>
+            <LinkPreview
+              url="/graph"
+              imageSrc="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=640&auto=format&fit=crop"
+              isStatic
+              className={styles.lpLink}
+            >
+              Knowledge Graph ↗
+            </LinkPreview>
+          </motion.span>
+          <AnimatedText text="instantly." />
+        </motion.p>
       </section>
 
       {/* ── Testimonials Section ── */}
@@ -1077,23 +1221,40 @@ export const MarketingPage: React.FC = () => {
               >
                 {/* Expanded Content */}
                 <div className={styles.accordionContent}>
-                  <div className={styles.accHeaderRow}>
-                    <div className={styles.accIconBox} style={{ color: item.color, background: `${item.color}15`, border: `1px solid ${item.color}30` }}>
-                      {React.cloneElement(item.icon as React.ReactElement<{ size?: number; strokeWidth?: number }>, { size: 24, strokeWidth: 2.5 })}
-                    </div>
-                    <h3 className={styles.accTitle}>{item.title}</h3>
+                  <div className={styles.accEyebrow}>
+                    <span className={styles.accIndex}>
+                      {String(index + 1).padStart(2, '0')}
+                      <span className={styles.accIndexTotal}> / {String(accordionData.length).padStart(2, '0')}</span>
+                    </span>
+                    <span className={styles.accRule} />
+                    <span className={styles.accKicker}>{item.kicker}</span>
+                    <span className={styles.accHeadIcon}>
+                      {React.cloneElement(item.icon as React.ReactElement<{ size?: number; strokeWidth?: number }>, { size: 17, strokeWidth: 2 })}
+                    </span>
                   </div>
+
+                  <h3 className={styles.accTitle}>{item.title}</h3>
                   <p className={styles.accDesc}>{item.desc}</p>
+
+                  <div className={styles.accTags}>
+                    {item.tags.map((tag) => (
+                      <span key={tag} className={styles.accTag}>{tag}</span>
+                    ))}
+                  </div>
+
+                  <div className={styles.accDivider} />
+
                   <div className={styles.accImageWrapper}>
                     {item.svg}
                   </div>
                 </div>
 
-                {/* Collapsed Sidebar */}
+                {/* Collapsed strip */}
                 <div className={styles.accordionSidebar}>
+                  <span className={styles.accSidebarIndex}>{String(index + 1).padStart(2, '0')}</span>
                   <div className={styles.accVerticalText}>{item.title}</div>
-                  <div className={styles.accSidebarIcon} style={{ color: isActive ? 'transparent' : item.color }}>
-                    {React.cloneElement(item.icon as React.ReactElement<{ size?: number }>, { size: 20 })}
+                  <div className={styles.accSidebarIcon}>
+                    {React.cloneElement(item.icon as React.ReactElement<{ size?: number }>, { size: 18 })}
                   </div>
                 </div>
               </div>
@@ -1102,115 +1263,10 @@ export const MarketingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* ── Final CTA Section ── */}
-      <section className={styles.ctaSection}>
-        <div className={styles.ctaContainer}>
-          <h2 className={styles.ctaTitle}>
-            Start building your second brain <span className={styles.ctaHighlight}>today</span>
-          </h2>
-          <p className={styles.ctaDesc}>
-            Join thousands of thinkers, writers, and creators who have transformed the way they capture, connect, and synthesize their knowledge.
-          </p>
-          <div className={styles.ctaButtonGroup}>
-            <button className={`${styles.navButton} ${styles.ctaButtonPrimary}`} style={{ padding: '16px 32px', fontSize: '1.1rem' }}>
-              <Sparkles size={20} className={styles.btnIcon} />
-              Get Started for Free
-            </button>
-            <button className={`${styles.navButton} ${styles.ctaButtonSecondary}`} style={{ padding: '16px 32px', fontSize: '1.1rem' }}>
-              Book a Demo
-            </button>
-          </div>
-        </div>
-      </section>
 
-      {/* ── Global Footer Section ── */}
-      <footer className={styles.footerSection}>
-        <div className={styles.footerContainer}>
-          <div className={styles.footerBrand}>
-            <div className={styles.footerLogo}>
-              <div className={styles.logoOrb}></div>
-              Infonote
-            </div>
-            <p className={styles.footerDesc}>
-              The visual-first knowledge management system designed for emergent thought and dynamic organization.
-            </p>
-          </div>
-
-          <div className={styles.footerColumn}>
-            <h4 className={styles.footerColTitle}>Product</h4>
-            <div className={styles.footerLinks}>
-              <a href="#" className={styles.footerLink}>Features</a>
-              <a href="#" className={styles.footerLink}>Integrations</a>
-              <a href="#" className={styles.footerLink}>Pricing</a>
-              <a href="#" className={styles.footerLink}>Changelog</a>
-            </div>
-          </div>
-
-          <div className={styles.footerColumn}>
-            <h4 className={styles.footerColTitle}>Resources</h4>
-            <div className={styles.footerLinks}>
-              <a href="#" className={styles.footerLink}>Documentation</a>
-              <a href="#" className={styles.footerLink}>Methodology</a>
-              <a href="#" className={styles.footerLink}>Community</a>
-              <a href="#" className={styles.footerLink}>Blog</a>
-            </div>
-          </div>
-
-          <div className={styles.footerColumn}>
-            <h4 className={styles.footerColTitle}>Company</h4>
-            <div className={styles.footerLinks}>
-              <a href="#" className={styles.footerLink}>About Us</a>
-              <a href="#" className={styles.footerLink}>Careers</a>
-              <a href="#" className={styles.footerLink}>Privacy Policy</a>
-              <a href="#" className={styles.footerLink}>Terms of Service</a>
-            </div>
-          </div>
-        </div>
-
-        <div className={styles.footerBottom}>
-          <div>&copy; {new Date().getFullYear()} Infonote Inc. All rights reserved.</div>
-          <div className={styles.footerSocials}>
-            <a href="#" className={styles.footerSocialLink}>Twitter</a>
-            <a href="#" className={styles.footerSocialLink}>GitHub</a>
-            <a href="#" className={styles.footerSocialLink}>Discord</a>
-          </div>
-        </div>
-      </footer>
-
-      {/* Theme Switcher FAB */}
-      <button
-        onClick={toggleTheme}
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          width: '48px',
-          height: '48px',
-          borderRadius: '50%',
-          background: 'var(--bg-rail)',
-          border: '1px solid var(--line-strong)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          zIndex: 9999,
-          boxShadow: 'var(--shadow-sm)',
-          color: 'var(--text-main)',
-          transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.05)';
-          e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'scale(1)';
-          e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-        }}
-        aria-label="Toggle Theme"
-      >
-        {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-      </button>
-
+      {/* Cinematic Footer now inside pageContainer */}
+      <CinematicFooter />
+      </div>
     </div>
   );
 };

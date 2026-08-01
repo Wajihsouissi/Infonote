@@ -32,6 +32,7 @@ import { KanbanTableView } from './KanbanTableView';
 import { KanbanTimelineView } from './KanbanTimelineView';
 import styles from './KanbanNode.module.css';
 import { getStrictSize, ICON_SIZE, snapToGridValue } from '../../config/layout';
+import { samePropsIgnoringPosition } from '../canvas/nodeMemo';
 
 const dropAnimation = {
     duration: 200,
@@ -746,4 +747,4 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                         )}
         </div>
     );
-});
+}, samePropsIgnoringPosition);

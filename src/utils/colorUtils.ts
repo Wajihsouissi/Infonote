@@ -136,20 +136,6 @@ function hslToHex(h: number, s: number, l: number): string {
 }
 
 /**
- * Check if text should be dark or light based on background color
- */
-export function shouldUseDarkText(backgroundColor: string): boolean {
-    const rgb = parseColor(backgroundColor);
-    if (!rgb) return true; // Default to dark text
-
-    // Calculate relative luminance
-    const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
-
-    // For pastel colors (high lightness), always use dark text
-    return luminance > 0.5;
-}
-
-/**
  * Darken a color by a specific percentage (0-100)
  */
 export function darkenColor(color: string, percent: number): string {
@@ -160,27 +146,6 @@ export function darkenColor(color: string, percent: number): string {
     const r = Math.max(0, Math.floor(rgb.r * factor));
     const g = Math.max(0, Math.floor(rgb.g * factor));
     const b = Math.max(0, Math.floor(rgb.b * factor));
-
-    // Convert back to hex
-    const toHex = (n: number) => {
-        const hex = n.toString(16);
-        return hex.length === 1 ? '0' + hex : hex;
-    };
-
-    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-}
-
-/**
- * Lighten a color by a specific percentage (0-100)
- */
-export function lightenColor(color: string, percent: number): string {
-    const rgb = parseColor(color);
-    if (!rgb) return color;
-
-    const factor = percent / 100;
-    const r = Math.min(255, Math.floor(rgb.r + (255 - rgb.r) * factor));
-    const g = Math.min(255, Math.floor(rgb.g + (255 - rgb.g) * factor));
-    const b = Math.min(255, Math.floor(rgb.b + (255 - rgb.b) * factor));
 
     // Convert back to hex
     const toHex = (n: number) => {

@@ -69,6 +69,13 @@ export function initStorageManager(
             const edgesChanged = curr.edges !== prev.edges;
 
             if (nodesChanged || edgesChanged) {
+                /* A drag rewrites the nodes array on every frame. None of what
+                   follows — dirty flags, snapshots, backend saves — describes
+                   anything the user has finished doing yet, and all of it is
+                   charged to the frame. The drop is a nodes change too, so
+                   nothing is lost by waiting for it. */
+                if (useStore.getState().interactionState.draggedNodeId) return;
+
                 // Mark both states as unsynced/dirty
                 if (curr.setLocalDirty) curr.setLocalDirty(true);
                 if (curr.setCloudDirty) curr.setCloudDirty(true);
@@ -107,6 +114,13 @@ function scheduleSnapshot(): void {
     snapshotTimeout = window.setTimeout(() => {
         snapshotTimeout = null;
         const state = useStore.getState();
+        /* Writing a snapshot deep-copies the whole workspace before handing it
+           to IndexedDB — a single synchronous chunk of work that must not land
+           in the middle of a drag. Wait for the user to let go. */
+        if (state.interactionState.draggedNodeId) {
+            scheduleSnapshot();
+            return;
+        }
         // Never write an empty snapshot: empty ones are never restored (see
         // restoreFromLocalSnapshot), and an accidental wipe (e.g. a bad cloud
         // load) must not cascade into destroying the last good snapshot.
@@ -216,18 +230,6 @@ export function flushPendingSave(): void {
 }
 
 /**
- * Legacy entry point used by <StorageControls /> for the local-folder button.
- * Kept intact so existing callers do not have to change.
- */
-export async function connectStorage(
-    getState: () => { nodes: AppNode[]; edges: Edge[] },
-    loadGraph: (nodes: AppNode[], edges: Edge[]) => void,
-    setStorageStatus: (connected: boolean, dirName: string | null) => void
-): Promise<{ success: boolean; error?: string }> {
-    return connectBackend('filesystem', { getState, loadGraph, setStorageStatus });
-}
-
-/**
  * Generic entry point for any backend kind. Used by the new cloud button.
  */
 export async function connectBackend(
@@ -319,10 +321,3 @@ export function getActiveBackendKind(): BackendKind {
     return activeBackend.kind;
 }
 
-export function isStorageConnected(): boolean {
-    return activeBackend.isConnected;
-}
-
-export function getDirectoryName(): string | undefined {
-    return activeBackend.displayName ?? undefined;
-}

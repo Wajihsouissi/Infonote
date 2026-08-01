@@ -339,5 +339,3 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ ownerEmail }) =>
         </div>
     );
 };
-
-export default AdminDashboard;

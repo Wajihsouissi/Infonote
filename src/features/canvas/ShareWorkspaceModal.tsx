@@ -856,5 +856,3 @@ const primaryButton: React.CSSProperties = {
     fontSize: 13,
     fontWeight: 700,
 };
-
-export default ShareWorkspaceModal;

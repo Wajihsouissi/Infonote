@@ -788,5 +788,3 @@ const progressLabel: React.CSSProperties = {
     fontWeight: 600,
     color: 'var(--accent-ink)',
 };
-
-export default NotionImportModal;

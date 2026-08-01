@@ -21,12 +21,9 @@
     /* Center elements vertically in their container */
 }
 
-/* Compact headers in minimal mode to prevent snapping to 2x height */
-.minimal .heading1,
-.minimal .heading2,
-.minimal .heading3 {
-    line-height: 1.15;
-}
+/* Headings used to run a tighter 1.15 leading on the canvas so they wouldn't
+   "snap to 2x height" — a workaround for the fixed 56px block node, which is
+   now auto-height. Canvas and note cards share --block-leading-heading. */
 
 .minimal .text,
 .minimal .todo,
@@ -44,10 +41,11 @@
     cursor: pointer;
     /* nesting depth, published by BlockItem as --block-indent */
     padding-left: var(--block-indent, 0px);
+    min-width: 0;
 }
 
 .minimal .sortableWrapper {
-    align-items: center;
+    align-items: flex-start;
 }
 
 .sortableWrapper:has(.heading1) .dragHandle {
@@ -238,8 +236,10 @@
     /* Take up remaining space in flex containers like callout */
 }
 
-/* Headings share one scale: 1.85 / 1.45 / 1.2rem on a tight 1.3 leading,
-   so a stack of them reads as one typographic ladder. */
+/* Headings share one ladder with body text — 15 / 19 / 24 / 30px at a ~1.26
+   ratio — driven by the --block-* tokens so canvas and note cards can't drift
+   apart. Sizes are authored to land on whole pixels; the old decimal rem
+   literals resolved to 19.2 / 23.2 / 29.6 and rasterised soft. */
 .heading1,
 .heading2,
 .heading3 {
@@ -247,23 +247,23 @@
     margin-bottom: 0;
     padding: 1px 0;
     color: var(--node-title);
-    line-height: 1.3;
+    line-height: var(--block-leading-heading);
 }
 
 .heading1 {
-    font-size: 1.85rem;
+    font-size: var(--block-h1);
     font-weight: 700;
     letter-spacing: -0.02em;
 }
 
 .heading2 {
-    font-size: 1.45rem;
+    font-size: var(--block-h2);
     font-weight: 600;
     letter-spacing: -0.015em;
 }
 
 .heading3 {
-    font-size: 1.2rem;
+    font-size: var(--block-h3);
     font-weight: 600;
     letter-spacing: -0.01em;
 }
@@ -275,11 +275,17 @@
     align-items: flex-start;
 }
 
+/* 18px box centred in the shared 24px marker column. The browser default is
+   ~13px, which made the one genuinely interactive marker the smallest thing in
+   the block and smaller than the decorative callout icon beside it. */
 .todoCheckbox {
-    margin-top: 7px;
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    margin-inline: calc((var(--block-marker-col) - 18px) / 2);
+    margin-top: 4px;
     cursor: pointer;
     accent-color: var(--accent);
-    flex-shrink: 0;
 }
 
 .todoCheckbox:focus-visible {
@@ -295,9 +301,13 @@
     transition: color var(--transition-fast), opacity var(--transition-fast);
 }
 
+/* --text-faint measured 4.08:1 (Ink) / 3.79:1 (Paper) against the node
+   surface, under the 4.5:1 floor — completed items were the least readable
+   text in the app. --text-soft clears AA and the strikethrough still carries
+   the state. */
 .todoChecked {
     text-decoration: line-through;
-    color: var(--text-faint);
+    color: var(--text-soft);
 }
 
 .todoDateWrapper {
@@ -574,6 +584,7 @@
     outline: none;
     min-height: 28px;
     border: none;
+    flex-grow: 1;
 }
 
 /* Lists */
@@ -583,25 +594,31 @@
     align-items: flex-start;
 }
 
+/* Every marker occupies the same fixed column, so a bullet, a number, a
+   checkbox and a chevron all drop their text on one left edge. They used to be
+   intrinsically sized, which gave each block type a different text inset. */
 .listBullet {
+    flex: 0 0 var(--block-marker-col);
+    display: inline-flex;
+    justify-content: center;
     margin-top: 4px;
     font-size: 1.2rem;
     line-height: 1;
     color: var(--block-marker);
     user-select: none;
-    flex-shrink: 0;
 }
 
 .listNumber {
+    flex: 0 0 var(--block-marker-col);
+    /* right-aligned so "9." and "10." share a decimal edge */
+    text-align: right;
     margin-top: 3px;
     font-size: 0.85rem;
     font-weight: 600;
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     color: var(--block-marker);
-    min-width: 20px;
     user-select: none;
-    flex-shrink: 0;
 }
 
 .toggleWrapper {
@@ -623,9 +640,10 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
-    width: 20px;
-    height: 20px;
+    /* shares the marker column, and the wider box doubles as a real hit target */
+    flex: 0 0 var(--block-marker-col);
+    width: var(--block-marker-col);
+    height: var(--block-marker-col);
     padding: 0;
     border: none;
     border-radius: var(--r-xs);
@@ -666,7 +684,8 @@
 /* Callout */
 .calloutWrapper {
     display: flex;
-    gap: var(--block-inset);
+    /* same marker gap as every other block, so the icon column matches */
+    gap: var(--block-marker-gap);
     background: var(--block-hover);
     padding: var(--block-inset);
     border-radius: var(--block-radius-lg);
@@ -679,10 +698,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 4px;
-    margin: 0 0 0 -4px;
-    /* Adjust alignment to sit nicely */
-    flex-shrink: 0;
+    /* shares the marker column with bullets, numbers, checkboxes and chevrons */
+    flex: 0 0 var(--block-marker-col);
+    height: var(--block-marker-col);
+    padding: 0;
+    margin: 0;
     user-select: none;
     color: var(--text-main);
     border-radius: var(--r-xs);
@@ -707,7 +727,9 @@
 .tableWrapper {
     position: relative;
     width: 100%;
-    margin: 6px 0;
+    /* No vertical margin: the block's own spacing owns the gap, and a margin
+       here only pushed the selection ring off the table's top and bottom edges. */
+    margin: 0;
 }
 
 .tableScroll {
@@ -719,9 +741,19 @@
     scrollbar-width: thin;
 }
 
+/* Default: hug the container, so the table is responsive to the editor (or
+   canvas node) width and never opens a scrollbar of its own. `max-content`
+   here made even a three-column table overflow by the add-column strip. */
 .tableInner {
+    width: 100%;
+}
+
+/* Hand-sized: the columns are the source of truth in BOTH directions — past
+   the container it scrolls, under it the box shrink-wraps. `min-width: 100%`
+   here kept the bordered frame at full width while the table inside shrank,
+   which is the dead strip that appeared to the right of the last column. */
+.tableInnerSized {
     width: max-content;
-    min-width: 100%;
 }
 
 .tableMain {
@@ -736,8 +768,18 @@
 .table {
     flex: 1 1 auto;
     width: 100%;
+    min-width: 0;
     border-collapse: collapse;
     table-layout: auto;
+}
+
+/* Fixed layout is what makes a column drag land exactly where the cursor is:
+   under `auto` the browser re-solves the row from cell content and the last
+   column swallows the difference. Width comes from the colgroup sum. */
+.tableSized {
+    flex: 0 0 auto;
+    width: auto;
+    table-layout: fixed;
 }
 
 .tableHeader {
@@ -797,10 +839,23 @@
     color: var(--text-faint);
 }
 
-.tableCell:focus {
+/* The edit highlight belongs to the CELL, not the textarea inside it. The
+   textarea is only as tall as its text, so on a row that is taller than its
+   text — a hand-resized row, or one stretched by a wrapped neighbour — a ring
+   on the textarea covered the top slice of the cell and left the rest bare.
+   On the cell it always spans the full column width and row height. */
+.tableData:focus-within,
+.tableHeader:focus-within {
     background: var(--table-cell-focus);
     box-shadow: inset 0 0 0 1.5px var(--accent);
-    border-radius: var(--r-xs);
+}
+
+/* The cell owns the focus wash now, so the tinted column/row a menu is open on
+   must not paint over it. */
+.tableData:focus-within.colSelected,
+.tableHeader:focus-within.colSelected,
+.table tbody tr.rowSelected .tableData:focus-within {
+    background: var(--table-cell-focus) !important;
 }
 
 .tableHeader .tableCell {
@@ -826,7 +881,8 @@
     background: var(--table-header-bg);
     border: 1px solid var(--table-border-strong);
     border-radius: var(--r-xs);
-    cursor: pointer;
+    /* Drag to reorder, click for the options menu — grab says the first. */
+    cursor: grab;
     opacity: 0;
     transition: opacity var(--transition-fast), color var(--transition-fast),
         background var(--transition-fast), border-color var(--transition-fast);
@@ -865,18 +921,24 @@
     border-color: var(--accent);
 }
 
-/* ---- Add row / column affordances ---- */
+/* ---- Add row / column affordances ----
+   These collapse to nothing at rest so the block's box is EXACTLY the table:
+   left permanently in flow they added a dead strip below and beside the grid,
+   which is what the selection ring then had to draw around. */
 .addColBtn {
-    flex: 0 0 22px;
+    flex: 0 0 0;
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+    opacity: 0;
     color: var(--text-faint);
     background: transparent;
     border: none;
-    border-left: 1px solid var(--table-border);
+    border-left: 0 solid var(--table-border);
     cursor: pointer;
-    transition: background var(--transition-fast), color var(--transition-fast);
+    transition: flex-basis var(--transition-fast), opacity var(--transition-fast),
+        background var(--transition-fast), color var(--transition-fast);
 }
 
 .addRowBtn {
@@ -884,15 +946,33 @@
     align-items: center;
     justify-content: center;
     width: 100%;
-    height: 22px;
-    margin-top: 4px;
+    height: 0;
+    margin-top: 0;
+    overflow: hidden;
+    opacity: 0;
     color: var(--text-faint);
     background: transparent;
-    border: 1px solid var(--table-border);
+    border: 0 solid var(--table-border);
     border-radius: var(--block-radius);
     cursor: pointer;
-    transition: background var(--transition-fast), color var(--transition-fast),
-        border-color var(--transition-fast);
+    transition: height var(--transition-fast), margin var(--transition-fast),
+        opacity var(--transition-fast), background var(--transition-fast),
+        color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.tableWrapper:hover .addColBtn,
+.tableWrapper:focus-within .addColBtn {
+    flex-basis: 22px;
+    opacity: 1;
+    border-left-width: 1px;
+}
+
+.tableWrapper:hover .addRowBtn,
+.tableWrapper:focus-within .addRowBtn {
+    height: 22px;
+    margin-top: 4px;
+    opacity: 1;
+    border-width: 1px;
 }
 
 .addColBtn:hover,
@@ -1008,6 +1088,106 @@
     border-radius: var(--radius-xs);
 }
 
+/* The last column's handle would hang over the table's rounded edge, where
+   .tableMain's overflow:hidden clips it — pull it fully inside instead. */
+.tableHeader:last-child .colResizeHandle {
+    right: 0;
+}
+
+/* ---- Row Resize Handle ---- */
+/* One per cell, so the line runs the full width of the row it resizes.
+   `bottom` on an absolutely positioned child resolves against the PADDING box,
+   and a cell's row divider is its bottom BORDER — outside that box. Offsetting
+   by the divider's own width is what puts the bar on the line instead of
+   floating it a couple of pixels above, which is how it used to render. */
+.tableData {
+    --row-divider-w: 1px;
+}
+
+.tableHeader {
+    --row-divider-w: 1.5px;
+}
+
+/* The last row has no bottom border of its own — .tableMain's edge is the line. */
+.table tr:last-child .tableData {
+    --row-divider-w: 0px;
+}
+
+/* Grab zone only — it paints nothing. Straddles the divider, ~3px each side. */
+.rowResizeHandle {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(-3px - var(--row-divider-w));
+    height: 6px;
+    cursor: row-resize;
+    z-index: 8;
+}
+
+/* The line a row-resize moves IS the cell's bottom border, so the affordance
+   is that border lighting up. A separate bar drawn near it can never be exact:
+   `bottom` resolves against the padding box while the border sits outside it,
+   and browsers snap border widths to device pixels, so the two drift apart at
+   fractional zoom. Recolouring the divider is right by construction. */
+/* Scoped to the ROW, not the cell under the cursor: the divider is one line
+   across the whole table, so it lights up as one line. */
+.table tr:has(.rowResizeHandle:hover) > .tableData,
+.table tr:has(.rowResizeHandle:hover) > .tableHeader,
+.table tr:has(.rowResizeHandle.resizeActive) > .tableData,
+.table tr:has(.rowResizeHandle.resizeActive) > .tableHeader {
+    border-bottom-color: var(--accent);
+}
+
+/* The last row has no bottom border — .tableMain's edge is the line there — so
+   that row alone draws a bar, flush with the cell's border box (divider-w 0). */
+.table tr:last-child .rowResizeHandle::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 3px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: var(--radius-xs);
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.table tr:last-child .rowResizeHandle:hover::after,
+.table tr:last-child .rowResizeHandle.resizeActive::after {
+    opacity: 1;
+}
+
+/* ---- Reorder (grip drag) ---- */
+.colGrip:active,
+.rowGrip:active {
+    cursor: grabbing;
+}
+
+.reorderSource {
+    opacity: 0.4;
+}
+
+/* An inset edge rather than a border: a real border would add a pixel to the
+   cell and shift every other column mid-drag. */
+.dropBeforeCol {
+    box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.dropAfterCol {
+    box-shadow: inset -2px 0 0 var(--accent);
+}
+
+.dropBeforeRow > td,
+.dropBeforeRow > th {
+    box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.dropAfterRow > td,
+.dropAfterRow > th {
+    box-shadow: inset 0 -2px 0 var(--accent);
+}
+
 .tableHeader:hover .colResizeHandle,
 .colResizeHandle:hover,
 .colResizeHandle.resizeActive {
@@ -1017,7 +1197,10 @@
 /* Divider — a hairline rule, the system's primary separator. */
 .divider {
     height: 1px;
-    background: var(--line);
+    /* --line (0.08 alpha) is the right weight for incidental chrome, but a
+       divider IS the content here — at that alpha the block rendered as an
+       empty pill and read as a loading skeleton. */
+    background: var(--line-strong);
     border: none;
     margin: var(--block-inset) 0;
     width: 100%;

@@ -104,13 +104,12 @@
 .bottomMenuAIText {
     padding: 0;
     border: 1px solid rgba(var(--accent-rgb), 0.4);
-    background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.1), rgba(var(--accent-rgb), 0.15), rgba(var(--accent-rgb), 0.1));
-    background-size: 200% 100%;
+    background: var(--bg-rail);
     box-shadow: none;
 }
 
 .bottomMenuAIText:hover {
-    background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.15), rgba(var(--accent-rgb), 0.2), rgba(var(--accent-rgb), 0.15));
+    background: var(--bg-rail);
     border: 1px solid rgba(var(--accent-rgb), 0.6);
     box-shadow: none;
 }
@@ -241,17 +240,15 @@
     box-shadow: none;
 }
 
-/* AI Image Mode Styles (Cyan/Teal Theme) */
 .bottomMenuAIImage {
     padding: 0;
     border: 1px solid rgba(var(--secondary-rgb), 0.4);
-    background: linear-gradient(90deg, rgba(var(--secondary-rgb), 0.1), rgba(var(--secondary-rgb), 0.15), rgba(var(--secondary-rgb), 0.1));
-    background-size: 200% 100%;
+    background: var(--bg-rail);
     box-shadow: none;
 }
 
 .bottomMenuAIImage:hover {
-    background: linear-gradient(90deg, rgba(var(--secondary-rgb), 0.15), rgba(var(--secondary-rgb), 0.2), rgba(var(--secondary-rgb), 0.15));
+    background: var(--bg-rail);
     border: 1px solid rgba(var(--secondary-rgb), 0.6);
     box-shadow: none;
 }

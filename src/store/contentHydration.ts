@@ -522,19 +522,6 @@ function chunkTermFreq(blocks: AnalyzableBlock[]): TermFreq {
     return tf;
 }
 
-/**
- * Compute a relatedness spanning forest among an arbitrary set of nodes (used to
- * re-tidy an existing canvas). Returns both the tree edges and a parent map that
- * can drive a tidy, short-connector layout.
- */
-export function computeRelatednessForest(
-    items: { id: string; blocks: AnalyzableBlock[]; level?: number }[]
-): RelatednessForest {
-    return buildRelatednessForest(
-        items.map((it) => ({ id: it.id, tf: chunkTermFreq(it.blocks), level: it.level ?? 0 }))
-    );
-}
-
 /** Heading level of a node based on its first block (0 = not a heading). */
 function nodeHeadingLevel(blocks: AnalyzableBlock[]): number {
     const first = blocks?.[0];

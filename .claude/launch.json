@@ -11,8 +11,8 @@
     {
       "name": "Vite Preview",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "preview"],
-      "port": 5173
+      "runtimeArgs": ["run", "preview", "--", "--port", "4173"],
+      "port": 4173
     },
     {
       "name": "Vite Dev Alt Port",

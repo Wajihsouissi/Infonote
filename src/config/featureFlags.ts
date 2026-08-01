@@ -32,5 +32,3 @@ export const FEATURES = {
     /** Deferred from beta v1 — flip on after its QA pass. */
     pdfBlock: envFlag('PDF_BLOCK') ?? false,
 } as const;
-
-export type FeatureName = keyof typeof FEATURES;

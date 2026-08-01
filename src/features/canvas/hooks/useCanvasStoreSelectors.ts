@@ -7,7 +7,6 @@ import { useStore } from '../../../store/useStore';
  */
 export function useCanvasStoreSelectors() {
     // State selectors (atomic to prevent unnecessary re-renders)
-    const nodes = useStore(useCallback(s => s.nodes, []));
     const edges = useStore(useCallback(s => s.edges, []));
     const currentParentId = useStore(useCallback(s => s.currentParentId, []));
     const interactionState = useStore(useCallback(s => s.interactionState, []));
@@ -37,7 +36,6 @@ export function useCanvasStoreSelectors() {
 
     return {
         // State
-        nodes,
         edges,
         currentParentId,
         interactionState,

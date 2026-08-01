@@ -1,14 +1,17 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 /**
- * Shared DOM mock elements for the "How it works" step illustrations.
+ * The two elements that TRAVEL between the three walkthrough steps.
  *
- * The three steps tell one continuous story: the same note title and the
- * same video block travel from the editor (capture), through extraction
- * (chunk), onto the canvas (connect). The travel effect relies on
- * framer-motion `layoutId`s, so every step must render the exact same
- * elements — which is why they live here, once.
+ * The steps tell one continuous story — the same note title and the same video
+ * block move from the editor (capture), through extraction (chunk), onto the
+ * canvas (connect). The travel is framer-motion `layoutId` magic, which only
+ * works if every step renders the exact same element identity. That is the one
+ * reason these live outside `scene-kit.tsx`: everything else in a scene is
+ * positional, but these two are a hand-off.
+ *
+ * Do not gate them behind a viewport reveal — see the MOTION note in scene-kit.
  */
 
 export const SHARED_SPRING = { type: 'spring', bounce: 0, duration: 0.6 } as const;
@@ -27,7 +30,7 @@ export const SharedTitleMock: React.FC<SharedTitleMockProps> = ({ fontSize, chil
     style={{
       fontSize,
       fontWeight: 800,
-      color: 'var(--text-main)',
+      color: 'var(--node-title)',
       letterSpacing: '-0.02em',
       fontFamily: 'var(--font-sans)',
     }}
@@ -51,28 +54,29 @@ export const SharedVideoMock: React.FC<SharedVideoMockProps> = ({ size = 'sm' })
       style={{
         position: 'absolute',
         inset: 0,
-        borderRadius: 'var(--radius-lg)',
-        background: 'var(--bg-rail)',
+        borderRadius: 'var(--r-md)',
+        background: 'var(--node-bg)',
         overflow: 'hidden',
-        border: '1px solid var(--line-strong)',
+        border: '1px solid var(--line-heavy)',
         display: 'flex',
         flexDirection: 'column',
       }}
     >
-      <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {/* recessed media well — the note card's inner content surface */}
+      <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
         <div
           style={{
-            width: lg ? 48 : 40,
-            height: lg ? 48 : 40,
-            borderRadius: '50%',
-            background: 'var(--text-main)',
+            width: lg ? 44 : 34,
+            height: lg ? 34 : 26,
+            borderRadius: 'var(--r-md)',
+            background: 'var(--node-title)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 2,
           }}
         >
-          <svg width={lg ? 18 : 14} height={lg ? 18 : 14} viewBox="0 0 24 24" fill="var(--bg-base)" style={{ marginLeft: lg ? 4 : 2 }}>
+          <svg width={lg ? 16 : 13} height={lg ? 16 : 13} viewBox="0 0 24 24" fill="var(--bg-base)" style={{ marginLeft: lg ? 3 : 2 }}>
             <polygon points="6,4 20,12 6,20" />
           </svg>
         </div>
@@ -80,18 +84,18 @@ export const SharedVideoMock: React.FC<SharedVideoMockProps> = ({ size = 'sm' })
 
       <div
         style={{
-          height: lg ? 36 : 24,
-          borderTop: '1px solid var(--line-strong)',
-          background: 'var(--bg-card)',
+          height: lg ? 32 : 22,
+          borderTop: '1px solid var(--line)',
+          background: 'var(--node-bg)',
           display: 'flex',
           alignItems: 'center',
           padding: lg ? '0 12px' : '0 8px',
-          gap: lg ? 12 : 8,
+          gap: lg ? 10 : 7,
         }}
       >
-        <span style={{ fontSize: lg ? 10 : 8, color: 'var(--text-main)', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>03:14</span>
-        <div style={{ flex: 1, height: 2, background: 'var(--line)', position: 'relative' }}>
-          <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '35%', background: 'var(--accent)' }} />
+        <span style={{ fontSize: lg ? 9 : 8, color: 'var(--node-title)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>03:14</span>
+        <div style={{ flex: 1, height: 3, background: 'rgba(255,255,255,0.1)', position: 'relative', borderRadius: 2 }}>
+          <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '35%', background: 'var(--accent)', borderRadius: 2 }} />
           {lg && (
             <div
               style={{
@@ -99,105 +103,16 @@ export const SharedVideoMock: React.FC<SharedVideoMockProps> = ({ size = 'sm' })
                 left: '35%',
                 top: '50%',
                 transform: 'translate(-50%, -50%)',
-                width: 8,
-                height: 8,
+                width: 7,
+                height: 7,
                 borderRadius: '50%',
                 background: 'var(--accent)',
               }}
             />
           )}
         </div>
-        {lg && <span style={{ fontSize: 10, color: 'var(--text-soft)', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>12:45</span>}
+        {lg && <span style={{ fontSize: 9, color: 'var(--node-meta)', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>12:45</span>}
       </div>
     </motion.div>
   );
 };
-
-/* ── Skeleton text line (DOM flavor) ───────────────────────────────── */
-
-interface TextLineProps {
-  width: string | number;
-  height?: number;
-  fill?: string;
-  opacity?: number;
-}
-
-export const TextLine: React.FC<TextLineProps> = ({ width, height = 4, fill = 'var(--line-strong)', opacity }) => (
-  <div style={{ width, height, background: fill, borderRadius: height / 2, opacity }} />
-);
-
-/* ── Floating status chip ──────────────────────────────────────────── */
-
-interface FloatingChipProps {
-  leading: React.ReactNode;
-  title: string;
-  subtitle?: string;
-  style?: React.CSSProperties;
-}
-
-export const FloatingChip: React.FC<FloatingChipProps> = ({ leading, title, subtitle, style }) => (
-  <div
-    style={{
-      position: 'absolute',
-      background: 'var(--bg-card)',
-      padding: '12px 16px',
-      borderRadius: 'var(--radius-lg)',
-      border: '1px solid var(--line-strong)',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 12,
-      zIndex: 10,
-      boxShadow: 'var(--shadow-sm)',
-      ...style,
-    }}
-  >
-    {leading}
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
-      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-main)', letterSpacing: '0.05em' }}>{title}</span>
-      {subtitle && <span style={{ fontSize: 9, color: 'var(--text-soft)' }}>{subtitle}</span>}
-    </div>
-  </div>
-);
-
-export const PulseDot: React.FC = () => (
-  <div
-    style={{
-      width: 12,
-      height: 12,
-      borderRadius: '50%',
-      background: 'var(--accent-dim)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    }}
-  >
-    <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)', animation: 'wtPulse 2s infinite' }} />
-  </div>
-);
-
-/* ── Stage wrapper with shared 3D tilt ─────────────────────────────── */
-
-interface IllustrationStageProps {
-  minHeight?: number;
-  children: React.ReactNode;
-}
-
-export const IllustrationStage: React.FC<IllustrationStageProps> = ({ minHeight = 520, children }) => (
-  <div
-    style={{
-      position: 'relative',
-      width: '100%',
-      minHeight,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 24,
-      perspective: '1200px',
-    }}
-  >
-    {children}
-  </div>
-);
-
-/** The one tilt used by every step visual — keep them on the same plane. */
-export const STAGE_TILT = 'rotateX(8deg) rotateY(-8deg) scale(1.02)';

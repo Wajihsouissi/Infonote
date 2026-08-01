@@ -1,157 +1,111 @@
 import React from 'react';
-import { Lightbulb, Cloud, BookOpen, FileText, Mic, Video } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
-import { BlueprintFrame, BlueprintCard, SkeletonLine, FlowPath, FlowDot, CornerBrackets, MonoLabel } from './primitives';
+import { FileText, GitBranch, Link2 } from 'lucide-react';
+import { SceneStage, Plane, Board, Wires, Wire, NodeCard, Ghost, Line, Chip } from './scene-kit';
 
 /**
- * Zettelkasten pipeline scene: raw inputs flow into fleeting/literature
- * notes, through the review stage, into permanent notes and the slip-box.
+ * "Zettelkasten" — atomic notes, interconnected.
+ *
+ * Idea (unchanged): small permanent notes that earn their meaning from the
+ * links between them, and the emergent structure that falls out of it.
+ *
+ * The old scene drew a five-stage intake pipeline ending in a literal
+ * slip-box with a lid and a handle — which illustrated the *method's history*
+ * rather than the promise in the copy. This one shows what the copy actually
+ * says: a spatial web of atomic notes with Folgezettel ids, wired
+ * bidirectionally, one note focused, and a backlinks panel proving the links
+ * run both ways.
  */
 
-const INPUTS: { icon: LucideIcon; label: string; y: number }[] = [
-  { icon: Lightbulb, label: 'Ideas', y: 28 },
-  { icon: Cloud, label: 'Thoughts', y: 88 },
-  { icon: BookOpen, label: 'Books', y: 168 },
-  { icon: FileText, label: 'Articles', y: 228 },
-  { icon: Mic, label: 'Podcasts', y: 288 },
-  { icon: Video, label: 'Videos', y: 348 },
-];
+const ID_STYLE: React.CSSProperties = {
+  fontSize: 8,
+  fontWeight: 700,
+  fontFamily: 'var(--font-mono)',
+  letterSpacing: '0.04em',
+  color: 'var(--text-faint)',
+};
 
-const INPUT_PATHS = [
-  'M 100 40 C 160 40, 160 70, 220 70',
-  'M 100 100 C 160 100, 160 70, 220 70',
-  'M 100 180 C 160 180, 160 270, 220 270',
-  'M 100 240 C 160 240, 160 270, 220 270',
-  'M 100 300 C 160 300, 160 270, 220 270',
-  'M 100 360 C 160 360, 160 270, 220 270',
-];
-
-const NOTE_PATHS = [
-  'M 320 70 C 340 70, 340 170, 370 170',
-  'M 320 270 C 340 270, 340 170, 370 170',
-];
-
-const REVIEW_TO_PERMANENT = 'M 450 170 C 480 170, 480 155, 510 155';
-
-const INPUT_DURATIONS = ['2s', '2.5s', '2.2s', '2.8s', '2.4s', '3s'];
+/** A backlink row inside the references panel. */
+const Backlink: React.FC<{ id: string; w: string }> = ({ id, w }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+    <Link2 size={9} color="var(--accent-ink)" style={{ flexShrink: 0 }} />
+    <span style={{ ...ID_STYLE, color: 'var(--accent-ink)' }}>{id}</span>
+    <Line w={w} />
+  </div>
+);
 
 export const ZettelkastenIllustration: React.FC = () => (
-  <BlueprintFrame idPrefix="zk">
-    {/* Static connections */}
-    <g opacity="0.5">
-      {INPUT_PATHS.map((d) => (
-        <FlowPath key={d} d={d} strokeWidth={1.5} />
-      ))}
-      {NOTE_PATHS.map((d) => (
-        <FlowPath key={d} d={d} stroke="var(--secondary)" strokeWidth={1.5} />
-      ))}
-      <FlowPath d={REVIEW_TO_PERMANENT} stroke="var(--accent)" strokeWidth={1.5} />
-    </g>
+  <SceneStage>
+    <Plane width={780} height={330} tiltY={-13} tiltX={5}>
 
-    {/* Animated packets */}
-    {INPUT_PATHS.map((d, i) => (
-      <FlowDot key={d} path={d} dur={INPUT_DURATIONS[i]} />
-    ))}
-    {NOTE_PATHS.map((d, i) => (
-      <FlowDot key={d} path={d} dur={i === 0 ? '1.8s' : '2s'} r={3} fill="var(--secondary)" />
-    ))}
-    <FlowDot path={REVIEW_TO_PERMANENT} dur="1.2s" r={3} fill="var(--text-main)" />
 
-    {/* Column 1: raw inputs */}
-    {INPUTS.map(({ icon: Icon, label, y }) => (
-      <g key={label} transform={`translate(30, ${y})`}>
-        <Icon x={0} y={0} width={24} height={24} color="var(--accent)" strokeWidth={1.5} />
-        <MonoLabel x={35} y={16} fill="var(--accent)" size={12}>
-          {label}
-        </MonoLabel>
-      </g>
-    ))}
+      {/* depth: notes further out in the slip-box */}
+      <Ghost x={106} y={236} w={124} h={54} float="ftNodeFloat2" tilt={7} tz={-80} scale={0.7} opacity={0.15} spin={-6} delay={0.2}>
+        <Line w="75%" />
+        <Line w="50%" />
+      </Ghost>
+      <Ghost x={604} y={-14} w={116} h={50} float="ftNodeFloat4" tilt={-5} tz={-70} scale={0.68} opacity={0.13} spin={5} delay={0.3}>
+        <Line w="70%" />
+      </Ghost>
+      <Ghost x={286} y={276} w={140} h={48} float="ftNodeFloat3" tilt={4} tz={-95} scale={0.66} opacity={0.12} spin={-3} delay={0.4}>
+        <Line w="60%" />
+      </Ghost>
 
-    {/* Column 2: fleeting + literature notes */}
-    <BlueprintCard x={220} y={35} width={115} height={70} label="[F] FLEETING" headerHeight={22}>
-      <SkeletonLine x={15} y={38} width={80} height={3} opacity={0.8} />
-      <SkeletonLine x={15} y={52} width={60} height={3} opacity={0.8} />
-    </BlueprintCard>
+      {/* Links are bidirectional — every wire is a two-way reference. */}
+      <Wires>
+        <Wire d="M 156,72 C 190,72 188,158 218,166" delay={0.5} />
+        <Wire d="M 300,66 C 300,104 288,120 286,138" delay={0.55} />
+        <Wire d="M 300,52 C 340,52 400,50 448,54" delay={0.6} />
+        <Wire d="M 372,182 C 404,182 410,216 442,222" delay={0.7} accent />
+        <Wire d="M 372,164 C 406,164 418,96 448,90" delay={0.65} accent />
+        <Wire d="M 596,102 C 626,102 604,166 626,174" delay={0.8} />
+      </Wires>
 
-    <BlueprintCard x={220} y={235} width={115} height={70} label="[L] LITERATURE" headerHeight={22}>
-      <SkeletonLine x={15} y={38} width={80} height={3} opacity={0.8} />
-      <SkeletonLine x={15} y={52} width={60} height={3} opacity={0.8} />
-    </BlueprintCard>
+      {/* 10a — an older note the focus grew out of */}
+      <NodeCard left={8} top={30} width={148} icon={FileText} title="Emergence" delay={0.1} from={{ x: -24 }} badge={<span style={ID_STYLE}>10a</span>}>
+        <Line w="88%" />
+        <Line w="58%" />
+      </NodeCard>
 
-    {/* Column 3: review stage */}
-    <circle cx="425" cy="175" r="30" fill="var(--text-main)" opacity="0.05" />
-    <BlueprintCard
-      x={370}
-      y={140}
-      width={115}
-      height={70}
-      label="[R] REVIEW"
-      headerHeight={22}
-      stroke="var(--text-main)"
-      strokeWidth={1.5}
-    >
-      {/* Factory: where fleeting notes are processed */}
-      <g transform="translate(25, 30) scale(0.65)">
-        <path
-          d="M 0 50 L 0 10 L 25 25 L 25 0 L 50 15 L 50 -10 L 80 15 L 80 50 Z"
-          fill="var(--accent-dim)"
-          stroke="var(--text-main)"
-          strokeWidth="2"
-        />
-        <rect x="15" y="30" width="10" height="15" fill="var(--text-main)" opacity="0.8" rx="2" />
-        <rect x="35" y="30" width="10" height="15" fill="var(--text-main)" opacity="0.8" rx="2" />
-        <rect x="55" y="30" width="10" height="15" fill="var(--text-main)" opacity="0.8" rx="2" />
-      </g>
-    </BlueprintCard>
+      {/* 10b — a sibling branch */}
+      <NodeCard left={222} top={4} width={152} icon={FileText} title="Slip-box" delay={0.18} from={{ y: -22 }} badge={<span style={ID_STYLE}>10b</span>}>
+        <Line w="80%" />
+        <Line w="64%" />
+      </NodeCard>
 
-    {/* Column 4: permanent notes (stacked) */}
-    <circle cx="560" cy="165" r="30" fill="var(--text-soft)" opacity="0.05" />
-    <g opacity="0.4">
-      <BlueprintCard x={525} y={115} width={115} height={70} />
-    </g>
-    <g opacity="0.7">
-      <BlueprintCard x={518} y={120} width={115} height={70} />
-    </g>
-    <BlueprintCard
-      x={510}
-      y={125}
-      width={115}
-      height={70}
-      label="[Z] PERMANENT"
-      headerHeight={22}
-      fill="var(--bg-rail)"
-      headerFill="var(--bg-card)"
-      stroke="var(--text-soft)"
-      strokeWidth={1.5}
-    >
-      <SkeletonLine x={15} y={36} width={85} height={3} opacity={0.8} />
-      <SkeletonLine x={15} y={46} width={65} height={3} opacity={0.8} />
-      <SkeletonLine x={15} y={56} width={75} height={3} opacity={0.8} />
-    </BlueprintCard>
+      {/* 11 — a note in a different branch entirely */}
+      <NodeCard left={448} top={38} width={150} icon={FileText} title="Linking" delay={0.24} from={{ y: -22 }} badge={<span style={ID_STYLE}>11</span>}>
+        <Line w="92%" />
+        <Line w="52%" />
+      </NodeCard>
 
-    {/* Column 5: the slip-box */}
-    <g transform="translate(670, 110)">
-      <CornerBrackets x={0} y={0} width={120} height={100} />
-      <polygon points="-15,45 -5,50 -15,55" fill="var(--accent)" />
+      {/* 10b2 — the branch continuing downward */}
+      <NodeCard left={442} top={196} width={150} icon={FileText} title="Atomicity" delay={0.3} from={{ y: 26 }} badge={<span style={ID_STYLE}>10b2</span>}>
+        <Line w="76%" />
+        <Line w="60%" />
+      </NodeCard>
 
-      <circle cx="55" cy="50" r="35" fill="var(--accent)" opacity="0.05" />
+      {/* 10a1 — the focal atomic note */}
+      <NodeCard
+        left={218}
+        top={138}
+        width={154}
+        icon={GitBranch}
+        title="Feedback loops"
+        accent
+        z={6}
+        delay={0.36}
+        badge={<span style={{ ...ID_STYLE, color: 'var(--accent-ink)' }}>10a1</span>}
+      >
+        <Line w="100%" fill="var(--accent)" opacity={0.5} />
+        <Line w="68%" fill="var(--accent)" opacity={0.32} />
+      </NodeCard>
 
-      {/* Box body */}
-      <rect x="5" y="20" width="110" height="70" rx="4" fill="var(--bg-rail)" />
-      <rect x="5" y="20" width="110" height="70" rx="4" fill="none" stroke="var(--accent)" strokeWidth="2" />
-
-      {/* Lid */}
-      <rect x="0" y="10" width="120" height="15" rx="3" fill="var(--bg-rail)" />
-      <rect x="0" y="10" width="120" height="15" rx="3" fill="none" stroke="var(--accent)" strokeWidth="2" />
-      <line x1="5" y1="20" x2="115" y2="20" stroke="var(--accent)" strokeWidth="1" opacity="0.5" />
-
-      {/* Handle */}
-      <rect x="40" y="32" width="40" height="10" rx="5" fill="none" stroke="var(--accent)" strokeWidth="2" />
-
-      <MonoLabel x={60} y={65} fill="var(--accent)" size={10} anchor="middle">
-        ZETTELKASTEN
-      </MonoLabel>
-      <line x1="30" y1="75" x2="90" y2="75" stroke="var(--accent)" strokeWidth="1.5" strokeDasharray="2 3" opacity="0.5" />
-    </g>
-  </BlueprintFrame>
+      {/* the links run both ways — here is the other direction */}
+      <NodeCard left={604} top={150} width={150} icon={Link2} title="Linked references" z={5} delay={0.5} from={{ x: 26 }} badge={<Chip accent>3</Chip>}>
+        <Backlink id="10a" w="58%" />
+        <Backlink id="10b" w="70%" />
+        <Backlink id="11" w="48%" />
+      </NodeCard>
+    </Plane>
+  </SceneStage>
 );

@@ -7,6 +7,7 @@ import { CanvasLimitBadge } from './features/ui/CanvasLimitBadge';
 import { AnonSaveReminder } from './features/ui/AnonSaveReminder';
 import { StorageChoiceModal } from './features/ui/StorageChoiceModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { CrystalLoader } from './components/ui/CrystalLoader';
 import { useStore } from './store/useStore';
 import type { AppView } from './store/types';
 import { supabase, isSupabaseConfigured } from './services/supabase/client';
@@ -65,7 +66,7 @@ const viewLoader = (
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     minHeight: '100vh', width: '100%', backgroundColor: 'var(--bg-base)',
   }}>
-    <Loader2 style={{ animation: 'spin 1s linear infinite', color: 'var(--accent)' }} size={32} />
+    <CrystalLoader />
   </div>
 );
 
@@ -294,32 +295,7 @@ function App() {
   }, []);
 
   if (isAuthLoading) {
-    return (
-      <div 
-        style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          minHeight: '100vh',
-          width: '100%',
-          backgroundColor: 'var(--bg-base)',
-          color: 'var(--text-main)',
-          position: 'relative',
-          overflow: 'hidden'
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', zIndex: 10 }}>
-          <div style={{ position: 'relative', width: '4rem', height: '4rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '4px solid var(--accent-dim)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
-            <Loader2 style={{ animation: 'spin 1s linear infinite', position: 'relative', color: 'var(--accent)' }} size={36} />
-          </div>
-          <span style={{ fontSize: '0.875rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'var(--font-mono)', color: 'var(--text-faint)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>
-            Syncing session…
-          </span>
-        </div>
-      </div>
-    );
+    return viewLoader;
   }
 
   const renderContent = () => {

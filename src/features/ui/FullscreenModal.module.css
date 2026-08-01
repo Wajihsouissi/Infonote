@@ -20,7 +20,7 @@
     flex-direction: column;
     overflow: hidden;
     border: 1px solid var(--line);
-    border-radius: 12px;
+    border-radius: 36px;
     box-shadow: none;
     will-change: transform;
 }
@@ -32,7 +32,7 @@
     max-width: 900px;
     height: 90vh;
     /* Not full height */
-    border-radius: 12px;
+    border-radius: 36px;
     border: 1px solid var(--line);
     box-shadow: none;
     background: var(--modal-bg);

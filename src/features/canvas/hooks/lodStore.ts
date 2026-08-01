@@ -20,10 +20,11 @@ const listeners = new Map<string, Set<Listener>>();
 let zoomCeiling: DetailTier = 'full';
 
 /** Rank so "is this an upgrade or a downgrade" is a comparison. */
-const RANK: Record<DetailTier, number> = { minimal: 0, preview: 1, full: 2 };
+const RANK: Record<DetailTier, number> = { preview: 0, full: 1 };
 
 let streaming = false;
 let pending: { next: Map<string, DetailTier>; ceiling: DetailTier } | null = null;
+const streamingListeners = new Set<Listener>();
 
 /**
  * While the view is moving, hold back detail *upgrades*.
@@ -43,6 +44,19 @@ export function setStreaming(on: boolean): void {
         pending = null;
         applyTiers(held.next, held.ceiling);
     }
+    streamingListeners.forEach((l) => l());
+}
+
+/** True while a pan/zoom gesture is in flight. */
+export function isStreaming(): boolean {
+    return streaming;
+}
+
+export function subscribeStreaming(listener: Listener): () => void {
+    streamingListeners.add(listener);
+    return () => {
+        streamingListeners.delete(listener);
+    };
 }
 
 /**
@@ -54,11 +68,11 @@ export function publishTiers(next: Map<string, DetailTier>, ceiling: DetailTier)
         pending = { next, ceiling };
 
         // Apply only the cheap direction: demotions, and new arrivals at the
-        // lowest tier. Everything else waits for the gesture to end.
+        // preview tier. Everything else waits for the gesture to end.
         const partial = new Map(tiers);
         next.forEach((tier, id) => {
             const current = tiers.get(id);
-            if (current === undefined) partial.set(id, 'minimal');
+            if (current === undefined) partial.set(id, 'preview');
             else if (RANK[tier] < RANK[current]) partial.set(id, tier);
         });
         tiers.forEach((_, id) => { if (!next.has(id)) partial.delete(id); });

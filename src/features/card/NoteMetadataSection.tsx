@@ -11,6 +11,7 @@ interface NoteMetadataSectionProps {
     onIconClick: (e: React.MouseEvent) => void;
     onLabelChange: (value: string) => void;
     onDescriptionChange: (value: string, element: HTMLTextAreaElement) => void;
+    onFocus: () => void;
     onBlur: () => void;
     showIcon?: boolean;
     onToggleShowIcon?: () => void;

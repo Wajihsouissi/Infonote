@@ -10,6 +10,7 @@ import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, UserPlus, Zap, GitBranch, Lay
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
 import { connectNotion } from '../../services/notion/notionImport';
+import { SecondBrainIllustration } from '../../The-website/illustrations/SecondBrainIllustration';
 import {
   EMAIL_IN_USE_MESSAGE,
   EMAIL_CONFIRMATION_ENABLED_MESSAGE,
@@ -176,8 +177,7 @@ export const SignupPage: React.FC = () => {
             </button>
           )}
           <div className={styles.leftLogo}>
-            <img src="/ChnkLogo.svg" alt="Chnk" style={{height: 24}} />
-            <span>Chnk it</span>
+            <span>Infonote</span>
           </div>
         </div>
 
@@ -194,17 +194,8 @@ export const SignupPage: React.FC = () => {
             Join thousands of creators, researchers, and teams who use Chnk it to connect their thinking and build knowledge visually.
           </p>
           <div className={styles.leftFeatures}>
-            <div className={styles.leftFeature}>
-              <div className={styles.leftFeatureDot}><Zap size={13} /></div>
-              Infinite canvas with smart blocks
-            </div>
-            <div className={styles.leftFeature}>
-              <div className={styles.leftFeatureDot}><GitBranch size={13} /></div>
-              Real-time collaboration
-            </div>
-            <div className={styles.leftFeature}>
-              <div className={styles.leftFeatureDot}><Layers size={13} /></div>
-              100+ templates in marketplace
+            <div className={styles.illustrationWrapper}>
+              <SecondBrainIllustration />
             </div>
           </div>
         </div>
@@ -217,7 +208,7 @@ export const SignupPage: React.FC = () => {
             <div className={styles.leftAvatar}>R</div>
           </div>
           <div className={styles.leftProofText}>
-            <strong>4,200+ teams</strong> already organising<br />their thoughts with Chnk it
+            <strong>4,200+ teams</strong> already organising<br />their thoughts with Infonote
           </div>
         </div>
       </div>

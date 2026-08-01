@@ -1,90 +1,86 @@
 import React from 'react';
-import { Clock, Hash } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Clock, Hash, FileText } from 'lucide-react';
 import styles from '../MarketingPage.module.css';
-import {
-  IllustrationStage,
-  STAGE_TILT,
-  SharedTitleMock,
-  SharedVideoMock,
-  TextLine,
-  FloatingChip,
-  PulseDot,
-} from './mock-elements';
+import { SceneStage, Plane, Board, NodeCard, Ghost, Line, Chip, FloatingPanel, PulseDot } from './scene-kit';
+import { SharedTitleMock, SharedVideoMock } from './mock-elements';
 
 interface StepCaptureIllustrationProps {
   activeStep: number;
 }
 
+/**
+ * Step 1 — CAPTURE. Idea unchanged: a linear document being written, with the
+ * title typing itself and a video embedded mid-note.
+ *
+ * `reveal={false}`: this scene is driven by `activeStep`, and the title/video
+ * hand off to the next step via `layoutId` — a viewport reveal would fight it.
+ */
 export function StepCaptureIllustration({ activeStep }: StepCaptureIllustrationProps) {
   return (
-    <IllustrationStage>
-      {/* The Linear Document Card */}
-      <div
-        style={{
-          position: 'relative',
-          width: '100%',
-          maxWidth: '500px',
-          background: 'var(--bg-card)',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--line-strong)',
-          display: 'flex',
-          flexDirection: 'column',
-          boxShadow: 'var(--shadow-sm)',
-          overflow: 'hidden',
-          transform: STAGE_TILT,
-          transformStyle: 'preserve-3d',
-          zIndex: 1,
-        }}
-      >
-        {/* Top Metadata Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', borderBottom: '1px solid var(--line-strong)' }}>
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', color: 'var(--text-soft)', letterSpacing: '0.05em' }}>
-              <Clock size={12} /> LAST EDITED: 2M AGO
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', color: 'var(--text-soft)', letterSpacing: '0.05em' }}>
-              <Hash size={12} /> WORD COUNT: 1,402
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-rail)', padding: '4px 10px', borderRadius: '12px', border: '1px solid var(--line-strong)' }}>
-            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent)' }} />
-            <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.05em', color: 'var(--text-main)' }}>STATUS: DRAFT</span>
-          </div>
-        </div>
+    <SceneStage width={470} height={500} reveal={false}>
+      <Plane left={0} top={0} width={470} height={500} tiltY={-8} tiltX={5}>
 
-        {/* Editor Content Area */}
-        <div style={{ padding: '32px 40px', display: 'flex', flexDirection: 'column', gap: '20px', flex: 1, overflow: 'hidden' }}>
-          {/* H1 Typed Title */}
-          <div style={{ display: 'flex', alignItems: 'center', minHeight: '36px' }}>
+
+        <Ghost x={-30} y={410} w={150} h={60} float="ftNodeFloat3" tilt={6} tz={-70} scale={0.76} opacity={0.16} spin={-4}>
+          <Line w="70%" />
+          <Line w="45%" />
+        </Ghost>
+        <Ghost x={360} y={-8} w={130} h={54} float="ftNodeFloat4" tilt={-5} tz={-80} scale={0.72} opacity={0.14} spin={5}>
+          <Line w="62%" />
+        </Ghost>
+
+        <NodeCard
+          left={16}
+          top={44}
+          width={422}
+          icon={FileText}
+          title="Untitled note"
+          size="lg"
+          ruled
+          z={5}
+          badge={
+            <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <Chip accent>draft</Chip>
+            </span>
+          }
+        >
+          {/* metadata strip — the note's own footer stats, moved up top */}
+          <div style={{ display: 'flex', gap: 16, marginBottom: 2 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 9, letterSpacing: '0.06em', color: 'var(--node-meta)' }}>
+              <Clock size={10} /> EDITED 2M AGO
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 9, letterSpacing: '0.06em', color: 'var(--node-meta)' }}>
+              <Hash size={10} /> 1,402 WORDS
+            </span>
+          </div>
+
+          {/* the title types itself, then travels to step 2 */}
+          <div style={{ display: 'flex', alignItems: 'center', minHeight: 32 }}>
             {activeStep === 0 && (
-              <SharedTitleMock fontSize={28}>
+              <SharedTitleMock fontSize={24}>
                 <span className={styles.wtTypeText}>How to Master AI in 2026</span>
               </SharedTitleMock>
             )}
           </div>
 
-          {/* Embedded Video Player */}
-          <div style={{ width: '100%', aspectRatio: '16/9', position: 'relative', marginTop: '8px' }}>
+          {/* the embedded video, which also travels */}
+          <div style={{ width: '100%', aspectRatio: '16/9', position: 'relative', marginTop: 2 }}>
             {activeStep === 0 && <SharedVideoMock size="lg" />}
           </div>
 
-          {/* Text Blocks Mockup */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
-            <TextLine width="100%" />
-            <TextLine width="92%" />
-            <TextLine width="85%" />
-            <TextLine width="40%" />
-          </div>
-        </div>
-      </div>
-
-      {/* Floating UI status chip */}
-      <FloatingChip
-        leading={<PulseDot />}
-        title="AI ASSISTANT"
-        subtitle="Transcribing video..."
-        style={{ top: '8%', right: '5%' }}
-      />
-    </IllustrationStage>
+          <Line w="100%" />
+          <Line w="92%" />
+          <Line w="84%" />
+          <Line w="40%" />
+        </NodeCard>
+        <FloatingPanel
+          leading={<div style={{ width: 8, height: 8, borderRadius: 2, border: '1px solid var(--accent)', background: 'var(--accent-wash)' }}><motion.div animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }} style={{ width: '100%', height: '100%', background: 'var(--accent)', borderRadius: 1 }} /></div>}
+          title="AI assistant"
+          subtitle="Transcribing video…"
+          style={{ top: 22, left: 320, zIndex: 4, transform: 'translateZ(-10px)' }}
+        />
+      </Plane>
+    </SceneStage>
   );
 }

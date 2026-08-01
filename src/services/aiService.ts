@@ -3,7 +3,6 @@
 // Text: OpenAI-compatible chat completions.
 // Image: OpenAI-compatible image generations.
 // ============================================================
-import { z } from 'zod';
 import { supabase, isSupabaseConfigured } from './supabase/client';
 
 const TEXT_MODEL = import.meta.env.VITE_AI_GATEWAY_TEXT_MODEL || 'openai/gpt-4o-mini';
@@ -118,61 +117,9 @@ export async function generateImage(prompt: string): Promise<string> {
     throw new Error(response.error?.message || 'AI Gateway returned no image data.');
 }
 
-/**
- * Stream text generation via Vercel AI Gateway.
- * Yields text chunks as they arrive so the UI can update character-by-character.
- */
-export async function* streamText(prompt: string, system?: string): AsyncGenerator<string, void, unknown> {
-    const response = await fetch('/api/ai/stream', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            ...(await getAiAuthHeader()),
-        },
-        body: JSON.stringify({
-            model: TEXT_MODEL,
-            prompt,
-            ...(system ? { system } : {}),
-        }),
-    });
-
-    if (!response.ok || !response.body) {
-        const message = await response.text();
-        let parsedMessage = '';
-        try {
-            const data = JSON.parse(message);
-            parsedMessage = data?.error?.message || data?.error || data?.message || '';
-        } catch {
-            parsedMessage = message;
-        }
-        throw new Error(parsedMessage || `AI stream failed with HTTP ${response.status}`);
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-
-    while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        const text = decoder.decode(value, { stream: true });
-        if (text) yield text;
-    }
-}
-
 // ============================================================
 // Structured Canvas Card Generation
 // ============================================================
-
-const CanvasCardSchema = z.object({
-    title: z.string(),
-    content: z.string(),
-    x: z.number(),
-    y: z.number(),
-    color: z.string().optional().default('#1a191d'),
-});
-
-export type AICanvasCard = z.infer<typeof CanvasCardSchema>;
 
 /**
  * Robustly extract JSON from a string that might contain markdown wrappers.
@@ -188,83 +135,6 @@ export function extractJsonFromString(text: string, type: 'array' | 'object' = '
         const match = cleaned.match(/\{[\s\S]*\}/);
         return match ? match[0] : null;
     }
-}
-
-/**
- * Generate structured canvas cards from a natural language prompt.
- * e.g., "create 5 red cards about space exploration"
- */
-export async function generateCanvasCards(
-    prompt: string,
-    baseX: number = 100,
-    baseY: number = 100
-): Promise<AICanvasCard[]> {
-    const structuredPrompt = `${prompt}
-
-Respond ONLY with a valid JSON array. Each item must have:
-- "title": short card title (max 6 words)
-- "content": Body content whose depth MATCHES the request — concise (a few sentences or a short list) for simple cards, richly structured (## headings, bullet lists, '- [ ]' tasks) only when the topic genuinely warrants it. Use markdown including **bold** for key terms. Do not pad thin topics.
-- "x": x position (start at ${baseX}, increment by 340 per column, max 4 columns)
-- "y": y position (start at ${baseY}, increment by 260 per row)
-- "color": CSS hex color for background. You MUST choose ONLY from this exact premium preset palette: #f95d2e, #ec4899, #f59e0b, #10b981, #3b82f6, #ef4444, #e3a24f, #6366f1
-
-Return exactly the number of cards requested. No markdown, no explanation — only the JSON array.`;
-
-    const text = await generateText(structuredPrompt);
-    const jsonStr = extractJsonFromString(text, 'array');
-    if (!jsonStr) throw new Error('AI did not return valid JSON card array');
-
-    const raw = JSON.parse(jsonStr) as unknown[];
-    return raw.map((card: unknown, i: number) => {
-        const parsed = CanvasCardSchema.safeParse(card);
-        if (parsed.success) return parsed.data;
-        // Fallback positioning if AI gives bad coords
-        return {
-            title: (card as Record<string, string>).title || `Card ${i + 1}`,
-            content: (card as Record<string, string>).content || '',
-            x: baseX + (i % 4) * 340,
-            y: baseY + Math.floor(i / 4) * 260,
-            color: '#f95d2e', // Default to preset Violet
-        };
-    });
-}
-
-/**
- * Parse a prompt for multi-card generation intent.
- * Detects: "create 5 cards about dogs", "make 10 notes on history", etc.
- */
-export function parseMultiCardIntent(prompt: string): { count: number; topic: string } | null {
-    const match = prompt.match(
-        /(?:create|make|generate|write|build)\s+(\d+)\s+(?:cards?|notes?|blocks?|items?)\s+(?:about|on|for|regarding|covering)\s+(.+)/i
-    );
-    if (!match) return null;
-    const count = Math.min(parseInt(match[1], 10), 20);
-    const topic = match[2].trim();
-    return { count, topic };
-}
-
-/**
- * Generate content for multiple cards about a topic.
- */
-export async function generateMultipleCardContents(
-    topic: string,
-    count: number
-): Promise<Array<{ title: string; content: string }>> {
-    const prompt = `Generate ${count} distinct notes about "${topic}".
-Each note should cover a different aspect. Match each note's depth to its aspect — keep it concise when the point is simple, go deeper only when it genuinely warrants it. Do not pad.
-Use markdown where it aids clarity: headings (##), bullet points (-), todo checkboxes (- [ ]), quotes (>), and **bold** for key terms.
-Respond ONLY with a valid JSON array like:
-[{"title":"Title 1","content":"detailed structured content..."},{"title":"Title 2","content":"..."}]
-Return exactly ${count} items. No explanations outside the JSON array.`;
-
-    const text = await generateText(prompt);
-
-    // Extract JSON array from response
-    const jsonStr = extractJsonFromString(text, 'array');
-    if (!jsonStr) throw new Error('AI did not return valid card list JSON');
-
-    const cards = JSON.parse(jsonStr);
-    return Array.isArray(cards) ? cards.slice(0, count) : [];
 }
 
 export interface AIStructuredAction {

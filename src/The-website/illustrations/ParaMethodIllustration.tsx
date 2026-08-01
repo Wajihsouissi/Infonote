@@ -1,103 +1,84 @@
 import React from 'react';
-import { BlueprintFrame, BlueprintCard, SkeletonLine, FlowPath, FlowDot } from './primitives';
+import { Sparkles, Rocket, Layers, BookMarked, Archive, Link2 } from 'lucide-react';
+import { SceneStage, Plane, Board, Wires, Wire, NodeCard, Ghost, Line, Chip, Task, Well } from './scene-kit';
 
 /**
- * P.A.R.A. second-brain routing scene: four method quadrants exchanging
- * knowledge packets with a central brain hub.
+ * "Second Brain" — the P.A.R.A. method.
+ *
+ * Idea (unchanged): four method buckets — Projects, Areas, Resources,
+ * Archives — all routing into one central repository.
+ *
+ * Told as product UI rather than a diagram: four real note cards on a tilted
+ * canvas board, wired into an accented "Second Brain" hub. Each bucket shows
+ * the kind of content it actually holds (a live checklist, standing areas, a
+ * saved reference, cold storage), and Archives is visibly dimmed so the four
+ * read as a hierarchy of attention rather than four equal boxes.
  */
 export const ParaMethodIllustration: React.FC = () => (
-  <BlueprintFrame idPrefix="para">
-    {/* Central routing hub */}
-    <circle cx="400" cy="200" r="160" fill="var(--bg-inset)" />
+  <SceneStage>
+    <Plane width={780} height={330} tiltY={-12} tiltX={6}>
 
-    {/* Data arteries */}
-    <FlowPath d="M 400 200 C 400 100, 330 100, 260 100" />
-    <FlowPath d="M 400 200 C 400 300, 330 300, 260 300" />
-    <FlowPath d="M 400 200 C 400 100, 470 100, 540 100" />
-    <FlowPath d="M 400 200 C 400 300, 470 300, 540 300" />
 
-    {/* Flow packets: P / A / R stream in, Archives stream out */}
-    <FlowDot path="M 260 100 C 330 100, 400 100, 400 200" dur="1.2s" />
-    <FlowDot path="M 260 300 C 330 300, 400 300, 400 200" dur="2.5s" />
-    <FlowDot path="M 540 100 C 470 100, 400 100, 400 200" dur="1.8s" />
-    <FlowDot path="M 400 200 C 400 300, 470 300, 540 300" dur="4s" />
+      {/* depth: stray captures drifting behind the board */}
+      <Ghost x={150} y={-4} w={120} h={54} float="ftNodeFloat3" tilt={6} tz={-70} scale={0.7} opacity={0.16} spin={-5} delay={0.15}>
+        <Line w="80%" />
+        <Line w="55%" />
+      </Ghost>
+      <Ghost x={500} y={262} w={132} h={56} float="ftNodeFloat2" tilt={-6} tz={-60} scale={0.72} opacity={0.14} spin={4} delay={0.25}>
+        <Line w="70%" />
+        <Line w="45%" />
+      </Ghost>
+      <Ghost x={330} y={-18} w={110} h={48} float="ftNodeFloat4" tilt={4} tz={-90} scale={0.65} opacity={0.12} spin={6} delay={0.35}>
+        <Line w="65%" />
+      </Ghost>
 
-    {/* Central hub: the brain */}
-    <g transform="translate(400, 200)">
-      <g transform="scale(3) translate(-12, -13)" strokeLinecap="square" strokeLinejoin="miter">
-        <g fill="var(--bg-rail)" stroke="none">
-          <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
-          <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
-        </g>
-        <g fill="none" stroke="var(--accent)" strokeWidth="1">
-          <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
-          <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
-          <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4" />
-          <path d="M17.599 6.5a3 3 0 0 0 .399-1.375" />
-          <path d="M6.003 5.125A3 3 0 0 0 6.401 6.5" />
-          <path d="M3.477 10.896a4 4 0 0 1 .585-.396" />
-          <path d="M19.938 10.5a4 4 0 0 1 .585.396" />
-          <path d="M6 18a4 4 0 0 1-1.967-.516" />
-          <path d="M19.967 17.484A4 4 0 0 1 18 18" />
-        </g>
-      </g>
+      <Wires>
+        <Wire d="M 190,66 C 250,66 254,146 302,150" delay={0.55} />
+        <Wire d="M 190,226 C 250,226 254,186 302,182" delay={0.65} />
+        <Wire d="M 590,66 C 530,66 526,146 478,150" delay={0.6} />
+        <Wire d="M 590,226 C 530,226 526,186 478,182" delay={0.7} />
+      </Wires>
 
-      {/* Animated inner neural stem */}
-      <g
-        transform="scale(3) translate(-12, -13)"
-        fill="none"
-        stroke="var(--secondary)"
-        strokeWidth="1"
-        strokeLinecap="square"
-        strokeDasharray="2 4"
-      >
-        <animate attributeName="stroke-dashoffset" values="6;0" dur="1s" repeatCount="indefinite" />
-        <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4" />
-      </g>
-    </g>
+      {/* [P] Projects — short-horizon, has a live checklist */}
+      <NodeCard left={22} top={22} width={168} icon={Rocket} title="Projects" delay={0.1} from={{ x: -30 }} badge={<Chip accent>3 active</Chip>}>
+        <Task w="78%" done />
+        <Task w="62%" />
+      </NodeCard>
 
-    {/* [P] Projects — top left: active task list */}
-    <BlueprintCard x={100} y={60} width={160} height={80} label="[P] PROJECTS" statusDot="var(--accent)">
-      <SkeletonLine x={15} y={36} width={90} fill="var(--accent)" />
-      <SkeletonLine x={15} y={50} width={120} />
-      <SkeletonLine x={15} y={64} width={70} />
-      <line x1="8" y1="38" x2="8" y2="66" stroke="var(--text-soft)" strokeWidth="1" strokeDasharray="2 2" />
-    </BlueprintCard>
+      {/* [A] Areas — standing responsibilities, no end date */}
+      <NodeCard left={22} top={182} width={168} icon={Layers} title="Areas" delay={0.2} from={{ x: -30 }} badge={<Chip>ongoing</Chip>}>
+        <div style={{ display: 'flex', gap: 9 }}>
+          <div style={{ width: 3, borderRadius: 2, background: 'var(--line-heavy)' }} />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <Line w="90%" />
+            <Line w="70%" />
+          </div>
+        </div>
+      </NodeCard>
 
-    {/* [A] Areas — bottom left: standing pillars */}
-    <BlueprintCard x={100} y={260} width={160} height={80} label="[A] AREAS">
-      <circle cx="30" cy="52" r="16" fill="none" stroke="var(--secondary)" strokeWidth="1" />
-      <circle cx="30" cy="52" r="8" fill="var(--secondary)" opacity="0.6" />
-      <circle cx="80" cy="52" r="16" fill="none" stroke="var(--secondary)" strokeWidth="1" />
-      <circle cx="80" cy="52" r="8" fill="var(--secondary)" opacity="0.6" />
-      <circle cx="130" cy="52" r="16" fill="none" stroke="var(--line-strong)" strokeWidth="1" />
-    </BlueprintCard>
+      {/* [R] Resources — saved reference material */}
+      <NodeCard left={578} top={22} width={168} icon={BookMarked} title="Resources" delay={0.15} from={{ x: 30 }} badge={<Chip>ref</Chip>}>
+        <Well height={26} icon={Link2} />
+        <Line w="72%" />
+      </NodeCard>
 
-    {/* [R] Resources — top right: data grid */}
-    <BlueprintCard x={540} y={60} width={160} height={80} label="[R] RESOURCES">
-      <g fill="var(--text-main)">
-        <rect x="15" y="35" width="20" height="12" rx="2" />
-        <rect x="40" y="35" width="20" height="12" rx="2" opacity="0.5" />
-        <rect x="65" y="35" width="20" height="12" rx="2" opacity="0.3" />
-        <rect x="90" y="35" width="20" height="12" rx="2" opacity="0.7" />
-        <rect x="115" y="35" width="20" height="12" rx="2" opacity="0.4" />
-        <rect x="15" y="52" width="20" height="12" rx="2" opacity="0.2" />
-        <rect x="40" y="52" width="20" height="12" rx="2" />
-        <rect x="65" y="52" width="20" height="12" rx="2" opacity="0.6" />
-        <rect x="90" y="52" width="20" height="12" rx="2" opacity="0.2" />
-        <rect x="115" y="52" width="20" height="12" rx="2" opacity="0.5" />
-      </g>
-    </BlueprintCard>
+      {/* [A] Archives — cold storage, deliberately faded */}
+      <NodeCard left={578} top={182} width={168} icon={Archive} title="Archives" muted delay={0.25} from={{ x: 30 }} badge={<Chip muted>cold</Chip>}>
+        <Line w="85%" opacity={0.45} />
+        <Line w="60%" opacity={0.45} />
+      </NodeCard>
 
-    {/* [A] Archives — bottom right: cold storage stacks */}
-    <BlueprintCard x={540} y={260} width={160} height={80} label="[A] ARCHIVES" labelColor="var(--text-soft)" dashed>
-      <g fill="var(--line-strong)">
-        <rect x="20" y="35" width="120" height="8" rx="2" />
-        <rect x="20" y="48" width="120" height="8" rx="2" />
-        <rect x="20" y="61" width="120" height="8" rx="2" />
-      </g>
-      <line x1="30" y1="39" x2="60" y2="39" stroke="var(--text-soft)" strokeWidth="1" />
-      <line x1="30" y1="52" x2="90" y2="52" stroke="var(--text-soft)" strokeWidth="1" />
-    </BlueprintCard>
-  </BlueprintFrame>
+      {/* the one focal element: everything resolves here */}
+      <NodeCard left={302} top={118} width={176} icon={Sparkles} title="Second Brain" accent z={6} delay={0.4} from={{ y: 34 }}>
+        <Line w="100%" fill="var(--accent)" opacity={0.5} />
+        <Line w="64%" fill="var(--accent)" opacity={0.32} />
+        <div style={{ display: 'flex', gap: 5, marginTop: 1 }}>
+          <Chip accent>P</Chip>
+          <Chip accent>A</Chip>
+          <Chip accent>R</Chip>
+          <Chip accent>A</Chip>
+        </div>
+      </NodeCard>
+    </Plane>
+  </SceneStage>
 );

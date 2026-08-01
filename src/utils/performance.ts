@@ -128,55 +128,6 @@ class PerformanceMonitor {
 // Singleton instance
 export const perfMonitor = new PerformanceMonitor();
 
-// Utility function for timing async operations
-export async function measureAsync<T>(
-    name: string,
-    fn: () => Promise<T>,
-    metadata?: Record<string, unknown>
-): Promise<T> {
-    perfMonitor.startTimer(name, metadata);
-    try {
-        const result = await fn();
-        perfMonitor.endTimer(name, metadata);
-        return result;
-    } catch (error) {
-        perfMonitor.endTimer(name, { ...metadata, error: true });
-        throw error;
-    }
-}
-
-// Utility function for timing sync operations
-export function measureSync<T>(
-    name: string,
-    fn: () => T,
-    metadata?: Record<string, unknown>
-): T {
-    perfMonitor.startTimer(name, metadata);
-    try {
-        const result = fn();
-        perfMonitor.endTimer(name, metadata);
-        return result;
-    } catch (error) {
-        perfMonitor.endTimer(name, { ...metadata, error: true });
-        throw error;
-    }
-}
-
-// Monitor React component render time
-export function useRenderTime(componentName: string) {
-    if (!DEBUG) return;
-    
-    const renderStart = performance.now();
-    
-    // This runs after render
-    queueMicrotask(() => {
-        const renderTime = performance.now() - renderStart;
-        if (renderTime > 16) { // > 1 frame at 60fps
-            console.warn(`[Perf] Slow render: ${componentName} took ${renderTime.toFixed(2)}ms`);
-        }
-    });
-}
-
 // Expose to window for debugging
 if (DEBUG && typeof window !== 'undefined') {
     (window as Window & { __perfMonitor?: PerformanceMonitor }).__perfMonitor = perfMonitor;

@@ -3,6 +3,9 @@ import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@
 import { StickyNote } from 'lucide-react';
 import { BlockEditor } from '../editor/BlockEditor';
 import { ConvertCardModal, type ConvertCardResult } from '../card/ConvertCardModal';
+import { useCanvasDetail } from '../canvas/hooks/useCanvasDetail';
+import { useScheduledMount } from './hooks/useScheduledMount';
+import { BlockLodBody } from '../block/BlockLodBody';
 
 import { useStore } from '../../store/useStore';
 import { getNodeById } from '../../store/nodeIndex';
@@ -11,6 +14,7 @@ import styles from './FusedNoteNode.module.css';
 import { snapFusedDimensions, MIN_EXPANDED_SIZE, MAX_HEIGHT } from '../../config/layout';
 import type { AppNode } from '../../types';
 import type { Block } from '../editor/types';
+import { samePropsIgnoringPosition } from '../canvas/nodeMemo';
 
 export type FusedNoteNodeData = {
     content: Block[];
@@ -33,6 +37,13 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     const linkSelectedNodes = useStore(s => s.linkSelectedNodes);
     const clearCanvasSelection = useStore(s => s.clearCanvasSelection);
     const setNodesStore = useStore(s => s.setNodes);
+    const detailTier = useCanvasDetail(id);
+    // A fused note's body is several block editors fused together — by far the
+    // most expensive node on the canvas. Below full detail it renders the same
+    // static wireframe as single blocks, so a workspace full of fused notes
+    // stays navigable at the zoomed-out first LOD. The rising edge is paced by
+    // the shared frame budget like the note cards.
+    const showEditor = useScheduledMount(detailTier === 'full');
 
     // Narrow selectors — only re-render when THIS node's status changes
     const isDragging = useStore(s => s.interactionState.draggedNodeId === id && !s.interactionState.isMultiDragging);
@@ -437,15 +448,16 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             )}
 
 
-            {/* Conversion Button */}
-            <button
-                className={styles.convertBtn}
-                onClick={handleConvertToCard}
-                title="Convert to Card"
-                onMouseDown={(e) => e.stopPropagation()}
-            >
-                <StickyNote size={16} />
-            </button>
+            {showEditor && (
+                <button
+                    className={styles.convertBtn}
+                    onClick={handleConvertToCard}
+                    title="Convert to Card"
+                    onMouseDown={(e) => e.stopPropagation()}
+                >
+                    <StickyNote size={16} />
+                </button>
+            )}
 
             <div 
                 className={`${styles.content} nodrag`} 
@@ -465,16 +477,20 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 }}
                 style={contentStyle}
             >
-                <BlockEditor
-                    initialContent={data.content}
-                    readOnly={false}
-                    minimal={false}
-                    onUpdate={handleContentUpdate}
-                    nodeId={id}
-                    hideBlockHandles={!isInteractive}
-                    disableMediaControls={true}
-                    selectionIslandPortalId={`selection-island-${id}`}
-                />
+                {showEditor ? (
+                    <BlockEditor
+                        initialContent={data.content}
+                        readOnly={false}
+                        minimal={false}
+                        onUpdate={handleContentUpdate}
+                        nodeId={id}
+                        hideBlockHandles={!isInteractive}
+                        disableMediaControls={true}
+                        selectionIslandPortalId={`selection-island-${id}`}
+                    />
+                ) : (
+                    <BlockLodBody blocks={data.content} />
+                )}
             </div>
 
             {/* Selection Island Container - positioned outside card */}
@@ -483,26 +499,28 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             </div>
 
             {/* Resize Handle */}
-            <div
-                className={`${styles.modernResizeHandle} nodrag`}
-                onMouseDown={handleResizeStart}
-            >
-                <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                        <linearGradient id="arc-gradient-fused" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="var(--accent)" />
-                            <stop offset="100%" stopColor="var(--secondary)" />
-                        </linearGradient>
-                    </defs>
-                    <path
-                        d="M 8 32 A 24 24 0 0 1 32 8"
-                        stroke="url(#arc-gradient-fused)"
-                        strokeWidth="6"
-                        strokeLinecap="round"
-                        className={styles.handlePath}
-                    />
-                </svg>
-            </div>
+            {showEditor && (
+                <div
+                    className={`${styles.modernResizeHandle} nodrag`}
+                    onMouseDown={handleResizeStart}
+                >
+                    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="arc-gradient-fused" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stopColor="var(--accent)" />
+                                <stop offset="100%" stopColor="var(--secondary)" />
+                            </linearGradient>
+                        </defs>
+                        <path
+                            d="M 8 32 A 24 24 0 0 1 32 8"
+                            stroke="url(#arc-gradient-fused)"
+                            strokeWidth="6"
+                            strokeLinecap="round"
+                            className={styles.handlePath}
+                        />
+                    </svg>
+                </div>
+            )}
 
             {/* Universal drop target: covers the entire card so connections from any other node can drop here */}
             <Handle
@@ -520,4 +538,4 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
         </div>
     );
-});
+}, samePropsIgnoringPosition);

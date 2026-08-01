@@ -12,12 +12,6 @@ export interface SearchFilters {
     text: string;
 }
 
-export interface ScoredResult {
-    nodeId: string;
-    score: number;
-    highlights: Record<string, string>;
-}
-
 export interface PathSegment {
     id: string;
     label: string;
@@ -314,7 +308,7 @@ export function estimateWordCount(node: AppNode): number {
 /**
  * Applies bonus score for recent updates (lower is better).
  */
-export function recencyBonus(updatedAt?: string): number {
+function recencyBonus(updatedAt?: string): number {
     if (!updatedAt) return 0;
     const daysAgo = (Date.now() - new Date(updatedAt).getTime()) / (1000 * 60 * 60 * 24);
     if (daysAgo < 1) return 30;

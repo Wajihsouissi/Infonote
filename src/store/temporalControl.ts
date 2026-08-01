@@ -15,14 +15,6 @@ export function bindTemporal(store: TemporalApi) {
     temporalStore = store;
 }
 
-export function pauseHistory() {
-    temporalStore?.getState().pause();
-}
-
-export function resumeHistory() {
-    temporalStore?.getState().resume();
-}
-
 /** Drop the entire undo/redo timeline (e.g. after loading a different graph). */
 export function clearHistory() {
     temporalStore?.getState().clear();

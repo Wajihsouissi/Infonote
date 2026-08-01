@@ -33,7 +33,7 @@
 
 .authed {
     border-color: var(--accent);
-    background: linear-gradient(var(--active-wash), var(--active-wash)), var(--bg-rail);
+    background: var(--bg-rail);
 }
 
 .iconWrapper {

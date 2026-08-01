@@ -35,6 +35,13 @@ export type NoteData = {
     progress?: number; // 0-100 completion percentage
     subtasks?: { id: string; text: string; completed: boolean }[]; // Checklist items
 
+    /* Hand-set size for a standalone canvas block, written by the resize
+       handle. Their presence is what opts a block out of sizing itself to its
+       text. userHeight is applied as a min-height floor, never a fixed height,
+       so longer content still grows the block instead of being clipped. */
+    userWidth?: number;
+    userHeight?: number;
+
     // Auto
     createdAt?: string;
     updatedAt?: string;

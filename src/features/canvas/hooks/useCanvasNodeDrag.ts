@@ -5,6 +5,8 @@ import { type AppNode, type KanbanNode, getNodeBlocks, getNodeLabel } from '../.
 import type { Block } from '../../editor/types';
 import type { UISlice } from '../../../store/types';
 import { snapFusedDimensions, MAX_HEIGHT } from '../../../config/layout';
+import { useStore } from '../../../store/useStore';
+import { setStreaming } from './lodStore';
 
 type SetNodesFn = (updater: (nodes: AppNode[]) => AppNode[]) => void;
 
@@ -23,7 +25,6 @@ interface PendingDrop {
 }
 
 interface UseCanvasNodeDragOptions {
-    nodes: AppNode[];
     currentParentId: string | null;
     setInteractionState: (state: Partial<UISlice['interactionState']>) => void;
     setNodes: SetNodesFn;
@@ -37,7 +38,6 @@ interface UseCanvasNodeDragOptions {
  * Manages drag start, drag move, and drag stop with fusion/nesting/kanban logic.
  */
 export function useCanvasNodeDrag({
-    nodes,
     currentParentId,
     setInteractionState,
     setNodes,
@@ -96,6 +96,13 @@ export function useCanvasNodeDrag({
         // Multi-drag = the grabbed node is part of a selection of 2+. React Flow's own
         // getDragItems uses node.selected to decide who moves; we mirror that exactly.
         const isMultiDrag = selectedCanvasNodeIds.size > 1 && selectedCanvasNodeIds.has(node.id);
+
+        /* A node drag is a gesture like a pan, and the same rule applies: no
+           card may promote itself to a richer tier or commit a queued editor
+           mount while the user is moving something. Without this the cards the
+           drag sweeps past mount their editors mid-gesture and each commit
+           lands as a dropped frame under the cursor. */
+        setStreaming(true);
 
         setInteractionState({
             draggedNodeId: node.id,
@@ -284,6 +291,8 @@ export function useCanvasNodeDrag({
         clearDropIndicators();
         document.body.classList.remove('chnk-it-node-dragging');
         document.body.classList.remove('chnk-it-multi-drag');
+        // Gesture over: held-back tier upgrades and queued mounts resume.
+        setStreaming(false);
 
         // Reveal the dragged node(s) again and restore z-index — single pass, no extra re-renders.
         const nodeIdsToRestore = isMultiDrag
@@ -329,7 +338,8 @@ export function useCanvasNodeDrag({
                     const GAP = 16;
                     const HEADER_OFFSET = 130;
 
-                    const columnSiblings = nodes.filter(n => {
+                    const currentStoreNodes = useStore.getState().nodes;
+                    const columnSiblings = currentStoreNodes.filter(n => {
                         if (n.type !== 'note') return false;
                         if (n.parentId !== targetKanban.id) return false;
                         if (n.id === node.id) return false;
@@ -429,7 +439,8 @@ export function useCanvasNodeDrag({
         if (isSourceNote) {
             const kanbanTarget = stopIntersections.find((n): n is KanbanNode => n.type === 'kanban' && n.id !== node.id);
             if (kanbanTarget) {
-                handleKanbanDrop(kanbanTarget, node, nodes, setNodes);
+                const currentStoreNodes = useStore.getState().nodes;
+                handleKanbanDrop(kanbanTarget, node, currentStoreNodes, setNodes);
                 return;
             }
         }
@@ -461,7 +472,7 @@ export function useCanvasNodeDrag({
         if (currentParentId) {
             syncParentContent(currentParentId);
         }
-    }, [getIntersectingNodes, setNodes, updateNodeData, getNode, nodes, currentParentId,
+    }, [getIntersectingNodes, setNodes, updateNodeData, getNode, currentParentId,
         syncParentContent, screenToFlowPosition, setInteractionState, selectedCanvasNodeIds, getViewport, clearDropIndicators]);
 
     return {

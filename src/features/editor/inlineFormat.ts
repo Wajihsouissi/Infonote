@@ -23,13 +23,6 @@ export const INLINE_MARKERS: Record<InlineFormat, string> = {
     code: '`',
 };
 
-/** A concrete place to apply formatting: a text host and offsets into its text. */
-export interface FormatTarget {
-    host: HTMLElement;
-    start: number;
-    end: number;
-}
-
 /**
  * Pure string transform: wrap / toggle the [start,end) slice of `raw` with the
  * given format's marker. Returns the new text and where the selection should
@@ -80,19 +73,6 @@ export function computeInlineFormat(
         selStart: start + m,
         selEnd: start + m + selected.length,
     };
-}
-
-/** The raw text a source-mode block currently shows (its single text node). */
-export function sourceText(host: HTMLElement): string | null {
-    const node = host.firstChild;
-    if (!node || node.nodeType !== Node.TEXT_NODE) return null;
-    return node.nodeValue ?? '';
-}
-
-/** The text a saved target currently covers. */
-export function targetText(target: FormatTarget): string {
-    const raw = sourceText(target.host) ?? target.host.textContent ?? '';
-    return raw.slice(Math.min(target.start, raw.length), Math.min(target.end, raw.length));
 }
 
 /**

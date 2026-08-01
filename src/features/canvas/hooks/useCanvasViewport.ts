@@ -1,55 +1,31 @@
-import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import type { AppNode } from '../../../types';
 import { useStore } from '../../../store/useStore';
+import { getNodeById } from '../../../store/nodeIndex';
 import {
     type DetailTier,
     minTier,
     tierForZoom,
     NEAR_BAND,
-    MID_BAND,
 } from './useCanvasDetail';
 import { publishTiers } from './lodStore';
 
 const DEBUG = import.meta.env.DEV;
 
 interface UseCanvasViewportOptions {
-    nodes: AppNode[];
     currentParentId: string | null;
 }
 
 type Viewport = { x: number; y: number; zoom: number };
 
-/**
- * How far the view must travel before the visible set is recomputed. Well under
- * the overscan margin below, so nothing can scroll into view unrendered, but
- * far enough that an ordinary drag causes no remounting at all.
- */
 const RECULL_MOVE_PX = 260;
-/** Floor on how often re-culling can happen, whatever the movement. */
 const MIN_RECULL_INTERVAL_MS = 120;
-/**
- * How far beyond the viewport cards are still drawn at all, as a multiple of
- * the viewport size.
- *
- * Wider than it used to be because far cards are now cheap silhouettes rather
- * than full cards, and keeping them present is what lets edges stay connected
- * and the minimap stay honest. Past this they are dropped entirely.
- */
 const CULL_BAND = 3.2;
 
 const nodeW = (n: AppNode) => (typeof n.style?.width === 'number' ? n.style.width : 432);
 const nodeH = (n: AppNode) => (typeof n.style?.height === 'number' ? n.style.height : 432);
 
-/**
- * Approximate the transform React Flow's own `fitView` will settle on.
- *
- * Culling runs before that first fitView, so without this the first pass would
- * measure against the default 0/0/1 viewport, cull away everything except the
- * cards near the origin — and then fitView would frame only those survivors
- * instead of the whole canvas. Seeding the state with the fit transform keeps
- * the opening view showing all the user's content.
- */
 function estimateFitViewport(nodes: AppNode[], padding = 0.1): Viewport {
     if (nodes.length === 0 || typeof window === 'undefined') return { x: 0, y: 0, zoom: 1 };
 
@@ -75,58 +51,36 @@ function estimateFitViewport(nodes: AppNode[], padding = 0.1): Viewport {
     };
 }
 
-/**
- * Hook that handles viewport culling and node visibility calculations.
- * Filters nodes based on current parent and viewport bounds for performance.
- */
-export function useCanvasViewport({ nodes, currentParentId }: UseCanvasViewportOptions) {
+export function useCanvasViewport({ currentParentId }: UseCanvasViewportOptions) {
     const { getViewport } = useReactFlow();
-    const selectedCanvasNodeIds = useStore(state => state.selectedCanvasNodeIds);
     
     const lastViewportUpdate = useRef(0);
-    /** Viewport the current visible set was culled against. */
     const lastCullViewport = useRef<Viewport>({ x: 0, y: 0, zoom: 1 });
+    
+    const currentParentIdRef = useRef(currentParentId);
+    useEffect(() => {
+        currentParentIdRef.current = currentParentId;
+    }, [currentParentId]);
 
-    // Memoize root nodes for the current parent level
-    const rootNodes = useMemo(() => {
-        if (DEBUG) console.log("[rootNodes] Computing for currentParentId:", currentParentId);
-
+    const getRootNodes = useCallback(() => {
+        const nodes = useStore.getState().nodes;
         return nodes.filter(n => {
-            // Treat undefined, null, and empty string as root level
             const nodeParentId = n.parentId || null;
-            const activeParentId = currentParentId || null;
+            const activeParentId = currentParentIdRef.current || null;
             return nodeParentId === activeParentId;
         });
-    }, [nodes, currentParentId]);
+    }, []);
 
-    /* Seeded from the content bounds rather than 0/0/1 — see estimateFitViewport.
-       Only the first render uses the estimate; every later value comes from the
-       real viewport via handleViewportChange. */
-    const [viewport, setViewport] = useState<Viewport>(() =>
-        estimateFitViewport(nodes.filter(n => (n.parentId || null) === (currentParentId || null)))
-    );
+    const viewportRef = useRef<Viewport>(estimateFitViewport(getRootNodes()));
 
     const nodeCacheRef = useRef<Map<string, { original: AppNode, stripped: AppNode }>>(new Map());
+    const [visibleNodes, setVisibleNodes] = useState<AppNode[]>([]);
 
-    /* Culling and level-of-detail are one pass: both need each node's distance
-       from the viewport, so they are computed together and returned together
-       rather than stashed in a ref. */
-    const { visibleNodes, tiers, zoomCeiling } = useMemo(() => {
-        /* Cull on every canvas, not just large ones. A card that is off-screen
-           still mounts its whole block editor, so the cost of opening a canvas
-           used to scale with the number of cards on it rather than with how
-           many are actually visible.
-
-           Bounds come from the tracked `viewport` state: it starts as an
-           estimate of where fitView will land (so the opening frame culls
-           against roughly the right window) and is refreshed from the real
-           viewport on move and just after mount. */
+    const recalc = useCallback((viewport: Viewport, forceUpdate: boolean) => {
         const zoom = viewport.zoom || 1;
         const vw = window.innerWidth;
         const vh = window.innerHeight;
 
-        /* The visible rectangle in flow coordinates, and the bands around it.
-           Everything is computed once here rather than per card. */
         const view = {
             minX: -viewport.x / zoom,
             maxX: (-viewport.x + vw) / zoom,
@@ -136,7 +90,6 @@ export function useCanvasViewport({ nodes, currentParentId }: UseCanvasViewportO
         const bandW = (vw / zoom);
         const bandH = (vh / zoom);
 
-        /** Distance from the viewport rectangle, in viewport-multiples. */
         const bandOf = (n: AppNode): number => {
             const w = typeof n.style?.width === 'number' ? n.style.width : 432;
             const h = typeof n.style?.height === 'number' ? n.style.height : 432;
@@ -148,34 +101,28 @@ export function useCanvasViewport({ nodes, currentParentId }: UseCanvasViewportO
 
         const tiers = new Map<string, DetailTier>();
         const zoomCeiling = tierForZoom(zoom);
+        
+        const rootNodes = getRootNodes();
+        const selectedCanvasNodeIds = useStore.getState().selectedCanvasNodeIds;
 
         const culledNodes = rootNodes.filter(n => {
-            // Never cull selected nodes so they remain in the render tree and can be focused successfully
             const isSelected = selectedCanvasNodeIds.has(n.id);
             const band = bandOf(n);
             if (!isSelected && band > CULL_BAND) return false;
 
-            /* Two independent ceilings: how close the card is, and how big it
-               is on screen. A card can be dead centre and still not worth an
-               editor if the canvas is zoomed right out. */
-            const byDistance: DetailTier =
-                band <= NEAR_BAND ? 'full' : band <= MID_BAND ? 'preview' : 'minimal';
+            const byDistance: DetailTier = band <= NEAR_BAND ? 'full' : 'preview';
             tiers.set(n.id, isSelected ? zoomCeiling : minTier(byDistance, zoomCeiling));
             return true;
         });
 
-        if (DEBUG) console.log("[visibleNodes] Culled:", rootNodes.length, "->", culledNodes.length);
-
         const cache = nodeCacheRef.current;
         const newCache = new Map<string, { original: AppNode, stripped: AppNode }>();
 
-        // Strip parentId for ReactFlow rendering (root level nodes) and dynamically apply custom drag handle
         const result = culledNodes.map(n => {
-            const hasDragHandle = true; // Apply drag handle universally
+            const hasDragHandle = true;
             const shouldStripParent = n.parentId === currentParentId;
             const shouldAddDragHandle = hasDragHandle;
             
-            // Check if it already matches the target state
             const alreadyHasCorrectParent = shouldStripParent ? n.parentId === undefined : true;
             const alreadyHasCorrectDragHandle = shouldAddDragHandle ? n.dragHandle === '.custom-drag-handle' : true;
             
@@ -199,27 +146,80 @@ export function useCanvasViewport({ nodes, currentParentId }: UseCanvasViewportO
         });
 
         nodeCacheRef.current = newCache;
-        return { visibleNodes: result, tiers, zoomCeiling };
-    }, [rootNodes, currentParentId, viewport, selectedCanvasNodeIds]);
-
-    /* Push tiers out of render. The store wakes only the cards whose tier
-       actually moved, so a pan that changes nobody's band costs no re-renders
-       at all — where a context value would have re-rendered every card. */
-    useEffect(() => {
+        
+        // Push tiers to store imperatively.
         publishTiers(tiers, zoomCeiling);
-    }, [tiers, zoomCeiling]);
+
+        setVisibleNodes(prev => {
+            if (forceUpdate) return result;
+            if (prev.length !== result.length) return result;
+            
+            let changed = false;
+            const isDragging = !!useStore.getState().interactionState.draggedNodeId;
+            
+            for (let i = 0; i < prev.length; i++) {
+                const p = prev[i];
+                const r = result[i];
+                if (p.id !== r.id || p.data !== r.data || p.style !== r.style || p.selected !== r.selected) {
+                    changed = true;
+                    break;
+                }
+                if (!isDragging && (p.position.x !== r.position.x || p.position.y !== r.position.y)) {
+                    changed = true;
+                    break;
+                }
+            }
+            return changed ? result : prev;
+        });
+    }, [getRootNodes]);
 
     /**
-     * Re-cull on movement, not on a timer.
-     *
-     * Culling now runs on every canvas, so each recompute can mount or unmount
-     * cards. Firing that every 120ms of a drag meant a pan was continuously
-     * building and tearing down card bodies at the screen edge — the pan itself
-     * became the expensive thing. Waiting until the view has actually moved a
-     * decent fraction of the overscan margin keeps a normal drag entirely free
-     * of remounts, while still re-culling long before anything can reach the
-     * edge of what was drawn.
+     * Drag-frame fast path: copy the moved nodes' positions onto the cards
+     * React Flow is already rendering, leaving every other node object (and so
+     * every other card's props) untouched.
      */
+    const patchPositions = useCallback(() => {
+        const latest = useStore.getState().nodes;
+        setVisibleNodes(prev => {
+            let moved = false;
+            const next = prev.map(n => {
+                const source = getNodeById(latest, n.id);
+                if (!source || source.position === n.position) return n;
+                if (source.position.x === n.position.x && source.position.y === n.position.y) return n;
+                moved = true;
+                return { ...n, position: source.position };
+            });
+            return moved ? next : prev;
+        });
+    }, []);
+
+    // Subscribe to store changes to recalculate when nodes or selection changes
+    useEffect(() => {
+        return useStore.subscribe((state, prevState) => {
+            if (state.nodes === prevState.nodes && state.selectedCanvasNodeIds === prevState.selectedCanvasNodeIds && state.interactionState.draggedNodeId === prevState.interactionState.draggedNodeId) {
+                return;
+            }
+
+            const wasDragging = !!prevState.interactionState.draggedNodeId;
+            const isDragging = !!state.interactionState.draggedNodeId;
+
+            /* A drag emits a position change per moved node per frame, and each
+               one has to reach React Flow or the card stops following the
+               cursor. What it does NOT need is the culling pass: the viewport
+               has not moved, so no card can cross a band and no tier can
+               change. Carrying the new positions across on the existing node
+               objects is a couple of allocations; a full recalc measured ~40ms
+               per frame on a 46-card canvas, which is the drag stuttering. */
+            if (isDragging) {
+                patchPositions();
+                return;
+            }
+
+            // Drag just ended — force the pass that syncs the final positions.
+            recalc(viewportRef.current, wasDragging);
+        });
+    }, [recalc, patchPositions]);
+
     const handleViewportChange = useCallback(() => {
         const now = Date.now();
         if (now - lastViewportUpdate.current < MIN_RECULL_INTERVAL_MS) return;
@@ -229,35 +229,35 @@ export function useCanvasViewport({ nodes, currentParentId }: UseCanvasViewportO
         const movedFar =
             Math.abs(next.x - last.x) > RECULL_MOVE_PX ||
             Math.abs(next.y - last.y) > RECULL_MOVE_PX;
-        // Zoom must react promptly — it changes which cards are even eligible.
+        
         const zoomChanged = Math.abs(next.zoom - last.zoom) > last.zoom * 0.02;
 
         if (!movedFar && !zoomChanged) return;
 
         lastViewportUpdate.current = now;
         lastCullViewport.current = next;
-        setViewport(next);
-    }, [getViewport]);
+        viewportRef.current = next;
+        
+        // Only trigger state updates if the culling actually changes the visible set
+        recalc(next, false);
+    }, [getViewport, recalc]);
 
-    /* The mount-time fitView animation moves the viewport without necessarily
-       firing onMove, which would leave the first cull measured against the
-       default 0/0/1 viewport. Re-sync once the animation has settled. */
     useEffect(() => {
         const sync = () => {
             lastViewportUpdate.current = 0;
             const v = getViewport();
             lastCullViewport.current = v;
-            setViewport(v);
+            viewportRef.current = v;
+            recalc(v, false);
         };
         const raf = requestAnimationFrame(sync);
         const timer = window.setTimeout(sync, 600);
         return () => { cancelAnimationFrame(raf); window.clearTimeout(timer); };
-    }, [getViewport, currentParentId]);
+    }, [getViewport, currentParentId, recalc]);
 
     return {
         visibleNodes,
-        rootNodes,
-        viewport,
+        viewport: viewportRef.current,
         handleViewportChange,
     };
 }

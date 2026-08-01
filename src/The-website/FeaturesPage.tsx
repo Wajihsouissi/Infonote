@@ -3,7 +3,6 @@ import { motion } from 'motion/react';
 import { ArrowLeft, Layers, Workflow, HardDrive, Share2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import styles from './MarketingPage.module.css';
-
 export const FeaturesPage: React.FC = () => {
   const setCurrentView = useStore((state) => state.setCurrentView);
   
@@ -96,7 +95,7 @@ export const FeaturesPage: React.FC = () => {
           className="bento-card col-span-8"
         >
           <div style={{ position: 'relative', zIndex: 10, maxWidth: 460 }}>
-            <div style={{ width: 48, height: 48, background: 'rgba(249, 93, 46, 0.1)', color: 'var(--accent)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24, border: '1px solid rgba(249, 93, 46, 0.2)' }}>
+            <div style={{ width: 48, height: 48, background: 'var(--accent-dim)', color: 'var(--accent)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24, border: '1px solid var(--accent-wash)' }}>
               <Layers size={24} />
             </div>
             <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 16, letterSpacing: '-0.02em' }}>Linear to Spatial</h2>
@@ -171,12 +170,12 @@ export const FeaturesPage: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--line-strong)', borderRadius: 16, overflow: 'hidden', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--line-strong)', borderRadius: 16, overflow: 'hidden', boxShadow: 'var(--elev-2)' }}
         >
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', minWidth: 800, borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
-                <tr style={{ background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid var(--line-strong)' }}>
+                <tr style={{ background: 'var(--hover-wash)', borderBottom: '1px solid var(--line-strong)' }}>
                   <th style={{ padding: '20px 24px', fontWeight: 600, color: 'var(--text-soft)', width: '25%' }}>Category</th>
                   <th style={{ padding: '20px 24px', fontWeight: 600, color: 'var(--text-soft)', width: '25%' }}>Feature</th>
                   <th style={{ padding: '20px 24px', fontWeight: 600, color: 'var(--text-soft)', width: '40%' }}>Description</th>
@@ -186,7 +185,7 @@ export const FeaturesPage: React.FC = () => {
               <tbody>
                 {/* Visual Workspace */}
                 <tr style={{ borderBottom: '1px solid var(--line)' }}>
-                  <td rowSpan={4} style={{ padding: '20px 24px', fontWeight: 600, verticalAlign: 'top', borderRight: '1px solid var(--line)', background: 'rgba(255,255,255,0.01)' }}>Visual Workspace</td>
+                  <td rowSpan={4} style={{ padding: '20px 24px', fontWeight: 600, verticalAlign: 'top', borderRight: '1px solid var(--line)', background: 'var(--hover-wash)' }}>Visual Workspace</td>
                   <td style={{ padding: '16px 24px', fontWeight: 500 }}>Infinite Canvas</td>
                   <td style={{ padding: '16px 24px', color: 'var(--text-soft)' }}>Boundless spatial workspace to lay out all your thoughts and research.</td>
                   <td style={{ padding: '16px 24px' }}><span style={{ color: 'var(--accent)', fontSize: 13, fontWeight: 600 }}>Beta</span></td>
@@ -209,7 +208,7 @@ export const FeaturesPage: React.FC = () => {
 
                 {/* Linear Notes */}
                 <tr style={{ borderBottom: '1px solid var(--line)' }}>
-                  <td rowSpan={3} style={{ padding: '20px 24px', fontWeight: 600, verticalAlign: 'top', borderRight: '1px solid var(--line)', background: 'rgba(255,255,255,0.01)' }}>Linear Notes</td>
+                  <td rowSpan={3} style={{ padding: '20px 24px', fontWeight: 600, verticalAlign: 'top', borderRight: '1px solid var(--line)', background: 'var(--hover-wash)' }}>Linear Notes</td>
                   <td style={{ padding: '16px 24px', fontWeight: 500 }}>Markdown Editor</td>
                   <td style={{ padding: '16px 24px', color: 'var(--text-soft)' }}>Fast, keyboard-centric rich text editing with full Markdown support.</td>
                   <td style={{ padding: '16px 24px' }}><span style={{ color: 'var(--accent)', fontSize: 13, fontWeight: 600 }}>Beta</span></td>
@@ -227,7 +226,7 @@ export const FeaturesPage: React.FC = () => {
 
                 {/* Organization */}
                 <tr style={{ borderBottom: '1px solid var(--line)' }}>
-                  <td rowSpan={3} style={{ padding: '20px 24px', fontWeight: 600, verticalAlign: 'top', borderRight: '1px solid var(--line)', background: 'rgba(255,255,255,0.01)' }}>Organization</td>
+                  <td rowSpan={3} style={{ padding: '20px 24px', fontWeight: 600, verticalAlign: 'top', borderRight: '1px solid var(--line)', background: 'var(--hover-wash)' }}>Organization</td>
                   <td style={{ padding: '16px 24px', fontWeight: 500 }}>Kanban Boards</td>
                   <td style={{ padding: '16px 24px', color: 'var(--text-soft)' }}>Fully functional agile boards that live right inside your canvas.</td>
                   <td style={{ padding: '16px 24px' }}><span style={{ color: 'var(--accent)', fontSize: 13, fontWeight: 600 }}>Beta</span></td>
@@ -245,7 +244,7 @@ export const FeaturesPage: React.FC = () => {
 
                 {/* Infrastructure */}
                 <tr style={{ borderBottom: '1px solid var(--line)' }}>
-                  <td rowSpan={4} style={{ padding: '20px 24px', fontWeight: 600, verticalAlign: 'top', borderRight: '1px solid var(--line)', background: 'rgba(255,255,255,0.01)' }}>Infrastructure</td>
+                  <td rowSpan={4} style={{ padding: '20px 24px', fontWeight: 600, verticalAlign: 'top', borderRight: '1px solid var(--line)', background: 'var(--hover-wash)' }}>Infrastructure</td>
                   <td style={{ padding: '16px 24px', fontWeight: 500 }}>Local-First</td>
                   <td style={{ padding: '16px 24px', color: 'var(--text-soft)' }}>Saves directly to your device for zero-latency editing and full offline support.</td>
                   <td style={{ padding: '16px 24px' }}><span style={{ color: 'var(--accent)', fontSize: 13, fontWeight: 600 }}>Beta</span></td>

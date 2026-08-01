@@ -1,0 +1,15 @@
+/* Static LOD bodies for block / fused-note nodes: the wireframe fills the
+   node so it still reads as the thing it is while zoomed out. */
+
+.previewWrap {
+    position: absolute;
+    inset: 0;
+    padding: 16px 20px;
+    box-sizing: border-box;
+    overflow: hidden;
+    pointer-events: none;
+    /* Mirror the node's own corners so the wireframe doesn't poke out. */
+    border-radius: inherit;
+    /* Fixed size (inset: 0) and clipped, so containment is free to claim. */
+    contain: layout paint style;
+}

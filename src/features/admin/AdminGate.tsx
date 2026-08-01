@@ -3,6 +3,7 @@ import { Loader2, ShieldAlert } from 'lucide-react';
 import { AdminDashboard } from './AdminDashboard';
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
+import { CrystalLoader } from '../../components/ui/CrystalLoader';
 
 const OWNER_EMAIL = 'mohebawichewi9@gmail.com';
 
@@ -63,6 +64,17 @@ export default function AdminGate() {
         return <AdminDashboard ownerEmail={OWNER_EMAIL} />;
     }
 
+    if (state.kind === 'checking') {
+        return (
+            <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                minHeight: '100vh', width: '100%', backgroundColor: 'var(--bg-base)'
+            }}>
+                <CrystalLoader />
+            </div>
+        );
+    }
+
     return (
         <div
             style={{
@@ -87,24 +99,13 @@ export default function AdminGate() {
                     textAlign: 'center',
                 }}
             >
-                {state.kind === 'checking' ? (
-                    <>
-                        <Loader2 size={28} className="animate-spin" style={{ margin: '0 auto 14px', color: 'var(--accent)' }} />
-                        <h1 style={{ fontSize: 18, margin: 0 }}>Verifying owner session</h1>
-                        <p style={{ margin: '8px 0 0', color: 'rgba(22,22,22,0.58)', fontSize: 13 }}>
-                            Checking the active Supabase profile before opening operations.
-                        </p>
-                    </>
-                ) : (
-                    <>
-                        <ShieldAlert size={30} style={{ margin: '0 auto 14px', color: '#dc2626' }} />
-                        <h1 style={{ fontSize: 18, margin: 0 }}>Access denied</h1>
-                        <p style={{ margin: '8px 0 0', color: 'rgba(22,22,22,0.58)', fontSize: 13 }}>
-                            {state.reason}
-                        </p>
-                    </>
-                )}
+                <ShieldAlert size={30} style={{ margin: '0 auto 14px', color: '#dc2626' }} />
+                <h1 style={{ fontSize: 18, margin: 0 }}>Access denied</h1>
+                <p style={{ margin: '8px 0 0', color: 'rgba(22,22,22,0.58)', fontSize: 13 }}>
+                    {state.reason}
+                </p>
             </div>
         </div>
     );
+
 }

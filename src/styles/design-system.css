@@ -298,13 +298,18 @@
   --canvas-dot: var(--dot);
 
   /* node surfaces */
+  /* --bg-card sits one step above --bg-rail in Ink, which is what gives a node
+     a readable silhouette against the near-black desk; in Paper both are #fff
+     and the ring does the work. */
   --node-bg: var(--bg-rail);
   --node-radius: var(--r-surface);
   --node-pad: 12px;
   --node-spine-w: 3px;
-  --node-ring: 0 0 0 1px var(--line-strong);
-  --node-ring-hover: 0 0 0 1px var(--line-heavy);
-  --node-ring-selected: 0 0 0 1.5px var(--accent);
+  /* rest / hover / selected read as a 1 → 1.5 → 2px ladder, with the colour
+     change reserved for selection. */
+  --node-ring: 0 0 0 1px var(--line-heavy);
+  --node-ring-hover: 0 0 0 1.5px var(--line-heavy);
+  --node-ring-selected: 0 0 0 2px var(--accent);
   --node-ring-drag: 0 0 0 2px var(--accent);
   --node-shadow-rest: var(--elev-1);
   --node-shadow-hover: var(--elev-2);
@@ -341,7 +346,7 @@
   --menu-chevron: var(--text-faint);
 
   /* floating pill toolbars (edit bar, multi-select, edge editing) */
-  --toolbar-bg: var(--bg-raised);
+  --toolbar-bg: var(--bg-rail);
   --toolbar-border: var(--line-strong);
   --toolbar-radius: var(--radius-pill);
   --toolbar-shadow: var(--elev-2);
@@ -390,17 +395,34 @@
   /* the visible inner box, once the gutter is removed — every block type's
      inner container resolves to this, so callout/quote/toggle match plain text */
   --block-node-inner-h: calc(var(--block-node-h) - 2 * var(--block-node-gutter-y));
+  /* A block grows with its text up to --block-node-max, then wraps and grows
+     downward instead. 432px is MIN_EXPANDED_SIZE (config/layout.ts) so a fully
+     grown block lines up with an expanded note card. Dragging the resize
+     handle can push it further, to --block-node-max-user. */
+  --block-node-max: 432px;
+  --block-node-max-user: 800px;
 
   /* rhythm & metrics */
   --block-gap: 6px;
   --block-pad-x: 8px;
   --block-pad-y: 2px;
   --block-min-h: 24px;
-  --block-font: 0.95rem;
-  --block-leading: 1.55;
+  /* One ladder at a ~1.26 ratio, chosen so every step lands on a whole pixel
+     at the 16px root: 15 / 19 / 24 / 30. Fractional rem (0.95, 1.45, 1.85…)
+     rasterised soft, which compounded at non-integer canvas zoom. */
+  --block-font: 0.9375rem;
+  --block-h3: 1.1875rem;
+  --block-h2: 1.5rem;
+  --block-h1: 1.875rem;
+  --block-leading: 1.6;
+  --block-leading-heading: 1.2;
   --block-inset: 12px;
-  /* indent of a marker column (bullet, number, checkbox, triangle) */
+  /* Marker column (bullet, number, checkbox, triangle, callout icon). Fixed
+     width so every marker-bearing block lands its text on the same left edge
+     — markers used to be intrinsically sized, which produced a different
+     text inset for every block type. */
   --block-marker-gap: 8px;
+  --block-marker-col: 24px;
 
   /* radii — small for inline text targets, md for boxed blocks */
   --block-radius: var(--r-control);
@@ -800,7 +822,7 @@ textarea {
      the live palette in both themes with no literals to keep in sync. */
   --xy-minimap-node-background-color: var(--accent);
   --xy-minimap-node-stroke-width: 0;
-  --xy-minimap-mask-background-color: rgba(var(--on-accent-rgb), 0.55);
+  --xy-minimap-mask-background-color: color-mix(in srgb, var(--bg-inset) 70%, transparent);
 }
 
 .react-flow__minimap {
@@ -868,6 +890,30 @@ textarea {
 .chnk-it-node-dragging .react-flow__node {
   transition: none !important;
   animation: none !important;
+}
+
+/* A drag sweeps the cursor across every card between grab and drop, and each
+   one it crosses lights up its hover state: a new shadow to paint, a lift
+   transform, a fading floating handle. That is a style recalc plus a paint of
+   a large blurred shadow per card per frame, all of it feedback the user is
+   not looking at while they are dragging something else. Freeze it: the only
+   node that may move during a drag is the dragged one. */
+.chnk-it-node-dragging .react-flow__node * {
+  transition: none !important;
+}
+/* Note: transitions only, NOT `animation: none`. Cancelling a running keyframe
+   animation and then letting it back at drop restarts it from 0% — and every
+   card's view container carries a fadeIn, so the whole board blinked the
+   moment you let go. Transitions have no such replay. */
+.chnk-it-node-dragging .react-flow__node:not(.dragging) *:hover {
+  transform: none !important;
+}
+.chnk-it-node-dragging .react-flow__node:not(.dragging) {
+  will-change: auto !important;
+}
+/* The wrapper is what actually moves, so the layer belongs here. */
+.react-flow__node.dragging {
+  will-change: transform;
 }
 
 /* MULTI-NODE DRAG — unified group visual. */

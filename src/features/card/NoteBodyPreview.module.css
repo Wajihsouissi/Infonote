@@ -10,6 +10,10 @@
     overflow: hidden;
     pointer-events: none;
     user-select: none;
+    /* The wireframe is a closed box: nothing inside it can affect layout or
+       paint outside it. Saying so keeps a card's worth of bars off the
+       critical path when anything else on the canvas invalidates. */
+    contain: layout paint style;
 }
 
 /* The wireframe doubles as the loading state: while a card is queued to become

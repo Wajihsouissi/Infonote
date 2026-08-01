@@ -24,7 +24,7 @@ import {
     AppWindow
 } from 'lucide-react';
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, type Variants } from 'motion/react';
 import { useReactFlow, type Edge } from '@xyflow/react';
 import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '../../store/useStore';
@@ -33,6 +33,7 @@ import type { AppState } from '../../store/types';
 import styles from './BottomMenu.module.css';
 import { MENU_ITEMS } from '../editor/menuConstants';
 import { findNonOverlappingPosition } from '../../utils/findNonOverlappingPosition';
+import { MIN_EXPANDED_SIZE } from '../../config/layout';
 import { parseSearchQuery } from './searchUtils';
 import { MultiSelectionToolbar } from './MultiSelectionToolbar';
 import { EdgeEditingToolbar } from './EdgeEditingToolbar';
@@ -787,7 +788,9 @@ export function BottomMenu() {
         // number of columns per row (4 columns render as a 2x2 grid, so only 2 per row).
         const columnCount = block.type === 'columns' ? (block.meta?.count || 2) : 0;
         const columnsPerRow = columnCount === 4 ? 2 : columnCount;
-        const BLOCK_WIDTH = block.type === 'columns' ? Math.max(550, columnsPerRow * 220) : ['image', 'video', 'file'].includes(block.type) ? 208 : 300;
+        // A table opens at the expanded-card width so its default columns fit —
+        // at 300 it shipped with a permanent horizontal scrollbar even empty.
+        const BLOCK_WIDTH = block.type === 'columns' ? Math.max(550, columnsPerRow * 220) : ['image', 'video', 'file'].includes(block.type) ? 208 : block.type === 'table' ? MIN_EXPANDED_SIZE : 300;
         const BLOCK_HEIGHT = 100;
 
         const position = findNonOverlappingPosition(flowPos, { width: BLOCK_WIDTH, height: BLOCK_HEIGHT }, nodes, currentParentId, vp());
@@ -798,19 +801,26 @@ export function BottomMenu() {
         }, { width: BLOCK_WIDTH, height: BLOCK_HEIGHT }, currentParentId || undefined);
     };
 
-    const transitionVariants = {
+    const transitionVariants: Variants = {
         initial: { opacity: 0, scale: 0.95 },
         animate: { opacity: 1, scale: 1, transition: { type: 'spring', stiffness: 400, damping: 32 } },
         exit: { opacity: 0, scale: 0.95, transition: { duration: 0.15, ease: "easeOut" } }
     };
 
+    // Clipping is only wanted while the bar morphs into the AI or search field,
+    // where it stops the swapping content spilling out mid-animation. In the
+    // default state it also clipped the Card Modes / Templates / Blocks
+    // popovers, which anchor ABOVE the bar and are children of it, so opening
+    // one set its state correctly but nothing ever appeared on screen.
+    const barOverflow = (isAIMode || isSearchMode) ? 'hidden' : 'visible';
+
     return (
         <>
-            <motion.div 
-                layout 
-                ref={menuRef as any} 
+            <motion.div
+                layout
+                ref={menuRef as any}
                 className={`${styles.bottomMenu} ${isAIMode ? (aiModeType === 'text' ? styles.bottomMenuAIText : styles.bottomMenuAIImage) : ''}`}
-                style={{ borderRadius: 24, overflow: 'hidden' }}
+                style={{ borderRadius: 24, overflow: barOverflow }}
                 transition={{ type: 'spring', stiffness: 400, damping: 32 }}
                 whileHover={{ y: -4 }}
             >
@@ -1045,7 +1055,11 @@ export function BottomMenu() {
                         <EdgeEditingToolbar />
                     </motion.div>
                 ) : (
-                    <motion.div key="default" variants={transitionVariants} initial="initial" animate="animate" exit="exit" style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                    // gap has to live here, not on .bottomMenu: AnimatePresence
+                    // inserts this wrapper between the bar and its buttons, so
+                    // the bar's own `gap: 12px` never reached them and the icons
+                    // sat flush against each other.
+                    <motion.div key="default" variants={transitionVariants} initial="initial" animate="animate" exit="exit" style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center', height: '100%', gap: 12 }}>
                         <button
                             className={styles.aiIconBtn}
                             onClick={() => { setIsAIMode(true); setAiModeType('text'); }}

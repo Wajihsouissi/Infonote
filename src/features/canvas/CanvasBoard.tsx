@@ -1,4 +1,4 @@
-import { useMemo, useEffect, Suspense, lazy, useRef, useCallback, useState } from 'react';
+import { memo, useMemo, useEffect, Suspense, lazy, useRef, useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FEATURES } from '../../config/featureFlags';
 import {
@@ -70,10 +70,38 @@ import styles from "./CanvasBoard.module.css";
 // Debug flag
 const DEBUG = import.meta.env.DEV;
 
+
+/* Everything on the canvas that is not the canvas.
+ *
+ * A drag rewrites this component's node state on every frame, so every one of
+ * these re-rendered on every frame too — the bottom menu, both side panels,
+ * every modal — none of which can look any different because a card moved 4px.
+ * Memoised at the call site rather than at each definition: the components stay
+ * ordinary, and the rule that they do not depend on node positions is stated
+ * once, here, where the re-render actually originates. They still update
+ * normally from their own store subscriptions.
+ */
+const StorageControlsM = memo(StorageControls);
+const ThemeSwitcherM = memo(ThemeSwitcher);
+const HomeButtonM = memo(HomeButton);
+const HistoryControlsM = memo(HistoryControls);
+const BreadcrumbsM = memo(Breadcrumbs);
+const ModifierKeyIndicatorM = memo(ModifierKeyIndicator);
+const MetadataPanelM = memo(MetadataPanel);
+const TableOfContentsPanelM = memo(TableOfContentsPanel);
+const KeyboardShortcutsPanelM = memo(KeyboardShortcutsPanel);
+const ChunkItModalM = memo(ChunkItModal);
+const BottomMenuM = memo(BottomMenu);
+const SidePanelM = memo(SidePanel);
+const FullscreenModalM = memo(FullscreenModal);
+const CenterModalM = memo(CenterModal);
+const AuthModalM = memo(AuthModal);
+const CanvasSlashMenuM = memo(CanvasSlashMenu);
+const DragChipM = memo(DragChip);
+
 export function CanvasBoard() {
     // Store selectors and actions
     const {
-        nodes,
         edges,
         currentParentId,
         selectedCanvasNodeIds,
@@ -169,7 +197,6 @@ export function CanvasBoard() {
     const handleMoveEnd = useCallback(() => setStreaming(false), []);
 
     const { visibleNodes, handleViewportChange } = useCanvasViewport({
-        nodes,
         currentParentId,
     });
 
@@ -260,11 +287,11 @@ export function CanvasBoard() {
                 id: n.id,
                 type: n.type,
                 parentId: n.parentId,
-                realParentId: nodes.find(og => og.id === n.id)?.parentId,
-                pos: n.position
+                realParentId: useStore.getState().nodes.find(og => og.id === n.id)?.parentId,
+                position: n.position
             })));
         }
-    }, [currentParentId, visibleNodes, nodes]);
+    }, [currentParentId, visibleNodes]);
 
     const addNode = useStore(s => s.addNode);
 
@@ -306,7 +333,16 @@ export function CanvasBoard() {
         screenToFlowPositionRef.current = screenToFlowPosition;
     }, [getViewport, setViewport, screenToFlowPosition]);
 
+    /* Presence cursors ride on pointermove, which fires far faster than any
+       collaborator can perceive — and during a node drag it fires on the same
+       events that are already moving a card. Sample it instead: ~20/s, and not
+       at all mid-drag, where the moving card is the message. */
+    const lastCursorPush = useRef(0);
     const handlePointerMove = useCallback((e: React.PointerEvent) => {
+        if (useStore.getState().interactionState.draggedNodeId) return;
+        const now = performance.now();
+        if (now - lastCursorPush.current < 50) return;
+        lastCursorPush.current = now;
         const flowPos = screenToFlowPositionRef.current({ x: e.clientX, y: e.clientY });
         updateCursor(flowPos.x, flowPos.y);
     }, [updateCursor]);
@@ -524,12 +560,12 @@ export function CanvasBoard() {
     }, [blurActiveEditable, isInEditableField]);
 
     const selectedCanvasNodeIdsRef = useRef(selectedCanvasNodeIds);
-    const nodesRef = useRef(nodes);
-
+    // Sync node selection to ReactFlow when changed externally
+    const nodesRef = useRef(useStore.getState().nodes);
     useEffect(() => {
         selectedCanvasNodeIdsRef.current = selectedCanvasNodeIds;
-        nodesRef.current = nodes;
-    }, [selectedCanvasNodeIds, nodes]);
+        nodesRef.current = useStore.getState().nodes;
+    }, [selectedCanvasNodeIds]); // Use selectedCanvasNodeIds as a proxy to keep ref roughly updated since it doesn't trigger re-renders now on drag
 
     useEffect(() => {
         const clearArm = () => {
@@ -918,10 +954,10 @@ export function CanvasBoard() {
     }, []);
 
     // Active parent node for metadata display
-    const activeParentNode = useMemo(() =>
-        currentParentId ? nodes.find(n => n.id === currentParentId) : null,
-        [nodes, currentParentId]
-    );
+    const activeParentNode = useStore(useCallback(s =>
+        currentParentId ? s.nodes.find(n => n.id === currentParentId) : null,
+        [currentParentId]
+    ));
 
     useEffect(() => {
         if (!isSupabaseConfigured || !isAuthenticated || !authUserId || !activeWorkspaceId) return;
@@ -1062,9 +1098,9 @@ export function CanvasBoard() {
                 activeParentNode.type || 'unknown', 
                 activeWorkspaceId
             );
-        } else if (nodes.length > 0) {
+        } else if (useStore.getState().nodes.length > 0) {
             // Track a general canvas visit with the first node as representative
-            const firstNode = nodes[0];
+            const firstNode = useStore.getState().nodes[0];
             const data = firstNode.data as Record<string, unknown>;
             trackNoteView(
                 firstNode.id,
@@ -1073,7 +1109,7 @@ export function CanvasBoard() {
                 activeWorkspaceId
             );
         }
-    }, [currentParentId, activeParentNode, activeWorkspaceId, trackNoteView, nodes]);
+    }, [currentParentId, activeParentNode, activeWorkspaceId, trackNoteView]);
 
     // Drop handlers
     const { onDragOver, onDrop } = useCanvasDrop({
@@ -1083,7 +1119,6 @@ export function CanvasBoard() {
 
     // Node drag handlers
     const { onNodeDragStart, onNodeDrag, onNodeDragStop } = useCanvasNodeDrag({
-        nodes,
         currentParentId,
         setInteractionState,
         setNodes,
@@ -1101,13 +1136,21 @@ export function CanvasBoard() {
         };
     }, []);
 
+    /* Stable handlers so the memoised panels above actually hold: an inline
+       arrow would be a new prop every render and defeat the memo. */
+    const closeMetadata = useCallback(() => setMetadataOpen(false), [setMetadataOpen]);
+    const closeTOC = useCallback(() => setTOCOpen(false), [setTOCOpen]);
+    const closeShortcuts = useCallback(() => setShortcutsPanelOpen(false), [setShortcutsPanelOpen]);
+    const closeRightPanel = useCallback(() => setRightSidePanelId(null), [setRightSidePanelId]);
+    const closeLeftPanel = useCallback(() => setLeftSidePanelId(null), [setLeftSidePanelId]);
+
     return (
         <div className={styles.container} onPaste={handleCanvasPaste}>
             <div className={styles.canvasArea}>
                 <div className={styles.topRightToolbar}>
-                    <StorageControls />
+                    <StorageControlsM />
                     <div className={styles.topRightSeparator} />
-                    <ThemeSwitcher />
+                    <ThemeSwitcherM />
                     <button
                         ref={tocBtnRef}
                         className={`${styles.toolbarBtn} ${isTOCOpen ? styles.toolbarBtnActive : ''}`}
@@ -1139,12 +1182,12 @@ export function CanvasBoard() {
                     )}
                 </div>
                 <div className={styles.topLeftToolbar}>
-                    <HomeButton />
-                    <HistoryControls />
-                    <Breadcrumbs />
+                    <HomeButtonM />
+                    <HistoryControlsM />
+                    <BreadcrumbsM />
                 </div>
 
-                <ModifierKeyIndicator
+                <ModifierKeyIndicatorM
                     showCtrl={modifierKeys.ctrl}
                     showShift={modifierKeys.shift}
                     showFocus={isFocusArmed}
@@ -1291,8 +1334,8 @@ export function CanvasBoard() {
                     }}
                 >
                     {FEATURES.collaboration && <LiveCursors presenceData={presenceData} currentUserId={currentUserId} />}
-                    <CanvasSlashMenu />
-                    <DragChip />
+                    <CanvasSlashMenuM />
+                    <DragChipM />
                     <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color="var(--dot)" />
                     <Panel position="top-center">
 
@@ -1314,33 +1357,33 @@ export function CanvasBoard() {
                 </AnimatePresence>
             </div>
 
-            <MetadataPanel
+            <MetadataPanelM
                 nodeId={activeParentNode?.id}
                 isOpen={isMetadataOpen}
-                onClose={() => setMetadataOpen(false)}
+                onClose={closeMetadata}
                 buttonRef={metadataBtnRef}
             />
 
-            <TableOfContentsPanel
+            <TableOfContentsPanelM
                 isOpen={isTOCOpen}
-                onClose={() => setTOCOpen(false)}
+                onClose={closeTOC}
                 buttonRef={tocBtnRef}
             />
 
-            <KeyboardShortcutsPanel
+            <KeyboardShortcutsPanelM
                 isOpen={isShortcutsPanelOpen}
-                onClose={() => setShortcutsPanelOpen(false)}
+                onClose={closeShortcuts}
                 buttonRef={shortcutsBtnRef}
             />
 
-            <ChunkItModal />
+            <ChunkItModalM />
 
             {/* Dual Panel Backdrop (only when both sides are open) */}
             {rightSidePanelId && leftSidePanelId && (
                 <div className={styles.dualPanelBackdrop} />
             )}
 
-            <BottomMenu />
+            <BottomMenuM />
             {contextMenu && (
                 <CanvasContextMenu
                     x={contextMenu.x}
@@ -1348,19 +1391,19 @@ export function CanvasBoard() {
                     onClose={() => setContextMenu(null)}
                 />
             )}
-            <SidePanel
+            <SidePanelM
                 side="right"
                 nodeId={rightSidePanelId}
-                onClose={() => setRightSidePanelId(null)}
+                onClose={closeRightPanel}
             />
-            <SidePanel
+            <SidePanelM
                 side="left"
                 nodeId={leftSidePanelId}
-                onClose={() => setLeftSidePanelId(null)}
+                onClose={closeLeftPanel}
             />
-            <FullscreenModal onCanvasDragOver={onDragOver} onCanvasDrop={onDrop} />
-            <CenterModal onCanvasDragOver={onDragOver} onCanvasDrop={onDrop} />
-            <AuthModal />
+            <FullscreenModalM onCanvasDragOver={onDragOver} onCanvasDrop={onDrop} />
+            <CenterModalM onCanvasDragOver={onDragOver} onCanvasDrop={onDrop} />
+            <AuthModalM />
             <Suspense fallback={null}>
                 <KanbanConfigModal />
             </Suspense>

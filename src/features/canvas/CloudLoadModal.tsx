@@ -637,5 +637,3 @@ const btnPrimary: React.CSSProperties = {
     fontSize: 13,
     fontWeight: 600,
 };
-
-export default CloudLoadModal;
