@@ -350,6 +350,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 ${isDragging ? styles.dragging : ''}
                 ${isDropTarget && dropType === 'nesting' ? styles.dropTarget : ''}
                 ${isDropTarget && dropType === 'fusion' ? styles.fusionTarget : ''}
+                ${isDropTarget && dropType === 'gallery' ? styles.galleryTarget : ''}
                 ${isFusing ? styles.fusing : ''}
             `}
             ref={nodeRef}

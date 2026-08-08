@@ -7,6 +7,7 @@ import { IconPicker } from './IconPicker';
 import { defaultIconName, CardIcon } from './iconMap';
 import type { NoteNode } from '../../types';
 import type { Block } from '../editor/types';
+import { endBlockDrag } from '../editor/blockDragLock';
 import { useStore } from '../../store/useStore';
 import { CoverPicker } from './CoverPicker';
 import { toPastelColor } from '../../utils/colorUtils';
@@ -75,9 +76,17 @@ export function NoteExpandedContent({
     const detailTier = useCanvasDetail(nodeId ?? id);
     const blocks = useMemo(() => (Array.isArray(data.content) ? data.content : []), [data.content]);
 
-    const wantsLiveEditor = isNearViewport && (detailTier === 'full' || !zoomAwareBody);
-    /* Both gates can flip for a whole screenful of cards at once — a pan, or a
-       zoom crossing the threshold — so the rising edge is paced across frames. */
+    /* A card the user has selected has to become editable even if the canvas is
+       zoomed below the legibility threshold — otherwise selecting a card at low
+       zoom hands back a wireframe you cannot type into. */
+    const isInteractive = !hideBlockHandles;
+
+    const wantsLiveEditor = isNearViewport && (detailTier === 'full' || !zoomAwareBody || isInteractive);
+    /* Every gate can flip for a whole screenful of cards at once — a pan, a zoom
+       crossing the threshold, or a select-all flipping every card interactive —
+       so the rising edge is paced across frames. Answering `true` directly here
+       instead would mount a screenful of block editors in one commit, which is
+       the multi-second freeze the scheduler exists to prevent. */
     const showLiveEditor = useScheduledMount(wantsLiveEditor);
     /* Wanted but not built yet — the wireframe animates to show it is coming. */
     const isEditorPending = wantsLiveEditor && !showLiveEditor;
@@ -167,10 +176,14 @@ export function NoteExpandedContent({
                     window.chnkItMultiDragCleanup();
                     delete window.chnkItMultiDragCleanup;
                 }
+                // Source blocks are gone, so the drag source unmounts before `dragend`
+                // fires and the drag lock would never be released. Drop it here.
+                window.chnkItCrossEditorDropHandled = true;
+                endBlockDrag();
                 window.dispatchEvent(new CustomEvent('chnk-it-clear-selection'));
             }
         }
-    }, [data?.content, id, onUpdate]);
+    }, [data, id, onUpdate]);
 
     const handleContentUpdate = useCallback((blocks: Block[]) => {
         onUpdate(id, { content: blocks });
@@ -192,10 +205,6 @@ export function NoteExpandedContent({
     ), [blocks, readOnly, handleContentUpdate, nodeId, selectionIslandPortalId, hideBlockHandles]);
 
     // Dynamic color styles removed to follow Paper & Ink guidelines
-
-    const headerStyle = useMemo(() => {
-        return {};
-    }, [displayColor]);
 
     const noteAreaStyles = useMemo(() => {
         if (!displayColor) return {};
@@ -264,10 +273,9 @@ export function NoteExpandedContent({
                 </div>
             ) : (
                 /* Minimal Header (When Hidden) */
-                <div className={`${styles.minimalHeader} custom-drag-handle`} style={{
-                    ...headerStyle,
-                    ...(flatCorners ? { borderRadius: 0 } : {})
-                }}>
+                <div className={`${styles.minimalHeader} custom-drag-handle`} style={
+                    flatCorners ? { borderRadius: 0 } : undefined
+                }>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
                         {data.showIcon && (
                             <div

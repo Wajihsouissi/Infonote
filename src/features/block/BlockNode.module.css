@@ -200,6 +200,50 @@
     max-width: none;
 }
 
+/* And a board. It starts at the 432 default, but width is what decides its
+   column count — capped there, dragging it wider moved the React Flow node and
+   left the board itself frozen at three columns, so half the resize did
+   nothing. */
+.blockNode:has([data-block-type="gallery"]) {
+    max-width: none;
+}
+
+/* A board brings its own frame, so the node underneath gets out of the way
+   entirely: no rail fill, no ring, no accent spine. What's left on the canvas
+   is the pictures floating in space — which is what a moodboard is. The
+   selection ring is the one thing kept, since it's the only feedback that the
+   thing you're about to drag or resize is this board and not the canvas. */
+.blockNode.galleryNode {
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    min-width: 0;
+}
+
+.blockNode.galleryNode::before {
+    display: none;
+}
+
+.blockNode.galleryNode:hover {
+    background: transparent;
+    box-shadow: none;
+}
+
+/* No ring on the node. The node spans the title AND the frame, so a ring here
+   drew a box around the caption and put it back inside the container the moment
+   you selected. The board draws its own ring around the frame alone — see
+   `.chnk-it-board-selected` in GalleryBlock.module.css. */
+.blockNode.galleryNode.selected,
+.blockNode.galleryNode.selected:hover {
+    background: transparent;
+    box-shadow: none;
+}
+
+.blockNode.galleryNode .content {
+    overflow: visible;
+    background: transparent;
+}
+
 /* Hand-sized columns own the width (see BlockComponents' data-table-sized):
    the node shrink-wraps them, so the selection ring lands on the table's edge
    instead of stranding node background beside a narrowed table. */
@@ -438,6 +482,22 @@
     outline: 2px solid var(--secondary);
     outline-offset: 3px;
     border-radius: var(--node-radius);
+    animation: blockTargetPulse 1s ease-in-out infinite;
+}
+
+/* Gallery merge. Distinct from fusion's amber on purpose — the two drops do
+   very different things to your content, so they must not look alike. The wash
+   previews the board that's about to exist. */
+.blockNode.galleryTarget,
+.colorBlockNode.galleryTarget {
+    outline: 2px dashed var(--accent);
+    outline-offset: 4px;
+    border-radius: var(--node-radius);
+    /* Not a background: a media node carries an inline transparent background so
+       its picture reads edge to edge, and that beats any class rule. A ring
+       around the outline gets the same "something is about to land here" read
+       without fighting it. */
+    box-shadow: 0 0 0 7px var(--accent-dim);
     animation: blockTargetPulse 1s ease-in-out infinite;
 }
 

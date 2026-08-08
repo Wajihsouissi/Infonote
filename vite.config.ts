@@ -987,6 +987,15 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), aiGatewayDevPlugin()],
+    // Strip debug logging from production bundles. The tree carries ~110
+    // console.log calls used while developing; without this they ship, and a
+    // per-node/per-drop log on a busy canvas is both noise in a user's console
+    // and real serialization cost. console.error/warn are kept — the error
+    // boundary and telemetry paths use them deliberately.
+    esbuild: {
+      drop: mode === 'production' ? ['debugger'] : [],
+      pure: mode === 'production' ? ['console.log', 'console.debug', 'console.trace'] : [],
+    },
     build: {
       // Our largest deliberate chunks are the split vendors (pdf ~462kB) and the
       // canvas feature entry (BottomMenu ~500kB); 700 keeps the warning meaningful

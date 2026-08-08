@@ -1,5 +1,5 @@
 import React, { useState, useRef, useLayoutEffect, useEffect, memo, useCallback } from 'react';
-import { FileText, Trash2, Sparkles, Loader2, Clock, Plus, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, AlignLeft, AlignCenter, AlignRight, GripHorizontal, GripVertical, Eraser, ChevronRight, Copy, Check, Columns3 } from 'lucide-react';
+import { FileText, Trash2, Sparkles, Loader2, Clock, Plus, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, AlignLeft, AlignCenter, AlignRight, GripHorizontal, GripVertical, Eraser, ChevronRight, Copy, Check, Columns3, Maximize2 } from 'lucide-react';
 import { FEATURES } from '../../config/featureFlags';
 import { useStore } from '../../store/useStore';
 import { renderContentWithLinks } from './pasteUtils';
@@ -25,6 +25,9 @@ interface BlockProps {
     block: Block;
     readOnly?: boolean;
     onChange: (content: string, metadata?: BlockMetadata) => void;
+    /** Patch the whole block, including its `type` — the media picker resolves an
+     *  unresolved `media` block into `image`/`video`/`file` through this. */
+    onReplace?: (patch: Partial<Block>) => void;
     onKeyDown?: (e: React.KeyboardEvent) => void;
     onPaste?: (e: React.ClipboardEvent) => void;
     domRef?: (el: HTMLDivElement | null) => void;
@@ -330,16 +333,54 @@ export const QuoteBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste,
 });
 
 // ... imports
-import { MediaPlaceholder } from './MediaPlaceholder';
+import { MediaPlaceholder, type MediaSelection } from './MediaPlaceholder';
 import { ResizableMediaWrapper } from './ResizableMediaWrapper';
+import { MediaLightbox } from '../ui/MediaLightbox';
 
 // ... (other blocks)
 
-export const ImageBlock = memo(({ block, readOnly, onChange, disableMediaControls }: BlockProps) => {
+/**
+ * "Open full screen" affordance on a piece of media. Media renders small — 180px tall
+ * in the editor, node-width on the canvas — so there has to be a way to actually look
+ * at it. It sits on the media itself and only shows on hover, so it costs no layout.
+ * Double-clicking the media does the same thing.
+ */
+const MediaExpandButton = ({ onOpen }: { onOpen: () => void }) => (
+    <button
+        type="button"
+        className={`${styles.mediaExpandBtn} nodrag`}
+        title="Open full screen"
+        aria-label="Open full screen"
+        contentEditable={false}
+        onPointerDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpen(); }}
+    >
+        <Maximize2 size={14} />
+    </button>
+);
+
+/**
+ * The unresolved media block: one picker for every kind of media. It has no rendered
+ * form of its own — the first file, link, or generated image through it rewrites the
+ * block into `image`, `video` or `file`, and that resolved block renders from then on.
+ *
+ * The three resolved types fall back to this same picker while empty, so a legacy
+ * `image` block with no content is no longer locked to images.
+ */
+export const MediaBlock = memo(({ block, readOnly, onReplace }: BlockProps) => {
+    const handleSelect = useCallback((sel: MediaSelection) => {
+        onReplace?.({ type: sel.type, content: sel.content, metadata: { ...block.metadata, ...sel.metadata } });
+    }, [onReplace, block.metadata]);
+
+    return <MediaPlaceholder onSelect={handleSelect} readOnly={readOnly} />;
+});
+
+export const ImageBlock = memo(({ block, readOnly, onChange, onReplace, disableMediaControls }: BlockProps) => {
+    const [showLightbox, setShowLightbox] = React.useState(false);
+
     if (!block.content) {
-        return (
-            <MediaPlaceholder type="image" onUpload={onChange} />
-        )
+        return <MediaBlock block={block} readOnly={readOnly} onChange={onChange} onReplace={onReplace} />;
     }
 
     // In the editor, images default to a fixed 180px height (resized via the bottom-right
@@ -370,7 +411,7 @@ export const ImageBlock = memo(({ block, readOnly, onChange, disableMediaControl
             onAlign={handleAlign}
             disableMediaControls={disableMediaControls}
         >
-            <div className={styles.mediaWrapper}>
+            <div className={`${styles.mediaWrapper} mediaViewTarget`} onDoubleClick={() => setShowLightbox(true)}>
                 <img
                     src={block.content}
                     alt="User content"
@@ -378,7 +419,16 @@ export const ImageBlock = memo(({ block, readOnly, onChange, disableMediaControl
                     loading="lazy"
                     style={isEditorMode ? { height: `${imageHeight}px`, width: 'auto', maxWidth: '100%', objectFit: 'contain' } : undefined}
                 />
+                <MediaExpandButton onOpen={() => setShowLightbox(true)} />
             </div>
+            {showLightbox && (
+                <MediaLightbox
+                    src={block.content}
+                    type="image"
+                    name={block.metadata?.name}
+                    onClose={() => setShowLightbox(false)}
+                />
+            )}
         </ResizableMediaWrapper>
     );
 });
@@ -1495,11 +1545,11 @@ export const AIBlock = memo(({ block, readOnly }: BlockProps) => {
     );
 });
 
-export const VideoBlock = memo(({ block, readOnly, onChange, disableMediaControls }: BlockProps) => {
+export const VideoBlock = memo(({ block, readOnly, onChange, onReplace, disableMediaControls }: BlockProps) => {
+    const [showLightbox, setShowLightbox] = React.useState(false);
+
     if (!block.content) {
-        return (
-            <MediaPlaceholder type="video" onUpload={onChange} />
-        )
+        return <MediaBlock block={block} readOnly={readOnly} onChange={onChange} onReplace={onReplace} />;
     }
 
     const handleResize = (newWidth: number) => {
@@ -1519,14 +1569,23 @@ export const VideoBlock = memo(({ block, readOnly, onChange, disableMediaControl
             onAlign={handleAlign}
             disableMediaControls={disableMediaControls}
         >
-            <div className={styles.mediaWrapper}>
+            <div className={`${styles.mediaWrapper} mediaViewTarget`} onDoubleClick={() => setShowLightbox(true)}>
                 <video src={block.content} controls className={styles.mediaImage} />
+                <MediaExpandButton onOpen={() => setShowLightbox(true)} />
             </div>
+            {showLightbox && (
+                <MediaLightbox
+                    src={block.content}
+                    type="video"
+                    name={block.metadata?.name}
+                    onClose={() => setShowLightbox(false)}
+                />
+            )}
         </ResizableMediaWrapper>
     );
 });
 
-export const FileBlock = memo(({ block, onChange }: BlockProps) => {
+export const FileBlock = memo(({ block, readOnly, onChange, onReplace }: BlockProps) => {
     const fileName = block.metadata?.name || block.content.split('/').pop() || "File";
     const [showPDF, setShowPDF] = React.useState(false);
 
@@ -1536,9 +1595,7 @@ export const FileBlock = memo(({ block, onChange }: BlockProps) => {
         fileName.toLowerCase().endsWith('.pdf');
 
     if (!block.content) {
-        return (
-            <MediaPlaceholder type="file" onUpload={onChange} />
-        )
+        return <MediaBlock block={block} readOnly={readOnly} onChange={onChange} onReplace={onReplace} />;
     }
 
     const handleClick = (e: React.MouseEvent) => {

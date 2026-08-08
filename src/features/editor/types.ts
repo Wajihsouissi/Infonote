@@ -11,9 +11,13 @@ export type BlockType =
     | 'quote'
     | 'table'
     | 'divider'
+    /** Unresolved media — renders the picker, then becomes image/video/file. */
+    | 'media'
     | 'image'
     | 'video'
     | 'file'
+    /** Bento container for media — what two pieces of media make when they meet. */
+    | 'gallery'
     | 'page'
     | 'container'
     | 'columns'
@@ -23,6 +27,13 @@ export type BlockType =
     | 'ai';
 
 export type BlockAlignment = 'left' | 'center' | 'right';
+
+/**
+ * Where a dragged block lands relative to the block under the cursor.
+ * `center` means "into it" rather than "next to it" — offered only when both
+ * sides are media, where it merges them into a gallery.
+ */
+export type BlockDropPosition = 'top' | 'bottom' | 'center';
 
 /** A single column inside a `columns` block. */
 export type ColumnData = {
@@ -43,6 +54,16 @@ export type BlockMetadata = {
     name?: string;
     size?: number;
     type?: string;
+    // Gallery — the media it holds are ordinary media blocks, so a block can
+    // move between "loose on the canvas" and "tile on a board" unchanged.
+    items?: Block[];
+    galleryLayout?: 'bento' | 'grid' | 'masonry';
+    galleryFit?: 'cover' | 'contain';
+    /** Hand-dragged board height, in px. The board scales its tiles to fill it.
+     *  Absent means the board sizes itself to its contents. */
+    galleryHeight?: number;
+    /** Set on an ITEM, not the gallery: its hand-picked bento footprint. */
+    span?: 'sm' | 'wide' | 'tall' | 'lg';
     // Link block / bookmark preview
     title?: string;
     description?: string;

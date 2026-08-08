@@ -5,7 +5,7 @@ import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
 import { CrystalLoader } from '../../components/ui/CrystalLoader';
 
-const OWNER_EMAIL = 'mohebawichewi9@gmail.com';
+const OWNER_EMAIL = 'wajih.souissi.ws@gmail.com';
 
 type GateState =
     | { kind: 'checking' }

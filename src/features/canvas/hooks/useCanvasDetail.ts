@@ -12,7 +12,7 @@ import { getTier, subscribeTier, isStreaming, subscribeStreaming } from './lodSt
 export type DetailTier = 'full' | 'preview';
 
 /** A 656px card is ~295px on screen here — the last size body text is legible. */
-export const FULL_DETAIL_ZOOM = 0.45;
+export const FULL_DETAIL_ZOOM = 0.30;
 
 /**
  * Distance bands, in multiples of the viewport, measured from the visible

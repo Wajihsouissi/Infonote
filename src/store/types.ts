@@ -160,7 +160,9 @@ export interface UISlice {
         isMultiDragging: boolean;
         dropTarget: {
             id: string;
-            type: 'fusion' | 'nesting' | 'kanban-column';
+            // `gallery` is fusion's media-only sibling: the drop merges both
+            // sides into one bento board instead of stacking their blocks.
+            type: 'fusion' | 'nesting' | 'gallery' | 'kanban-column';
         } | null;
     };
     editingKanbanId: string | null;

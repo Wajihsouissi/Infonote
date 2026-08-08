@@ -65,10 +65,15 @@ export const getBlockNodeStyle = (
 
     // Widened: legacy saves may carry retired types like 'numberedListItem'.
     switch (block.type as string) {
+        case 'media':
         case 'image':
         case 'video':
         case 'file':
             return { ...profile.image };
+        // A board released onto the canvas needs room for its bento columns —
+        // at the media footprint it would come out as a single stack of thumbs.
+        case 'gallery':
+            return { width: 432, height: 300 };
         case 'code':
             return { ...profile.code };
         case 'table':

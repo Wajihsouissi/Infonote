@@ -10,6 +10,7 @@ import html2canvas from 'html2canvas';
 import { useStore } from '../../store/useStore';
 import type { BlockMetadata } from '../editor/types';
 import { MENU_ITEMS } from '../editor/menuConstants';
+import { createGalleryMetadata, GALLERY_NODE_WIDTH } from '../editor/galleryTypes';
 import styles from './CanvasContextMenu.module.css';
 
 interface ContextMenuProps {
@@ -22,7 +23,7 @@ const CATEGORIES = [
     { label: 'Basic', items: ['text', 'heading1', 'heading2', 'heading3'] },
     { label: 'Lists', items: ['bullet', 'numbered', 'todo', 'toggle'] },
     { label: 'Advanced', items: ['callout', 'code', 'quote', 'divider', 'table', 'link'] },
-    { label: 'Media', items: ['image', 'video', 'file'] },
+    { label: 'Media', items: ['media', 'gallery'] },
     { label: 'Layouts', items: ['columns'] },
     { label: 'Extras', items: ['color'] },
 ];
@@ -71,6 +72,7 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
 
         // Columns need their metadata seeded with empty column content,
         // otherwise the node renders as an empty box (matches editor slash-command behaviour).
+        // A gallery needs its (empty) items array for the same reason.
         const metadata = type === 'columns'
             ? {
                 columns: Array.from({ length: meta?.count || 2 }).map(() => ({
@@ -78,12 +80,14 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
                     content: [{ id: newId(), type: 'text', content: '' }],
                 })),
             }
-            : undefined;
+            : type === 'gallery'
+                ? createGalleryMetadata([])
+                : undefined;
 
         addNode('block', flowPos, {
             content: [{ id: newId(), type, content: '', ...(metadata ? { metadata } : {}) }],
             isStandaloneBlock: true,
-        }, { width: type === 'columns' ? Math.max(550, ((meta?.count || 2) === 4 ? 2 : (meta?.count || 2)) * 220) : 432, height: 120 }, currentParentId || undefined);
+        }, { width: type === 'columns' ? Math.max(550, ((meta?.count || 2) === 4 ? 2 : (meta?.count || 2)) * 220) : type === 'gallery' ? GALLERY_NODE_WIDTH : 432, height: 120 }, currentParentId || undefined);
         onClose();
     }, [x, y, addNode, screenToFlowPosition, onClose, currentParentId]);
 

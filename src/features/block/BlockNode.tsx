@@ -12,6 +12,8 @@ import type { AppNode, NoteNode } from '../../types';
 import type { Block } from '../editor/types';
 import styles from './BlockNode.module.css';
 import { MIN_EXPANDED_SIZE, ICON_SIZE, MAX_HEIGHT } from '../../config/layout';
+import { isMediaType } from '../editor/mediaTypes';
+import { isGalleryType, GALLERY_NODE_WIDTH, GALLERY_MIN_ROW } from '../editor/galleryTypes';
 import { useCanvasDetail } from '../canvas/hooks/useCanvasDetail';
 import { useScheduledMount } from '../card/hooks/useScheduledMount';
 import { BlockLodBody } from './BlockLodBody';
@@ -111,6 +113,8 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
 
     const [isInteractive, setIsInteractive] = useState(selected);
     const interactionTimerRef = useRef<number | null>(null);
+    /** Where a press on an empty media node started, to tell a click from a drag. */
+    const mediaPressRef = useRef<{ x: number; y: number } | null>(null);
 
     useEffect(() => {
         if (selected) {
@@ -131,7 +135,10 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
 
     const colorBlocks: Block[] = Array.isArray(data.content) ? data.content : [];
     const singleBlock = colorBlocks.length === 1 ? colorBlocks[0] : undefined;
-    const isSingleMedia = singleBlock?.type === 'image' || singleBlock?.type === 'video' || singleBlock?.type === 'file';
+    const isSingleMedia = isMediaType(singleBlock?.type);
+    // A board is a wide object like a table or a column set: it owns its width,
+    // sits on a transparent node so the tiles read edge to edge, and resizes.
+    const isSingleGallery = isGalleryType(singleBlock?.type);
     const isSingleLink = singleBlock?.type === 'link';
     // A link renders in one of four ways. The bookmark / embed CARDS bring their
     // own full-bleed surface and are resizable objects (like media), so they sit
@@ -172,7 +179,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const isWideBlock = false;
     const isAutoWidthText = false;
     // Only the rich link cards resize — the empty input and text link do not.
-    const isResizable = isSingleMedia || isLinkCard;
+    const isResizable = isSingleMedia || isLinkCard || isSingleGallery;
 
     // A standard block sizes itself to its text until the user drags the resize
     // handle; from then on it keeps whatever they set. Width lives on the React
@@ -233,7 +240,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                             ...(needsStandardInit ? { width: 'auto' } : {}),
                             ...(needsAutoWidthInit ? { width: 'fit-content' } : {}),
                             ...(needsWidthInit ? { width: 260 } : {}),
-                            ...((needsResizableWidthInit || shouldForcePlaceholderWidth) ? { width: isLinkCard ? 432 : 208 } : {}),
+                            ...((needsResizableWidthInit || shouldForcePlaceholderWidth) ? { width: isSingleGallery ? GALLERY_NODE_WIDTH : isLinkCard ? 432 : 208 } : {}),
                             ...(needsColumnsWidthInit ? { width: 550 } : {}),
                             ...(needsTableWidthInit ? { width: 450 } : {}),
                             ...(needsTableAutoWidth ? { width: 'auto' } : {}),
@@ -276,7 +283,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             
             return changed ? newNodes : nodes;
         });
-    }, [id, setNodes, setNodesStore, isResizable, isColumns, isSingleTable, isTableSized, isSingleLink, isLinkCard, isSingleColor, isStandardBlock, isMediaEmpty, isUserSized]);
+    }, [id, setNodes, setNodesStore, isResizable, isColumns, isSingleTable, isTableSized, isSingleLink, isLinkCard, isSingleGallery, isSingleColor, isStandardBlock, isMediaEmpty, isUserSized]);
 
 
 
@@ -417,8 +424,20 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
         const startW = rect.width / zoom;
         const startH = rect.height / zoom;
 
+        /* A board's height is stored on the BOARD, not the node — it's the grid
+           that has to re-solve its tiles to fill it. The user drags the whole
+           node though, so measure the difference once: everything that isn't
+           grid (toolbar, node padding) is chrome the drag must not hand to the
+           board, or the node would grow by the toolbar's height on every drag. */
+        const gridEl = isSingleGallery
+            ? nodeRef.current.querySelector<HTMLElement>('[data-gallery-grid]')
+            : null;
+        const galleryChrome = gridEl
+            ? Math.max(0, startH - gridEl.getBoundingClientRect().height / zoom)
+            : 0;
+
         activeResize.current = true;
-        document.body.style.cursor = isStandardBlock ? 'nwse-resize' : 'ew-resize';
+        document.body.style.cursor = (isStandardBlock || isSingleGallery) ? 'nwse-resize' : 'ew-resize';
         document.body.classList.add('chnk-it-resizing-active');
 
         const onMouseMove = (moveEvent: MouseEvent) => {
@@ -440,6 +459,23 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             setNodes(nodes => nodes.map(n => {
                 if (n.id !== id) return n;
                 const style = { ...n.style, width };
+
+                if (isSingleGallery) {
+                    /* Both axes, and both meaningful: width re-columns the board,
+                       height re-sizes its tiles. The height rides on the block so
+                       the grid can solve against it; the node then auto-heights
+                       around the result, which is why style.height stays alone. */
+                    const boardHeight = Math.max(GALLERY_MIN_ROW, height - galleryChrome);
+                    const content = Array.isArray(n.data.content) ? (n.data.content as Block[]) : [];
+                    const data = {
+                        ...n.data,
+                        content: content.map((b, i) => (
+                            i === 0 ? { ...b, metadata: { ...b.metadata, galleryHeight: boardHeight } } : b
+                        )),
+                    } as typeof n.data;
+                    return { ...n, style, data };
+                }
+
                 if (!isStandardBlock) return { ...n, style };
                 // userHeight lands in CSS as a min-height floor, not style.height.
                 const data = { ...n.data, userWidth: width, userHeight: height } as typeof n.data;
@@ -464,11 +500,32 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const handleResizeReset = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
         e.preventDefault();
+
+        if (isSingleGallery) {
+            // Clearing the stored height is what returns the board to sizing
+            // itself; the width goes back to the default board footprint.
+            setNodes(nodes => nodes.map(n => {
+                if (n.id !== id) return n;
+                const content = Array.isArray(n.data.content) ? (n.data.content as Block[]) : [];
+                return {
+                    ...n,
+                    style: { ...n.style, width: GALLERY_NODE_WIDTH },
+                    data: {
+                        ...n.data,
+                        content: content.map((b, i) => (
+                            i === 0 ? { ...b, metadata: { ...b.metadata, galleryHeight: undefined } } : b
+                        )),
+                    },
+                } as typeof n;
+            }));
+            return;
+        }
+
         setNodes(nodes => nodes.map(n => (
             n.id === id ? { ...n, style: { ...n.style, width: 'auto' } } : n
         )));
         updateNodeData(id, { userWidth: undefined, userHeight: undefined });
-    }, [id, setNodes, updateNodeData]);
+    }, [id, setNodes, updateNodeData, isSingleGallery]);
 
     const baseClassName = isSingleColor ? styles.colorBlockNode : styles.blockNode;
     const isSkeleton = data.isAISkeleton;
@@ -482,17 +539,29 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 ${isMultiSelected ? styles.multiSelected : ''} 
                 ${isMediaEmpty ? styles.mediaPlaceholderBlock : ''}
                 ${isSingleMedia ? styles.mediaBlockNode : ''}
+                ${isSingleGallery ? styles.galleryNode : ''}
+                ${/* Lets the board's own stylesheet see a hover on the NODE. Until
+                      a node is selected an overlay covers it to keep it draggable,
+                      and that overlay swallows the pointer — so the board's
+                      floating panel never appeared until you'd clicked it first. */
+                  isSingleGallery ? 'chnk-it-board-host' : ''}
+                ${/* Selection is drawn by the board around its frame, not by the
+                      node: the node also contains the title, so a ring here
+                      enclosed the caption and put it back inside the container
+                      the moment you clicked. */
+                  isSingleGallery && selected ? 'chnk-it-board-selected' : ''}
                 ${isStandardBlock ? styles.standardBlock : ''}
                 ${isDropTarget ? styles.dropTarget : ''}
                 ${isHoveredLinking ? styles.linkingHover : ''}
                 ${dropType === 'fusion' ? styles.fusionTarget : ''}
+                ${dropType === 'gallery' ? styles.galleryTarget : ''}
                 ${isDropTarget && dropType === 'nesting' ? styles.dropTarget : ''} 
                 ${isDragging ? styles.dragging : ''}
                 custom-drag-handle
             `}
             data-user-sized={isUserSized ? 'true' : undefined}
             style={{
-                backgroundColor: ((isSingleMedia && !isMediaEmpty) || isLinkCard) ? 'transparent' : (isSingleColor ? singleColorValue : undefined),
+                backgroundColor: ((isSingleMedia && !isMediaEmpty) || isLinkCard || isSingleGallery) ? 'transparent' : (isSingleColor ? singleColorValue : undefined),
                 ...dynamicStyles
             }}
         >
@@ -500,6 +569,47 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             {!isInteractive && !isLinkingMode && !isSingleColor && (
                 <div
                     className="interaction-overlay custom-drag-handle"
+                    // An empty media node is nothing but a call to action, yet this overlay
+                    // owns its whole surface until the node has been selected for 300ms —
+                    // so the first click only selected the node and the picker never opened.
+                    // The overlay has to stay (it is what lets the node be dragged without
+                    // the editor underneath swallowing the press), so instead it hands a
+                    // press that never moved down to the picker. A real drag moves the
+                    // pointer, so it fails the threshold and is left alone.
+                    onPointerDown={isMediaEmpty ? (e) => { mediaPressRef.current = { x: e.clientX, y: e.clientY }; } : undefined}
+                    onClick={isMediaEmpty ? (e) => {
+                        const start = mediaPressRef.current;
+                        mediaPressRef.current = null;
+                        if (!start) return;
+                        if (Math.abs(e.clientX - start.x) > 4 || Math.abs(e.clientY - start.y) > 4) return;
+                        nodeRef.current?.querySelector<HTMLElement>('.mediaPlaceholderTrigger')?.click();
+                    } : undefined}
+                    // Files dropped on the node would otherwise land on this overlay and be
+                    // lost; hand them to the picker's own drop handling. The picker is not
+                    // an ancestor of the overlay, so the forwarded event cannot re-enter.
+                    onDragOver={isMediaEmpty ? (e) => {
+                        if (!e.dataTransfer.types.includes('Files')) return;
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'copy';
+                    } : undefined}
+                    onDrop={isMediaEmpty ? (e) => {
+                        if (!e.dataTransfer.files?.length) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        nodeRef.current?.querySelector('.mediaPlaceholderTrigger')?.dispatchEvent(
+                            new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: e.dataTransfer })
+                        );
+                    } : undefined}
+                    // Filled media: double-click opens it full screen, without having to
+                    // select the node first and hunt for the hover button through the
+                    // 300ms interactive delay. Same forwarding trick — the media is not an
+                    // ancestor of this overlay, so the event cannot come back around.
+                    onDoubleClick={isSingleMedia && !isMediaEmpty ? (e) => {
+                        e.stopPropagation();
+                        nodeRef.current?.querySelector('.mediaViewTarget')?.dispatchEvent(
+                            new MouseEvent('dblclick', { bubbles: true, cancelable: true })
+                        );
+                    } : undefined}
                     ref={(el) => {
                         if (el) {
                             el.onwheel = (e) => {
@@ -711,9 +821,9 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                         promoteBlockHandles={true}
                         globalStartIndex={globalListIndex}
                     />
-                ) : !isSingleColor ? (
+                ) : (
                     <BlockLodBody blocks={colorBlocks} />
-                ) : null}
+                )}
             </div>
 
             <Handle 
@@ -737,8 +847,8 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 <div
                     className={`${styles.resizeHandle} nodrag`}
                     onMouseDown={handleResizeStart}
-                    onDoubleClick={isStandardBlock ? handleResizeReset : undefined}
-                    title={isStandardBlock ? 'Drag to resize · double-click to fit content' : undefined}
+                    onDoubleClick={(isStandardBlock || isSingleGallery) ? handleResizeReset : undefined}
+                    title={(isStandardBlock || isSingleGallery) ? 'Drag to resize · double-click to fit content' : undefined}
                 >
                     <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <defs>

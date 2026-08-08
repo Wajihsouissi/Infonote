@@ -5,6 +5,7 @@ import type { Block, BlockType, BlockMetadata } from '../types';
 type BlockMenuActionValue = BlockType | { type: 'text' | 'background'; value: string } | number;
 import { v4 as uuidv4 } from 'uuid';
 import { parseFiles, parseTextOrHtml } from '../pasteUtils';
+import { createGalleryMetadata } from '../galleryTypes';
 
 interface BlockCommandsProps {
     editorRef: React.RefObject<HTMLDivElement | null>;
@@ -49,6 +50,12 @@ export function useBlockCommands({
                     content: [{ id: uuidv4(), type: 'text' as const, content: '' }]
                 }))
             };
+        }
+
+        // A gallery with no `items` array renders nothing at all — seed the empty
+        // board so it comes up as its own drop zone.
+        if (type === 'gallery') {
+            newBlock.metadata = createGalleryMetadata([], initialMetadata);
         }
 
         setBlocks(prev => {

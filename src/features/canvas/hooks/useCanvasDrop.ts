@@ -3,6 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { useReactFlow } from '@xyflow/react';
 import { useStore } from '../../../store/useStore';
 import type { Block, BlockType } from '../../editor/types';
+import { endBlockDrag } from '../../editor/blockDragLock';
+import { isMediaType } from '../../editor/mediaTypes';
+import { mergeIntoGallery, isGalleryType, claimGalleryItem, GALLERY_NODE_WIDTH } from '../../editor/galleryTypes';
 import { type AppNode, getNodeBlocks } from '../../../types';
 import { BASE_UNIT, MIN_FUSED_SIZE, ICON_SIZE, GRID_GAP } from '../../../config/layout';
 import { checkNodeCreationLimits } from '../../../store/nodeLimits';
@@ -118,6 +121,12 @@ export function useCanvasDrop({
                 return;
             }
 
+            /* What the source card must give up, captured before anything below
+               rewrites `blocksToAdd`: folding media into a gallery replaces those
+               blocks with a single new one, and cleaning up by the *new* ids
+               would leave the originals sitting in the card as duplicates. */
+            const draggedBlockIds = blocksToAdd.map(b => b.id);
+
             const dropRect = {
                 x: position.x - checkSize / 2,
                 y: position.y - checkSize / 2,
@@ -134,16 +143,32 @@ export function useCanvasDrop({
 
             if (targetNode) {
                 const currentContent = getNodeBlocks(targetNode.data) ?? [];
-                updateNodeData(targetNode.id, {
-                    content: [...currentContent, ...blocksToAdd],
-                    lastFusedAt: Date.now()
-                });
+                // Media landing on media builds a board instead of a stack — the
+                // same rule as a node-on-node drop, so the outcome doesn't depend
+                // on which of the two ways you happened to drag it.
+                const gallery = mergeIntoGallery(currentContent, blocksToAdd);
 
-                if (targetNode.type === 'block') {
-                    useStore.getState().updateNode(targetNode.id, {
-                        type: 'fused-note' as const,
-                        style: { ...targetNode.style, width: MIN_FUSED_SIZE, height: 208 }
+                if (gallery) {
+                    updateNodeData(targetNode.id, {
+                        content: [gallery],
+                        lastFusedAt: Date.now()
                     });
+                    useStore.getState().updateNode(targetNode.id, {
+                        type: 'block' as const,
+                        style: { ...targetNode.style, width: GALLERY_NODE_WIDTH, height: 'auto' }
+                    });
+                } else {
+                    updateNodeData(targetNode.id, {
+                        content: [...currentContent, ...blocksToAdd],
+                        lastFusedAt: Date.now()
+                    });
+
+                    if (targetNode.type === 'block') {
+                        useStore.getState().updateNode(targetNode.id, {
+                            type: 'fused-note' as const,
+                            style: { ...targetNode.style, width: MIN_FUSED_SIZE, height: 208 }
+                        });
+                    }
                 }
 
                 if (sourceNodeId) {
@@ -151,7 +176,6 @@ export function useCanvasDrop({
                     const sourceNode = currentNodes.find((n: AppNode) => n.id === sourceNodeId);
                     const sourceBlocks = sourceNode ? getNodeBlocks(sourceNode.data) : undefined;
                     if (sourceNode && sourceBlocks) {
-                        const draggedBlockIds = blocksToAdd.map(b => b.id);
                         const newContent = sourceBlocks.filter((b) => !draggedBlockIds.includes(b.id));
                         console.log("[useCanvasDrop] Source cleanup - removing blocks:", draggedBlockIds);
                         updateNodeData(sourceNodeId, { content: newContent });
@@ -173,11 +197,20 @@ export function useCanvasDrop({
                     return;
                 }
 
+                /* Several pictures dragged out together are a board, not a stack —
+                   the same rule as dropping media onto media, applied to the
+                   multi-select case. `mergeIntoGallery` needs two sides, so the
+                   set is folded against an empty one. */
+                const droppedGallery = mergeIntoGallery([], blocksToAdd);
+                if (droppedGallery) blocksToAdd = [droppedGallery];
+
                 const isFusedLink = blocksToAdd.length > 1;
-                const isSingleMedia = blocksToAdd.length === 1 && 
-                    (blocksToAdd[0].type === 'image' || blocksToAdd[0].type === 'video' || blocksToAdd[0].type === 'file');
-                
-                const BLOCK_WIDTH = isSingleMedia ? ((BASE_UNIT * 4) - GRID_GAP) : MIN_FUSED_SIZE;
+                const isSingleMedia = blocksToAdd.length === 1 && isMediaType(blocksToAdd[0].type);
+                const isSingleGallery = blocksToAdd.length === 1 && isGalleryType(blocksToAdd[0].type);
+
+                const BLOCK_WIDTH = isSingleGallery
+                    ? GALLERY_NODE_WIDTH
+                    : isSingleMedia ? ((BASE_UNIT * 4) - GRID_GAP) : MIN_FUSED_SIZE;
                 const BLOCK_HEIGHT = isFusedLink ? MIN_FUSED_SIZE : ICON_SIZE;
 
                 const centeredPosition = {
@@ -234,7 +267,6 @@ export function useCanvasDrop({
                     const sourceNode = freshNodes.find((n: AppNode) => n.id === sourceNodeId);
                     const sourceBlocks = sourceNode ? getNodeBlocks(sourceNode.data) : undefined;
                     if (sourceNode && sourceBlocks) {
-                        const draggedBlockIds = blocksToAdd.map(b => b.id);
                         const newContent = sourceBlocks.filter((b) => !draggedBlockIds.includes(b.id));
                         console.log("[useCanvasDrop] Source cleanup:", draggedBlockIds.length, "blocks");
                         updateNodeData(sourceNodeId, { content: newContent });
@@ -245,6 +277,12 @@ export function useCanvasDrop({
                 }
             }
 
+            /* If this came out of a gallery, the picture is now on the canvas and
+               has to leave the board. Sits on the shared exit path so it covers
+               both branches above — dropped onto a node, and dropped on bare
+               canvas — and is a no-op for every drag that wasn't a tile. */
+            claimGalleryItem(draggedBlockIds);
+
             if (window.chnkItMultiDragCleanup) {
                 window.chnkItMultiDragCleanup();
                 delete window.chnkItMultiDragCleanup;
@@ -252,8 +290,7 @@ export function useCanvasDrop({
             // Signal SortableBlockWrapper.handleDragEnd that the drop was already handled
             // here so it doesn't double-dispatch chnk-it-clear-selection.
             window.chnkItCrossEditorDropHandled = true;
-            window.chnkItBlockDragging = false;
-            document.body.classList.remove('chnk-it-block-dragging');
+            endBlockDrag();
             window.dispatchEvent(new CustomEvent('chnk-it-clear-selection'));
         },
         [screenToFlowPosition, updateNodeData, getIntersectingNodes, deleteElements, extractPageFromBlock, getViewport],

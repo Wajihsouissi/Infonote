@@ -140,7 +140,16 @@ function extractBlocksText(blocks: Block[], results: string[]) {
                 });
             }
 
-            // 3. Searchable metadata fields
+            // 3. Gallery items. Only their names — recursing would push each
+            //    tile's `content`, which for uploaded media is an inline data
+            //    URL, and a board of ten photos would bury the index in base64.
+            if (Array.isArray(block.metadata.items)) {
+                block.metadata.items.forEach((item) => {
+                    if (item?.metadata?.name) results.push(item.metadata.name);
+                });
+            }
+
+            // 4. Searchable metadata fields
             if (block.metadata.name) results.push(block.metadata.name);
             if (block.metadata.description) results.push(block.metadata.description);
         }

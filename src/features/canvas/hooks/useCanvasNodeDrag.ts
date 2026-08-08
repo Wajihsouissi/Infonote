@@ -7,6 +7,7 @@ import type { UISlice } from '../../../store/types';
 import { snapFusedDimensions, MAX_HEIGHT } from '../../../config/layout';
 import { useStore } from '../../../store/useStore';
 import { setStreaming } from './lodStore';
+import { mergeIntoGallery, GALLERY_NODE_WIDTH } from '../../editor/galleryTypes';
 
 type SetNodesFn = (updater: (nodes: AppNode[]) => AppNode[]) => void;
 
@@ -19,7 +20,7 @@ const hasStandaloneFlag = (data: AppNode['data']): boolean =>
 // the action that runs (no second, divergent detection pass on drop).
 interface PendingDrop {
     targetId: string;
-    action: 'fusion' | 'nesting';
+    action: 'fusion' | 'nesting' | 'gallery';
     insertBlockId: string | null;
     insertPosition: 'top' | 'bottom';
 }
@@ -50,7 +51,7 @@ export function useCanvasNodeDrag({
     // Throttling and state Refs
     const lastDragCheck = useRef(0);
     const lastHighlightedBlockRef = useRef<HTMLElement | null>(null);
-    const activeDropTargetRef = useRef<{ id: string; type: 'fusion' | 'nesting' | 'kanban-column' } | null>(null);
+    const activeDropTargetRef = useRef<{ id: string; type: 'fusion' | 'nesting' | 'gallery' | 'kanban-column' } | null>(null);
     const activeKanbanColumnRef = useRef<{ kanbanId: string; columnId: string } | null>(null);
     // The complete fusion/nesting decision for the current drag, reused on drop.
     const pendingDropRef = useRef<PendingDrop | null>(null);
@@ -153,7 +154,7 @@ export function useCanvasNodeDrag({
             n.id !== node.id && (n.type === 'note' || n.type === 'fused-note' || n.type === 'block')
         );
 
-        let newDropTarget: { id: string; type: 'fusion' | 'nesting' | 'kanban-column' } | null = null;
+        let newDropTarget: { id: string; type: 'fusion' | 'nesting' | 'gallery' | 'kanban-column' } | null = null;
 
         // Priority 1: Kanban Column
         if (targetKanban && node.type === 'note') {
@@ -220,7 +221,14 @@ export function useCanvasNodeDrag({
             const isTargetNote = targetOther.type === 'note';
 
             if ((isTargetBlock || isTargetFused) && (isSourceBlock || isSourceFused)) {
-                newDropTarget = { id: targetOther.id, type: 'fusion' };
+                // Media landing on media is a moodboard, not a stack. Decided here,
+                // during the drag, so the highlight the user sees is the action
+                // that runs — the whole point of the single-decision design.
+                const makesGallery = !!mergeIntoGallery(
+                    getNodeBlocks(targetOther.data) ?? [],
+                    getNodeBlocks(node.data) ?? [],
+                );
+                newDropTarget = { id: targetOther.id, type: makesGallery ? 'gallery' : 'fusion' };
             } else if (isTargetNote && (isSourceFused || isSourceNote || isSourceBlock)) {
                 newDropTarget = { id: targetOther.id, type: 'nesting' };
             }
@@ -234,7 +242,10 @@ export function useCanvasNodeDrag({
 
                 let insertBlockId: string | null = null;
                 let insertPosition: 'top' | 'bottom' = 'bottom';
-                if (blockElement) {
+                // A gallery has no insertion point — the board absorbs the media
+                // whole — so drawing a between-blocks line would promise a
+                // placement that doesn't happen.
+                if (blockElement && newDropTarget.type !== 'gallery') {
                     const rect = blockElement.getBoundingClientRect();
                     const midY = rect.top + (rect.height / 2);
                     insertPosition = event.clientY < midY ? 'top' : 'bottom';
@@ -246,7 +257,7 @@ export function useCanvasNodeDrag({
 
                 pendingDropRef.current = {
                     targetId: newDropTarget.id,
-                    action: newDropTarget.type as 'fusion' | 'nesting',
+                    action: newDropTarget.type as 'fusion' | 'nesting' | 'gallery',
                     insertBlockId,
                     insertPosition,
                 };
@@ -406,13 +417,24 @@ export function useCanvasNodeDrag({
                 const isTargetFused = targetNode.type === 'fused-note';
                 const isTargetNote = targetNode.type === 'note';
 
-                if (pending.action === 'fusion' && (isTargetBlock || isTargetFused) && (isSourceBlock || isSourceFused)) {
+                if ((pending.action === 'fusion' || pending.action === 'gallery')
+                    && (isTargetBlock || isTargetFused) && (isSourceBlock || isSourceFused)) {
                     const sourceContent = getNodeBlocks(node.data) ?? [];
                     // Nothing to merge — keep the source intact instead of deleting it (no data loss).
                     if (sourceContent.length === 0) {
                         return;
                     }
-                    handleFusionDrop(targetNode, node, pending.insertBlockId, pending.insertPosition, setNodes);
+                    // Re-checked rather than trusted: the drag decision could have
+                    // been made against content that changed under it, and turning
+                    // a text card into a gallery would silently lose its text.
+                    const gallery = pending.action === 'gallery'
+                        ? mergeIntoGallery(getNodeBlocks(targetNode.data) ?? [], sourceContent)
+                        : null;
+                    if (gallery) {
+                        handleGalleryDrop(targetNode, node, gallery, setNodes);
+                    } else {
+                        handleFusionDrop(targetNode, node, pending.insertBlockId, pending.insertPosition, setNodes);
+                    }
                     return;
                 }
 
@@ -568,6 +590,45 @@ function computeInsertIndex(targetContent: Block[], insertBlockId: string | null
     const idx = targetContent.findIndex((b) => b.id === insertBlockId);
     if (idx === -1) return targetContent.length;
     return insertPosition === 'top' ? idx : idx + 1;
+}
+
+/**
+ * Media dropped on media: the target becomes a one-block node holding the merged
+ * gallery, and the source is consumed. Deliberately NOT a fused-note — a board is
+ * a single object, and the block node is what gives it the transparent surface
+ * and the resize handle that media already gets.
+ */
+function handleGalleryDrop(targetNode: AppNode, node: AppNode, gallery: Block, setNodes: SetNodesFn) {
+    const isStandalone = hasStandaloneFlag(node.data) || hasStandaloneFlag(targetNode.data);
+
+    setNodes((nds: AppNode[]) => {
+        const filtered = nds.filter(n => n.id !== node.id);
+        return filtered.map(n => {
+            if (n.id !== targetNode.id) return n;
+
+            /* A board the user has already sized keeps that size — the whole
+               point of dropping another picture in is that the composition is
+               theirs. Only a first promotion (a lone media node becoming a
+               board) claims the wider default. */
+            const wasGallery = getNodeBlocks(n.data)?.some(b => b.type === 'gallery');
+            const currentWidth = n.style?.width;
+            const width = wasGallery && typeof currentWidth === 'number'
+                ? currentWidth
+                : GALLERY_NODE_WIDTH;
+
+            return {
+                ...n,
+                type: 'block',
+                style: { ...n.style, width, height: 'auto' },
+                data: {
+                    ...n.data,
+                    content: [gallery],
+                    lastFusedAt: Date.now(),
+                    ...(isStandalone ? { isStandaloneBlock: true } : {}),
+                },
+            } as AppNode;
+        });
+    });
 }
 
 // Helper: Handle Fusion drop. Uses the insertion point captured during the drag (no

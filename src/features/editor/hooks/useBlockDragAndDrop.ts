@@ -1,9 +1,12 @@
 import { useCallback } from 'react';
 import type { MutableRefObject } from 'react';
-import type { Block, BlockType, BlockMetadata } from '../types';
+import type { Block, BlockType, BlockMetadata, BlockDropPosition } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '../../../store/useStore';
 import { getNodeBlocks } from '../../../types';
+import { endBlockDrag } from '../blockDragLock';
+import { resolveMediaTypeFromFile } from '../mediaTypes';
+import { canAbsorbIntoGallery, mergeIntoGallery, claimGalleryItem, GALLERY_DRAG_MIME } from '../galleryTypes';
 
 interface DragAndDropProps {
     blocks: Block[];
@@ -13,7 +16,7 @@ interface DragAndDropProps {
     nodeId?: string;
     addBlock: (afterId: string, type: BlockType, indent?: number, metadata?: BlockMetadata) => void;
     editorId: string;
-    pendingDropTarget?: MutableRefObject<{ blockId: string; position: 'top' | 'bottom' } | null>;
+    pendingDropTarget?: MutableRefObject<{ blockId: string; position: BlockDropPosition } | null>;
 }
 
 export function useBlockDragAndDrop({
@@ -70,15 +73,14 @@ export function useBlockDragAndDrop({
             }
             // Signal SortableBlockWrapper.handleDragEnd that the drop was already handled.
             window.chnkItCrossEditorDropHandled = true;
-            window.chnkItBlockDragging = false;
-            document.body.classList.remove('chnk-it-block-dragging');
+            endBlockDrag();
             window.dispatchEvent(new CustomEvent('chnk-it-clear-selection'));
         } else {
             console.log("[useBlockDragAndDrop] NOT removing from source - same node or no source");
         }
     }, [nodeId]);
 
-    const handleMoveBlock = useCallback((sourceId: string, targetId: string, position: 'top' | 'bottom', dataTransfer?: DataTransfer) => {
+    const handleMoveBlock = useCallback((sourceId: string, targetId: string, position: BlockDropPosition, dataTransfer?: DataTransfer) => {
         console.log("[useBlockDragAndDrop] handleMoveBlock", { sourceId, targetId, position });
 
         // Check for cross-editor or cross-node move via DataTransfer
@@ -166,6 +168,28 @@ export function useBlockDragAndDrop({
                 return newBlocks;
             }
 
+            /* Dropped INTO a piece of media rather than beside it: the two become
+               one board. The target block is replaced in place (keeping its
+               position in the document) and the dragged media is consumed.
+               `mergeIntoGallery` returning null is the guard — if this pairing
+               isn't really a gallery, fall through to ordinary insertion. */
+            if (position === 'center' && originalTargetIndex !== -1) {
+                const gallery = mergeIntoGallery([prev[originalTargetIndex]], blocksToMove);
+                if (gallery) {
+                    const merged = prev
+                        .filter(b => !sourceIds.includes(b.id))
+                        .map(b => (b.id === targetId ? gallery : b));
+                    debouncedOnUpdate(merged);
+
+                    claimGalleryItem(sourceIds);
+                    if (isCrossEditor && typeof window.chnkItRemoveDraggedBlocks === 'function') {
+                        window.chnkItRemoveDraggedBlocks(sourceIds);
+                        window.chnkItRemoveDraggedBlocks = null;
+                    }
+                    return merged;
+                }
+            }
+
             let insertIndex = originalTargetIndex;
             if (position === 'bottom') insertIndex += 1;
 
@@ -194,6 +218,10 @@ export function useBlockDragAndDrop({
             newBlocks.splice(finalInsertIndex, 0, ...updatedBlocksToMove);
             debouncedOnUpdate(newBlocks);
 
+            /* Dragged out of a gallery and dropped between blocks: the picture is
+               a block in this document now, so the board has to let go of it. */
+            claimGalleryItem(sourceIds);
+
             // If it is a cross-editor drop, trigger source removal callback
             if (isCrossEditor && typeof window.chnkItRemoveDraggedBlocks === 'function') {
                 window.chnkItRemoveDraggedBlocks(sourceIds);
@@ -202,6 +230,16 @@ export function useBlockDragAndDrop({
 
             return newBlocks;
         });
+
+        if (isCrossEditor) {
+            // The source editor just dropped the block from its own state, so the drag
+            // source element unmounts before `dragend` fires — and a detached element's
+            // dragend never reaches SortableBlockWrapper. Run the end-of-drag cleanup
+            // here instead, or the drag lock stays raised and blocks all editing.
+            window.chnkItCrossEditorDropHandled = true;
+            endBlockDrag();
+            window.dispatchEvent(new CustomEvent('chnk-it-clear-selection'));
+        }
     }, [debouncedOnUpdate, setBlocks, removeBlocksFromSource, nodeId, editorId]);
 
     const handleBlockDragStart = useCallback((e: React.DragEvent, block: Block) => {
@@ -214,6 +252,13 @@ export function useBlockDragAndDrop({
         const blocksToDrag = isMulti
             ? blocks.filter(b => selectedBlockIds.has(b.id))
             : [block];
+
+        /* Announce that this payload could join a board. Drop targets can only
+           read `types` during dragover, so this presence flag is what lets a
+           media block offer its merge band before the drop commits. */
+        if (canAbsorbIntoGallery(blocksToDrag)) {
+            e.dataTransfer.setData(GALLERY_DRAG_MIME, '1');
+        }
 
         window.chnkItRemoveDraggedBlocks = (ids: string[]) => {
             console.log("[chnkItRemoveDraggedBlocks] Removing blocks from source:", ids);
@@ -257,9 +302,7 @@ export function useBlockDragAndDrop({
                 reader.onload = (event) => {
                     if (event.target?.result) {
                         const content = event.target.result as string;
-                        let type: BlockType = 'file';
-                        if (file.type.startsWith('image/')) type = 'image';
-                        if (file.type.startsWith('video/')) type = 'video';
+                        const type = resolveMediaTypeFromFile(file);
 
                         const newBlock: Block = {
                             id: uuidv4(),
@@ -322,6 +365,7 @@ export function useBlockDragAndDrop({
                         setBlocks(blocksFromData);
                         debouncedOnUpdate(blocksFromData);
 
+                        claimGalleryItem(blocksFromData.map(b => b.id));
                         const sourceEditorId = e.dataTransfer.getData('application/chnk-it-editor-id');
                         if (sourceEditorId && sourceEditorId !== editorId && typeof window.chnkItRemoveDraggedBlocks === 'function') {
                             window.chnkItRemoveDraggedBlocks(blocksFromData.map(b => b.id));
@@ -371,6 +415,7 @@ export function useBlockDragAndDrop({
                     return newBlocks;
                 });
 
+                claimGalleryItem(blocksFromData.map(b => b.id));
                 // Remove from source node if cross-node drop
                 removeBlocksFromSource(blocksFromData.map(b => b.id), sourceNodeId);
             } else {

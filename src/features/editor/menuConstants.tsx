@@ -11,14 +11,13 @@ import {
     Quote,
     Table,
     Minus,
-    Image,
-    Film,
-    File,
+    ImagePlay,
     Columns2,
     Code,
     Palette,
     Link,
-    Sparkles
+    Sparkles,
+    LayoutGrid
 } from 'lucide-react';
 import type { BlockType, BlockMetadata } from './types';
 
@@ -55,10 +54,32 @@ export const MENU_ITEMS: MenuItem[] = [
     { label: 'Table', description: 'Tabular data', type: 'table', icon: Table, keywords: ['grid', 'rows', 'columns'] },
     { label: 'Smart Link', description: 'Embed a smart bookmark or iframe link', type: 'link', icon: Link, keywords: ['link', 'bookmark', 'embed', 'youtube', 'figma', 'spotify'] },
 
-    // Media
-    { label: 'Image', description: 'Upload or embed image', type: 'image', icon: Image, keywords: ['picture', 'photo', 'upload'] },
-    { label: 'Video', description: 'Embed video', type: 'video', icon: Film, keywords: ['movie', 'mp4', 'media'] },
-    { label: 'File', description: 'Upload file attachment', type: 'file', icon: File, keywords: ['document', 'pdf', 'upload'] },
+    // Media — one block for every kind. It resolves itself to image/video/file from
+    // whatever you drop, paste or link, so the old three entries are folded in here
+    // (their names stay as keywords: /image, /video and /file all still find it).
+    {
+        label: 'Media',
+        description: 'Upload, drop or paste an image, video, or any file',
+        type: 'media',
+        icon: ImagePlay,
+        keywords: [
+            'media', 'upload', 'attach', 'attachment',
+            'image', 'picture', 'photo', 'png', 'jpg', 'gif', 'svg',
+            'video', 'movie', 'mp4', 'youtube',
+            'file', 'document', 'pdf', 'audio',
+        ],
+    },
+
+    // Gallery — media arranged as a composition. Two pieces of media dropped on
+    // each other make one of these on their own; this is the way in from a blank
+    // block, for people who know they want a board before they have the pictures.
+    {
+        label: 'Gallery',
+        description: 'A bento moodboard — arrange images and video side by side',
+        type: 'gallery',
+        icon: LayoutGrid,
+        keywords: ['gallery', 'moodboard', 'mood board', 'bento', 'grid', 'collage', 'album', 'photos', 'masonry', 'board'],
+    },
 
     // Layouts
     { label: 'Columns', description: 'Side-by-side layout — add or remove columns anytime', type: 'columns', icon: Columns2, keywords: ['cols', 'columns', 'layout', 'grid', 'side by side'], meta: { count: 2 } },

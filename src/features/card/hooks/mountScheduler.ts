@@ -14,7 +14,7 @@
 
 import { isStreaming } from '../../canvas/hooks/lodStore';
 
-type Job = () => void;
+type Job = () => boolean;
 
 /** Snapshot of the current burst, for the canvas-level progress overlay. */
 export interface MountQueueState {
@@ -70,6 +70,11 @@ export function subscribeMountQueue(listener: (state: MountQueueState) => void):
  * the commit. A time budget therefore drains the whole queue in one frame and
  * React batches every mount back into a single render — exactly the freeze this
  * is meant to avoid.
+ *
+ * Do not raise this to "speed things up". The commit gate below means a second
+ * card released in the same pass goes out while the first is still uncommitted,
+ * which is the exact batching this file exists to prevent — and it opens a
+ * second commit wait that orphans the first one's timer.
  */
 const CARDS_PER_RELEASE = 1;
 
@@ -131,8 +136,22 @@ const drain = () => {
         return;
     }
 
-    for (let i = 0; i < CARDS_PER_RELEASE && queue.length > 0; i++) {
-        queue.shift()?.();
+    let released = 0;
+    while (released < CARDS_PER_RELEASE && queue.length > 0) {
+        const job = queue.shift();
+        if (!job) continue;
+
+        /* A cancelled job is a no-op: nothing mounts, so nothing will report a
+           commit. It must not spend the release budget or open a commit wait,
+           or the queue would stall for COMMIT_TIMEOUT_MS on a card that scrolled
+           away before its turn. */
+        if (!job()) continue;
+
+        released++;
+        /* Clear before setting: a stale timer left running would fire later and
+           end a commit wait belonging to a different card, so pacing would
+           quietly decay over the life of the session. */
+        clearCommitWait();
         awaitingCommit = true;
         commitTimeout = setTimeout(() => {
             commitTimeout = undefined;
@@ -159,11 +178,14 @@ const drain = () => {
  * Run `job` on a future frame, subject to the shared budget.
  * Returns a cancel function for elements that scroll away before their turn.
  */
-export function scheduleMount(job: Job): () => void {
+export function scheduleMount(job: () => void): () => void {
     const token = {};
+    /* Reports whether the job actually ran, so the drain loop can tell a real
+       mount (which will commit) from a cancelled one (which will not). */
     const wrapped: Job = () => {
-        if (cancelled.has(token)) return;
+        if (cancelled.has(token)) return false;
         job();
+        return true;
     };
     queue.push(wrapped);
     burstTotal++;

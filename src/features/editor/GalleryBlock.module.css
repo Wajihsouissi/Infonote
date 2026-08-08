@@ -1,0 +1,497 @@
+/* Gallery — the bento moodboard.
+   Tiles are the content; the container gives them nothing but rhythm. Every
+   colour comes from the Paper & Ink token layer so the board reads the same on
+   ink and on paper. */
+
+.gallery {
+    --gal-pad: 10px;
+    /* Deliberately weaker than --hover-wash so the hover still registers as a
+       change. Both are theme tokens, so this tracks ink and paper on its own. */
+    --gal-rest-fill: color-mix(in srgb, var(--hover-wash) 55%, transparent);
+    width: 100%;
+    margin: var(--block-pad-y) 0;
+    position: relative;
+    user-select: none;
+}
+
+/* ------------------------------------------------------------- title row */
+
+/* Above the frame, not inside it. A board's pictures are the content; the
+   title is a caption on the thing, so it reads as a label rather than a bar
+   competing for the top of the composition. */
+.titleRow {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 0 2px 6px;
+    min-height: 22px;
+}
+
+/* Hugs its text (via the `size` attribute) rather than flexing: stretched to
+   the row, it pushed the count to the far end of a wide board where it read as
+   an unrelated number floating in space. It belongs beside the name it counts. */
+.title {
+    flex: 0 1 auto;
+    width: auto;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 2px 4px;
+    margin: 0;
+    border-radius: var(--r-xs);
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--text-main);
+    transition: background var(--transition-fast);
+}
+
+.title::placeholder {
+    color: var(--text-faint);
+    font-weight: 500;
+}
+
+.title:hover,
+.title:focus {
+    background: var(--hover-wash);
+}
+
+.count {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------- ghost container */
+
+/* The board is a frame, not a surface: no fill, so the canvas reads straight
+   through the gaps between tiles and the pictures are the only solid thing on
+   screen. That is the whole idea — a moodboard is its images pinned in space,
+   not a card with images inside it. A hairline appears on approach so the
+   bounds you're about to resize or drop into are findable, then leaves again. */
+.board {
+    position: relative;
+    padding: var(--gal-pad);
+    border-radius: var(--r-surface);
+    /* A whisper of a surface, not a card. Enough that the frame still reads as
+       one object when it happens to sit over other cards — fully transparent,
+       it let whatever was behind it show through the gaps and the board came
+       apart into loose pictures. Faint enough that on open canvas it still
+       reads as ghost. */
+    background: var(--gal-rest-fill);
+    box-shadow: inset 0 0 0 1px transparent;
+    transition: box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+/* `.chnk-it-board-host` is the canvas node wrapping this board — see BlockNode.
+   Hovering the node counts as hovering the board, because until the node is
+   selected its drag overlay is what the pointer actually lands on. */
+.gallery:hover .board,
+.gallery:focus-within .board,
+:global(.chnk-it-board-host):hover .board {
+    background: var(--hover-wash);
+    box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* Selection belongs to the frame, never to the whole block — the title lives
+   outside the frame and must stay outside it when selected. */
+:global(.chnk-it-board-selected) .board,
+:global(.chnk-it-board-selected):hover .board {
+    box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* ------------------------------------------------------------------- grid */
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(var(--gal-cols), 1fr);
+    grid-auto-rows: var(--gal-row);
+    /* Dense packing is what keeps a mixed-size board from ending ragged: the
+       auto rhythm leaves holes by design and the packer backfills them. */
+    grid-auto-flow: dense;
+    gap: var(--gal-gap);
+    border-radius: var(--block-radius-lg);
+    transition: box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+/* Bento is the base .grid rhythm — declared so the class always resolves. */
+.layoutBento {
+    grid-auto-flow: dense;
+}
+
+/* Equal tiles — spans are ignored by the component in this mode. */
+.layoutGrid {
+    grid-auto-flow: row;
+}
+
+/* Masonry drops out of grid entirely: CSS columns give natural heights with no
+   cropping, which is the classic pinboard read. */
+.layoutMasonry {
+    display: block;
+    columns: var(--gal-cols);
+    column-gap: var(--gal-gap);
+}
+
+.layoutMasonry .tile {
+    break-inside: avoid;
+    margin-bottom: var(--gal-gap);
+    height: auto;
+}
+
+.layoutMasonry .tileMedia {
+    height: auto;
+    aspect-ratio: auto;
+}
+
+.layoutMasonry .addTile {
+    break-inside: avoid;
+    min-height: 96px;
+}
+
+/* Hand-dragged height. The tiles are re-solved to fill it, so this normally
+   never scrolls — it only does when the board is dragged so short that the cell
+   size bottoms out, which beats clipping the composition silently. */
+.sized {
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    scrollbar-width: thin;
+}
+
+.fileDragOver {
+    box-shadow: 0 0 0 2px var(--accent), 0 0 0 6px var(--accent-dim);
+    background: var(--accent-dim);
+}
+
+/* ------------------------------------------------------------------ tiles */
+
+.tile {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--block-radius-lg);
+    background: var(--bg-inset);
+    box-shadow: inset 0 0 0 1px var(--line);
+    cursor: zoom-in;
+    transition: box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.tile:hover {
+    box-shadow: inset 0 0 0 1px var(--line-heavy), var(--elev-2);
+    z-index: 2;
+}
+
+.tileDragging {
+    opacity: 0.35;
+    transform: scale(0.97);
+}
+
+/* Insertion edge for a tile being dragged into place. */
+.hintBefore::before,
+.hintAfter::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    width: 3px;
+    border-radius: 999px;
+    background: var(--accent);
+    z-index: 4;
+}
+
+.hintBefore::before { left: -5px; }
+.hintAfter::after { right: -5px; }
+
+.tileMedia {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    object-position: center;
+    background: var(--bg-inset);
+}
+
+.fitContain .tileMedia {
+    object-fit: contain;
+}
+
+.tileFallback,
+.tileFile {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    color: var(--text-faint);
+    text-align: center;
+}
+
+.tileFile span {
+    font-size: 0.6875rem;
+    line-height: 1.2;
+    color: var(--text-soft);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    word-break: break-word;
+}
+
+.playBadge {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    pointer-events: none;
+}
+
+/* Filename rides the bottom edge on hover — identification without a caption
+   row eating into the composition. */
+.tileName {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 14px 8px 5px;
+    font-size: 0.625rem;
+    line-height: 1.2;
+    color: rgba(255, 255, 255, 0.92);
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.62), transparent);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    pointer-events: none;
+}
+
+.tile:hover .tileName {
+    opacity: 1;
+}
+
+.tileBtn {
+    position: absolute;
+    top: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: var(--btn-radius);
+    background: rgba(0, 0, 0, 0.55);
+    color: rgba(255, 255, 255, 0.92);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), background var(--transition-fast);
+    z-index: 3;
+}
+
+.tileRemove { right: 5px; }
+.tileSize { right: 33px; }
+
+.tile:hover .tileBtn,
+.tileBtn:focus-visible {
+    opacity: 1;
+}
+
+.tileBtn:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.tileBtn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+/* Coarse pointers never hover — the controls would be unreachable. */
+@media (hover: none) {
+    .tileBtn { opacity: 0.85; }
+    .tools { opacity: 1; }
+}
+
+/* ----------------------------------------------------------- float panel */
+
+/* Sits entirely above the frame — it never covers a picture, which matters most
+   at the top, where the bento rhythm puts the hero tile. Absolutely positioned,
+   so appearing and disappearing costs no layout and never reflows the
+   composition. Centred horizontally, which is what keeps it clear of the
+   left-aligned title sharing that band. */
+.panel {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translate(-50%, calc(-100% - 2px)) scale(0.96);
+    transform-origin: center bottom;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 5px;
+    padding-right: 4px;
+    border-radius: var(--r-md);
+    background: var(--bg-raised);
+    border: 1px solid var(--line-strong);
+    box-shadow: var(--elev-2);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 6;
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.gallery:hover .panel,
+.gallery:focus-within .panel,
+:global(.chnk-it-board-host):hover .panel {
+    opacity: 1;
+    pointer-events: auto;
+    /* Lifts clear of the frame as it arrives, rather than fading in place. */
+    transform: translate(-50%, calc(-100% - 8px)) scale(1);
+}
+
+.panelBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: none;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--text-soft);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.panelBtn:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.panelActive {
+    background: var(--active-wash);
+    color: var(--text-main);
+}
+
+.panelBtn:focus-visible,
+.panelAdd:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.panelDivider {
+    width: 1px;
+    height: 18px;
+    margin: 0 5px;
+    background: var(--line-strong);
+}
+
+/* The one action, given the accent and a circle so it reads as the primary
+   thing you can do to a board: put more in it. */
+.panelAdd {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    box-shadow: var(--elev-1);
+    transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.panelAdd:hover {
+    background: var(--accent-hover);
+    transform: scale(1.06);
+}
+
+/* --------------------------------------------------------------- add tile */
+
+/* Grows into whatever hole the pack left, so it has to read as a deliberate
+   slot at any size. On a frameless board a hairline dashed outline disappears
+   into the canvas, so it carries a faint fill of its own — the one part of the
+   board that is allowed to look like a surface, because it is the empty one. */
+.addTile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    min-height: 44px;
+    border: 1px dashed var(--line-heavy);
+    border-radius: var(--block-radius-lg);
+    background: var(--hover-wash);
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+}
+
+/* Neutral, not accent. The panel's add button is the accent thing on a board;
+   an orange slot lighting up beside it made two competing primaries out of one
+   action. This just resolves into a solid, lit surface — clearly the live drop
+   target, without claiming to be the main event. */
+.addTile:hover {
+    border-style: solid;
+    border-color: var(--line-heavy);
+    color: var(--text-main);
+    background: var(--active-wash);
+}
+
+/* An empty board is nothing but this, so it gets room and a prompt. The span
+   is set inline from the pack, so only the height needs saying here. */
+.addTile:only-child {
+    min-height: 128px;
+}
+
+.addTileText {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-align: center;
+}
+
+.error {
+    margin-top: 6px;
+    padding: 6px 10px;
+    border-radius: var(--r-control);
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+    font-size: 0.75rem;
+}
+
+/* ----------------------------------------------------------- canvas node */
+
+/* On the canvas the node supplies the frame and the space is tight: shrink the
+   chrome so the pictures keep the surface. */
+.compact .toolbar {
+    padding-bottom: 4px;
+    min-height: 22px;
+}
+
+.compact .title {
+    font-size: 0.75rem;
+}
+
+.compact .toolBtn {
+    width: 20px;
+    height: 20px;
+}

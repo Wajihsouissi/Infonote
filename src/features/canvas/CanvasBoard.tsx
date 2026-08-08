@@ -43,7 +43,8 @@ import { AuthModal } from '../auth/AuthModal';
 import { useStore } from '../../store/useStore';
 import type { AppNode } from '../../types';
 import { v4 as uuidv4 } from 'uuid';
-import { isUrl } from '../editor/pasteUtils';
+import { isUrl, parseFiles, parseTextOrHtml } from '../editor/pasteUtils';
+import { endBlockDrag } from '../editor/blockDragLock';
 import { loadCanvasFromCloud } from '../../services/cloudSync';
 import { isSupabaseConfigured, supabase } from '../../services/supabase/client';
 
@@ -543,8 +544,7 @@ export function CanvasBoard() {
         const handleGlobalDragEnd = () => {
             if (window.chnkItBlockDragging || document.body.classList.contains('chnk-it-block-dragging')) {
                 console.log("[CanvasBoard] Global dragend fallback cleanup executed");
-                window.chnkItBlockDragging = false;
-                document.body.classList.remove('chnk-it-block-dragging');
+                endBlockDrag();
                 document.body.classList.remove('chnk-it-node-dragging');
             }
         };
@@ -806,77 +806,63 @@ export function CanvasBoard() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [addNode, currentParentId, screenToFlowPosition, setLastCreatedCanvasNodeId, setSelectedCanvasNodeIds]);
 
-    // Canvas-Level Direct URL Pasting
-    const handleCanvasPaste = (e: React.ClipboardEvent) => {
-        // Intercept paste only when not typing inside text inputs, textareas, contenteditables or code blocks
-        const target = e.target as HTMLElement;
-        const isEditable = target.tagName === 'INPUT' ||
-            target.tagName === 'TEXTAREA' ||
-            target.isContentEditable ||
-            target.closest('[contenteditable]') ||
-            target.closest('[class*="BlockEditor"]') ||
-            target.closest('[class*="editor"]');
+    // Canvas-Level Direct Paste (Text/Images)
+    useEffect(() => {
+        const handleCanvasPaste = async (e: ClipboardEvent) => {
+            // Intercept paste only when not typing inside text inputs, textareas, contenteditables or code blocks
+            const target = e.target as HTMLElement;
+            const isEditable = target.tagName === 'INPUT' ||
+                target.tagName === 'TEXTAREA' ||
+                target.isContentEditable ||
+                target.closest('[contenteditable]') ||
+                target.closest('[class*="BlockEditor"]') ||
+                target.closest('[class*="editor"]');
+    
+            if (isEditable) return;
 
-        if (isEditable) return;
-
-        const text = e.clipboardData.getData('text/plain')?.trim();
-        if (!text) return;
-
-        // If the pasted text is a single URL
-        if (isUrl(text)) {
-            e.preventDefault();
+            let parsedBlocks: any[] = [];
+            const files = e.clipboardData?.files;
+    
+            if (files && files.length > 0) {
+                e.preventDefault();
+                parsedBlocks = await parseFiles(files);
+            } else {
+                const text = e.clipboardData?.getData('text/plain')?.trim();
+                const html = e.clipboardData?.getData('text/html');
+                if (!text && !html) return;
+                e.preventDefault();
+                // Create a synthetic React-like event for parseTextOrHtml
+                parsedBlocks = parseTextOrHtml({ clipboardData: e.clipboardData } as any);
+            }
+    
+            if (parsedBlocks.length > 0) {
             const flowPos = screenToFlowPosition({
                 x: window.innerWidth / 2,
                 y: window.innerHeight / 2
             });
 
-            const newBlock = {
-                id: uuidv4(),
-                type: 'link' as const,
-                content: text.startsWith('http') ? text : 'https://' + text,
-                metadata: {
-                    displayMode: 'bookmark',
-                    isLoading: true
-                }
+            // Randomize position slightly if pasting multiple times
+            const targetX = flowPos.x + (Math.random() - 0.5) * 40;
+            const targetY = flowPos.y + (Math.random() - 0.5) * 40;
+
+            const targetPosition = { x: targetX, y: targetY };
+            const nodeData = {
+                content: parsedBlocks,
+                isStandaloneBlock: true
             };
-
-            addNode('block', flowPos, { 
-                content: [newBlock], 
-                isStandaloneBlock: true 
-            }, { width: 432, height: 120 }, currentParentId || undefined);
-            return;
-        }
-
-        // If pasting multiple URLs (one per line)
-        if (text.includes('\n')) {
-            const lines = text.split(/\r\n|\r|\n/).map(l => l.trim()).filter(Boolean);
-            const allUrls = lines.every(l => isUrl(l));
-            if (allUrls) {
-                e.preventDefault();
-                lines.forEach((line, index) => {
-                    const flowPos = screenToFlowPosition({
-                        x: window.innerWidth / 2 + index * 40,
-                        y: window.innerHeight / 2 + index * 40
-                    });
-
-                    const newBlock = {
-                        id: uuidv4(),
-                        type: 'link' as const,
-                        content: line.startsWith('http') ? line : 'https://' + line,
-                        metadata: {
-                            displayMode: 'bookmark',
-                            isLoading: true
-                        }
-                    };
-
-                    addNode('block', flowPos, { 
-                        content: [newBlock], 
-                        isStandaloneBlock: true 
-                    }, { width: 432, height: 120 }, currentParentId || undefined);
-                });
+            
+            const isSingleStandaloneBlock = parsedBlocks.length === 1 && ['image', 'video', 'file', 'media', 'link'].includes(parsedBlocks[0].type);
+            const nodeType = isSingleStandaloneBlock ? 'block' : 'fused-note';
+            
+            const forceId = uuidv4();
+            addNode(nodeType, targetPosition, nodeData, { width: 432, height: 120 }, currentParentId || undefined, forceId);
+            setSelectedCanvasNodeIds(new Set([forceId]));
             }
-        }
-    };
+        };
+
+        window.addEventListener('paste', handleCanvasPaste);
+        return () => window.removeEventListener('paste', handleCanvasPaste);
+    }, [addNode, currentParentId, screenToFlowPosition, setSelectedCanvasNodeIds]);
 
     // Native context menu handler (bypasses ReactFlow's right-click pan handling)
     useEffect(() => {
@@ -1145,7 +1131,7 @@ export function CanvasBoard() {
     const closeLeftPanel = useCallback(() => setLeftSidePanelId(null), [setLeftSidePanelId]);
 
     return (
-        <div className={styles.container} onPaste={handleCanvasPaste}>
+        <div className={styles.container}>
             <div className={styles.canvasArea}>
                 <div className={styles.topRightToolbar}>
                     <StorageControlsM />

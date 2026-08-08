@@ -46,10 +46,10 @@
 }
 
 .crumb.active {
-    color: var(--accent);
+    color: var(--accent-ink);
     cursor: default;
     font-weight: 600;
-    background: var(--active-wash);
+    background: var(--accent-dim);
 }
 
 .levelBadge {

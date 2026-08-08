@@ -3,12 +3,13 @@ import { SortableBlockWrapper } from './SortableBlockWrapper';
 import {
     TextBlock, HeadingBlock, TodoBlock, QuoteBlock, ImageBlock, ListBlock, CalloutBlock,
     DividerBlock, PageBlock, ContainerBlock, VideoBlock, FileBlock, ColumnsBlock, CodeBlock,
-    TableBlock, AIBlock
+    TableBlock, AIBlock, MediaBlock
 } from './BlockComponents';
 import { ColorBlock } from './ColorBlock';
 import { LinkBlock } from './LinkBlock';
+import { GalleryBlock } from './GalleryBlock';
 import { serializeInline } from './inlineFormat';
-import type { Block, BlockMetadata } from './types';
+import type { Block, BlockMetadata, BlockDropPosition } from './types';
 
 interface BlockItemProps {
     block: Block;
@@ -26,7 +27,7 @@ interface BlockItemProps {
     onPaste: (e: React.ClipboardEvent, id: string) => void;
 
     // Sortable Wrapper Props
-    onMoveBlock: (sourceId: string, targetId: string, position: 'top' | 'bottom', dataTransfer?: DataTransfer) => void;
+    onMoveBlock: (sourceId: string, targetId: string, position: BlockDropPosition, dataTransfer?: DataTransfer) => void;
     onDragStart: (e: React.DragEvent, block: Block) => void;
     onMenuOpen: (e: React.MouseEvent, id: string) => void;
 
@@ -91,6 +92,10 @@ export const BlockItem = memo(function BlockItem({
         onUpdateBlock(block.id, content, metadata);
     }, [block.id, onUpdateBlock]);
 
+    const handleReplace = useCallback((patch: Partial<Block>) => {
+        onUpdateBlock(block.id, patch);
+    }, [block.id, onUpdateBlock]);
+
     const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
         // Read live DOM as markdown (not innerText) so caret/split logic sees the
         // same marker-space that block.content is stored in — keeps formatting
@@ -117,6 +122,7 @@ export const BlockItem = memo(function BlockItem({
             block,
             readOnly,
             onChange: handleChange,
+            onReplace: handleReplace,
             onKeyDown: handleKeyDown,
             onPaste: handlePaste,
             disableMediaControls,
@@ -133,8 +139,10 @@ export const BlockItem = memo(function BlockItem({
             case 'heading3': return <HeadingBlock {...props} level={3} />;
             case 'todo': return <TodoBlock {...props} />;
             case 'quote': return <QuoteBlock {...props} />;
+            case 'media': return <MediaBlock {...props} />;
             case 'image': return <ImageBlock {...props} />;
             case 'video': return <VideoBlock {...props} />;
+            case 'gallery': return <GalleryBlock {...props} />;
             case 'bullet':
             case 'numbered':
             case 'toggle': return <ListBlock {...props} />;

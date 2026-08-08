@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useRef, useLayoutEffect } from
 import { v4 as uuidv4 } from 'uuid';
 import { createPortal } from 'react-dom';
 
-import type { Block, BlockMetadata } from './types';
+import type { Block, BlockMetadata, BlockDropPosition } from './types';
 import styles from './BlockEditor.module.css';
 
 import { SlashMenu } from './SlashMenu';
@@ -22,6 +22,7 @@ import { useBlockDragAndDrop } from './hooks/useBlockDragAndDrop';
 
 // UI
 import { SelectionCapsule } from './ui/SelectionCapsule';
+import { parseFiles, parseTextOrHtml } from './pasteUtils';
 
 interface BlockEditorProps {
     initialContent?: string | Block[];
@@ -248,7 +249,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
     // 4. Drag and Drop Hook
     // Tracks the "nearest block + position" the cursor is over during a drag,
     // including the 8px gaps between blocks and the zones before/after all blocks.
-    const dragDropTargetRef = useRef<{ blockId: string; position: 'top' | 'bottom' } | null>(null);
+    const dragDropTargetRef = useRef<{ blockId: string; position: BlockDropPosition } | null>(null);
 
     const clearBlockDropIndicators = useCallback(() => {
         document.querySelectorAll('[data-external-drop-target]').forEach(el => {
@@ -1479,7 +1480,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     const prevBlock = blocksRef.current[index - 1];
 
                     // Check if previous block is non-textual
-                    const nonTextTypes = ['image', 'video', 'file', 'divider', 'columns', 'table', 'page'];
+                    const nonTextTypes = ['media', 'image', 'video', 'file', 'gallery', 'divider', 'columns', 'table', 'page'];
                     if (nonTextTypes.includes(prevBlock.type)) {
                         // If current block is empty or contains only whitespace, delete it and focus previous block
                         const isEmptyBlock = !content || content.trim().replace(/[\n\u200B\u00A0\u200C\uFEFF]/g, '').length === 0;
@@ -1515,7 +1516,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     const nextBlock = blocksRef.current[index + 1];
 
                     // Check if next block is non-textual
-                    const nonTextTypes = ['image', 'video', 'file', 'divider', 'columns', 'table', 'page'];
+                    const nonTextTypes = ['media', 'image', 'video', 'file', 'gallery', 'divider', 'columns', 'table', 'page'];
                     if (nonTextTypes.includes(nextBlock.type)) {
                         // If next block is a media or container, just focus it or delete it if it is a divider
                         if (nextBlock.type === 'divider') {
@@ -1736,11 +1737,48 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         navigator.clipboard.writeText(textContent).then(() => {
             console.log('Copied blocks text to clipboard');
         }).catch(err => {
-            console.error('Failed to copy blocks', err);
         });
     }, [blocks, selectedBlockIds]);
 
+    const handleContainerPaste = async (e: React.ClipboardEvent) => {
+        console.log("handleContainerPaste triggered", e);
+        // Intercept paste only when not typing inside text inputs, textareas, contenteditables or code blocks
+        const target = e.target as HTMLElement;
+        const isEditable = target.tagName === 'INPUT' ||
+            target.tagName === 'TEXTAREA' ||
+            target.isContentEditable ||
+            target.closest('[contenteditable]');
 
+        console.log("handleContainerPaste isEditable:", isEditable, "target:", target);
+        if (isEditable) return;
+
+        let parsedBlocks: any[] = [];
+        const files = e.clipboardData.files;
+        console.log("handleContainerPaste files:", files?.length);
+
+        if (files && files.length > 0) {
+            e.preventDefault();
+            parsedBlocks = await parseFiles(files);
+            console.log("handleContainerPaste parsed files:", parsedBlocks);
+        } else {
+            const text = e.clipboardData.getData('text/plain')?.trim();
+            const html = e.clipboardData.getData('text/html');
+            console.log("handleContainerPaste text/html:", text, html);
+            if (!text && !html) return;
+            e.preventDefault();
+            parsedBlocks = parseTextOrHtml(e);
+            console.log("handleContainerPaste parsed text:", parsedBlocks);
+        }
+
+        if (parsedBlocks.length > 0) {
+            setBlocks(prev => {
+                const newBlocks = [...prev, ...parsedBlocks];
+                debouncedOnUpdate(newBlocks);
+                return newBlocks;
+            });
+            setTimeout(() => setFocusId(parsedBlocks[parsedBlocks.length - 1].id), 50);
+        }
+    };
 
     return (
         <div
@@ -1748,6 +1786,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             className={`${styles.editor} ${minimal ? styles.minimal : ''}`}
             ref={editorRef}
             tabIndex={-1}
+            onPaste={handleContainerPaste}
             onDrop={(e) => { handleDrop(e); clearBlockDropIndicators(); }}
             onDragOver={handleEditorDragOver}
             onDragLeave={handleEditorDragLeave}

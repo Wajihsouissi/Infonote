@@ -46,6 +46,16 @@
     animation: fusionPulse 1s ease-in-out infinite;
 }
 
+/* Media meeting media makes a board, not a stack — signalled differently from
+   fusion so the two outcomes are never confused mid-drag. */
+.galleryTarget {
+    border-color: var(--accent);
+    outline: 2px dashed var(--accent);
+    outline-offset: 4px;
+    box-shadow: 0 0 0 7px var(--accent-dim);
+    animation: fusionPulse 1s ease-in-out infinite;
+}
+
 .fusing {
     animation: fusionEffect 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

@@ -458,6 +458,12 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 const cols = b.metadata?.columns;
                 return !Array.isArray(cols) || cols.length === 0;
             }
+            // A board's content is its title, which is usually blank — judge it
+            // by its pictures, or every gallery would be released as empty.
+            if (b.type === 'gallery') {
+                const items = b.metadata?.items;
+                return !Array.isArray(items) || items.length === 0;
+            }
             return normalizeText(b.content).length === 0;
         };
         const blocks: Block[] = Array.isArray(rawContent)

@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Block, BlockType } from './types';
+import type { Block } from './types';
+import { resolveMediaTypeFromFile, resolveMediaTypeFromUrl } from './mediaTypes';
 
 // 1. Handle Files (Images/Videos) - ASYNC
 export const parseFiles = async (files: FileList): Promise<Block[]> => {
@@ -7,11 +8,8 @@ export const parseFiles = async (files: FileList): Promise<Block[]> => {
     if (files && files.length > 0) {
         const filePromises = Array.from(files).map(file => {
             return new Promise<Block | null>((resolve) => {
-                let type: BlockType = 'file';
-                if (file.type.startsWith('image/')) type = 'image';
-                else if (file.type.startsWith('video/')) type = 'video';
-
-                // Allow all files
+                // Allow all files — the kind is resolved from the MIME/extension.
+                const type = resolveMediaTypeFromFile(file);
 
                 const reader = new FileReader();
                 reader.onload = (event) => {
@@ -230,12 +228,31 @@ export const parseTextOrHtml = (e: React.ClipboardEvent): Block[] => {
 
     // Smart Interceptor: If pasting a single direct URL
     if (text && isUrl(text)) {
+        const mediaType = resolveMediaTypeFromUrl(text);
+        
+        // Direct media files (like .mp4 or .png URLs) can be native blocks
+        if (mediaType === 'video' && /\.(mp4|webm|mov|m4v|ogv|avi|mkv)(\?|#|$)/i.test(text)) {
+            return [{
+                id: uuidv4(),
+                type: 'video',
+                content: text,
+            }];
+        }
+        if (mediaType === 'image') {
+            return [{
+                id: uuidv4(),
+                type: 'image',
+                content: text,
+            }];
+        }
+
+        // Other URLs (including YouTube/Vimeo) become links.
+        // We omit 'displayMode' so LinkBlock can auto-detect if it's embeddable.
         return [{
             id: uuidv4(),
             type: 'link',
             content: text.startsWith('http') ? text : 'https://' + text,
             metadata: {
-                displayMode: 'bookmark',
                 isLoading: true
             }
         }];
@@ -246,15 +263,31 @@ export const parseTextOrHtml = (e: React.ClipboardEvent): Block[] => {
         const lines = text.split(/\r\n|\r|\n/).map(l => l.trim()).filter(Boolean);
         const allUrls = lines.every(l => isUrl(l));
         if (allUrls) {
-            return lines.map(line => ({
-                id: uuidv4(),
-                type: 'link',
-                content: line.startsWith('http') ? line : 'https://' + line,
-                metadata: {
-                    displayMode: 'bookmark',
-                    isLoading: true
+            return lines.map(line => {
+                const mediaType = resolveMediaTypeFromUrl(line);
+                if (mediaType === 'video' && /\.(mp4|webm|mov|m4v|ogv|avi|mkv)(\?|#|$)/i.test(line)) {
+                    return {
+                        id: uuidv4(),
+                        type: 'video',
+                        content: line,
+                    };
                 }
-            }));
+                if (mediaType === 'image') {
+                    return {
+                        id: uuidv4(),
+                        type: 'image',
+                        content: line,
+                    };
+                }
+                return {
+                    id: uuidv4(),
+                    type: 'link',
+                    content: line.startsWith('http') ? line : 'https://' + line,
+                    metadata: {
+                        isLoading: true
+                    }
+                };
+            });
         }
     }
 

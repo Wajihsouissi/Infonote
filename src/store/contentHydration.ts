@@ -45,7 +45,7 @@ const HEADING_LEVEL: Record<string, number> = {
 };
 
 /** Visual / structural blocks that always become their own standalone node. */
-const STANDALONE_TYPES = new Set(['image', 'video', 'file', 'code', 'table']);
+const STANDALONE_TYPES = new Set(['media', 'image', 'video', 'file', 'gallery', 'code', 'table']);
 
 /** List-family blocks that chain together into a single node (preserving order
  *  and native numbering — no destructive flattening). */

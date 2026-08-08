@@ -1,68 +1,80 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Image as ImageIcon, Video as VideoIcon, FileText, Sparkles } from 'lucide-react';
+import { UploadCloud, Sparkles, Paperclip } from 'lucide-react';
 import styles from './MediaPlaceholder.module.css';
 import type { BlockMetadata } from './types';
+import {
+    formatBytes,
+    MAX_MEDIA_BYTES,
+    readMediaFile,
+    resolveMediaTypeFromUrl,
+    type ResolvedMediaType,
+} from './mediaTypes';
 
-interface MediaPlaceholderProps {
-    type: 'image' | 'video' | 'file';
-    onUpload: (url: string, metadata?: BlockMetadata) => void;
+export interface MediaSelection {
+    type: ResolvedMediaType;
+    content: string;
+    metadata?: BlockMetadata;
 }
 
-export const MediaPlaceholder = ({ type, onUpload }: MediaPlaceholderProps) => {
+interface MediaPlaceholderProps {
+    /** Receives the resolved kind alongside the content — the caller rewrites the
+     *  block's type with it, which is how one picker feeds three block types. */
+    onSelect: (selection: MediaSelection) => void;
+    readOnly?: boolean;
+}
+
+/**
+ * The single entry point for adding media. It accepts anything — image, video, PDF,
+ * any file — by file picker, drag & drop, paste, URL embed, or AI generation, and
+ * reports back which kind it turned out to be.
+ *
+ * Drop and paste work on the inline trigger as well as inside the modal, so the
+ * common case (drag a file straight onto the block) never opens the modal at all.
+ */
+export const MediaPlaceholder = ({ onSelect, readOnly }: MediaPlaceholderProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'upload' | 'embed' | 'generate'>('upload');
     const [isDragging, setIsDragging] = useState(false);
     const [urlInput, setUrlInput] = useState('');
     const [aiPrompt, setAiPrompt] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const getIcon = () => {
-        switch (type) {
-            case 'image': return <ImageIcon size={24} className={styles.triggerIcon} />;
-            case 'video': return <VideoIcon size={24} className={styles.triggerIcon} />;
-            case 'file': return <FileText size={24} className={styles.triggerIcon} />;
+    const handleFiles = useCallback(async (files: FileList | File[]) => {
+        const file = Array.from(files)[0];
+        if (!file) return;
+        setError(null);
+        try {
+            const { url, type } = await readMediaFile(file);
+            onSelect({
+                type,
+                content: url,
+                metadata: { name: file.name, size: file.size, type: file.type },
+            });
+            setIsOpen(false);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Could not read that file.');
+            setIsOpen(true);
+            setActiveTab('upload');
         }
-    };
+    }, [onSelect]);
 
-    const handleFile = (file: File) => {
-        // Validation (basic)
-        if (type === 'image' && !file.type.startsWith('image/')) {
-            alert("Please upload an image file");
-            return;
-        }
-        if (type === 'video' && !file.type.startsWith('video/')) {
-            alert("Please upload a video file");
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            if (e.target?.result) {
-                onUpload(e.target.result as string, {
-                    name: file.name,
-                    size: file.size,
-                    type: file.type
-                });
-                setIsOpen(false);
-            }
-        };
-        reader.readAsDataURL(file);
-    };
-
-    // Global Drop Handler (works for Trigger AND Modal Dropzone)
     const onDrop = useCallback((e: React.DragEvent) => {
+        if (readOnly) return;
+        // Only claim the event for real files — a block dragged from another card
+        // must keep bubbling to the editor's own reorder/move handling.
+        if (!e.dataTransfer.files?.length) return;
         e.preventDefault();
         e.stopPropagation();
         setIsDragging(false);
-
-        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            handleFile(e.dataTransfer.files[0]);
-        }
-    }, [type, onUpload]);
+        handleFiles(e.dataTransfer.files);
+    }, [handleFiles, readOnly]);
 
     const onDragOver = (e: React.DragEvent) => {
+        if (readOnly) return;
+        if (!e.dataTransfer.types.includes('Files')) return;
         e.preventDefault();
         e.stopPropagation();
         setIsDragging(true);
@@ -74,59 +86,80 @@ export const MediaPlaceholder = ({ type, onUpload }: MediaPlaceholderProps) => {
         setIsDragging(false);
     };
 
-    const handleEmbed = () => {
-        if (urlInput.trim()) {
-            onUpload(urlInput.trim(), {});
+    const handlePaste = useCallback((e: React.ClipboardEvent) => {
+        if (readOnly) return;
+        if (e.clipboardData.files?.length) {
+            e.preventDefault();
+            handleFiles(e.clipboardData.files);
+            return;
+        }
+        // A pasted URL is an embed — resolve its kind from the extension/host.
+        const text = e.clipboardData.getData('text/plain')?.trim();
+        if (text && /^(https?:\/\/|data:)/i.test(text)) {
+            e.preventDefault();
+            onSelect({ type: resolveMediaTypeFromUrl(text), content: text, metadata: {} });
             setIsOpen(false);
         }
+    }, [handleFiles, onSelect, readOnly]);
+
+    const handleEmbed = () => {
+        const url = urlInput.trim();
+        if (!url) return;
+        onSelect({ type: resolveMediaTypeFromUrl(url), content: url, metadata: {} });
+        setIsOpen(false);
     };
-
-    // Trigger is the in-editor representation
-    const trigger = (
-        <div
-            className={`${styles.trigger} ${isDragging ? styles.triggerDragOver : ''} mediaPlaceholderTrigger`}
-            onClick={() => setIsOpen(true)}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-            onDragLeave={onDragLeave}
-        >
-            <div className={styles.triggerContent}>
-                {getIcon()}
-                <span className={styles.triggerText}>Add {type}</span>
-            </div>
-        </div>
-    );
-
-    const handlePaste = useCallback((e: React.ClipboardEvent) => {
-        if (e.clipboardData.files && e.clipboardData.files.length > 0) {
-            e.preventDefault();
-            handleFile(e.clipboardData.files[0]);
-        }
-    }, [handleFile]);
 
     const handleGenerate = () => {
         if (!aiPrompt.trim()) return;
         setIsGenerating(true);
-        // Simulate a slight delay for realism, though the image itself will take time to load
         setTimeout(() => {
-            // Using Pollinations.ai free API which generates images directly from the URL
             const seed = Math.floor(Math.random() * 1000000);
             const generatedUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(aiPrompt.trim())}?seed=${seed}&width=1024&height=768&nologo=true`;
-            onUpload(generatedUrl, { name: `AI Generated: ${aiPrompt}` });
+            onSelect({ type: 'image', content: generatedUrl, metadata: { name: `AI Generated: ${aiPrompt}` } });
             setIsGenerating(false);
             setIsOpen(false);
         }, 800);
     };
 
-    // Modal Content
+    // The in-editor representation: a drop target in its own right.
+    const trigger = (
+        <div
+            className={`${styles.trigger} ${isDragging ? styles.triggerDragOver : ''} mediaPlaceholderTrigger`}
+            onClick={() => !readOnly && setIsOpen(true)}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onPaste={handlePaste}
+            tabIndex={readOnly ? -1 : 0}
+            role="button"
+            onKeyDown={(e) => {
+                if (readOnly) return;
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setIsOpen(true);
+                }
+            }}
+        >
+            <div className={styles.triggerContent}>
+                <UploadCloud size={24} className={styles.triggerIcon} />
+                <span className={styles.triggerText}>
+                    {isDragging ? 'Drop to upload' : 'Add media — image, video, or file'}
+                </span>
+            </div>
+        </div>
+    );
+
     const modalContent = (
         <div className={styles.overlay} onClick={() => setIsOpen(false)}>
             <div
                 className={styles.modal}
                 onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === 'Escape') setIsOpen(false);
+                }}
                 onPaste={handlePaste}
-                tabIndex={-1} // Allow focus
+                tabIndex={-1}
             >
                 <div className={styles.tabs}>
                     <button
@@ -141,51 +174,54 @@ export const MediaPlaceholder = ({ type, onUpload }: MediaPlaceholderProps) => {
                     >
                         Embed Link
                     </button>
-                    {type === 'image' && (
-                        <button
-                            className={`${styles.tab} ${activeTab === 'generate' ? styles.active : ''}`}
-                            onClick={() => setActiveTab('generate')}
-                        >
-                            <Sparkles size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-top' }} />
-                            Generate AI
-                        </button>
-                    )}
+                    <button
+                        className={`${styles.tab} ${activeTab === 'generate' ? styles.active : ''}`}
+                        onClick={() => setActiveTab('generate')}
+                    >
+                        <Sparkles size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-top' }} />
+                        Generate AI
+                    </button>
                 </div>
 
                 <div className={styles.contentArea}>
                     {activeTab === 'upload' ? (
-                        <div
-                            className={`${styles.dropZone} ${isDragging ? styles.dragOver : ''}`}
-                            onDrop={onDrop}
-                            onDragOver={onDragOver}
-                            onDragLeave={onDragLeave}
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                style={{ display: 'none' }}
-                                onChange={(e) => {
-                                    if (e.target.files && e.target.files.length > 0) {
-                                        handleFile(e.target.files[0]);
-                                    }
-                                }}
-                                accept={type === 'image' ? "image/*" : type === 'video' ? "video/*" : "*/*"}
-                            />
-                            {type === 'image' ? <ImageIcon size={32} className={styles.dropIcon} /> :
-                                type === 'video' ? <VideoIcon size={32} className={styles.dropIcon} /> :
-                                    <FileText size={32} className={styles.dropIcon} />}
-
-                            <span className={styles.dropText}>Click to upload or drag and drop</span>
-                            <button className={styles.uploadBtn}>Choose File</button>
-                        </div>
+                        <>
+                            <div className={styles.uploadHeader}>
+                                <h3 className={styles.uploadTitle}>Upload your files</h3>
+                                <p className={styles.uploadSubtitle}>
+                                    Images, video, PDF, any file up to {formatBytes(MAX_MEDIA_BYTES)}
+                                </p>
+                            </div>
+                            <div
+                                className={`${styles.dropZone} ${isDragging ? styles.dragOver : ''}`}
+                                onDrop={onDrop}
+                                onDragOver={onDragOver}
+                                onDragLeave={onDragLeave}
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    style={{ display: 'none' }}
+                                    onChange={(e) => {
+                                        if (e.target.files?.length) handleFiles(e.target.files);
+                                        e.target.value = '';
+                                    }}
+                                />
+                                <UploadCloud size={32} className={styles.dropIcon} />
+                                <span className={styles.dropText}>
+                                    Drag &amp; drop files or <span className={styles.dropBrowse}>Browse</span>
+                                </span>
+                                <span className={styles.dropHint}>You can also paste from the clipboard</span>
+                            </div>
+                        </>
                     ) : activeTab === 'embed' ? (
                         <div className={styles.embedContainer}>
                             <div className={styles.inputWrapper}>
                                 <input
                                     key="embed-input"
                                     className={`${styles.urlInput} nodrag nopan`}
-                                    placeholder={`Paste ${type} link...`}
+                                    placeholder="Paste any image, video, or file link..."
                                     value={urlInput}
                                     onChange={(e) => setUrlInput(e.target.value)}
                                     onKeyDown={(e) => {
@@ -193,7 +229,6 @@ export const MediaPlaceholder = ({ type, onUpload }: MediaPlaceholderProps) => {
                                         if (e.key === 'Enter') handleEmbed();
                                     }}
                                     onKeyUp={(e) => e.stopPropagation()}
-                                    onKeyPress={(e) => e.stopPropagation()}
                                     autoFocus
                                 />
                                 <button className={styles.embedBtn} onClick={handleEmbed}>
@@ -215,12 +250,11 @@ export const MediaPlaceholder = ({ type, onUpload }: MediaPlaceholderProps) => {
                                         if (e.key === 'Enter') handleGenerate();
                                     }}
                                     onKeyUp={(e) => e.stopPropagation()}
-                                    onKeyPress={(e) => e.stopPropagation()}
                                     autoFocus
                                     disabled={isGenerating}
                                 />
-                                <button 
-                                    className={styles.embedBtn} 
+                                <button
+                                    className={styles.embedBtn}
                                     onClick={handleGenerate}
                                     disabled={isGenerating || !aiPrompt.trim()}
                                     style={{ opacity: (isGenerating || !aiPrompt.trim()) ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: '6px' }}
@@ -228,6 +262,13 @@ export const MediaPlaceholder = ({ type, onUpload }: MediaPlaceholderProps) => {
                                     {isGenerating ? 'Generating...' : 'Generate'}
                                 </button>
                             </div>
+                        </div>
+                    )}
+
+                    {error && (
+                        <div className={styles.error} role="alert">
+                            <Paperclip size={14} />
+                            <span>{error}</span>
                         </div>
                     )}
                 </div>

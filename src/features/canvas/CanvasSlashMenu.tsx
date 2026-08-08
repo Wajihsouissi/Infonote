@@ -5,6 +5,8 @@ import { StickyNote, Layers, KanbanSquare } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { v4 as uuidv4 } from 'uuid';
 import { MENU_ITEMS } from '../editor/menuConstants';
+import { isMediaType } from '../editor/mediaTypes';
+import { createGalleryMetadata, GALLERY_NODE_WIDTH } from '../editor/galleryTypes';
 import styles from './CanvasSlashMenu.module.css';
 import { findNonOverlappingPosition } from '../../utils/findNonOverlappingPosition';
 import { MIN_EXPANDED_SIZE } from '../../config/layout';
@@ -94,7 +96,9 @@ export function CanvasSlashMenu() {
                             content: [{ id: uuidv4(), type: 'text', content: '' }],
                         })),
                     }
-                    : item.meta;
+                    : item.type === 'gallery'
+                        ? createGalleryMetadata([], item.meta)
+                        : item.meta;
 
                 const newBlock = {
                     id: uuidv4(),
@@ -112,9 +116,10 @@ export function CanvasSlashMenu() {
                 // opening with a permanent horizontal scrollbar.
                 const BLOCK_WIDTH = item.type === 'columns'
                     ? Math.max(550, columnsPerRow * 220)
-                    : ['image', 'video', 'file'].includes(item.type) ? 208
-                        : item.type === 'table' ? MIN_EXPANDED_SIZE
-                            : 300;
+                    : item.type === 'gallery' ? GALLERY_NODE_WIDTH
+                        : isMediaType(item.type) ? 208
+                            : item.type === 'table' ? MIN_EXPANDED_SIZE
+                                : 300;
                 const BLOCK_HEIGHT = 100;
 
                 addNode('block', pos, { content: [newBlock], isStandaloneBlock: true }, { width: BLOCK_WIDTH, height: BLOCK_HEIGHT }, currentParentId || undefined);

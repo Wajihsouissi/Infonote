@@ -21,7 +21,7 @@ interface BlockLodBodyProps {
 export const BlockLodBody = memo(function BlockLodBody({ blocks }: BlockLodBodyProps) {
     return (
         <div className={styles.previewWrap}>
-            <NoteBodyPreview content={blocks} />
+            <NoteBodyPreview content={blocks} scaleMode="canvas" />
         </div>
     );
 });

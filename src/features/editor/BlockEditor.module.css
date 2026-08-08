@@ -414,6 +414,50 @@
     transition: outline var(--transition-fast);
 }
 
+/* "Open full screen" — rides on the media, appears on hover so it costs no layout.
+   Top-right corner keeps it clear of the bottom-right resize handle and, on video,
+   of the browser's own control bar along the bottom. */
+.mediaExpandBtn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 3;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: var(--btn-radius);
+    background: rgba(0, 0, 0, 0.55);
+    color: rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), background-color var(--transition-fast);
+}
+
+.mediaWrapper:hover .mediaExpandBtn,
+.mediaExpandBtn:focus-visible {
+    opacity: 1;
+}
+
+.mediaExpandBtn:hover {
+    background: rgba(0, 0, 0, 0.78);
+}
+
+.mediaExpandBtn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+/* Coarse pointers get no hover, so the button would be unreachable — keep it visible. */
+@media (hover: none) {
+    .mediaExpandBtn {
+        opacity: 0.85;
+    }
+}
+
 
 .mediaPlaceholder {
     width: 100%;
@@ -1555,6 +1599,7 @@
     margin: 0;
     width: 100%;
     height: 100%;
+
     cursor: pointer;
     transition: background var(--transition-fast);
     user-select: none;
@@ -1649,6 +1694,24 @@
     pointer-events: none;
 }
 
+/* Media dropped INTO media rather than beside it: the two merge into a board.
+   A line between blocks would be a lie here — nothing is being inserted — so the
+   whole block lights up as the container it is about to become. */
+.dropTargetMerge {
+    position: relative;
+}
+
+.dropTargetMerge::after {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border: 2px dashed var(--accent);
+    border-radius: var(--block-radius-lg);
+    background: var(--accent-dim);
+    z-index: 100;
+    pointer-events: none;
+}
+
 /* Resizable Media Wrappers */
 .resizeWrapper {
     max-width: 100%;
@@ -1670,6 +1733,9 @@
     outline: none;
 }
 
+.resizeWrapper.atomicMedia .mediaWrapper {
+    margin: 0;
+}
 
 /* Color Block */
 .colorBlockWrapper {
@@ -1978,6 +2044,10 @@
     overflow: visible;
 }
 
+.alignmentContainer:has(.atomicMedia) {
+    margin-bottom: 0;
+}
+
 .alignmentContainer[data-alignment="left"] {
     justify-content: flex-start;
 }
@@ -2125,9 +2195,15 @@
     margin-bottom: 0 !important;
 }
 
-/* Expand drop hit-test zone during dragging with zero layout shift */
-:global(body.chnk-it-block-dragging) .sortableWrapper::before,
-:global(body.chnk-it-node-dragging) .sortableWrapper::before {
+/* Expand drop hit-test zone while a BLOCK is being dragged, with zero layout shift.
+   Deliberately NOT during a node drag (`chnk-it-node-dragging`): a node drag is
+   pointer-based, so blocks never receive dragover/drop from it and the zone bought
+   nothing — while `nodeDragThreshold={0}` made every press on a canvas node count as
+   a drag, so this pseudo-element appeared between pointerdown and pointerup on an
+   ordinary click. The press landed on the block, the release landed on this overlay,
+   and the browser retargeted the click to their common ancestor: no click ever
+   reached anything inside a canvas node (the media picker, most visibly). */
+:global(body.chnk-it-block-dragging) .sortableWrapper::before {
     content: '';
     position: absolute;
     top: -8px;

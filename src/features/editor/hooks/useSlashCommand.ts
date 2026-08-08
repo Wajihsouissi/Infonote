@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import type { Block, BlockType, BlockMetadata } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { createGalleryMetadata, getGalleryItems, isGalleryMember } from '../galleryTypes';
 
 interface SlashCommandProps {
     editorRef: React.RefObject<HTMLDivElement | null>;
@@ -47,16 +48,29 @@ export function useSlashCommand({
                 finalContent = currentBlock.content;
             }
 
+            /* Turning a block into a gallery. A picture converts into a board of
+               one rather than being thrown away, and the board's `content` is its
+               TITLE — so a media block's content (a data URL) must never carry
+               over into it, which converting from the block menu would otherwise
+               do. Only text becomes a title. */
+            const wasGallery = currentBlock.type === 'gallery';
+            const wasMedia = isGalleryMember(currentBlock) && !wasGallery;
+            const galleryItems = wasGallery
+                ? getGalleryItems(currentBlock)
+                : (wasMedia && currentBlock.content?.trim() ? [{ ...currentBlock, id: uuidv4() }] : []);
+            const galleryTitle = wasGallery ? currentBlock.content : (wasMedia ? '' : (finalContent || ''));
+
             updated[index] = {
                 ...currentBlock,
                 type,
-                content: finalContent || '',
+                content: type === 'gallery' ? galleryTitle : (finalContent || ''),
                 metadata: type === 'columns' ? {
                     columns: Array.from({ length: metadata?.count || 2 }).map(() => ({
                         id: uuidv4(),
                         content: [{ id: uuidv4(), type: 'text', content: '' }]
                     }))
-                } : (metadata !== undefined ? { ...currentBlock.metadata, ...metadata } : currentBlock.metadata)
+                } : type === 'gallery' ? createGalleryMetadata(galleryItems)
+                : (metadata !== undefined ? { ...currentBlock.metadata, ...metadata } : currentBlock.metadata)
             };
 
             // Converting a toggle to a non-toggle: outdent its nested children by one level so

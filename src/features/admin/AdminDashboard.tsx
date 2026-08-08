@@ -16,10 +16,22 @@ import {
     Activity,
     Search,
     RefreshCw,
+    Bug,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
 import styles from './AdminDashboard.module.css';
+
+type ClientError = {
+    id: string;
+    occurred_at: string;
+    user_id: string | null;
+    source: string;
+    message: string;
+    stack: string | null;
+    url: string | null;
+    user_agent: string | null;
+};
 
 type AdminUser = {
     id: string;
@@ -45,6 +57,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ ownerEmail }) =>
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [metrics, setMetrics] = useState<Metric[]>([]);
     const [dailyTraffic, setDailyTraffic] = useState<DailyTraffic[]>([]);
+    const [clientErrors, setClientErrors] = useState<ClientError[]>([]);
+    const [clientErrorsError, setClientErrorsError] = useState<string | null>(null);
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [, setLoadingMetrics] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -68,6 +82,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ ownerEmail }) =>
             setError(err instanceof Error ? err.message : String(err));
         } finally {
             setLoadingUsers(false);
+        }
+
+        /* Report a failed load rather than leaving the table empty. An empty
+           table here reads as "the app is healthy", so an RLS denial or an
+           unapplied migration would look identical to zero crashes — in the one
+           panel whose job is telling you the app is broken. */
+        try {
+            const { data: eData, error: eErr } = await supabase.rpc('admin_get_client_errors', { _limit: 50 });
+            if (eErr) throw eErr;
+            setClientErrors((eData as ClientError[]) ?? []);
+            setClientErrorsError(null);
+        } catch (err) {
+            setClientErrors([]);
+            setClientErrorsError(err instanceof Error ? err.message : String(err));
         }
 
         // Fetch analytics
@@ -327,6 +355,60 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ ownerEmail }) =>
                                                     )}
                                                     Delete
                                                 </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Client Errors Table */}
+                <div className={styles.section}>
+                    <div className={styles.sectionTitle}>
+                        <Bug size={16} />
+                        Recent Client Errors (Last 50)
+                    </div>
+                    <div className={styles.tableWrap} style={{ overflowX: 'auto' }}>
+                        <table className={styles.table}>
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Source</th>
+                                    <th>Message</th>
+                                    <th>URL</th>
+                                    <th>User ID</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {clientErrorsError ? (
+                                    <tr>
+                                        <td colSpan={5} className={styles.emptyState} style={{ color: '#f87171' }}>
+                                            Could not load client errors: {clientErrorsError}
+                                        </td>
+                                    </tr>
+                                ) : clientErrors.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className={styles.emptyState}>No client errors recorded.</td>
+                                    </tr>
+                                ) : (
+                                    clientErrors.map((err) => (
+                                        <tr key={err.id}>
+                                            <td style={{ whiteSpace: 'nowrap' }}>{new Date(err.occurred_at).toLocaleString()}</td>
+                                            <td>
+                                                <span className={styles.statusBadge} style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#f87171' }}>
+                                                    {err.source}
+                                                </span>
+                                            </td>
+                                            <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={err.message}>
+                                                {err.message}
+                                            </td>
+                                            <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={err.url || ''}>
+                                                {err.url || '—'}
+                                            </td>
+                                            <td className={styles.idCell} title={err.user_id || 'anonymous'}>
+                                                {err.user_id || 'anonymous'}
                                             </td>
                                         </tr>
                                     ))

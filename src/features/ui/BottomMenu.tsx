@@ -32,6 +32,8 @@ import { type AppNode, type NoteNode, getNodeLabel, getNodeBlocks } from '../../
 import type { AppState } from '../../store/types';
 import styles from './BottomMenu.module.css';
 import { MENU_ITEMS } from '../editor/menuConstants';
+import { isMediaType } from '../editor/mediaTypes';
+import { createGalleryMetadata, GALLERY_NODE_WIDTH } from '../editor/galleryTypes';
 import { findNonOverlappingPosition } from '../../utils/findNonOverlappingPosition';
 import { MIN_EXPANDED_SIZE } from '../../config/layout';
 import { parseSearchQuery } from './searchUtils';
@@ -757,7 +759,9 @@ export function BottomMenu() {
                     content: [{ id: uuidv4(), type: 'text', content: '' }],
                 })),
             }
-            : block.meta;
+            : block.type === 'gallery'
+                ? createGalleryMetadata([], block.meta)
+                : block.meta;
 
         const newBlock = {
             id: uuidv4(),
@@ -790,7 +794,7 @@ export function BottomMenu() {
         const columnsPerRow = columnCount === 4 ? 2 : columnCount;
         // A table opens at the expanded-card width so its default columns fit —
         // at 300 it shipped with a permanent horizontal scrollbar even empty.
-        const BLOCK_WIDTH = block.type === 'columns' ? Math.max(550, columnsPerRow * 220) : ['image', 'video', 'file'].includes(block.type) ? 208 : block.type === 'table' ? MIN_EXPANDED_SIZE : 300;
+        const BLOCK_WIDTH = block.type === 'columns' ? Math.max(550, columnsPerRow * 220) : block.type === 'gallery' ? GALLERY_NODE_WIDTH : isMediaType(block.type) ? 208 : block.type === 'table' ? MIN_EXPANDED_SIZE : 300;
         const BLOCK_HEIGHT = 100;
 
         const position = findNonOverlappingPosition(flowPos, { width: BLOCK_WIDTH, height: BLOCK_HEIGHT }, nodes, currentParentId, vp());
