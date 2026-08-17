@@ -82,12 +82,12 @@ const DEFAULT_OFFSET = { x: 80, y: 80 };
 const PAGE_CARD_WIDTH = MIN_EXPANDED_SIZE; // 8x8
 const PAGE_CARD_MIN_HEIGHT = MIN_EXPANDED_SIZE; // 8x8
 
-const KANBAN_COLUMN_WIDTH = MIN_EXPANDED_SIZE; // 8 units
-const KANBAN_COLUMN_GAP = 40;
-const KANBAN_CARD_WIDTH = MEDIUM_SIZE; // 4x4
-const KANBAN_CARD_HEIGHT = MEDIUM_SIZE; // 4x4
-const KANBAN_CARD_GAP_Y = 24;
-const KANBAN_HEADER_HEIGHT = 60;
+const DATABASE_COLUMN_WIDTH = MIN_EXPANDED_SIZE; // 8 units
+const DATABASE_COLUMN_GAP = 40;
+const DATABASE_CARD_WIDTH = MEDIUM_SIZE; // 4x4
+const DATABASE_CARD_HEIGHT = MEDIUM_SIZE; // 4x4
+const DATABASE_CARD_GAP_Y = 24;
+const DATABASE_HEADER_HEIGHT = 60;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -388,7 +388,7 @@ export function convertNotionDatabaseToCanvasNodes(
     let isFirstNode = true;
 
     for (const [status, columnPages] of buckets.entries()) {
-        const colX = offset.x + columnIndex * (KANBAN_COLUMN_WIDTH + KANBAN_COLUMN_GAP);
+        const colX = offset.x + columnIndex * (DATABASE_COLUMN_WIDTH + DATABASE_COLUMN_GAP);
 
         nodes.push({
             id: isFirstNode && options.forcedNodeId ? options.forcedNodeId : uuidv4(),
@@ -400,7 +400,7 @@ export function convertNotionDatabaseToCanvasNodes(
                 content: [{ id: uuidv4(), type: 'text', content: `${columnPages.length} task${columnPages.length === 1 ? '' : 's'}` }],
                 ...(keepSourceIds ? { _notionType: 'database_column' } : {}),
             },
-            style: { width: KANBAN_COLUMN_WIDTH, height: KANBAN_HEADER_HEIGHT },
+            style: { width: DATABASE_COLUMN_WIDTH, height: DATABASE_HEADER_HEIGHT },
         } as AppNode);
         
         isFirstNode = false;
@@ -436,15 +436,15 @@ export function convertNotionDatabaseToCanvasNodes(
                 id: uuidv4(),
                 type: 'note',
                 position: {
-                    x: colX + (KANBAN_COLUMN_WIDTH - KANBAN_CARD_WIDTH) / 2, // center the card in the column
+                    x: colX + (DATABASE_COLUMN_WIDTH - DATABASE_CARD_WIDTH) / 2, // center the card in the column
                     y:
                         offset.y +
-                        KANBAN_HEADER_HEIGHT +
-                        KANBAN_CARD_GAP_Y +
-                        rowIndex * (KANBAN_CARD_HEIGHT + KANBAN_CARD_GAP_Y),
+                        DATABASE_HEADER_HEIGHT +
+                        DATABASE_CARD_GAP_Y +
+                        rowIndex * (DATABASE_CARD_HEIGHT + DATABASE_CARD_GAP_Y),
                 },
                 data,
-                style: { width: KANBAN_CARD_WIDTH, height: KANBAN_CARD_HEIGHT },
+                style: { width: DATABASE_CARD_WIDTH, height: DATABASE_CARD_HEIGHT },
             } as AppNode);
         });
 

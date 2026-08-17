@@ -206,10 +206,22 @@ export function NoteExpandedContent({
 
     // Dynamic color styles removed to follow Paper & Ink guidelines
 
+    /**
+     * The editor well of a recoloured card — here and in the centre peek, which
+     * renders this same component.
+     *
+     * A shade of the accent rather than the accent itself: this is the surface
+     * the document is written on, and body text over a full-strength hue is not
+     * readable. The mix matches NoteCard's `--tint-well`, so a card looks the
+     * same whether it is on the canvas or peeked. See design-system.css §7.
+     */
     const noteAreaStyles = useMemo(() => {
         if (!displayColor) return {};
         return {
-            backgroundColor: displayColor
+            /* `--tint-well` cascades from the card on the canvas and falls back
+               to the same value in the peek, where there is no card above this.
+               One number governs the well wherever it is shown. */
+            backgroundColor: `color-mix(in srgb, ${displayColor} var(--tint-well, 14%), var(--bg-base))`,
         };
     }, [displayColor]);
 
@@ -276,7 +288,7 @@ export function NoteExpandedContent({
                 <div className={`${styles.minimalHeader} custom-drag-handle`} style={
                     flatCorners ? { borderRadius: 0 } : undefined
                 }>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flex: 1, minWidth: 0 }}>
                         {data.showIcon && (
                             <div
                                 className={`${styles.minimalIconButton} nodrag`}
@@ -286,7 +298,7 @@ export function NoteExpandedContent({
                                 }}
                                 title="Change Icon"
                             >
-                                <CardIcon icon={data.icon || defaultIconName} size={20} />
+                                <CardIcon icon={data.icon || defaultIconName} size={22} />
                             </div>
                         )}
                         <input

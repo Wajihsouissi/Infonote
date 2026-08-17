@@ -10,6 +10,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { type AppNode, type AppNodeData, getNodeBlocks, getNodeLabel } from '../../types';
 import type { Block } from '../../features/editor/types';
 import { MIN_FUSED_SIZE, BASE_UNIT, snapToGridValue, ICON_SIZE } from '../../config/layout';
+import {
+    createKanbanData,
+    KANBAN_DEFAULT_WIDTH,
+    KANBAN_DEFAULT_HEIGHT,
+} from '../../features/kanban/kanbanTypes';
 import { computeParentContentUpdate } from '../contentSync';
 import { planHydration, layoutChunks, computeSmartHierarchy, type HydrationChunk } from '../contentHydration';
 import { withoutHistory } from '../temporalControl';
@@ -268,18 +273,32 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             y: snapToGridValue(position.y)
         };
 
-        const newNode: AppNode = {
-            id: customId || uuidv4(),
-            type,
-            position: snappedPosition,
-            style: style || (type === 'fused-note' ? { width: MIN_FUSED_SIZE } : { width: 432, height: 432 }),
-            data: {
+        /* A board is not a note that happens to hold cards, so it takes none of
+           the note defaults below — `content`, `viewMode` and `icon` are all
+           meaningless on it, and leaving them on the payload is what makes a
+           node type drift into being half of another one. */
+        const isKanban = type === 'kanban';
+
+        const defaultStyle = isKanban
+            ? { width: KANBAN_DEFAULT_WIDTH, height: KANBAN_DEFAULT_HEIGHT }
+            : (type === 'fused-note' ? { width: MIN_FUSED_SIZE } : { width: 432, height: 432 });
+
+        const defaultData = isKanban
+            ? { ...createKanbanData((initialData?.label as string) || 'Board'), ...initialData }
+            : {
                 label: (initialData?.label as string) || 'New Note',
                 content: '',
                 viewMode: 'expanded',
                 icon: 'FileText',
                 ...initialData
-            } as AppNode['data'],
+            };
+
+        const newNode: AppNode = {
+            id: customId || uuidv4(),
+            type,
+            position: snappedPosition,
+            style: style || defaultStyle,
+            data: defaultData as AppNode['data'],
             parentId: targetParentId,
         } as AppNode;
 

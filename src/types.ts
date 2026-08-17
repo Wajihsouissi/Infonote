@@ -1,5 +1,6 @@
 import type { Node } from '@xyflow/react';
 import type { Block } from './features/editor/types';
+import type { BoardPlanningFields, KanbanNodeData } from './features/kanban/kanbanTypes';
 
 /**
  * Strongly-typed payload carried on every canvas edge.
@@ -31,7 +32,7 @@ export type NoteData = {
     assignee?: string;
     url?: string;
     color?: string;
-    order?: number; // Kanban order
+
     progress?: number; // 0-100 completion percentage
     subtasks?: { id: string; text: string; completed: boolean }[]; // Checklist items
 
@@ -63,7 +64,7 @@ export type NoteData = {
 
 export type NoteNode = Node<NoteData, 'note'> & { parentId?: string | null };
 
-export type BlockNodeData = {
+export type BlockNodeData = BoardPlanningFields & {
     content: Block[];
     isStandaloneBlock?: boolean; // Flag to indicate standalone canvas block (not part of parent content)
     lastFusedAt?: number;
@@ -74,7 +75,7 @@ export type BlockNodeData = {
 
 export type BlockNode = Node<BlockNodeData, 'block'> & { parentId?: string | null };
 
-export type FusedNoteNodeData = {
+export type FusedNoteNodeData = BoardPlanningFields & {
     content: Block[];
     isStandaloneBlock?: boolean; // Flag to indicate standalone canvas block (not part of parent content)
 
@@ -84,26 +85,11 @@ export type FusedNoteNodeData = {
 
 export type FusedNoteNode = Node<FusedNoteNodeData, 'fused-note'> & { parentId?: string | null };
 
-
-export type KanbanColumn = {
-    id: string;
-    label: string;
-    statusValue: string; // The value to set in NoteData.status
-    color?: string;
-    collapsed?: boolean;
-};
-
-export type KanbanNodeData = {
-    label: string; // Board Name
-    columns: KanbanColumn[];
-    background?: string;
-    swimlaneField?: 'assignee' | 'category' | 'priority' | null;
-    sortBy?: 'dueDate' | 'priority' | 'createdAt' | 'label' | null;
-    sortDirection?: 'asc' | 'desc';
-    viewMode?: 'board' | 'table' | 'calendar' | 'timeline';
-    tableColumns?: string[]; // Visible metadata columns in table view (e.g. ['tags', 'url', 'progress'])
-};
-
+/**
+ * A kanban board. Its cards are `note` nodes carrying this node's id as their
+ * `parentId`; the board itself stores only the lanes and their order. See
+ * features/kanban/kanbanTypes.ts for why the cards' metadata stays the truth.
+ */
 export type KanbanNode = Node<KanbanNodeData, 'kanban'> & { parentId?: string | null };
 
 export type AppNode = NoteNode | BlockNode | FusedNoteNode | KanbanNode;
@@ -111,7 +97,7 @@ export type AppNode = NoteNode | BlockNode | FusedNoteNode | KanbanNode;
 /** Data payload union across every canvas node type. */
 export type AppNodeData = AppNode['data'];
 
-/** Block-array content of a node, or undefined for string/absent content (e.g. kanban). */
+/** Block-array content of a node, or undefined for string/absent content. */
 export const getNodeBlocks = (data: AppNodeData): Block[] | undefined =>
     'content' in data && Array.isArray(data.content) ? data.content : undefined;
 

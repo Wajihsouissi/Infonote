@@ -6,6 +6,7 @@ import { createNavigationSlice } from './slices/navigationSlice';
 import { createStorageSlice } from './slices/storageSlice';
 import { createUISlice } from './slices/uiSlice';
 import { createAuthSlice } from './slices/authSlice';
+import { createAISlice } from './slices/aiSlice';
 import type { AppState } from './types';
 import { initStorageManager, flushPendingSave } from '../services/StorageManager';
 import { bindTemporal, type HistoryState } from './temporalControl';
@@ -25,6 +26,7 @@ export const useStore = create<AppState>()(
                 ...createStorageSlice(...a),
                 ...createUISlice(...a),
                 ...createAuthSlice(...a),
+                ...createAISlice(...a),
             }),
             {
                 limit: 200,

@@ -1,0 +1,114 @@
+/* Column-delete confirmation. Follows LimitNoticeModal's shape so the app has
+   one dialog language rather than one per feature; the accent is danger instead
+   of the brand accent because the primary action destroys something. */
+
+.backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 12000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(5, 2, 10, 0.6);
+    animation: kanbanConfirmFadeIn 0.18s ease-out;
+}
+
+@keyframes kanbanConfirmFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.card {
+    width: min(420px, 100%);
+    padding: 28px 28px 24px;
+    border-radius: var(--r-panel);
+    background: var(--bg-raised);
+    border: 1px solid var(--line-strong);
+    box-shadow: var(--elev-3);
+    text-align: center;
+    animation: kanbanConfirmIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes kanbanConfirmIn {
+    from { opacity: 0; transform: translateY(10px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.iconWrapper {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--r-surface);
+    color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+}
+
+.title {
+    margin: 0 0 10px;
+    font-family: var(--font-sans);
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.body {
+    margin: 0 0 22px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text-soft);
+}
+
+.body strong {
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+.actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.dangerButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 18px;
+    border: none;
+    border-radius: var(--r-control);
+    background: var(--danger);
+    color: var(--on-accent);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter var(--transition-fast);
+}
+
+.dangerButton:hover {
+    filter: brightness(1.08);
+}
+
+.secondaryButton {
+    padding: 10px 18px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--text-soft);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.secondaryButton:hover {
+    color: var(--text-main);
+    border-color: var(--line-heavy);
+}

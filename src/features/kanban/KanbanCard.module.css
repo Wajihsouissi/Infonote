@@ -1,0 +1,573 @@
+/* A board card.
+   ---------------------------------------------------------------------------
+   Sized for a 432px lane, which leaves the card ~404px of width. That is nearly
+   twice what the first pass was drawn for, and a small card scaled up is not the
+   same thing as a large card: at this width the old 12px title and 11px chips
+   read as a phone card someone zoomed in on. Every step of the type scale moves
+   up one notch here, and the padding grows with it, so the card is composed at
+   the size it is actually shown.
+
+   The surface is --bg-base: the same ground the block editor sits on inside an
+   expanded card. A card is a page, so it should be the colour a page is
+   everywhere else in the app. Against the lighter --bg-rail lane that reads as a
+   well set into a tray, which is the same figure/ground relationship the
+   expanded card already uses for its editor.
+
+   Vertical rhythm, top to bottom: cover, title, blurb, checklist, progress,
+   meta. Fixed and deliberate — cards whose rows line up can be compared down a
+   lane at a glance, and cards that reorder themselves to suit their contents
+   cannot. */
+
+.card {
+    --card-tint: var(--t-blue);
+    --card-pad: 16px;
+
+    /* The card's spacing system, so every gap in this file is one of two values
+       instead of nine ad-hoc ones.
+         --row      6px  within a group — title to blurb, checklist row to row
+         --group   12px  between groups — blurb to checklist, checklist to meta
+       A 2:1 ratio is enough to group things by eye without needing rules.
+
+       --gutter is the icon column: tile width + the gap after it. Every row below
+       the header is indented by exactly this, so the whole card hangs off the
+       title's left edge rather than off two competing edges. Change the tile size
+       and this must change with it — that is the point of naming it. */
+    --row: 6px;
+    --group: 12px;
+    --tile: 24px;
+    --gutter: 36px;   /* --tile + 12px */
+
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    /* overflow: hidden removed so dropdowns/modals (like DatePicker) don't get cropped */
+    background: var(--lane-card-bg, var(--bg-base));
+    /* "large cards, sheets" on the design-system scale — which is what a 404px
+       card is. `corner-shape` is not declared here or anywhere else in this
+       file: design-system.css §6 already applies the superellipse to every
+       element, so restating it per-rule only adds noise. */
+    border-radius: var(--r-lg);
+    /* A title-only card is about 58px tall, and at a 24px radius the top and
+       bottom curves nearly meet — the card stops reading as a card and starts
+       reading as a pill. This is the floor that keeps the straight edge longer
+       than the curves. */
+    min-height: 64px;
+    /* No ring at rest. Down a lane the cards are already separated by the gaps
+       between them and by sitting darker than the tray; outlining every one as
+       well just draws a stack of boxes. The edge appears on hover, where it is
+       answering a question. */
+    box-shadow: none;
+    /* An open hand: the whole card is a drag surface. */
+    cursor: grab;
+    transition:
+        box-shadow var(--transition-fast),
+        background var(--transition-fast);
+}
+
+/* Lifts toward the lane's own colour rather than toward white: the card is a
+   recess, so hovering shallows it instead of raising a slab. */
+.card:hover {
+    background: color-mix(in srgb, var(--lane-card-bg, var(--bg-base)) 82%, var(--bg-rail));
+    box-shadow: 0 0 0 1px var(--line-strong), var(--elev-1);
+}
+
+.card:active {
+    cursor: grabbing;
+}
+
+/* The card left behind in the lane while its copy rides the cursor. Kept in
+   place at low contrast so the lane doesn't reflow under the drag — the gap the
+   user is aiming at has to stay where they aimed. */
+.card[data-ghost] {
+    opacity: 0.3;
+    box-shadow: none;
+}
+
+.card[data-ghost]:hover {
+    background: var(--lane-card-bg, var(--bg-base));
+}
+
+/* The copy under the cursor: lifted, and tilted just enough to read as held. */
+.card[data-overlay] {
+    cursor: grabbing;
+    transform: rotate(-1.2deg);
+    box-shadow: 0 0 0 1px var(--line-heavy), var(--elev-3);
+}
+
+/* ------------------------------------------------- blocks (not a card) */
+
+/* A block or fused note keeps the lane's surface — items in a column have to
+   read as items — but nothing else of the card. Its own blocks bring their type,
+   their spacing and their media, so the only job here is a sensible inset.
+
+   The editor is live, so this area belongs to the caret: the drag lives on the
+   grip instead, and the default text cursor here is telling the truth. */
+.blockBody {
+    /* The same inset a note card uses, so a lane of mixed children shares one
+       left edge. A block has no icon column, so its text starts at the card's
+       padding while a note's starts after the gutter — different by design, but
+       both measured from the same 16px. */
+    padding: 14px var(--card-pad);
+    min-width: 0;
+    /* The editor sizes itself to its content; without this an image or a table
+       can push the card past its lane. */
+    overflow: hidden;
+}
+
+/* Media inside a preview must not outrun the lane. */
+.blockBody img,
+.blockBody video {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Only rendered while the block is selected — unselected, the whole card is
+   already the drag surface. Tucked into the top-right so it never sits over the
+   first line of text. */
+.blockGrip {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: var(--r-control);
+    background: var(--bg-rail);
+    color: var(--text-faint);
+    cursor: grab;
+    /* Always visible: it exists only while the block is selected, and at that
+       moment it is the only way to move it. Fading it in on hover would hide the
+       one control the state depends on. */
+    box-shadow: 0 0 0 1px var(--line);
+    transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.blockGrip:hover {
+    background: var(--bg-raised);
+    color: var(--text-main);
+}
+
+.blockGrip:active {
+    cursor: grabbing;
+}
+
+/* Unselected, a block is a tile: the whole card is a drag surface, so it says so
+   with an open hand. Selected, it is a document — the caret takes over. */
+.card[data-kind='blocks'][data-editing] {
+    cursor: default;
+    /* Reads as "this one is live" without a heavy chrome: the same accent the
+       canvas uses for a selected node, at the card's own scale. */
+    box-shadow: 0 0 0 1.5px var(--accent), var(--elev-2);
+    background: color-mix(in srgb, var(--lane-card-bg, var(--bg-base)) 92%, var(--bg-rail));
+}
+
+.card[data-kind='blocks'][data-editing]:hover {
+    background: color-mix(in srgb, var(--lane-card-bg, var(--bg-base)) 92%, var(--bg-rail));
+}
+
+/* An I-beam over text you can actually type into — and only there. Scoped to the
+   editable elements rather than the whole body so an image, a table or a divider
+   inside the same block keeps whatever cursor its own control wants. */
+.card[data-editing] [contenteditable='true'] {
+    cursor: text;
+}
+
+/* ------------------------------------------------------------------ cover */
+
+/* A fixed band, not a proportional hero. At 404px wide a 16:10 crop is 250px
+   tall and the picture stops being a detail of the card and becomes the card.
+   A constant height also means every covered card down a lane starts its text
+   at the same offset, which is what makes a column scannable. */
+.cover {
+    position: relative;
+    width: 100%;
+    height: 148px;
+    flex: none;
+    overflow: hidden;
+    background: var(--media-plate);
+    border-top-left-radius: var(--r-lg);
+    border-top-right-radius: var(--r-lg);
+}
+
+.cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* ------------------------------------------------------------------- body */
+
+.body {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    /* Centred rather than top-aligned. On a card with rows to spare the content
+       overflows the min-height and this does nothing; on a title-only card it
+       is what stops the text sitting high in a box with dead space beneath it. */
+    justify-content: center;
+    gap: var(--group);
+    padding: var(--card-pad);
+    min-width: 0;
+}
+
+/* A cover carries its own visual weight, so the text needs less air above it
+   than it does when the card opens on the title. */
+.cover + .body {
+    padding-top: var(--group);
+}
+
+.head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: 0;
+}
+
+/* The tinted glyph tile. Takes the card's own colour when it has one, so a
+   colour-coded card carries that coding onto the board instead of losing it at
+   the lane edge. */
+/* Wraps the tile so the icon picker can anchor to it without the tile itself
+   having to become a positioned box in the header's flex row. */
+.iconWrap {
+    position: relative;
+    flex: none;
+    display: block;
+}
+
+.iconTile {
+    flex: none;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: none;
+    font: inherit;
+    /* 24px against a 21px title line. The old 26px stood taller than the text it
+       labels, which made the icon read as the loudest thing on the card — an
+       ornament outweighing the name. At 24 it sits just proud of the line and
+       the title leads again. */
+    width: var(--tile);
+    height: var(--tile);
+    /* Centres the tile on the first line rather than hanging it from the line
+       box top, which left it looking a couple of pixels high. */
+    margin-top: -1px;
+    /* Steps down from the card's 24px the way the card steps down from the
+       lane's 32px — a nesting ladder rather than three unrelated corners. */
+    border-radius: var(--r-md);
+    background: color-mix(in srgb, var(--card-tint) 15%, transparent);
+    /* The glyph inherits this, so tile and icon are always one colour — see the
+       `currentColor` override where CardIcon is rendered. */
+    color: var(--card-tint);
+}
+
+/* The tile is inert until the card is selected; then it is the icon control. */
+.iconTile:not(:disabled) {
+    cursor: pointer;
+}
+
+.iconTile:not(:disabled):hover {
+    background: color-mix(in srgb, var(--card-tint) 26%, transparent);
+}
+
+/* Matches the heading it replaces so the card does not shift when it is
+   selected — same size, same weight, same line, just typable. */
+.titleInput {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: -3px 0 -3px -6px;
+    padding: 2px 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--r-control);
+    outline: none;
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: -0.006em;
+    color: var(--text-main);
+    cursor: text;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.titleInput::placeholder {
+    color: var(--text-faint);
+}
+
+.titleInput:hover {
+    background: var(--hover-wash);
+}
+
+.titleInput:focus {
+    background: var(--input-bg);
+    border-color: var(--accent);
+}
+
+.title {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: -0.006em;
+    color: var(--text-main);
+
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Indented to the title's left edge, not the card's: the icon tile opens a
+   column, and text that ignores it reads as a second, competing block.
+   Pulled back to --row, because the blurb belongs to the title rather than
+   standing as a section of its own. */
+.snippet {
+    margin: calc(var(--row) - var(--group)) 0 0;
+    padding-left: var(--gutter);
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: var(--text-soft);
+
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* -------------------------------------------------------------- checklist */
+
+.checklist {
+    display: flex;
+    flex-direction: column;
+    gap: var(--row);
+    margin: 0;
+    padding: 0 0 0 36px;
+    list-style: none;
+}
+
+.check {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--text-soft);
+}
+
+.box {
+    flex: none;
+    display: grid;
+    place-items: center;
+    /* 13px — the cap height of the 13px text beside it. At 14 the box stood
+       taller than the words and the list read as boxes with labels rather than
+       as lines of text you can tick. */
+    width: 13px;
+    height: 13px;
+    /* Centres the box on its line: (19px line − 13px box) / 2. */
+    margin-top: 3px;
+    padding: 0;
+    background: transparent;
+    border: 1.5px solid var(--line-heavy);
+    border-radius: var(--r-xs);
+    color: transparent;
+    /* Always tickable — reading a board and ticking a task off it are the same
+       gesture, so this never waits for the card to be selected. */
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.box:hover {
+    border-color: var(--ok);
+    background: color-mix(in srgb, var(--ok) 18%, transparent);
+}
+
+.check[data-done] .box {
+    background: var(--ok);
+    border-color: var(--ok);
+    color: var(--bg-inset);
+}
+
+.check[data-done] .checkText {
+    color: var(--text-faint);
+    text-decoration: line-through;
+    text-decoration-color: var(--line-heavy);
+}
+
+.checkText {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.more {
+    padding-left: 21px;
+    font-size: 0.75rem;
+    color: var(--text-faint);
+}
+
+/* --------------------------------------------------------------- progress */
+
+.progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-left: var(--gutter);
+}
+
+.track {
+    flex: 1 1 auto;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--active-wash);
+    overflow: hidden;
+}
+
+.fill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--ok);
+    transition: width var(--transition-smooth);
+}
+
+.progressValue {
+    flex: none;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-faint);
+}
+
+/* ------------------------------------------------------------------- meta */
+
+/* Aligned to the same 36px column as the blurb and the checklist, so everything
+   below the title shares one left edge.
+
+   This started as a full-width footer under a hairline rule, which is a fine
+   composition on a fixed surface but not on this one: the canvas renders at
+   arbitrary fractional zoom, and a 1px border measured 0.6px and simply
+   vanished. That left a row that broke the card's left edge for no visible
+   reason. Separation is carried by space alone now — nothing to drop out at a
+   bad zoom, and one column reads calmer than two. */
+.meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    /* Chips sit closer to each other than rows do to each other, so a wrapped
+       second line still reads as one row of chips. */
+    gap: var(--row);
+    padding-left: var(--gutter);
+}
+
+.priority,
+.due,
+.tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: var(--radius-pill);
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.priority {
+    --tone: var(--text-faint);
+    background: color-mix(in srgb, var(--tone) 14%, transparent);
+    color: var(--tone);
+    text-transform: capitalize;
+}
+
+.dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--tone);
+}
+
+.priority[data-priority='urgent'] { --tone: var(--danger); }
+.priority[data-priority='high']   { --tone: var(--warn); }
+.priority[data-priority='medium'] { --tone: var(--secondary); }
+.priority[data-priority='low']    { --tone: var(--t-green); }
+
+.due {
+    --tone: var(--text-faint);
+    background: color-mix(in srgb, var(--tone) 13%, transparent);
+    color: var(--tone);
+    font-variant-numeric: tabular-nums;
+}
+
+.due[data-state='overdue'] { --tone: var(--danger); }
+.due[data-state='today']   { --tone: var(--accent-ink); }
+.due[data-state='soon']    { --tone: var(--warn); }
+
+/* Neutral by design: a tag is a label, not a signal, and a board where every
+   chip is coloured has no colour left for the ones that mean something. */
+.tag {
+    display: inline-block;
+    max-width: 128px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: var(--active-wash);
+    color: var(--text-soft);
+}
+
+/* ---------------------------------------------------------- meta editor */
+
+/* Set off from the reading view by a rule, because unlike the rest of the card
+   this is chrome rather than content — it is where the chips above are set. It
+   runs the full width of the card rather than sitting in the text gutter, which
+   is what marks it as a different kind of thing. */
+.metaEditor {
+    display: flex;
+    flex-direction: column;
+    gap: var(--group);
+    margin-top: var(--row);
+    padding-top: var(--group);
+    border-top: 1px solid var(--line-strong);
+    cursor: default;
+}
+
+.metaEditorRow {
+    display: flex;
+    gap: var(--row);
+}
+
+.metaEditorField {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    flex: 1 1 0;
+}
+
+.metaEditorLabel {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.assignee {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    margin-left: auto;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--secondary) 22%, transparent);
+    color: var(--secondary-ink);
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}

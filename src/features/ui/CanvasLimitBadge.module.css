@@ -1,7 +1,9 @@
 .badge {
   position: fixed;
-  left: 16px;
-  bottom: 16px;
+  /* Sits inside the canvas frame, far enough in to clear its rounded
+     bottom-left corner — so it tracks the frame's own inset. */
+  left: calc(var(--shell-inset) + 18px);
+  bottom: calc(var(--shell-inset) + 18px);
   z-index: 900;
   display: flex;
   gap: 10px;

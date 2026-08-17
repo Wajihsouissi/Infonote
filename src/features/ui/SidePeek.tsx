@@ -39,8 +39,12 @@ export function SidePeek({
 
             const clickedInsidePanel = panelRef.current?.contains(e.target as Node);
             const clickedOnButton = buttonRef?.current?.contains(e.target as Node);
+            // The app menu is chrome, not canvas — it docks to the side while
+            // this panel is open, so closing on its clicks would pull the rail
+            // away mid-press and swallow the button hit.
+            const clickedInMenu = (e.target as HTMLElement | null)?.closest?.('[data-app-menu]');
 
-            if (!clickedInsidePanel && !clickedOnButton) {
+            if (!clickedInsidePanel && !clickedOnButton && !clickedInMenu) {
                 onClose();
             }
         };

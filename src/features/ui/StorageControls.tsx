@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Folder, FolderOpen, FolderCheck, FolderX, FolderSync, Cloud, CloudCheck, CloudAlert, CloudSync, CloudUpload, Users } from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import { DuotoneIcon } from '../../components/ui/DuotoneIcon';
 import { connectBackend, disconnectBackend, getActiveBackendKind } from '../../services/StorageManager';
 import { fileSystemStorage } from '../../services/FileSystemStorage';
 import { saveCanvasToCloud } from '../../services/cloudSync';
@@ -325,10 +326,10 @@ export const StorageControls: React.FC = () => {
         storage.isLocalDirty ? 'not-synced' : 'synced';
 
     const localIcon = isConnecting ? <FolderSync size={18} className="animate-spin" />
-        : localStatus === 'error' ? <FolderX size={18} />
-        : localStatus === 'synced' ? <FolderCheck size={18} />
-        : localStatus === 'not-synced' ? <FolderOpen size={18} />
-        : <Folder size={18} />;
+        : localStatus === 'error' ? <DuotoneIcon icon={FolderX} size={18} />
+        : localStatus === 'synced' ? <DuotoneIcon icon={FolderCheck} size={18} />
+        : localStatus === 'not-synced' ? <DuotoneIcon icon={FolderOpen} size={18} />
+        : <DuotoneIcon icon={Folder} size={18} />;
 
     const localTitle = isConnecting ? 'Connecting...'
         : localStatus === 'error' ? `Local Save Error: ${storage.localError}`

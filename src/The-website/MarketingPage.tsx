@@ -43,7 +43,6 @@ import { FlowStateIllustration } from './illustrations/FlowStateIllustration';
 import { ParaMethodIllustration } from './illustrations/ParaMethodIllustration';
 import { ZettelkastenIllustration } from './illustrations/ZettelkastenIllustration';
 import { MindmappingIllustration } from './illustrations/MindmappingIllustration';
-import { AgileWorkflowsIllustration } from './illustrations/AgileWorkflowsIllustration';
 import { LinkPreview } from '../components/ui/link-preview';
 
 // -------------------------------------------------------------------------
@@ -584,14 +583,6 @@ export const MarketingPage: React.FC = () => {
       tags: ["Infinite canvas", "Freeform", "Hierarchy"],
       icon: <Target />,
       svg: <MindmappingIllustration />
-    },
-    {
-      kicker: "Ship the work",
-      title: "Agile Workflows",
-      desc: "Turn insights into action. Extract tasks directly from your notes to build dynamic, fully-integrated Kanban boards.",
-      tags: ["Kanban", "Task extraction", "Sprints"],
-      icon: <Kanban />,
-      svg: <AgileWorkflowsIllustration />
     }
   ];
 

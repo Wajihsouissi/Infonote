@@ -1,33 +1,7 @@
-/* Shifting Grain/Noise Animation */
-@keyframes grainShift {
-
-    0%,
-    100% {
-        transform: translate(0, 0);
-    }
-
-    20% {
-        transform: translate(-2px, 2px);
-    }
-
-    40% {
-        transform: translate(2px, -2px);
-    }
-
-    60% {
-        transform: translate(-1px, -2px);
-    }
-
-    80% {
-        transform: translate(1px, 1px);
-    }
-}
-
 .panel {
     width: 310px;
     height: 100%;
-    background: var(--color-bg-base);
-    border-left: 1px solid var(--line);
+    background: var(--panel-bg);
     display: flex;
     flex-direction: column;
     z-index: 100;
@@ -35,7 +9,7 @@
     overflow: hidden;
     position: relative;
     box-shadow: none;
-    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-left-color 0.3s ease;
+    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     font-family: var(--font-sans);
 }
 
@@ -49,67 +23,44 @@
     width: 0 !important;
     opacity: 0;
     transform: translateX(15px);
-    border-left-color: transparent !important;
     pointer-events: none;
     box-shadow: none;
 }
 
-/* Premium Soft Gradient Wash (Theme Inspired) */
-.panel::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse 160% 40% at 50% 0%, rgba(var(--accent-rgb), 0.12) 0%, transparent 65%),
-        radial-gradient(ellipse 120% 30% at 50% 100%, rgba(var(--secondary-rgb), 0.06) 0%, transparent 65%);
-    pointer-events: none;
-    z-index: 1;
-}
-
-/* Premium Shifting Grain Overlay */
-.panel::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 3;
-    opacity: 0.035;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-size: 180px 180px;
-    animation: grainShift 0.12s steps(1) infinite;
-}
-
-.panel>* {
-    position: relative;
-    z-index: 2;
-}
-
 /* Sticky Header */
+/* Sits on the panel's chrome — no surface, no divider; the inset body is the
+   edge. 24px aligns the title with the content inside the body, and the height
+   is set so header + inset equals the top bar, putting the body's top edge on
+   the same line as the canvas frame's. */
+/* No title/icon left anymore, so headerActions is the only child — keep it
+   pinned right rather than letting space-between drop it to the start. */
 .header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--line);
-    background: var(--color-bg-base);
+    justify-content: flex-end;
+    height: calc(var(--topbar-h) - var(--panel-inset));
+    box-sizing: border-box;
+    padding: 0 24px;
+    background: transparent;
     position: sticky;
     top: 0;
     z-index: 10;
     flex-shrink: 0;
 }
 
-.headerLeft {
+/* The panel's inset surface — same radius as the canvas frame. It also becomes
+   the containing block for the scroll indicators, which are absolutely
+   positioned and were previously measured against the whole panel. */
+.panelBody {
+    flex: 1;
+    min-height: 0;
+    position: relative;
     display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.headerTitle {
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    opacity: 0.85;
+    flex-direction: column;
+    overflow: hidden;
+    margin: var(--panel-inset);
+    background: var(--panel-body-bg);
+    border-radius: var(--panel-radius);
 }
 
 .closeBtn {
@@ -374,13 +325,14 @@
 }
 
 .scrollIndicatorTop {
-    top: 45px;
-    background: linear-gradient(to bottom, var(--color-bg-base), transparent);
+    /* Measured from the top of the body now, not the panel. */
+    top: 0;
+    background: linear-gradient(to bottom, var(--panel-body-bg), transparent);
 }
 
 .scrollIndicatorBottom {
     bottom: 0;
-    background: linear-gradient(to top, var(--color-bg-base), transparent);
+    background: linear-gradient(to top, var(--panel-body-bg), transparent);
 }
 
 /* Row Controls (Hover Rearrange Up/Down & Navigate) */

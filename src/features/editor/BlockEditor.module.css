@@ -391,7 +391,7 @@
     position: relative;
     padding: 0;
     background: transparent !important;
-    border-radius: var(--block-radius-lg);
+    border-radius: var(--media-radius);
     border: none;
 }
 
@@ -407,7 +407,7 @@
     width: 100%;
     max-width: 100%;
     height: auto;
-    border-radius: var(--block-radius-lg);
+    border-radius: var(--media-radius);
     display: block;
     object-fit: contain;
     background: transparent !important;
@@ -463,7 +463,7 @@
     width: 100%;
     padding: var(--block-inset);
     border: 1px dashed var(--line-strong);
-    border-radius: var(--block-radius-lg);
+    border-radius: var(--media-radius);
     background: var(--block-well);
 }
 
@@ -1576,7 +1576,7 @@
 .sortableWrapper[data-block-type="file"].selected .fileWrapper {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
-    border-radius: var(--block-radius-lg);
+    border-radius: var(--media-radius);
 }
 
 .sortableWrapper[data-block-type="image"]:active .blockContent,
@@ -1595,7 +1595,7 @@
     padding: var(--block-pad-x);
     background: transparent;
     border: none;
-    border-radius: var(--block-radius-lg);
+    border-radius: var(--media-radius);
     margin: 0;
     width: 100%;
     height: 100%;
@@ -1651,9 +1651,26 @@
     min-width: 0;
 }
 
-/* Drag & Drop Visuals — the source block recedes, it doesn't distort. */
+/* Drag & Drop Visuals.
+   The block you are carrying is marked, not erased. At 0.4 a photograph read as
+   damaged rather than in flight, and the same is true of anything with weight
+   to it — a table, a callout, a code block. So the source keeps its legibility
+   and takes an accent ring instead: it is a marked origin you could still drop
+   back onto, which is information, where a ghost is just an absence.
+   Matches a board tile in flight — see GalleryBlock.module.css
+   `.tileDragging`. */
 .dragging {
-    opacity: 0.4;
+    opacity: 0.7;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--block-radius);
+}
+
+/* Muting the picture rather than the wrapper keeps the ring at full strength,
+   so the marker stays crisp while the image itself recedes behind it. */
+.dragging img,
+.dragging video {
+    filter: saturate(0.55);
 }
 
 .dropTargetTop,
@@ -1719,7 +1736,9 @@
     position: relative;
     background: transparent;
     overflow: visible;
-    border-radius: var(--block-radius-lg);
+    /* It wraps the media and carries the hover ring, so it has to be cut to the
+       same corner or the ring bows away from the picture at each corner. */
+    border-radius: var(--media-radius);
 }
 
 .resizeWrapper:hover {

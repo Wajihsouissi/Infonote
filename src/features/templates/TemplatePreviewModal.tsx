@@ -2,15 +2,13 @@ import { ReactFlow, Background, BackgroundVariant, ReactFlowProvider, type Edge 
 import { NoteCard } from '../card/NoteCard';
 import { BlockNode } from '../block/BlockNode';
 import { FusedNoteNode } from '../card/FusedNoteNode';
-import { KanbanNodeComponent } from '../kanban/KanbanNode';
 import { CenteredEdge } from '../canvas/CenteredEdge';
 import type { AppNode } from '../../types';
 
 const nodeTypes = {
     note: NoteCard,
     block: BlockNode,
-    'fused-note': FusedNoteNode,
-    kanban: KanbanNodeComponent
+    'fused-note': FusedNoteNode
 };
 
 const edgeTypes = {

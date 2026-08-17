@@ -3,7 +3,7 @@ import { FEATURES } from '../../config/featureFlags';
 import {
     Plus,
     LayoutGrid,
-    KanbanSquare,
+
     Search,
     X,
     Filter,
@@ -11,24 +11,19 @@ import {
     Calendar,
     Flag,
     CheckCircle,
-    Table2,
-    Clock,
     Sparkles,
-    Send,
-    ImagePlus,
-    Loader2,
     LayoutTemplate,
     Square,
     RectangleHorizontal,
     File,
     AppWindow
 } from 'lucide-react';
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, type Variants } from 'motion/react';
-import { useReactFlow, type Edge } from '@xyflow/react';
+import { useReactFlow } from '@xyflow/react';
 import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '../../store/useStore';
-import { type AppNode, type NoteNode, getNodeLabel, getNodeBlocks } from '../../types';
+import { getNodeBlocks } from '../../types';
 import type { AppState } from '../../store/types';
 import styles from './BottomMenu.module.css';
 import { MENU_ITEMS } from '../editor/menuConstants';
@@ -39,8 +34,6 @@ import { MIN_EXPANDED_SIZE } from '../../config/layout';
 import { parseSearchQuery } from './searchUtils';
 import { MultiSelectionToolbar } from './MultiSelectionToolbar';
 import { EdgeEditingToolbar } from './EdgeEditingToolbar';
-import { generateImage, parseStructuredAction, generateText } from '../../services/aiService';
-import { parsePlainText } from '../editor/pasteUtils';
 import { TEMPLATES } from '../templates/templateDefinitions';
 import { TemplatePreviewModal } from '../templates/TemplatePreviewModal';
 
@@ -56,26 +49,32 @@ export function BottomMenu() {
     const selectedEdgeId = useStore(s => s.selectedEdgeId);
     const selectedEdgeIds = useStore(s => s.selectedEdgeIds);
     const hasSelectedEdges = selectedEdgeId || (selectedEdgeIds && selectedEdgeIds.size > 0);
+    // Which edges the side panels are eating — the menu docks against a free one.
+    const rightSidePanelId = useStore(s => s.rightSidePanelId);
+    const leftSidePanelId = useStore(s => s.leftSidePanelId);
+    const isMetadataOpen = useStore(s => s.isMetadataOpen);
+    const isTOCOpen = useStore(s => s.isTOCOpen);
+    const isShortcutsPanelOpen = useStore(s => s.isShortcutsPanelOpen);
+    const isAIPanelOpen = useStore(s => s.isAIPanelOpen);
+    const openAIPanel = useStore(s => s.openAIPanel);
+    const toggleAIPanel = useStore(s => s.toggleAIPanel);
+    const setAIImageMode = useStore(s => s.setAIImageMode);
 
     const { screenToFlowPosition, getViewport } = useReactFlow();
     const [isSearchMode, setIsSearchMode] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [isAIMode, setIsAIMode] = useState(false);
-    const [aiQuery, setAiQuery] = useState('');
-    const [aiModeType, setAiModeType] = useState<'text' | 'image'>('text');
     const [showFilters, setShowFilters] = useState(false);
     const [activeMenu, setActiveMenu] = useState<'views' | 'blocks' | 'templates' | 'addNoteModes' | null>(null);
     const [hoveredTemplateId, setHoveredTemplateId] = useState<string | null>(null);
     const hoverTimeoutRef = useRef<number | null>(null);
     const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
-    const [aiError, setAiError] = useState<string | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const handleAddNoteRef = useRef<() => void>(() => {});
 
     // Hide templates that depend on a beta-deferred surface (e.g. Kanban) so a
     // disabled feature can't leak back in through a template drop.
     const templates = useMemo(
-        () => TEMPLATES.filter(t => !t.requiresKanban || FEATURES.kanban),
+        () => TEMPLATES,
         []
     );
 
@@ -91,23 +90,20 @@ export function BottomMenu() {
         [hoveredTemplateId, templates]
     );
 
-    // Reset highlighted index when activeMenu changes
-    useEffect(() => {
-        if (activeMenu) {
-            setHighlightedIndex(0);
-        } else {
-            setHighlightedIndex(null);
-        }
-    }, [activeMenu]);
+    // Reset the highlighted item when the open menu changes. Adjusted during
+    // render rather than in an effect: an effect would paint the old highlight
+    // for a frame first, and re-entering render is the cheaper of the two.
+    const [prevMenu, setPrevMenu] = useState(activeMenu);
+    if (prevMenu !== activeMenu) {
+        setPrevMenu(activeMenu);
+        setHighlightedIndex(activeMenu ? 0 : null);
+    }
 
     // Click-away listener to dismiss active menus and modes when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
                 setActiveMenu(null);
-                if (isAIMode) {
-                    setIsAIMode(false);
-                }
                 if (isSearchMode) {
                     setIsSearchMode(false);
                     setShowFilters(false);
@@ -115,115 +111,31 @@ export function BottomMenu() {
             }
         };
 
-        if (activeMenu || isAIMode || isSearchMode) {
+        if (activeMenu || isSearchMode) {
             document.addEventListener('mousedown', handleClickOutside, true);
         }
         return () => {
             document.removeEventListener('mousedown', handleClickOutside, true);
         };
-    }, [activeMenu, isAIMode, isSearchMode]);
+    }, [activeMenu, isSearchMode]);
 
-    // Handle keyboard navigation inside the open menu
-    useEffect(() => {
-        if (!activeMenu || highlightedIndex === null) return;
+    // A flyout and a rail popover would otherwise stack on top of each other:
+    // the rail stays mounted while search is open, so opening one surface has to
+    // dismiss the other explicitly — hence this pair.
+    const openSearch = useCallback(() => {
+        setActiveMenu(null);
+        setIsSearchMode(true);
+    }, []);
 
-        const columns = activeMenu === 'views' ? 4 : activeMenu === 'templates' ? 4 : 6;
-        const totalItems = activeMenu === 'views' ? 4 : activeMenu === 'templates' ? templates.length : MENU_ITEMS.length;
-
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                setActiveMenu(null);
-                e.preventDefault();
-                return;
-            }
-
-            if (e.key === 'ArrowRight') {
-                setHighlightedIndex(prev => (prev === null ? 0 : Math.min(totalItems - 1, prev + 1)));
-                e.preventDefault();
-            } else if (e.key === 'ArrowLeft') {
-                setHighlightedIndex(prev => (prev === null ? 0 : Math.max(0, prev - 1)));
-                e.preventDefault();
-            } else if (e.key === 'ArrowDown') {
-                setHighlightedIndex(prev => (prev === null ? 0 : Math.min(totalItems - 1, prev + columns)));
-                e.preventDefault();
-            } else if (e.key === 'ArrowUp') {
-                setHighlightedIndex(prev => (prev === null ? 0 : Math.max(0, prev - columns)));
-                e.preventDefault();
-            } else if (e.key === 'Enter') {
-                if (activeMenu === 'views') {
-                    const index = highlightedIndex;
-                    if (index === 0) {
-                        useStore.getState().setKanbanModalOpen(true);
-                    } else if (index === 1) {
-                        const centerX = window.innerWidth / 2;
-                        const centerY = window.innerHeight / 2;
-                        const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
-                        const BOARD_WIDTH = 700;
-                        const BOARD_HEIGHT = 500;
-                        const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, nodes, currentParentId, vp());
-                        addNode('kanban', position, {
-                            label: 'My Table',
-                            columns: [
-                                { id: 'todo', label: 'To Do', statusValue: 'todo', color: '#ef4444' },
-                                { id: 'in-progress', label: 'In Progress', statusValue: 'in-progress', color: '#f59e0b' },
-                                { id: 'done', label: 'Done', statusValue: 'done', color: '#22c55e' },
-                            ],
-                            viewMode: 'table',
-                        }, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, currentParentId || undefined);
-                    } else if (index === 2) {
-                        const centerX = window.innerWidth / 2;
-                        const centerY = window.innerHeight / 2;
-                        const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
-                        const BOARD_WIDTH = 800;
-                        const BOARD_HEIGHT = 600;
-                        const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, nodes, currentParentId, vp());
-                        addNode('kanban', position, {
-                            label: 'Calendar',
-                            columns: [
-                                { id: 'todo', label: 'To Do', statusValue: 'todo', color: '#ef4444' },
-                                { id: 'in-progress', label: 'In Progress', statusValue: 'in-progress', color: '#f59e0b' },
-                                { id: 'done', label: 'Done', statusValue: 'done', color: '#22c55e' },
-                            ],
-                            viewMode: 'calendar',
-                        }, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, currentParentId || undefined);
-                    } else if (index === 3) {
-                        const centerX = window.innerWidth / 2;
-                        const centerY = window.innerHeight / 2;
-                        const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
-                        const BOARD_WIDTH = 800;
-                        const BOARD_HEIGHT = 400;
-                        const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, nodes, currentParentId, vp());
-                        addNode('kanban', position, {
-                            label: 'Timeline',
-                            columns: [
-                                { id: 'todo', label: 'To Do', statusValue: 'todo', color: '#ef4444' },
-                                { id: 'in-progress', label: 'In Progress', statusValue: 'in-progress', color: '#f59e0b' },
-                                { id: 'done', label: 'Done', statusValue: 'done', color: '#22c55e' },
-                            ],
-                            viewMode: 'timeline',
-                        }, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, currentParentId || undefined);
-                    }
-                } else if (activeMenu === 'templates') {
-                    const template = templates[highlightedIndex];
-                    if (template) {
-                        handleTemplateClick(template.id);
-                    }
-                } else {
-                    const block = MENU_ITEMS[highlightedIndex];
-                    if (block) {
-                        handleBlockClick(block);
-                    }
-                }
-                setActiveMenu(null);
-                e.preventDefault();
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => {
-            window.removeEventListener('keydown', handleKeyDown);
-        };
-    }, [activeMenu, highlightedIndex, screenToFlowPosition, addNode, currentParentId, nodes]);
+    // Opening a rail popover closes whatever is in the flyout lane, so only one
+    // surface is ever attached to the rail.
+    const openMenu = useCallback((menu: 'views' | 'blocks' | 'templates' | 'addNoteModes' | null) => {
+        if (menu) {
+            setIsSearchMode(false);
+            setShowFilters(false);
+        }
+        setActiveMenu(menu);
+    }, []);
 
     // Global keyboard shortcuts for BottomMenu
     useEffect(() => {
@@ -234,9 +146,7 @@ export function BottomMenu() {
             if (e.key === 'b' && !e.metaKey && !e.ctrlKey && !e.altKey) {
                 e.preventDefault();
                 setActiveMenu(prev => prev === 'blocks' ? null : 'blocks');
-            } else if (e.key === 'v' && !e.metaKey && !e.ctrlKey && !e.altKey) {
-                e.preventDefault();
-                setActiveMenu(prev => prev === 'views' ? null : 'views');
+
             } else if (e.key === 't' && !e.metaKey && !e.ctrlKey && !e.altKey) {
                 e.preventDefault();
                 setActiveMenu(prev => prev === 'templates' ? null : 'templates');
@@ -246,33 +156,18 @@ export function BottomMenu() {
                     setIsSearchMode(false);
                     setSearchQuery('');
                 } else {
-                    setIsSearchMode(true);
-                    setIsAIMode(false);
+                    openSearch();
                 }
             } else if (e.key === 'j' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
-                if (isAIMode && aiModeType === 'text') {
-                    setIsAIMode(false);
-                    setAiQuery('');
-                    setAiError(null);
-                } else {
-                    setIsAIMode(true);
-                    setAiModeType('text');
-                    setIsSearchMode(false);
-                    setAiError(null);
-                }
+                setIsSearchMode(false);
+                setAIImageMode(false);
+                toggleAIPanel();
             } else if (e.key === 'i' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
-                if (isAIMode && aiModeType === 'image') {
-                    setIsAIMode(false);
-                    setAiQuery('');
-                    setAiError(null);
-                } else {
-                    setIsAIMode(true);
-                    setAiModeType('image');
-                    setIsSearchMode(false);
-                    setAiError(null);
-                }
+                setIsSearchMode(false);
+                setAIImageMode(true);
+                openAIPanel('create');
             } else if (e.key === 'n' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
                 handleAddNoteRef.current();
@@ -346,369 +241,11 @@ export function BottomMenu() {
 
         addNode('note', position, { viewMode: 'expanded' }, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, currentParentId || undefined);
     };
-    handleAddNoteRef.current = handleAddNote;
-
-    const [isGenerating, setIsGenerating] = useState(false);
-
-    const handleAISubmit = async () => {
-        if (!aiQuery.trim() || isGenerating) return;
-        setIsGenerating(true);
-        setAiError(null);
-        const query = aiQuery.trim();
-        try {
-            const centerX = window.innerWidth / 2;
-            const centerY = window.innerHeight / 2;
-            const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
-
-             if (aiModeType === 'text') {
-                 if (selectedCanvasNodeIds.size > 0) {
-                     const selectedIds = Array.from(selectedCanvasNodeIds);
-                     for (const nodeId of selectedIds) {
-                         const node = nodes.find(n => n.id === nodeId);
-                         if (node && (node.type === 'note' || node.type === 'block' || node.type === 'fused-note')) {
-                             const nodeTitle = node.type === 'note' ? node.data.label : 'Untitled';
-                             const nodeDescription = node.type === 'note' ? node.data.description || '' : '';
-                             
-                             const contentBlocks = node.data.content;
-                             const contentText = Array.isArray(contentBlocks)
-                                 ? contentBlocks.map(b => b.content).join('\n')
-                                 : '';
- 
-                             const prompt = `You are editing an existing node.
- Here is the node's current title (if applicable): "${nodeTitle}"
- Here is the node's current description (if applicable): "${nodeDescription}"
- Here is the node's current body content:
- "${contentText}"
- 
- The user has given the following instruction to modify this node:
- "${query}"
- 
- Respond ONLY with a valid JSON object matching this structure. Do not include markdown, code blocks, or explanations.
- {
-   "title": "...", // updated title if the user asked to change the title, or the same title
-   "description": "...", // updated description (2-line summary with bullet points) based on the user's instructions and body text
-   "content": "..." // updated full body content based on the user's instructions (e.g. translate, add details, edit, format, outline, etc.)
- }`;
- 
-                             const responseText = await generateText(prompt);
-                             const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-                             let updateData: Record<string, unknown> = {};
-                             
-                             if (jsonMatch) {
-                                 try {
-                                     const result = JSON.parse(jsonMatch[0]);
-                                     const parsedBlocks = parsePlainText(result.content || contentText);
-                                     updateData = {
-                                         content: parsedBlocks.length > 0 ? parsedBlocks : [
-                                             { id: uuidv4(), type: 'text', content: result.content || contentText }
-                                         ]
-                                     };
-                                     if (node.type === 'note') {
-                                         updateData.label = result.title || nodeTitle;
-                                         updateData.description = result.description || nodeDescription;
-                                     }
-                                 } catch (e) {
-                                     console.error("Failed to parse AI update result JSON:", e);
-                                     const parsedBlocks = parsePlainText(responseText);
-                                     updateData = {
-                                         content: parsedBlocks.length > 0 ? parsedBlocks : [
-                                             { id: uuidv4(), type: 'text', content: responseText }
-                                         ]
-                                     };
-                                 }
-                             } else {
-                                 const parsedBlocks = parsePlainText(responseText);
-                                 updateData = {
-                                     content: parsedBlocks.length > 0 ? parsedBlocks : [
-                                         { id: uuidv4(), type: 'text', content: responseText }
-                                     ]
-                                 };
-                             }
-                             updateNodeData(nodeId, updateData);
-                         }
-                     }
-                     setAiQuery('');
-                     setIsAIMode(false);
-                     return;
-                 }
- 
-                 const selectedNode = nodes.find(n => n.selected);
-                 let activeNodeColor: string | undefined = selectedNode && 'color' in selectedNode.data ? selectedNode.data.color : undefined;
-                 if (!activeNodeColor) {
-                     const coloredNodes = nodes.filter((n): n is NoteNode => n.type === 'note' && !!n.data.color);
-                     if (coloredNodes.length > 0) {
-                         activeNodeColor = coloredNodes[Math.floor(Math.random() * coloredNodes.length)].data.color;
-                     }
-                 }
-
-                 // Spawn skeleton loading node(s)
-                 const isMindmapQuery = query.toLowerCase().includes('mindmap') || query.toLowerCase().includes('mind map');
-                 const skeletonId = uuidv4();
-                 
-                 if (isMindmapQuery) {
-                     const rootPos = findNonOverlappingPosition(flowPos, { width: 260, height: 80 }, nodes, currentParentId, vp());
-                     const skelNodes: AppNode[] = [{
-                         id: skeletonId,
-                         type: 'block',
-                         position: rootPos,
-                         style: { width: 260, height: 80 },
-                         data: { 
-                             content: [{ id: uuidv4(), type: 'heading2', content: 'AI is thinking...' }],
-                             isStandaloneBlock: true,
-                             isAISkeleton: true
-                         },
-                         parentId: currentParentId || undefined
-                     }];
-                     const skelEdges: Edge[] = [];
-                     
-                     for (let i = 0; i < 3; i++) {
-                         const childId = uuidv4();
-                         const angle = (i * 2 * Math.PI) / 3;
-                         skelNodes.push({
-                             id: childId,
-                             type: 'block',
-                             position: { 
-                                 x: rootPos.x + 200 * Math.cos(angle), 
-                                 y: rootPos.y + 200 * Math.sin(angle) 
-                             },
-                             style: { width: 220, height: 70 },
-                             data: { 
-                                 content: [{ id: uuidv4(), type: 'text', content: 'Generating...' }],
-                                 isStandaloneBlock: true,
-                                 isAISkeleton: true
-                             },
-                             parentId: currentParentId || undefined
-                         });
-                         skelEdges.push({
-                             id: `skel-${skeletonId}-${childId}`,
-                             source: skeletonId,
-                             target: childId,
-                             type: 'centered',
-                             data: { parentId: currentParentId ?? null }
-                         });
-                     }
-                     useStore.getState().setNodes(prev => [...prev, ...skelNodes]);
-                     useStore.setState((prev: AppState) => ({ edges: [...prev.edges, ...skelEdges] }));
-                 } else {
-                     addNode(
-                         'note',
-                         findNonOverlappingPosition(flowPos, { width: 432, height: 432 }, nodes, currentParentId, vp()),
-                         {
-                             label: 'AI is thinking...',
-                             content: [{ id: uuidv4(), type: 'text', content: 'Generating your structured request...' }],
-                             color: activeNodeColor || undefined,
-                             viewMode: 'expanded',
-                             showMetadata: false,
-                             icon: 'Sparkles',
-                             isAISkeleton: true,
-                         },
-                         { width: 432, height: 432 },
-                         currentParentId || undefined,
-                         skeletonId
-                     );
-                 }
-
-                 try {
-                     const currentNodes = useStore.getState().nodes;
-                     const siblingNodes = currentNodes.filter(n => n.parentId === (currentParentId || null));
-                     const contextString = siblingNodes.length > 0 
-                         ? `Existing nodes on canvas: ` + siblingNodes.map(n => `${getNodeLabel(n.data) || 'Untitled'} (${n.type})`).join(', ')
-                         : '';
-
-                     const actions = await parseStructuredAction(query, contextString);
-                     
-                     // Remove skeleton node(s) and edges
-                     useStore.getState().setNodes(nds => nds.filter(n => !('isAISkeleton' in n.data && n.data.isAISkeleton)));
-                     useStore.setState((prev: AppState) => ({ edges: prev.edges.filter((e: Edge) => !e.id.startsWith('skel-')) }));
-
-                     actions.forEach((action, idx) => {
-                         const width = action.type === 'kanban' ? 700 : action.type === 'fused-note' ? 800 : 432;
-                         const height = action.type === 'kanban' ? 500 : action.type === 'fused-note' ? 600 : 432;
-     
-                         const position = findNonOverlappingPosition(
-                             {
-                                 x: flowPos.x + (idx % 3) * 340,
-                                 y: flowPos.y + Math.floor(idx / 3) * 260
-                             },
-                             { width, height },
-                             nodes, currentParentId, vp()
-                         );
-     
-                         if (action.type === 'note') {
-                             const parsedBlocks = parsePlainText(action.content || '');
-                             addNode(
-                                 'note',
-                                 position,
-                                 {
-                                     label: action.title,
-                                     content: parsedBlocks.length > 0 ? parsedBlocks : [{ id: uuidv4(), type: 'text', content: action.content || '' }],
-                                     color: action.color || activeNodeColor || undefined,
-                                     viewMode: 'expanded',
-                                     showMetadata: false,
-                                     icon: 'Sparkles',
-                                     createdAt: new Date().toISOString(),
-                                     updatedAt: new Date().toISOString(),
-                                 },
-                                 { width, height },
-                                 currentParentId || undefined
-                             );
-                         } else if (action.type === 'fused-note') {
-                             const markdownContent = `# ${action.title}\n\n${action.content || ''}`;
-                             const parsedBlocks = parsePlainText(markdownContent);
-                             addNode(
-                                 'fused-note',
-                                 position,
-                                 {
-                                     content: parsedBlocks.length > 0 ? parsedBlocks : [{ id: uuidv4(), type: 'text', content: markdownContent }]
-                                 },
-                                 { width, height },
-                                 currentParentId || undefined
-                             );
-                         } else if (action.type === 'kanban') {
-                             const viewMode = action.viewMode || 'board';
-                             const BOARD_WIDTH = viewMode === 'timeline' ? 800 : viewMode === 'calendar' ? 800 : 700;
-                             const BOARD_HEIGHT = viewMode === 'calendar' ? 600 : viewMode === 'timeline' ? 400 : 500;
-                             
-                             addNode(
-                                 'kanban',
-                                 position,
-                                 {
-                                     label: action.title || 'Board',
-                                     columns: action.columns && action.columns.length > 0 ? action.columns : [
-                                         { id: 'todo', label: 'To Do', statusValue: 'todo', color: '#ef4444' },
-                                         { id: 'in-progress', label: 'In Progress', statusValue: 'in-progress', color: '#f59e0b' },
-                                         { id: 'done', label: 'Done', statusValue: 'done', color: '#22c55e' }
-                                     ],
-                                     viewMode: viewMode,
-                                     createdAt: new Date().toISOString(),
-                                     updatedAt: new Date().toISOString(),
-                                 },
-                                 { width: BOARD_WIDTH, height: BOARD_HEIGHT },
-                                 currentParentId || undefined
-                             );
-                         } else if (action.type === 'mindmap') {
-                             if (!action.nodes || action.nodes.length === 0) return;
-                             
-                             const newNodes: AppNode[] = [];
-                             const newEdges: Edge[] = [];
-
-                             // Build node hierarchy
-                             type MindmapNode = (typeof action.nodes)[number];
-                             const nodeMap = new Map(action.nodes.map(n => [n.id, n]));
-                             const childrenMap = new Map<string, MindmapNode[]>();
-                             action.nodes.forEach(n => {
-                                 if (n.parentId) {
-                                     if (!childrenMap.has(n.parentId)) childrenMap.set(n.parentId, []);
-                                     childrenMap.get(n.parentId)!.push(n);
-                                 }
-                             });
-                             
-                             const rootNode = action.nodes.find(n => !n.parentId) || action.nodes[0];
-                             
-                             const buildTree = (nodeId: string, cx: number, cy: number, depth: number, arcStart: number, arcEnd: number) => {
-                                 const node = nodeMap.get(nodeId);
-                                 if (!node) return;
-                             
-                                 // Create node
-                                 newNodes.push({
-                                     id: node.id,
-                                     type: 'block',
-                                     position: { x: cx, y: cy },
-                                     style: depth === 0 ? { width: 260, height: 80 } : { width: 220, height: 70 },
-                                     data: { 
-                                         content: [{ id: uuidv4(), type: depth === 0 ? 'heading2' : 'text', content: node.label }],
-                                         isStandaloneBlock: true
-                                     },
-                                     parentId: currentParentId || undefined
-                                 });
-                             
-                                 // Create edge from parent
-                                 if (node.parentId) {
-                                     newEdges.push({
-                                         id: `e-${node.parentId}-${node.id}`,
-                                         source: node.parentId,
-                                         target: node.id,
-                                         type: 'centered',
-                                         data: { parentId: currentParentId ?? null }
-                                     });
-                                 }
-                             
-                                 // Process children
-                                 const children = childrenMap.get(nodeId) || [];
-                                 if (children.length > 0) {
-                                     const radius = depth === 0 ? Math.max(300, children.length * 60) : 250;
-                                     const totalArc = arcEnd - arcStart;
-                                     const step = totalArc / children.length;
-                                     
-                                     children.forEach((child, i) => {
-                                         const childAngle = arcStart + (i + 0.5) * step;
-                                         const childX = cx + radius * Math.cos(childAngle);
-                                         const childY = cy + radius * Math.sin(childAngle);
-                                         
-                                         // Padding prevents child sub-trees from perfectly touching
-                                         const padding = step * 0.05;
-                                         buildTree(child.id, childX, childY, depth + 1, arcStart + i * step + padding, arcStart + (i + 1) * step - padding);
-                                     });
-                                 }
-                             };
-                             
-                             if (rootNode) {
-                                 buildTree(rootNode.id, position.x, position.y, 0, 0, 2 * Math.PI);
-                             }
-                             
-                             // Push to store
-                             useStore.getState().setNodes(prev => [...prev, ...newNodes]);
-                             if (newEdges.length > 0) {
-                                 useStore.setState((prev: AppState) => ({ edges: [...prev.edges, ...newEdges] }));
-                             }
-                         }
-                     });
-                     setAiQuery('');
-                     setIsAIMode(false);
-                 } catch (err) {
-                     // Clean up skeleton on failure
-                     useStore.getState().setNodes(nds => nds.filter(n => !('isAISkeleton' in n.data && n.data.isAISkeleton)));
-                     useStore.setState((prev: AppState) => ({ edges: prev.edges.filter((e: Edge) => !e.id.startsWith('skel-')) }));
-                     throw err;
-                 }
-            } else {
-                const imageUrl = await generateImage(query);
-                const BLOCK_WIDTH = 380;
-                const BLOCK_HEIGHT = 380;
-                const position = findNonOverlappingPosition(flowPos, { width: BLOCK_WIDTH, height: BLOCK_HEIGHT }, nodes, currentParentId, vp());
-                addNode(
-                    'block',
-                    position,
-                    {
-                        content: [
-                            { 
-                                id: uuidv4(), 
-                                type: 'image', 
-                                content: imageUrl, 
-                                metadata: { 
-                                    prompt: query, 
-                                    width: 380, 
-                                    alignment: 'center' 
-                                } 
-                            }
-                        ],
-                        isStandaloneBlock: true,
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString(),
-                    },
-                    { width: BLOCK_WIDTH, height: BLOCK_HEIGHT },
-                    currentParentId || undefined
-                );
-                setAiQuery('');
-                setIsAIMode(false);
-            }
-        } catch (error) {
-            console.error("AI Generation failed:", error);
-            setAiError(error instanceof Error ? error.message : "AI Generation failed. Please try again.");
-        } finally {
-            setIsGenerating(false);
-        }
-    };
+    // Kept in a ref so the global Ctrl+N listener always calls the latest
+    // closure without re-subscribing on every render.
+    useEffect(() => {
+        handleAddNoteRef.current = handleAddNote;
+    });
 
     const handleDragStart = (e: React.DragEvent, type: string, metadata?: Record<string, unknown>) => {
         e.dataTransfer.setData('application/reactflow-block-type', type);
@@ -730,7 +267,9 @@ export function BottomMenu() {
         e.dataTransfer.effectAllowed = 'copy';
     };
 
-    const handleTemplateClick = (templateId: string) => {
+    // Declared as functions, not consts: the keyboard-navigation effect above
+    // calls both, and a const would be in its temporal dead zone there.
+    function handleTemplateClick(templateId: string) {
         const template = templates.find(t => t.id === templateId);
         if (!template) return;
 
@@ -747,9 +286,9 @@ export function BottomMenu() {
         if (newEdges.length > 0) {
             useStore.setState((prev: AppState) => ({ edges: [...prev.edges, ...newEdges] }));
         }
-    };
+    }
 
-    const handleBlockClick = (block: typeof MENU_ITEMS[0]) => {
+    function handleBlockClick(block: typeof MENU_ITEMS[0]) {
         // Columns need their metadata seeded with empty column content, otherwise the
         // node renders as an empty box (matches editor slash-command behaviour).
         const metadata = block.type === 'columns'
@@ -803,7 +342,56 @@ export function BottomMenu() {
             content: [newBlock],
             isStandaloneBlock: true
         }, { width: BLOCK_WIDTH, height: BLOCK_HEIGHT }, currentParentId || undefined);
-    };
+    }
+
+    // Handle keyboard navigation inside the open menu
+    useEffect(() => {
+        if (!activeMenu || highlightedIndex === null) return;
+
+        const columns = activeMenu === 'views' ? 4 : activeMenu === 'templates' ? 4 : 6;
+        const totalItems = activeMenu === 'views' ? 4 : activeMenu === 'templates' ? templates.length : MENU_ITEMS.length;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                setActiveMenu(null);
+                e.preventDefault();
+                return;
+            }
+
+            if (e.key === 'ArrowRight') {
+                setHighlightedIndex(prev => (prev === null ? 0 : Math.min(totalItems - 1, prev + 1)));
+                e.preventDefault();
+            } else if (e.key === 'ArrowLeft') {
+                setHighlightedIndex(prev => (prev === null ? 0 : Math.max(0, prev - 1)));
+                e.preventDefault();
+            } else if (e.key === 'ArrowDown') {
+                setHighlightedIndex(prev => (prev === null ? 0 : Math.min(totalItems - 1, prev + columns)));
+                e.preventDefault();
+            } else if (e.key === 'ArrowUp') {
+                setHighlightedIndex(prev => (prev === null ? 0 : Math.max(0, prev - columns)));
+                e.preventDefault();
+            } else if (e.key === 'Enter') {
+                if (activeMenu === 'templates') {
+                    const template = templates[highlightedIndex];
+                    if (template) {
+                        handleTemplateClick(template.id);
+                    }
+                } else {
+                    const block = MENU_ITEMS[highlightedIndex];
+                    if (block) {
+                        handleBlockClick(block);
+                    }
+                }
+                setActiveMenu(null);
+                e.preventDefault();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [activeMenu, highlightedIndex, screenToFlowPosition, addNode, currentParentId, nodes]);
 
     const transitionVariants: Variants = {
         initial: { opacity: 0, scale: 0.95 },
@@ -811,118 +399,247 @@ export function BottomMenu() {
         exit: { opacity: 0, scale: 0.95, transition: { duration: 0.15, ease: "easeOut" } }
     };
 
-    // Clipping is only wanted while the bar morphs into the AI or search field,
-    // where it stops the swapping content spilling out mid-animation. In the
-    // default state it also clipped the Card Modes / Templates / Blocks
-    // popovers, which anchor ABOVE the bar and are children of it, so opening
-    // one set its state correctly but nothing ever appeared on screen.
-    const barOverflow = (isAIMode || isSearchMode) ? 'hidden' : 'visible';
+    // The wide states — search and the two selection toolbars — open in the lane
+    // beside the rail rather than inside it: a 60px icon column has nowhere to
+    // put a 520px field. (AI is a side panel of its own, not a flyout.)
+    const flyoutState = isSearchMode ? 'search'
+        : selectedCanvasNodeIds.size > 0 ? 'multi'
+        : hasSelectedEdges ? 'edge'
+        : null;
+
+    // Docking. The menu sits on the bottom edge by default; a side panel costs
+    // the canvas its width rather than its height, so while one is open the menu
+    // moves to the canvas's left edge and stands up as a vertical rail. A wide
+    // state overrides that: the 520px field it opens has nowhere to go in the
+    // lane beside a rail, so the whole menu drops back to the bottom.
+    const isSidePanelOpen = Boolean(rightSidePanelId) || Boolean(leftSidePanelId)
+        || isMetadataOpen || isTOCOpen || isShortcutsPanelOpen || isAIPanelOpen;
+    const isRail = isSidePanelOpen && flyoutState === null;
+    const dockClass = isRail ? styles.dockLeft : styles.dockBottom;
 
     return (
         <>
+            {/* data-app-menu marks the menu as chrome, not canvas: the side
+                panels' click-away handlers skip it, so pressing a rail button
+                doesn't close the panel out from under the press. */}
+            <div className={`${styles.railLayer} ${dockClass}`} data-app-menu ref={menuRef}>
             <motion.div
                 layout
-                ref={menuRef as any}
-                className={`${styles.bottomMenu} ${isAIMode ? (aiModeType === 'text' ? styles.bottomMenuAIText : styles.bottomMenuAIImage) : ''}`}
-                style={{ borderRadius: 24, overflow: barOverflow }}
+                className={`${styles.sideRail} ${isRail ? '' : styles.railHorizontal}`}
                 transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-                whileHover={{ y: -4 }}
+                whileHover={isRail ? { x: 4 } : { y: -4 }}
             >
-                <AnimatePresence mode="popLayout" initial={false}>
-                {isAIMode ? (
-                    <motion.div key="ai" variants={transitionVariants} initial="initial" animate="animate" exit="exit" style={{ position: 'relative', display: 'flex', width: '100%' }}>
-                        {aiError && (
-                            <div style={{
-                                position: 'absolute',
-                                bottom: '100%',
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                                marginBottom: '12px',
-                                background: 'var(--danger)',
-                                color: 'var(--on-accent)',
-                                padding: '8px 16px',
-                                borderRadius: 'var(--btn-radius)',
-                                fontSize: '13px',
-                                fontWeight: 500,
-                                whiteSpace: 'nowrap',
-                                pointerEvents: 'none',
-                                animation: 'fadeIn 0.2s ease-out'
-                            }}>
-                                {aiError}
-                            </div>
-                        )}
-                        <div className={aiModeType === 'text' ? styles.aiContainer : styles.aiImageContainer}>
-                        <div className={styles.aiModeSwitcher}>
-                            <button 
-                                className={`${styles.modeToggleBtn} ${aiModeType === 'text' ? styles.modeActiveText : ''}`}
-                                onClick={() => !isGenerating && setAiModeType('text')}
-                                disabled={isGenerating}
-                                title="Text Generation"
-                            >
-                                {isGenerating && aiModeType === 'text' ? (
-                                    <Loader2 size={16} className="animate-spin" style={{ color: "var(--accent)" }} />
-                                ) : (
-                                    <Sparkles size={16} color={aiModeType === 'text' ? "var(--accent)" : "gray"} />
-                                )}
-                            </button>
-                            <button 
-                                className={`${styles.modeToggleBtn} ${aiModeType === 'image' ? styles.modeActiveImage : ''}`}
-                                onClick={() => !isGenerating && setAiModeType('image')}
-                                disabled={isGenerating}
-                                title="Image Generation"
-                            >
-                                {isGenerating && aiModeType === 'image' ? (
-                                    <Loader2 size={16} className="animate-spin" style={{ color: "var(--accent)" }} />
-                                ) : (
-                                    <ImagePlus size={16} color={aiModeType === 'image' ? "var(--accent)" : "gray"} />
-                                )}
-                            </button>
-                        </div>
-                        <textarea
-                            className={aiModeType === 'text' ? styles.aiInput : styles.aiImageInput}
-                            placeholder={
-                                isGenerating 
-                                    ? "AI is dreaming up your request..." 
-                                    : aiModeType === 'text' 
-                                        ? selectedCanvasNodeIds.size > 0 
-                                            ? `Ask AI to modify the selected card...` 
-                                            : "Ask AI to generate, summarize, or edit..." 
-                                        : "Describe an image to generate..."
-                            }
-                            value={aiQuery}
-                            onChange={(e) => {
-                                setAiQuery(e.target.value);
-                                e.target.style.height = 'auto';
-                                e.target.style.height = `${e.target.scrollHeight}px`;
+                {/* gap has to live on the column, not on .sideRail: AnimatePresence
+                    inserts a wrapper between the rail and its buttons, so the
+                    rail's own `gap` never reached them. */}
+                <motion.div
+                    key="default"
+                    variants={transitionVariants}
+                    initial="initial"
+                    animate="animate"
+                    style={{ display: 'flex', flexDirection: isRail ? 'column' : 'row', width: isRail ? '100%' : 'auto', height: isRail ? 'auto' : '100%', justifyContent: 'center', alignItems: 'center', gap: 12 }}
+                >
+                        <button
+                            className={`${styles.aiIconBtn} ${isAIPanelOpen ? styles.aiIconBtnActive : ''}`}
+                            onClick={toggleAIPanel}
+                            title="AI (Ctrl+J)"
+                        >
+                            <Sparkles size={20} />
+                        </button>
+                        <button
+                            className={styles.iconBtn}
+                            onClick={openSearch}
+                            title="Search (Ctrl+F)"
+                        >
+                            <Search size={20} />
+                        </button>
+                        <div
+                            className={styles.blocksWrapper}
+                            onMouseEnter={() => {
+                                hoverTimeoutRef.current = window.setTimeout(() => {
+                                    openMenu('addNoteModes');
+                                }, 1000);
                             }}
-                            disabled={isGenerating}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleAISubmit();
-                                } else if (e.key === 'Escape' && !isGenerating) {
-                                    setIsAIMode(false);
+                            onMouseLeave={() => {
+                                if (hoverTimeoutRef.current) {
+                                    clearTimeout(hoverTimeoutRef.current);
                                 }
                             }}
-                            rows={1}
-                            autoFocus
-                        />
-                        <button
-                            className={aiModeType === 'text' ? styles.aiSendBtn : styles.aiImageSendBtn}
-                            onClick={handleAISubmit}
-                            disabled={isGenerating || !aiQuery.trim()}
-                            title={isGenerating ? "AI is processing" : aiModeType === 'text' ? "Send to AI" : "Generate Image"}
                         >
-                            {isGenerating ? (
-                                <Loader2 size={16} className="animate-spin" />
-                            ) : (
-                                <Send size={16} />
-                            )}
-                        </button>
-                    </div>
-                    </motion.div>
-                ) : isSearchMode ? (
-                    <motion.div key="search" variants={transitionVariants} initial="initial" animate="animate" exit="exit" className={styles.searchContainer}>
+                            <button
+                                className="special-primary-btn"
+                                onClick={() => {
+                                    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+                                    handleAddNote();
+                                }}
+                                title="Add New Note Card (Hover for modes)"
+                            >
+                                <Plus size={24} />
+                            </button>
+
+                            <div className={`${styles.hoverMenu} ${activeMenu === 'addNoteModes' ? styles.menuVisible : ''}`}>
+                                <div className={styles.menuHeader}>
+                                    <h3 className={styles.menuTitle}>Card Modes</h3>
+                                    <button
+                                        className={styles.menuCloseBtn}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveMenu(null);
+                                        }}
+                                        title="Close"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                </div>
+                                <div className={styles.menuGrid} style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                                    {[
+                                        { id: 'expanded', label: 'Expanded', desc: 'Full card view', icon: Square },
+                                        { id: 'medium', label: 'Medium', desc: 'Compact view', icon: RectangleHorizontal },
+                                        { id: 'icon', label: 'Icon', desc: 'Minimal icon', icon: File },
+                                        { id: 'titleview', label: 'Title Only', desc: 'Just the title', icon: AppWindow }
+                                    ].map((mode) => (
+                                        <div
+                                            key={mode.id}
+                                            className={styles.draggableItem}
+                                            onClick={() => {
+                                                const centerX = window.innerWidth / 2;
+                                                const centerY = window.innerHeight / 2;
+                                                const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
+                                                const NOTE_WIDTH = mode.id === 'icon' ? 120 : 432;
+                                                const NOTE_HEIGHT = mode.id === 'icon' ? 120 : 432;
+                                                const position = findNonOverlappingPosition(flowPos, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, nodes, currentParentId, vp());
+                                                addNode('note', position, { viewMode: mode.id, showMetadata: false }, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, currentParentId || undefined);
+                                                setActiveMenu(null);
+                                            }}
+                                        >
+                                            <div className={styles.itemIconWrapper}>
+                                                <mode.icon size={20} />
+                                            </div>
+                                            <div className={styles.customTooltip}>
+                                                <div className={styles.tooltipLabel}>{mode.label}</div>
+                                                <div className={styles.tooltipDesc}>{mode.desc}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className={styles.blocksWrapper}>
+                            <button
+                                className={`${styles.iconBtn} ${activeMenu === 'templates' ? styles.iconBtnActive : ''}`}
+                                onClick={() => openMenu(activeMenu === 'templates' ? null : 'templates')}
+                                title="Templates"
+                                style={isRail ? { marginTop: 8 } : { marginLeft: 8 }}
+                            >
+                                <LayoutTemplate size={20} />
+                            </button>
+
+                            <div className={`${styles.hoverMenu} ${activeMenu === 'templates' ? styles.menuVisible : ''}`}>
+                                <div className={styles.menuHeader}>
+                                    <h3 className={styles.menuTitle}>Templates</h3>
+                                    <button
+                                        className={styles.menuCloseBtn}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveMenu(null);
+                                        }}
+                                        title="Close"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                </div>
+                                <div className={styles.menuGrid} style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                                    {templates.map((template, index) => {
+                                        const TemplateIcon = template.icon;
+                                        return (
+                                        <div
+                                            key={template.id}
+                                            className={`${styles.draggableItem} ${highlightedIndex === index ? styles.draggableItemHighlighted : ''}`}
+                                            onClick={() => {
+                                                handleTemplateClick(template.id);
+                                                setActiveMenu(null);
+                                            }}
+                                            onMouseEnter={() => {
+                                                if (hoverTimeoutRef.current) window.clearTimeout(hoverTimeoutRef.current);
+                                                hoverTimeoutRef.current = window.setTimeout(() => setHoveredTemplateId(template.id), 400);
+                                            }}
+                                            onMouseLeave={() => {
+                                                if (hoverTimeoutRef.current) window.clearTimeout(hoverTimeoutRef.current);
+                                                setHoveredTemplateId(null);
+                                            }}
+                                        >
+                                            <div className={styles.itemIconWrapper}>
+                                                <TemplateIcon size={20} />
+                                            </div>
+                                            <div className={styles.customTooltip}>
+                                                <div className={styles.tooltipLabel}>{template.name}</div>
+                                                <div className={styles.tooltipDesc}>{template.description}</div>
+                                            </div>
+                                        </div>
+                                    )})}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className={styles.separator} />
+
+                        <div className={styles.blocksWrapper}>
+                            <button
+                                className={`${styles.iconBtn} ${activeMenu === 'blocks' ? styles.iconBtnActive : ''}`}
+                                onClick={() => openMenu(activeMenu === 'blocks' ? null : 'blocks')}
+                                title="Browse Blocks"
+                            >
+                                <LayoutGrid size={20} />
+                            </button>
+
+                            <div className={`${styles.hoverMenu} ${activeMenu === 'blocks' ? styles.menuVisible : ''}`}>
+                                <div className={styles.menuHeader}>
+                                    <h3 className={styles.menuTitle}>Blocks</h3>
+                                    <button
+                                        className={styles.menuCloseBtn}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveMenu(null);
+                                        }}
+                                        title="Close"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                </div>
+                                <div className={styles.menuGrid}>
+                                    {MENU_ITEMS.map((block, index) => {
+                                        const Icon = block.icon;
+                                        return (
+                                            <div
+                                                key={block.label}
+                                                className={`${styles.draggableItem} ${highlightedIndex === index ? styles.draggableItemHighlighted : ''}`}
+                                                draggable
+                                                onDragStart={(e) => handleDragStart(e, block.type, block.meta)}
+                                                onClick={() => {
+                                                    handleBlockClick(block);
+                                                    setActiveMenu(null);
+                                                }}
+                                            >
+                                                <div className={styles.itemIconWrapper}>
+                                                    <Icon size={20} />
+                                                </div>
+                                                <div className={styles.customTooltip}>
+                                                    <div className={styles.tooltipLabel}>{block.label}</div>
+                                                    <div className={styles.tooltipDesc}>{block.description}</div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                </motion.div>
+            </motion.div>
+
+            <AnimatePresence mode="popLayout" initial={false}>
+                {flyoutState === 'search' ? (
+                    <motion.div key="search" variants={transitionVariants} initial="initial" animate="animate" exit="exit" className={`${styles.flyout} ${styles.searchContainer}`}>
                         <SearchResults
                             query={searchQuery}
                             onClose={() => {
@@ -1014,7 +731,7 @@ export function BottomMenu() {
                                     <div className={styles.filterGroup}>
                                         <label><Calendar size={12} /> Type</label>
                                         <div className={styles.filterChips}>
-                                            {['note', 'kanban', 'block'].map(t => (
+                                            {['note', 'block'].map(t => (
                                                 <span
                                                     key={t}
                                                     className={`${styles.filterChip} ${activeFilters.type === t ? styles.selected : ''}`}
@@ -1047,363 +764,20 @@ export function BottomMenu() {
                             </div>
                         )}
                     </motion.div>
-                ) : selectedCanvasNodeIds.size > 0 ? (
-                    <motion.div key="multi" variants={transitionVariants} initial="initial" animate="animate" exit="exit" style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center' }}>
-                        <MultiSelectionToolbar 
-                            onOpenAI={() => { setIsAIMode(true); setAiModeType('text'); }} 
-                            onOpenSearch={() => setIsSearchMode(true)}
+                ) : flyoutState === 'multi' ? (
+                    <motion.div key="multi" variants={transitionVariants} initial="initial" animate="animate" exit="exit" className={styles.flyout}>
+                        <MultiSelectionToolbar
+                            onOpenAI={() => openAIPanel('create')}
+                            onOpenSearch={openSearch}
                         />
                     </motion.div>
-                ) : hasSelectedEdges ? (
-                    <motion.div key="edge" variants={transitionVariants} initial="initial" animate="animate" exit="exit" style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center' }}>
+                ) : flyoutState === 'edge' ? (
+                    <motion.div key="edge" variants={transitionVariants} initial="initial" animate="animate" exit="exit" className={styles.flyout}>
                         <EdgeEditingToolbar />
                     </motion.div>
-                ) : (
-                    // gap has to live here, not on .bottomMenu: AnimatePresence
-                    // inserts this wrapper between the bar and its buttons, so
-                    // the bar's own `gap: 12px` never reached them and the icons
-                    // sat flush against each other.
-                    <motion.div key="default" variants={transitionVariants} initial="initial" animate="animate" exit="exit" style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center', height: '100%', gap: 12 }}>
-                        <button
-                            className={styles.aiIconBtn}
-                            onClick={() => { setIsAIMode(true); setAiModeType('text'); }}
-                            title="Ask AI (Ctrl+J)"
-                        >
-                            <Sparkles size={20} />
-                        </button>
-                        <button
-                            className={styles.iconBtn}
-                            onClick={() => setIsSearchMode(true)}
-                            title="Search (Ctrl+F)"
-                        >
-                            <Search size={20} />
-                        </button>
-
-                        <div 
-                            className={styles.blocksWrapper}
-                            onMouseEnter={() => {
-                                hoverTimeoutRef.current = window.setTimeout(() => {
-                                    setActiveMenu('addNoteModes');
-                                }, 1000);
-                            }}
-                            onMouseLeave={() => {
-                                if (hoverTimeoutRef.current) {
-                                    clearTimeout(hoverTimeoutRef.current);
-                                }
-                            }}
-                        >
-                            <button 
-                                className="special-primary-btn" 
-                                onClick={() => {
-                                    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-                                    handleAddNote();
-                                }} 
-                                title="Add New Note Card (Hover for modes)"
-                            >
-                                <Plus size={24} />
-                            </button>
-
-                            <div className={`${styles.hoverMenu} ${activeMenu === 'addNoteModes' ? styles.menuVisible : ''}`}>
-                                <div className={styles.menuHeader}>
-                                    <h3 className={styles.menuTitle}>Card Modes</h3>
-                                    <button 
-                                        className={styles.menuCloseBtn} 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActiveMenu(null);
-                                        }} 
-                                        title="Close"
-                                    >
-                                        <X size={12} />
-                                    </button>
-                                </div>
-                                <div className={styles.menuGrid} style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-                                    {[
-                                        { id: 'expanded', label: 'Expanded', desc: 'Full card view', icon: Square },
-                                        { id: 'medium', label: 'Medium', desc: 'Compact view', icon: RectangleHorizontal },
-                                        { id: 'icon', label: 'Icon', desc: 'Minimal icon', icon: File },
-                                        { id: 'titleview', label: 'Title Only', desc: 'Just the title', icon: AppWindow }
-                                    ].map((mode) => (
-                                        <div
-                                            key={mode.id}
-                                            className={styles.draggableItem}
-                                            onClick={() => {
-                                                const centerX = window.innerWidth / 2;
-                                                const centerY = window.innerHeight / 2;
-                                                const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
-                                                const NOTE_WIDTH = mode.id === 'icon' ? 120 : 432;
-                                                const NOTE_HEIGHT = mode.id === 'icon' ? 120 : 432;
-                                                const position = findNonOverlappingPosition(flowPos, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, nodes, currentParentId, vp());
-                                                addNode('note', position, { viewMode: mode.id, showMetadata: false }, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, currentParentId || undefined);
-                                                setActiveMenu(null);
-                                            }}
-                                        >
-                                            <div className={styles.itemIconWrapper}>
-                                                <mode.icon size={20} />
-                                            </div>
-                                            <div className={styles.customTooltip}>
-                                                <div className={styles.tooltipLabel}>{mode.label}</div>
-                                                <div className={styles.tooltipDesc}>{mode.desc}</div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        {FEATURES.kanban && (
-                        <div className={styles.blocksWrapper}>
-                            <button
-                                className={`${styles.iconBtn} ${activeMenu === 'views' ? styles.iconBtnActive : ''}`}
-                                onClick={() => setActiveMenu(activeMenu === 'views' ? null : 'views')}
-                                title="Add View"
-                                style={{ marginLeft: 8 }}
-                            >
-                                <KanbanSquare size={20} />
-                            </button>
-
-                            <div className={`${styles.hoverMenu} ${activeMenu === 'views' ? styles.menuVisible : ''}`}>
-                                <div className={styles.menuHeader}>
-                                    <h3 className={styles.menuTitle}>Views</h3>
-                                    <button 
-                                        className={styles.menuCloseBtn} 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActiveMenu(null);
-                                        }} 
-                                        title="Close"
-                                    >
-                                        <X size={12} />
-                                    </button>
-                                </div>
-                                <div className={styles.menuGrid} style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-                                    {/* Kanban Board */}
-                                    <div
-                                        className={`${styles.draggableItem} ${highlightedIndex === 0 ? styles.draggableItemHighlighted : ''}`}
-                                        onClick={() => {
-                                            useStore.getState().setKanbanModalOpen(true);
-                                            setActiveMenu(null);
-                                        }}
-                                    >
-                                        <div className={styles.itemIconWrapper}>
-                                            <KanbanSquare size={20} />
-                                        </div>
-                                        <div className={styles.customTooltip}>
-                                            <div className={styles.tooltipLabel}>Board</div>
-                                            <div className={styles.tooltipDesc}>Kanban board view</div>
-                                        </div>
-                                    </div>
-
-                                    {/* Table View */}
-                                    <div
-                                        className={`${styles.draggableItem} ${highlightedIndex === 1 ? styles.draggableItemHighlighted : ''}`}
-                                        onClick={() => {
-                                            const centerX = window.innerWidth / 2;
-                                            const centerY = window.innerHeight / 2;
-                                            const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
-                                            const BOARD_WIDTH = 700;
-                                            const BOARD_HEIGHT = 500;
-                                            const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, nodes, currentParentId, vp());
-                                            addNode('kanban', position, {
-                                                label: 'My Table',
-                                                columns: [
-                                                    { id: 'todo', label: 'To Do', statusValue: 'todo', color: '#ef4444' },
-                                                    { id: 'in-progress', label: 'In Progress', statusValue: 'in-progress', color: '#f59e0b' },
-                                                    { id: 'done', label: 'Done', statusValue: 'done', color: '#22c55e' },
-                                                ],
-                                                viewMode: 'table',
-                                            }, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, currentParentId || undefined);
-                                            setActiveMenu(null);
-                                        }}
-                                    >
-                                        <div className={styles.itemIconWrapper}>
-                                            <Table2 size={20} />
-                                        </div>
-                                        <div className={styles.customTooltip}>
-                                            <div className={styles.tooltipLabel}>Table</div>
-                                            <div className={styles.tooltipDesc}>Data table view</div>
-                                        </div>
-                                    </div>
-
-                                    {/* Calendar View */}
-                                    <div
-                                        className={`${styles.draggableItem} ${highlightedIndex === 2 ? styles.draggableItemHighlighted : ''}`}
-                                        onClick={() => {
-                                            const centerX = window.innerWidth / 2;
-                                            const centerY = window.innerHeight / 2;
-                                            const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
-                                            const BOARD_WIDTH = 800;
-                                            const BOARD_HEIGHT = 600;
-                                            const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, nodes, currentParentId, vp());
-                                            addNode('kanban', position, {
-                                                label: 'Calendar',
-                                                columns: [
-                                                    { id: 'todo', label: 'To Do', statusValue: 'todo', color: '#ef4444' },
-                                                    { id: 'in-progress', label: 'In Progress', statusValue: 'in-progress', color: '#f59e0b' },
-                                                    { id: 'done', label: 'Done', statusValue: 'done', color: '#22c55e' },
-                                                ],
-                                                viewMode: 'calendar',
-                                            }, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, currentParentId || undefined);
-                                            setActiveMenu(null);
-                                        }}
-                                    >
-                                        <div className={styles.itemIconWrapper}>
-                                            <Calendar size={20} />
-                                        </div>
-                                        <div className={styles.customTooltip}>
-                                            <div className={styles.tooltipLabel}>Calendar</div>
-                                            <div className={styles.tooltipDesc}>Calendar view</div>
-                                        </div>
-                                    </div>
-
-                                    {/* Timeline View */}
-                                    <div
-                                        className={`${styles.draggableItem} ${highlightedIndex === 3 ? styles.draggableItemHighlighted : ''}`}
-                                        onClick={() => {
-                                            const centerX = window.innerWidth / 2;
-                                            const centerY = window.innerHeight / 2;
-                                            const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
-                                            const BOARD_WIDTH = 800;
-                                            const BOARD_HEIGHT = 400;
-                                            const position = findNonOverlappingPosition(flowPos, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, nodes, currentParentId, vp());
-                                            addNode('kanban', position, {
-                                                label: 'Timeline',
-                                                columns: [
-                                                    { id: 'todo', label: 'To Do', statusValue: 'todo', color: '#ef4444' },
-                                                    { id: 'in-progress', label: 'In Progress', statusValue: 'in-progress', color: '#f59e0b' },
-                                                    { id: 'done', label: 'Done', statusValue: 'done', color: '#22c55e' },
-                                                ],
-                                                viewMode: 'timeline',
-                                            }, { width: BOARD_WIDTH, height: BOARD_HEIGHT }, currentParentId || undefined);
-                                            setActiveMenu(null);
-                                        }}
-                                    >
-                                        <div className={styles.itemIconWrapper}>
-                                            <Clock size={20} />
-                                        </div>
-                                        <div className={styles.customTooltip}>
-                                            <div className={styles.tooltipLabel}>Timeline</div>
-                                            <div className={styles.tooltipDesc}>Timeline view</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        )}
-
-                        <div className={styles.blocksWrapper}>
-                            <button 
-                                className={`${styles.iconBtn} ${activeMenu === 'templates' ? styles.iconBtnActive : ''}`}
-                                onClick={() => setActiveMenu(activeMenu === 'templates' ? null : 'templates')}
-                                title="Templates"
-                                style={{ marginLeft: 8 }}
-                            >
-                                <LayoutTemplate size={20} />
-                            </button>
-
-                            <div className={`${styles.hoverMenu} ${activeMenu === 'templates' ? styles.menuVisible : ''}`}>
-                                <div className={styles.menuHeader}>
-                                    <h3 className={styles.menuTitle}>Templates</h3>
-                                    <button 
-                                        className={styles.menuCloseBtn} 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActiveMenu(null);
-                                        }} 
-                                        title="Close"
-                                    >
-                                        <X size={12} />
-                                    </button>
-                                </div>
-                                <div className={styles.menuGrid} style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-                                    {templates.map((template, index) => {
-                                        const TemplateIcon = template.icon;
-                                        return (
-                                        <div
-                                            key={template.id}
-                                            className={`${styles.draggableItem} ${highlightedIndex === index ? styles.draggableItemHighlighted : ''}`}
-                                            onClick={() => {
-                                                handleTemplateClick(template.id);
-                                                setActiveMenu(null);
-                                            }}
-                                            onMouseEnter={() => {
-                                                if (hoverTimeoutRef.current) window.clearTimeout(hoverTimeoutRef.current);
-                                                hoverTimeoutRef.current = window.setTimeout(() => setHoveredTemplateId(template.id), 400);
-                                            }}
-                                            onMouseLeave={() => {
-                                                if (hoverTimeoutRef.current) window.clearTimeout(hoverTimeoutRef.current);
-                                                setHoveredTemplateId(null);
-                                            }}
-                                        >
-                                            <div className={styles.itemIconWrapper}>
-                                                <TemplateIcon size={20} />
-                                            </div>
-                                            <div className={styles.customTooltip}>
-                                                <div className={styles.tooltipLabel}>{template.name}</div>
-                                                <div className={styles.tooltipDesc}>{template.description}</div>
-                                            </div>
-                                        </div>
-                                    )})}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className={styles.separator} />
-
-                        <div className={styles.blocksWrapper}>
-                            <button 
-                                className={`${styles.iconBtn} ${activeMenu === 'blocks' ? styles.iconBtnActive : ''}`}
-                                onClick={() => setActiveMenu(activeMenu === 'blocks' ? null : 'blocks')}
-                                title="Browse Blocks"
-                            >
-                                <LayoutGrid size={20} />
-                            </button>
-
-                            <div className={`${styles.hoverMenu} ${activeMenu === 'blocks' ? styles.menuVisible : ''}`}>
-                                <div className={styles.menuHeader}>
-                                    <h3 className={styles.menuTitle}>Blocks</h3>
-                                    <button 
-                                        className={styles.menuCloseBtn} 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActiveMenu(null);
-                                        }} 
-                                        title="Close"
-                                    >
-                                        <X size={12} />
-                                    </button>
-                                </div>
-                                <div className={styles.menuGrid}>
-                                    {MENU_ITEMS.map((block, index) => {
-                                        const Icon = block.icon;
-                                        return (
-                                            <div
-                                                key={block.label}
-                                                className={`${styles.draggableItem} ${highlightedIndex === index ? styles.draggableItemHighlighted : ''}`}
-                                                draggable
-                                                onDragStart={(e) => handleDragStart(e, block.type, block.meta)}
-                                                onClick={() => {
-                                                    handleBlockClick(block);
-                                                    setActiveMenu(null);
-                                                }}
-                                            >
-                                                <div className={styles.itemIconWrapper}>
-                                                    <Icon size={20} />
-                                                </div>
-                                                <div className={styles.customTooltip}>
-                                                    <div className={styles.tooltipLabel}>{block.label}</div>
-                                                    <div className={styles.tooltipDesc}>{block.description}</div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-                </AnimatePresence>
-            </motion.div>
+                ) : null}
+            </AnimatePresence>
+            </div>
             
             {/* Modal is rendered outside the menu container */}
             <TemplatePreviewModal

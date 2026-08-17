@@ -1,5 +1,6 @@
 import { Sun, Moon } from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import { DuotoneIcon } from '../../components/ui/DuotoneIcon';
 import styles from './ThemeSwitcher.module.css';
 
 export function ThemeSwitcher() {
@@ -15,9 +16,9 @@ export function ThemeSwitcher() {
         >
             <div className={styles.iconWrapper}>
                 {theme === 'dark' ? (
-                    <Sun className={styles.icon} size={18} />
+                    <DuotoneIcon icon={Sun} className={styles.icon} size={18} />
                 ) : (
-                    <Moon className={styles.icon} size={18} />
+                    <DuotoneIcon icon={Moon} className={styles.icon} size={18} />
                 )}
             </div>
         </button>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { LayoutGrid, User, Loader2, ArrowLeft } from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import { DuotoneIcon } from '../../components/ui/DuotoneIcon';
 import styles from './HomeButton.module.css';
 
 export function HomeButton() {
@@ -24,11 +25,13 @@ export function HomeButton() {
             >
                 <div className={styles.iconWrapper}>
                     {isAuthLoading ? (
+                        // A loading spinner is functional feedback, not
+                        // iconography — kept as a plain single-weight glyph.
                         <Loader2 size={18} className="animate-spin" />
                     ) : isHovered ? (
-                        <ArrowLeft size={18} />
+                        <DuotoneIcon icon={ArrowLeft} size={18} />
                     ) : (
-                        <User size={18} />
+                        <DuotoneIcon icon={User} size={18} />
                     )}
                 </div>
                 <span className={styles.dot} aria-hidden="true" />
@@ -43,7 +46,7 @@ export function HomeButton() {
             title={label}
             aria-label={label}
         >
-            <LayoutGrid size={18} />
+            <DuotoneIcon icon={LayoutGrid} size={18} />
         </button>
     );
 }

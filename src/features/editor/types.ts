@@ -57,13 +57,27 @@ export type BlockMetadata = {
     // Gallery — the media it holds are ordinary media blocks, so a block can
     // move between "loose on the canvas" and "tile on a board" unchanged.
     items?: Block[];
-    galleryLayout?: 'bento' | 'grid' | 'masonry';
+    galleryLayout?: 'bento' | 'grid' | 'masonry' | 'scatter';
     galleryFit?: 'cover' | 'contain';
     /** Hand-dragged board height, in px. The board scales its tiles to fill it.
      *  Absent means the board sizes itself to its contents. */
     galleryHeight?: number;
     /** Set on an ITEM, not the gallery: its hand-picked bento footprint. */
     span?: 'sm' | 'wide' | 'tall' | 'lg';
+    /**
+     * Set on an ITEM: a downscaled copy of `content`, drawn in the tile so a
+     * board of twenty photographs isn't twenty full-resolution bitmaps decoded
+     * at thumbnail size. `content` stays the original and is what the lightbox
+     * and every export path use — this is a render optimisation, never the
+     * picture of record.
+     */
+    thumb?: string;
+    /**
+     * Set on an ITEM: the focal point of the picture, as percentages fed
+     * straight to `object-position`. Absent means centred, which is what
+     * `cover` already does on its own.
+     */
+    focal?: { x: number; y: number };
     // Link block / bookmark preview
     title?: string;
     description?: string;

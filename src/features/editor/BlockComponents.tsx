@@ -283,6 +283,7 @@ export const TodoBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
                 {isPickerOpen && (
                     <CustomDateTimePicker 
                         value={block.metadata?.dueDate}
+                        taskText={block.content}
                         onChange={(date) => onChange(block.content, { ...block.metadata, dueDate: date })}
                         onClose={() => setIsPickerOpen(false)}
                     />

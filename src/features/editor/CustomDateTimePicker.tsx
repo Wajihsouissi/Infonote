@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon } from 'lucide-react';
+import { renderContentWithLinks } from './pasteUtils';
 import styles from './CustomDateTimePicker.module.css';
 
 interface CustomDateTimePickerProps {
     value?: string;
+    taskText?: string;
     onChange: (date: string) => void;
     onClose: () => void;
 }
 
-export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({ value, onChange, onClose }) => {
+export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({ value, taskText, onChange, onClose }) => {
     const hasInitialTime = value ? value.includes('T') : false;
     const [includeTime, setIncludeTime] = useState(hasInitialTime);
     
@@ -144,13 +147,20 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({ valu
         );
     };
 
-    return (
+    return createPortal(
         <div className={styles.modalOverlay} onMouseDown={(e) => e.stopPropagation()}>
             <div className={styles.modalContent} ref={modalRef}>
                 <div className={styles.modalHeader}>
                     <CalendarIcon size={16} className={styles.headerIcon} />
                     <span>Select Date & Time</span>
                 </div>
+                
+                {taskText && (
+                    <div 
+                        className={styles.taskTextPreview}
+                        dangerouslySetInnerHTML={{ __html: renderContentWithLinks(taskText) }}
+                    />
+                )}
                 
                 {renderCalendar()}
                 
@@ -188,6 +198,7 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({ valu
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

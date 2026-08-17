@@ -17,7 +17,7 @@ import { isMediaType } from './mediaTypes';
  * lightbox) keeps working on the contents.
  */
 
-export type GalleryLayout = 'bento' | 'grid' | 'masonry';
+export type GalleryLayout = 'bento' | 'grid' | 'masonry' | 'scatter';
 
 /** Tile footprints, in grid cells. `lg` is the hero. */
 export type GallerySpan = 'sm' | 'wide' | 'tall' | 'lg';
@@ -168,9 +168,16 @@ export const autoSpan = (index: number, total: number): GallerySpan => {
 /** A hand-set span (the tile's size control) always beats the auto rhythm. */
 export const resolveSpan = (item: Block, index: number, total: number, layout: GalleryLayout): GallerySpan => {
     if (layout !== 'bento') return 'sm';
-    const manual = item.metadata?.span as GallerySpan | undefined;
-    if (manual && SPAN_CELLS[manual]) return manual;
+    const manual = getManualSpan(item);
+    if (manual) return manual;
     return autoSpan(index, total);
+};
+
+/** The tile's own span, if it has been sized by hand. `undefined` means it is
+ *  still following the auto rhythm. */
+export const getManualSpan = (item: Block): GallerySpan | undefined => {
+    const manual = item.metadata?.span as GallerySpan | undefined;
+    return manual && SPAN_CELLS[manual] ? manual : undefined;
 };
 
 const SPAN_CELLS: Record<GallerySpan, [number, number]> = {
@@ -186,11 +193,64 @@ export const spanCells = (span: GallerySpan, columns: number): { cols: number; r
     return { cols: Math.min(c, Math.max(1, columns)), rows: r };
 };
 
-/** What the tile's size button steps through. */
-export const SPAN_CYCLE: GallerySpan[] = ['sm', 'wide', 'tall', 'lg'];
+/**
+ * What the tile's size control steps through — `undefined` is "auto", the
+ * board's own rhythm.
+ *
+ * Auto being *in* the cycle is the whole point. Without it, one click of the
+ * size button (or a stray nudge of the resize handle) pinned that tile to a
+ * hand-set span forever, because `resolveSpan` gives a manual span permanent
+ * priority — so a board could be knocked out of its composition by accident
+ * with no way back to it. Stepping past `lg` hands the tile back to the rhythm.
+ */
+const SPAN_STEPS: (GallerySpan | undefined)[] = ['sm', 'wide', 'tall', 'lg', undefined];
 
-export const nextSpan = (current: GallerySpan): GallerySpan =>
-    SPAN_CYCLE[(SPAN_CYCLE.indexOf(current) + 1) % SPAN_CYCLE.length];
+export const nextSpan = (manual: GallerySpan | undefined): GallerySpan | undefined =>
+    SPAN_STEPS[(SPAN_STEPS.indexOf(manual) + 1) % SPAN_STEPS.length];
+
+/** How a tile's current size should be described. */
+export const spanLabel = (manual: GallerySpan | undefined): string => (
+    manual ? { sm: 'Small', wide: 'Wide', tall: 'Tall', lg: 'Large' }[manual] : 'Auto'
+);
+
+/**
+ * Pin every tile's *current* shape onto the tile itself.
+ *
+ * The auto rhythm is indexed by position — slot 0 is the hero, slot 3 is wide —
+ * so shapes belong to slots, not to pictures. That is right for a board nobody
+ * has touched: whatever you drop in comes out composed. It is wrong the moment
+ * someone starts arranging, because moving one picture then re-shapes every
+ * picture after it, and a drag where six tiles change size while you aim is
+ * impossible to aim with.
+ *
+ * So the first deliberate rearrangement freezes the composition: from then on
+ * shapes travel with their pictures and a move is only a move. `Reset tile
+ * sizes` in the panel is the way back to the rhythm — which is exactly what
+ * that control is for.
+ *
+ * A no-op outside bento, where spans are not read at all.
+ */
+export const withResolvedSpans = (items: Block[], layout: GalleryLayout): Block[] => {
+    if (layout !== 'bento') return items;
+    const total = items.length;
+    return items.map((item, index) => {
+        const span = resolveSpan(item, index, total, layout);
+        return item.metadata?.span === span
+            ? item
+            : { ...item, metadata: { ...item.metadata, span } };
+    });
+};
+
+/** Hand the whole board back to the auto rhythm. */
+export const clearManualSpans = (items: Block[]): Block[] => items.map((item) => (
+    item.metadata?.span === undefined
+        ? item
+        : { ...item, metadata: { ...item.metadata, span: undefined } }
+));
+
+/** Whether anything on the board has been sized by hand. */
+export const hasManualSpans = (items: Block[]): boolean =>
+    items.some((item) => getManualSpan(item) !== undefined);
 
 /**
  * Columns for a measured width. A gallery has to read at both ends of a very
@@ -203,6 +263,234 @@ export const columnsForWidth = (width: number): number => {
     if (width < 460) return 3;
     if (width < 720) return 4;
     return 5;
+};
+
+/* ------------------------------------------------------------------ *
+ * Masonry geometry
+ * ------------------------------------------------------------------ */
+
+/**
+ * Masonry columns for a measured width.
+ *
+ * Deliberately not `columnsForWidth`. Bento columns are cells in a square
+ * rhythm, so more of them is finer grain; a masonry column is the full width a
+ * picture gets, and below roughly 200px a portrait shot is a thumbnail nobody
+ * can read. So this targets a column *width* (~260px) rather than a count, and
+ * a 432px canvas node lands on two generous columns instead of three cramped
+ * ones.
+ */
+export const masonryColumnsForWidth = (width: number): number => {
+    if (width < 260) return 1;
+    if (width < 520) return 2;
+    if (width < 820) return 3;
+    if (width < 1120) return 4;
+    return 5;
+};
+
+/**
+ * Aspect-ratio bounds for a masonry tile, as width / height.
+ *
+ * Uncropped natural heights are the whole point of masonry, right up until one
+ * 1:4 phone screenshot occupies a column on its own and the board turns into a
+ * ladder. Everything between a portrait 2:3 and a landscape 2:1 passes through
+ * untouched — which is nearly every real photograph — and only the extremes get
+ * trimmed back into the composition by the tile's `cover`.
+ */
+export const MASONRY_MIN_RATIO = 0.62;
+export const MASONRY_MAX_RATIO = 2.1;
+
+/** What a tile assumes before its bitmap reports in: 4:3, so the column has a
+ *  sensible height from the first paint and nothing jumps when it loads. */
+export const MASONRY_FALLBACK_RATIO = 4 / 3;
+
+export const clampTileRatio = (ratio?: number): number => {
+    if (!ratio || !Number.isFinite(ratio) || ratio <= 0) return MASONRY_FALLBACK_RATIO;
+    return Math.min(MASONRY_MAX_RATIO, Math.max(MASONRY_MIN_RATIO, ratio));
+};
+
+/**
+ * Deal items into masonry columns, shortest column first.
+ *
+ * CSS `columns` — what this replaces — fills column by column, so on a board of
+ * nine the first three pictures stack down the left edge and the order you
+ * arranged them in is unreadable. Dealing in item order to whichever column is
+ * currently shortest keeps the sequence running left-to-right the way it reads,
+ * and still ends the columns level, which is the only thing the CSS version was
+ * actually buying.
+ *
+ * Heights are in column-width units (`1 / ratio`), so no pixel measurement is
+ * needed and the result is identical at every zoom.
+ */
+export const dealMasonry = <T,>(
+    entries: T[],
+    columns: number,
+    ratioOf: (entry: T) => number,
+    gapUnits = 0.05,
+): { columns: T[][]; heights: number[] } => {
+    const width = Math.max(1, columns);
+    const cols: T[][] = Array.from({ length: width }, () => []);
+    const heights = new Array<number>(width).fill(0);
+    for (const entry of entries) {
+        let target = 0;
+        for (let i = 1; i < width; i++) {
+            // Strictly shorter, so equal columns fill left to right.
+            if (heights[i] < heights[target] - 1e-6) target = i;
+        }
+        cols[target].push(entry);
+        heights[target] += 1 / clampTileRatio(ratioOf(entry)) + gapUnits;
+    }
+    return { columns: cols, heights };
+};
+
+/* ------------------------------------------------------------------ *
+ * Scatter geometry — the pinned collage
+ * ------------------------------------------------------------------ */
+
+/**
+ * A stable pseudo-random number in [0, 1) from an id and a channel.
+ *
+ * Seeded from the picture's own id rather than its position, which is the whole
+ * trick: a tile's tilt and its size are properties of the *picture*, so
+ * rearranging the board moves the cards around without re-rolling how any of
+ * them looks. `Math.random()` would reshuffle the entire collage on every
+ * render, and an index-based seed would reshuffle it on every drag.
+ *
+ * FNV-1a: three lines, no dependency, and well enough distributed that two
+ * adjacent uuids don't land on the same tilt.
+ */
+const hash01 = (seed: string, salt: number): number => {
+    let h = (2166136261 ^ salt) >>> 0;
+    for (let i = 0; i < seed.length; i++) {
+        h ^= seed.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+    }
+    return ((h >>> 0) % 100000) / 100000;
+};
+
+/** Where one tile sits on the collage, in the board's own pixels. */
+export interface ScatterPlacement {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    /** Tilt in degrees, applied with the `rotate` property so `transform`
+     *  stays free for FLIP. */
+    rot: number;
+    /** Stacking order — later pictures lie on top of earlier ones. */
+    z: number;
+}
+
+/** Room left around the collage for the tilt to bleed into. */
+const SCATTER_PAD = 10;
+
+/** Tilt range, in degrees. Past about four the board stops reading as pinned
+ *  paper and starts reading as broken. */
+const SCATTER_TILT = 3.2;
+
+/** Tile width as a fraction of its lane. Over 1 on purpose: cards wider than
+ *  their lane are what make neighbours overlap. */
+const SCATTER_MIN_SCALE = 0.84;
+const SCATTER_MAX_SCALE = 1.26;
+
+/** Sideways wander, as a fraction of the lane. */
+const SCATTER_DRIFT = 0.34;
+
+/** How far a card laps over the one above it, as a fraction of its own height. */
+const SCATTER_MIN_LAP = 0.04;
+const SCATTER_MAX_LAP = 0.18;
+
+/** Stagger on the top edge, so the collage doesn't start on a ruled line. */
+const SCATTER_HEAD = 0.22;
+
+/**
+ * Roughly one card in five is enlarged, and by how much.
+ *
+ * Without it every card lands within a hand's breadth of the lane width and the
+ * pile reads as a slightly untidy grid. A collage needs a few pictures that are
+ * plainly the loud ones for the eye to have somewhere to start.
+ */
+const SCATTER_HERO_ODDS = 0.8;
+const SCATTER_HERO_SCALE = 1.34;
+
+/**
+ * Lanes for a measured width.
+ *
+ * Wider than masonry's columns: cards overflow their lane and overlap their
+ * neighbours, so a lane is a loose track a picture is aimed down rather than a
+ * box it fills. Too many of them and the overlap disappears into a grid.
+ */
+export const scatterLanesForWidth = (width: number): number => {
+    if (width < 300) return 1;
+    if (width < 560) return 2;
+    if (width < 900) return 3;
+    if (width < 1240) return 4;
+    return 5;
+};
+
+/**
+ * Deal the board into an overlapping, tilted collage — pictures pinned to a
+ * wall rather than filed into cells.
+ *
+ * Bento, grid and masonry all share one premise: tiles tessellate, and nothing
+ * ever covers anything else. That is right for comparing references and wrong
+ * for composing with them — a moodboard is normally *built* by sliding pictures
+ * partly over each other until the group reads as one image. This is that
+ * board.
+ *
+ * Placement is still a shortest-lane deal in item order, exactly as masonry is,
+ * so the sequence you arranged the board in still runs left to right and the
+ * collage still ends roughly level. Everything that makes it look hand-pinned —
+ * each card's size, its drift off the lane centre, how far it laps over its
+ * neighbour, its tilt — is seeded from the picture's own id, so it is stable
+ * across renders and travels with the picture when the board is rearranged.
+ */
+export const dealScatter = (
+    entries: { id: string; ratio: number }[],
+    width: number,
+    lanes: number,
+): { places: Map<string, ScatterPlacement>; height: number } => {
+    const count = Math.max(1, lanes);
+    const usable = Math.max(40, width - SCATTER_PAD * 2);
+    const laneW = usable / count;
+    const bottoms = new Array<number>(count).fill(0);
+    const places = new Map<string, ScatterPlacement>();
+
+    entries.forEach((entry, index) => {
+        const r = (salt: number) => hash01(entry.id, salt);
+
+        // Shortest lane first, so a card lands in the gap the eye expects and
+        // the lanes stay level.
+        let lane = 0;
+        for (let i = 1; i < count; i++) if (bottoms[i] < bottoms[lane] - 1e-6) lane = i;
+
+        const hero = r(5) > SCATTER_HERO_ODDS ? SCATTER_HERO_SCALE : 1;
+        const w = Math.min(
+            usable,
+            laneW * hero * (SCATTER_MIN_SCALE + r(1) * (SCATTER_MAX_SCALE - SCATTER_MIN_SCALE)),
+        );
+        const h = w / clampTileRatio(entry.ratio);
+
+        const centre = lane * laneW + laneW / 2 + (r(2) - 0.5) * laneW * SCATTER_DRIFT;
+        const x = Math.max(0, Math.min(usable - w, centre - w / 2));
+
+        // The first card in a lane hangs from the top edge; every one after it
+        // laps over whatever it landed on.
+        const y = Math.max(0, bottoms[lane] === 0
+            ? h * SCATTER_HEAD * r(3)
+            : bottoms[lane] - h * (SCATTER_MIN_LAP + r(3) * (SCATTER_MAX_LAP - SCATTER_MIN_LAP)));
+
+        bottoms[lane] = y + h;
+        places.set(entry.id, {
+            x: x + SCATTER_PAD,
+            y: y + SCATTER_PAD,
+            w,
+            h,
+            rot: (r(4) * 2 - 1) * SCATTER_TILT,
+            z: index + 1,
+        });
+    });
+
+    return { places, height: Math.max(0, ...bottoms) + SCATTER_PAD * 2 };
 };
 
 /** Floor on a tile's cell size. Past this the board is a mosaic of confetti. */
@@ -221,22 +509,20 @@ const PACK_LIMIT = 120;
  * knowing the row count solves it in one step, with no measure-adjust-remeasure
  * loop and nothing to oscillate. Getting it from the DOM instead would mean
  * laying out, measuring, resizing and laying out again on every drag frame.
+ *
+ * It used to also hunt for the largest rectangular hole the dense pack left, to
+ * grow the add tile into. There is no add tile any more — media arrives from
+ * the panel's own button — so a ragged tail is simply the shape the pictures
+ * make, which is what a dense pack is for.
  */
-export type BoardPack = {
-    /** Grid rows the tiles occupy. */
-    rows: number;
-    /** Largest rectangular hole the pack left, for the add tile to fill. */
-    hole: { cols: number; rows: number };
-};
-
-export const packBoard = (spans: { cols: number; rows: number }[], columns: number): BoardPack => {
+export const packBoard = (spans: { cols: number; rows: number }[], columns: number): number => {
     const width = Math.max(1, columns);
-    if (spans.length === 0) return { rows: 1, hole: { cols: width, rows: 1 } };
+    if (spans.length === 0) return 1;
     // A huge board is going to scroll whatever cell size we pick, so the exact
     // pack buys nothing — the naive bound is close enough and O(1).
     if (spans.length > PACK_LIMIT) {
         const cells = spans.reduce((sum, s) => sum + Math.min(s.cols, width) * s.rows, 0);
-        return { rows: Math.ceil(cells / width), hole: { cols: 1, rows: 1 } };
+        return Math.ceil(cells / width);
     }
 
     const grid: boolean[][] = [];
@@ -273,34 +559,7 @@ export const packBoard = (spans: { cols: number; rows: number }[], columns: numb
         }
     }
 
-    /* The dense pack almost always leaves a ragged hole — the tail of the last
-       row, or a notch a tall tile stepped around. Left alone it reads as a
-       missing tile. Handing the biggest one to the add button turns the flaw
-       into the affordance: the board always ends on a clean rectangle, and the
-       "drop more here" target grows to whatever room is going spare.
-       Grids here are at most 5 wide and a few dozen tall, so the exhaustive
-       search is cheaper than the layout pass that follows it. */
-    let hole = { cols: 1, rows: 1 };
-    let best = 0;
-    for (let r = 0; r < used; r++) {
-        for (let c = 0; c < width; c++) {
-            if (row(r)[c]) continue;
-            for (let w = 1; c + w <= width; w++) {
-                for (let h = 1; r + h <= used; h++) {
-                    if (!free(r, c, w, h)) break;
-                    // Squarer wins ties: a 2x2 hole reads as a tile, 4x1 as a seam.
-                    const area = w * h;
-                    if (area > best || (area === best && Math.abs(w - h) < Math.abs(hole.cols - hole.rows))) {
-                        best = area;
-                        hole = { cols: w, rows: h };
-                    }
-                }
-            }
-        }
-    }
-    // No hole at all: the add tile starts a fresh row and spans it.
-    if (best === 0) return { rows: used + 1, hole: { cols: width, rows: 1 } };
-    return { rows: used, hole };
+    return used;
 };
 
 /** The cell size that makes `rows` of tiles exactly fill `height`. */

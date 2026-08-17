@@ -3,15 +3,12 @@ import type { AppState, UISlice, AppView } from '../types';
 
 export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get) => ({
     activeIconMenuId: null,
-    isKanbanModalOpen: false,
-    editingKanbanId: null,
     lastCreatedCanvasNodeId: null,
     interactionState: {
-        draggingKanbanNodeId: null,
-        hoveredKanbanColumn: null,
         draggedNodeId: null,
         isMultiDragging: false,
-        dropTarget: null
+        dropTarget: null,
+        hoveredKanbanLane: null
     },
     theme: (localStorage.getItem('chnk-it-theme') as 'light' | 'dark') || 'dark',
     currentView: 'marketing',
@@ -28,8 +25,6 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     limitNotice: null,
 
     setActiveIconMenuId: (id) => set({ activeIconMenuId: id }),
-    setKanbanModalOpen: (isOpen) => set({ isKanbanModalOpen: isOpen, editingKanbanId: isOpen ? get().editingKanbanId : null }),
-    setEditingKanbanId: (id) => set({ editingKanbanId: id }),
     setMetadataOpen: (isOpen) => set({ isMetadataOpen: isOpen, isTOCOpen: isOpen ? false : get().isTOCOpen }),
     setTOCOpen: (isOpen) => set({ isTOCOpen: isOpen, isMetadataOpen: isOpen ? false : get().isMetadataOpen }),
     setShortcutsPanelOpen: (isOpen) => set({ isShortcutsPanelOpen: isOpen }),

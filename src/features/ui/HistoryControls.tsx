@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Undo, Redo } from 'lucide-react';
 import { useStore as useZustandStore } from 'zustand';
 import { useStore } from '../../store/useStore';
+import { DuotoneIcon } from '../../components/ui/DuotoneIcon';
 import styles from './HistoryControls.module.css';
 
 export function HistoryControls() {
@@ -56,7 +57,7 @@ export function HistoryControls() {
                 disabled={!canUndo}
                 title="Undo (Ctrl+Z)"
             >
-                <Undo size={18} />
+                <DuotoneIcon icon={Undo} size={18} />
             </button>
             <button
                 className={styles.historyBtn}
@@ -64,7 +65,7 @@ export function HistoryControls() {
                 disabled={!canRedo}
                 title="Redo (Ctrl+Y/Shift+Ctrl+Z)"
             >
-                <Redo size={18} />
+                <DuotoneIcon icon={Redo} size={18} />
             </button>
         </div>
     );

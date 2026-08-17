@@ -194,7 +194,7 @@ No infinite pulsing glows, no floating loops, no attention-seeking idle motion.
 
 The single-accent rule governs **brand and chrome**. It does **not** govern colour that carries *user meaning*:
 
-- Kanban/tag category colours, the note/icon colour picker, status greens/reds/blues, collaborator cursor colours, syntax highlighting.
+- Tag category colours, the note/icon colour picker, status greens/reds/blues, collaborator cursor colours, syntax highlighting.
 
 These may use a broader, saturated palette **because the colour is information**, not decoration. Two guardrails:
 

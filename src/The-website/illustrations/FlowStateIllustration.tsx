@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Kanban, ChevronRight } from 'lucide-react';
+import { FileText, Library, ChevronRight } from 'lucide-react';
 import { SceneStage, Plane, Board, NodeCard, Line, Wires, Wire, Ghost, Chip, PulseDot, Task } from './scene-kit';
 
 export function FlowStateIllustration() {
@@ -83,13 +83,13 @@ export function FlowStateIllustration() {
           </div>
         </NodeCard>
 
-        {/* Card 2: Destination Kanban */}
+        {/* Card 2: Destination Board */}
         <NodeCard
           left={350}
           top={120}
           width={240}
-          icon={Kanban}
-          title="Launch Plan"
+          icon={Library}
+          title="Project Hub"
           size="lg"
           delay={0.2}
           z={5}

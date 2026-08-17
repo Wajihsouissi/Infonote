@@ -83,13 +83,21 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     // Use the raw color without converting to pastel/glow
     const displayColor = data.color;
 
-    // Dynamic styles for contrast
+    /**
+     * A recoloured card publishes its accent and lets CSS derive the surfaces.
+     *
+     * The colour is never painted on directly. A card is a page with text on it,
+     * and a full-strength accent behind body copy is unreadable — which is why
+     * the old `backgroundColor: displayColor` had to be undone. Instead the hue
+     * goes out as a variable and the stylesheet mixes it: a wash for the card,
+     * a deeper shade of the same hue for the editor well inside it. See
+     * design-system.css §7 for the shade scale this follows.
+     */
     const dynamicStyles = useMemo(() => {
         if (!displayColor) return {};
-
-        // Use the raw color as a functional indicator (a 4px top border) instead of tinting the whole card.
         return {
             '--card-indicator-color': displayColor,
+            '--node-accent': displayColor,
         } as React.CSSProperties;
     }, [displayColor]);
 
@@ -259,12 +267,14 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
         custom-drag-handle
       `}
             ref={cardRef}
+            data-accented={displayColor ? '' : undefined}
             style={{
                 width: '100%',
                 height: '100%',
                 // Ensure the card fills the resized node area
                 boxSizing: 'border-box',
-                backgroundColor: displayColor || undefined,
+                /* No `backgroundColor` here: the surface is mixed in CSS from
+                   `--node-accent` so the card is tinted rather than painted. */
                 ...dynamicStyles
             }}
         >
@@ -596,10 +606,12 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                             }}
                         />
                     </div>
-                    <div className={styles.mediumDescContainer} style={{ backgroundColor: displayColor || undefined }}>
+                    {/* Tinted by the same rule as the card, from `--node-accent` —
+                        not painted with the raw hue, which put body text on a
+                        full-strength accent. */}
+                    <div className={styles.mediumDescContainer}>
                         <textarea
                             className={`${styles.mediumDescInput} nodrag`}
-                            style={{ backgroundColor: displayColor ? 'transparent' : undefined }}
                             value={isEditingMetadata ? editedData.description : (data.description || '')}
                             onChange={(e) => {
                                 setEditedData({ ...editedData, description: e.target.value });

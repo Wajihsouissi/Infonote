@@ -565,7 +565,11 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 ...dynamicStyles
             }}
         >
-            {/* Interaction Overlay: Converts the entire node into a drag handle when unselected */}
+            {/* Interaction Overlay: Converts the entire node into a drag handle when unselected.
+                A board keeps it, and deliberately: unselected, the whole board is one surface
+                you can throw around the canvas without catching a picture by accident.
+                Selecting it is what arms the tiles — rearranging a composition should take
+                the same deliberate step as editing any other card. */}
             {!isInteractive && !isLinkingMode && !isSingleColor && (
                 <div
                     className="interaction-overlay custom-drag-handle"

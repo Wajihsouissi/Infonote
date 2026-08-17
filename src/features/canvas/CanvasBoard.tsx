@@ -17,6 +17,7 @@ import {
 import { NoteCard } from '../card/NoteCard';
 import { BlockNode } from '../block/BlockNode';
 import { FusedNoteNode } from '../card/FusedNoteNode';
+import { KanbanNodeComponent } from '../kanban/KanbanNode';
 import { Breadcrumbs } from '../navigation/Breadcrumbs';
 import { BottomMenu } from '../ui/BottomMenu';
 import { SidePanel } from '../ui/SidePanel';
@@ -27,11 +28,13 @@ import { TableOfContentsPanel } from '../ui/TableOfContentsPanel';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { StorageControls } from '../ui/StorageControls';
 import { KeyboardShortcutsPanel } from '../ui/KeyboardShortcutsPanel';
+import { AIPanel } from '../ai/AIPanel';
 import { SlidersHorizontal, ListCollapse, Keyboard } from 'lucide-react';
+import { DuotoneIcon } from '../../components/ui/DuotoneIcon';
 import { HomeButton } from '../ui/HomeButton';
 import { HistoryControls } from '../ui/HistoryControls';
 import { ModifierKeyIndicator } from '../ui/ModifierKeyIndicator';
-import { KanbanNodeComponent } from '../kanban/KanbanNode';
+
 import { CanvasSlashMenu } from './CanvasSlashMenu';
 import { DragChip } from './DragChip';
 import { CanvasContextMenu } from './CanvasContextMenu';
@@ -61,10 +64,6 @@ import { useModifierKeys } from '../ui/hooks/useModifierKeys';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
 import { LiveCursors } from './LiveCursors';
 
-// Lazy load KanbanConfigModal
-const KanbanConfigModal = lazy(() =>
-    import('../kanban/KanbanConfigModal').then(module => ({ default: module.KanbanConfigModal }))
-);
 
 import styles from "./CanvasBoard.module.css";
 
@@ -91,6 +90,7 @@ const ModifierKeyIndicatorM = memo(ModifierKeyIndicator);
 const MetadataPanelM = memo(MetadataPanel);
 const TableOfContentsPanelM = memo(TableOfContentsPanel);
 const KeyboardShortcutsPanelM = memo(KeyboardShortcutsPanel);
+const AIPanelM = memo(AIPanel);
 const ChunkItModalM = memo(ChunkItModal);
 const BottomMenuM = memo(BottomMenu);
 const SidePanelM = memo(SidePanel);
@@ -1132,28 +1132,38 @@ export function CanvasBoard() {
 
     return (
         <div className={styles.container}>
-            <div className={styles.canvasArea}>
-                <div className={styles.topRightToolbar}>
+            {/* Shell = top bar + framed canvas. It's a separate wrapper because
+                the side panels below are in-flow siblings of .container and
+                must stay in its row axis. */}
+            <div className={styles.shell}>
+            <header className={styles.topBar}>
+                <div className={styles.topBarLeft}>
+                    <HomeButtonM />
+                    <div className={styles.topBarSeparator} />
+                    <HistoryControlsM />
+                    <div className={styles.crumbSlot}>
+                        <BreadcrumbsM />
+                    </div>
+                </div>
+                <div className={styles.topBarRight}>
                     <StorageControlsM />
-                    <div className={styles.topRightSeparator} />
+                    <div className={styles.topBarSeparator} />
                     <ThemeSwitcherM />
                     <button
                         ref={tocBtnRef}
                         className={`${styles.toolbarBtn} ${isTOCOpen ? styles.toolbarBtnActive : ''}`}
                         onClick={() => setTOCOpen(!isTOCOpen)}
                         data-tooltip={isTOCOpen ? "Close Outline" : "Open Outline"}
-                        style={{ marginLeft: 6 }}
                     >
-                        <ListCollapse size={18} />
+                        <DuotoneIcon icon={ListCollapse} size={18} />
                     </button>
                     <button
                         ref={shortcutsBtnRef}
                         className={`${styles.toolbarBtn} ${isShortcutsPanelOpen ? styles.toolbarBtnActive : ''}`}
                         onClick={() => setShortcutsPanelOpen(!isShortcutsPanelOpen)}
                         data-tooltip={isShortcutsPanelOpen ? "Close Shortcuts" : "Keyboard Shortcuts (K)"}
-                        style={{ marginLeft: 6 }}
                     >
-                        <Keyboard size={18} />
+                        <DuotoneIcon icon={Keyboard} size={18} />
                     </button>
                     {activeParentNode && (
                         <button
@@ -1161,25 +1171,22 @@ export function CanvasBoard() {
                             className={`${styles.toolbarBtn} ${isMetadataOpen ? styles.toolbarBtnActive : ''}`}
                             onClick={() => setMetadataOpen(!isMetadataOpen)}
                             data-tooltip={isMetadataOpen ? "Close Metadata" : "Open Metadata"}
-                            style={{ marginLeft: 6 }}
                         >
-                            <SlidersHorizontal size={18} />
+                            <DuotoneIcon icon={SlidersHorizontal} size={18} />
                         </button>
                     )}
                 </div>
-                <div className={styles.topLeftToolbar}>
-                    <HomeButtonM />
-                    <HistoryControlsM />
-                    <BreadcrumbsM />
-                </div>
+            </header>
 
+            <div className={styles.canvasFrame}>
+            <div className={styles.canvasArea}>
                 <ModifierKeyIndicatorM
                     showCtrl={modifierKeys.ctrl}
                     showShift={modifierKeys.shift}
                     showFocus={isFocusArmed}
                     showSuccess={justFocused}
                     suppress={isInEditableField}
-                    top={76}
+                    top={20}
                 />
 
                 <AnimatePresence mode="wait">
@@ -1343,6 +1350,13 @@ export function CanvasBoard() {
                 </AnimatePresence>
             </div>
 
+            {/* Inside the frame, not the shell: the menu docks against the
+                canvas's own edges, so an open side panel narrows the box it
+                centres on instead of sliding underneath it. */}
+            <BottomMenuM />
+            </div>
+            </div>
+
             <MetadataPanelM
                 nodeId={activeParentNode?.id}
                 isOpen={isMetadataOpen}
@@ -1362,6 +1376,8 @@ export function CanvasBoard() {
                 buttonRef={shortcutsBtnRef}
             />
 
+            <AIPanelM />
+
             <ChunkItModalM />
 
             {/* Dual Panel Backdrop (only when both sides are open) */}
@@ -1369,7 +1385,6 @@ export function CanvasBoard() {
                 <div className={styles.dualPanelBackdrop} />
             )}
 
-            <BottomMenuM />
             {contextMenu && (
                 <CanvasContextMenu
                     x={contextMenu.x}
@@ -1390,9 +1405,6 @@ export function CanvasBoard() {
             <FullscreenModalM onCanvasDragOver={onDragOver} onCanvasDrop={onDrop} />
             <CenterModalM onCanvasDragOver={onDragOver} onCanvasDrop={onDrop} />
             <AuthModalM />
-            <Suspense fallback={null}>
-                <KanbanConfigModal />
-            </Suspense>
         </div>
     );
 }

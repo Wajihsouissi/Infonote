@@ -96,7 +96,13 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     const hasManualHeight = nodeStyle?.height !== undefined;
 
     const dynamicStyle: React.CSSProperties = {
+        /* Two variables, because they answer different questions. The spine is
+           always drawn and falls back to the neutral rail; the surface tint is
+           only applied when the node has actually been given a colour. Reusing
+           one for both tinted every uncoloured fused note with 14% of the rail
+           accent. */
         ['--node-accent-color' as string]: data.color || 'var(--block-rail)',
+        ...(data.color ? { ['--node-accent' as string]: data.color } : {}),
         display: 'flex',
         flexDirection: 'column',
         ...(hasManualHeight ? {
@@ -354,6 +360,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 ${isFusing ? styles.fusing : ''}
             `}
             ref={nodeRef}
+            data-accented={data.color ? '' : undefined}
             style={dynamicStyle}
         >
             {/* Interaction Overlay */}

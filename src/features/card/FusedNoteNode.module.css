@@ -4,7 +4,7 @@
     background: var(--bg-rail);
     border: none;
     border-left: var(--block-rail-w) solid var(--node-accent-color, var(--block-rail));
-    border-radius: var(--node-radius);
+    border-radius: var(--r-panel);
     padding: 0;
     width: 100%;
     height: 100%;
@@ -19,6 +19,15 @@
         box-shadow var(--transition-fast);
     box-shadow: var(--node-ring);
     color: var(--text-main);
+}
+
+/* Recoloured, the node is tinted with its accent and keeps the binding at full
+   strength — the spine states the colour, the surface carries it. `--node-accent`
+   is published only when the node actually has a colour, so an uncoloured node
+   never reaches this rule. Same 14% as NoteCard's --tint-card, so a fused note
+   and a card given the same hue land on exactly the same surface. */
+.fusedNoteNode[data-accented] {
+    background: color-mix(in srgb, var(--node-accent) 14%, var(--bg-rail));
 }
 
 .dragging {

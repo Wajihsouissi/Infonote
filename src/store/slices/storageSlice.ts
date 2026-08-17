@@ -3,6 +3,11 @@ import { v4 as uuidv4 } from 'uuid';
 import type { AppState, StorageSlice } from '../types';
 import type { AppNode } from '../../types';
 import { withoutHistory, clearHistory } from '../temporalControl';
+import {
+    DEFAULT_COLUMNS,
+    GROUP_FIELDS as KANBAN_GROUP_FIELDS,
+    type KanbanGroupField,
+} from '../../features/kanban/kanbanTypes';
 
 export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = (set, get) => ({
     storage: {
@@ -143,6 +148,21 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
 
             // Sanitize Note Data
             const newNode = { ...node };
+
+            /* A board carries no content of its own — its cards are separate
+               nodes that load on their own account. What it must not load
+               without is a group field and a lane list, because a board with
+               neither has nowhere to put the cards that still point at it. */
+            if (newNode.type === 'kanban') {
+                const boardData = newNode.data as Record<string, unknown>;
+                if (!KANBAN_GROUP_FIELDS.includes(boardData.groupBy as KanbanGroupField)) {
+                    boardData.groupBy = 'status';
+                }
+                if (!Array.isArray(boardData.columns)) {
+                    boardData.columns = DEFAULT_COLUMNS[boardData.groupBy as KanbanGroupField] ?? [];
+                }
+                if (!Array.isArray(boardData.cardOrder)) boardData.cardOrder = [];
+            }
             if (newNode.type === 'note' || newNode.type === 'fused-note') {
                 // Ensure content is an array
                 const noteData = newNode.data as Record<string, unknown>;

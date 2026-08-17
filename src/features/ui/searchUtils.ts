@@ -165,7 +165,6 @@ export function matchNode(node: AppNode, filters: SearchFilters): boolean {
     // 1. Type filter
     if (filters.type) {
         const typeMatch = filters.type === 'note' ? node.type === 'note' :
-                         filters.type === 'kanban' ? node.type === 'kanban' :
                          filters.type === 'block' ? (node.type === 'block' || node.type === 'fused-note') :
                          false;
         if (!typeMatch) return false;

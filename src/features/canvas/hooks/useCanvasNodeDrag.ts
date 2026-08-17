@@ -1,10 +1,10 @@
 import { useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useReactFlow } from '@xyflow/react';
-import { type AppNode, type KanbanNode, getNodeBlocks, getNodeLabel } from '../../../types';
+import { type AppNode, getNodeBlocks, getNodeLabel } from '../../../types';
 import type { Block } from '../../editor/types';
 import type { UISlice } from '../../../store/types';
-import { snapFusedDimensions, MAX_HEIGHT } from '../../../config/layout';
+import { snapFusedDimensions, MAX_HEIGHT, MEDIUM_SIZE, GRID_GAP } from '../../../config/layout';
 import { useStore } from '../../../store/useStore';
 import { setStreaming } from './lodStore';
 import { mergeIntoGallery, GALLERY_NODE_WIDTH } from '../../editor/galleryTypes';
@@ -20,10 +20,40 @@ const hasStandaloneFlag = (data: AppNode['data']): boolean =>
 // the action that runs (no second, divergent detection pass on drop).
 interface PendingDrop {
     targetId: string;
-    action: 'fusion' | 'nesting' | 'gallery';
+    action: 'fusion' | 'nesting' | 'gallery' | 'kanban';
     insertBlockId: string | null;
     insertPosition: 'top' | 'bottom';
+    /** Kanban only: the lane value the drop will write onto the card. */
+    laneValue?: string;
 }
+
+/** Columns the board lays adopted cards out in on its drilled-in canvas. */
+const DRILL_GRID_COLS = 4;
+
+/**
+ * The board lane under the cursor, if any.
+ *
+ * Boards draw their cards as plain DOM rather than as React Flow nodes, so
+ * there is nothing for `getIntersectingNodes` to report and the lane has to be
+ * found by hit-testing the document. The dragged node is `pointer-events: none`
+ * for the duration of a drag (global CSS), which is what lets the lane beneath
+ * it answer instead.
+ */
+const laneUnderCursor = (clientX: number, clientY: number): { boardId: string; value: string } | null => {
+    for (const el of document.elementsFromPoint(clientX, clientY)) {
+        const lane = (el as HTMLElement).getAttribute?.('data-kanban-lane');
+        const boardId = (el as HTMLElement).getAttribute?.('data-kanban-board');
+        if (lane !== null && lane !== undefined && boardId) {
+            return { boardId, value: lane };
+        }
+    }
+    return null;
+};
+
+/** Every node type that carries content, which is every type a board can plan. */
+const canJoinBoard = (node: AppNode): boolean =>
+    node.type === 'note' || node.type === 'block' || node.type === 'fused-note';
+
 
 interface UseCanvasNodeDragOptions {
     currentParentId: string | null;
@@ -51,8 +81,10 @@ export function useCanvasNodeDrag({
     // Throttling and state Refs
     const lastDragCheck = useRef(0);
     const lastHighlightedBlockRef = useRef<HTMLElement | null>(null);
-    const activeDropTargetRef = useRef<{ id: string; type: 'fusion' | 'nesting' | 'gallery' | 'kanban-column' } | null>(null);
-    const activeKanbanColumnRef = useRef<{ kanbanId: string; columnId: string } | null>(null);
+    const activeDropTargetRef = useRef<{ id: string; type: 'fusion' | 'nesting' | 'gallery' | 'kanban' } | null>(null);
+    // Last lane highlighted, so the store is written on entering a lane rather
+    // than on every throttled frame spent inside one.
+    const hoveredLaneRef = useRef<{ boardId: string; value: string } | null>(null);
     // The complete fusion/nesting decision for the current drag, reused on drop.
     const pendingDropRef = useRef<PendingDrop | null>(null);
     // Whether the dragged node is currently hidden (swapped for the cursor chip). True only
@@ -110,7 +142,6 @@ export function useCanvasNodeDrag({
             isMultiDragging: isMultiDrag,
         });
         activeDropTargetRef.current = null;
-        activeKanbanColumnRef.current = null;
         pendingDropRef.current = null;
         isSourceHiddenRef.current = false;
         clearDropIndicators();
@@ -149,69 +180,35 @@ export function useCanvasNodeDrag({
         };
         const intersections = getIntersectingNodes(mouseRect);
 
-        const targetKanban = intersections.find((n): n is KanbanNode => n.type === 'kanban');
-        const targetOther = intersections.find(n =>
+        /* Priority 1: a board lane. Anything with content can be planned — a
+           note joins as itself, a block or a fused note becomes a card carrying
+           its blocks (see the drop handler). A lane wins over whatever else is
+           under the cursor, because something released over a board is being
+           scheduled, not merged into the thing behind it. */
+        const kanbanHit = canJoinBoard(node)
+            ? laneUnderCursor(event.clientX, event.clientY)
+            : null;
+
+        const targetOther = kanbanHit ? undefined : intersections.find(n =>
             n.id !== node.id && (n.type === 'note' || n.type === 'fused-note' || n.type === 'block')
         );
 
-        let newDropTarget: { id: string; type: 'fusion' | 'nesting' | 'gallery' | 'kanban-column' } | null = null;
+        let newDropTarget: { id: string; type: 'fusion' | 'nesting' | 'gallery' | 'kanban' } | null = null;
 
-        // Priority 1: Kanban Column
-        if (targetKanban && node.type === 'note') {
-            const kanbanData = targetKanban.data;
-            const currentColumns = kanbanData.columns;
-
-            if (currentColumns && currentColumns.length > 0) {
-                const boardWidth = targetKanban.measured?.width ?? (targetKanban.style?.width as number) ?? 800;
-                const relativeX = node.position.x - targetKanban.position.x;
-                const visualColWidth = (boardWidth - 48 - (20 * (currentColumns.length - 1))) / currentColumns.length;
-                const gap = 20;
-                const padding = 24;
-                const totalStep = visualColWidth + gap;
-
-                let colIndex = Math.floor((relativeX - padding + (gap / 2)) / totalStep);
-                if (colIndex < 0) colIndex = 0;
-                if (colIndex >= currentColumns.length) colIndex = currentColumns.length - 1;
-
-                const targetCol = currentColumns[colIndex];
-
-                newDropTarget = {
-                    id: targetKanban.id,
-                    type: 'kanban-column'
-                };
-
-                const lastKanbanCol = activeKanbanColumnRef.current;
-                if (
-                    lastKanbanCol?.kanbanId !== targetKanban.id ||
-                    lastKanbanCol?.columnId !== targetCol.statusValue
-                ) {
-                    const nextKanbanCol = {
-                        kanbanId: targetKanban.id,
-                        columnId: targetCol.statusValue
-                    };
-                    activeKanbanColumnRef.current = nextKanbanCol;
-                    activeDropTargetRef.current = newDropTarget;
-
-                    setInteractionState({
-                        hoveredKanbanColumn: nextKanbanCol,
-                        dropTarget: newDropTarget
-                    });
-                }
-                // Over a kanban column: there's no fusion/nesting in play.
-                pendingDropRef.current = null;
-                clearDropIndicators();
-                return;
-            }
-        }
-
-        // Clear Kanban hover if not hovering kanban anymore
-        if (!targetKanban && activeKanbanColumnRef.current) {
-            activeKanbanColumnRef.current = null;
-            setInteractionState({ hoveredKanbanColumn: null });
+        if (kanbanHit) {
+            newDropTarget = { id: kanbanHit.boardId, type: 'kanban' };
+            pendingDropRef.current = {
+                targetId: kanbanHit.boardId,
+                action: 'kanban',
+                insertBlockId: null,
+                insertPosition: 'bottom',
+                laneValue: kanbanHit.value,
+            };
+            setDropLine(null, 'bottom');
         }
 
         // Priority 2: Fusion or Nesting (single decision used verbatim on drop)
-        if (targetOther) {
+        else if (targetOther) {
             const isSourceBlock = node.type === 'block';
             const isSourceFused = node.type === 'fused-note';
             const isSourceNote = node.type === 'note';
@@ -277,26 +274,32 @@ export function useCanvasNodeDrag({
             setInteractionState({ dropTarget: newDropTarget });
         }
 
+        // Which lane lights up is a finer-grained question than which node is
+        // the target, so it gets its own comparison.
+        const lastLane = hoveredLaneRef.current;
+        if (lastLane?.boardId !== kanbanHit?.boardId || lastLane?.value !== kanbanHit?.value) {
+            hoveredLaneRef.current = kanbanHit;
+            setInteractionState({ hoveredKanbanLane: kanbanHit });
+        }
+
         // Swap the node for the cursor chip while over a fusion/nesting target.
         // Multi-drag never reaches here — it short-circuits at the top of this callback.
         setSourceHidden(node.id, !!newDropTarget);
-    }, [getIntersectingNodes, setInteractionState, screenToFlowPosition, getViewport, setDropLine, clearDropIndicators, setSourceHidden, selectedCanvasNodeIds]);
+    }, [getIntersectingNodes, setInteractionState, screenToFlowPosition, getViewport, setDropLine, setSourceHidden, selectedCanvasNodeIds]);
 
     const onNodeDragStop = useCallback((event: React.MouseEvent, node: AppNode) => {
-        // The exact fusion/nesting decision that was shown to the user during the drag.
         const pending = pendingDropRef.current;
-        const hoveredColumn = activeKanbanColumnRef.current;
         const isMultiDrag = selectedCanvasNodeIds.size > 1 && selectedCanvasNodeIds.has(node.id);
 
         // Clear interaction states + every drop indicator (single, centralized cleanup)
         setInteractionState({
-            hoveredKanbanColumn: null,
             draggedNodeId: null,
             isMultiDragging: false,
-            dropTarget: null
+            dropTarget: null,
+            hoveredKanbanLane: null
         });
         activeDropTargetRef.current = null;
-        activeKanbanColumnRef.current = null;
+        hoveredLaneRef.current = null;
         pendingDropRef.current = null;
         isSourceHiddenRef.current = false;
         clearDropIndicators();
@@ -336,71 +339,58 @@ export function useCanvasNodeDrag({
             return;
         }
 
-        // Kanban column placement (note → kanban)
-        if (hoveredColumn && isSourceNote) {
-            const targetKanban = getNode(hoveredColumn.kanbanId);
 
-            if (targetKanban && targetKanban.type === 'kanban') {
-                const kanbanData = targetKanban.data;
-                const targetCol = kanbanData.columns.find((c) => c.statusValue === hoveredColumn.columnId);
+        /* Kanban — the card joins the board and takes the lane's value.
+           Parent, position and metadata move in ONE store write: as separate
+           calls they race, and the card can end the drag adopted by the board
+           but still carrying its old status. */
+        if (pending?.action === 'kanban' && canJoinBoard(node)) {
+            const board = getNode(pending.targetId);
+            if (board?.type === 'kanban') {
+                const field = board.data.groupBy;
+                const value = pending.laneValue ?? '';
+                const previousParentId = node.parentId;
+                const isNewChild = previousParentId !== board.id;
 
-                if (targetCol) {
-                    const newStatus = targetCol.statusValue;
-                    const GAP = 16;
-                    const HEADER_OFFSET = 130;
+                /* A card the board is adopting needs somewhere to sit on the
+                   board's own drilled-in canvas — invisible from the board
+                   itself, which is exactly why it would otherwise stay at the
+                   origin under every other adopted card. A card merely moving
+                   between lanes of a board it already belongs to keeps its
+                   place there. */
+                const siblings = isNewChild
+                    ? useStore.getState().nodes.filter(n =>
+                        n.parentId === board.id && n.id !== node.id).length
+                    : 0;
+                const step = MEDIUM_SIZE + GRID_GAP;
+                const slotPosition = {
+                    x: (siblings % DRILL_GRID_COLS) * step,
+                    y: Math.floor(siblings / DRILL_GRID_COLS) * step,
+                };
 
-                    const currentStoreNodes = useStore.getState().nodes;
-                    const columnSiblings = currentStoreNodes.filter(n => {
-                        if (n.type !== 'note') return false;
-                        if (n.parentId !== targetKanban.id) return false;
-                        if (n.id === node.id) return false;
-                        return n.data.status === newStatus;
-                    });
+                /* Nothing is converted. Whatever was dropped joins the board as
+                   itself — a block stays a block, a fused note stays a fused
+                   note — and takes the lane's value on the one metadata field
+                   the board groups by. Every node type a board can hold carries
+                   those fields (see kanbanTypes.BoardPlanningFields), so the
+                   board can draw and group all of them without any of them
+                   having to become something else first. Dragging one back out
+                   returns exactly what was dropped. */
+                setNodes(nds => nds.map(n => {
+                    if (n.id !== node.id) return n;
+                    return {
+                        ...n,
+                        parentId: board.id,
+                        extent: undefined,
+                        zIndex: 10,
+                        position: isNewChild ? slotPosition : n.position,
+                        data: { ...n.data, [field]: value || undefined },
+                    } as AppNode;
+                }));
 
-                    columnSiblings.sort((a, b) => a.position.y - b.position.y);
-                    const lastSibling = columnSiblings[columnSiblings.length - 1];
-
-                    const colIndex = kanbanData.columns.findIndex((c) => c.statusValue === newStatus);
-                    const exactColWidth = ((targetKanban.measured?.width ?? 800) - 48 - (20 * (kanbanData.columns.length - 1))) / kanbanData.columns.length;
-
-                    let targetWidth = 112;
-                    let targetHeight = 112;
-                    let targetViewMode: 'icon' | 'medium' = 'icon';
-
-                    const canFitMedium = exactColWidth >= 240;
-                    const currentNodeWidth = node.style?.width as number || 112;
-
-                    if (canFitMedium && currentNodeWidth >= 224) {
-                        targetWidth = 224;
-                        targetHeight = 224;
-                        targetViewMode = 'medium';
-                    }
-
-                    const colXOffset = 24 + (colIndex * (exactColWidth + 20));
-                    const centeredX = colXOffset + (exactColWidth - targetWidth) / 2;
-
-                    let nextY = HEADER_OFFSET;
-                    if (lastSibling) {
-                        const lastSiblingH = (lastSibling.style?.height as number) || 112;
-                        nextY = lastSibling.position.y + lastSiblingH + GAP;
-                    }
-
-                    setNodes((nds: AppNode[]) => nds.map((n: AppNode) => {
-                        if (n.id === node.id) {
-                            return {
-                                ...n,
-                                parentId: targetKanban.id,
-                                extent: 'parent',
-                                zIndex: 1001,
-                                position: { x: centeredX, y: nextY },
-                                style: { ...n.style, width: targetWidth, height: targetHeight },
-                                data: { ...n.data, viewMode: targetViewMode, status: newStatus }
-                            } as AppNode;
-                        }
-                        return n;
-                    }));
-                    return;
-                }
+                // The node left its old parent's content behind.
+                if (isNewChild && previousParentId) syncParentContent(previousParentId);
+                return;
             }
         }
 
@@ -457,15 +447,6 @@ export function useCanvasNodeDrag({
         };
         const stopIntersections = getIntersectingNodes(mouseRect);
 
-        // Kanban fallback: note dropped on a board but the hover wasn't captured this tick.
-        if (isSourceNote) {
-            const kanbanTarget = stopIntersections.find((n): n is KanbanNode => n.type === 'kanban' && n.id !== node.id);
-            if (kanbanTarget) {
-                const currentStoreNodes = useStore.getState().nodes;
-                handleKanbanDrop(kanbanTarget, node, currentStoreNodes, setNodes);
-                return;
-            }
-        }
 
         // CASE 0: Drag out — un-nest when nothing actionable is under the cursor.
         const overSomething = stopIntersections.some(n => n.id !== node.id && n.id !== currentParentId);
@@ -504,85 +485,7 @@ export function useCanvasNodeDrag({
     };
 }
 
-// Helper: Handle Kanban drop
-function handleKanbanDrop(targetNode: KanbanNode, node: AppNode, nodes: AppNode[], setNodes: SetNodesFn) {
-    const kanbanData = targetNode.data;
-    const currentColumns = kanbanData.columns;
 
-    if (!currentColumns || currentColumns.length === 0) return;
-
-    const boardWidth = targetNode.measured?.width ?? (targetNode.style?.width as number) ?? 800;
-
-    let relativeX = 0;
-    if (node.parentId === targetNode.id) {
-        relativeX = node.position.x;
-    } else {
-        relativeX = node.position.x - targetNode.position.x;
-    }
-
-    const visualColWidth = (boardWidth - 48 - (20 * (currentColumns.length - 1))) / currentColumns.length;
-    const gap = 20;
-    const padding = 24;
-    const totalStep = visualColWidth + gap;
-
-    let colIndex = Math.floor((relativeX - padding + (gap / 2)) / totalStep);
-    if (colIndex < 0) colIndex = 0;
-    if (colIndex >= currentColumns.length) colIndex = currentColumns.length - 1;
-
-    const targetCol = currentColumns[colIndex];
-    const newStatus = targetCol.statusValue;
-
-    const GAP = 16;
-    const HEADER_OFFSET = 130;
-
-    const columnSiblings = nodes.filter(n => {
-        if (n.type !== 'note') return false;
-        if (n.parentId !== targetNode.id) return false;
-        if (n.id === node.id) return false;
-        return n.data.status === newStatus;
-    });
-
-    columnSiblings.sort((a, b) => a.position.y - b.position.y);
-    const lastSibling = columnSiblings[columnSiblings.length - 1];
-
-    let targetWidth = 112;
-    let targetHeight = 112;
-    let targetViewMode: 'icon' | 'medium' = 'icon';
-
-    const canFitMedium = visualColWidth >= 240;
-    const currentNodeWidth = node.style?.width as number || 112;
-
-    if (canFitMedium && currentNodeWidth >= 224) {
-        targetWidth = 224;
-        targetHeight = 224;
-        targetViewMode = 'medium';
-    }
-
-    const colXOffset = 24 + (colIndex * (visualColWidth + 20));
-    // Free-form: keep raw kanban column placement (no grid snap)
-    const centeredX = colXOffset + (visualColWidth - targetWidth) / 2;
-
-    let nextY = HEADER_OFFSET;
-    if (lastSibling) {
-        const lastSiblingH = (lastSibling.style?.height as number) || 112;
-        nextY = lastSibling.position.y + lastSiblingH + GAP;
-    }
-
-    setNodes((nds: AppNode[]) => nds.map((n: AppNode) => {
-        if (n.id === node.id) {
-            return {
-                ...n,
-                parentId: targetNode.id,
-                extent: 'parent',
-                zIndex: 1001,
-                position: { x: centeredX, y: nextY },
-                style: { ...n.style, width: targetWidth, height: targetHeight },
-                data: { ...n.data, viewMode: targetViewMode, status: newStatus }
-            } as AppNode;
-        }
-        return n;
-    }));
-}
 
 // Resolve the precomputed (blockId, position) decision into an array index.
 function computeInsertIndex(targetContent: Block[], insertBlockId: string | null, insertPosition: 'top' | 'bottom'): number {

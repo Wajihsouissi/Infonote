@@ -4,7 +4,6 @@ import {
     ChevronDown, 
     ChevronUp,
     FileText,
-    ListCollapse,
     ArrowRight,
     StickyNote,
     CheckSquare,
@@ -172,8 +171,11 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
 
             const clickedInsidePanel = panelRef.current?.contains(e.target as Node);
             const clickedOnButton = buttonRef?.current?.contains(e.target as Node);
+            // The app menu docks to the side while this panel is open; closing
+            // on its clicks would move the rail out from under the press.
+            const clickedInMenu = (e.target as HTMLElement | null)?.closest?.('[data-app-menu]');
 
-            if (!clickedInsidePanel && !clickedOnButton) {
+            if (!clickedInsidePanel && !clickedOnButton && !clickedInMenu) {
                 onClose();
             }
         };
@@ -240,7 +242,7 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
 
             const siblings = nodes.filter(n => 
                 (n.parentId === targetNode.parentId || (!n.parentId && !targetNode.parentId)) && 
-                ['fused-note', 'block', 'note', 'kanban'].includes(n.type)
+                ['fused-note', 'block', 'note'].includes(n.type)
             );
             
             const sortedSiblings = [...siblings].sort((a, b) => {
@@ -545,10 +547,6 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
         >
             {/* Slideout Panel Header */}
             <div className={styles.header}>
-                <div className={styles.headerLeft}>
-                    <ListCollapse size={16} style={{ color: 'var(--color-primary)' }} />
-                    <span className={styles.headerTitle}>Outline</span>
-                </div>
                 <div className={styles.headerActions}>
                     <div 
                         className={styles.switcherTrack}
@@ -594,7 +592,9 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
                 </div>
             </div>
 
-            {/* Modern Glassmorphic Search Bar */}
+            {/* Everything below the header lives on the panel's inset surface,
+                which carries the canvas frame's radius. */}
+            <div className={styles.panelBody}>
             <div className={styles.searchContainer}>
                 <input
                     type="text"
@@ -653,6 +653,7 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
             </div>
 
             <div className={`${styles.scrollIndicator} ${styles.scrollIndicatorBottom}`} />
+            </div>
         </div>
     );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { X, Keyboard } from 'lucide-react';
+import { X } from 'lucide-react';
 import styles from './KeyboardShortcutsPanel.module.css';
 
 interface KeyboardShortcutsPanelProps {
@@ -106,7 +106,10 @@ export function KeyboardShortcutsPanel({ isOpen, onClose, buttonRef }: KeyboardS
             if (!isOpen) return;
             const clickedInsidePanel = panelRef.current?.contains(e.target as Node);
             const clickedOnButton = buttonRef?.current?.contains(e.target as Node);
-            if (!clickedInsidePanel && !clickedOnButton) {
+            // The app menu docks to the side while this panel is open; closing
+            // on its clicks would move the rail out from under the press.
+            const clickedInMenu = (e.target as HTMLElement | null)?.closest?.('[data-app-menu]');
+            if (!clickedInsidePanel && !clickedOnButton && !clickedInMenu) {
                 onClose();
             }
         };
@@ -132,10 +135,6 @@ export function KeyboardShortcutsPanel({ isOpen, onClose, buttonRef }: KeyboardS
             className={`${styles.panel} ${isOpen ? styles.panelOpen : styles.panelClosed}`}
         >
             <div className={styles.header}>
-                <div className={styles.headerLeft}>
-                    <Keyboard size={16} style={{ color: 'var(--color-primary)' }} />
-                    <span className={styles.headerTitle}>Shortcuts</span>
-                </div>
                 <button className={styles.closeBtn} onClick={onClose} title="Close Shortcuts">
                     <X size={18} />
                 </button>

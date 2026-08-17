@@ -5,11 +5,16 @@ import { v4 as uuidv4 } from 'uuid';
 import styles from './ChunkItModal.module.css';
 import { BlockEditor } from '../editor/BlockEditor';
 import { MIN_EXPANDED_SIZE } from '../../config/layout';
-import type { AppNode } from '../../types';
+import type { AppNode, KanbanNode } from '../../types';
 import type { Block } from '../editor/types';
 import type { Edge } from '@xyflow/react';
 
-type ChunkableNode = Exclude<AppNode, { type: 'kanban' }>;
+/**
+ * Chunking splits a node's blocks across new nodes, so it only means anything
+ * for the node types that have blocks. A board's content is its cards, and they
+ * are separate nodes already.
+ */
+type ChunkableNode = Exclude<AppNode, KanbanNode>;
 
 const isChunkableNode = (node: AppNode | null | undefined): node is ChunkableNode => {
     return !!node && node.type !== 'kanban' && 'content' in node.data && Array.isArray(node.data.content);

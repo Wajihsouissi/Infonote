@@ -21,6 +21,7 @@
      4. Legacy aliases (old variable names → new tokens)
      5. Canvas & UI Component layer
      6. Corner shape — Apple-style continuous curvature
+     7. Accent palette — ten user-assignable hues, three shades each
    ============================================================ */
 
 /* ---------- 1. static tokens ---------- */
@@ -64,6 +65,17 @@
   --transition-fast: 0.15s ease;
   --transition-smooth: 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
   --ease-rise: cubic-bezier(0.22, 0.9, 0.3, 1);
+
+  /* The surface transparent media is composited onto.
+     Deliberately NOT theme-aware, and deliberately mid-luminance. Uploaded art
+     with an alpha channel arrives at an unknown polarity — black line work
+     drawn for a white page, white logos drawn for a dark one — and either of
+     our own grounds erases one of them: on ink the black art disappears, on
+     paper the white art does. A warm mid grey is the only ground both survive,
+     and holding it fixed across themes means a logo looks the same wherever it
+     is dropped instead of inverting when the theme is toggled.
+     Only ever seen through alpha; opaque media covers it completely. */
+  --media-plate: #8f8a80;
 }
 
 /* ---------- 2. Ink (dark — default) ---------- */
@@ -129,6 +141,25 @@
   --t-purple: #ad8ab8;
   --t-green: #94bd82;
   --t-red: #e07a63;
+
+  /* accent palette — ten hues the user assigns to things they own (board
+     columns today, tags and categories next). See §7 for the full rationale and
+     for the wash/edge shades derived from these.
+
+     A tenth of the wheel apart, all held at one lightness and one chroma so no
+     hue shouts over another in a row of ten. Warm-adapted like everything else
+     here: even the greens and blues carry a little red, so a column never reads
+     as a cold sticker dropped onto a warm page. */
+  --a-rose:    #e0837f;
+  --a-amber:   #e2a066;
+  --a-citrine: #ddc16a;
+  --a-olive:   #b4bf72;
+  --a-jade:    #8dbd88;
+  --a-teal:    #77bcae;
+  --a-azure:   #74a6c4;
+  --a-indigo:  #909ccb;
+  --a-violet:  #ab8cc4;
+  --a-magenta: #c98bb2;
 
   /* elevation — neutral contact shadow + ambient depth */
   --elev-1: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
@@ -196,6 +227,21 @@
   --t-purple: #7a5384;
   --t-green: #4f7d3f;
   --t-red: #ab4326;
+
+  /* accent palette — the same ten hues, deepened for paper (see §7).
+     Only these ten values change between themes; every shade derived from them
+     follows automatically, so a column keeps its identity across Ink and Paper
+     instead of needing a second set of rules. */
+  --a-rose:    #a54c48;
+  --a-amber:   #8f5c1f;
+  --a-citrine: #7d5f16;
+  --a-olive:   #5f6b26;
+  --a-jade:    #3d7040;
+  --a-teal:    #2a6e64;
+  --a-azure:   #2f6280;
+  --a-indigo:  #48538d;
+  --a-violet:  #684a86;
+  --a-magenta: #854771;
 
   /* elevation — warm brown-grey shadows so paper never casts cold grey */
   --elev-1: 0 1px 3px rgba(36, 26, 12, 0.07), 0 1px 2px rgba(36, 26, 12, 0.05);
@@ -296,6 +342,26 @@
   /* canvas desk ground */
   --canvas-bg: var(--bg-inset);
   --canvas-dot: var(--dot);
+
+  /* app shell — the chrome the canvas is inset into. The top bar carries every
+     control that used to float over the canvas as its own pill; the desk then
+     sits in a frame with an even reveal on left/right/bottom, so the
+     canvas reads as a sheet laid inside the app rather than under it. */
+  --shell-bg: var(--bg-rail);
+  --shell-inset: 8px;
+  --shell-radius: 40px;
+  --topbar-h: 56px;
+  --topbar-pad-x: 12px;
+  --topbar-gap: 8px;
+
+  /* Side panels get the same treatment as the canvas: the panel itself is
+     chrome, continuous with the shell around it, and its content sits in an
+     inset surface with the frame's radius. The whole app then reads as one
+     ground with rounded content islands floating in it. */
+  --panel-bg: var(--shell-bg);
+  --panel-body-bg: var(--bg-base);
+  --panel-radius: var(--shell-radius);
+  --panel-inset: var(--shell-inset);
 
   /* node surfaces */
   /* --bg-card sits one step above --bg-rail in Ink, which is what gives a node
@@ -427,6 +493,14 @@
   /* radii — small for inline text targets, md for boxed blocks */
   --block-radius: var(--r-control);
   --block-radius-lg: var(--r-md);
+  /* Media is the exception, and takes the card's own corner rather than the
+     boxed-block one. A picture is not a box of text: it is a card in its own
+     right — the thing you pin to a board, drag between notes, and look at —
+     so it is cut to the same silhouette as the cards it travels between.
+     Every media surface reads from this one dial: image, video and file
+     blocks, their placeholders and selection rings, and every tile on a
+     gallery board. */
+  --media-radius: var(--r-panel);
 
   /* structure & marks */
   --block-rail-w: 3px;
@@ -459,6 +533,52 @@
   --link-border: rgba(var(--accent-rgb), 0.22);
   --link-bg-hover: var(--accent-wash);
   --link-border-hover: var(--accent);
+}
+
+/* ---------- 7. Accent palette — shades ----------
+
+   Ten hues (§2 for Ink, §3 for Paper), each in three shades:
+
+     --a-<hue>         the colour itself — a dot, a heading, a hairline
+     --a-<hue>-wash    a tint to lay a surface in
+     --a-<hue>-edge    a tint for that surface's border
+
+   Only the base is authored per theme; the two tints are mixed from it here,
+   once, for both. That is deliberate — it means a hue can never drift out of
+   family between light and dark, and re-tuning "how strong is a wash" is one
+   number rather than sixty. Mixing toward `transparent` rather than toward a
+   named background also lets a wash sit on whatever surface it lands on: a lane
+   on the desk, a chip on a card, a row in a table.
+
+   Alphas are low on purpose. These mark ownership — this column is mine, that
+   tag is design — and a board of ten saturated columns is a toy. The colour
+   should be the quietest thing that still answers "which one is this".         */
+
+:root {
+  --a-wash-mix: 12%;
+  --a-edge-mix: 34%;
+
+  --a-rose-wash:    color-mix(in srgb, var(--a-rose)    var(--a-wash-mix), transparent);
+  --a-amber-wash:   color-mix(in srgb, var(--a-amber)   var(--a-wash-mix), transparent);
+  --a-citrine-wash: color-mix(in srgb, var(--a-citrine) var(--a-wash-mix), transparent);
+  --a-olive-wash:   color-mix(in srgb, var(--a-olive)   var(--a-wash-mix), transparent);
+  --a-jade-wash:    color-mix(in srgb, var(--a-jade)    var(--a-wash-mix), transparent);
+  --a-teal-wash:    color-mix(in srgb, var(--a-teal)    var(--a-wash-mix), transparent);
+  --a-azure-wash:   color-mix(in srgb, var(--a-azure)   var(--a-wash-mix), transparent);
+  --a-indigo-wash:  color-mix(in srgb, var(--a-indigo)  var(--a-wash-mix), transparent);
+  --a-violet-wash:  color-mix(in srgb, var(--a-violet)  var(--a-wash-mix), transparent);
+  --a-magenta-wash: color-mix(in srgb, var(--a-magenta) var(--a-wash-mix), transparent);
+
+  --a-rose-edge:    color-mix(in srgb, var(--a-rose)    var(--a-edge-mix), transparent);
+  --a-amber-edge:   color-mix(in srgb, var(--a-amber)   var(--a-edge-mix), transparent);
+  --a-citrine-edge: color-mix(in srgb, var(--a-citrine) var(--a-edge-mix), transparent);
+  --a-olive-edge:   color-mix(in srgb, var(--a-olive)   var(--a-edge-mix), transparent);
+  --a-jade-edge:    color-mix(in srgb, var(--a-jade)    var(--a-edge-mix), transparent);
+  --a-teal-edge:    color-mix(in srgb, var(--a-teal)    var(--a-edge-mix), transparent);
+  --a-azure-edge:   color-mix(in srgb, var(--a-azure)   var(--a-edge-mix), transparent);
+  --a-indigo-edge:  color-mix(in srgb, var(--a-indigo)  var(--a-edge-mix), transparent);
+  --a-violet-edge:  color-mix(in srgb, var(--a-violet)  var(--a-edge-mix), transparent);
+  --a-magenta-edge: color-mix(in srgb, var(--a-magenta) var(--a-edge-mix), transparent);
 }
 
 /* ---------- 6. corner shape (Apple squircle) ---------- */

@@ -39,7 +39,7 @@ export const computeParentContentUpdate = (parentId: string, allNodes: AppNode[]
     // 1. Get Children - Include all nodes that belong to this parent
     const allChildren = childrenByParent.get(parentId) || [];
     const children = allChildren.filter(n =>
-        ['fused-note', 'block', 'note', 'kanban'].includes(n.type)
+        ['fused-note', 'block', 'note'].includes(n.type)
     );
 
     if (DEBUG) {
@@ -112,17 +112,16 @@ export const computeParentContentUpdate = (parentId: string, allNodes: AppNode[]
                     }
                 });
             }
-        } else if (child.type === 'note' || child.type === 'kanban') {
+        } else if (child.type === 'note') {
             // Try to find existing block for this node
             const existingBlock = existingContent.find((b) => b.metadata?.nodeId === child.id);
 
             reconstructedContent.push({
                 id: existingBlock?.id || uuidv4(),
                 type: 'page',
-                content: child.data.label || (child.type === 'kanban' ? 'Kanban Board' : 'Untitled'),
+                content: child.data.label || 'Untitled',
                 metadata: { 
-                    nodeId: child.id,
-                    isKanban: child.type === 'kanban'
+                    nodeId: child.id
                 }
             });
         }

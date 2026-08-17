@@ -1,14 +1,10 @@
+/* Lives in the app shell's top bar, which supplies the surface — so no pill
+   background, border or shadow of its own. */
 .historyControls {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 6px 8px;
-    background: var(--bg-rail);
-
-    border: 1px solid var(--line);
-    border-radius: var(--radius-pill);
-    box-shadow: var(--toolbar-shadow);
-    height: 48px;
+    gap: 2px;
+    height: 36px;
     box-sizing: border-box;
 }
 

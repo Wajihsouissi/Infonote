@@ -43,7 +43,7 @@ function getUnifiedBlocksForNode(nodeId: string | null, allNodes: AppNode[]): Bl
 
     // Only process supported visual nodes
     const validChildren = childNodes.filter(n =>
-        ['fused-note', 'block', 'note', 'kanban'].includes(n.type)
+        ['fused-note', 'block', 'note'].includes(n.type)
     );
 
     // 2. Sort child nodes visually
@@ -61,15 +61,14 @@ function getUnifiedBlocksForNode(nodeId: string | null, allNodes: AppNode[]): Bl
                     unifiedBlocks.push(b);
                 });
             }
-        } else if (child.type === 'note' || child.type === 'kanban') {
+        } else if (child.type === 'note') {
             const existingBlock = existingContent.find((b) => b.metadata?.nodeId === child.id);
             unifiedBlocks.push({
                 id: existingBlock?.id || child.id,
                 type: 'page',
-                content: getNodeLabel(child.data) || (child.type === 'kanban' ? 'Kanban Board' : 'Untitled'),
+                content: getNodeLabel(child.data) || 'Untitled',
                 metadata: {
-                    nodeId: child.id,
-                    isKanban: child.type === 'kanban'
+                    nodeId: child.id
                 }
             });
         }

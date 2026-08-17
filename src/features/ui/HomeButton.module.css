@@ -1,11 +1,13 @@
+/* Sits in the app shell's top bar, which supplies the surface — the button
+   itself is a bare glyph until hovered. */
 .homeButton {
-    background: var(--bg-rail);
+    background: transparent;
 
-    border: 1px solid var(--line);
+    border: 1px solid transparent;
     border-radius: 50%;
 
-    width: 48px;
-    height: 48px;
+    width: 36px;
+    height: 36px;
 
     display: flex;
     align-items: center;
@@ -14,16 +16,14 @@
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 
-    box-shadow: var(--toolbar-shadow);
     color: var(--color-text-muted);
     position: relative; /* Anchor dot */
 }
 
 .homeButton:hover {
-    background: var(--bg-rail);
-    border-color: var(--accent);
+    background: var(--hover-wash);
+    border-color: transparent;
     transform: translateY(-2px) scale(1.05);
-    box-shadow: var(--shadow-lg);
     color: var(--accent);
 }
 
@@ -31,9 +31,11 @@
     transform: scale(0.95);
 }
 
+/* Signed in: the status dot carries the state, so the button stays flat with
+   the rest of the bar. */
 .authed {
-    border-color: var(--accent);
-    background: var(--bg-rail);
+    border-color: transparent;
+    background: transparent;
 }
 
 .iconWrapper {
@@ -51,12 +53,13 @@
 
 .dot {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 3px;
+    right: 3px;
     width: 8px;
     height: 8px;
     border-radius: 50%;
     background: var(--ok);
-    border: 2px solid var(--bg-base);
+    /* Punched out of the top bar it sits on. */
+    border: 2px solid var(--shell-bg);
     box-shadow: none;
 }

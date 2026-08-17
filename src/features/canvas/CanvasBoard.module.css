@@ -1,11 +1,25 @@
-/* Main Container */
+/* Main Container. Stays a ROW flex: the side panels render as in-flow siblings
+   here and only contribute their 1px rail width in this direction — stacking
+   them in a column would let each one claim the full height. */
 .container {
     width: 100%;
     height: 100%;
-    background: var(--color-bg-base);
+    background: var(--shell-bg);
     position: relative;
     display: flex;
     overflow: hidden;
+}
+
+/* App shell — a top bar spanning the full width, then the canvas inset into a
+   frame: an even --shell-inset reveal on left/right/bottom (the bar closes the
+   top) with a --shell-radius squircle. */
+.shell {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--shell-bg);
 }
 
 /* Dual Panel Focus Backdrop */
@@ -19,81 +33,76 @@
     /* Below SidePanels (50) but above everything else */
 }
 
-/* Top Left Toolbar */
-.topLeftToolbar {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    z-index: 1000;
+/* Top Bar — one rail for navigation (left) and controls (right). It is the
+   chrome now, so the pieces inside it drop their own pill backgrounds. */
+.topBar {
+    flex: none;
+    height: var(--topbar-h);
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 var(--topbar-pad-x);
+    background: var(--shell-bg);
+    z-index: 1000;
 }
 
-/* Top Right Toolbar */
-/* Main Container */
-.container {
-    width: 100%;
-    height: 100%;
-    background: var(--color-bg-base);
-    position: relative;
+.topBarLeft,
+.topBarRight {
     display: flex;
+    align-items: center;
+    gap: var(--topbar-gap);
+    min-width: 0;
+}
+
+.topBarLeft {
+    flex: 1;
+}
+
+.topBarRight {
+    flex: none;
+}
+
+/* Breadcrumbs carries its own pill so it can stand alone in the marketing
+   mock; in the bar the rail does that job, so strip it back to bare crumbs. */
+.crumbSlot {
+    display: flex;
+    align-items: center;
+    min-width: 0;
     overflow: hidden;
 }
 
-/* Dual Panel Focus Backdrop */
-.dualPanelBackdrop {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 40;
-    /* Below SidePanels (50) but above everything else */
+.crumbSlot > div {
+    height: 36px;
+    padding: 0;
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
 }
 
-/* Top Left Toolbar */
-.topLeftToolbar {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-/* Top Right Toolbar */
-.topRightToolbar {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    z-index: 1000;
-
-    background: var(--bg-rail);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-pill);
-    padding: 6px 8px;
-    box-shadow: var(--toolbar-shadow);
-
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.topRightSeparator {
+.topBarSeparator {
     width: 1px;
-    height: 20px;
-    background: var(--color-border);
-    opacity: 0.4;
+    height: 22px;
+    background: var(--line-strong);
     margin: 0 2px;
+    flex: none;
+}
+
+/* Canvas Frame */
+.canvasFrame {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    margin: 0 var(--shell-inset) var(--shell-inset);
+    border-radius: var(--shell-radius);
+    overflow: hidden;
+    /* No ring or border: the reveal and the radius draw the frame on their own. */
 }
 
 /* Canvas Area */
 .canvasArea {
-    flex: 1;
-    position: relative;
-    height: 100%;
+    position: absolute;
+    inset: 0;
     background-color: var(--xy-background-color-default);
     background-image: none;
     transition: background-color 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
@@ -147,7 +156,9 @@
     box-shadow: none;
     overflow: hidden;
     padding: 0;
-    margin: 15px;
+    /* Clears the frame's corner arc — at 15px the minimap's corner sat right
+       on the curve. */
+    margin: 22px;
     height: 116px;
 }
 

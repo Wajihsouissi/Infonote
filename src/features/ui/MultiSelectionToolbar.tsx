@@ -190,14 +190,23 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
         { mode: 'mindmap-vertical', label: 'Mindmap (Vert)', desc: 'Vertical tree structure', icon: <Network size={18} /> },
     ] as const;
 
+    /* The accent palette from design-system.css §7 — the same ten hues a board
+       column offers, so "rose" means one colour everywhere in the app rather
+       than one per feature. Stored as the `var(--a-…)` reference rather than a
+       resolved hex, which is what lets a node keep its identity when the theme
+       flips between Ink and Paper. */
     const colors = [
         { name: 'Default', value: 'transparent', displayValue: 'transparent' },
-        { name: 'Red', value: 'var(--t-red)', displayValue: 'var(--t-red)' },
-        { name: 'Pink', value: 'var(--t-pink)', displayValue: 'var(--t-pink)' },
-        { name: 'Purple', value: 'var(--t-purple)', displayValue: 'var(--t-purple)' },
-        { name: 'Blue', value: 'var(--t-blue)', displayValue: 'var(--t-blue)' },
-        { name: 'Green', value: 'var(--t-green)', displayValue: 'var(--t-green)' },
-        { name: 'Yellow', value: 'var(--t-yellow)', displayValue: 'var(--t-yellow)' },
+        { name: 'Rose', value: 'var(--a-rose)', displayValue: 'var(--a-rose)' },
+        { name: 'Amber', value: 'var(--a-amber)', displayValue: 'var(--a-amber)' },
+        { name: 'Citrine', value: 'var(--a-citrine)', displayValue: 'var(--a-citrine)' },
+        { name: 'Olive', value: 'var(--a-olive)', displayValue: 'var(--a-olive)' },
+        { name: 'Jade', value: 'var(--a-jade)', displayValue: 'var(--a-jade)' },
+        { name: 'Teal', value: 'var(--a-teal)', displayValue: 'var(--a-teal)' },
+        { name: 'Azure', value: 'var(--a-azure)', displayValue: 'var(--a-azure)' },
+        { name: 'Indigo', value: 'var(--a-indigo)', displayValue: 'var(--a-indigo)' },
+        { name: 'Violet', value: 'var(--a-violet)', displayValue: 'var(--a-violet)' },
+        { name: 'Magenta', value: 'var(--a-magenta)', displayValue: 'var(--a-magenta)' },
     ];
 
     return (

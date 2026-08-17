@@ -1,390 +1,632 @@
+/* The kanban board node.
+   The board itself has no surface. There is no panel, no ring and no shadow —
+   only the lanes and, on hover, a floating toolbar over them, the same way the
+   gallery board keeps its chrome off the pictures. Two surface steps are left
+   to do the structural work, lane and card, and both come from the Paper & Ink
+   ramp so the same file reads on parchment and on ink.
+
+   The board is grabbable anywhere it is not something else. The whole element
+   is the node's drag handle, and the parts that own their own gesture — cards,
+   the lane grips, inputs and buttons — opt out with `nodrag`. So the gaps
+   between lanes, a lane's header background and the empty space under its last
+   card all pick the board up, which is what makes it feel like one object.
+
+   The cost, taken deliberately: the board is no longer pointer-transparent, so
+   the canvas underneath is not clickable through the gaps between columns. A
+   board is a thing on the desk now, not a window onto it. */
+
 .board {
-    background: var(--bg-rail);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-xl);
-    padding: 24px;
-    min-width: 800px;
-    min-height: 500px;
-    display: flex;
-    flex-direction: column;
-    box-shadow: none;
-    transition:background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.2, 0, 0.2, 1);
-    /* Ensure dragged items can be seen if they overflow initial bounds */
-    overflow: visible;
-    height: auto;
-    width: fit-content;
-}
+    /* One expanded card wide (see kanbanTypes.KANBAN_LANE_WIDTH — the two must
+       agree or the node's width will not fit a whole number of lanes). */
+    --lane-w: 432px;
+    --lane-gap: 8px;
+    /* Mirrors kanbanTypes.KANBAN_LANE_MIN_HEIGHT. */
+    --lane-min-h: 720px;
 
-.dragging {
-    transform: scale(0.98) rotate(1deg);
-    /* Less rotation for large board */
-    box-shadow:
-        var(--node-ring-drag),
-        var(--node-shadow-drag);
-    opacity: 0.96;
-    z-index: 10000 !important;
-}
-
-.dots {
-    background-color: #1a1a1a;
-    background-image: radial-gradient(#333 1px, transparent 1px);
-    background-size: 20px 20px;
-}
-
-.grid {
-    background-color: #1a1a1a;
-    background-image: linear-gradient(#333 1px, transparent 1px), linear-gradient(90deg, #333 1px, transparent 1px);
-    background-size: 20px 20px;
-}
-
-.gradient-blue {
-    background: linear-gradient(135deg, var(--bg-card) 0%, var(--accent-deep) 100%);
-}
-
-.gradient-purple {
-    background: linear-gradient(135deg, var(--accent-deep) 0%, var(--accent) 100%);
-}
-
-.selected {
-    border-color: var(--accent-ink);
-    box-shadow: none;
-}
-
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.title {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 700;
-    background: linear-gradient(135deg, var(--text-main) 0%, var(--text-soft) 100%);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    letter-spacing: -0.02em;
-}
-
-.columnCount {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.4);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 4px 10px;
-    border-radius: var(--radius-xl);
-}
-
-.columnsContainer {
-    display: flex;
-    gap: 16px;
-    flex: 1;
-    overflow-x: auto;
-    padding-bottom: 8px;
-    align-items: stretch;
-}
-
-/* Custom Scrollbar */
-.columnsContainer::-webkit-scrollbar {
-    height: 6px;
-}
-
-.columnsContainer::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.columnsContainer::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: var(--radius-xs);
-}
-
-.column {
-    flex: 1;
-    min-width: 280px;
-    background: rgba(20, 20, 20, 0.4);
-    border-radius: 16px;
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    border: 1px solid rgba(255, 255, 255, 0.03);
-    transition:background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     position: relative;
-    overflow: hidden;
-}
-
-.columnHovered {
-    background: rgba(249, 93, 46, 0.1) !important;
-    border-color: rgba(249, 93, 46, 0.4) !important;
-    box-shadow: none;
-    transform: scale(1.01);
-}
-
-.columnHovered::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border: 2px solid var(--color-primary);
-    border-radius: 16px;
-    pointer-events: none;
-    animation: columnPulse 1.5s ease-in-out infinite;
-}
-
-@keyframes columnPulse {
-    0% {
-        opacity: 0.3;
-    }
-
-    50% {
-        opacity: 0.7;
-    }
-
-    100% {
-        opacity: 0.3;
-    }
-}
-
-.columnCollapsed {
-    flex: 0 0 50px;
-    min-width: 50px;
-    padding: 12px 4px;
-    cursor: pointer;
-    background: rgba(20, 20, 20, 0.2);
-}
-
-.columnCollapsed:hover {
-    background: rgba(30, 30, 30, 0.4);
-}
-
-.columnCollapsed .columnHeader {
-    flex-direction: column;
-    height: 100%;
-    margin-bottom: 0;
-    justify-content: flex-start;
-    gap: 16px;
-    padding-top: 8px;
-    align-items: center;
-    /* Center horizontally in vertical mode */
-}
-
-.columnCollapsed .columnTitle {
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    transform: rotate(180deg);
-    white-space: nowrap;
-    margin-top: auto;
-    margin-bottom: auto;
-    letter-spacing: 0.05em;
-    font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.columnCollapsed .columnColorBar {
-    width: 4px;
-    height: 24px;
-    margin-right: 0;
-    margin-bottom: 8px;
-}
-
-/* Hide other elements when collapsed */
-.columnCollapsed .statusBadge,
-.columnCollapsed .addCardBtn,
-.columnCollapsed .dropZone {
-    display: none !important;
-}
-
-.column:hover {
-    background: rgba(30, 30, 30, 0.5);
-    border-color: rgba(255, 255, 255, 0.08);
-}
-
-.columnActive {
-    background: rgba(249, 93, 46, 0.15) !important;
-    border-color: rgba(249, 93, 46, 0.6) !important;
-    box-shadow: none;
-}
-
-.columnHeader {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-    padding: 0 4px;
-    transition: background-color 0.3s ease, border-color 0.3s ease;
+    flex-direction: column;
+    /* The board is exactly its lanes — no surface of its own, so no size of its
+       own either. `max-content` on both axes means adding a column widens the
+       board and filling a column deepens it, with nothing to keep in sync by
+       hand. React Flow's wrapper is content-sized too (it applies `node.width`,
+       which we never set), so it hugs this without a fight; the stored
+       `node.style` size is only a mirror for culling — see KanbanNode's resize
+       observer. */
+    width: max-content;
+    height: max-content;
+    box-sizing: border-box;
+    /* Lets the toolbar sit above the node box instead of being clipped by it. */
+    overflow: visible;
+    background: none;
+    box-shadow: none;
+    font-family: var(--font-sans);
+    /* Transparent to the eye, solid to the pointer — this is what makes the
+       whole board grabbable rather than just its chrome. */
+    pointer-events: auto;
+    cursor: grab;
 }
 
-.collapseBtn {
+.dragging.board,
+.board:active {
+    cursor: grabbing;
+}
+
+/* --------------------------------------------------------------- toolbar */
+
+/* Hidden at rest, lifted into place on hover — and pinned open while the board
+   is selected or being dragged, because that is exactly when the controls (and
+   the drag handle) need to stay put. */
+.toolbar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translateY(calc(-100% - 2px)) scale(0.97);
+    transform-origin: left bottom;
+    z-index: 6;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    /* A pill needs more room at the ends than a rectangle does, or its controls
+       sit in the curve. */
+    padding: 6px 10px 6px 16px;
+
+    /* The canvas already has a token set for exactly this thing — the floating
+       pill toolbars in design-system.css §5. Using it means the board's chrome
+       matches the edit bar and the multi-select bar instead of being a
+       one-off that merely resembles them. */
+    background: var(--toolbar-bg);
+    border: 1px solid var(--toolbar-border);
+    border-radius: var(--toolbar-radius);
+    box-shadow: var(--toolbar-shadow);
+
+    opacity: 0;
+    pointer-events: none;
+    cursor: grab;
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.board:hover .toolbar,
+.board:focus-within .toolbar,
+.selected .toolbar,
+.dragging .toolbar {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(calc(-100% - 8px)) scale(1);
+}
+
+.dragging .toolbar,
+.toolbar:active {
+    cursor: grabbing;
+}
+
+/* The board's move handle.
+   A board has no surface to grab — it is pointer-transparent between the lanes,
+   and every control in this toolbar opts out of dragging with `nodrag`, which
+   left the only draggable part of the whole node a couple of 20px gaps between
+   buttons. This is the affordance that makes "pick the board up" a thing you can
+   see and aim at. It carries no `nodrag`, so it inherits the toolbar's role as
+   the node's drag handle. */
+.boardGrip {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 26px;
+    margin: -2px 2px -2px -4px;
+    border-radius: var(--r-control);
+    color: var(--text-faint);
+    cursor: grab;
+    transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.boardGrip:hover {
+    background: var(--toolbar-btn-hover);
+    color: var(--text-main);
+}
+
+.boardGrip:active,
+.dragging .boardGrip {
+    cursor: grabbing;
+    color: var(--accent-ink);
+}
+
+.headMain {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    min-width: 0;
+}
+
+.boardTitle {
+    min-width: 0;
+    width: auto;
+    field-sizing: content;
+    max-width: 320px;
+    margin: 0;
+    padding: 2px 5px;
     background: transparent;
     border: none;
-    color: rgba(255, 255, 255, 0.3);
-    cursor: pointer;
-    padding: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    transition: background-color 0.2s, color 0.2s;
-}
-
-.collapseBtn:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.columnTitle {
+    outline: none;
+    border-radius: var(--radius-pill);
+    font-family: inherit;
+    font-size: 0.9375rem;
     font-weight: 600;
-    font-size: 0.95rem;
-    color: rgba(255, 255, 255, 0.9);
+    letter-spacing: -0.01em;
+    color: var(--text-main);
+    /* `cursor` inherits, and the board's grab would otherwise sit over a field
+       you are meant to type in. */
+    cursor: text;
+    transition: background var(--transition-fast);
 }
 
-.statusBadge {
-    font-size: 0.65rem;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: 'JetBrains Mono', monospace;
-    opacity: 0.8;
+.boardTitle::placeholder {
+    color: var(--text-faint);
 }
 
-.addCardBtn {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.6);
-    border-radius: var(--radius-sm);
-    width: 24px;
-    height: 24px;
+.boardTitle:hover,
+.boardTitle:focus {
+    background: var(--hover-wash);
+}
+
+.boardCount {
+    flex: none;
+    font-size: 0.71875rem;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+}
+
+.headTools {
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 8px;
+    flex: none;
+}
+
+.groupBy {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.groupByLabel {
+    font-size: 0.6875rem;
+    color: var(--text-faint);
+}
+
+/* Pill-shaped to match the bar they sit in — a rectangle inside a pill reads as
+   a control that was dropped in rather than built for it. */
+.groupBySelect {
+    appearance: none;
+    padding: 4px 11px;
+    background: var(--input-bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    font-family: inherit;
+    font-size: 0.71875rem;
+    font-weight: 500;
+    color: var(--text-main);
     cursor: pointer;
-    transition: background-color 0.2s, color 0.2s;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.groupBySelect:hover {
+    background: var(--toolbar-btn-hover);
+    border-color: var(--line-strong);
+}
+
+.addBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 13px;
+    background: var(--btn-secondary-bg);
+    border: 1px solid var(--btn-secondary-border);
+    border-radius: var(--radius-pill);
+    font-family: inherit;
+    font-size: 0.71875rem;
+    font-weight: 500;
+    color: var(--btn-secondary-fg);
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.addBtn:hover {
+    background: var(--btn-secondary-hover);
+    border-color: var(--line-heavy);
+}
+
+/* ------------------------------------------------------------------ lanes */
+
+/* Nothing scrolls. The board grows to fit its lanes instead of clipping them,
+   which is the whole point of a container sized by its contents — a column you
+   have to scroll a board sideways to reach may as well not be there. */
+.lanes {
+    display: flex;
+    align-items: stretch;
+    gap: var(--lane-gap);
     padding: 0;
 }
 
-.addCardBtn:hover {
-    background: rgba(255, 255, 255, 0.15);
-    color: #fff;
-    transform: scale(1.05);
+/* With no board surface left to put a ring on, selection reads as a frame drawn
+   clear of the columns — an outline rather than a fill, so a selected board is
+   still only its columns. */
+.selected .lanes,
+.dragging .lanes {
+    outline: 2px solid var(--accent);
+    outline-offset: 7px;
+    /* Offset outward from the lanes, so it needs the lane's own radius plus the
+       offset to stay concentric with the corners it traces. */
+    border-radius: calc(var(--r-panel) + 7px);
 }
 
-.dropZone {
-    flex: 1;
+.lane {
+    /* Every lane names a tone; the rules below are the only place a tone becomes
+       a colour, so a new hue is one line rather than six. Neutral is the default
+       and stays exactly as the board looked before colours existed. */
+    --tone: var(--text-faint);
+    --tone-wash: transparent;
+    --tone-edge: var(--line);
+    --lane-card-bg: var(--bg-base);
+
+    flex: 0 0 var(--lane-w);
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    /* Gaps between cards */
-    padding: 4px;
-    min-height: 100px;
+    /* Opens at a full column's height and grows with the cards put into it.
+       `align-items: stretch` on the row then levels every lane to the tallest,
+       so the board keeps one flat baseline instead of a ragged skyline. */
+    min-height: var(--lane-min-h);
+    background: var(--bg-rail);
+    /* The largest step on the scale — "large floating panels". With the board
+       itself invisible, a lane IS the panel, and it sets the top of the nesting
+       ladder the cards (24px) and their tiles (12px) step down from. */
+    border-radius: var(--r-panel);
+    box-shadow: inset 0 0 0 1px var(--line);
+    transition: box-shadow var(--transition-fast), background var(--transition-fast);
 }
 
-.columnColorBar {
-    height: 4px;
-    width: 24px;
-    border-radius: 2px;
-    margin-right: 10px;
-    display: inline-block;
-    vertical-align: middle;
+/* One line per hue, and the only place a tone becomes a colour. Each pulls its
+   three shades from the palette in design-system.css §7, so a lane is tinted,
+   edged and dotted from one family without this file knowing any hex. */
+.lane[data-tone='rose']    { --tone: var(--a-rose);    --tone-wash: var(--a-rose-wash);    --tone-edge: var(--a-rose-edge); }
+.lane[data-tone='amber']   { --tone: var(--a-amber);   --tone-wash: var(--a-amber-wash);   --tone-edge: var(--a-amber-edge); }
+.lane[data-tone='citrine'] { --tone: var(--a-citrine); --tone-wash: var(--a-citrine-wash); --tone-edge: var(--a-citrine-edge); }
+.lane[data-tone='olive']   { --tone: var(--a-olive);   --tone-wash: var(--a-olive-wash);   --tone-edge: var(--a-olive-edge); }
+.lane[data-tone='jade']    { --tone: var(--a-jade);    --tone-wash: var(--a-jade-wash);    --tone-edge: var(--a-jade-edge); }
+.lane[data-tone='teal']    { --tone: var(--a-teal);    --tone-wash: var(--a-teal-wash);    --tone-edge: var(--a-teal-edge); }
+.lane[data-tone='azure']   { --tone: var(--a-azure);   --tone-wash: var(--a-azure-wash);   --tone-edge: var(--a-azure-edge); }
+.lane[data-tone='indigo']  { --tone: var(--a-indigo);  --tone-wash: var(--a-indigo-wash);  --tone-edge: var(--a-indigo-edge); }
+.lane[data-tone='violet']  { --tone: var(--a-violet);  --tone-wash: var(--a-violet-wash);  --tone-edge: var(--a-violet-edge); }
+.lane[data-tone='magenta'] { --tone: var(--a-magenta); --tone-wash: var(--a-magenta-wash); --tone-edge: var(--a-magenta-edge); }
+
+/* A coloured column is tinted, not painted: the wash sits over the lane's own
+   surface so the cards inside keep reading against the same ground they do in a
+   neutral lane. The header carries the colour at full strength — that is where
+   you look to tell one column from another. */
+.lane[data-tone]:not([data-tone='neutral']) {
+    background: linear-gradient(var(--tone-wash), var(--tone-wash)), var(--bg-rail);
+    box-shadow: inset 0 0 0 1px var(--tone-edge);
+    --lane-card-bg: color-mix(in srgb, var(--tone) 12%, var(--bg-base));
 }
+
+.lane[data-tone]:not([data-tone='neutral']) .laneTitle,
+.lane[data-tone]:not([data-tone='neutral']) .laneTitleInput {
+    color: var(--tone);
+}
+
+/* The lane being dropped into. Tinted in its own tone rather than a single
+   generic highlight, so the confirmation names the destination. */
+.lane[data-over] {
+    background: color-mix(in srgb, var(--tone) 7%, var(--bg-rail));
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--tone) 55%, transparent);
+}
+
+/* The lane being dragged to a new position. Faded rather than lifted — the row
+   is already showing the move by opening a gap. */
+.lane[data-dragging] {
+    opacity: 0.4;
+}
+
+/* Lane chrome is sized against a 432px lane, in step with the cards it holds —
+   see KanbanCard.module.css for why the whole scale moved up a notch. */
+.laneHead {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 14px 10px 16px;
+}
+
+/* The one place a lane can be picked up from. On the lane root it would fight
+   the cards for the same pointerdown. */
+.laneGrip {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 22px;
+    margin-left: -6px;
+    color: var(--text-faint);
+    cursor: grab;
+    opacity: 0;
+    transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.laneGrip:active {
+    cursor: grabbing;
+}
+
+.lane:hover .laneGrip {
+    opacity: 1;
+}
+
+.laneGrip:hover {
+    color: var(--text-main);
+}
+
+.laneMarkWrap {
+    position: relative;
+    flex: none;
+    display: flex;
+    align-items: center;
+}
+
+.laneMark {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--tone);
+}
+
+/* The dot doubles as the colour control, so it needs a target bigger than 7px
+   without becoming a 7px dot in a visibly larger box. The padding is the hit
+   area; the background stays on the dot itself via background-clip. */
+.laneMarkBtn {
+    width: 18px;
+    height: 18px;
+    margin: -6px;
+    padding: 6px;
+    border: none;
+    border-radius: 50%;
+    background: var(--tone);
+    background-clip: content-box;
+    cursor: pointer;
+    transition: transform var(--transition-fast);
+}
+
+.laneMarkBtn:hover {
+    transform: scale(1.25);
+}
+
+.palette {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: -8px;
+    z-index: 30;
+    display: grid;
+    /* Eleven swatches — neutral plus ten hues — as two rows rather than one long
+       strip, so the whole palette is one glance and one short pointer move. */
+    grid-template-columns: repeat(6, 22px);
+    gap: 6px;
+    padding: 10px;
+    background: var(--menu-bg);
+    border: 1px solid var(--menu-border);
+    border-radius: var(--r-md);
+    box-shadow: var(--menu-shadow);
+    cursor: default;
+}
+
+.swatch {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.swatch:hover {
+    transform: scale(1.14);
+}
+
+.swatch[aria-selected='true'] {
+    box-shadow: 0 0 0 2px var(--bg-raised), 0 0 0 3.5px var(--text-main);
+}
+
+/* One line per hue again, and the only place the picker knows a colour. */
+.swatch[data-swatch='neutral'] { background: var(--text-faint); }
+.swatch[data-swatch='rose']    { background: var(--a-rose); }
+.swatch[data-swatch='amber']   { background: var(--a-amber); }
+.swatch[data-swatch='citrine'] { background: var(--a-citrine); }
+.swatch[data-swatch='olive']   { background: var(--a-olive); }
+.swatch[data-swatch='jade']    { background: var(--a-jade); }
+.swatch[data-swatch='teal']    { background: var(--a-teal); }
+.swatch[data-swatch='azure']   { background: var(--a-azure); }
+.swatch[data-swatch='indigo']  { background: var(--a-indigo); }
+.swatch[data-swatch='violet']  { background: var(--a-violet); }
+.swatch[data-swatch='magenta'] { background: var(--a-magenta); }
+
+.laneTitle {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: -0.004em;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Reads as the heading it replaces until you touch it — a column name that
+   looks like a text field invites editing the board when you meant to read it. */
+.laneTitleInput {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    padding: 3px 7px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--r-control);
+    outline: none;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: -0.004em;
+    color: var(--text-main);
+    text-overflow: ellipsis;
+    cursor: text;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.laneTitleInput:hover {
+    background: var(--hover-wash);
+}
+
+.laneTitleInput:focus {
+    background: var(--input-bg);
+    border-color: var(--accent);
+}
+
+.laneCount {
+    flex: none;
+    min-width: 20px;
+    padding: 2px 7px;
+    border-radius: var(--radius-pill);
+    background: var(--active-wash);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    color: var(--text-soft);
+}
+
+.laneAdd {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--r-control);
+    color: var(--text-faint);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+
+.laneDelete {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--r-control);
+    color: var(--text-faint);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+
+/* Hidden until the lane is under the pointer: a row of always-on "+" and bin
+   buttons reads as the board's main affordance, which is exactly what it is not.
+   Destructive controls especially should be reachable, not prominent. */
+.lane:hover .laneAdd,
+.lane:hover .laneDelete,
+.laneAdd:focus-visible,
+.laneDelete:focus-visible {
+    opacity: 1;
+}
+
+.laneAdd:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.laneDelete:hover {
+    background: color-mix(in srgb, var(--danger) 14%, transparent);
+    color: var(--danger);
+}
+
+/* 14px of side padding is what turns a 432px lane into a 404px card — the width
+   KanbanCard.module.css is composed against. No scrolling: the lane grows and
+   the board grows with it, so there is never an inside to scroll. */
+.laneBody {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 4px 14px 14px;
+}
+
+.cardSlot {
+    /* dnd-kit writes the drag transform here; anything that also transforms
+       would be overwritten mid-gesture. */
+    touch-action: none;
+}
+
+.laneEmpty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    width: 100%;
+    /* Matches the card it stands in for, min-height included — an empty lane
+       should show the shape of what belongs there. */
+    min-height: 72px;
+    padding: 20px 12px;
+    background: transparent;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--r-lg);
+    font-family: inherit;
+    font-size: 0.8125rem;
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+}
+
+.laneEmpty:hover {
+    background: var(--hover-wash);
+    border-color: var(--tone);
+    color: var(--text-soft);
+}
+
+/* ---------------------------------------------------------------- chrome */
+
+/* There is deliberately no resize handle. The board is sized by its lanes —
+   a column count wide and a card stack tall — so a hand-set size would only be
+   a number for the next added card to contradict. Width changes by adding or
+   removing a column; height by filling one. */
 
 .handle {
-    opacity: 0;
-    width: 10px !important;
-    height: 10px !important;
+    width: var(--handle-size);
+    height: var(--handle-size);
+    background: var(--handle-bg);
+    border: var(--handle-ring);
     border-radius: 50%;
-    background: var(--color-primary) !important;
-    border: 2px solid var(--bg-dark) !important;
-    transition:opacity 0.3s ease, transform 0.3s ease, 0.3s ease;
-    /* Position at top-right */
-    left: auto !important;
-    right: -6px !important;
-    top: -6px !important;
-    transform: none !important;
-    z-index: 50;
+    top: -7px;
+    left: auto;
+    right: 18px;
+    opacity: 0;
+    pointer-events: auto;
+    transition: opacity var(--transition-fast), background var(--transition-fast);
 }
 
-.board:hover .handle {
+.board:hover .handle,
+.selected .handle {
     opacity: 1;
 }
 
 .handle:hover {
-    transform: scale(1.4) !important;
-    box-shadow: none;
-}
-
-/* --- Drag & Drop --- */
-
-.cardWrapper {
-    position: relative;
-    /* Ensure wrapper takes full width for flex behavior */
-    width: 100%;
-    /* Let ReactFlow card define height, or we enforce auto */
-}
-
-/* The card being dragged (Ghost) */
-.dragGhost {
-    position: fixed;
-    z-index: 9999;
-    pointer-events: none;
-    opacity: 0.9;
-    transform-origin: center center;
-    box-shadow: none;
-    /* Slight rotation for dynamics */
-    transform: rotate(3deg) scale(1.02);
-    /* We will set width/height via inline style to match original */
-}
-
-/* The placeholder in the list */
-.dropPlaceholder {
-    background: rgba(255, 255, 255, 0.035);
-    border: 2px dashed rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    margin-bottom: 0;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
-}
-
-/* Drag Overlay Card */
-.dragOverlayCard {
-    cursor: grabbing;
-    transform: rotate(2deg) scale(1.02);
-    transform-origin: center center;
-    transition: transform 100ms ease, opacity 100ms ease;
-    filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.4));
-    position: relative;
-}
-
-.dragOverlayCard[data-ejecting] {
-    transform: rotate(-3deg) scale(1.05);
-    opacity: 0.85;
-}
-
-.ejectBadge {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--accent), var(--accent-deep));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    font-size: 12px;
-    font-weight: bold;
-    box-shadow: none;
-    animation: ejectPulse 0.6s ease infinite alternate;
-}
-
-@keyframes ejectPulse {
-    from {
-        transform: scale(1);
-    }
-
-    to {
-        transform: scale(1.1);
-    }
+    background: var(--handle-bg-active);
+    box-shadow: var(--handle-halo);
 }

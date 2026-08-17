@@ -123,33 +123,13 @@ export const FeaturesPage: React.FC = () => {
           <p style={{ fontSize: 16, color: 'var(--text-soft)', lineHeight: 1.6 }}>Everything saves instantly to your local browser storage. No loading spinners. Cloud sync is completely optional.</p>
         </motion.div>
 
-        {/* Card 3: Kanban */}
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ delay: 0.15 }}
-          className="bento-card col-span-6"
-        >
-          <div style={{ width: 48, height: 48, background: 'var(--bg-rail)', color: 'var(--text-main)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24, border: '1px solid var(--line-strong)' }}>
-            <Workflow size={24} />
-          </div>
-          <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 16, letterSpacing: '-0.02em' }}>Embedded Kanban</h2>
-          <p style={{ fontSize: 16, color: 'var(--text-soft)', lineHeight: 1.6 }}>Drop fully functional Kanban boards directly onto your canvas. Manage tasks contextually next to your research.</p>
-          <div style={{ marginTop: 'auto', paddingTop: 32, display: 'flex', gap: 12, opacity: 0.5 }}>
-             <div style={{ height: 60, flex: 1, background: 'var(--bg-rail)', borderRadius: 8, border: '1px solid var(--line-strong)' }} />
-             <div style={{ height: 80, flex: 1, background: 'var(--bg-rail)', borderRadius: 8, border: '1px solid var(--line-strong)' }} />
-             <div style={{ height: 40, flex: 1, background: 'var(--bg-rail)', borderRadius: 8, border: '1px solid var(--line-strong)' }} />
-          </div>
-        </motion.div>
-
         {/* Card 4: Marketplace */}
         <motion.div 
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ delay: 0.2 }}
-          className="bento-card col-span-6"
+          className="bento-card col-span-12"
         >
           <div style={{ width: 48, height: 48, background: 'var(--bg-rail)', color: 'var(--text-main)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24, border: '1px solid var(--line-strong)' }}>
             <Share2 size={24} />
@@ -226,12 +206,7 @@ export const FeaturesPage: React.FC = () => {
 
                 {/* Organization */}
                 <tr style={{ borderBottom: '1px solid var(--line)' }}>
-                  <td rowSpan={3} style={{ padding: '20px 24px', fontWeight: 600, verticalAlign: 'top', borderRight: '1px solid var(--line)', background: 'var(--hover-wash)' }}>Organization</td>
-                  <td style={{ padding: '16px 24px', fontWeight: 500 }}>Kanban Boards</td>
-                  <td style={{ padding: '16px 24px', color: 'var(--text-soft)' }}>Fully functional agile boards that live right inside your canvas.</td>
-                  <td style={{ padding: '16px 24px' }}><span style={{ color: 'var(--accent)', fontSize: 13, fontWeight: 600 }}>Beta</span></td>
-                </tr>
-                <tr style={{ borderBottom: '1px solid var(--line)' }}>
+                  <td rowSpan={2} style={{ padding: '20px 24px', fontWeight: 600, verticalAlign: 'top', borderRight: '1px solid var(--line)', background: 'var(--hover-wash)' }}>Organization</td>
                   <td style={{ padding: '16px 24px', fontWeight: 500 }}>Bi-directional Links</td>
                   <td style={{ padding: '16px 24px', color: 'var(--text-soft)' }}>Build a personal wiki with back-links (Zettelkasten method).</td>
                   <td style={{ padding: '16px 24px' }}><span style={{ color: 'var(--text-main)', fontSize: 13, fontWeight: 600 }}>Upcoming</span></td>

@@ -27,8 +27,10 @@ export const FEATURES = {
     aiImages: envFlag('AI_IMAGES') ?? false,
     /** Marketplace page (currently a placeholder). */
     marketplace: envFlag('MARKETPLACE') ?? false,
-    /** Deferred from beta v1 — flip on (or VITE_FEATURE_KANBAN=true) after its QA pass. */
-    kanban: envFlag('KANBAN') ?? false,
+    /** Board node: plan note cards in lanes driven by their own metadata.
+     *  Rebuilt 2026-08-10; set VITE_FEATURE_KANBAN=false to pull it from the
+     *  beta surface again without touching code. */
+    kanban: envFlag('KANBAN') ?? true,
     /** Deferred from beta v1 — flip on after its QA pass. */
     pdfBlock: envFlag('PDF_BLOCK') ?? false,
 } as const;

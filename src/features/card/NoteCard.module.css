@@ -2,6 +2,21 @@
     border-radius: var(--r-panel);
     background: var(--bg-rail);
 
+    /* How much of the accent each surface takes when a card is recoloured.
+       Equal on purpose. The two surfaces are already separated by their own
+       grounds — the card sits on --bg-rail, the editor well on the darker
+       --bg-base — so mixing the same amount of hue into each adds the colour
+       without touching the structure: the well stays the recess it is on an
+       uncoloured card.
+
+       Tinting the well harder was the obvious first move and it is wrong. At 22%
+       against the darker base it came out *lighter* than the card and the recess
+       inverted — the well read as raised. Worse, whether it inverts depends on
+       the hue's own lightness, so a palette of ten would have had some cards
+       right and some wrong. Equal mixes hold on every hue and in both themes. */
+    --tint-card: 14%;
+    --tint-well: 14%;
+
     /* Paper & Ink node: a hairline ring and (optional) contact shadow — a
        quiet paper slip on the desk. Regular cards carry NO accent line;
        only the fused document node wears a left binding. Elevation and
@@ -15,6 +30,24 @@
         transform 0.15s cubic-bezier(0.2, 0, 0.2, 1);
     display: flex;
     flex-direction: column;
+}
+
+/* A recoloured card. The flag is a data attribute rather than a test on the
+   inline style text: `--node-accent` is set through the style object, and
+   matching it with [style*=…] would be a string search over a value React is
+   free to reformat. Without the flag none of this applies and the card is
+   exactly as it was. Mixing against the card's own ground rather than replacing
+   it means the hue reads on both Ink and Paper without a second rule. */
+.card[data-accented] {
+    background: color-mix(in srgb, var(--node-accent) var(--tint-card), var(--bg-rail));
+}
+
+/* The editor well takes the deeper shade of the same hue, so the page you type
+   on stays distinct from the card holding it. `.mediumDescContainer` is the same
+   well at the medium size, so it follows the same rule. */
+.card[data-accented] .noteArea,
+.card[data-accented] .mediumDescContainer {
+    background: color-mix(in srgb, var(--node-accent) var(--tint-well), var(--bg-base));
 }
 
 .card:hover {
@@ -395,8 +428,8 @@
 .mediumDescInput {
     background: transparent;
     border: none;
-    border-radius: var(--radius-xs);
-    padding: 4px;
+    border-radius: var(--r-lg);
+    padding: 12px 14px;
     font-size: 12px;
     font-weight: 400;
     opacity: 0.8;
@@ -450,6 +483,8 @@
     flex-direction: column;
     min-height: 0;
     width: 100%;
+    border-radius: var(--r-lg);
+    overflow: hidden;
 }
 
 .summarizeBtn {
@@ -1559,7 +1594,7 @@
     justify-content: space-between;
     /* Space between title and controls */
     gap: 12px;
-    padding: 4px;
+    padding: 8px 12px;
     background: transparent;
     border: none !important;
     border-bottom: none !important;
@@ -1579,7 +1614,7 @@
 }
 
 .minimalTitleInput {
-    font-size: 1rem;
+    font-size: 1.0625rem;
     font-weight: 600;
     color: var(--text-main);
     background: transparent;
@@ -1587,7 +1622,7 @@
     outline: none;
     flex: 1;
     min-width: 0;
-    padding: 2px 4px;
+    padding: 4px 6px;
     margin: 0;
     border-radius: var(--radius-xs);
     transition: background-color 0.2s ease, border-color 0.2s ease;
@@ -1753,7 +1788,7 @@
     justify-content: center;
     flex-shrink: 0;
     color: var(--text-main);
-    padding: 2px;
+    padding: 4px;
 }
 
 /* Placeholder styles */

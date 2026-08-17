@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { AppNode, BlockNode, KanbanColumn, KanbanNode, NoteNode } from '../../types';
+import type { AppNode, BlockNode, NoteNode } from '../../types';
 import type { Edge } from '@xyflow/react';
 import {
     BrainCircuit, Network, Library,
@@ -13,8 +13,6 @@ export type TemplateDefinition = {
     name: string;
     description: string;
     icon: React.ElementType;
-    /** True when the template depends on the (beta-deferred) Kanban surface. */
-    requiresKanban?: boolean;
     getPreviewData: () => { nodes: AppNode[], edges: Edge[] };
     generateNodes: (flowPos: { x: number, y: number }, parentId: string | null) => { nodes: AppNode[], edges: Edge[] };
 };
@@ -88,21 +86,6 @@ const makeBlock = (
     ...(parentId ? { parentId } : {})
 } as BlockNode);
 
-const makeKanban = (
-    label: string,
-    columns: KanbanColumn[],
-    pos: { x: number, y: number },
-    parentId: string | null,
-    width = 900,
-    height = 600
-): KanbanNode => ({
-    id: uuidv4(),
-    type: 'kanban',
-    position: pos,
-    data: { label, columns, viewMode: 'board' },
-    style: { width, height },
-    ...(parentId ? { parentId } : {})
-} as KanbanNode);
 
 /**
  * Each template is expressed once as a pure `build(origin, parentId)` function.
@@ -207,31 +190,7 @@ export const TEMPLATES: TemplateDefinition[] = [
             };
         })
     },
-    {
-        id: 'agile-workflows',
-        name: 'Agile Workflows',
-        description: 'Track sprints, standups, and backlog using a native Kanban board.',
-        icon: GitMerge,
-        requiresKanban: true,
-        ...fromBuilder((o, p) => {
-            const columns: KanbanColumn[] = [
-                { id: uuidv4(), label: 'Backlog', statusValue: 'todo', color: '#e2e8f0' },
-                { id: uuidv4(), label: 'In Progress', statusValue: 'in-progress', color: '#fef08a' },
-                { id: uuidv4(), label: 'Done', statusValue: 'done', color: '#bbf7d0' },
-            ];
-            const board = makeKanban('Sprint Board', columns, { x: o.x, y: o.y }, p, 900, 600);
 
-            const task1 = makeNote('Task 1', 'Design UI', { x: 50, y: 100 }, board.id, 200, 150, 'CheckSquare', TINT.plain);
-            task1.data.status = 'todo';
-            task1.data.viewMode = 'icon';
-
-            const task2 = makeNote('Task 2', 'Implement logic', { x: 350, y: 100 }, board.id, 200, 150, 'Code', TINT.plain);
-            task2.data.status = 'in-progress';
-            task2.data.viewMode = 'icon';
-
-            return { nodes: [board, task1, task2], edges: [] };
-        })
-    },
     {
         id: 'para-method',
         name: 'PARA Method',

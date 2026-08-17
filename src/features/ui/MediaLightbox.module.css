@@ -159,8 +159,11 @@
     margin: auto;
     border-radius: var(--r-xs, 4px);
     /* A checkerboard would be noise here; a flat plate reads cleanly behind
-       transparent PNGs without competing with the image. */
-    background: rgba(255, 255, 255, 0.04);
+       transparent PNGs without competing with the image. It has to be a real
+       mid grey though — the old 4%-white wash sat on a near-black scrim and so
+       was itself near-black, which erased black line art in the one place built
+       for looking at it properly. */
+    background: var(--media-plate);
 }
 
 .fit {

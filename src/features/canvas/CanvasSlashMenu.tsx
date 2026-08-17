@@ -64,18 +64,21 @@ export function CanvasSlashMenu() {
                     addNode('fused-note', pos, { content: [block] }, { width: 300, height: 300 }, currentParentId || undefined);
                 }
             },
-            ...(FEATURES.kanban ? [{
-                id: 'kanban',
-                label: 'Kanban Board',
-                description: 'A drag-and-drop task board',
-                icon: KanbanSquare,
-                keywords: ['kanban', 'board', 'tasks', 'columns'],
-                category: 'Canvas',
-                action: () => {
-                    useStore.getState().setKanbanModalOpen(true);
-                }
-            }] : []),
         ];
+
+        if (FEATURES.kanban) {
+            containers.push({
+                id: 'kanban',
+                label: 'Board',
+                description: 'Plan cards in lanes by their metadata',
+                icon: KanbanSquare,
+                keywords: ['kanban', 'board', 'plan', 'status', 'lane', 'column', 'task'],
+                category: 'Canvas',
+                action: (pos) => {
+                    addNode('kanban', pos, undefined, undefined, currentParentId || undefined);
+                }
+            });
+        }
 
         // Block-level items from MENU_ITEMS
         const blocks: SlashMenuItem[] = MENU_ITEMS.map((item) => ({
