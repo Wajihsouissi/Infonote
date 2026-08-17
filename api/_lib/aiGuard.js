@@ -38,14 +38,116 @@ function getBearerToken(req) {
 }
 
 /**
- * The model is ALWAYS chosen server-side. Client-supplied "model" fields are
- * ignored so a leaked endpoint cannot be pointed at expensive models.
+ * The OpenAI-compatible endpoint every AI route talks to.
+ *
+ * Defaults to Google's Gemini compatibility layer, which speaks the same
+ * /chat/completions shape the routes already use, so switching providers is a
+ * base-URL + key + model swap and nothing else. Point AI_GATEWAY_BASE_URL back
+ * at https://ai-gateway.vercel.sh/v1 to return to the Vercel gateway.
  */
-export function getServerModel(kind) {
-  if (kind === 'image') {
-    return getEnv('AI_GATEWAY_IMAGE_MODEL', 'VITE_AI_GATEWAY_IMAGE_MODEL') || 'bfl/flux-2-pro';
+export const DEFAULT_GATEWAY_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';
+
+export function getGatewayBaseUrl() {
+  const base = getEnv('AI_GATEWAY_BASE_URL', 'VITE_AI_GATEWAY_BASE_URL') || DEFAULT_GATEWAY_BASE_URL;
+  return base.replace(/\/+$/, '');
+}
+
+export function getGatewayKey() {
+  const key = getEnv('AI_GATEWAY_API_KEY', 'VITE_AI_GATEWAY_API_KEY', 'GEMINI_API_KEY');
+  if (!key) {
+    throw new Error('AI is not configured. Add AI_GATEWAY_API_KEY to your environment or Vercel Project Settings.');
   }
-  return getEnv('AI_GATEWAY_TEXT_MODEL', 'VITE_AI_GATEWAY_TEXT_MODEL') || 'openai/gpt-4o-mini';
+  return key;
+}
+
+/**
+ * Text models a caller may ask for by name. Kept in step with
+ * src/config/aiModels.ts, which is only the menu the UI draws — this is the
+ * list that decides. Override per deployment with a comma-separated
+ * AI_GATEWAY_TEXT_MODELS.
+ */
+const DEFAULT_TEXT_MODEL_ALLOWLIST = [
+  'gemini-3.7-flash',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash',
+  'gemini-3.5-flash-lite',
+];
+
+function textModelAllowlist() {
+  const configured = getEnv('AI_GATEWAY_TEXT_MODELS');
+  const list = configured
+    ? configured.split(',').map((m) => stripWrappingQuotes(m.trim())).filter(Boolean)
+    : DEFAULT_TEXT_MODEL_ALLOWLIST;
+  // The workspace default is always selectable, whatever the list says.
+  const fallback = getEnv('AI_GATEWAY_TEXT_MODEL', 'VITE_AI_GATEWAY_TEXT_MODEL');
+  return fallback && !list.includes(fallback) ? [...list, fallback] : list;
+}
+
+/**
+ * The model to run.
+ *
+ * The server still decides — a caller cannot name an arbitrary model and point
+ * a leaked endpoint at something expensive. `requested` is honoured only when
+ * it is on the allow-list above; anything else silently falls back to the
+ * configured default, so a stale client can never hard-fail on this.
+ */
+export function getServerModel(kind, requested) {
+  if (kind === 'image') {
+    return getEnv('AI_GATEWAY_IMAGE_MODEL', 'VITE_AI_GATEWAY_IMAGE_MODEL') || 'gemini-3.1-flash-image';
+  }
+
+  const fallback = getEnv('AI_GATEWAY_TEXT_MODEL', 'VITE_AI_GATEWAY_TEXT_MODEL') || 'gemini-3.7-flash';
+  if (typeof requested !== 'string' || !requested.trim()) return fallback;
+
+  const wanted = stripWrappingQuotes(requested.trim());
+  return textModelAllowlist().includes(wanted) ? wanted : fallback;
+}
+
+/**
+ * Build the messages array, attaching any images as multimodal parts.
+ *
+ * Images ride as data URLs in the standard OpenAI `image_url` shape, which the
+ * gateway passes through to vision-capable models. Text-only requests keep the
+ * plain-string content they always had rather than being wrapped in a parts
+ * array, so nothing changes for the models that never see an image.
+ */
+export function buildMessages({ prompt, system, images }) {
+  const messages = [];
+  if (typeof system === 'string' && system.trim()) {
+    messages.push({ role: 'system', content: system });
+  }
+
+  const urls = Array.isArray(images)
+    ? images.filter((url) => typeof url === 'string' && url.startsWith('data:image/')).slice(0, MAX_IMAGES)
+    : [];
+
+  messages.push({
+    role: 'user',
+    content: urls.length === 0
+      ? prompt
+      : [
+          { type: 'text', text: prompt },
+          ...urls.map((url) => ({ type: 'image_url', image_url: { url } })),
+        ],
+  });
+
+  return messages;
+}
+
+/** Per-request image ceiling — each one is a base64 blob on the wire. */
+export const MAX_IMAGES = 4;
+
+/**
+ * Output ceiling for one completion.
+ *
+ * The AI panel's effort levels send this (800 for Fast up to 8000 for Smart).
+ * Anything outside 1..8192 falls back to the default, so a bad client value
+ * can neither truncate an answer to nothing nor uncap the spend.
+ */
+export function getMaxTokens(requested) {
+  const value = typeof requested === 'number' ? requested : 0;
+  if (value > 0 && value <= 8192) return Math.floor(value);
+  return 4096;
 }
 
 /**

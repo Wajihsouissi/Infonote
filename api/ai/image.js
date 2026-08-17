@@ -1,14 +1,4 @@
-import { requireAiAccess, getServerModel } from '../_lib/aiGuard.js';
-
-const AI_GATEWAY_BASE_URL = 'https://ai-gateway.vercel.sh/v1';
-
-function getGatewayKey() {
-  const key = process.env.AI_GATEWAY_API_KEY || process.env.VITE_AI_GATEWAY_API_KEY;
-  if (!key || key.trim() === '') {
-    throw new Error('AI Gateway is not configured. Add AI_GATEWAY_API_KEY in Vercel Project Settings.');
-  }
-  return key.trim();
-}
+import { requireAiAccess, getServerModel, getGatewayBaseUrl, getGatewayKey } from '../_lib/aiGuard.js';
 
 async function readJsonBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
@@ -53,7 +43,7 @@ function extractImageUrl(data) {
 }
 
 async function callGateway(path, payload) {
-  const response = await fetch(`${AI_GATEWAY_BASE_URL}${path}`, {
+  const response = await fetch(`${getGatewayBaseUrl()}${path}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${getGatewayKey()}`,

@@ -6,6 +6,8 @@ import {
 } from '@xyflow/react';
 import type { AppNode } from '../types';
 import type { LimitViolation } from './nodeLimits';
+import type { AIAssistantMessage, AIIntent, AIMessage, AIMode, AIStep } from '../features/ai/aiTypes';
+import type { AIEffort } from '../config/aiEffort';
 
 export interface Breadcrumb {
     id: string | null;
@@ -147,13 +149,10 @@ export interface AuthSlice {
 
 export interface UISlice {
     activeIconMenuId: string | null;
-    isKanbanModalOpen: boolean;
     theme: 'light' | 'dark';
     currentView: AppView;
     hasEnteredApp: boolean;
     interactionState: {
-        draggingKanbanNodeId: string | null;
-        hoveredKanbanColumn: { kanbanId: string; columnId: string } | null;
         draggedNodeId: string | null;
         // True while a multi-node drag is active (>1 selected nodes being moved).
         // Lets cards opt out of single-drag visuals in favor of a unified group lift.
@@ -162,10 +161,16 @@ export interface UISlice {
             id: string;
             // `gallery` is fusion's media-only sibling: the drop merges both
             // sides into one bento board instead of stacking their blocks.
-            type: 'fusion' | 'nesting' | 'gallery' | 'kanban-column';
+            // `kanban` adopts the card into a board lane — see kanbanTypes.ts.
+            type: 'fusion' | 'nesting' | 'gallery' | 'kanban';
         } | null;
+        /**
+         * Lane under the cursor while a card is dragged over a board. Held
+         * separately from `dropTarget` because the lane, not the board, is what
+         * highlights and what decides the metadata value the drop writes.
+         */
+        hoveredKanbanLane: { boardId: string; value: string } | null;
     };
-    editingKanbanId: string | null;
     lastCreatedCanvasNodeId: string | null;
     selectedCanvasNodeIds: Set<string>;
     isMetadataOpen: boolean;
@@ -174,8 +179,6 @@ export interface UISlice {
     isLinkingMode: boolean;
     chunkItNodeId: string | null;
     setActiveIconMenuId: (id: string | null) => void;
-    setKanbanModalOpen: (isOpen: boolean) => void;
-    setEditingKanbanId: (id: string | null) => void;
     setMetadataOpen: (isOpen: boolean) => void;
     setTOCOpen: (isOpen: boolean) => void;
     setShortcutsPanelOpen: (isOpen: boolean) => void;
@@ -202,4 +205,36 @@ export interface UISlice {
     setLimitNotice: (notice: LimitViolation | null) => void;
 }
 
-export type AppState = NodeSlice & NavigationSlice & StorageSlice & UISlice & AuthSlice;
+export interface AISlice {
+    isAIPanelOpen: boolean;
+    aiMode: AIMode;
+    /** Image generation is a variant of Create, not a third mode. */
+    aiImageMode: boolean;
+    aiMessages: AIMessage[];
+    aiIsRunning: boolean;
+    /** Requested gateway model; null means "let the server choose". */
+    aiModel: string | null;
+    setAIModel: (model: string | null) => void;
+    /** How deep and richly formatted the output should be. */
+    aiEffort: AIEffort;
+    setAIEffort: (effort: AIEffort) => void;
+    /** User-resized panel width in px. Independent of the model/effort prefs. */
+    aiPanelWidth: number;
+    setAIPanelWidth: (width: number) => void;
+    setAIPanelOpen: (isOpen: boolean) => void;
+    openAIPanel: (mode?: AIMode) => void;
+    toggleAIPanel: () => void;
+    setAIMode: (mode: AIMode) => void;
+    setAIImageMode: (on: boolean) => void;
+    setAIRunning: (running: boolean) => void;
+    appendAIMessage: (message: AIMessage) => void;
+    /** Opens an assistant turn and returns its id for the streaming updates. */
+    startAITurn: (intent: AIIntent) => string;
+    updateAITurn: (id: string, patch: Partial<AIAssistantMessage>) => void;
+    pushAIStep: (id: string, step: AIStep) => void;
+    appendAIText: (id: string, delta: string) => void;
+    newAIChat: () => void;
+    removeAIMessages: (ids: string[]) => void;
+}
+
+export type AppState = NodeSlice & NavigationSlice & StorageSlice & UISlice & AuthSlice & AISlice;

@@ -1,14 +1,4 @@
-import { requireAiAccess, getServerModel } from '../_lib/aiGuard.js';
-
-const AI_GATEWAY_BASE_URL = 'https://ai-gateway.vercel.sh/v1';
-
-function getGatewayKey() {
-  const key = process.env.AI_GATEWAY_API_KEY || process.env.VITE_AI_GATEWAY_API_KEY;
-  if (!key || key.trim() === '') {
-    throw new Error('AI Gateway is not configured. Add AI_GATEWAY_API_KEY in Vercel Project Settings.');
-  }
-  return key.trim();
-}
+import { requireAiAccess, getServerModel, buildMessages, getGatewayBaseUrl, getGatewayKey, getMaxTokens } from '../_lib/aiGuard.js';
 
 async function readJsonBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
@@ -56,10 +46,10 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Server-chosen model only — client "model" is intentionally ignored.
-    const model = getServerModel('text');
+    // Still server-decided: an off-list "model" falls back to the default.
+    const model = getServerModel('text', body.model);
 
-    const gatewayRes = await fetch(`${AI_GATEWAY_BASE_URL}/chat/completions`, {
+    const gatewayRes = await fetch(`${getGatewayBaseUrl()}/chat/completions`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${getGatewayKey()}`,
@@ -67,8 +57,13 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model,
-        messages: [{ role: 'user', content: prompt }],
+        // `system` was previously dropped here while the dev twin honoured it,
+        // so a system prompt worked locally and silently vanished in prod.
+        messages: buildMessages({ prompt, system: body.system, images: body.images }),
         temperature: 0.7,
+        // Was missing here while the dev twin honoured it, so a Smart answer
+        // came out long locally and clipped at the route default in prod.
+        max_tokens: getMaxTokens(body.maxTokens),
       }),
     });
 

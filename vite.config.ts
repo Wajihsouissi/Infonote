@@ -3,7 +3,10 @@ import { createClient } from '@supabase/supabase-js'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 
-const AI_GATEWAY_BASE_URL = 'https://ai-gateway.vercel.sh/v1'
+// OpenAI-compatible endpoint. Defaults to Google's Gemini compatibility layer;
+// override with AI_GATEWAY_BASE_URL to use Vercel's gateway or anything else
+// that speaks /chat/completions. Keep in step with api/_lib/aiGuard.js.
+const DEFAULT_AI_GATEWAY_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai'
 const NOTION_API_BASE_URL = 'https://api.notion.com/v1'
 const DEFAULT_NOTION_VERSION = '2022-06-28'
 const MAX_EMAIL_LENGTH = 254
@@ -17,11 +20,16 @@ type JsonBody = Record<string, unknown>
 type DevAiHandler = (req: IncomingMessage, res: ServerResponse) => Promise<void>
 
 function getGatewayKey(): string {
-  const key = getEnvValue('AI_GATEWAY_API_KEY', 'VITE_AI_GATEWAY_API_KEY')
+  const key = getEnvValue('AI_GATEWAY_API_KEY', 'VITE_AI_GATEWAY_API_KEY', 'GEMINI_API_KEY')
   if (!key || key.trim() === '') {
-    throw new Error('AI Gateway is not configured. Add AI_GATEWAY_API_KEY to your local environment or Vercel Project Settings.')
+    throw new Error('AI is not configured. Add AI_GATEWAY_API_KEY to your local .env or Vercel Project Settings.')
   }
   return key.trim()
+}
+
+function getGatewayBaseUrl(): string {
+  const base = getEnvValue('AI_GATEWAY_BASE_URL', 'VITE_AI_GATEWAY_BASE_URL') || DEFAULT_AI_GATEWAY_BASE_URL
+  return base.replace(/\/+$/, '')
 }
 
 function getSupabaseServiceRoleKey(): string {
@@ -101,13 +109,30 @@ type AiAccessResult =
   | { ok: true; userId: string }
   | { ok: false; status: number; message: string; retryAfter?: number }
 
-// The model is ALWAYS chosen server-side; client "model" fields are ignored
-// so the endpoint cannot be pointed at expensive models.
-function getServerAiModel(kind: 'text' | 'image'): string {
+/** Dev twin of api/_lib/aiGuard.js — keep the two in step. */
+const DEFAULT_TEXT_MODEL_ALLOWLIST = [
+  'gemini-3.7-flash',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash',
+  'gemini-3.5-flash-lite',
+]
+
+function textModelAllowlist(): string[] {
+  const configured = getEnvValue('AI_GATEWAY_TEXT_MODELS')
+  const list = configured
+    ? configured.split(',').map((m) => m.trim()).filter(Boolean)
+    : DEFAULT_TEXT_MODEL_ALLOWLIST
+  const fallback = getEnvValue('AI_GATEWAY_TEXT_MODEL', 'VITE_AI_GATEWAY_TEXT_MODEL')
+  return fallback && !list.includes(fallback) ? [...list, fallback] : list
+}
+
+function getServerAiModel(kind: 'text' | 'image', requested?: string): string {
   if (kind === 'image') {
-    return getEnvValue('AI_GATEWAY_IMAGE_MODEL', 'VITE_AI_GATEWAY_IMAGE_MODEL') || 'bfl/flux-2-pro'
+    return getEnvValue('AI_GATEWAY_IMAGE_MODEL', 'VITE_AI_GATEWAY_IMAGE_MODEL') || 'gemini-3.1-flash-image'
   }
-  return getEnvValue('AI_GATEWAY_TEXT_MODEL', 'VITE_AI_GATEWAY_TEXT_MODEL') || 'openai/gpt-4o-mini'
+  const fallback = getEnvValue('AI_GATEWAY_TEXT_MODEL', 'VITE_AI_GATEWAY_TEXT_MODEL') || 'gemini-3.7-flash'
+  if (!requested?.trim()) return fallback
+  return textModelAllowlist().includes(requested.trim()) ? requested.trim() : fallback
 }
 
 async function requireDevAiAccess(req: IncomingMessage, kind: 'text' | 'image'): Promise<AiAccessResult> {
@@ -304,7 +329,7 @@ function normalizeNotionSearchItem(item: unknown): JsonBody | null {
 }
 
 async function callGateway(path: string, payload: JsonBody): Promise<unknown> {
-  const response = await fetch(`${AI_GATEWAY_BASE_URL}${path}`, {
+  const response = await fetch(`${getGatewayBaseUrl()}${path}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${getGatewayKey()}`,
@@ -789,11 +814,29 @@ async function handleDevWorkspaceInvite(req: IncomingMessage, res: ServerRespons
 // prompt. Free-form text callers pass a "system" string to control persona,
 // formatting and adaptive length; structured (JSON) callers omit it so their
 // strict "respond ONLY with JSON" instructions aren't diluted.
-function buildChatMessages(body: JsonBody, prompt: string): Array<{ role: string; content: string }> {
+type ChatContent = string | Array<Record<string, unknown>>
+
+function buildChatMessages(body: JsonBody, prompt: string): Array<{ role: string; content: ChatContent }> {
   const system = getBodyString(body, 'system')
-  const messages: Array<{ role: string; content: string }> = []
+  const messages: Array<{ role: string; content: ChatContent }> = []
   if (system) messages.push({ role: 'system', content: system })
-  messages.push({ role: 'user', content: prompt })
+
+  // Images ride as data URLs in the OpenAI `image_url` shape; text-only calls
+  // keep plain-string content so nothing changes for models that never see one.
+  const raw = body['images']
+  const images = Array.isArray(raw)
+    ? raw.filter((url): url is string => typeof url === 'string' && url.startsWith('data:image/')).slice(0, 4)
+    : []
+
+  messages.push({
+    role: 'user',
+    content: images.length === 0
+      ? prompt
+      : [
+          { type: 'text', text: prompt },
+          ...images.map((url) => ({ type: 'image_url', image_url: { url } })),
+        ],
+  })
   return messages
 }
 
@@ -821,7 +864,7 @@ async function handleDevText(req: IncomingMessage, res: ServerResponse): Promise
     return
   }
 
-  const model = getServerAiModel('text')
+  const model = getServerAiModel('text', getBodyString(body, 'model'))
   const data = await callGateway('/chat/completions', {
     model,
     messages: buildChatMessages(body, prompt),
@@ -892,8 +935,8 @@ async function handleDevStream(req: IncomingMessage, res: ServerResponse): Promi
     return
   }
 
-  const model = getServerAiModel('text')
-  const gatewayRes = await fetch(`${AI_GATEWAY_BASE_URL}/chat/completions`, {
+  const model = getServerAiModel('text', getBodyString(body, 'model'))
+  const gatewayRes = await fetch(`${getGatewayBaseUrl()}/chat/completions`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${getGatewayKey()}`,
