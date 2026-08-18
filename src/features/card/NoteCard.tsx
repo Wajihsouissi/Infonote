@@ -1,11 +1,12 @@
 import { memo, useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
-import { Scan, PanelRight, PanelLeft, Monitor, Sparkles, Loader2, ArrowUpRight } from 'lucide-react';
+import { Scan, PanelRight, PanelLeft, Monitor, Sparkles, Loader2, ArrowUpRight } from '../../components/icons';
 import styles from './NoteCard.module.css';
 import type { NoteNode } from '../../types';
 import { useStore } from '../../store/useStore';
 import { IconPicker } from './IconPicker';
 import { defaultIconName, CardIcon } from './iconMap';
+import { FolderArt } from './FolderArt';
 import { NoteExpandedContent } from './NoteExpandedContent';
 
 import { CoverPicker } from './CoverPicker';
@@ -462,9 +463,13 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                 </svg>
             </div>
 
-            {/* Floating Hover Menu - Hide in Chromeless mode or when specifically requested */}
+            {/* Floating Hover Menu - Hide in Chromeless mode or when specifically requested.
+                The menu carries `nodrag`: the card root is the drag handle, so without it
+                a press on one of these buttons starts a node drag — the card becomes the
+                drag source (hidden, pointer-events off), the menu vanishes from under the
+                cursor, and pointerup lands elsewhere, so no click ever fires. */}
             {!data.hideHoverMenu && (
-                <div className={styles.hoverMenu}>
+                <div className={`${styles.hoverMenu} nodrag`}>
                     <button className={styles.menuBtn} onClick={handleLeftSidePeak} title="Side Panel (Left)">
                         <PanelLeft size={16} />
                     </button>
@@ -509,8 +514,10 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                 />
             )}
 
-            {/* Icon Picker Modal */}
-            {showIconPicker && (
+            {/* Icon Picker Modal — in expanded mode NoteExpandedContent renders
+                its own against the same `activeIconMenuId`, so rendering here too
+                would mount two full pickers over one card. */}
+            {showIconPicker && viewMode !== 'expanded' && (
                 <IconPicker
                     currentIcon={editedData.icon}
                     onSelect={handleIconSelect}
@@ -522,7 +529,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             {viewMode === 'icon' && (
                 <div className={styles.iconView} key="icon">
                     <button
-                        className={`${styles.iconButton} nodrag`}
+                        className={`${styles.iconButton} icon-hover nodrag`}
                         onClick={handleIconClick}
                         title="Change icon"
                     >
@@ -549,11 +556,43 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                 </div>
             )}
 
+            {/* View 1.2: Folder View - Folder art + label, at the icon card's size.
+                The cover shows as a thumbnail in the folder's exposed top band and
+                the icon presses softly into the front flap; with neither, it is
+                just a folder. */}
+            {viewMode === 'folder' && (
+                <div className={styles.folderView} key="folder">
+                    <FolderArt
+                        coverImage={data.coverImage}
+                        icon={isEditingMetadata ? editedData.icon : data.icon}
+                        size={92}
+                    />
+                    <input
+                        className={`${styles.folderLabel} nodrag`}
+                        value={isEditingMetadata ? editedData.label : data.label}
+                        onChange={(e) => setEditedData({ ...editedData, label: e.target.value })}
+                        onFocus={() => setIsEditingMetadata(true)}
+                        onBlur={() => {
+                            if (isEditingMetadata) {
+                                handleSaveMetadata();
+                            }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            e.currentTarget.select();
+                        }}
+                    />
+                </div>
+            )}
+
             {/* View 1.5: Title View - Icon + Text (Horizontal) */}
             {viewMode === 'titleview' && (
                 <div className={styles.titleView} key="titleview">
                     <button
-                        className={`${styles.iconButton} nodrag`}
+                        className={`${styles.iconButton} icon-hover nodrag`}
                         onClick={handleIconClick}
                         title="Change icon"
                     >

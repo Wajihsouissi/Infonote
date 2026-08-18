@@ -30,8 +30,8 @@ import {
   Sun,
   X,
   Zap,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+} from '../../components/icons';
+import type { LucideIcon } from '../../components/icons';
 import styles from './LandingPage.module.css';
 
 const FEEDBACK_MAILTO =
@@ -440,7 +440,7 @@ export const LandingPage: React.FC = () => {
                   {initial}
                 </button>
                 <button
-                  className={styles.iconBtn}
+                  className={`${styles.iconBtn} icon-hover`}
                   onClick={handleSignOut}
                   disabled={isSigningOut}
                   aria-label="Sign out"

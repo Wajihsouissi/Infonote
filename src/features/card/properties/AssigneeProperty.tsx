@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { User } from 'lucide-react';
+import { User } from '../../../components/icons';
 import styles from './Properties.module.css';
 import { PropertyRow } from './PropertyRow';
 

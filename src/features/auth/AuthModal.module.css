@@ -51,11 +51,7 @@
     transition: all var(--transition-fast);
 }
 
-.closeBtn:hover {
-    background: var(--ui-hover);
-    color: var(--color-text-main);
-    border-color: var(--line);
-}
+/* hover handled by the shared .icon-hover affordance */
 
 .heading {
     margin: 0 0 4px;

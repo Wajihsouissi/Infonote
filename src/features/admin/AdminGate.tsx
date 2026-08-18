@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, ShieldAlert } from 'lucide-react';
+import { Loader2, ShieldAlert } from '../../components/icons';
 import { AdminDashboard } from './AdminDashboard';
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured } from '../../services/supabase/client';

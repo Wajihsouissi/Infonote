@@ -15,7 +15,7 @@ export type NoteData = {
     label: string;
     type?: 'text' | 'image' | 'task';
     content?: string | Block[];
-    viewMode?: 'icon' | 'medium' | 'expanded' | 'chromeless' | 'titleview';
+    viewMode?: 'icon' | 'folder' | 'medium' | 'expanded' | 'chromeless' | 'titleview';
     icon?: string; // Lucide icon name
     description?: string;
     category?: string; // Allow legacy or keep as string

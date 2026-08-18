@@ -11,7 +11,7 @@
 
 import { createPortal } from 'react-dom';
 import { useEffect } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2 } from '../../components/icons';
 import styles from './KanbanColumnDeleteModal.module.css';
 
 export interface KanbanColumnDeleteModalProps {

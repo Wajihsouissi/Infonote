@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3 } from '../../../components/icons';
 import { PropertyRow } from './PropertyRow';
 
 interface ProgressPropertyProps {

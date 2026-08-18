@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useStore } from '../../store/useStore';
-import { Scissors, X, GitMerge, Waypoints } from 'lucide-react';
+import { Scissors, X, GitMerge, Waypoints } from '../../components/icons';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './ChunkItModal.module.css';
 import { BlockEditor } from '../editor/BlockEditor';
@@ -267,7 +267,7 @@ export const ChunkItModal: React.FC = () => {
                             <Waypoints size={14} />
                             Extract to Mind Map
                         </button>
-                        <button className={styles.closeBtn} onClick={handleClose}>
+                        <button className={`${styles.closeBtn} icon-hover`} onClick={handleClose}>
                             <X size={16} />
                         </button>
                     </div>

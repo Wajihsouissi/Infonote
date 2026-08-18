@@ -130,8 +130,7 @@
 .dragHandle:hover {
     opacity: 1 !important;
     color: var(--block-handle-hover);
-    background: var(--block-hover) !important;
-    border-radius: var(--r-xs);
+    background: transparent !important;
 }
 
 .dragHandle:focus-visible {
@@ -757,10 +756,7 @@
     cursor: pointer;
 }
 
-.calloutIconWrapper.clickable:hover {
-    background: var(--active-wash);
-    transform: scale(1.05);
-}
+/* hover handled by the shared .icon-hover affordance */
 
 .calloutIconWrapper.clickable:active {
     transform: scale(0.95);

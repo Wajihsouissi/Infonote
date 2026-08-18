@@ -1,4 +1,4 @@
-import { ChevronRight, Home } from 'lucide-react';
+import { ChevronRight, Home } from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import styles from './Breadcrumbs.module.css';
 

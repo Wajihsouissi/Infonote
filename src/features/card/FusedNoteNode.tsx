@@ -1,8 +1,7 @@
 import { memo, useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
-import { StickyNote } from 'lucide-react';
+import { StickyNote } from '../../components/icons';
 import { BlockEditor } from '../editor/BlockEditor';
-import { ConvertCardModal, type ConvertCardResult } from '../card/ConvertCardModal';
 import { useCanvasDetail } from '../canvas/hooks/useCanvasDetail';
 import { useScheduledMount } from './hooks/useScheduledMount';
 import { BlockLodBody } from '../block/BlockLodBody';
@@ -53,8 +52,6 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
     // Track fusion event for animation
     const [isFusing, setIsFusing] = useState(false);
     const [isHoveredLinking, setIsHoveredLinking] = useState(false);
-    const [convertModalOpen, setConvertModalOpen] = useState(false);
-    const [convertInitialTitle, setConvertInitialTitle] = useState('');
     const lastFusedTimeRef = useRef(data.lastFusedAt || 0);
 
     const [isInteractive, setIsInteractive] = useState(selected);
@@ -125,37 +122,15 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
     const handleConvertToCard = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
-
-        const { nodes } = useStore.getState();
+        const { nodes, setNodes } = useStore.getState();
         const thisNode = nodes.find(n => n.id === id);
         if (!thisNode) return;
 
-        setConvertInitialTitle('');
-        setConvertModalOpen(true);
-    }, [id, data.content]);
-
-    const confirmConvertToCard = useCallback((result: ConvertCardResult) => {
-        setConvertModalOpen(false);
-        const { nodes, setNodes } = useStore.getState();
-        const thisNode = nodes.find(n => n.id === id);
-
-        if (!thisNode) {
-            console.warn("FusedNoteNode: Node not found in store", id);
-            return;
-        }
+        const result = { title: data.label || 'Untitled Card', content: data.content, color: data.color, tags: [] as string[], viewMode: 'expanded' as const };
 
         let width = MIN_EXPANDED_SIZE;
         let height = MIN_EXPANDED_SIZE;
-        
-        if (result.viewMode === 'icon') {
-            width = 96; height = 96;
-        } else if (result.viewMode === 'titleview') {
-            width = 208; height = 56;
-        } else if (result.viewMode === 'medium') {
-            width = 208; height = 208;
-        }
 
-        // If no parent, we can just transform the node type (Root Level Fused Note)
         const parentId = thisNode.parentId;
         if (!parentId) {
             setNodes((currentNodes) => currentNodes.map(n => {
@@ -163,21 +138,8 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                     return {
                         ...n,
                         type: 'note',
-                        data: {
-                            label: result.title,
-                            viewMode: result.viewMode,
-                            content: result.content,
-                            description: '',
-                            date: new Date().toISOString(),
-                            color: result.color,
-                            tags: result.tags,
-                            showMetadata: result.tags.length > 0
-                        },
-                        style: {
-                            ...n.style,
-                            width,
-                            height,
-                        }
+                        data: { label: result.title, viewMode: result.viewMode, content: result.content, description: '', date: new Date().toISOString(), color: result.color, tags: result.tags, showMetadata: false },
+                        style: { ...n.style, width, height }
                     } as AppNode;
                 }
                 return n;
@@ -185,101 +147,38 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             return;
         }
 
-        // Nested Fused Note: Must update Parent Content
         const parentNode = nodes.find(n => n.id === parentId);
         if (!parentNode) return;
-
         const parentContent = 'content' in parentNode.data ? parentNode.data.content : undefined;
         if (!Array.isArray(parentContent)) return;
-
         const myBlocks = data.content;
         if (!myBlocks || myBlocks.length === 0) return;
-
-        // Find blocks in parent
         const firstBlockId = myBlocks[0].id;
         const startIndex = parentContent.findIndex((b) => b.id === firstBlockId);
-
         if (startIndex === -1) return;
 
-        // 1. Prepare New Node
         const newNodeId = uuidv4();
         const newNode = {
-            id: newNodeId,
-            type: 'note',
-            parentId: parentId,
-            position: thisNode.position,
-            data: {
-                label: result.title,
-                content: result.content,
-                viewMode: result.viewMode,
-                date: new Date().toISOString(),
-                color: result.color,
-                tags: result.tags,
-                showMetadata: result.tags.length > 0
-            },
-            style: { width, height },
-            zIndex: 10
+            id: newNodeId, type: 'note', parentId, position: thisNode.position,
+            data: { label: result.title, content: result.content, viewMode: result.viewMode, date: new Date().toISOString(), color: result.color, tags: result.tags, showMetadata: false },
+            style: { width, height }, zIndex: 10
         };
+        const pageBlock: Block = { id: uuidv4(), type: 'page', content: myBlocks[0].content || 'New Note', metadata: { nodeId: newNodeId } };
 
-        // 2. Prepare Page Block to replace fused blocks
-        const pageBlock: Block = {
-            id: uuidv4(),
-            type: 'page',
-            content: myBlocks[0].content || 'New Note',
-            metadata: { nodeId: newNodeId }
-        };
-
-        // 3. Update Store Atomically
         setNodes((currentNodes) => {
-            const parentNode = currentNodes.find(n => n.id === parentId);
-            if (!parentNode) {
-                console.error("FusedNoteNode: Parent not found during update");
-                return currentNodes;
-            }
-
-            const oldContent: Block[] = 'content' in parentNode.data && Array.isArray(parentNode.data.content)
-                ? parentNode.data.content : [];
-            // Create a shallow copy to modify
+            const pn = currentNodes.find(n => n.id === parentId);
+            if (!pn) return currentNodes;
+            const oldContent: Block[] = 'content' in pn.data && Array.isArray(pn.data.content) ? pn.data.content : [];
             const newParentContent = [...oldContent];
-
-            // Re-find index in authoritative state
-            const currentStartIndex = newParentContent.findIndex((b) => b.id === firstBlockId);
-
-            if (currentStartIndex !== -1) {
-                console.log("FusedNoteNode: Splicing content at index", currentStartIndex, "replacing", myBlocks.length, "blocks");
-                newParentContent.splice(currentStartIndex, myBlocks.length, pageBlock);
-            } else {
-                console.error("FusedNoteNode: Could not find block sequence in parent content!", firstBlockId);
-                // Abort to prevent duplicates/instability
-                return currentNodes;
-            }
-
-            // FILTER CHECK
+            const idx = newParentContent.findIndex((b) => b.id === firstBlockId);
+            if (idx !== -1) { newParentContent.splice(idx, myBlocks.length, pageBlock); } else { return currentNodes; }
             const filteredNodes = currentNodes.filter(n => n.id !== id && n.id !== parentId);
-            const removedCount = currentNodes.length - filteredNodes.length;
-            // Logging disabled
-
-            if (removedCount < 2) {
-                // Check what we missed
-                if (currentNodes.some(n => n.id === id)) console.warn("Fused ID still present in filtered?");
-                if (currentNodes.some(n => n.id === parentId)) console.warn("Parent ID still present in filtered?");
-                // Force strict filter again by ID string?
-            }
-
-            console.log("FusedNoteNode: Conversion Successful. Removing fused node, adding note.");
-
             return filteredNodes.concat([
-                // Updated Parent
-                {
-                    ...parentNode,
-                    data: { ...parentNode.data, content: newParentContent }
-                } as AppNode,
-                // New Node
+                { ...pn, data: { ...pn.data, content: newParentContent } } as AppNode,
                 newNode as AppNode
             ]);
         });
-
-    }, [id, data.content]);
+    }, [id, data.content, data.label, data.color]);
 
     // Auto-resize logic has been removed so that fused notes default to 8x8 and scroll if content overflows.
 
@@ -445,20 +344,9 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
                 />
             )}
 
-            {convertModalOpen && (
-                <ConvertCardModal
-                    initialTitle={convertInitialTitle}
-                    initialColor={data.color}
-                    content={data.content}
-                    onConfirm={confirmConvertToCard}
-                    onClose={() => setConvertModalOpen(false)}
-                />
-            )}
-
-
             {showEditor && (
                 <button
-                    className={styles.convertBtn}
+                    className={`${styles.convertBtn} nodrag`}
                     onClick={handleConvertToCard}
                     title="Convert to Card"
                     onMouseDown={(e) => e.stopPropagation()}

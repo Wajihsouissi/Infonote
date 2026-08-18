@@ -621,6 +621,130 @@
     color: var(--danger);
 }
 
+/* ---------- Context picker popover ---------- */
+
+.contextPickerWrap {
+    position: relative;
+}
+
+.contextBadge {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 0.58rem;
+    font-weight: 700;
+    line-height: 14px;
+    text-align: center;
+    pointer-events: none;
+}
+
+.contextPopoverBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+}
+
+.contextPopover {
+    position: fixed;
+    z-index: 1000;
+    transform: translateX(-50%) translateY(-100%);
+    min-width: 232px;
+    padding: 10px;
+    background: var(--menu-bg);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow-lg);
+}
+
+.contextPopoverArrow {
+    position: absolute;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 10px;
+    height: 10px;
+    background: var(--menu-bg);
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+}
+
+.contextPopoverHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.contextPopoverTitle {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.contextClearSmall {
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    font-size: 0.66rem;
+    color: var(--text-soft);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+    transition: all var(--transition-fast);
+}
+
+.contextClearSmall:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.contextPopoverGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+}
+
+.contextPopoverChip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text-soft);
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-align: left;
+}
+
+.contextPopoverChip:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+    border-color: var(--line-strong);
+}
+
+.contextPopoverChipActive {
+    background: rgba(var(--chip-rgb), 0.14);
+    border-color: rgba(var(--chip-rgb), 0.45);
+    color: var(--chip-color);
+}
+
+.contextPopoverChipActive:hover {
+    background: rgba(var(--chip-rgb), 0.2);
+    border-color: rgba(var(--chip-rgb), 0.55);
+    color: var(--chip-color);
+}
+
 /* ---------- Effort + model pickers ---------- */
 
 /* Both pickers travel together on the right of the composer row. */
@@ -762,31 +886,23 @@
     color: var(--secondary-ink);
 }
 
-/* The model picker carries the auto margin that pushes this group right. */
+/* The model picker carries the auto margin that pushes this group right.
+   Shape/colour/glow come from the global `special-primary-btn` class (design-
+   system.css §7) — the app's one sanctioned hero-button treatment, applied
+   here alongside this class rather than replacing it. This layer only adds
+   what's specific to sitting in the composer row: shrink to 30px (that class
+   defaults to 48px, sized for the canvas FAB), never let it collapse when the
+   row is tight, and a disabled state — the shared class has none, since its
+   other two uses are never disabled. */
 .sendBtn {
-    width: 30px;
-    height: 30px;
-    /* Never the thing that shrinks or scrolls away in the composer row —
-       everything else yields to it. */
     flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    border-radius: 50%;
-    background: var(--accent);
-    color: var(--on-accent);
     cursor: pointer;
-    transition: all var(--transition-fast);
-}
-
-.sendBtn:hover:not(:disabled) {
-    transform: scale(1.06);
 }
 
 .sendBtn:disabled {
     opacity: 0.35;
     cursor: default;
+    animation: none;
 }
 
 /* ---------- Markdown in an answer ---------- */

@@ -6,7 +6,7 @@ import {
 } from '@xyflow/react';
 import type { AppNode } from '../types';
 import type { LimitViolation } from './nodeLimits';
-import type { AIAssistantMessage, AIIntent, AIMessage, AIMode, AIStep } from '../features/ai/aiTypes';
+import type { AIAssistantMessage, AIContextType, AIIntent, AIMessage, AIMode, AIStep } from '../features/ai/aiTypes';
 import type { AIEffort } from '../config/aiEffort';
 
 export interface Breadcrumb {
@@ -227,6 +227,10 @@ export interface AISlice {
     setAIMode: (mode: AIMode) => void;
     setAIImageMode: (on: boolean) => void;
     setAIRunning: (running: boolean) => void;
+    /** Content types the user has explicitly selected for the next create turn. Empty = AI chooses freely. */
+    aiSelectedContexts: AIContextType[];
+    toggleAIContext: (type: AIContextType) => void;
+    clearAIContexts: () => void;
     appendAIMessage: (message: AIMessage) => void;
     /** Opens an assistant turn and returns its id for the streaming updates. */
     startAITurn: (intent: AIIntent) => string;

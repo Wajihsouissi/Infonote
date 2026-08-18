@@ -50,7 +50,7 @@ export function NoteMetadataSection({
             <div className={styles.expandedHeader}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                     <button
-                        className={styles.expandedIconButton}
+                        className={`${styles.expandedIconButton} icon-hover`}
                         onClick={onIconClick}
                         title="Change icon"
                     >

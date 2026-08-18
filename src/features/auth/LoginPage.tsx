@@ -7,7 +7,7 @@
  * onAuthStateChange subscription.
  */
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, LogIn, Zap, GitBranch, Layers, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, LogIn, Zap, GitBranch, Layers, Loader2, AlertCircle, CheckCircle2 } from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
 import { connectNotion } from '../../services/notion/notionImport';

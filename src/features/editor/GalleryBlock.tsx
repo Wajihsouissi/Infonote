@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import {
     LayoutGrid, Rows3, Squircle, Layers, Plus, X, Scaling, Play, FileText, ImageOff,
     Undo2, Crosshair, Expand, RotateCcw,
-} from 'lucide-react';
+} from '../../components/icons';
 import { createPortal } from 'react-dom';
 import { v4 as uuidv4 } from 'uuid';
 import type { Block, BlockMetadata } from './types';

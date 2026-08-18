@@ -24,7 +24,7 @@
  */
 
 import { memo, useCallback, useMemo } from 'react';
-import { GripVertical } from 'lucide-react';
+import { GripVertical } from '../../components/icons';
 import { BlockEditor } from '../editor/BlockEditor';
 import type { Block } from '../editor/types';
 import { useStore } from '../../store/useStore';

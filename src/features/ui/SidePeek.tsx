@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { X } from '../../components/icons';
 import styles from './SidePeek.module.css';
 
 export interface SidePeekProps {
@@ -141,7 +141,7 @@ export function SidePeek({
                         <span className={styles.headerTitle}>{title}</span>
                     </div>
                     <div className={styles.headerActions}>
-                        <button className={styles.closeBtn} onClick={onClose} title="Close Panel">
+                        <button className={`${styles.closeBtn} icon-hover`} onClick={onClose} title="Close Panel">
                             <X size={18} />
                         </button>
                     </div>

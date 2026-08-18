@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { UploadCloud, Sparkles, Paperclip } from 'lucide-react';
+import { UploadCloud, Sparkles, Paperclip } from '../../components/icons';
 import styles from './MediaPlaceholder.module.css';
 import type { BlockMetadata } from './types';
 import {

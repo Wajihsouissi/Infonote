@@ -17,7 +17,7 @@ import {
     Search,
     RefreshCw,
     Bug,
-} from 'lucide-react';
+} from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
 import styles from './AdminDashboard.module.css';

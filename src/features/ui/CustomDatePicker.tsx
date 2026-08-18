@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from '../../components/icons';
 import styles from './CustomDatePicker.module.css';
 
 interface CustomDatePickerProps {
@@ -100,13 +100,13 @@ export function CustomDatePicker({ value, onChange, placeholder }: CustomDatePic
             {isOpen && (
                 <div className={styles.dropdown}>
                     <div className={styles.header}>
-                        <button onClick={(e) => { e.stopPropagation(); prevMonth(); }} className={styles.navBtn}>
+                        <button onClick={(e) => { e.stopPropagation(); prevMonth(); }} className={`${styles.navBtn} icon-hover`}>
                             <ChevronLeft size={16} />
                         </button>
                         <span className={styles.monthLabel}>
                             {viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
                         </span>
-                        <button onClick={(e) => { e.stopPropagation(); nextMonth(); }} className={styles.navBtn}>
+                        <button onClick={(e) => { e.stopPropagation(); nextMonth(); }} className={`${styles.navBtn} icon-hover`}>
                             <ChevronRight size={16} />
                         </button>
                     </div>

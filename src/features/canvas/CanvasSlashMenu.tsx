@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import { FEATURES } from '../../config/featureFlags';
-import { StickyNote, Layers, KanbanSquare } from 'lucide-react';
+import { StickyNote, Layers, KanbanSquare } from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import { v4 as uuidv4 } from 'uuid';
 import { MENU_ITEMS } from '../editor/menuConstants';

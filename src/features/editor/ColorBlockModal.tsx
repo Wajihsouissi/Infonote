@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { HexColorPicker } from 'react-colorful';
-import { Copy, Check, X } from 'lucide-react';
+import { Copy, Check, X } from '../../components/icons';
 import editorStyles from './BlockEditor.module.css';
 import modalStyles from './ColorBlockModal.module.css';
 import type { BlockMetadata } from './types';
@@ -218,7 +218,7 @@ export function ColorBlockModal({ color, originalColor, metadata, displayName: i
                         onBlur={handleNameBlur}
                         placeholder="Color name"
                     />
-                    <button className={modalStyles.closeBtn} onClick={onClose}>
+                    <button className={`${modalStyles.closeBtn} icon-hover`} onClick={onClose}>
                         <X size={20} />
                     </button>
                 </div>

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Folder, FolderOpen, FolderCheck, FolderX, FolderSync, Cloud, CloudCheck, CloudAlert, CloudSync, CloudUpload, Users } from 'lucide-react';
+import { Folder, FolderOpen, FolderCheck, FolderX, FolderSync, Cloud, CloudCheck, CloudAlert, CloudSync, CloudUpload, Users } from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import { DuotoneIcon } from '../../components/ui/DuotoneIcon';
 import { connectBackend, disconnectBackend, getActiveBackendKind } from '../../services/StorageManager';

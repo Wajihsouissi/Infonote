@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from '../../components/icons';
 import styles from './PDFViewer.module.css';
 
 // Set watcher for pdf

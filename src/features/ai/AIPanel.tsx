@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useReactFlow } from '@xyflow/react';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -19,7 +20,11 @@ import {
     ChevronDown,
     FileText,
     Gauge,
-} from 'lucide-react';
+    Network,
+    Layers,
+    Kanban,
+    Waypoints,
+} from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import { streamText, FREEFORM_SYSTEM_PROMPT } from '../../services/aiService';
 import { buildCanvasContext, nodeTitle } from './canvasContext';
@@ -38,7 +43,9 @@ import { AI_PANEL_MIN_WIDTH, AI_PANEL_MAX_WIDTH } from '../../store/slices/aiSli
 import { formatBytes } from '../editor/mediaTypes';
 import { addAnswerToCanvas, runCreate, runEdit, runImage, type RunnerContext } from './aiRunner';
 import { AIMarkdown } from './AIMarkdown';
+import { SelectedNodeStrip } from './SelectedNodeStrip';
 import type { AIAssistantMessage, AIIntent, AIStep } from './aiTypes';
+import { AI_CONTEXT_DEFINITIONS } from './aiTypes';
 import styles from './AIPanel.module.css';
 
 const SUGGESTIONS: { label: string; prompt: string; mode: 'create' | 'ask' }[] = [
@@ -47,6 +54,17 @@ const SUGGESTIONS: { label: string; prompt: string; mode: 'create' | 'ask' }[] =
     { label: 'Summarise my canvas', prompt: 'Summarise what is on this canvas and what is missing.', mode: 'ask' },
     { label: 'Rewrite the selected card', prompt: 'Rewrite this more clearly and tighten the wording.', mode: 'create' },
 ];
+
+/* Keys must match the `icon` field in AI_CONTEXT_DEFINITIONS. A definition
+   naming an icon that is missing here resolves to `undefined` and React throws
+   on render, so the two lists have to move together. */
+const CONTEXT_ICONS: Record<string, React.FC<{ size?: number }>> = {
+    Network,
+    Layers,
+    Kanban,
+    FileText,
+    Waypoints,
+};
 
 export function AIPanel() {
     const isOpen = useStore((s) => s.isAIPanelOpen);
@@ -61,6 +79,9 @@ export function AIPanel() {
     const setAIMode = useStore((s) => s.setAIMode);
     const setAIImageMode = useStore((s) => s.setAIImageMode);
     const setAIRunning = useStore((s) => s.setAIRunning);
+    const aiSelectedContexts = useStore((s) => s.aiSelectedContexts);
+    const toggleAIContext = useStore((s) => s.toggleAIContext);
+    const clearAIContexts = useStore((s) => s.clearAIContexts);
     const appendAIMessage = useStore((s) => s.appendAIMessage);
     const startAITurn = useStore((s) => s.startAITurn);
     const updateAITurn = useStore((s) => s.updateAITurn);
@@ -85,11 +106,14 @@ export function AIPanel() {
     const [attachError, setAttachError] = useState<string | null>(null);
     const [modelMenuOpen, setModelMenuOpen] = useState(false);
     const [effortMenuOpen, setEffortMenuOpen] = useState(false);
+    const [contextMenuOpen, setContextMenuOpen] = useState(false);
+    const [contextMenuPos, setContextMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const fileRef = useRef<HTMLInputElement>(null);
     const modelMenuRef = useRef<HTMLDivElement>(null);
     const effortMenuRef = useRef<HTMLDivElement>(null);
+    const contextMenuRef = useRef<HTMLDivElement>(null);
     const abortRef = useRef<AbortController | null>(null);
     const panelRef = useRef<HTMLDivElement>(null);
 
@@ -149,6 +173,20 @@ export function AIPanel() {
         return () => document.removeEventListener('mousedown', close);
     }, [effortMenuOpen]);
 
+    // Context picker popover — portal renders into body, so check both the
+    // anchor ref and the portal wrapper (tagged with data-context-popover).
+    useEffect(() => {
+        if (!contextMenuOpen) return;
+        const close = (e: MouseEvent) => {
+            const target = e.target as Node;
+            if (contextMenuRef.current?.contains(target)) return;
+            if ((target as HTMLElement)?.closest?.('[data-context-popover]')) return;
+            setContextMenuOpen(false);
+        };
+        document.addEventListener('mousedown', close);
+        return () => document.removeEventListener('mousedown', close);
+    }, [contextMenuOpen]);
+
     /**
      * Take files from the picker, a drop, or a paste. Each is read on its own so
      * one unreadable file (a video, an oversized image) reports its reason
@@ -192,6 +230,10 @@ export function AIPanel() {
             text: query,
             intent,
             contextLabels: [...selectedNodes.map(nodeTitle), ...turnAttachments.map((a) => a.name)],
+            // Declared on AIUserMessage since the picker shipped but never
+            // populated, so "why did I get a board" was unanswerable after the
+            // fact. Recorded per turn now.
+            selectedContexts: intent === 'create' && aiSelectedContexts.length > 0 ? [...aiSelectedContexts] : undefined,
             at: new Date().toISOString(),
         });
         setDraft('');
@@ -207,6 +249,12 @@ export function AIPanel() {
             model: aiModel,
             effort: aiEffort,
             images: attachmentImages(turnAttachments),
+            /* Create-only. streamText destructures everything except `contexts`
+               and runImage ignores ctx.request entirely, so attaching them to an
+               Ask or an image turn packed and sent a field that was then
+               silently dropped — a picker that appeared to do something and
+               did nothing. */
+            contexts: intent === 'create' && aiSelectedContexts.length > 0 ? aiSelectedContexts : undefined,
         };
         const promptWithFiles = `${attachmentPreamble(turnAttachments)}${query}`;
 
@@ -268,7 +316,7 @@ ${context}`;
         }
     }, [
         draft, isRunning, mode, imageMode, selectedCanvasNodeIds, selectedNodes, currentParentId,
-        attachments, aiModel, aiEffort,
+        attachments, aiModel, aiEffort, aiSelectedContexts,
         appendAIMessage, startAITurn, pushAIStep, appendAIText, updateAITurn, setAIRunning, runnerContext,
     ]);
 
@@ -506,6 +554,11 @@ ${context}`;
                     )}
                 </div>
 
+                {/* Cards the turn is pointed at. A sibling above the composer's
+                    own border, not inside it — these qualify the message, they
+                    aren't part of what gets typed. */}
+                <SelectedNodeStrip selectedIds={selectedCanvasNodeIds} />
+
                 <div
                     className={styles.composer}
                     onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
@@ -601,12 +654,13 @@ ${context}`;
                         </div>
 
                         <button
-                            className={styles.sendBtn}
+                            className={`${styles.sendBtn} special-primary-btn`}
+                            style={{ width: 30, height: 30, minWidth: 30, minHeight: 30 }}
                             onClick={() => (isRunning ? stop() : void submit())}
                             disabled={!isRunning && !draft.trim() && attachments.length === 0}
                             title={isRunning ? 'Stop' : 'Send'}
                         >
-                            {isRunning ? <Square size={13} /> : <Send size={14} />}
+                            {isRunning ? <Square size={13} color="#fff" /> : <Send size={14} color="#fff" />}
                         </button>
                     </div>
                 </div>
@@ -643,6 +697,73 @@ ${context}`;
                         >
                             <ImagePlus size={15} />
                         </button>
+                    )}
+
+                    {mode === 'create' && (
+                        <div className={styles.contextPickerWrap} ref={contextMenuRef}>
+                            <button
+                                className={`${styles.iconToggle} ${aiSelectedContexts.length > 0 ? styles.iconToggleActive : ''}`}
+                                onClick={() => {
+                                    if (!contextMenuOpen) {
+                                        const btn = contextMenuRef.current?.querySelector('button');
+                                        if (btn) {
+                                            const r = btn.getBoundingClientRect();
+                                            setContextMenuPos({ top: r.top - 8, left: r.left + r.width / 2 });
+                                        }
+                                    }
+                                    setContextMenuOpen((o) => !o);
+                                }}
+                                title="Choose what to generate"
+                            >
+                                <Layers size={15} />
+                                {aiSelectedContexts.length > 0 && (
+                                    <span className={styles.contextBadge}>{aiSelectedContexts.length}</span>
+                                )}
+                            </button>
+                            {contextMenuOpen && createPortal(
+                                <div data-context-popover>
+                                    <div className={styles.contextPopoverBackdrop} onClick={() => setContextMenuOpen(false)} />
+                                    <div
+                                        className={styles.contextPopover}
+                                        style={{ top: contextMenuPos.top, left: contextMenuPos.left }}
+                                    >
+                                        <div className={styles.contextPopoverArrow} />
+                                        <div className={styles.contextPopoverHeader}>
+                                            <span className={styles.contextPopoverTitle}>Content types</span>
+                                            {aiSelectedContexts.length > 0 && (
+                                                <button
+                                                    className={styles.contextClearSmall}
+                                                    onClick={clearAIContexts}
+                                                    type="button"
+                                                >
+                                                    Clear
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className={styles.contextPopoverGrid}>
+                                            {AI_CONTEXT_DEFINITIONS.map((ctx) => {
+                                                const Icon = CONTEXT_ICONS[ctx.icon];
+                                                const active = aiSelectedContexts.includes(ctx.id);
+                                                return (
+                                                    <button
+                                                        key={ctx.id}
+                                                        className={`${styles.contextPopoverChip} ${active ? styles.contextPopoverChipActive : ''}`}
+                                                        style={active ? { '--chip-rgb': ctx.accentRgb, '--chip-color': ctx.color } as React.CSSProperties : undefined}
+                                                        onClick={() => toggleAIContext(ctx.id)}
+                                                        title={ctx.description}
+                                                        type="button"
+                                                    >
+                                                        {Icon && <Icon size={13} />}
+                                                        <span>{ctx.shortLabel}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>,
+                                document.body
+                            )}
+                        </div>
                     )}
 
                     <div className={styles.pickers}>

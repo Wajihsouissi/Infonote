@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useViewport } from '@xyflow/react';
-import { AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight } from '../../components/icons';
 import styles from './BlockEditor.module.css';
 
 interface ResizableMediaWrapperProps {

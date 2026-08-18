@@ -104,10 +104,7 @@
     transition: all var(--transition-fast);
 }
 
-.closeBtn:hover {
-    background: var(--bg-rail);
-    color: var(--color-text-main);
-}
+/* hover handled by the shared .icon-hover affordance */
 
 /* Scrollable Content Container — the panel's inset surface, carrying the same
    radius as the canvas frame so both read as content islands on one ground. */

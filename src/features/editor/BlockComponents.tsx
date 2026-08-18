@@ -1,5 +1,5 @@
 import React, { useState, useRef, useLayoutEffect, useEffect, memo, useCallback } from 'react';
-import { FileText, Trash2, Sparkles, Loader2, Clock, Plus, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, AlignLeft, AlignCenter, AlignRight, GripHorizontal, GripVertical, Eraser, ChevronRight, Copy, Check, Columns3, Maximize2 } from 'lucide-react';
+import { FileText, Trash2, Sparkles, Loader2, Clock, Plus, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, AlignLeft, AlignCenter, AlignRight, GripHorizontal, GripVertical, Eraser, ChevronRight, Copy, Check, Columns3, Maximize2 } from '../../components/icons';
 import { FEATURES } from '../../config/featureFlags';
 import { useStore } from '../../store/useStore';
 import { renderContentWithLinks } from './pasteUtils';
@@ -567,7 +567,7 @@ export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPast
             style={{ backgroundColor: block.metadata?.backgroundColor || undefined }}
         >
             <div
-                className={`${styles.calloutIconWrapper} ${!readOnly ? styles.clickable : ''}`}
+                className={`${styles.calloutIconWrapper} ${!readOnly ? `${styles.clickable} icon-hover` : ''}`}
                 onClick={!readOnly ? () => setShowIconPicker(true) : undefined}
             >
                 <Icon size={20} className={styles.calloutIconSvg} />

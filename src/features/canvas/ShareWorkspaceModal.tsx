@@ -10,7 +10,7 @@ import {
     UserCheck,
     Users,
     X,
-} from 'lucide-react';
+} from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import {
     acceptWorkspaceInvitation,

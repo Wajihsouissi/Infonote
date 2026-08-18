@@ -1,4 +1,4 @@
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon } from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import { DuotoneIcon } from '../../components/ui/DuotoneIcon';
 import styles from './ThemeSwitcher.module.css';

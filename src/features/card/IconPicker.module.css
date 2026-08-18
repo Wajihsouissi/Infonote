@@ -193,10 +193,7 @@
     height: 24px;
 }
 
-.closeBtn:hover {
-    background: var(--bg-rail) !important;
-    color: var(--color-text-main);
-}
+/* hover handled by the shared .icon-hover affordance */
 
 /* Color Swatches */
 .colorSwatches {
@@ -289,6 +286,7 @@
     flex-direction: column;
     gap: 16px;
     overflow-y: auto; /* Enable vertical scrolling here */
+    overflow-x: hidden; /* a hovered edge tooltip must never add a sideways scroll */
     padding: 2px 10px 2px 2px;
     flex: 1;
     min-height: 0; /* CRITICAL for flex scroll */
@@ -300,6 +298,14 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+}
+
+/* Shown while the icon chunk is in flight, and for an empty search. */
+.iconsLoading {
+    padding: 32px 8px;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
 }
 
 .categoryHeader {
@@ -318,6 +324,18 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
     gap: 8px;
+}
+
+/* The shared tooltip keeps its layout box while hidden, and Solar's labels are
+   long enough ("Round double alt arrow right") that 1200 of them push a phantom
+   horizontal scrollbar onto the grid. Take them out of flow until hover —
+   scoped here so tooltips elsewhere keep their fade. */
+.iconGrid [data-tooltip]::before {
+    display: none;
+}
+
+.iconGrid [data-tooltip]:hover::before {
+    display: block;
 }
 
 /* Custom Tab Content */

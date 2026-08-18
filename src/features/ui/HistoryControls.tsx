@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Undo, Redo } from 'lucide-react';
+import { Undo, Redo } from '../../components/icons';
 import { useStore as useZustandStore } from 'zustand';
 import { useStore } from '../../store/useStore';
 import { DuotoneIcon } from '../../components/ui/DuotoneIcon';

@@ -37,7 +37,7 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { Move, Plus } from 'lucide-react';
+import { Move, Plus } from '../../components/icons';
 import { v4 as uuidv4 } from 'uuid';
 
 import { useStore } from '../../store/useStore';

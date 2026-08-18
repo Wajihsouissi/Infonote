@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Image as ImageIcon, StickyNote, Video, FileText, Layers } from 'lucide-react';
+import { Image as ImageIcon, StickyNote, Video, FileText, Layers } from '../../components/icons';
 import styles from './NoteCard.module.css';
 import type { Block } from '../editor/types';
 

@@ -102,6 +102,15 @@ export const createAISlice: StateCreator<AppState, [], [], AISlice> = (set, get)
     setAIImageMode: (on) => set({ aiImageMode: on }),
     setAIRunning: (running) => set({ aiIsRunning: running }),
 
+    aiSelectedContexts: [],
+
+    toggleAIContext: (type) => set((state) => {
+        const has = state.aiSelectedContexts.includes(type);
+        return { aiSelectedContexts: has ? state.aiSelectedContexts.filter((t) => t !== type) : [...state.aiSelectedContexts, type] };
+    }),
+
+    clearAIContexts: () => set({ aiSelectedContexts: [] }),
+
     appendAIMessage: (message) => set((state) => ({ aiMessages: [...state.aiMessages, message] })),
 
     /**

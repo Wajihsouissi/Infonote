@@ -1,5 +1,5 @@
 import { useState, type KeyboardEvent } from 'react';
-import { X } from 'lucide-react';
+import { X } from '../../components/icons';
 import styles from './ChipInput.module.css';
 
 interface ChipInputProps {

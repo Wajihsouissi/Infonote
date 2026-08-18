@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Image as ImageIcon } from 'lucide-react';
+import { Image as ImageIcon } from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import { IconPicker } from '../card/IconPicker';
 import { defaultIconName, CardIcon } from '../card/iconMap';
@@ -127,9 +127,9 @@ export function MetadataPanel({ nodeId, isOpen, onClose, buttonRef }: MetadataPa
                 {/* Title & Icon */}
                 <div className={styles.titleSection}>
                     <button
-                        className={styles.iconBtn}
+                        className={`${styles.iconBtn} icon-hover`}
                         onClick={() => setShowIconPicker(true)}
-                        title="Change Icon"
+                        title="Change icon"
                     >
                         <CardIcon icon={editedData.icon || defaultIconName} size={24} />
                     </button>

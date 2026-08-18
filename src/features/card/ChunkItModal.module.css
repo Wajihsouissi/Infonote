@@ -87,10 +87,7 @@
     margin-left: 8px;
 }
 
-.closeBtn:hover {
-    background: var(--active-wash);
-    color: var(--color-text-main);
-}
+/* hover handled by the shared .icon-hover affordance */
 
 .content {
     flex: 1;

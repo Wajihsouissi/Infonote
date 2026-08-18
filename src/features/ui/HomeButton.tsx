@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LayoutGrid, User, Loader2, ArrowLeft } from 'lucide-react';
+import { LayoutGrid, User, Loader2, ArrowLeft } from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import { DuotoneIcon } from '../../components/ui/DuotoneIcon';
 import styles from './HomeButton.module.css';

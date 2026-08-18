@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
-import { Bold, Italic, Underline, Strikethrough, Code, Link, FileText, Check, X, Unlink } from 'lucide-react';
+import { Bold, Italic, Underline, Strikethrough, Code, Link, FileText, Check, X, Unlink } from '../../components/icons';
 import styles from './BlockEditor.module.css';
 import type { InlineFormat } from './inlineFormat';
 

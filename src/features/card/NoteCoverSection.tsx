@@ -1,4 +1,4 @@
-import { Image as ImageIcon, EyeOff, X } from 'lucide-react';
+import { Image as ImageIcon, EyeOff, X } from '../../components/icons';
 import styles from './NoteCard.module.css';
 
 interface NoteCoverSectionProps {

@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect, type ElementType } from 'react';
-import { Plus, Calendar, Link2, User, LayoutList, Text, Flag, BarChart3 } from 'lucide-react';
+import { Plus, Calendar, Link2, User, LayoutList, Text, Flag, BarChart3 } from '../../../components/icons';
 import styles from './Properties.module.css';
 
 interface AddPropertyMenuProps {

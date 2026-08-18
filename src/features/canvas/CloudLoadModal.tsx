@@ -23,14 +23,14 @@ import {
     Layers,
     GitBranch,
     RefreshCw,
-} from 'lucide-react';
+} from '../../components/icons';
 import {
     fetchCloudMetadata,
     loadCanvasFromCloud,
     type CloudSnapshotMetadata,
 } from '../../services/cloudSync';
 import { useStore } from '../../store/useStore';
-import { History } from 'lucide-react';
+import { History } from '../../components/icons';
 
 type Status =
     | { kind: 'idle' }

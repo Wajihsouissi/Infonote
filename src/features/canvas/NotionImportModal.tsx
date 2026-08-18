@@ -12,7 +12,7 @@ import {
     UploadCloud,
     X,
     Link as LinkIcon
-} from 'lucide-react';
+} from '../../components/icons';
 import {
     connectNotion,
     extractNotionId,

@@ -620,10 +620,11 @@
 
 /* Theme-Aware Item Icon Wrapper - Resolves Light Mode Visibility */
 .itemIconWrapper {
+    position: relative; /* anchors the rim-light ::before */
     width: 40px;
     height: 40px;
     border-radius: 12px; /* Soft squircle */
-    background: rgba(var(--accent-rgb), 0.04); /* Subtle warm surface tint */
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.12) 0%, rgba(var(--accent-rgb), 0) 65%);
     border: 1px solid var(--line);
     display: flex;
     align-items: center;
@@ -633,17 +634,47 @@
     transition: all 0.25s cubic-bezier(0.3, 0.6, 0.3, 1);
 }
 
+/* Rim light on two opposite corners only — same masked-gradient-border
+   mechanism as .special-primary-btn's rim (design-system.css), but with far
+   softer, non-glowing parameters: no radial fill, no box-shadow glow, no
+   idle animation. Reusing the mechanism isn't reusing the FAB's treatment. */
+.itemIconWrapper::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg,
+        rgba(255, 224, 210, 0.55) 0%,
+        transparent 26%,
+        transparent 74%,
+        rgba(255, 224, 210, 0.4) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
 .draggableItem:hover {
     z-index: 10;
 }
 
 /* High Fidelity Hover Accent States */
 .draggableItem:hover .itemIconWrapper {
-    background: var(--hover-wash);
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.24) 0%, rgba(var(--accent-rgb), 0) 65%);
     border-color: var(--accent-ink);
     color: var(--accent-ink);
     transform: translateY(-4px) scale(1.1);
     box-shadow: none;
+}
+
+.draggableItem:hover .itemIconWrapper::before {
+    background: linear-gradient(135deg,
+        rgba(255, 224, 210, 0.85) 0%,
+        transparent 26%,
+        transparent 74%,
+        rgba(255, 224, 210, 0.65) 100%);
 }
 
 .draggableItem:active .itemIconWrapper {
@@ -661,11 +692,19 @@
 
 /* Keyboard Selection Highlight State */
 .draggableItemHighlighted .itemIconWrapper {
-    background: var(--active-wash) !important;
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.24) 0%, rgba(var(--accent-rgb), 0) 65%) !important;
     border-color: var(--accent-ink) !important;
     color: var(--accent-ink) !important;
     transform: translateY(-4px) scale(1.1) !important;
     box-shadow: none !important;
+}
+
+.draggableItemHighlighted .itemIconWrapper::before {
+    background: linear-gradient(135deg,
+        rgba(255, 224, 210, 0.85) 0%,
+        transparent 26%,
+        transparent 74%,
+        rgba(255, 224, 210, 0.65) 100%);
 }
 
 /* Custom Tooltip */

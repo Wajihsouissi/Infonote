@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
-import { Search } from 'lucide-react';
+import { Search } from '../../components/icons';
 import styles from './BlockEditor.module.css';
 import type { BlockType, BlockMetadata } from './types';
 import { MENU_ITEMS } from './menuConstants';

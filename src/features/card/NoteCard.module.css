@@ -261,6 +261,97 @@
     padding: 0 4px;
 }
 
+/* 1.2 Folder View — a folder standing on the canvas, not a card with a folder
+   drawn on it. The panel, its ring and its shadow all come off: a folder is
+   already a finished object, and a rectangle behind it reads as a second
+   container holding the first. Everything below is the cost of that decision —
+   with no surface to carry them, hover and selection have to be re-staged on the
+   folder itself. */
+.card.folder,
+.card.folder[data-accented],
+.card.folder:hover,
+.card.folder.selected,
+.card.folder.selected:hover {
+    background: none;
+    box-shadow: none;
+}
+
+.folder {
+    padding: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Lift and glow replace the panel's ring. The drop-shadow follows the folder's
+   alpha rather than its box, so the halo hugs the silhouette — a box-shadow here
+   would draw the very rectangle this view exists to remove. */
+.card.folder .folderView {
+    transition: transform 0.18s var(--ease-rise), filter 0.18s var(--ease-rise);
+    border-radius: var(--r-panel);
+}
+
+.card.folder:hover .folderView {
+    transform: translateY(-3px);
+    filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.35));
+}
+
+.card.folder.selected .folderView {
+    filter: none;
+    box-shadow: var(--node-ring-selected);
+}
+
+.card.folder.selected .folderLabel {
+    color: var(--accent-ink);
+}
+
+/* A recoloured card colours its folder. Mixed toward the faint grey rather than
+   used raw, so a saturated hue still reads as a folder and not a warning sign. */
+.card.folder[data-accented] .folderView {
+    --folder-ink: color-mix(in srgb, var(--node-accent) 65%, var(--text-faint));
+}
+
+.folderView {
+    animation: fadeIn 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    flex: 1;
+    gap: 0;
+}
+
+/* On the canvas rather than on a panel, so the label needs its own contrast:
+   full-strength ink and a hairline of ground behind it keep it readable over a
+   busy background. */
+.folderLabel {
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 1px 4px;
+    margin-top: 1px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--node-title);
+    text-align: center;
+    width: 100%;
+    outline: none;
+    transition: background 0.2s ease;
+    cursor: text;
+    text-shadow: 0 1px 2px var(--bg-base);
+}
+
+.folderLabel:hover {
+    background: var(--hover-wash);
+}
+
+.folderLabel:focus {
+    background: var(--active-wash);
+    text-shadow: none;
+}
+
 .iconView,
 .mediumView,
 .expandedView {
@@ -707,7 +798,7 @@
     width: 65px;
     height: 65px;
     background: var(--bg-card);
-    border: 1px solid var(--line);
+    border: none;
     border-radius: var(--radius-xl);
     display: flex;
     align-items: center;
@@ -715,18 +806,15 @@
     flex-shrink: 0;
     box-shadow: none;
     cursor: pointer;
-    transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), background-color 0.2s ease, border-color 0.2s ease;
+    transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), background-color 0.2s ease;
     z-index: 2;
     padding: 0;
     /* Reset */
     color: var(--text-main);
 }
 
-.expandedIconButton:hover {
-    transform: translateY(-2px) scale(1.05);
-    border-color: var(--accent-ink);
-    box-shadow: none;
-}
+/* Hover lives entirely on the shared .icon-hover affordance in
+   design-system.css. */
 
 .expandedIconButton svg {
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
@@ -1294,12 +1382,28 @@
     display: none !important;
 }
 
-/* Floating Hover Menu */
+/* Floating Hover Menu.
+   The menu lives inside the ReactFlow viewport, so canvas zoom shrinks it along
+   with the card: at 0.4x its 32px buttons land at 12px on screen, well under the
+   ~24px a pointer can hit reliably. The counter-scale holds the controls at
+   their design size whenever the canvas is zoomed out (never below 1x, so
+   zooming in doesn't blow them up). It uses the independent `scale` property
+   rather than folding into `transform` so the open/close slide can transition
+   while the zoom compensation tracks the wheel without a 200ms lag. */
 .hoverMenu {
     position: absolute;
     top: -46px;
-    left: 50%;
-    transform: translateX(-50%) translateY(10px);
+    /* Centred on inset + auto margins, not translateX(-50%): a percentage
+       translate resolves against the unscaled box, so once the counter-scale
+       widens the menu the -50% no longer reaches half of it and the menu drifts
+       off the card. Auto margins stay correct at any scale. */
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: max-content;
+    transform: translateY(10px);
+    scale: max(1, calc(1 / var(--rf-zoom, 1)));
+    transform-origin: bottom center;
     background: var(--bg-card);
 
     border: 1px solid var(--line);
@@ -1312,7 +1416,8 @@
     height: 40px;
     opacity: 0;
     pointer-events: none;
-    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: opacity 0.2s cubic-bezier(0.25, 0.8, 0.25, 1),
+                transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
     z-index: 2000;
 }
 
@@ -1357,7 +1462,7 @@
 
 .card:hover .hoverMenu {
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
+    transform: translateY(0);
     pointer-events: auto;
 }
 
@@ -1740,7 +1845,7 @@
 .iconButton,
 .expandedIconButton {
     background: transparent;
-    border: 2px dashed transparent;
+    border: none;
     border-radius: var(--radius-lg);
     cursor: pointer;
     transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
@@ -1769,17 +1874,12 @@
     padding: 10px;
 }
 
-.iconButton:hover,
-.expandedIconButton:hover,
-.minimalIconButton:hover {
-    border-color: var(--accent-ink);
-    background: var(--active-wash);
-    transform: scale(1.05);
-}
+/* Hover lives entirely on the shared .icon-hover affordance in
+   design-system.css, so every icon that opens the picker behaves the same. */
 
 .minimalIconButton {
     background: transparent;
-    border: 1px dashed transparent;
+    border: none;
     border-radius: var(--radius-sm);
     cursor: pointer;
     transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);

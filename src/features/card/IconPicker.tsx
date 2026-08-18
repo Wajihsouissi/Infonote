@@ -1,17 +1,101 @@
-import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Upload, XCircle, Lightbulb, Link, type LucideIcon } from 'lucide-react';
+import { Search, Upload, X, Link, type LucideIcon } from '../../components/icons';
 import styles from './IconPicker.module.css';
 
 // Deferred: the emoji dataset is large; only load it when the Emojis tab opens.
 const EmojiPickerPanel = lazy(() => import('./EmojiPickerPanel'));
-import { CardIcon, iconRegistry, iconMap, defaultIconName } from './iconMap';
+import {
+    CardIcon,
+    defaultIconName,
+    getCatalog,
+    loadRestIcons,
+    solarIconComponent,
+    toSolarName,
+    type SolarEntry,
+} from './iconMap';
 
 interface IconPickerProps {
     currentIcon: string;
     onSelect: (icon: string) => void;
     onClose: () => void;
     isAbsolute?: boolean;
+}
+
+/** Tile height plus grid gap — only used to reserve space for an unmounted section. */
+const ROW_HEIGHT = 60;
+const ASSUMED_COLUMNS = 11;
+
+interface IconCategoryProps {
+    category: string;
+    icons: SolarEntry[];
+    selectedName: string;
+    selectedColor: string;
+    onPick: (name: string) => void;
+}
+
+/**
+ * One category of the grid. Mounting all ~1200 buttons at once costs tens of
+ * thousands of DOM nodes — each glyph is an `<svg>` carrying its own gradient
+ * `<defs>` — which stalls the picker for seconds on open. So a section stays a
+ * plain reserved-height box until it scrolls near the viewport, then fills in
+ * and stays mounted.
+ */
+function IconCategory({ category, icons, selectedName, selectedColor, onPick }: IconCategoryProps) {
+    const ref = useRef<HTMLDivElement>(null);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        if (mounted) return;
+        const el = ref.current;
+        if (!el) return;
+
+        // No IntersectionObserver (jsdom, very old browsers) — just render.
+        if (typeof IntersectionObserver === 'undefined') {
+            setMounted(true);
+            return;
+        }
+
+        const io = new IntersectionObserver(
+            (entries) => {
+                if (entries.some((e) => e.isIntersecting)) setMounted(true);
+            },
+            // Fill in well before the section is actually on screen so scrolling
+            // never reveals an empty gap.
+            { rootMargin: '600px 0px' },
+        );
+        io.observe(el);
+        return () => io.disconnect();
+    }, [mounted]);
+
+    const reservedHeight = Math.ceil(icons.length / ASSUMED_COLUMNS) * ROW_HEIGHT;
+
+    return (
+        <div ref={ref} className={styles.categorySection}>
+            <div className={styles.categoryHeader}>{category}</div>
+            {mounted ? (
+                <div className={styles.iconGrid}>
+                    {icons.map(({ name, label }) => {
+                        const IconComponent = solarIconComponent(name);
+                        return (
+                            <button
+                                key={name}
+                                className={`${styles.iconOption} ${selectedName === name ? styles.selected : ''}`}
+                                onClick={() => onPick(name)}
+                                data-tooltip={label}
+                                data-tooltip-position="top"
+                                style={{ color: selectedColor || undefined }}
+                            >
+                                <IconComponent size={20} />
+                            </button>
+                        );
+                    })}
+                </div>
+            ) : (
+                <div style={{ height: reservedHeight }} aria-hidden="true" />
+            )}
+        </div>
+    );
 }
 
 const colorSwatches = [
@@ -34,8 +118,12 @@ export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconP
         currentIcon.startsWith('https://')
     );
 
-    // Extract current selected color from string format `IconName::#Color`
-    const initialBaseName = currentIcon && !isCustomCurrent ? currentIcon.split('::')[0] : '';
+    // Extract current selected color from string format `IconName::#Color`.
+    // Normalise through toSolarName so a card still holding a pre-Solar lucide
+    // name ("Settings") highlights its Solar counterpart in the grid.
+    const initialBaseName = currentIcon && !isCustomCurrent
+        ? toSolarName(currentIcon.split('::')[0])
+        : '';
     const initialColor = (currentIcon && !isCustomCurrent && currentIcon.includes('::')) ? currentIcon.split('::')[1] : '';
     
     const [selectedIconBaseName, setSelectedIconBaseName] = useState<string>(initialBaseName);
@@ -142,19 +230,37 @@ export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconP
         }
     };
 
+    // The 1200-icon catalogue rides along with the lazy body chunk, so pull it
+    // in as soon as the Icons tab is showing rather than on first keystroke.
+    const [catalog, setCatalog] = useState<SolarEntry[] | null>(() => getCatalog());
+
+    useEffect(() => {
+        if (activeTab !== 'icons' || catalog) return;
+        let alive = true;
+        void loadRestIcons()
+            .then(() => alive && setCatalog(getCatalog()))
+            .catch(() => undefined);
+        return () => {
+            alive = false;
+        };
+    }, [activeTab, catalog]);
+
     const filteredIcons = useMemo(() => {
-        return iconRegistry.filter(({ name }) =>
-            name.toLowerCase().includes(searchTerm.toLowerCase())
+        if (!catalog) return [];
+        const term = searchTerm.trim().toLowerCase();
+        if (!term) return catalog;
+        // Match the display label and the raw Solar id, so both "arrow down"
+        // and "alt-arrow-down" find the same icon.
+        return catalog.filter(
+            ({ label, name }) =>
+                label.toLowerCase().includes(term) || name.includes(term.replace(/\s+/g, '-')),
         );
-    }, [searchTerm]);
+    }, [catalog, searchTerm]);
 
     const groupedIcons = useMemo(() => {
-        const groups: Record<string, typeof iconRegistry> = {};
+        const groups: Record<string, SolarEntry[]> = {};
         filteredIcons.forEach(icon => {
-            if (!groups[icon.category]) {
-                groups[icon.category] = [];
-            }
-            groups[icon.category].push(icon);
+            (groups[icon.category] ??= []).push(icon);
         });
         return groups;
     }, [filteredIcons]);
@@ -183,8 +289,8 @@ export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconP
                             Custom
                         </button>
                     </div>
-                    <button className={styles.closeBtn} onClick={handleSaveAndClose} aria-label="Close icon picker">
-                        <XCircle size={18} />
+                    <button className={`${styles.closeBtn} icon-hover`} onClick={handleSaveAndClose} aria-label="Close icon picker">
+                        <X size={18} />
                     </button>
                 </div>
 
@@ -216,28 +322,21 @@ export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconP
                         </div>
 
                         <div className={styles.categoriesContainer}>
+                            {!catalog && (
+                                <div className={styles.iconsLoading}>Loading icons…</div>
+                            )}
+                            {catalog && filteredIcons.length === 0 && (
+                                <div className={styles.iconsLoading}>No icon matches “{searchTerm}”.</div>
+                            )}
                             {Object.entries(groupedIcons).map(([category, icons]) => (
-                                <div key={category} className={styles.categorySection}>
-                                    <div className={styles.categoryHeader}>{category}</div>
-                                    <div className={styles.iconGrid}>
-                                        {icons.map(({ name, iconName, color }) => {
-                                            const IconComponent = iconMap[iconName] || iconMap[defaultIconName];
-                                            const finalColor = selectedColor || color;
-                                            return (
-                                                <button
-                                                    key={iconName}
-                                                    className={`${styles.iconOption} ${selectedIconBaseName === iconName ? styles.selected : ''}`}
-                                                    onClick={() => setSelectedIconBaseName(iconName)}
-                                                    data-tooltip={name}
-                                                    data-tooltip-position="top"
-                                                    style={{ color: finalColor }}
-                                                >
-                                                    <IconComponent size={20} />
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
+                                <IconCategory
+                                    key={category}
+                                    category={category}
+                                    icons={icons}
+                                    selectedName={selectedIconBaseName}
+                                    selectedColor={selectedColor}
+                                    onPick={setSelectedIconBaseName}
+                                />
                             ))}
                         </div>
                     </>
@@ -318,7 +417,7 @@ export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconP
                                         onClose();
                                     }}
                                 >
-                                    <XCircle size={14} /> Remove Custom Icon
+                                    <X size={14} /> Remove Custom Icon
                                 </button>
                             </div>
                         )}
@@ -337,5 +436,5 @@ export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconP
 
 export function getIconByName(iconName: string): LucideIcon {
     const baseName = iconName ? iconName.split('::')[0] : '';
-    return baseName && baseName in iconMap ? iconMap[baseName] : Lightbulb;
+    return solarIconComponent(baseName || defaultIconName);
 }

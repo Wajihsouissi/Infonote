@@ -4,8 +4,8 @@ import {
     Trash2, Copy, Palette, Layers, X, ArrowUpRight, ArrowRight, GitBranch,
     Grid3x3, CircleDot, ArrowRightLeft, Columns2, Rows2, Network, Sparkles,
     Search, Eye, Scissors,
-    Square, RectangleHorizontal, StickyNote, PanelTop
-} from 'lucide-react';
+    Square, RectangleHorizontal, StickyNote, PanelTop, Folder
+} from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import { Tooltip } from './Tooltip';
 import styles from './MultiSelectionToolbar.module.css';
@@ -60,6 +60,13 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
             if (target.closest(`.${styles.toolbar}`)) return;
             // Ignore if clicking on a node (React Flow handles selection there)
             if (target.closest('.react-flow__node')) return;
+            /* Ignore app chrome — panels, menus and modals docked beside the
+               canvas. Selecting cards and then clicking into the AI composer to
+               write a prompt *about* them cleared the selection the moment the
+               input took focus, so the panel lost its context mid-sentence.
+               Acting on a selection is not abandoning it. Same `[data-app-menu]`
+               marker SidePeek uses for its own click-away guard. */
+            if (target.closest('[data-app-menu]')) return;
             // Otherwise, clear selection
             clearSelectionFully();
         };
@@ -165,6 +172,9 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
             if (selectedCanvasNodeIds.has(n.id) && n.type === 'note') {
                 let w = n.style?.width; let h = n.style?.height;
                 if (mode === 'icon') { w = 96; h = 96; }
+                // Folders stand on the canvas with no panel around them, so they
+                // carry a larger footprint than the icon card they replace.
+                else if (mode === 'folder') { w = 120; h = 120; }
                 else if (mode === 'titleview') { w = 208; h = 56; }
                 else if (mode === 'medium') { w = 208; h = 208; }
                 else if (mode === 'expanded') { w = 432; h = 432; }
@@ -328,6 +338,11 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
                                         <Tooltip label="Icon" desc="Icon only">
                                             <button className={styles.layoutOption} onClick={() => handleSetViewMode('icon')}>
                                                 <Square size={14} />
+                                            </button>
+                                        </Tooltip>
+                                        <Tooltip label="Folder" desc="Folder with cover & icon">
+                                            <button className={styles.layoutOption} onClick={() => handleSetViewMode('folder')}>
+                                                <Folder size={18} />
                                             </button>
                                         </Tooltip>
                                         <Tooltip label="Title" desc="Icon + Title">

@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Eye, X, ExternalLink } from 'lucide-react';
+import { Eye, X, ExternalLink } from '../../components/icons';
 import styles from './NoteCard.module.css';
 import { BlockEditor } from '../editor/BlockEditor';
 import { IconPicker } from './IconPicker';
@@ -291,12 +291,12 @@ export function NoteExpandedContent({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flex: 1, minWidth: 0 }}>
                         {data.showIcon && (
                             <div
-                                className={`${styles.minimalIconButton} nodrag`}
+                                className={`${styles.minimalIconButton} icon-hover nodrag`}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     handleIconClick(e);
                                 }}
-                                title="Change Icon"
+                                title="Change icon"
                             >
                                 <CardIcon icon={data.icon || defaultIconName} size={22} />
                             </div>

@@ -71,10 +71,7 @@
     transition: background 0.1s ease, color 0.1s ease;
 }
 
-.iconBtn:hover {
-    background: rgba(0, 0, 0, 0.05);
-    color: var(--color-text-main);
-}
+/* hover handled by the shared .icon-hover affordance */
 
 /* --- Specific Property Types --- */
 

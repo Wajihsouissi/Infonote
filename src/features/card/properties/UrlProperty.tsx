@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Link2 } from 'lucide-react';
+import { Link2 } from '../../../components/icons';
 import styles from './Properties.module.css';
 import { PropertyRow } from './PropertyRow';
 

@@ -1,0 +1,136 @@
+/* Selected-card thumbnails, sitting above the composer's own border rather
+   than inside it — these qualify the message, they aren't part of what gets
+   typed. Same 12px side margin as .composer so the two align. */
+.strip {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    margin: 0 12px 6px;
+}
+
+/* Scrolls rather than wraps, so a wide selection can never push the input
+   down or reflow the composer as tiles are added. */
+.tiles {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 1px;
+}
+
+.tiles::-webkit-scrollbar {
+    display: none;
+}
+
+.tileWrap {
+    position: relative;
+    flex-shrink: 0;
+    line-height: 0;
+}
+
+/* The square itself. --r-md against a 34px box is the "big radius squircle"
+   proportion — roughly a third of the edge — and the global superellipse
+   corner-shape (design-system §6) makes it a true squircle rather than a
+   rounded rect. Grayscale throughout: this is a neutral reference chip, not
+   a place for a card's own accent color to show through. */
+.tile {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    overflow: hidden;
+    background: var(--hover-wash);
+    color: var(--text-soft);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    cursor: pointer;
+    filter: grayscale(1);
+    transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast), filter var(--transition-fast);
+}
+
+.tile:hover {
+    background: var(--bg-card);
+    border-color: var(--text-faint);
+    transform: translateY(-1px);
+    /* The one place color is allowed back in — hovering is "considering this
+       tile", which is worth a beat of warmth before it fades to gray again. */
+    filter: grayscale(0.35);
+}
+
+.tile:active {
+    transform: translateY(0) scale(0.94);
+}
+
+.cover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.initial {
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--text-soft);
+}
+
+/* Deselect. Hidden until the tile is hovered so a row of cards stays calm. */
+.drop {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 15px;
+    height: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: var(--menu-bg);
+    color: var(--text-soft);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.tileWrap:hover .drop,
+.drop:focus-visible {
+    opacity: 1;
+}
+
+.drop:hover {
+    color: var(--danger);
+}
+
+/* Only earns its place once there is more than one tile to clear. */
+.clearAll {
+    flex-shrink: 0;
+    background: transparent;
+    border: none;
+    padding: 0 2px;
+    font-family: inherit;
+    font-size: 0.66rem;
+    color: var(--text-faint);
+    cursor: pointer;
+}
+
+.clearAll:hover {
+    color: var(--text-main);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tile:hover,
+    .tile:active {
+        transform: none;
+        filter: grayscale(1);
+    }
+}

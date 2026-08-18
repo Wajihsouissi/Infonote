@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from './components/icons';
 import { WelcomeModal } from './features/auth/WelcomeModal';
 import { LimitNoticeModal } from './features/ui/LimitNoticeModal';
 import { CanvasLimitBadge } from './features/ui/CanvasLimitBadge';

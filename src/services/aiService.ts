@@ -11,6 +11,7 @@ import {
     structuredEffortDirective,
     type AIEffort,
 } from '../config/aiEffort';
+import { AI_CONTEXT_DEFINITIONS, type AIContextType } from '../features/ai/aiTypes';
 
 // Hints only — the server owns the final model choice and ignores anything
 // that is not on its own allow-list.
@@ -111,6 +112,8 @@ export interface AIRequestOptions {
     images?: string[];
     /** How deep the answer should go. Widens/narrows the token ceiling too. */
     effort?: AIEffort;
+    /** Content types the user explicitly selected (mindmap, cards, image, etc.). */
+    contexts?: AIContextType[];
 }
 
 /**
@@ -311,6 +314,14 @@ export interface AIStructuredAction {
  * place — the schema and the placer are meant to be read together.
  */
 export async function parseStructuredAction(prompt: string, context?: string, options: AIRequestOptions = {}): Promise<AIStructuredAction[]> {
+    /* Map the picker's chip ids to the schema's own type names. Sending the raw
+       chip ids told the model to emit "boards"/"fusednodes"/"cards" — none of
+       which appear in the type union below, so the instruction contradicted the
+       schema it was attached to. */
+    const requestedTypes = (options.contexts ?? [])
+        .map((id) => AI_CONTEXT_DEFINITIONS.find((d) => d.id === id)?.actionType)
+        .filter((t): t is NonNullable<typeof t> => Boolean(t));
+
     const systemPrompt = `You are a structured intent parser for Infonote, an infinite canvas note-taking app.
 Analyze the user's request and parse it into an array of actions.
 The user might ask to:
@@ -330,6 +341,8 @@ pile of loose note cards. Do not emit both a board and separate cards for the
 same items — pick the single shape that fits and put everything inside it.
 
 ${options.effort ? `\n${structuredEffortDirective(options.effort)}\n` : ''}
+
+${requestedTypes.length > 0 ? `\nThe user has explicitly selected these output types: [${requestedTypes.join(', ')}]. You MUST include at least one action of each selected type in your response — these are exactly the "type" values defined below. Honour the selection; do not substitute a different shape for a selected type.\n` : ''}
 
 ${context ? `[CURRENT CANVAS CONTEXT]\n${context}\nUse this context to inform your response if the user refers to existing topics.\n` : ''}
 First, briefly outline your plan for the content in <think> tags.

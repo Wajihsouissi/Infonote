@@ -11,7 +11,7 @@ import {
     Minus,
     Activity,
     Sliders
-} from 'lucide-react';
+} from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import styles from './EdgeEditingToolbar.module.css';
 
@@ -452,7 +452,7 @@ export function EdgeEditingToolbar() {
 
                     {/* 11. Close Panel */}
                     <button
-                        className={styles.closeBtn}
+                        className={`${styles.closeBtn} icon-hover`}
                         onClick={() => setSelectedEdgeId(null)}
                         title="Close Toolbar"
                     >

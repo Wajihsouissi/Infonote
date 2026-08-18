@@ -16,8 +16,9 @@ import {
     Square,
     RectangleHorizontal,
     File,
-    AppWindow
-} from 'lucide-react';
+    AppWindow,
+    Folder
+} from '../../components/icons';
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, type Variants } from 'motion/react';
 import { useReactFlow } from '@xyflow/react';
@@ -474,7 +475,7 @@ export function BottomMenu() {
                                 }}
                                 title="Add New Note Card (Hover for modes)"
                             >
-                                <Plus size={24} />
+                                <Plus size={24} color="#fff" />
                             </button>
 
                             <div className={`${styles.hoverMenu} ${activeMenu === 'addNoteModes' ? styles.menuVisible : ''}`}>
@@ -496,6 +497,7 @@ export function BottomMenu() {
                                         { id: 'expanded', label: 'Expanded', desc: 'Full card view', icon: Square },
                                         { id: 'medium', label: 'Medium', desc: 'Compact view', icon: RectangleHorizontal },
                                         { id: 'icon', label: 'Icon', desc: 'Minimal icon', icon: File },
+                                        { id: 'folder', label: 'Folder', desc: 'Cover & icon in a folder', icon: Folder },
                                         { id: 'titleview', label: 'Title Only', desc: 'Just the title', icon: AppWindow }
                                     ].map((mode) => (
                                         <div
@@ -505,8 +507,9 @@ export function BottomMenu() {
                                                 const centerX = window.innerWidth / 2;
                                                 const centerY = window.innerHeight / 2;
                                                 const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
-                                                const NOTE_WIDTH = mode.id === 'icon' ? 120 : 432;
-                                                const NOTE_HEIGHT = mode.id === 'icon' ? 120 : 432;
+                                                const isSmall = mode.id === 'icon' || mode.id === 'folder';
+                                                const NOTE_WIDTH = isSmall ? 120 : 432;
+                                                const NOTE_HEIGHT = isSmall ? 120 : 432;
                                                 const position = findNonOverlappingPosition(flowPos, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, nodes, currentParentId, vp());
                                                 addNode('note', position, { viewMode: mode.id, showMetadata: false }, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, currentParentId || undefined);
                                                 setActiveMenu(null);

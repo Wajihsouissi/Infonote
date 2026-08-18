@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { X, Mail, Lock, Eye, EyeOff, Loader2, LogIn, UserPlus, AlertCircle, CheckCircle2, LogOut } from 'lucide-react';
+import { X, Mail, Lock, Eye, EyeOff, Loader2, LogIn, UserPlus, AlertCircle, CheckCircle2, LogOut } from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import { useAuth } from './useAuth';
 import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
@@ -159,7 +159,7 @@ export const AuthModal: React.FC = () => {
             <div className={styles.shell}>
                 <button
                     type="button"
-                    className={styles.closeBtn}
+                    className={`${styles.closeBtn} icon-hover`}
                     aria-label="Close"
                     onClick={() => setOpen(false)}
                 >

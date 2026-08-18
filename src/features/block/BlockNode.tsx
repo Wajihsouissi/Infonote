@@ -1,10 +1,8 @@
 import { memo, useState, useLayoutEffect, useCallback, useRef, useMemo, useEffect } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
-import { StickyNote, Copy, Check, Loader2 } from 'lucide-react';
+import { StickyNote, Copy, Check, Loader2 } from '../../components/icons';
 import { BlockEditor } from '../editor/BlockEditor';
 import { ColorBlockModal } from '../editor/ColorBlockModal';
-import { ConvertCardModal, type ConvertCardResult } from '../card/ConvertCardModal';
-
 import { useStore } from '../../store/useStore';
 import { getNodeById } from '../../store/nodeIndex';
 
@@ -106,8 +104,6 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const [isHoveredLinking, setIsHoveredLinking] = useState(false);
     const [isHoveredColorBlock, setIsHoveredColorBlock] = useState(false);
     const [colorModalOpen, setColorModalOpen] = useState(false);
-    const [convertModalOpen, setConvertModalOpen] = useState(false);
-    const [convertInitialTitle, setConvertInitialTitle] = useState('');
     const [copiedHex, setCopiedHex] = useState(false);
     const [colorOriginal, setColorOriginal] = useState<string>('');
 
@@ -206,84 +202,48 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     }, [accentColor, userHeight]);
 
     useLayoutEffect(() => {
-        setNodes(nodes => {
-            let changed = false;
-            let newStyle: Record<string, string | number> = {};
-            
-            const newNodes = nodes.map(n => {
-                if (n.id === id) {
-                    const needsHeightAuto = !isSingleColor && n.style?.height !== 'auto';
-                    // Text & headings flow with their content (4 -> 8 units, then wrap) instead of a fixed width.
-                    const needsAutoWidthInit = isAutoWidthText && !isResizable && !isColumns && !isSingleColor && !isWideBlock && n.style?.width !== 'fit-content';
-                    const needsWidthInit = !isStandardBlock && !isAutoWidthText && !isResizable && !isColumns && !isSingleTable && !isSingleColor && !isWideBlock && (n.style?.width === 'auto' || n.style?.width === undefined);
-                    // A link that just became a card may carry the 260 standard
-                    // width from its empty state — widen it to the card default.
-                    const needsResizableWidthInit = isResizable && (n.style?.width === 'auto' || n.style?.width === undefined || (isLinkCard && n.style?.width === 260));
-                    const shouldForcePlaceholderWidth = isMediaEmpty && n.style?.width !== 208 && n.style?.width !== '208px';
-                    const needsColumnsWidthInit = isColumns && (n.style?.width === 'auto' || n.style?.width === undefined);
-                    // 260 (the generic block default) cuts a three-column table in
-                    // half; match the hydration profile's table footprint instead.
-                    const needsTableWidthInit = isSingleTable && !isTableSized && (n.style?.width === 'auto' || n.style?.width === undefined);
-                    // Hand-sized columns: hand the width back to CSS max-content.
-                    const needsTableAutoWidth = isTableSized && n.style?.width !== 'auto';
-                    const needsColorInit = isSingleColor && (n.style?.width !== ICON_SIZE || n.style?.height !== ICON_SIZE);
-                    // A standard block leaves width unset so CSS max-content can
-                    // grow it with its text (260 → --block-node-max, then wrap).
-                    // Pinning 260 here would defeat that. Hand-resized blocks own
-                    // their width and are left alone.
-                    const needsStandardInit = isStandardBlock && !isAutoWidthText && !isResizable && !isUserSized && (n.style?.width !== 'auto');
+        const storeNodes = useStore.getState().nodes;
+        const node = storeNodes.find(n => n.id === id);
+        if (!node) return;
 
-                    if (needsHeightAuto || needsAutoWidthInit || needsWidthInit || needsResizableWidthInit || shouldForcePlaceholderWidth || needsColumnsWidthInit || needsTableWidthInit || needsTableAutoWidth || needsColorInit || needsStandardInit) {
-                        changed = true;
-                        newStyle = {
-                            ...(needsHeightAuto ? { height: 'auto' } : {}),
-                            ...(needsStandardInit ? { width: 'auto' } : {}),
-                            ...(needsAutoWidthInit ? { width: 'fit-content' } : {}),
-                            ...(needsWidthInit ? { width: 260 } : {}),
-                            ...((needsResizableWidthInit || shouldForcePlaceholderWidth) ? { width: isSingleGallery ? GALLERY_NODE_WIDTH : isLinkCard ? 432 : 208 } : {}),
-                            ...(needsColumnsWidthInit ? { width: 550 } : {}),
-                            ...(needsTableWidthInit ? { width: 450 } : {}),
-                            ...(needsTableAutoWidth ? { width: 'auto' } : {}),
-                            ...(needsColorInit ? { width: ICON_SIZE, height: ICON_SIZE } : {})
-                        };
-                        return {
-                            ...n,
-                            style: {
-                                ...n.style,
-                                ...newStyle
-                            }
-                        };
-                    }
-                }
-                return n;
-            });
-            
-            // Synchronously update the store so that CanvasBoard doesn't overwrite our initialization 
-            // on its next render (which caused an infinite render loop when ResizeObserver fired).
-            if (changed) {
-                const storeNodes = useStore.getState().nodes;
-                const storeNode = storeNodes.find(node => node.id === id);
-                if (storeNode) {
-                    let needsSync = false;
-                    for (const key in newStyle) {
-                        if (storeNode.style?.[key as keyof typeof storeNode.style] !== newStyle[key]) {
-                            needsSync = true;
-                            break;
-                        }
-                    }
-                    if (needsSync) {
-                        setNodesStore(nodes => nodes.map(node => 
-                            node.id === id 
-                                ? { ...node, style: { ...node.style, ...newStyle } } 
-                                : node
-                        ));
-                    }
-                }
-            }
-            
-            return changed ? newNodes : nodes;
-        });
-    }, [id, setNodes, setNodesStore, isResizable, isColumns, isSingleTable, isTableSized, isSingleLink, isLinkCard, isSingleGallery, isSingleColor, isStandardBlock, isMediaEmpty, isUserSized]);
+        let newStyle: Record<string, string | number> = {};
+        let changed = false;
+
+        const n = node;
+        const needsHeightAuto = !isSingleColor && n.style?.height !== 'auto';
+        const needsAutoWidthInit = isAutoWidthText && !isResizable && !isColumns && !isSingleColor && !isWideBlock && n.style?.width !== 'fit-content';
+        const needsWidthInit = !isStandardBlock && !isAutoWidthText && !isResizable && !isColumns && !isSingleTable && !isSingleColor && !isWideBlock && (n.style?.width === 'auto' || n.style?.width === undefined);
+        const needsResizableWidthInit = isResizable && (n.style?.width === 'auto' || n.style?.width === undefined || (isLinkCard && n.style?.width === 260));
+        const shouldForcePlaceholderWidth = isMediaEmpty && n.style?.width !== 208 && n.style?.width !== '208px';
+        const needsColumnsWidthInit = isColumns && (n.style?.width === 'auto' || n.style?.width === undefined);
+        const needsTableWidthInit = isSingleTable && !isTableSized && (n.style?.width === 'auto' || n.style?.width === undefined);
+        const needsTableAutoWidth = isTableSized && n.style?.width !== 'auto';
+        const needsColorInit = isSingleColor && (n.style?.width !== ICON_SIZE || n.style?.height !== ICON_SIZE);
+        const needsStandardInit = isStandardBlock && !isAutoWidthText && !isResizable && !isUserSized && (n.style?.width !== 'auto');
+
+        if (needsHeightAuto || needsAutoWidthInit || needsWidthInit || needsResizableWidthInit || shouldForcePlaceholderWidth || needsColumnsWidthInit || needsTableWidthInit || needsTableAutoWidth || needsColorInit || needsStandardInit) {
+            changed = true;
+            newStyle = {
+                ...(needsHeightAuto ? { height: 'auto' } : {}),
+                ...(needsStandardInit ? { width: 'auto' } : {}),
+                ...(needsAutoWidthInit ? { width: 'fit-content' } : {}),
+                ...(needsWidthInit ? { width: 260 } : {}),
+                ...((needsResizableWidthInit || shouldForcePlaceholderWidth) ? { width: isSingleGallery ? GALLERY_NODE_WIDTH : isLinkCard ? 432 : 208 } : {}),
+                ...(needsColumnsWidthInit ? { width: 550 } : {}),
+                ...(needsTableWidthInit ? { width: 450 } : {}),
+                ...(needsTableAutoWidth ? { width: 'auto' } : {}),
+                ...(needsColorInit ? { width: ICON_SIZE, height: ICON_SIZE } : {})
+            };
+        }
+
+        if (changed) {
+            setNodesStore(nodes => nodes.map(node =>
+                node.id === id
+                    ? { ...node, style: { ...node.style, ...newStyle } }
+                    : node
+            ));
+        }
+    }, [id, setNodesStore, isResizable, isColumns, isSingleTable, isTableSized, isSingleLink, isLinkCard, isSingleGallery, isSingleColor, isStandardBlock, isMediaEmpty, isUserSized]);
 
 
 
@@ -295,58 +255,31 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
 
     const handleConvertToCard = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
-
-        const { nodes } = useStore.getState();
-        const thisNode = nodes.find(n => n.id === id);
-        if (!thisNode) return;
-
-        setConvertInitialTitle('');
-        setConvertModalOpen(true);
-    }, [id]);
-
-    const confirmConvertToCard = useCallback((result: ConvertCardResult) => {
-        setConvertModalOpen(false);
-        
         const { nodes, setNodes } = useStore.getState();
         const thisNode = nodes.find(n => n.id === id);
         if (!thisNode) return;
 
         setNodes((currentNodes) => currentNodes.map(n => {
             if (n.id === id) {
-                let width = 432;
-                let height = 432;
-                
-                if (result.viewMode === 'icon') {
-                    width = 96; height = 96;
-                } else if (result.viewMode === 'titleview') {
-                    width = 208; height = 56;
-                } else if (result.viewMode === 'medium') {
-                    width = 208; height = 208;
-                }
-
                 return {
                     ...n,
                     type: 'note',
                     data: {
-                        label: result.title,
-                        viewMode: result.viewMode,
-                        content: result.content,
+                        label: data.label || 'Untitled Card',
+                        viewMode: 'expanded',
+                        content: colorBlocks,
                         description: '',
                         date: new Date().toISOString(),
-                        color: result.color,
-                        tags: result.tags,
-                        showMetadata: result.tags.length > 0
+                        color: data.color,
+                        tags: [],
+                        showMetadata: false
                     },
-                    style: {
-                        ...n.style,
-                        width,
-                        height,
-                    }
+                    style: { ...n.style, width: 432, height: 432 }
                 } as AppNode;
             }
             return n;
         }));
-    }, [id]);
+    }, [id, data.label, data.color, colorBlocks]);
 
     const activeResize = useRef(false);
     const nodeRef = useRef<HTMLDivElement>(null);
@@ -725,16 +658,6 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 />
             )}
 
-            {convertModalOpen && (
-                <ConvertCardModal
-                    initialTitle={convertInitialTitle}
-                    initialColor={data.color}
-                    content={colorBlocks}
-                    onConfirm={confirmConvertToCard}
-                    onClose={() => setConvertModalOpen(false)}
-                />
-            )}
-
             {isLinkingMode && (
                 <div
                     style={{
@@ -788,7 +711,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
 
             {showEditor && (
                 <button
-                    className={styles.convertBtn}
+                    className={`${styles.convertBtn} nodrag`}
                     onClick={handleConvertToCard}
                     title="Convert to Card"
                     onMouseDown={(e) => e.stopPropagation()}

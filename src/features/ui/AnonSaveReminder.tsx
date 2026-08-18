@@ -9,7 +9,7 @@
  * not re-toast early. Never a modal, never steals focus.
  */
 import React, { useEffect, useState } from 'react';
-import { CloudOff, X, ArrowRight } from 'lucide-react';
+import { CloudOff, X, ArrowRight } from '../../components/icons';
 import styles from './AnonSaveReminder.module.css';
 import { useStore } from '../../store/useStore';
 

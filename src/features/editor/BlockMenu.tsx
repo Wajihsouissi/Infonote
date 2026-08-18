@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Trash2, Copy, Type, Palette, ArrowRight, Heading1, Heading2, Heading3, CheckSquare, Quote, List, ListOrdered, Code, Link, ChevronDown } from 'lucide-react';
+import { Trash2, Copy, Type, Palette, ArrowRight, Heading1, Heading2, Heading3, CheckSquare, Quote, List, ListOrdered, Code, Link, ChevronDown } from '../../components/icons';
 import styles from './BlockEditor.module.css';
 import type { BlockType } from './types';
 

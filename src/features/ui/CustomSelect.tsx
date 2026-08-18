@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check } from '../../components/icons';
 import styles from './CustomSelect.module.css';
 
 interface Option {

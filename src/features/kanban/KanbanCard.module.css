@@ -267,9 +267,7 @@
     cursor: pointer;
 }
 
-.iconTile:not(:disabled):hover {
-    background: color-mix(in srgb, var(--card-tint) 26%, transparent);
-}
+/* hover handled by the shared .icon-hover affordance */
 
 /* Matches the heading it replaces so the card does not shift when it is
    selected — same size, same weight, same line, just typable. */

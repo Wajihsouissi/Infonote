@@ -5,7 +5,7 @@
  * is never deleted or locked.
  */
 import React from 'react';
-import { Layers, UserPlus, ArrowRight } from 'lucide-react';
+import { Layers, UserPlus, ArrowRight } from '../../components/icons';
 import styles from './LimitNoticeModal.module.css';
 import { useStore } from '../../store/useStore';
 

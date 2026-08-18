@@ -59,10 +59,7 @@
     transition: all var(--transition-fast);
 }
 
-.closeBtn:hover {
-    background: var(--bg-rail);
-    color: var(--color-text-main);
-}
+/* hover handled by the shared .icon-hover affordance */
 
 /* The panel's inset surface — same radius as the canvas frame. */
 .scrollContent {

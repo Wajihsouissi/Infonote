@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Plus, Minus, X } from 'lucide-react';
+import { Plus, Minus, X } from '../../components/icons';
 import { v4 as uuidv4 } from 'uuid';
 import { BlockEditor } from './BlockEditor';
 import type { Block, ColumnData } from './types';

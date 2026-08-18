@@ -18,7 +18,7 @@ import {
     Link,
     Sparkles,
     LayoutGrid
-} from 'lucide-react';
+} from '../../components/icons';
 import type { BlockType, BlockMetadata } from './types';
 
 export interface MenuItem {

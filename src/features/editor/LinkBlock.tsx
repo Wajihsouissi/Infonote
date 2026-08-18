@@ -10,7 +10,7 @@ import {
     Check, 
     AlertTriangle,
     Edit3
-} from 'lucide-react';
+} from '../../components/icons';
 import { fetchMetadata, getDomain, getShortUrl } from '../../services/metadataService';
 import type { Block, BlockMetadata } from './types';
 import styles from './LinkBlock.module.css';

@@ -15,7 +15,7 @@ import {
     ListTodo,
     ChevronsUpDown,
     ChevronsDownUp
-} from 'lucide-react';
+} from '../../components/icons';
 import { useReactFlow } from '@xyflow/react';
 import { useStore } from '../../store/useStore';
 import { type AppNode, getNodeBlocks } from '../../types';
@@ -586,7 +586,7 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
                         </button>
                     </div>
                     <div className={styles.headerDivider} />
-                    <button className={styles.closeBtn} onClick={onClose} title="Close Outline">
+                    <button className={`${styles.closeBtn} icon-hover`} onClick={onClose} title="Close Outline">
                         <X size={18} />
                     </button>
                 </div>

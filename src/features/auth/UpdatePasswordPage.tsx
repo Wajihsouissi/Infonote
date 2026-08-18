@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, Lock } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, Lock } from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
 import styles from './AuthPage.module.css';

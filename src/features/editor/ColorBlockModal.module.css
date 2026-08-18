@@ -67,10 +67,7 @@
     flex-shrink: 0;
 }
 
-.closeBtn:hover {
-    background: var(--btn-ghost-hover);
-    color: var(--text-main);
-}
+/* hover handled by the shared .icon-hover affordance */
 
 .closeBtn:focus-visible {
     outline: none;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Trash, Copy, X } from 'lucide-react';
+import { Trash, Copy, X } from '../../../components/icons';
 import styles from './SelectionCapsule.module.css';
 
 interface SelectionCapsuleProps {
@@ -27,7 +27,7 @@ export function SelectionCapsule({ count, onClear, onDelete, onCopy }: Selection
                     <div className={styles.divider} />
 
                     <button
-                        className={styles.actionBtn}
+                        className={`${styles.actionBtn} icon-hover`}
                         onClick={onCopy}
                         title="Copy" // added title
                     >
@@ -35,7 +35,7 @@ export function SelectionCapsule({ count, onClear, onDelete, onCopy }: Selection
                     </button>
 
                     <button
-                        className={styles.actionBtn}
+                        className={`${styles.actionBtn} icon-hover`}
                         onClick={onDelete}
                         title="Delete" // added title
                     >
@@ -46,7 +46,7 @@ export function SelectionCapsule({ count, onClear, onDelete, onCopy }: Selection
                 <div className={styles.divider} />
 
                 <button
-                    className={styles.closeBtn}
+                    className={`${styles.closeBtn} icon-hover`}
                     onClick={onClear}
                     title="Clear Selection" // added title
                 >

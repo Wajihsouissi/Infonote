@@ -29,7 +29,7 @@ import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { StorageControls } from '../ui/StorageControls';
 import { KeyboardShortcutsPanel } from '../ui/KeyboardShortcutsPanel';
 import { AIPanel } from '../ai/AIPanel';
-import { SlidersHorizontal, ListCollapse, Keyboard } from 'lucide-react';
+import { SlidersHorizontal, ListCollapse, Keyboard } from '../../components/icons';
 import { DuotoneIcon } from '../../components/ui/DuotoneIcon';
 import { HomeButton } from '../ui/HomeButton';
 import { HistoryControls } from '../ui/HistoryControls';
@@ -333,6 +333,27 @@ export function CanvasBoard() {
         setViewportRef.current = setViewport;
         screenToFlowPositionRef.current = screenToFlowPosition;
     }, [getViewport, setViewport, screenToFlowPosition]);
+
+    /* Canvas zoom, published to CSS. Node chrome that has to stay a fixed size on
+       screen — the card hover menus, whose 32px buttons shrink to an unclickable
+       12px at 0.4x — counter-scales off this. It writes a custom property rather
+       than feeding state, so zooming costs one style mutation instead of a
+       re-render of every visible node. handleViewportChange can't carry it: that
+       one is throttled and skips small moves, and the size has to track the wheel
+       exactly or the buttons visibly jump. */
+    const publishZoom = useCallback(() => {
+        document.documentElement.style.setProperty('--rf-zoom', String(getViewportRef.current().zoom));
+    }, []);
+
+    const onViewportMove = useCallback(() => {
+        publishZoom();
+        handleViewportChange();
+    }, [publishZoom, handleViewportChange]);
+
+    // fitView on mount settles the viewport without ever firing onMove.
+    useEffect(() => {
+        publishZoom();
+    }, [publishZoom, currentParentId, visibleNodes.length]);
 
     /* Presence cursors ride on pointermove, which fires far faster than any
        collaborator can perceive — and during a node drag it fires on the same
@@ -1267,7 +1288,7 @@ export function CanvasBoard() {
                     onNodeDragStart={onNodeDragStart}
                     onNodeDrag={onNodeDrag}
                     onNodeDragStop={onNodeDragStop}
-                    onMove={handleViewportChange}
+                    onMove={onViewportMove}
                     onMoveStart={handleMoveStart}
                     onMoveEnd={handleMoveEnd}
                     onSelectionStart={() => {

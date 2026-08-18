@@ -90,10 +90,7 @@
     transition: all 0.2s;
 }
 
-.navBtn:hover {
-    background: var(--active-wash);
-    color: var(--color-text-main);
-}
+/* hover handled by the shared .icon-hover affordance */
 
 .weekdays {
     display: grid;

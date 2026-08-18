@@ -1,6 +1,6 @@
 import { memo, type CSSProperties } from 'react';
 import type { Block } from '../editor/types';
-import { Image as ImageIcon, Video, File, Link2 } from 'lucide-react';
+import { Image as ImageIcon, Video, File, Link2 } from '../../components/icons';
 import styles from './NoteBodyPreview.module.css';
 
 /**

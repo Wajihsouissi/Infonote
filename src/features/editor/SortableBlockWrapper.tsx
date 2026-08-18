@@ -1,5 +1,5 @@
 import { useRef, useState, memo } from 'react';
-import { GripVertical } from 'lucide-react';
+import { GripVertical } from '../../components/icons';
 import type { Block, BlockDropPosition } from './types';
 import { beginBlockDrag, endBlockDrag } from './blockDragLock';
 import { isGalleryMember, GALLERY_DRAG_MIME } from './galleryTypes';

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Box } from 'lucide-react';
+import { Box } from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import styles from './DragChip.module.css';
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ZoomIn, ZoomOut, Maximize2, Download, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, Maximize2, Download, ExternalLink, ChevronLeft, ChevronRight } from '../../components/icons';
 import styles from './MediaLightbox.module.css';
 
 interface MediaLightboxProps {

@@ -5,7 +5,7 @@
  * in both cases so the parent can navigate to the canvas and clear state.
  */
 import React, { useEffect, useRef } from 'react';
-import { Sparkles, ArrowRight, Layers, Zap, GitBranch } from 'lucide-react';
+import { Sparkles, ArrowRight, Layers, Zap, GitBranch } from '../../components/icons';
 import styles from './WelcomeModal.module.css';
 import { useStore } from '../../store/useStore';
 

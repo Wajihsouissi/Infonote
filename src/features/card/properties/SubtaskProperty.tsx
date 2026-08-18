@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Plus, X, Square, CheckSquare } from 'lucide-react';
+import { Plus, X, Square, CheckSquare } from '../../../components/icons';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './SubtaskProperty.module.css';
 

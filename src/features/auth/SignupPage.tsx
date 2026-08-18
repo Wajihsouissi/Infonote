@@ -6,7 +6,7 @@
  * by the on-signup trigger defined in the migration.
  */
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, UserPlus, Zap, GitBranch, Layers, Loader2, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, User, ArrowLeft, UserPlus, Zap, GitBranch, Layers, Loader2, AlertCircle } from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import { supabase, isSupabaseConfigured, getOAuthRedirectUrl } from '../../services/supabase/client';
 import { connectNotion } from '../../services/notion/notionImport';

@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback, memo } from 'react';
 import { useStore } from '../../store/useStore';
 import styles from './BottomMenu.module.css';
-import { FileText, Cuboid, KanbanSquare, ChevronRight, Hash, Clock, LayoutGrid, Search, CornerDownRight } from 'lucide-react';
+import { FileText, Cuboid, KanbanSquare, ChevronRight, Hash, Clock, LayoutGrid, Search, CornerDownRight } from '../../components/icons';
 import { highlightMatch, parseSearchQuery } from './searchUtils';
 import type { RichSearchResult } from './searchUtils';
 

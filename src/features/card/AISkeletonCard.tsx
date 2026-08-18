@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Sparkles, Loader2, Layout } from 'lucide-react';
+import { Sparkles, Loader2, Layout } from '../../components/icons';
 import styles from './AISkeletonCard.module.css';
 
 export const AISkeletonCard = memo(() => {

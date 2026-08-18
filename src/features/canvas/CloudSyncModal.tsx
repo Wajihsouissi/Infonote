@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Cloud, CloudUpload, CloudDownload, History } from 'lucide-react';
+import { X, Cloud, CloudUpload, CloudDownload, History } from '../../components/icons';
 
 interface CloudSyncModalProps {
     open: boolean;

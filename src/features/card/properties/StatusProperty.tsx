@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect } from 'react';
-import { Loader, CheckCircle, Circle, Clock, LayoutList } from 'lucide-react';
+import { Loader, CheckCircle, Circle, Clock, LayoutList } from '../../../components/icons';
 import styles from './Properties.module.css';
 import { PropertyRow } from './PropertyRow';
 

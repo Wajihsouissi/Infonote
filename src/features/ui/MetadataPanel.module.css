@@ -172,8 +172,8 @@
 }
 
 .iconBtn:hover {
+    /* scale comes from the shared .icon-hover affordance */
     border-color: var(--color-primary);
-    transform: scale(1.03);
 }
 
 .titleInput {

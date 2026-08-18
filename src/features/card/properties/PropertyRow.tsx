@@ -1,6 +1,6 @@
 
 import { type ReactNode } from 'react';
-import { EyeOff, type LucideIcon } from 'lucide-react';
+import { EyeOff, type LucideIcon } from '../../../components/icons';
 import styles from './Properties.module.css';
 
 interface PropertyRowProps {
@@ -29,7 +29,7 @@ export function PropertyRow({ icon: Icon, label, children, onHide }: PropertyRow
             {onHide && (
                 <div className={styles.controlsCol}>
                     <button
-                        className={styles.iconBtn}
+                        className={`${styles.iconBtn} icon-hover`}
                         onClick={(e) => {
                             e.stopPropagation();
                             onHide();

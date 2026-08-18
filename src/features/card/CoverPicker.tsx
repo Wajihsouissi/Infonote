@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Image as ImageIcon, Link as LinkIcon, Upload as UploadIcon, X } from 'lucide-react';
+import { Image as ImageIcon, Link as LinkIcon, Upload as UploadIcon, X } from '../../components/icons';
 import styles from './NoteCard.module.css';
 
 interface CoverPickerProps {

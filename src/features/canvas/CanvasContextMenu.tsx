@@ -4,7 +4,7 @@ import {
     Type,
     ClipboardPaste, Camera, Trash2, Crosshair, ChevronRight,
     LayoutGrid, Columns2,
-} from 'lucide-react';
+} from '../../components/icons';
 import { useReactFlow } from '@xyflow/react';
 import html2canvas from 'html2canvas';
 import { useStore } from '../../store/useStore';

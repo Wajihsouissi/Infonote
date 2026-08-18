@@ -14,7 +14,7 @@
  * behind a paid plan post-beta.
  */
 import React, { useEffect, useState } from 'react';
-import { HardDrive, Cloud, RefreshCw, Check } from 'lucide-react';
+import { HardDrive, Cloud, RefreshCw, Check } from '../../components/icons';
 import styles from './StorageChoiceModal.module.css';
 import { useStore } from '../../store/useStore';
 

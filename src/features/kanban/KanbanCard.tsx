@@ -18,7 +18,7 @@
  */
 
 import { memo, useCallback, useMemo, useState } from 'react';
-import { Calendar, Check } from 'lucide-react';
+import { Calendar, Check } from '../../components/icons';
 import { CardIcon, defaultIconName } from '../card/iconMap';
 import { IconPicker } from '../card/IconPicker';
 import { displaySrc } from '../editor/mediaThumbnail';
@@ -243,7 +243,7 @@ export const KanbanCard = memo(({ node, groupBy, isGhost, isOverlay, isSelected 
                     <span className={styles.iconWrap}>
                         <button
                             type="button"
-                            className={styles.iconTile}
+                            className={`${styles.iconTile}${isEditing ? ' icon-hover' : ''}`}
                             aria-label={isEditing ? 'Change icon' : undefined}
                             disabled={!isEditing}
                             onPointerDown={(e) => e.stopPropagation()}

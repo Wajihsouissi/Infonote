@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Sparkles, Loader2, Check, Eye, ExternalLink, Square, RectangleHorizontal, StickyNote, PanelTop, Heading } from 'lucide-react';
+import { X, Sparkles, Loader2, Check, Eye, ExternalLink, Square, RectangleHorizontal, StickyNote, PanelTop, Heading, Folder } from '../../components/icons';
 import styles from './ConvertCardModal.module.css';
 import noteStyles from './NoteCard.module.css';
 import { generateText } from '../../services/aiService';
@@ -14,7 +14,7 @@ export interface ConvertCardResult {
     content: Block[];
     color?: string;
     tags: string[];
-    viewMode: 'icon' | 'titleview' | 'medium' | 'expanded';
+    viewMode: 'icon' | 'folder' | 'titleview' | 'medium' | 'expanded';
 }
 
 interface ConvertCardModalProps {
@@ -41,7 +41,7 @@ export function ConvertCardModal({ initialTitle, initialColor, content, onConfir
     const [title, setTitle] = useState(initialTitle);
     const [tagsInput, setTagsInput] = useState('');
     const [color, setColor] = useState<string | undefined>(initialColor);
-    const [viewMode, setViewMode] = useState<'icon' | 'titleview' | 'medium' | 'expanded'>('expanded');
+    const [viewMode, setViewMode] = useState<'icon' | 'folder' | 'titleview' | 'medium' | 'expanded'>('expanded');
     const [currentContent, setCurrentContent] = useState<Block[]>(content);
     
     const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
@@ -204,7 +204,7 @@ export function ConvertCardModal({ initialTitle, initialColor, content, onConfir
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
                 <div className={styles.header}>
                     <h3 className={styles.title}>Convert to Card</h3>
-                    <button className={styles.closeBtn} onClick={onClose} aria-label="Close">
+                    <button className={`${styles.closeBtn} icon-hover`} onClick={onClose} aria-label="Close">
                         <X size={20} />
                     </button>
                 </div>
@@ -284,6 +284,13 @@ export function ConvertCardModal({ initialTitle, initialColor, content, onConfir
                                 >
                                     <Square size={16} style={{ marginBottom: 4 }} /><br/>
                                     Icon
+                                </button>
+                                <button
+                                    className={`${styles.viewModeBtn} ${viewMode === 'folder' ? styles.active : ''}`}
+                                    onClick={() => setViewMode('folder')}
+                                >
+                                    <Folder size={16} style={{ marginBottom: 4 }} /><br/>
+                                    Folder
                                 </button>
                                 <button
                                     className={`${styles.viewModeBtn} ${viewMode === 'titleview' ? styles.active : ''}`}

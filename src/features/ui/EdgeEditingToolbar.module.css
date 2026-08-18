@@ -269,11 +269,7 @@
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.closeBtn:hover {
-    background: var(--bg-rail);
-    color: var(--text-main);
-    border-color: var(--border-hover);
-}
+/* hover handled by the shared .icon-hover affordance */
 
 /* Color Picker Popover */
 .colorPickerTrigger {

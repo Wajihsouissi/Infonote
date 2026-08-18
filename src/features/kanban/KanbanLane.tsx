@@ -15,7 +15,7 @@
 import { memo, useState } from 'react';
 import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Trash2, GripVertical } from 'lucide-react';
+import { Plus, Trash2, GripVertical } from '../../components/icons';
 
 import { useStore } from '../../store/useStore';
 import { KanbanCard } from './KanbanCard';

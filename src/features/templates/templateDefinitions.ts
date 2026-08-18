@@ -5,7 +5,7 @@ import {
     BrainCircuit, Network, Library,
     GitMerge, Layers, Calendar,
     FileText, Map
-} from 'lucide-react';
+} from '../../components/icons';
 import React from 'react';
 
 export type TemplateDefinition = {

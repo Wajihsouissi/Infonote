@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
+import { X } from '../../components/icons';
 import styles from './KeyboardShortcutsPanel.module.css';
 
 interface KeyboardShortcutsPanelProps {
@@ -135,7 +135,7 @@ export function KeyboardShortcutsPanel({ isOpen, onClose, buttonRef }: KeyboardS
             className={`${styles.panel} ${isOpen ? styles.panelOpen : styles.panelClosed}`}
         >
             <div className={styles.header}>
-                <button className={styles.closeBtn} onClick={onClose} title="Close Shortcuts">
+                <button className={`${styles.closeBtn} icon-hover`} onClick={onClose} title="Close Shortcuts">
                     <X size={18} />
                 </button>
             </div>

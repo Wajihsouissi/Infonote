@@ -479,10 +479,7 @@
   cursor: pointer;
 }
 
-.iconBtn:hover {
-  background: var(--btn-ghost-hover);
-  color: var(--text-main);
-}
+/* hover handled by the shared .icon-hover affordance */
 
 .iconBtn:disabled {
   opacity: 0.5;

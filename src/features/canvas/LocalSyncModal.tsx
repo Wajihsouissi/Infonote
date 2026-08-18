@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, FolderOpen, Save } from 'lucide-react';
+import { X, FolderOpen, Save } from '../../components/icons';
 
 interface LocalSyncModalProps {
     open: boolean;

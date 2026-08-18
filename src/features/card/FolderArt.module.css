@@ -1,0 +1,66 @@
+/* Folder artwork for the folder card view.
+
+   One ink drives the whole shape — `--folder-ink` — so a recoloured card tints
+   the folder by redefining a single value rather than restating every fill. The
+   default is the faint text grey, which is the same weight the icon view gives a
+   card with no colour of its own. */
+.art {
+    position: relative;
+    flex: none;
+    display: block;
+    /* Read, never set: declaring the fallback here instead of defining the
+       custom property would shadow whatever the card above set, and a recoloured
+       card sets exactly this to tint its folder. */
+    color: var(--folder-ink, var(--text-faint));
+}
+
+.svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+/* The inside panel, held back from the front flap exactly as the source artwork
+   has it, so the folder still reads as two planes when there is no thumbnail. */
+.back {
+    fill: currentColor;
+    opacity: 0.5;
+}
+
+.pocket {
+    fill: currentColor;
+}
+
+/* The icon sits on the front flap, centred on the flap rather than on the card:
+   the flap runs from just under halfway down to the bottom edge, so its middle is
+   about 70% of the way down the square. Painted in the page ground at low alpha
+   it comes out monochrome and soft — an impression pressed into the flap, not a
+   second coloured mark competing with the card's own icon language. */
+.icon {
+    position: absolute;
+    left: 50%;
+    top: 70%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--bg-rail);
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+/* A custom image icon would otherwise keep its own colours and break the
+   monochrome, so it is flattened to a single value. Which value depends on the
+   theme, for the same reason the Lucide icons use --bg-rail: the flap is a mid
+   grey in both themes, so the impression has to go dark on Ink and light on
+   Paper to stay legible. */
+.icon img {
+    filter: grayscale(1) brightness(0);
+    opacity: 0.9;
+    border-radius: 4px;
+}
+
+:global(:root[data-theme='light']) .icon img {
+    filter: grayscale(1) brightness(0) invert(1);
+}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../../store/useStore';
-import { ArrowLeft, ShoppingBag, Search, Filter, Grid, List, Layout, Box, Star, Clock } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Search, Filter, Grid, List, Layout, Box, Star, Clock } from '../../components/icons';
 import styles from './MarketplacePage.module.css';
 
 export const MarketplacePage: React.FC = () => {
