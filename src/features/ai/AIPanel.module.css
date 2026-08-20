@@ -112,7 +112,7 @@
 .panelBeam {
     position: absolute;
     inset: 0;
-    z-index: 1;
+    z-index: 3;
     padding: 1.5px;
     border-radius: inherit;
     overflow: hidden;
@@ -123,6 +123,132 @@
     mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     mask-composite: exclude;
 }
+
+/* ---------- Running mesh ----------
+   The beam communicates activity at the edge; this slower pair of warm
+   gradient fields carries that activity through the chat surface. Oversized
+   layers move with transforms, keeping repaints bounded to this small panel. */
+.panelMesh {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    border-radius: inherit;
+    background: var(--panel-body-bg);
+    pointer-events: none;
+}
+
+.panelMesh::before,
+.panelMesh::after {
+    content: '';
+    position: absolute;
+    width: 88%;
+    height: 62%;
+    border-radius: 50%;
+    filter: saturate(1.2) blur(68px);
+    opacity: 0.18;
+    will-change: transform;
+}
+
+.panelMesh::before {
+    left: -24%;
+    top: -10%;
+    background:
+        radial-gradient(circle at 28% 30%, rgba(255, 55, 40, 0.72) 0, rgba(255, 55, 40, 0.22) 24%, transparent 57%),
+        radial-gradient(circle at 70% 26%, rgba(255, 42, 166, 0.68) 0, rgba(255, 42, 166, 0.18) 25%, transparent 56%),
+        radial-gradient(circle at 52% 78%, rgba(123, 76, 255, 0.62) 0, rgba(123, 76, 255, 0.16) 27%, transparent 59%);
+    animation: aiMeshRoamPrimary 9.7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.panelMesh::after {
+    right: -28%;
+    bottom: -12%;
+    background:
+        radial-gradient(circle at 70% 68%, rgba(0, 207, 255, 0.66) 0, rgba(0, 207, 255, 0.17) 26%, transparent 58%),
+        radial-gradient(circle at 26% 72%, rgba(255, 215, 48, 0.68) 0, rgba(255, 215, 48, 0.18) 24%, transparent 56%),
+        radial-gradient(circle at 46% 24%, rgba(255, 74, 204, 0.58) 0, rgba(255, 74, 204, 0.14) 27%, transparent 60%);
+    animation: aiMeshRoamSecondary 12.3s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+/* Three diagonal light rails sweep through the pigment field at different
+   intensities. Their edges stay soft so they read as light, not stripes. */
+.panelLightRails {
+    position: absolute;
+    inset: -35%;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.12;
+    background: linear-gradient(
+        116deg,
+        transparent 0%,
+        transparent 17%,
+        rgba(0, 207, 255, 0.08) 19%,
+        rgba(0, 207, 255, 0.72) 20%,
+        rgba(123, 76, 255, 0.2) 21.5%,
+        transparent 24%,
+        transparent 46%,
+        rgba(255, 42, 166, 0.08) 48%,
+        rgba(255, 42, 166, 0.68) 49%,
+        rgba(255, 55, 40, 0.18) 50.5%,
+        transparent 53%,
+        transparent 73%,
+        rgba(255, 215, 48, 0.08) 75%,
+        rgba(255, 215, 48, 0.66) 76%,
+        rgba(255, 74, 204, 0.16) 77.5%,
+        transparent 80%,
+        transparent 100%
+    );
+    filter: blur(52px) saturate(1.1);
+    will-change: transform;
+    animation: aiLightRailsSweep 6.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+/* Sparse four-point lights: enough to make a search feel alive, never enough
+   to turn the transcript into confetti. Each point uses a different phase so
+   the shimmer feels discovered rather than looped in unison. */
+.panelSparkles {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+.panelSparkles i {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    color: var(--sparkle-color, var(--secondary-ink));
+    background: currentColor;
+    border-radius: 50%;
+    box-shadow: 0 0 7px currentColor, 0 0 16px color-mix(in srgb, currentColor 48%, transparent);
+    opacity: 0;
+    animation: aiSparkleTwinkle var(--sparkle-duration, 3.8s) cubic-bezier(0.16, 1, 0.3, 1) infinite;
+    animation-delay: var(--sparkle-delay, 0s);
+}
+
+.panelSparkles i::before,
+.panelSparkles i::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    background: currentColor;
+    border-radius: 999px;
+    translate: -50% -50%;
+}
+
+.panelSparkles i::before { width: 1px; height: 10px; }
+.panelSparkles i::after { width: 10px; height: 1px; }
+
+.panelSparkles i:nth-child(1) { left: 13%; top: 16%; --sparkle-color: var(--secondary-ink); --sparkle-delay: -0.4s; }
+.panelSparkles i:nth-child(2) { left: 79%; top: 21%; --sparkle-color: var(--t-pink); --sparkle-delay: -2.1s; --sparkle-duration: 4.4s; }
+.panelSparkles i:nth-child(3) { left: 61%; top: 42%; --sparkle-color: var(--t-blue); --sparkle-delay: -1.2s; --sparkle-duration: 3.4s; }
+.panelSparkles i:nth-child(4) { left: 24%; top: 53%; --sparkle-color: var(--accent-hover); --sparkle-delay: -2.8s; --sparkle-duration: 4.8s; }
+.panelSparkles i:nth-child(5) { left: 84%; top: 67%; --sparkle-color: var(--t-purple); --sparkle-delay: -0.9s; --sparkle-duration: 4.1s; }
+.panelSparkles i:nth-child(6) { left: 42%; top: 78%; --sparkle-color: var(--secondary-ink); --sparkle-delay: -3.3s; --sparkle-duration: 5s; }
+.panelSparkles i:nth-child(7) { left: 70%; top: 89%; --sparkle-color: var(--t-pink); --sparkle-delay: -1.7s; --sparkle-duration: 3.7s; }
 
 .panelBeam::before {
     content: '';
@@ -137,10 +263,15 @@
     background: conic-gradient(
         from 0deg,
         transparent 0deg,
-        rgba(var(--accent-rgb), 0.9) 38deg,
-        var(--accent-hover) 58deg,
-        rgba(var(--accent-rgb), 0.55) 78deg,
-        transparent 118deg,
+        rgba(var(--accent-rgb), 0.92) 30deg,
+        var(--t-pink) 48deg,
+        var(--t-purple) 64deg,
+        var(--t-blue) 82deg,
+        transparent 112deg,
+        transparent 194deg,
+        var(--secondary-ink) 220deg,
+        var(--accent-hover) 242deg,
+        transparent 274deg,
         transparent 360deg
     );
     animation: aiBeamSpin 2.8s linear infinite;
@@ -152,6 +283,18 @@
     .panelBeam::before {
         animation: none;
         background: rgba(var(--accent-rgb), 0.5);
+    }
+
+    .panelMesh::before,
+    .panelMesh::after,
+    .panelLightRails {
+        animation: none;
+        will-change: auto;
+    }
+
+    .panelSparkles i {
+        animation: none;
+        opacity: 0.42;
     }
 }
 
@@ -219,6 +362,14 @@
     color: var(--text-main);
 }
 
+/* Held state for the history toggle — the overlay covers the transcript, so
+   the button has to show why. */
+.headerBtnActive,
+.headerBtnActive:hover:not(:disabled) {
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+}
+
 .headerBtn:disabled {
     opacity: 0.35;
     cursor: default;
@@ -234,9 +385,12 @@
     margin: var(--panel-inset);
     background: var(--panel-body-bg);
     border-radius: var(--panel-radius);
+    isolation: isolate;
 }
 
 .scrollContent {
+    position: relative;
+    z-index: 2;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
@@ -246,6 +400,21 @@
     gap: 18px;
     scrollbar-width: thin;
     scrollbar-color: var(--line-strong) transparent;
+}
+
+.selectedNodeLayer,
+.composer,
+.composerToolbar {
+    position: relative;
+    z-index: 2;
+}
+
+.selectedNodeLayer {
+    flex-shrink: 0;
+}
+
+.selectedNodeLayer:empty {
+    display: none;
 }
 
 /* ---------- Empty state ---------- */
@@ -328,6 +497,95 @@
     word-break: break-word;
 }
 
+.bubbleWrap {
+    position: relative;
+    display: flex;
+    justify-content: flex-end;
+    max-width: 90%;
+}
+
+.bubbleActions {
+    position: absolute;
+    top: 50%;
+    right: calc(100% + 5px);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--r-control);
+    box-shadow: var(--elev-1);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-50%);
+    transition: opacity var(--transition-fast);
+    z-index: 2;
+}
+
+.bubbleWrap .bubbleActions::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: -8px;
+    bottom: 0;
+    width: 8px;
+}
+
+.bubbleWrap:hover .bubbleActions,
+.bubbleWrap:focus-within .bubbleActions,
+.assistantTurn:hover > .bubbleActions,
+.assistantTurn:focus-within > .bubbleActions {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.assistantTurn > .bubbleActions {
+    top: 0;
+    right: 0;
+    transform: translateY(-100%);
+}
+
+/* Created-result previews are the assistant's final visual output. Anchor the
+   actions to that output instead of the top of the whole assistant turn, so
+   they stay directly beneath the preview even when the response has steps or
+   markdown above it. */
+.assistantTurn:has(.createdResult) > .bubbleActions {
+    position: static;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    align-self: flex-end;
+    order: 1;
+    margin-bottom: 6px;
+    transform: none;
+}
+
+.assistantTurn:has(.createdResult) .createdResult {
+    order: 2;
+}
+
+.bubbleAction {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.bubbleAction:hover,
+.bubbleAction:focus-visible {
+    background: var(--active-wash);
+    color: var(--accent-ink);
+}
+
 .contextChips {
     display: flex;
     flex-wrap: wrap;
@@ -348,9 +606,169 @@
 }
 
 .assistantTurn {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
+
+.createdResult {
+    padding: 11px;
+    background: linear-gradient(145deg, var(--bg-raised), var(--bg-card));
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-surface);
+    box-shadow: var(--elev-1);
+}
+
+.createdResultHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.createdResultHeading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.createdResultStatus {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+    border-radius: 8px;
+    background: rgba(var(--ok-rgb), 0.14);
+    color: var(--ok);
+}
+
+.createdResultTitle,
+.createdResultCount {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.7rem;
+}
+
+.createdResultTitle {
+    display: block;
+    color: var(--ok);
+    font-weight: 600;
+}
+
+.createdResultSubtitle {
+    display: block;
+    margin-top: 1px;
+    color: var(--text-faint);
+    font-size: 0.64rem;
+}
+
+.createdResultCount {
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    background: var(--active-wash);
+    color: var(--accent-ink);
+    font-weight: 700;
+}
+
+.createdPreview {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+}
+
+.createdTile {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 7px;
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: var(--r-control);
+    color: var(--text-soft);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+
+.createdTile:hover,
+.createdTile:focus-visible {
+    background: var(--active-wash);
+    border-color: var(--accent);
+    color: var(--text-main);
+}
+
+.createdTileMark {
+    flex: 0 0 22px;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.createdTileIcon {
+    flex: 0 0 24px;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+}
+
+.createdTileTitle {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 0.67rem;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.createdMore {
+    grid-column: 1 / -1;
+    padding: 4px;
+    background: transparent;
+    border: none;
+    color: var(--accent-ink);
+    font: inherit;
+    font-size: 0.68rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.focusCreated {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 8px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: var(--accent-ink);
+    font: inherit;
+    font-size: 0.7rem;
+    cursor: pointer;
+}
+
+.focusCreated:hover,
+.focusCreated:focus-visible {
+    color: var(--accent-hover);
+    text-decoration: underline;
 }
 
 /* ---------- Activity log ---------- */
@@ -498,6 +916,44 @@
 @keyframes aiBeamSpin {
     to { rotate: 360deg; }
 }
+
+@keyframes aiMeshRoamPrimary {
+    0%, 100% { transform: translate3d(-4%, -3%, 0) scale(1.08) rotate(-4deg); }
+    19% { transform: translate3d(34%, 8%, 0) scale(1.18) rotate(3deg); }
+    43% { transform: translate3d(16%, 42%, 0) scale(0.96) rotate(-7deg); }
+    67% { transform: translate3d(45%, 23%, 0) scale(1.12) rotate(6deg); }
+    84% { transform: translate3d(7%, 51%, 0) scale(1.02) rotate(1deg); }
+}
+
+@keyframes aiMeshRoamSecondary {
+    0%, 100% { transform: translate3d(5%, 6%, 0) scale(1.14) rotate(5deg); }
+    23% { transform: translate3d(-31%, -18%, 0) scale(0.98) rotate(-3deg); }
+    49% { transform: translate3d(-12%, -48%, 0) scale(1.16) rotate(7deg); }
+    71% { transform: translate3d(-44%, -28%, 0) scale(1.04) rotate(-6deg); }
+    88% { transform: translate3d(-19%, 4%, 0) scale(1.2) rotate(2deg); }
+}
+
+@keyframes aiLightRailsSweep {
+    0%, 100% { transform: translate3d(-18%, -8%, 0) rotate(-2deg); }
+    28% { transform: translate3d(7%, 4%, 0) rotate(1deg); }
+    57% { transform: translate3d(19%, -3%, 0) rotate(-1deg); }
+    81% { transform: translate3d(-2%, 9%, 0) rotate(2deg); }
+}
+
+@keyframes aiSparkleTwinkle {
+    0%, 100% { opacity: 0; transform: scale(0.28) rotate(0deg); }
+    14% { opacity: 0.2; }
+    24% { opacity: 0.9; transform: scale(1) rotate(18deg); }
+    38% { opacity: 0.12; transform: scale(0.46) rotate(42deg); }
+    68% { opacity: 0; transform: scale(0.25) rotate(58deg); }
+}
+
+:global([data-theme='light']) .panelMesh::before,
+:global([data-theme='light']) .panelMesh::after {
+    opacity: 0.12;
+}
+
+:global([data-theme='light']) .panelLightRails { opacity: 0.08; }
 
 .composerContext {
     display: flex;

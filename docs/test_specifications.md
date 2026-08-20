@@ -81,10 +81,27 @@ This document outlines the test specifications for verifying the functionality o
 | 1 | Type `# ` (hash + space). | **Heading 1** |
 | 2 | Type `## ` (double hash + space). | **Heading 2** |
 | 3 | Type `### ` (triple hash + space). | **Heading 3** |
-| 4 | Type `- ` (dash + space) or `[] ` (brackets + space). | **Todo / Checkbox** |
-| 5 | Type `> ` (greater than + space). | **Quote Block** |
-| 6 | Type `1. ` (one + dot + space). | **Numbered List** |
-| 7 | Type `---` (three dashes). | **Divider** |
+| 4 | Type `[] ` (brackets + space). | **Todo / Checkbox** |
+| 5 | Type `- ` or `* ` (dash/asterisk + space). | **Bullet List** |
+| 6 | Type `> ` (greater than + space). | **Quote Block** |
+| 7 | Type `>> ` (double greater than + space). | **Toggle List** |
+| 8 | Type `1. ` (one + dot + space). | **Numbered List** |
+| 9 | Type `---` (three dashes). | **Divider** |
+| 10 | Type ` ``` ` (three backticks). | **Code Block** |
+
+**Notes on behaviour**
+
+- `- ` makes a **bullet**, not a checkbox. It used to make a checkbox when typed
+  while making a bullet when pasted, so pasting an ordinary markdown list from a
+  web page turned every line into a checkbox. Checkboxes are `[] `.
+- The marker may be followed immediately by text — typing `# Heading` in one
+  burst converts and keeps "Heading". Conversion must not depend on typing speed.
+- Pressing **Backspace** immediately after a conversion restores the literal
+  characters. The window closes as soon as anything else is typed.
+- Shortcuts never fire inside a **code block**, nor mid-word while composing with
+  an IME (Chinese/Japanese/Korean input).
+- Typed and pasted markers come from one shared table
+  (`src/features/editor/markdownShortcuts.ts`) so the two can't diverge again.
 
 ### TS-007: Slash Command Menu
 **Objective:** Verify the slash menu can change block types.

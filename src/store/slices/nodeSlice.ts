@@ -9,6 +9,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { type AppNode, type AppNodeData, getNodeBlocks, getNodeLabel } from '../../types';
 import type { Block } from '../../features/editor/types';
+import { cloneBlocks, type NodesPayload } from '../../features/clipboard/clipboardPayload';
 import { MIN_FUSED_SIZE, BASE_UNIT, snapToGridValue, ICON_SIZE } from '../../config/layout';
 import {
     createKanbanData,
@@ -283,6 +284,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             ? { width: KANBAN_DEFAULT_WIDTH, height: KANBAN_DEFAULT_HEIGHT }
             : (type === 'fused-note' ? { width: MIN_FUSED_SIZE } : { width: 432, height: 432 });
 
+        const createdAt = new Date().toISOString();
         const defaultData = isKanban
             ? { ...createKanbanData((initialData?.label as string) || 'Board'), ...initialData }
             : {
@@ -290,10 +292,12 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 content: '',
                 viewMode: 'expanded',
                 icon: 'FileText',
+                createdAt,
+                updatedAt: createdAt,
                 ...initialData
             };
 
-        const newNode: AppNode = {
+        const newNode = {
             id: customId || uuidv4(),
             type,
             position: snappedPosition,
@@ -328,10 +332,13 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
     },
 
     updateNodeData: (id, data) => {
+        const updatedAt = new Date().toISOString();
         set({
-            nodes: get().nodes.map((node) =>
-                node.id === id ? ({ ...node, data: { ...node.data, ...data } } as AppNode) : node
-            ),
+            nodes: get().nodes.map((node) => {
+                if (node.id !== id) return node;
+                const next = { ...node, data: { ...node.data, ...data, updatedAt } } as AppNode;
+                return next;
+            }),
         });
         get().setCloudDirty?.(true);
 
@@ -898,6 +905,8 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         const OFFSET = BASE_UNIT; // Offset by one grid cell (56px) for duplicated nodes to keep them aligned
         const newNodes: AppNode[] = [];
         const newIds = new Set<string>();
+        /** old node id -> new node id, so the copied edges can be rewired. */
+        const idMap = new Map<string, string>();
 
         nodesToDuplicate.forEach(node => {
             if (DEBUG) console.log("[bulkDuplicateNodes] Duplicating node:", node.id, "type:", node.type);
@@ -913,27 +922,105 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 },
                 data: {
                     ...node.data,
-                    // Deep clone content if it's an array
+                    // Deep clone content so nested blocks (gallery items, toggle
+                    // children, per-column blocks) get fresh ids too — sharing
+                    // them meant editing the copy edited the original.
                     content: (() => {
                         const blocks = getNodeBlocks(node.data);
-                        if (blocks) return blocks.map((block) => ({ ...block, id: uuidv4() }));
+                        if (blocks) return cloneBlocks(blocks);
                         return 'content' in node.data ? node.data.content : undefined;
                     })()
                 }
             } as AppNode;
+            idMap.set(node.id, newId);
             newNodes.push(newNode);
         });
 
         if (DEBUG) console.log("[bulkDuplicateNodes] Created", newNodes.length, "new nodes");
 
-        set((state) => ({ 
+        /* Carry over the connections BETWEEN the duplicated nodes. Duplicating
+           two joined cards used to hand back two unconnected ones, quietly
+           losing the relationship that was the point of copying them together. */
+        const clonedEdges = get().edges
+            .filter(e => idMap.has(e.source) && idMap.has(e.target))
+            .map(e => ({
+                ...e,
+                id: uuidv4(),
+                source: idMap.get(e.source)!,
+                target: idMap.get(e.target)!,
+                selected: false,
+            }));
+
+        set((state) => ({
             nodes: [
-                ...state.nodes.map(n => ({ ...n, selected: false })), 
+                ...state.nodes.map(n => ({ ...n, selected: false })),
                 ...newNodes
             ],
+            edges: [...state.edges, ...clonedEdges],
             selectedCanvasNodeIds: newIds
         }));
         get().setCloudDirty?.(true);
+    },
+
+    /**
+     * Recreate cards copied to the clipboard, with their connections.
+     *
+     * The payload stores positions relative to the copied selection and refers
+     * to nodes by index, so a paste can land anywhere — including a different
+     * canvas level — without knowing anything about the ids it came from.
+     * Everything is re-parented to whichever canvas is open now, which is what
+     * makes copying between a board and a card's inner canvas work at all.
+     */
+    pasteClipboardNodes: (payload: NodesPayload, origin: { x: number; y: number }) => {
+        if (!payload?.nodes?.length) return [];
+
+        const { currentParentId } = get();
+        const parentId = currentParentId ?? undefined;
+        const idByRef = new Map<number, string>();
+
+        const newNodes = payload.nodes.map((entry, index) => {
+            const newId = uuidv4();
+            idByRef.set(typeof entry.ref === 'number' ? entry.ref : index, newId);
+
+            const data = { ...(entry.data || {}) } as Record<string, unknown>;
+            const blocks = getNodeBlocks(data as never);
+            if (blocks) data.content = cloneBlocks(blocks);
+
+            return {
+                id: newId,
+                type: entry.type,
+                position: { x: origin.x + (entry.dx || 0), y: origin.y + (entry.dy || 0) },
+                data,
+                selected: true,
+                ...(parentId ? { parentId } : {}),
+                ...(entry.width || entry.height
+                    ? { style: { width: entry.width, height: entry.height } }
+                    : {}),
+            } as AppNode;
+        });
+
+        const newEdges = (payload.edges || [])
+            .filter(e => idByRef.has(e.source) && idByRef.has(e.target))
+            .map(e => ({
+                id: uuidv4(),
+                source: idByRef.get(e.source)!,
+                target: idByRef.get(e.target)!,
+                sourceHandle: e.sourceHandle ?? null,
+                targetHandle: e.targetHandle ?? null,
+                type: e.type || 'centered',
+                // Edges are scoped to the canvas they live on, so a pasted edge
+                // belongs to the canvas being pasted INTO, not the one it left.
+                data: { ...(e.data || {}), parentId: currentParentId ?? null },
+            })) as Edge[];
+
+        const newIds = new Set(newNodes.map(n => n.id));
+        set((state) => ({
+            nodes: [...state.nodes.map(n => ({ ...n, selected: false })), ...newNodes],
+            edges: [...state.edges, ...newEdges],
+            selectedCanvasNodeIds: newIds,
+        }));
+        get().setCloudDirty?.(true);
+        return Array.from(newIds);
 
         if (DEBUG) console.log("[bulkDuplicateNodes] Completed");
     },

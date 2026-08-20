@@ -6,6 +6,7 @@ type BlockMenuActionValue = BlockType | { type: 'text' | 'background'; value: st
 import { v4 as uuidv4 } from 'uuid';
 import { parseFiles, parseTextOrHtml } from '../pasteUtils';
 import { createGalleryMetadata } from '../galleryTypes';
+import { decodePayload, payloadBlocks } from '../../clipboard/clipboardPayload';
 
 interface BlockCommandsProps {
     editorRef: React.RefObject<HTMLDivElement | null>;
@@ -17,6 +18,7 @@ interface BlockCommandsProps {
     setSelectedBlockIds: (ids: Set<string>) => void;
     selectedBlockIds: Set<string>;
     nodeId?: string;
+    singleBlockOnly?: boolean;
     checkForSplit: (id: string) => void;
 }
 
@@ -29,10 +31,16 @@ export function useBlockCommands({
     setSelectedBlockIds,
     selectedBlockIds,
     checkForSplit,
-    nodeId
+    nodeId,
+    singleBlockOnly = false
 }: BlockCommandsProps) {
 
     const addBlock = useCallback((afterId: string, type: BlockType = 'text', initialIndent: number = 0, initialMetadata?: BlockMetadata) => {
+        // Standalone canvas blocks deliberately carry one root block. Adding a
+        // second root block changes the object into a fused note, which is a
+        // separate canvas node type with its own geometry and interactions.
+        if (singleBlockOnly && blocksRef.current.length >= 1) return;
+
         const newBlock: Block = {
             id: uuidv4(),
             type,
@@ -66,7 +74,7 @@ export function useBlockCommands({
             return newBlocks;
         });
         setFocusId(newBlock.id);
-    }, [debouncedOnUpdate, setBlocks, setFocusId]);
+    }, [blocksRef, debouncedOnUpdate, setBlocks, setFocusId, singleBlockOnly]);
 
     const removeBlock = useCallback((id: string) => {
         setBlocks(prev => {
@@ -310,8 +318,12 @@ export function useBlockCommands({
             return;
         }
 
-        // Sync path for Text/HTML to preserve user gesture for execCommand
-        const parsedBlocks = parseTextOrHtml(e);
+        /* Content copied from inside this app carries the real blocks in the
+           clipboard's HTML flavour, so it can be restored exactly — headings
+           stay headings, checkboxes keep their ticks, images stay images.
+           Anything from elsewhere falls through to the text/HTML parser. */
+        const internal = payloadBlocks(decodePayload(e.clipboardData.getData('text/html')) ?? { v: 1, kind: 'blocks', blocks: [] });
+        const parsedBlocks = internal && internal.length > 0 ? internal : parseTextOrHtml(e);
         if (parsedBlocks.length === 0) return;
 
         e.preventDefault();
@@ -356,10 +368,21 @@ export function useBlockCommands({
                 preCaretRange.selectNodeContents(container);
                 preCaretRange.setEnd(range.startContainer, range.startOffset);
                 caretOffset = preCaretRange.toString().length;
-                
+
+                /* Measure the END of the selection too, not just the start.
+                   Reading only the start meant the highlighted text was kept as
+                   `textAfter` and re-appended below the pasted content, so
+                   pasting over a selection duplicated it instead of replacing
+                   it. For a collapsed caret start and end are equal and this
+                   behaves exactly as before. */
+                const postCaretRange = range.cloneRange();
+                postCaretRange.selectNodeContents(container);
+                postCaretRange.setEnd(range.endContainer, range.endOffset);
+                const selectionEnd = postCaretRange.toString().length;
+
                 const fullText = currentBlock.content || '';
                 textBefore = fullText.substring(0, caretOffset);
-                textAfter = fullText.substring(caretOffset);
+                textAfter = fullText.substring(Math.max(caretOffset, selectionEnd));
                 wasSplit = true;
             }
         }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Upload, X, Link, type LucideIcon } from '../../components/icons';
 import styles from './IconPicker.module.css';
@@ -26,9 +26,14 @@ interface IconPickerProps {
 const ROW_HEIGHT = 60;
 const ASSUMED_COLUMNS = 11;
 
+/** Category header plus the gap beneath it, for the same reserved-height sums. */
+const HEADER_HEIGHT = 32;
+
 interface IconCategoryProps {
     category: string;
     icons: SolarEntry[];
+    /** Decided by the parent from scroll position — see IconCategory's note. */
+    mounted: boolean;
     selectedName: string;
     selectedColor: string;
     onPick: (name: string) => void;
@@ -38,40 +43,19 @@ interface IconCategoryProps {
  * One category of the grid. Mounting all ~1200 buttons at once costs tens of
  * thousands of DOM nodes — each glyph is an `<svg>` carrying its own gradient
  * `<defs>` — which stalls the picker for seconds on open. So a section stays a
- * plain reserved-height box until it scrolls near the viewport, then fills in
- * and stays mounted.
+ * plain reserved-height box until the scroll position reaches it.
+ *
+ * Whether it has reached it is decided by the parent from scroll arithmetic,
+ * not by an IntersectionObserver here. The observer version looked tidier but
+ * had a hard failure mode: when it never reports an intersection — a
+ * background tab, a pane that isn't compositing — no section ever mounts and
+ * the picker sits empty forever. Scroll offsets are always readable.
  */
-function IconCategory({ category, icons, selectedName, selectedColor, onPick }: IconCategoryProps) {
-    const ref = useRef<HTMLDivElement>(null);
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        if (mounted) return;
-        const el = ref.current;
-        if (!el) return;
-
-        // No IntersectionObserver (jsdom, very old browsers) — just render.
-        if (typeof IntersectionObserver === 'undefined') {
-            setMounted(true);
-            return;
-        }
-
-        const io = new IntersectionObserver(
-            (entries) => {
-                if (entries.some((e) => e.isIntersecting)) setMounted(true);
-            },
-            // Fill in well before the section is actually on screen so scrolling
-            // never reveals an empty gap.
-            { rootMargin: '600px 0px' },
-        );
-        io.observe(el);
-        return () => io.disconnect();
-    }, [mounted]);
-
+function IconCategory({ category, icons, mounted, selectedName, selectedColor, onPick }: IconCategoryProps) {
     const reservedHeight = Math.ceil(icons.length / ASSUMED_COLUMNS) * ROW_HEIGHT;
 
     return (
-        <div ref={ref} className={styles.categorySection}>
+        <div className={styles.categorySection}>
             <div className={styles.categoryHeader}>{category}</div>
             {mounted ? (
                 <div className={styles.iconGrid}>
@@ -265,6 +249,52 @@ export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconP
         return groups;
     }, [filteredIcons]);
 
+    /**
+     * How far down the list has been revealed, in px. Sections whose estimated
+     * top sits above this are mounted; the rest stay reserved-height spacers.
+     * It only ever grows, so scrolling back up never unmounts what you just
+     * looked at (and never re-renders a thousand glyphs to do it).
+     */
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [revealedPx, setRevealedPx] = useState(900);
+
+    const revealTo = useCallback((bottom: number) => {
+        setRevealedPx((prev) => (bottom > prev ? bottom : prev));
+    }, []);
+
+    const handleGridScroll = useCallback(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        // A screen beyond the current position, so a section is always filled
+        // in before it can scroll into view.
+        revealTo(el.scrollTop + el.clientHeight + 600);
+    }, [revealTo]);
+
+    // A new search resets the list to the top, so reveal from the top again.
+    useEffect(() => {
+        setRevealedPx(900);
+    }, [searchTerm]);
+
+    // Measure once the list exists: the reveal window depends on how tall the
+    // scroller actually is, which isn't known until it has been laid out.
+    useEffect(() => {
+        if (activeTab !== 'icons') return;
+        const el = scrollRef.current;
+        if (!el) return;
+        revealTo(el.scrollTop + el.clientHeight + 600);
+    }, [activeTab, catalog, revealTo]);
+
+    /** Estimated top offset of each section, in render order. */
+    const sectionTops = useMemo(() => {
+        const tops: number[] = [];
+        let running = 0;
+        for (const icons of Object.values(groupedIcons)) {
+            tops.push(running);
+            running += HEADER_HEIGHT + Math.ceil(icons.length / ASSUMED_COLUMNS) * ROW_HEIGHT;
+        }
+        return tops;
+    }, [groupedIcons]);
+
     const pickerContent = (
         <div className={`${styles.overlay} ${isAbsolute ? styles.overlayAbsolute : ''}`} onClick={handleSaveAndClose}>
             <div className={`${styles.modal} ${isAbsolute ? styles.modalAbsolute : ''}`} onClick={(e) => e.stopPropagation()}>
@@ -321,18 +351,23 @@ export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconP
                             />
                         </div>
 
-                        <div className={styles.categoriesContainer}>
+                        <div
+                            className={styles.categoriesContainer}
+                            ref={scrollRef}
+                            onScroll={handleGridScroll}
+                        >
                             {!catalog && (
                                 <div className={styles.iconsLoading}>Loading icons…</div>
                             )}
                             {catalog && filteredIcons.length === 0 && (
                                 <div className={styles.iconsLoading}>No icon matches “{searchTerm}”.</div>
                             )}
-                            {Object.entries(groupedIcons).map(([category, icons]) => (
+                            {Object.entries(groupedIcons).map(([category, icons], i) => (
                                 <IconCategory
                                     key={category}
                                     category={category}
                                     icons={icons}
+                                    mounted={sectionTops[i] <= revealedPx}
                                     selectedName={selectedIconBaseName}
                                     selectedColor={selectedColor}
                                     onPick={setSelectedIconBaseName}

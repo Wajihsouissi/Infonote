@@ -23,10 +23,20 @@ export interface AIModelOption {
 
 export const AI_MODELS: AIModelOption[] = [
     { id: null, label: 'Auto', hint: 'Whatever the workspace is configured for' },
-    { id: 'gemini-3.7-flash', label: 'Gemini 3.7 Flash', hint: 'Newest — best all-round answers' },
-    { id: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash', hint: 'Previous generation, still strong' },
-    { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', hint: 'Balanced for long structured work' },
-    { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash Lite', hint: 'Fastest and cheapest — quick drafts' },
+    { id: 'z-ai/glm-5.3', label: 'GLM 5.3', hint: 'Strong general-purpose reasoning' },
+    { id: 'qwen/qwen3.8-27b', label: 'Qwen 3.8 27B', hint: 'Fast open-weight model' },
+    { id: 'google/gemini-3.7-flash', label: 'Gemini 3.7 Flash', hint: 'Fast multimodal all-rounder' },
+    { id: 'deepseek/deepseek-v4-pro-0813', label: 'DeepSeek V4 Pro', hint: 'Deep reasoning and coding' },
+    { id: 'x-ai/grok-4.6', label: 'Grok 4.6', hint: 'Long-context reasoning' },
+    { id: 'anthropic/claude-opus-5', label: 'Claude Opus 5', hint: 'High-quality complex work' },
+    { id: 'anthropic/claude-sonnet-5', label: 'Claude Sonnet 5', hint: 'Balanced quality and speed' },
+    { id: 'google/gemini-3.6-flash', label: 'Gemini 3.6 Flash', hint: 'Fast structured answers' },
+    { id: 'google/gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash Lite', hint: 'Fastest and cheapest drafts' },
+    { id: 'openrouter/fusion', label: 'OpenRouter Fusion', hint: 'OpenRouter routed model' },
+    { id: 'moonshotai/kimi-k3', label: 'Kimi K3', hint: 'Long-context open model' },
+    { id: 'z-ai/glm-5.2:free', label: 'GLM 5.2 Free', hint: 'Free general-purpose model' },
+    { id: 'nvidia/nemotron-3.5-lightning:free', label: 'Nemotron 3.5 Free', hint: 'Free fast model' },
+    { id: 'cohere/north-mini-code:free', label: 'Cohere North Mini Code', hint: 'Free coding-focused model' },
 ];
 
 export const DEFAULT_AI_MODEL: string | null = null;

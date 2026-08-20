@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Block } from './types';
 import { resolveMediaTypeFromFile, resolveMediaTypeFromUrl } from './mediaTypes';
+import { matchMarkerShortcut } from './markdownShortcuts';
 
 // 1. Handle Files (Images/Videos) - ASYNC
 export const parseFiles = async (files: FileList): Promise<Block[]> => {
@@ -429,73 +430,18 @@ export function parsePlainText(text: string): Block[] {
             continue;
         }
 
-        // --- Markdown Headings ---
-        if (trimmed.startsWith('### ')) {
-            blocks.push({ id: uuidv4(), type: 'heading3', content: trimmed.substring(4) });
-            i++;
-            continue;
-        }
-        if (trimmed.startsWith('## ')) {
-            blocks.push({ id: uuidv4(), type: 'heading2', content: trimmed.substring(3) });
-            i++;
-            continue;
-        }
-        if (trimmed.startsWith('# ')) {
-            blocks.push({ id: uuidv4(), type: 'heading1', content: trimmed.substring(2) });
-            i++;
-            continue;
-        }
-
-        // --- Horizontal Rule / Divider ---
-        if (/^[-*_]{3,}$/.test(trimmed)) {
-            blocks.push({ id: uuidv4(), type: 'divider', content: '' });
-            i++;
-            continue;
-        }
-
-        // --- Todo / Checkbox ---
-        const todoMatch = trimmed.match(/^[-*•]?\s*\[([ xX]?)\]\s(.*)/);
-        if (todoMatch) {
-            const isChecked = todoMatch[1]?.toLowerCase() === 'x';
+        /* --- Markdown markers (headings, divider, to-do, lists, quote) ---
+           Shared with the typed shortcuts via one rule table, so the two can no
+           longer disagree. They used to be written out separately here and in
+           BlockEditor, which is how typing "- " came to make a checkbox while
+           pasting "- " made a bullet. */
+        const marker = matchMarkerShortcut(trimmed, 'paste');
+        if (marker) {
             blocks.push({
                 id: uuidv4(),
-                type: 'todo',
-                content: todoMatch[2],
-                ...(isChecked ? { metadata: { checked: true } } : {})
-            });
-            i++;
-            continue;
-        }
-
-        // --- Bullet List ---
-        if (trimmed.startsWith('- ') || trimmed.startsWith('* ') || trimmed.startsWith('• ')) {
-            const prefixLen = trimmed.startsWith('• ') ? 2 : 2;
-            blocks.push({
-                id: uuidv4(),
-                type: 'bullet',
-                content: trimmed.substring(prefixLen)
-            });
-            i++;
-            continue;
-        }
-
-        // --- Numbered List ---
-        if (/^\d+\.\s/.test(trimmed)) {
-            blocks.push({
-                id: uuidv4(),
-                type: 'numbered',
-                content: trimmed.replace(/^\d+\.\s/, '')
-            });
-            i++;
-            continue;
-        }
-
-        // --- Blockquote ---
-        if (trimmed.startsWith('> ')) {
-            blocks.push({
-                id: uuidv4(),
-                type: 'quote',
-                content: trimmed.substring(2)
+                type: marker.rule.type,
+                content: marker.rest,
+                ...(marker.metadata?.checked ? { metadata: { checked: true } } : {})
             });
             i++;
             continue;

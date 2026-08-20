@@ -1,6 +1,7 @@
 import { Sun, Moon } from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import { DuotoneIcon } from '../../components/ui/DuotoneIcon';
+import { originFromEvent } from '../../utils/themeTransition';
 import styles from './ThemeSwitcher.module.css';
 
 export function ThemeSwitcher() {
@@ -10,7 +11,7 @@ export function ThemeSwitcher() {
     return (
         <button
             className={styles.themeSwitcher}
-            onClick={toggleTheme}
+            onClick={(e) => toggleTheme(originFromEvent(e))}
             aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
             data-tooltip={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
         >

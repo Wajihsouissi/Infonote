@@ -5,6 +5,7 @@ import {
     DividerBlock, PageBlock, ContainerBlock, VideoBlock, FileBlock, ColumnsBlock, CodeBlock,
     TableBlock, AIBlock, MediaBlock
 } from './BlockComponents';
+import type { EditOptions } from './BlockComponents';
 import { ColorBlock } from './ColorBlock';
 import { LinkBlock } from './LinkBlock';
 import { GalleryBlock } from './GalleryBlock';
@@ -22,7 +23,7 @@ interface BlockItemProps {
     parentToggleIndent?: number;
 
     // Stable Handlers
-    onUpdateBlock: (id: string, contentOrPatch: string | Partial<Block>, metadata?: BlockMetadata) => void;
+    onUpdateBlock: (id: string, contentOrPatch: string | Partial<Block>, metadata?: BlockMetadata, opts?: EditOptions) => void;
     onKeyDown: (e: React.KeyboardEvent, id: string, content: string) => void;
     onPaste: (e: React.ClipboardEvent, id: string) => void;
 
@@ -88,8 +89,10 @@ export const BlockItem = memo(function BlockItem({
     }, [block.id, onSelectionMouseDown, onSelectionClick]);
 
     // Memoized block handlers
-    const handleChange = useCallback((content: string, metadata?: BlockMetadata) => {
-        onUpdateBlock(block.id, content, metadata);
+    const handleChange = useCallback((content: string, metadata?: BlockMetadata, opts?: EditOptions) => {
+        // `opts` carries what caused the edit (typing vs. undo vs. composition),
+        // which the markdown shortcuts need in order to fire only on real input.
+        onUpdateBlock(block.id, content, metadata, opts);
     }, [block.id, onUpdateBlock]);
 
     const handleReplace = useCallback((patch: Partial<Block>) => {

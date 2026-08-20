@@ -6,7 +6,7 @@ import { defineConfig, loadEnv, type Plugin } from 'vite'
 // OpenAI-compatible endpoint. Defaults to Google's Gemini compatibility layer;
 // override with AI_GATEWAY_BASE_URL to use Vercel's gateway or anything else
 // that speaks /chat/completions. Keep in step with api/_lib/aiGuard.js.
-const DEFAULT_AI_GATEWAY_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai'
+const DEFAULT_AI_GATEWAY_BASE_URL = 'https://openrouter.ai/api/v1'
 const NOTION_API_BASE_URL = 'https://api.notion.com/v1'
 const DEFAULT_NOTION_VERSION = '2022-06-28'
 const MAX_EMAIL_LENGTH = 254
@@ -128,9 +128,9 @@ function textModelAllowlist(): string[] {
 
 function getServerAiModel(kind: 'text' | 'image', requested?: string): string {
   if (kind === 'image') {
-    return getEnvValue('AI_GATEWAY_IMAGE_MODEL', 'VITE_AI_GATEWAY_IMAGE_MODEL') || 'gemini-3.1-flash-image'
+    return getEnvValue('AI_GATEWAY_IMAGE_MODEL', 'VITE_AI_GATEWAY_IMAGE_MODEL') || 'bytedance-seed/seedream-5-0-pro'
   }
-  const fallback = getEnvValue('AI_GATEWAY_TEXT_MODEL', 'VITE_AI_GATEWAY_TEXT_MODEL') || 'gemini-3.7-flash'
+  const fallback = getEnvValue('AI_GATEWAY_TEXT_MODEL', 'VITE_AI_GATEWAY_TEXT_MODEL') || 'openrouter/auto'
   if (!requested?.trim()) return fallback
   return textModelAllowlist().includes(requested.trim()) ? requested.trim() : fallback
 }
@@ -897,15 +897,17 @@ async function handleDevImage(req: IncomingMessage, res: ServerResponse): Promis
   }
 
   const model = getServerAiModel('image')
+  const isOpenRouter = getGatewayBaseUrl().includes('openrouter.ai')
   let data: unknown
   try {
-    data = await callGateway('/images/generations', {
+    data = await callGateway(isOpenRouter ? '/images' : '/images/generations', {
       model,
       prompt,
       n: 1,
-      response_format: 'b64_json',
+      ...(isOpenRouter ? { output_format: 'png' } : { response_format: 'b64_json' }),
     })
-  } catch {
+  } catch (error) {
+    if (isOpenRouter) throw error
     data = await callGateway('/chat/completions', {
       model,
       messages: [{ role: 'user', content: prompt }],
@@ -989,11 +991,54 @@ async function handleDevStream(req: IncomingMessage, res: ServerResponse): Promi
   res.end()
 }
 
+/**
+ * Dev twin of api/ai/grounded.js.
+ *
+ * Note what this does NOT do: re-implement grounding. Every other handler in
+ * this file is a hand-copied twin of its api/ route, and that duplication has
+ * already shipped two prod-only bugs. This imports the same
+ * api/_lib/geminiSearch.js the route uses, so the two cannot drift — only the
+ * transport differs.
+ *
+ * The env bridge matters: Vite reads .env itself into `loadedEnv`, while the
+ * shared module reads process.env the way the deployed route does. Copying the
+ * value across is what lets one implementation serve both.
+ */
+async function handleDevGrounded(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  if (req.method !== 'POST') {
+    sendError(res, 405, 'Method not allowed')
+    return
+  }
+  if (!(await guardDevAiRoute(req, res, 'text'))) return
+
+  const body = await readJsonBody(req)
+  const prompt = getBodyString(body, 'prompt')
+  if (!prompt) {
+    sendError(res, 400, 'Prompt is required.')
+    return
+  }
+
+  for (const name of ['AI_GATEWAY_API_KEY', 'GEMINI_API_KEY', 'AI_GROUNDING_MODEL', 'AI_GATEWAY_TEXT_MODEL']) {
+    if (!process.env[name]) {
+      const fromEnvFile = getEnvValue(name)
+      if (fromEnvFile) process.env[name] = fromEnvFile
+    }
+  }
+
+  const { groundedAnswer } = await import('./api/_lib/geminiSearch.js')
+  sendJson(res, 200, await groundedAnswer(prompt, {
+    model: getBodyString(body, 'model') || undefined,
+    system: getBodyString(body, 'system') || undefined,
+    maxTokens: typeof body['maxTokens'] === 'number' ? body['maxTokens'] : undefined,
+  }) as unknown as JsonBody)
+}
+
 function aiGatewayDevPlugin(): Plugin {
   const routes: Record<string, DevAiHandler> = {
     '/api/ai/text': handleDevText,
     '/api/ai/image': handleDevImage,
     '/api/ai/stream': handleDevStream,
+    '/api/ai/grounded': handleDevGrounded,
     '/api/notion/search': handleDevNotionSearch,
     '/api/notion/fetch': handleDevNotionFetch,
     '/api/workspace/invite': handleDevWorkspaceInvite,

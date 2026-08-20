@@ -83,12 +83,6 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const isConnecting = connection.inProgress;
     const updateNodeData = useStore(s => s.updateNodeData);
     const detailTier = useCanvasDetail(id);
-    // Full detail is the only tier that pays for the block editor. Anything
-    // below renders a static wireframe via BlockLodBody — at the default
-    // zoomed-out view a whole workspace is on screen at once, and mounting
-    // one editor per visible block node is what stalls the first LOD. The
-    // rising edge is paced by the shared frame budget so a zoom-in that flips
-    // a whole row to full detail builds them over a few frames, not one.
     const showEditor = useScheduledMount(detailTier === 'full');
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
     const theme = useStore(s => s.theme);
@@ -109,14 +103,13 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
 
     const [isInteractive, setIsInteractive] = useState(selected);
     const interactionTimerRef = useRef<number | null>(null);
+
     /** Where a press on an empty media node started, to tell a click from a drag. */
     const mediaPressRef = useRef<{ x: number; y: number } | null>(null);
 
     useEffect(() => {
         if (selected) {
-            interactionTimerRef.current = window.setTimeout(() => {
-                setIsInteractive(true);
-            }, 300);
+            interactionTimerRef.current = window.setTimeout(() => setIsInteractive(true), 300);
         } else {
             if (interactionTimerRef.current) clearTimeout(interactionTimerRef.current);
             setIsInteractive(false);
@@ -168,6 +161,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     // content — which silently dropped toggle nodes out of the standard-block
     // sizing/gutter treatment. A toggle-rooted node is still one logical block.
     const isToggleRoot = colorBlocks[0]?.type === 'toggle';
+    const hasMultipleRootBlocks = colorBlocks.length > 1 && !isToggleRoot;
     // Link CARDS (bookmark/embed) are resizable rich objects, not uniform 56px
     // blocks — they must not get the standardBlock footprint. Empty and text
     // links still do, so they match the rest of the blocks.
@@ -185,6 +179,10 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const userWidth = typeof data.userWidth === 'number' ? data.userWidth : undefined;
     const userHeight = typeof data.userHeight === 'number' ? data.userHeight : undefined;
     const isUserSized = userWidth !== undefined || userHeight !== undefined;
+    // Width may still be hand-set at the resting size, but vertical centering
+    // should return the moment the user brings height back to the 56px block
+    // baseline instead of remaining stuck to the top.
+    const isUserTall = userHeight !== undefined && userHeight > BLOCK_MIN_H + 1;
 
     const isMediaEmpty = isSingleMedia && (!singleBlock?.content || singleBlock.content.trim() === '');
 
@@ -245,13 +243,38 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
         }
     }, [id, setNodesStore, isResizable, isColumns, isSingleTable, isTableSized, isSingleLink, isLinkCard, isSingleGallery, isSingleColor, isStandardBlock, isMediaEmpty, isUserSized]);
 
+    // Repair legacy/accidental multi-root standalone blocks as soon as they
+    // are encountered. A multi-block document is always represented by the
+    // fused-note node, so it keeps the correct document sizing rules.
+    useLayoutEffect(() => {
+        if (!hasMultipleRootBlocks) return;
+
+        setNodesStore(nodes => nodes.map(node => {
+            if (node.id !== id || node.type !== 'block') return node;
+            return {
+                ...node,
+                type: 'fused-note',
+                style: { ...node.style, width: MIN_EXPANDED_SIZE, height: 'auto' },
+                data: {
+                    ...node.data,
+                    userWidth: undefined,
+                    userHeight: undefined,
+                    lastFusedAt: Date.now(),
+                },
+            } as AppNode;
+        }));
+    }, [hasMultipleRootBlocks, id, setNodesStore]);
+
 
 
 
 
     const handleUpdate = useCallback((blocks: Block[]) => {
-        updateNodeData(id, { content: blocks });
-    }, [id, updateNodeData]);
+        // This is a final data-boundary guard for drops and rich pastes. The
+        // editor prevents normal insertion; this ensures no alternate path can
+        // persist a second root block in a standalone text node.
+        updateNodeData(id, { content: isStandardBlock && !isToggleRoot ? blocks.slice(0, 1) : blocks });
+    }, [id, isStandardBlock, isToggleRoot, updateNodeData]);
 
     const handleConvertToCard = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
@@ -493,6 +516,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 custom-drag-handle
             `}
             data-user-sized={isUserSized ? 'true' : undefined}
+            data-user-tall={isUserTall ? 'true' : undefined}
             style={{
                 backgroundColor: ((isSingleMedia && !isMediaEmpty) || isLinkCard || isSingleGallery) ? 'transparent' : (isSingleColor ? singleColorValue : undefined),
                 ...dynamicStyles
@@ -514,13 +538,16 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     // press that never moved down to the picker. A real drag moves the
                     // pointer, so it fails the threshold and is left alone.
                     onPointerDown={isMediaEmpty ? (e) => { mediaPressRef.current = { x: e.clientX, y: e.clientY }; } : undefined}
-                    onClick={isMediaEmpty ? (e) => {
-                        const start = mediaPressRef.current;
-                        mediaPressRef.current = null;
-                        if (!start) return;
-                        if (Math.abs(e.clientX - start.x) > 4 || Math.abs(e.clientY - start.y) > 4) return;
-                        nodeRef.current?.querySelector<HTMLElement>('.mediaPlaceholderTrigger')?.click();
-                    } : undefined}
+                    onClick={(e) => {
+                        if (isMediaEmpty) {
+                            const start = mediaPressRef.current;
+                            mediaPressRef.current = null;
+                            if (!start) return;
+                            if (Math.abs(e.clientX - start.x) > 4 || Math.abs(e.clientY - start.y) > 4) return;
+                            nodeRef.current?.querySelector<HTMLElement>('.mediaPlaceholderTrigger')?.click();
+                            return;
+                        }
+                    }}
                     // Files dropped on the node would otherwise land on this overlay and be
                     // lost; hand them to the picker's own drop handling. The picker is not
                     // an ancestor of the overlay, so the forwarded event cannot re-enter.
@@ -747,6 +774,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                         disableMediaControls={true}
                         promoteBlockHandles={true}
                         globalStartIndex={globalListIndex}
+                        singleBlockOnly={isStandardBlock && !isToggleRoot}
                     />
                 ) : (
                     <BlockLodBody blocks={colorBlocks} />
@@ -780,8 +808,8 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <defs>
                             <linearGradient id="canvas-media-arc-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor="var(--accent)" />
-                                <stop offset="100%" stopColor="var(--secondary)" />
+                                <stop offset="0%" stopColor="var(--resize-handle-start)" />
+                                <stop offset="100%" stopColor="var(--resize-handle-end)" />
                             </linearGradient>
                         </defs>
                         <path

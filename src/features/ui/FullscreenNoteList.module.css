@@ -1,0 +1,616 @@
+/* The note stream on the left of fullscreen.
+
+   Recessed rather than raised: the modal is the page, this is the shelf it sits
+   against, so it takes the inset ground and hands the raised surface to the card
+   being read. */
+.panel {
+    /* One dial for the tree's indent — the chevron offset, the row margin and
+       the branch line are all measured from it, so they cannot drift apart. */
+    --tree-indent: 14px;
+    width: 288px;
+    flex: none;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-inset);
+    border-right: 1px solid var(--line);
+    font-family: var(--font-sans);
+}
+
+/* Collapsed state: the same list, narrowed to its icons. The controls stay in
+   the order they sit in the open header — reopen, then new note — so collapsing
+   moves the buttons rather than replacing them. */
+.rail {
+    width: 52px;
+    flex: none;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 14px 0 12px;
+    background: var(--bg-inset);
+    border-right: 1px solid var(--line);
+}
+
+.railDivider {
+    width: 22px;
+    height: 1px;
+    flex: none;
+    margin: 6px 0 4px;
+    background: var(--line-strong);
+}
+
+.railList {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding-bottom: 8px;
+    /* The strip is 52px wide — a visible scrollbar would eat a quarter of it. */
+    scrollbar-width: none;
+}
+
+.railList::-webkit-scrollbar {
+    display: none;
+}
+
+/* One card per icon: the card's own icon, so the strip stays recognisable
+   against the open rail rather than reading as a second set of controls. */
+.railItem {
+    flex: none;
+    position: relative;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.railItem:hover {
+    background: var(--hover-wash);
+    color: var(--text-soft);
+}
+
+.railItem:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* Same two states the open rail carries: on screen, and the half being loaded.
+   Coloured by side — see .paneLeft/.paneRight below — so the strip and the
+   full-width list agree on which hue is which pane. */
+.railItemOpen {
+    background: var(--hover-wash);
+    color: var(--text-soft);
+}
+
+.railItemOpen::before {
+    content: '';
+    position: absolute;
+    left: -9px;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--pane-hue) 55%, var(--line-heavy));
+}
+
+.railItemActive {
+    background: color-mix(in srgb, var(--pane-hue) 22%, var(--bg-inset));
+    color: var(--pane-hue);
+}
+
+.railItemActive::before {
+    background: var(--pane-hue);
+}
+
+/* L / R, tucked into the icon's corner — the strip is too narrow for a chip
+   beside the icon, and the pane a card sits in has to stay readable here too. */
+.railSide {
+    position: absolute;
+    right: 1px;
+    bottom: 0;
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 1px 2px;
+    border-radius: var(--radius-xs);
+    background: var(--bg-inset);
+    color: var(--pane-hue, inherit);
+}
+
+.railItem[data-accented]:not(.railItemActive) {
+    color: color-mix(in srgb, var(--node-accent) 65%, var(--text-faint));
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 14px 14px 10px 18px;
+    flex: none;
+}
+
+.headerTitle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: var(--radius-pill);
+    background: var(--hover-wash);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--text-soft);
+}
+
+.headerActions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.tools {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 14px 12px 18px;
+    flex: none;
+}
+
+.search {
+    min-width: 0;
+    height: 30px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 7px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-control);
+    background: var(--bg-base);
+    color: var(--text-faint);
+}
+
+.search:focus-within {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+    box-shadow: var(--focus-ring);
+    color: var(--text-soft);
+}
+
+.search input {
+    min-width: 0;
+    flex: 1;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    font-size: 0.75rem;
+}
+
+.search input::placeholder { color: var(--text-faint); }
+
+.search kbd {
+    flex: none;
+    color: var(--text-faint);
+    font-family: var(--font-sans);
+    font-size: 0.62rem;
+    line-height: 1;
+}
+
+.sort {
+    position: relative;
+    height: 30px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    color: var(--text-faint);
+}
+
+.sort select {
+    width: 82px;
+    height: 100%;
+    appearance: none;
+    padding: 0 22px 0 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-control);
+    outline: none;
+    background: var(--bg-base);
+    color: var(--text-soft);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.7rem;
+}
+
+.sort select:focus-visible { box-shadow: var(--focus-ring); }
+
+.sort svg {
+    position: absolute;
+    right: 6px;
+    pointer-events: none;
+}
+
+.toggle {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 10px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+}
+
+.empty {
+    margin: 24px 8px;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--text-faint);
+}
+
+/* Created-date groups are the rail's sorting affordance: quiet labels that
+   separate recency without competing with card titles or tree structure. */
+.dateGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.dateGroup + .dateGroup {
+    margin-top: 12px;
+}
+
+.dateHeading {
+    margin: 10px 8px 4px;
+    color: var(--text-faint);
+    font-family: var(--font-sans);
+    font-size: 0.64rem;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+.dateGroup:first-child .dateHeading {
+    margin-top: 4px;
+}
+
+.pinnedGroup .dateHeading {
+    color: color-mix(in srgb, var(--accent) 72%, var(--text-faint));
+}
+
+/* Holds the row button and the controls that float over its left and right
+   edges. `--depth` is set per row by the component, already capped. */
+.row {
+    position: relative;
+    display: flex;
+}
+
+/* The branch line, drawn in the gutter the indent opens up on the parent's
+   side. It runs the full height of every nested row, so a run of siblings
+   reads as one continuous stem rather than a stack of ticks. */
+.rowNested::before {
+    content: '';
+    position: absolute;
+    left: calc((var(--depth, 0) - 1) * var(--tree-indent) + 12px);
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--line-strong);
+    pointer-events: none;
+}
+
+/* One row per card: the folder art it already wears on the canvas, then its
+   label and, when the card carries one, its description. */
+.item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    /* Indent is a margin rather than padding so the row's own hover wash, spine
+       and radius all shift with it instead of stretching back to the rail edge. */
+    margin-left: calc(var(--depth, 0) * var(--tree-indent));
+    /* Left is kept clear for the chevron on branch rows — reserved on every row,
+       including leaves, so folder art stays on one column down the whole tree.
+       Right is kept clear for the side chip and the open-beside button, so the
+       label does not reflow when either one appears. */
+    padding: 9px 58px 9px 26px;
+    border: none;
+    border-radius: var(--r-md);
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background var(--transition-fast);
+}
+
+/* Folds a branch open or shut. Sized well past the 13px glyph so it is a real
+   target, and kept out of the row button so clicking it cannot also open the
+   card. */
+.chevron {
+    position: absolute;
+    left: calc(var(--depth, 0) * var(--tree-indent) + 2px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.chevron:hover {
+    background: var(--active-wash);
+    color: var(--text-main);
+}
+
+.chevron:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* The glyph turns, not the button — the button carries the centring transform
+   and rotating it would drag the target off the row. */
+.chevron svg {
+    transition: transform 0.15s var(--ease-rise);
+}
+
+.chevronOpen svg {
+    transform: rotate(90deg);
+}
+
+.item:hover {
+    background: var(--hover-wash);
+}
+
+.item:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* An open card, marked the way a node marks itself: a spine down the left edge
+   rather than a filled row. The colour says which pane it's in — left is
+   always blue, right always red, whichever card happens to be sitting there —
+   and is shared with the pane's own top hairline in FullscreenModal.module.css
+   so the two views read as one signal. Focus (below) is intensity, not hue, so
+   a pane never seems to change identity just because the reader tabbed to it. */
+.paneLeft {
+    --pane-hue: var(--t-blue);
+}
+
+/* --danger rather than --t-red: t-red's hue sits close enough to the app's own
+   orange accent that it read as orange, not red — see FullscreenModal.module.css. */
+.paneRight {
+    --pane-hue: var(--danger);
+}
+
+.itemOpen {
+    background: var(--hover-wash);
+}
+
+.itemOpen::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 3px;
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--pane-hue) 55%, var(--line-heavy));
+}
+
+.itemActive {
+    background: color-mix(in srgb, var(--pane-hue) 14%, var(--bg-inset));
+}
+
+.itemActive::before {
+    background: var(--pane-hue);
+}
+
+/* Which half of a split the card is showing in. */
+.side {
+    position: absolute;
+    right: 36px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-xs);
+    background: var(--hover-wash);
+    color: var(--text-faint);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+.paneLeft .side,
+.paneRight .side {
+    color: var(--pane-hue);
+    background: color-mix(in srgb, var(--pane-hue) 16%, transparent);
+}
+
+.itemActive .side {
+    background: color-mix(in srgb, var(--pane-hue) 28%, transparent);
+}
+
+/* Opens the card in the other half. Kept to hover/keyboard so the list reads as
+   a list of notes, not a grid of buttons. */
+/* Centred by the same transform .icon-hover's hover/active states write to —
+   that shared rule's `scale()` would otherwise replace the centring translate
+   instead of adding to it, which is what let the button drift off centre on
+   hover. Repeating the translate in every state keeps it centred throughout. */
+.splitButton {
+    position: absolute;
+    right: 30px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+}
+
+.row:hover .splitButton,
+.splitButton:focus-visible {
+    opacity: 1;
+}
+
+.splitButton:hover {
+    transform: translateY(-50%) scale(1.1);
+}
+
+.splitButton:active {
+    transform: translateY(-50%) scale(0.96);
+}
+
+.splitButton:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.pinButton {
+    position: absolute;
+    right: 7px;
+    top: 50%;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: var(--r-control);
+    transform: translateY(-50%);
+    background: transparent;
+    color: var(--text-faint);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+}
+
+.row:hover .pinButton,
+.pinButton:focus-visible,
+.pinButtonActive {
+    opacity: 1;
+}
+
+.pinButton:hover { background: var(--hover-wash); color: var(--text-soft); }
+
+.pinButtonActive { color: var(--accent); }
+
+.pinButton:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.art {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* A recoloured card colours its folder here too, mixed toward the faint grey
+   so a saturated hue still reads as a folder. Mirrors NoteCard.module.css. */
+.item[data-accented] .art {
+    --folder-ink: color-mix(in srgb, var(--node-accent) 65%, var(--text-faint));
+}
+
+.text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.label {
+    font-size: 0.86rem;
+    font-weight: 550;
+    line-height: 1.35;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.itemActive .label {
+    color: var(--pane-hue);
+}
+
+.description {
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: var(--text-faint);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}

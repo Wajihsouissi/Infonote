@@ -4,10 +4,19 @@ import type { AppState, AISlice } from '../types';
 import type { AIAssistantMessage, AIMessage, AIStep } from '../../features/ai/aiTypes';
 import { isKnownModel } from '../../config/aiModels';
 import { DEFAULT_AI_EFFORT, isKnownEffort, type AIEffort } from '../../config/aiEffort';
+import {
+    deleteChat,
+    deriveChatTitle,
+    listChats,
+    loadChat,
+    pruneChats,
+    saveChat,
+} from '../../services/storage/AIChatStore';
 
 const AI_MODEL_STORAGE_KEY = 'chnk-it-ai-model';
 const AI_EFFORT_STORAGE_KEY = 'chnk-it-ai-effort';
 const AI_PANEL_WIDTH_STORAGE_KEY = 'chnk-it-ai-panel-width';
+const AI_WEB_SEARCH_STORAGE_KEY = 'chnk-it-ai-web-search';
 
 export const AI_PANEL_MIN_WIDTH = 320;
 export const AI_PANEL_MAX_WIDTH = 720;
@@ -100,6 +109,16 @@ export const createAISlice: StateCreator<AppState, [], [], AISlice> = (set, get)
 
     setAIMode: (mode) => set({ aiMode: mode }),
     setAIImageMode: (on) => set({ aiImageMode: on }),
+
+    // Sticky across turns like the model/effort prefs: "I'm researching now" is
+    // a mode you stay in for a few questions, not a per-message decision.
+    aiWebSearch: localStorage.getItem(AI_WEB_SEARCH_STORAGE_KEY) === '1',
+
+    setAIWebSearch: (on) => {
+        if (on) localStorage.setItem(AI_WEB_SEARCH_STORAGE_KEY, '1');
+        else localStorage.removeItem(AI_WEB_SEARCH_STORAGE_KEY);
+        set({ aiWebSearch: on });
+    },
     setAIRunning: (running) => set({ aiIsRunning: running }),
 
     aiSelectedContexts: [],
@@ -159,9 +178,138 @@ export const createAISlice: StateCreator<AppState, [], [], AISlice> = (set, get)
         ),
     })),
 
-    newAIChat: () => set({ aiMessages: [], aiIsRunning: false }),
+    /* Archives before clearing. This used to drop the transcript on the floor —
+       one misclick on the header pencil and the session was gone with no undo. */
+    newAIChat: () => {
+        void get().persistAIChat().then(() => get().refreshAIChats());
+        set({ aiMessages: [], aiIsRunning: false, aiChatId: null });
+    },
 
     removeAIMessages: (ids) => set((state) => ({
         aiMessages: state.aiMessages.filter((m: AIMessage) => !ids.includes(m.id)),
     })),
+
+    // ---------- Saved conversations ----------
+
+    aiChatId: null,
+    aiChats: [],
+    aiChatsLoading: false,
+
+    refreshAIChats: async () => {
+        set({ aiChatsLoading: true });
+        try {
+            set({ aiChats: await listChats() });
+        } catch (error) {
+            // A blocked or unavailable IndexedDB must not take the panel down;
+            // history simply reads as empty.
+            console.error('[AI] Could not read chat history:', error);
+            set({ aiChats: [] });
+        } finally {
+            set({ aiChatsLoading: false });
+        }
+    },
+
+    /**
+     * Write the transcript to its session, creating one on first save.
+     *
+     * Called on a debounce while a turn streams, so it has to be cheap and
+     * idempotent. A transcript with no completed exchange is not worth a row —
+     * otherwise every panel open would leave an empty "New chat" behind.
+     */
+    persistAIChat: async () => {
+        const { aiMessages, aiChatId } = get();
+        if (aiMessages.length === 0) return;
+
+        const id = aiChatId ?? uuidv4();
+        const now = Date.now();
+        const existing = aiChatId ? get().aiChats.find((c) => c.id === aiChatId) : undefined;
+
+        try {
+            await saveChat({
+                id,
+                title: deriveChatTitle(aiMessages),
+                messages: aiMessages,
+                createdAt: existing?.createdAt ?? now,
+                updatedAt: now,
+            });
+            if (!aiChatId) set({ aiChatId: id });
+            await pruneChats();
+        } catch (error) {
+            console.error('[AI] Could not save this chat:', error);
+        }
+    },
+
+    openAIChat: async (id) => {
+        // Don't lose the transcript that is on screen to open another one.
+        await get().persistAIChat();
+        try {
+            const session = await loadChat(id);
+            if (!session) return;
+            set({ aiMessages: session.messages, aiChatId: session.id, aiIsRunning: false });
+        } catch (error) {
+            console.error('[AI] Could not open that chat:', error);
+        }
+        await get().refreshAIChats();
+    },
+
+    duplicateAIChat: async (id) => {
+        await get().persistAIChat();
+        try {
+            const session = await loadChat(id);
+            if (!session) return;
+            const now = Date.now();
+            const copyId = uuidv4();
+            await saveChat({
+                ...session,
+                id: copyId,
+                title: `${session.title} · copy`,
+                createdAt: now,
+                updatedAt: now,
+            });
+            set({ aiMessages: session.messages, aiChatId: copyId, aiIsRunning: false });
+        } catch (error) {
+            console.error('[AI] Could not duplicate that chat:', error);
+        }
+        await get().refreshAIChats();
+    },
+
+    regenerateAIChat: async (id) => {
+        await get().persistAIChat();
+        try {
+            const session = await loadChat(id);
+            if (!session) return null;
+            let lastUserIndex = -1;
+            for (let index = session.messages.length - 1; index >= 0; index -= 1) {
+                if (session.messages[index].role === 'user') {
+                    lastUserIndex = index;
+                    break;
+                }
+            }
+            if (lastUserIndex < 0) return null;
+            const prompt = session.messages[lastUserIndex].text.trim();
+            if (!prompt) return null;
+            set({
+                aiMessages: session.messages.slice(0, lastUserIndex),
+                aiChatId: session.id,
+                aiIsRunning: false,
+            });
+            await get().refreshAIChats();
+            return prompt;
+        } catch (error) {
+            console.error('[AI] Could not prepare that chat for regeneration:', error);
+            return null;
+        }
+    },
+
+    deleteAIChat: async (id) => {
+        try {
+            await deleteChat(id);
+        } catch (error) {
+            console.error('[AI] Could not delete that chat:', error);
+        }
+        // Deleting the open session leaves the transcript on screen but detached,
+        // so the next save starts a fresh row rather than resurrecting this one.
+        if (get().aiChatId === id) set({ aiChatId: null });
+        await get().refreshAIChats();
+    },
 });

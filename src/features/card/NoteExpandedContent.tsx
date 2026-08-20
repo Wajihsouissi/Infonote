@@ -10,7 +10,6 @@ import type { Block } from '../editor/types';
 import { endBlockDrag } from '../editor/blockDragLock';
 import { useStore } from '../../store/useStore';
 import { CoverPicker } from './CoverPicker';
-import { toPastelColor } from '../../utils/colorUtils';
 import { NoteBody } from './NoteBody';
 import { useCanvasDetail } from '../canvas/hooks/useCanvasDetail';
 
@@ -63,8 +62,6 @@ export function NoteExpandedContent({
         onUpdate(id, { showMetadata: show });
     }, [id, onUpdate]);
 
-    const theme = useStore(s => s.theme);
-    const displayColor = data?.color ? toPastelColor(data.color, theme === 'light') : undefined;
 
     /* Two gates decide whether the live editor is worth building:
        isNearViewport = the card is at or near the viewport, isDetailed = the
@@ -204,27 +201,6 @@ export function NoteExpandedContent({
         />
     ), [blocks, readOnly, handleContentUpdate, nodeId, selectionIslandPortalId, hideBlockHandles]);
 
-    // Dynamic color styles removed to follow Paper & Ink guidelines
-
-    /**
-     * The editor well of a recoloured card — here and in the centre peek, which
-     * renders this same component.
-     *
-     * A shade of the accent rather than the accent itself: this is the surface
-     * the document is written on, and body text over a full-strength hue is not
-     * readable. The mix matches NoteCard's `--tint-well`, so a card looks the
-     * same whether it is on the canvas or peeked. See design-system.css §7.
-     */
-    const noteAreaStyles = useMemo(() => {
-        if (!displayColor) return {};
-        return {
-            /* `--tint-well` cascades from the card on the canvas and falls back
-               to the same value in the peek, where there is no card above this.
-               One number governs the well wherever it is shown. */
-            backgroundColor: `color-mix(in srgb, ${displayColor} var(--tint-well, 14%), var(--bg-base))`,
-        };
-    }, [displayColor]);
-
     // Early return AFTER all hooks — a conditional return above any hook
     // makes React throw "Rendered more hooks than during the previous render".
     if (!data) {
@@ -235,8 +211,10 @@ export function NoteExpandedContent({
         <div
             className={styles.expandedView}
             ref={containerRef}
+            data-accented={data.color ? '' : undefined}
             style={{
-                ...(flatCorners ? { borderRadius: 0 } : {})
+                ...(flatCorners ? { borderRadius: 0 } : {}),
+                ...(data.color ? { '--node-accent': data.color } as React.CSSProperties : {})
             }}
         >
             {showMetadata ? (
@@ -367,7 +345,6 @@ export function NoteExpandedContent({
             {/* Note Area */}
             <div
                 className={`${styles.noteArea} nodrag infonote-scrollable`}
-                style={noteAreaStyles}
                 onWheelCapture={(e) => e.stopPropagation()}
                 onPointerDown={(e) => {
                     e.stopPropagation();

@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useRef, useLayoutEffect } from
 import { v4 as uuidv4 } from 'uuid';
 import { createPortal } from 'react-dom';
 
-import type { Block, BlockMetadata, BlockDropPosition } from './types';
+import type { Block, BlockMetadata, BlockDropPosition, BlockType } from './types';
 import styles from './BlockEditor.module.css';
 
 import { SlashMenu } from './SlashMenu';
@@ -11,6 +11,21 @@ import { FloatingToolbar } from './FloatingToolbar';
 import { getActiveFormatsFromSelection, getActiveLinkUrlFromSelection, applyInlineFormat, applyLinkElement, serializeInline, type InlineFormat } from './inlineFormat';
 
 import { BlockItem } from './BlockItem';
+import type { EditOptions } from './BlockComponents';
+import {
+    AUTOFORMAT_SOURCE_TYPES,
+    matchMarkerShortcut,
+    stripLeadingChars,
+} from './markdownShortcuts';
+import {
+    blocksToHtml,
+    blocksToPlainText,
+    cloneBlocks,
+    decodePayload,
+    encodePayload,
+    payloadBlocks,
+} from '../clipboard/clipboardPayload';
+import { writeRichClipboard } from '../clipboard/writeClipboard';
 import { useStore } from '../../store/useStore';
 import { getNodeById } from '../../store/nodeIndex';
 
@@ -39,6 +54,9 @@ interface BlockEditorProps {
     editorId?: string; // Stable identifier for drag-and-drop tracking
     renderBetweenBlocks?: (index: number) => React.ReactNode;
     globalStartIndex?: number; // Starting index for numbered lists computed globally
+    /** A standalone canvas text block has one root block. Multi-block content
+     * belongs in a fused note, not in a stretched single-block shell. */
+    singleBlockOnly?: boolean;
 }
 
 import { memo } from 'react';
@@ -49,6 +67,32 @@ import { memo } from 'react';
  * re-rendered and replaced its nodes — the basis for a blur-proof selection
  * restore. Offsets past the end clamp to the last text node.
  */
+/**
+ * Where the caret sits inside `host`, measured in the same marker-space as
+ * block.content (so **bold** and [links] count as their stored text).
+ *
+ * Module scope because both the key handler and the markdown-shortcut path need
+ * it; it used to be a closure inside handleKeyDown and was unreachable from
+ * anywhere else.
+ */
+function caretOffsetIn(host: HTMLElement | null): number {
+    const selection = window.getSelection();
+    if (!host || !selection || selection.rangeCount === 0) return 0;
+    try {
+        const range = selection.getRangeAt(0);
+        if (!host.contains(range.commonAncestorContainer)) return 0;
+        const preCaretRange = range.cloneRange();
+        preCaretRange.selectNodeContents(host);
+        preCaretRange.setEnd(range.endContainer, range.endOffset);
+        const holder = document.createElement('div');
+        holder.appendChild(preCaretRange.cloneContents());
+        return serializeInline(holder).length;
+    } catch (err) {
+        console.warn('Error calculating caret offset:', err);
+        return 0;
+    }
+}
+
 function offsetsToRange(host: HTMLElement, start: number, end: number): Range | null {
     const locate = (target: number): { node: Node; offset: number } | null => {
         const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
@@ -76,7 +120,7 @@ function offsetsToRange(host: HTMLElement, start: number, end: number): Range | 
     return r;
 }
 
-export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles, disableMediaControls, promoteBlockHandles, selectionIslandPortalId, syncUpdate, editorId, renderBetweenBlocks, globalStartIndex = 1 }: BlockEditorProps) {
+export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles, disableMediaControls, promoteBlockHandles, selectionIslandPortalId, syncUpdate, editorId, renderBetweenBlocks, globalStartIndex = 1, singleBlockOnly = false }: BlockEditorProps) {
     const editorRef = useRef<HTMLDivElement>(null);
     const editorInstanceId = useRef(editorId || `editor-${uuidv4()}`);
 
@@ -144,6 +188,22 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
     // Focus State
     const [focusId, setFocusId] = useState<string | null>(null);
     const caretPositionRef = useRef<'start' | 'end' | number | { x: number, line: 'last' | 'first', fallbackOffset: number } | null>(null);
+
+    /**
+     * The markdown conversion that just happened, so Backspace can undo it.
+     *
+     * An automatic change the user didn't ask for needs a way out; without one
+     * there is no way to type a literal "# " at the start of a line. Cleared as
+     * soon as anything else is typed, so the escape hatch is only open for the
+     * keystroke immediately after — the same rule Notion uses.
+     */
+    const lastAutoConvertRef = useRef<{
+        blockId: string;
+        marker: string;
+        prevType: BlockType;
+        prevMetadata?: BlockMetadata;
+        restAtConversion: string;
+    } | null>(null);
     const blockRefs = useRef<{ [key: string]: HTMLElement | null }>({});
     const autoFocusDoneRef = useRef(false);
 
@@ -237,6 +297,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         setSelectedBlockIds,
         selectedBlockIds,
         nodeId,
+        singleBlockOnly,
         checkForSplit: (id) => {
             if (!nodeId) return;
             const index = blocksRef.current.findIndex(b => b.id === id);
@@ -528,19 +589,23 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         return () => window.removeEventListener('chnk-it-force-editor-sync', handleForceSync);
     }, [initialContent]);
 
-    useEffect(() => {
+    /* useLayoutEffect, not useEffect: this must commit its .focus() call
+       synchronously after the DOM update, before the browser processes the
+       next event. Blocks created via Enter hand off focus asynchronously
+       (setTimeout in the various Enter handlers, to let the new block's DOM
+       node actually exist first) — with a plain useEffect, fast subsequent
+       keystrokes could still reach the OLD block before this ever ran, since
+       passive effects are scheduled more like a macrotask than guaranteed to
+       run before the next native event. */
+    useLayoutEffect(() => {
         if (!focusId) return;
 
-        const el = blockRefs.current[focusId];
-        if (!el) {
-            // Element not in DOM yet — clear focusId to avoid it getting permanently stuck.
-            // The drag-cleanup handler will re-call setFocusId if a retry is needed.
-            setFocusId(null);
-            return;
-        }
+        let cancelled = false;
+        let rafId: number | null = null;
 
+        const focusBlock = (el: HTMLElement) => {
         el.focus({ preventScroll: true });
-        
+
         // Ensure the newly focused block is fully visible within the closest scrollable container
         // Avoid using native scrollIntoView because it bubbles up and aggressively pans the ReactFlow canvas
         const scrollContainer = el.closest('[class*="custom-scrollbar"]') 
@@ -657,6 +722,34 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
         caretPositionRef.current = null;
         setFocusId(null);
+        };
+
+        const tryFocus = (attemptsLeft: number) => {
+            if (cancelled) return;
+            const el = blockRefs.current[focusId];
+            if (!el || !el.isConnected) {
+                /* A block created in the same update as this focus request (e.g.
+                   converting to Divider also creates a trailing text block) can
+                   have its DOM node replaced by a follow-up render before this
+                   effect runs, leaving the registered ref briefly stale/detached.
+                   Retry across a few frames instead of silently dropping focus;
+                   give up if the block genuinely never mounts. */
+                if (attemptsLeft > 0) {
+                    rafId = requestAnimationFrame(() => tryFocus(attemptsLeft - 1));
+                } else {
+                    setFocusId(null);
+                }
+                return;
+            }
+            focusBlock(el);
+        };
+
+        tryFocus(5);
+
+        return () => {
+            cancelled = true;
+            if (rafId !== null) cancelAnimationFrame(rafId);
+        };
     }, [focusId, blocks]);
 
     useEffect(() => {
@@ -687,7 +780,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         return () => window.removeEventListener('chnk-it-ai-generate', handleAIGenerate);
     }, [setBlocks, debouncedOnUpdate, setFocusId]);
 
-    const updateBlock = useCallback((id: string, contentOrPatch: string | Partial<Block>, metadata?: BlockMetadata) => {
+    const updateBlock = useCallback((id: string, contentOrPatch: string | Partial<Block>, metadata?: BlockMetadata, opts?: EditOptions) => {
         setBlocks(prev => {
             const newBlocks = prev.map(b => {
                 if (b.id !== id) return b;
@@ -699,31 +792,80 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 }
             });
             debouncedOnUpdate(newBlocks);
+            /* Keep the ref in step immediately. The useLayoutEffect that mirrors
+               it runs a render later, so two edits batched into one tick left the
+               second one reading stale types and taking the wrong branch below —
+               one of the reasons the shortcuts behaved differently run to run.
+               Assigning the same value the reducer returns is idempotent, so
+               StrictMode's double invocation is harmless. */
+            blocksRef.current = newBlocks;
             return newBlocks;
         });
 
         if (typeof contentOrPatch === 'string') {
             const content = contentOrPatch;
+            const current = blocksRef.current.find(b => b.id === id);
 
-            if (content === '# ') {
-                convertBlock(id, 'heading1', undefined, '');
+            /* Only real insertions may trigger a conversion. Without this an
+               undo that restores the literal "# " would instantly re-convert it,
+               making the shortcut impossible to escape. */
+            const inputType = opts?.inputType;
+            const isInsertion = !inputType || inputType.startsWith('insert');
+            const canAutoFormat = !!current && isInsertion && AUTOFORMAT_SOURCE_TYPES.has(current.type);
+
+            const hit = canAutoFormat ? matchMarkerShortcut(content, 'type') : null;
+            if (hit && current) {
+                /* Remember enough to undo this if Backspace comes next. */
+                lastAutoConvertRef.current = {
+                    blockId: id,
+                    marker: content.slice(0, hit.markerLength),
+                    prevType: current.type,
+                    prevMetadata: current.metadata,
+                    restAtConversion: hit.rest,
+                };
+
+                // Put the caret where the text now is, minus the marker we ate.
+                const host = blockRefs.current[id];
+                if (host) {
+                    const offset = caretOffsetIn(host);
+                    caretPositionRef.current = Math.max(0, offset - hit.markerLength);
+                }
+
+                convertBlock(id, hit.rule.type, hit.metadata, hit.rest);
+
+                /* React may keep the very same DOM node — a heading becoming a
+                   bigger heading, or another bullet in a list, both re-use one
+                   component — and the editor deliberately skips re-syncing a
+                   focused element so the caret doesn't jump mid-typing. The
+                   marker characters would therefore stay on screen and be read
+                   straight back into state on the next keystroke. Remove just
+                   those characters, leaving any live bold/italic/link markup
+                   alone. */
+                const marker = content.slice(0, hit.markerLength);
+                const applyToHost = () => {
+                    const el = blockRefs.current[id];
+                    if (!el?.isConnected) return;
+                    const live = serializeInline(el);
+                    /* Strip ONLY if the marker is genuinely still sitting there.
+                       A blind strip is unsafe: this runs again on the next frame
+                       to catch a remount, and by then the user may have typed
+                       more, so removing "the first N characters" would eat their
+                       text instead of the marker. */
+                    if (!live.startsWith(marker)) return;
+                    stripLeadingChars(el, hit.markerLength, live.slice(hit.markerLength));
+                };
+                applyToHost();
+                requestAnimationFrame(applyToHost); // catches the remount case
                 return;
             }
-            if (content === '## ') {
-                convertBlock(id, 'heading2', undefined, '');
-                return;
+
+            /* Any other edit invalidates a pending revert — the Backspace window
+               only lasts while the block still reads exactly as it did after the
+               conversion. */
+            const pending = lastAutoConvertRef.current;
+            if (pending && (pending.blockId !== id || content !== pending.restAtConversion)) {
+                lastAutoConvertRef.current = null;
             }
-            if (content === '### ') {
-                convertBlock(id, 'heading3', undefined, '');
-                return;
-            }
-            if (content === '> ') { convertBlock(id, 'quote', undefined, ''); return; }
-            if (content === '>> ') { convertBlock(id, 'toggle', undefined, ''); return; }
-            if (content === '--- ') { convertBlock(id, 'divider', undefined, ''); return; }
-            if (content === '[] ' || content === '- ') { convertBlock(id, 'todo', undefined, ''); return; }
-            if (content === '1. ') { convertBlock(id, 'numbered', undefined, ''); return; } // Numbered list
-            if (content === '* ') { convertBlock(id, 'bullet', undefined, ''); return; } // Bullet list
-            if (content === '``` ') { convertBlock(id, 'code', undefined, ''); return; }
 
             // Slash menu: Only trigger if content starts with '/' and isn't followed immediately by whitespace
             if (content.startsWith('/') && !content.match(/^\/\s/)) {
@@ -734,7 +876,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 setSlashMenuState(null);
             }
         }
-    }, [debouncedOnUpdate, convertBlock, handleSlashOpen, slashMenuStateRef, setSlashMenuState]);
+    }, [debouncedOnUpdate, convertBlock, handleSlashOpen, slashMenuStateRef, setSlashMenuState, blocksRef]);
 
     const handleDeleteBlock = useCallback((id: string) => {
         removeBlock(id);
@@ -776,8 +918,16 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
     // is the inverse of the on-blur render), then refresh the saved range + the
     // active-format highlight to wherever the selection ended up.
     const persistHost = useCallback((host: HTMLElement) => {
-        const blockId = blockIdForHost(host);
-        if (blockId) updateBlock(blockId, serializeInline(host));
+        // Table cells aren't a whole block (a block can hold many cells), so
+        // they stash their own persist hook on the DOM node instead of going
+        // through updateBlock(blockId, text). See TableCellEditor.
+        const cellPersist = (host as HTMLElement & { __persistInline?: (text: string) => void }).__persistInline;
+        if (cellPersist) {
+            cellPersist(serializeInline(host));
+        } else {
+            const blockId = blockIdForHost(host);
+            if (blockId) updateBlock(blockId, serializeInline(host));
+        }
         const sel = window.getSelection();
         if (sel && sel.rangeCount > 0) savedRangeRef.current = sel.getRangeAt(0).cloneRange();
         setActiveFormats(getActiveFormatsFromSelection());
@@ -1048,31 +1198,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             return;
         }
 
-        const getCaretOffset = () => {
-            const selection = window.getSelection();
-            const target = e.target as HTMLElement;
-            if (selection && selection.rangeCount > 0 && target) {
-                try {
-                    const range = selection.getRangeAt(0);
-                    // Ensure the selection is actually inside the target to avoid errors
-                    if (!target.contains(range.commonAncestorContainer)) return 0;
-
-                    // Serialize the content BEFORE the caret to markdown so the
-                    // offset is in the same marker-space as block.content — this
-                    // keeps **bold**/[links] intact when a block is split.
-                    const preCaretRange = range.cloneRange();
-                    preCaretRange.selectNodeContents(target);
-                    preCaretRange.setEnd(range.endContainer, range.endOffset);
-                    const holder = document.createElement('div');
-                    holder.appendChild(preCaretRange.cloneContents());
-                    return serializeInline(holder).length;
-                } catch (err) {
-                    console.warn('Error calculating caret offset:', err);
-                    return 0;
-                }
-            }
-            return 0;
-        };
+        const getCaretOffset = () => caretOffsetIn(e.target as HTMLElement);
 
         const getCaretX = () => {
             const selection = window.getSelection();
@@ -1418,6 +1544,36 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             const currentBlock = blocksRef.current.find(b => b.id === id);
             if (!currentBlock) return;
 
+            /* Undo a markdown conversion that just fired. Must be checked BEFORE
+               the empty-block handling below, which would otherwise swallow the
+               keystroke and delete the block instead of giving the marker back.
+               The caret-at-start condition closes the window as soon as the user
+               types anything, so there is no timer to get wrong. */
+            const pending = lastAutoConvertRef.current;
+            if (
+                pending &&
+                pending.blockId === id &&
+                content === pending.restAtConversion &&
+                caretOffsetIn(e.target as HTMLElement) === 0
+            ) {
+                e.preventDefault();
+                lastAutoConvertRef.current = null;
+                const restored = pending.marker + pending.restAtConversion;
+                setBlocks(prev => {
+                    const newBlocks = prev.map(b => b.id === id
+                        ? { ...b, type: pending.prevType, content: restored, metadata: pending.prevMetadata }
+                        : b);
+                    debouncedOnUpdate(newBlocks);
+                    blocksRef.current = newBlocks;
+                    return newBlocks;
+                });
+                const host = blockRefs.current[id];
+                if (host) host.innerText = restored;
+                caretPositionRef.current = pending.marker.length;
+                setFocusId(id);
+                return;
+            }
+
             const isEmpty = !content || content.trim().replace(/[\n\u200B\u00A0\u200C\uFEFF]/g, '').length === 0;
 
             if (isEmpty) {
@@ -1719,65 +1875,146 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         blockRefs.current[id] = el;
     }, []);
 
+    /** The blocks currently selected, in document order. */
+    const getSelectedBlocks = useCallback(
+        () => blocksRef.current.filter(b => selectedBlockIdsRef.current.has(b.id)),
+        [blocksRef, selectedBlockIdsRef]
+    );
+
+    /**
+     * Build the clipboard flavours for a set of blocks: readable text for other
+     * programs, and HTML carrying the real block data so a paste back into the
+     * app restores headings, checkboxes, images and tables exactly.
+     */
+    const buildClipboard = useCallback((selectedBlocks: Block[]) => {
+        const copy = cloneBlocks(selectedBlocks);
+        return encodePayload(
+            { v: 1, kind: 'blocks', blocks: copy },
+            blocksToPlainText(selectedBlocks),
+            blocksToHtml(selectedBlocks)
+        );
+    }, []);
+
     const handleCopySelection = useCallback(() => {
-        const selectedBlocks = blocks.filter(b => selectedBlockIds.has(b.id));
+        const selectedBlocks = getSelectedBlocks();
         if (selectedBlocks.length === 0) return;
+        const { text, html } = buildClipboard(selectedBlocks);
+        void writeRichClipboard(text, html);
+    }, [getSelectedBlocks, buildClipboard]);
 
-        // Copy actual text content instead of JSON
-        const textContent = selectedBlocks
-            .map(b => {
-                // Handle different block types to extract text
-                if (b.type === 'todo') return `[${b.metadata?.checked ? 'x' : ' '}] ${b.content}`;
-                if (b.type === 'bullet') return `• ${b.content}`;
-                if (b.type === 'numbered') return `1. ${b.content}`; // Simplified, as we don't have global index here easily
-                return b.content;
-            })
-            .join('\n');
-
-        navigator.clipboard.writeText(textContent).then(() => {
-            console.log('Copied blocks text to clipboard');
-        }).catch(err => {
+    const handleCutSelection = useCallback(() => {
+        const selectedBlocks = getSelectedBlocks();
+        if (selectedBlocks.length === 0) return;
+        const { text, html } = buildClipboard(selectedBlocks);
+        void writeRichClipboard(text, html).then(() => {
+            const ids = new Set(selectedBlocks.map(b => b.id));
+            setBlocks(prev => {
+                const remaining = prev.filter(b => !ids.has(b.id));
+                // Never leave a note with no block at all — there would be
+                // nowhere to put the caret afterwards.
+                const next = remaining.length > 0 ? remaining : [{ id: uuidv4(), type: 'text' as const, content: '' }];
+                debouncedOnUpdate(next);
+                return next;
+            });
+            setSelectedBlockIds(new Set());
         });
-    }, [blocks, selectedBlockIds]);
+    }, [getSelectedBlocks, buildClipboard, setBlocks, debouncedOnUpdate, setSelectedBlockIds]);
+
+    /**
+     * Ctrl+C / Ctrl+X over a block selection.
+     *
+     * Handled through the native copy/cut events rather than a keydown listener:
+     * the event is the only place the browser lets a page put more than one
+     * flavour on the clipboard, which is what makes a lossless paste possible.
+     * With no block selection this does nothing, so ordinary text selection
+     * inside a single block keeps the browser's own behaviour.
+     */
+    useEffect(() => {
+        const hasSelection = () => selectedBlockIdsRef.current.size > 0;
+
+        const writeToEvent = (e: ClipboardEvent) => {
+            const selectedBlocks = getSelectedBlocks();
+            if (selectedBlocks.length === 0 || !e.clipboardData) return false;
+            const { text, html } = buildClipboard(selectedBlocks);
+            e.clipboardData.setData('text/plain', text);
+            e.clipboardData.setData('text/html', html);
+            e.preventDefault();
+            return true;
+        };
+
+        const onCopy = (e: ClipboardEvent) => {
+            if (!hasSelection()) return;
+            writeToEvent(e);
+        };
+
+        const onCut = (e: ClipboardEvent) => {
+            if (!hasSelection()) return;
+            if (!writeToEvent(e)) return;
+            const ids = new Set(getSelectedBlocks().map(b => b.id));
+            setBlocks(prev => {
+                const remaining = prev.filter(b => !ids.has(b.id));
+                const next = remaining.length > 0 ? remaining : [{ id: uuidv4(), type: 'text' as const, content: '' }];
+                debouncedOnUpdate(next);
+                return next;
+            });
+            setSelectedBlockIds(new Set());
+        };
+
+        document.addEventListener('copy', onCopy);
+        document.addEventListener('cut', onCut);
+        return () => {
+            document.removeEventListener('copy', onCopy);
+            document.removeEventListener('cut', onCut);
+        };
+    }, [getSelectedBlocks, buildClipboard, setBlocks, debouncedOnUpdate, setSelectedBlockIds, selectedBlockIdsRef]);
 
     const handleContainerPaste = async (e: React.ClipboardEvent) => {
-        console.log("handleContainerPaste triggered", e);
-        // Intercept paste only when not typing inside text inputs, textareas, contenteditables or code blocks
+        // Intercept paste only when not typing inside text inputs, textareas or
+        // contenteditables — those have their own per-block paste handler.
         const target = e.target as HTMLElement;
-        const isEditable = target.tagName === 'INPUT' ||
+        const isEditable = typeof target?.closest === 'function' && (
+            target.tagName === 'INPUT' ||
             target.tagName === 'TEXTAREA' ||
             target.isContentEditable ||
-            target.closest('[contenteditable]');
-
-        console.log("handleContainerPaste isEditable:", isEditable, "target:", target);
+            !!target.closest('[contenteditable]')
+        );
         if (isEditable) return;
 
-        let parsedBlocks: any[] = [];
+        let parsedBlocks: Block[] = [];
         const files = e.clipboardData.files;
-        console.log("handleContainerPaste files:", files?.length);
 
         if (files && files.length > 0) {
             e.preventDefault();
             parsedBlocks = await parseFiles(files);
-            console.log("handleContainerPaste parsed files:", parsedBlocks);
         } else {
             const text = e.clipboardData.getData('text/plain')?.trim();
             const html = e.clipboardData.getData('text/html');
-            console.log("handleContainerPaste text/html:", text, html);
             if (!text && !html) return;
             e.preventDefault();
-            parsedBlocks = parseTextOrHtml(e);
-            console.log("handleContainerPaste parsed text:", parsedBlocks);
+            // Blocks copied from inside the app come back exactly as they were.
+            const internal = payloadBlocks(decodePayload(html) ?? { v: 1, kind: 'blocks', blocks: [] });
+            parsedBlocks = internal && internal.length > 0 ? internal : parseTextOrHtml(e);
         }
 
-        if (parsedBlocks.length > 0) {
-            setBlocks(prev => {
-                const newBlocks = [...prev, ...parsedBlocks];
-                debouncedOnUpdate(newBlocks);
-                return newBlocks;
-            });
-            setTimeout(() => setFocusId(parsedBlocks[parsedBlocks.length - 1].id), 50);
-        }
+        if (parsedBlocks.length === 0) return;
+
+        /* Land the paste just after whatever is selected rather than at the very
+           end of the note. Appending to the end meant a paste could arrive far
+           from where the user was working, out of sight. */
+        const selectedIds = selectedBlockIdsRef.current;
+        setBlocks(prev => {
+            let insertAt = prev.length;
+            if (selectedIds.size > 0) {
+                const lastSelected = prev.reduce((acc, b, i) => (selectedIds.has(b.id) ? i : acc), -1);
+                if (lastSelected >= 0) insertAt = lastSelected + 1;
+            }
+            const newBlocks = [...prev];
+            newBlocks.splice(insertAt, 0, ...parsedBlocks);
+            debouncedOnUpdate(newBlocks);
+            return newBlocks;
+        });
+        setSelectedBlockIds(new Set());
+        setTimeout(() => setFocusId(parsedBlocks[parsedBlocks.length - 1].id), 50);
     };
 
     return (
@@ -2083,6 +2320,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         onClear={() => setSelectedBlockIds(new Set())}
                         onDelete={deleteSelectedBlocks}
                         onCopy={handleCopySelection}
+                        onCut={handleCutSelection}
                     />,
                     portalTarget
                 );
@@ -2095,6 +2333,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     onClear={() => setSelectedBlockIds(new Set())}
                     onDelete={deleteSelectedBlocks}
                     onCopy={handleCopySelection}
+                    onCut={handleCutSelection}
                 />
             )}
         </div>

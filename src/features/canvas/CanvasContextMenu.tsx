@@ -3,13 +3,14 @@ import { createPortal } from 'react-dom';
 import {
     Type,
     ClipboardPaste, Camera, Trash2, Crosshair, ChevronRight,
-    LayoutGrid, Columns2,
+    LayoutGrid, Columns2, Copy, Scissors,
 } from '../../components/icons';
 import { useReactFlow } from '@xyflow/react';
 import html2canvas from 'html2canvas';
 import { useStore } from '../../store/useStore';
 import type { BlockMetadata } from '../editor/types';
 import { MENU_ITEMS } from '../editor/menuConstants';
+import { decodePayload, payloadBlocks } from '../clipboard/clipboardPayload';
 import { createGalleryMetadata, GALLERY_NODE_WIDTH } from '../editor/galleryTypes';
 import styles from './CanvasContextMenu.module.css';
 
@@ -38,6 +39,7 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
     const bulkDeleteNodes = useStore(s => s.bulkDeleteNodes);
     const clearCanvasSelection = useStore(s => s.clearCanvasSelection);
     const setSelectedCanvasNodeIds = useStore(s => s.setSelectedCanvasNodeIds);
+    const pasteClipboardNodes = useStore(s => s.pasteClipboardNodes);
     const onNodesChange = useStore(s => s.onNodesChange);
     const currentParentId = useStore(s => s.currentParentId);
     const { screenToFlowPosition } = useReactFlow();
@@ -91,11 +93,57 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
         onClose();
     }, [x, y, addNode, screenToFlowPosition, onClose, currentParentId]);
 
+    /* Copy and Cut simply ask the browser to run its own copy/cut, which the
+       canvas already listens for — so the menu and Ctrl+C/Ctrl+X always agree
+       instead of being two separate implementations that can drift apart. */
+    const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
+    const hasSelection = selectedCanvasNodeIds.size > 0;
+
+    const handleCopySelection = useCallback(() => {
+        document.execCommand('copy');
+        onClose();
+    }, [onClose]);
+
+    const handleCutSelection = useCallback(() => {
+        document.execCommand('cut');
+        onClose();
+    }, [onClose]);
+
     const handlePaste = useCallback(async () => {
+        const flowPos = screenToFlowPosition({ x, y });
         try {
-            const text = await navigator.clipboard.readText();
+            /* Prefer the HTML flavour: cards and blocks copied inside the app
+               carry their real structure there, so pasting through the menu is
+               as faithful as Ctrl+V. Plain text is the fallback for anything
+               that came from another program. */
+            let html = '';
+            let text = '';
+            try {
+                const items = await navigator.clipboard.read();
+                for (const item of items) {
+                    if (item.types.includes('text/html')) html = await (await item.getType('text/html')).text();
+                    if (item.types.includes('text/plain')) text = await (await item.getType('text/plain')).text();
+                }
+            } catch {
+                text = await navigator.clipboard.readText();
+            }
+
+            const payload = decodePayload(html);
+            if (payload?.kind === 'nodes') {
+                pasteClipboardNodes(payload, flowPos);
+                onClose();
+                return;
+            }
+
+            const blocks = payload ? payloadBlocks(payload) : null;
+            if (blocks && blocks.length > 0) {
+                addNode('fused-note', flowPos, { content: blocks, isStandaloneBlock: true },
+                    { width: 432, height: 120 }, currentParentId || undefined);
+                onClose();
+                return;
+            }
+
             if (!text) return;
-            const flowPos = screenToFlowPosition({ x, y });
             addNode('block', flowPos, {
                 content: [{ id: crypto.randomUUID?.() || Math.random().toString(36), type: 'text', content: text }],
                 isStandaloneBlock: true,
@@ -104,7 +152,7 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
             console.warn('[CanvasContextMenu] Paste failed:', err);
         }
         onClose();
-    }, [x, y, addNode, screenToFlowPosition, onClose, currentParentId]);
+    }, [x, y, addNode, screenToFlowPosition, onClose, currentParentId, pasteClipboardNodes]);
 
     const handleScreenshot = useCallback(async () => {
         const minimap = document.querySelector<HTMLElement>('.react-flow__minimap');
@@ -173,8 +221,19 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
                         <ChevronRight size={14} className={styles.chevron} />
                     </div>
 
+                    {hasSelection && (
+                        <>
+                            <div className={styles.menuItem} onMouseEnter={() => setActiveSubmenu(null)} onClick={handleCopySelection}>
+                                <span className={styles.itemContent}><Copy size={16} /><span>Copy</span></span>
+                            </div>
+                            <div className={styles.menuItem} onMouseEnter={() => setActiveSubmenu(null)} onClick={handleCutSelection}>
+                                <span className={styles.itemContent}><Scissors size={16} /><span>Cut</span></span>
+                            </div>
+                        </>
+                    )}
+
                     <div className={styles.menuItem} onMouseEnter={() => setActiveSubmenu(null)} onClick={handlePaste}>
-                        <span className={styles.itemContent}><ClipboardPaste size={16} /><span>Paste from clipboard</span></span>
+                        <span className={styles.itemContent}><ClipboardPaste size={16} /><span>Paste</span></span>
                     </div>
 
                     <div className={styles.menuItem} onMouseEnter={() => setActiveSubmenu('select')} onClick={() => setActiveSubmenu(activeSubmenu === 'select' ? null : 'select')}>

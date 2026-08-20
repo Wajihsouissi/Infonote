@@ -70,7 +70,19 @@ export function CoverPicker({ currentCover, onSelect, onClose }: CoverPickerProp
     ];
 
     return createPortal(
-        <div className={styles.modalOverlay} onClick={onClose}>
+        <div
+            className={styles.modalOverlay}
+            data-cover-picker
+            /* This dialog is portalled to body. Keep its backdrop interaction
+               local: without stopping propagation, a Center/Fullscreen overlay
+               behind it treats a successful cover pick as a request to close
+               the entire peek. */
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+                event.stopPropagation();
+                onClose();
+            }}
+        >
             <div className={styles.coverPickerModal} onClick={(e) => e.stopPropagation()}>
                 <div className={styles.modalHeader}>
                     <h3>Edit Cover</h3>

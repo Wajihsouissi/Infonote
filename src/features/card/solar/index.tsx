@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import type { LucideIcon, LucideProps } from '../../../components/icons';
 import { makeIcon } from '../../../components/icons/createIcon';
 import { SOLAR_CORE } from './solarCore';
@@ -17,13 +17,29 @@ export const DEFAULT_SOLAR_ICON = 'file-text';
  * Core bodies ship with the main bundle so cards saved before the Solar
  * switch paint immediately. The other ~1000 arrive in a chunk fetched the
  * first time something actually needs one.
+ *
+ * `useSyncExternalStore`, not a hand-rolled useState+listener-Set, is what
+ * subscribes components to this — that store was tried first and produced a
+ * "Maximum update depth exceeded" crash inside React Flow's StoreUpdater on
+ * a cold load: the chunk landing fired a burst of manual bump() calls across
+ * every icon tile mounted at once, colliding with an unrelated store update
+ * (the icon selection write) in the same commit. useSyncExternalStore is the
+ * primitive React ships specifically to subscribe to outside-React state
+ * without that class of bug.
  * ------------------------------------------------------------------ */
 
 let rest: Record<string, string> | null = null;
 let restPending: Promise<void> | null = null;
+let catalog: SolarEntry[] | null = null;
 
-/** Notified when the lazy chunk lands, so mounted icons can re-render. */
 const listeners = new Set<() => void>();
+const notify = () => listeners.forEach((fn) => fn());
+
+function subscribe(onChange: () => void): () => void {
+    listeners.add(onChange);
+    void loadRestIcons().catch(() => undefined);
+    return () => listeners.delete(onChange);
+}
 
 export function loadRestIcons(): Promise<void> {
     if (rest) return Promise.resolve();
@@ -32,7 +48,7 @@ export function loadRestIcons(): Promise<void> {
             .then(([bodies, cat]) => {
                 rest = bodies.default;
                 catalog = cat.default;
-                listeners.forEach((fn) => fn());
+                notify();
             })
             .catch((err) => {
                 // Let a later attempt retry rather than wedging on one failure.
@@ -44,7 +60,6 @@ export function loadRestIcons(): Promise<void> {
 }
 
 /** The full browsable listing — only present once the lazy chunk has loaded. */
-let catalog: SolarEntry[] | null = null;
 export function getCatalog(): SolarEntry[] | null {
     return catalog;
 }
@@ -84,22 +99,38 @@ function componentFor(solarName: string, body: string): LucideIcon {
  */
 export function useSolarBody(stored: string): { name: string; body: string | null } {
     const name = toSolarName(stored);
-    const body = bodyFor(name);
-    const [, bump] = useState(0);
+    const body = useSyncExternalStore(
+        subscribe,
+        () => bodyFor(name) ?? null,
+        () => bodyFor(name) ?? null,
+    );
+    return { name, body };
+}
 
-    useEffect(() => {
-        if (body !== undefined) return;
-        let alive = true;
-        const rerender = () => alive && bump((n) => n + 1);
-        listeners.add(rerender);
-        void loadRestIcons().catch(() => undefined);
-        return () => {
-            alive = false;
-            listeners.delete(rerender);
-        };
-    }, [body, name]);
+/**
+ * One shared component for every icon whose body isn't loaded yet. It reads
+ * the name off its own props rather than being manufactured per-name, so
+ * there is exactly one component type in play regardless of how many
+ * distinct icons are pending — nothing for the reconciler to churn through
+ * when a batch of them resolve together.
+ */
+function LazySolarIcon({ name, ...props }: LucideProps & { name: string }) {
+    const resolved = useSolarBody(name);
+    if (!resolved.body) return null;
+    const Resolved = componentFor(resolved.name, resolved.body);
+    return <Resolved {...props} />;
+}
 
-    return { name, body: body ?? null };
+const lazyIconCache = new Map<string, LucideIcon>();
+
+function lazyIconFor(name: string): LucideIcon {
+    let icon = lazyIconCache.get(name);
+    if (!icon) {
+        icon = ((props: LucideProps) => <LazySolarIcon name={name} {...props} />) as unknown as LucideIcon;
+        (icon as unknown as { displayName: string }).displayName = `Solar(${name})`;
+        lazyIconCache.set(name, icon);
+    }
+    return icon;
 }
 
 /**
@@ -110,20 +141,5 @@ export function useSolarBody(stored: string): { name: string; body: string | nul
 export function solarIconComponent(stored: string): LucideIcon {
     const name = toSolarName(stored);
     const body = bodyFor(name);
-    if (body) return componentFor(name, body);
-
-    const cacheKey = `pending:${name}`;
-    const pending = componentCache.get(cacheKey);
-    if (pending) return pending;
-
-    const Pending: LucideIcon = ((props: LucideProps) => {
-        const resolved = useSolarBody(stored);
-        if (!resolved.body) return null;
-        const Resolved = componentFor(resolved.name, resolved.body);
-        return <Resolved {...props} />;
-    }) as unknown as LucideIcon;
-    (Pending as unknown as { displayName: string }).displayName = `Solar(${name})`;
-
-    componentCache.set(cacheKey, Pending);
-    return Pending;
+    return body ? componentFor(name, body) : lazyIconFor(name);
 }

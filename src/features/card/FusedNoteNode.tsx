@@ -1,4 +1,4 @@
-import { memo, useCallback, useRef, useState, useEffect, useMemo } from 'react';
+import { memo, useCallback, useRef, useState, useEffect } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
 import { StickyNote } from '../../components/icons';
 import { BlockEditor } from '../editor/BlockEditor';
@@ -8,40 +8,28 @@ import { BlockLodBody } from '../block/BlockLodBody';
 
 import { useStore } from '../../store/useStore';
 import { getNodeById } from '../../store/nodeIndex';
-import type { Node } from '@xyflow/react';
 import styles from './FusedNoteNode.module.css';
 import { snapFusedDimensions, MIN_EXPANDED_SIZE, MAX_HEIGHT } from '../../config/layout';
-import type { AppNode } from '../../types';
+import type { AppNode, FusedNoteNode as FusedNoteNodeType } from '../../types';
 import type { Block } from '../editor/types';
 import { samePropsIgnoringPosition } from '../canvas/nodeMemo';
 
-export type FusedNoteNodeData = {
-    content: Block[];
-    color?: string;
-    lastFusedAt?: number;
-};
-
 import { v4 as uuidv4 } from 'uuid';
 
-export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedNoteNodeData>>) => {
+export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<FusedNoteNodeType>) => {
     const { getViewport } = useReactFlow();
     const connection = useConnection();
     const isConnecting = connection.inProgress;
     const updateNodeData = useStore(s => s.updateNodeData);
     const updateNode = useStore(s => s.updateNode);
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
-    const theme = useStore(s => s.theme);
     const isLinkingMode = useStore(s => s.isLinkingMode);
     const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
     const linkSelectedNodes = useStore(s => s.linkSelectedNodes);
     const clearCanvasSelection = useStore(s => s.clearCanvasSelection);
     const setNodesStore = useStore(s => s.setNodes);
     const detailTier = useCanvasDetail(id);
-    // A fused note's body is several block editors fused together — by far the
-    // most expensive node on the canvas. Below full detail it renders the same
-    // static wireframe as single blocks, so a workspace full of fused notes
-    // stays navigable at the zoomed-out first LOD. The rising edge is paced by
-    // the shared frame budget like the note cards.
+    const theme = useStore(s => s.theme);
     const showEditor = useScheduledMount(detailTier === 'full');
 
     // Narrow selectors — only re-render when THIS node's status changes
@@ -59,9 +47,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
     useEffect(() => {
         if (selected) {
-            interactionTimerRef.current = window.setTimeout(() => {
-                setIsInteractive(true);
-            }, 300);
+            interactionTimerRef.current = window.setTimeout(() => setIsInteractive(true), 300);
         } else {
             if (interactionTimerRef.current) clearTimeout(interactionTimerRef.current);
             setIsInteractive(false);
@@ -128,8 +114,8 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
 
         const result = { title: data.label || 'Untitled Card', content: data.content, color: data.color, tags: [] as string[], viewMode: 'expanded' as const };
 
-        let width = MIN_EXPANDED_SIZE;
-        let height = MIN_EXPANDED_SIZE;
+        const width = MIN_EXPANDED_SIZE;
+        const height = MIN_EXPANDED_SIZE;
 
         const parentId = thisNode.parentId;
         if (!parentId) {
@@ -236,6 +222,27 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
         window.addEventListener('mousemove', onMouseMove);
         window.addEventListener('mouseup', onMouseUp);
     };
+
+    const handleResizeReset = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+
+        const node = nodeRef.current;
+        if (!node) return;
+
+        const content = node.querySelector('.ProseMirror, .infonote-scrollable, [data-scrollable="true"]') as HTMLElement | null;
+        const contentWidth = content
+            ? content.scrollWidth
+            : Math.max(node.scrollWidth, node.clientWidth);
+        const contentHeight = content
+            ? content.scrollHeight
+            : Math.max(node.scrollHeight, node.clientHeight);
+        const chromeWidth = content ? Math.max(0, node.clientWidth - content.clientWidth) : 0;
+        const chromeHeight = content ? Math.max(0, node.clientHeight - content.clientHeight) : 0;
+        const dimensions = snapFusedDimensions(contentWidth + chromeWidth, contentHeight + chromeHeight);
+
+        updateNode(id, { style: dimensions });
+    }, [id, updateNode]);
 
 
 
@@ -398,13 +405,21 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<Node<FusedN
             {showEditor && (
                 <div
                     className={`${styles.modernResizeHandle} nodrag`}
-                    onMouseDown={handleResizeStart}
+                    onMouseDown={(e) => {
+                        if (e.detail === 2) {
+                            handleResizeReset(e);
+                            return;
+                        }
+                        handleResizeStart(e);
+                    }}
+                    onDoubleClick={handleResizeReset}
+                    title="Drag to resize · double-click to fit content"
                 >
                     <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <defs>
                             <linearGradient id="arc-gradient-fused" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor="var(--accent)" />
-                                <stop offset="100%" stopColor="var(--secondary)" />
+                                <stop offset="0%" stopColor="var(--resize-handle-start)" />
+                                <stop offset="100%" stopColor="var(--resize-handle-end)" />
                             </linearGradient>
                         </defs>
                         <path

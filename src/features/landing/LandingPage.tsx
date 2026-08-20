@@ -33,6 +33,7 @@ import {
 } from '../../components/icons';
 import type { LucideIcon } from '../../components/icons';
 import styles from './LandingPage.module.css';
+import { originFromEvent } from '../../utils/themeTransition';
 
 const FEEDBACK_MAILTO =
   'mailto:wajih.souissi.ws@gmail.com?subject=chnk%20it%20beta%20%E2%80%94%20feedback';
@@ -307,7 +308,7 @@ export const LandingPage: React.FC = () => {
           {isRailCollapsed ? (
             <button
               className={styles.navItem}
-              onClick={toggleTheme}
+              onClick={(e) => toggleTheme(originFromEvent(e))}
               {...tip(theme === 'dark' ? 'Switch to Paper' : 'Switch to Ink')}
             >
               {theme === 'dark' ? (
@@ -320,14 +321,14 @@ export const LandingPage: React.FC = () => {
             <div className={styles.themeRow} role="group" aria-label="Theme">
               <button
                 className={`${styles.themeBtn} ${theme === 'dark' ? styles.themeBtnActive : ''}`}
-                onClick={() => theme !== 'dark' && toggleTheme()}
+                onClick={(e) => theme !== 'dark' && toggleTheme(originFromEvent(e))}
               >
                 <Moon size={13} />
                 <span>Ink</span>
               </button>
               <button
                 className={`${styles.themeBtn} ${theme === 'light' ? styles.themeBtnActive : ''}`}
-                onClick={() => theme !== 'light' && toggleTheme()}
+                onClick={(e) => theme !== 'light' && toggleTheme(originFromEvent(e))}
               >
                 <Sun size={13} />
                 <span>Paper</span>

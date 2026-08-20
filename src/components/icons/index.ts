@@ -46,6 +46,7 @@ export const Check: LucideIcon = resolveIcon("Check");
 export const Clock: LucideIcon = resolveIcon("Clock");
 export const Link2: LucideIcon = resolveIcon("Link2");
 export const Search: LucideIcon = resolveIcon("Search");
+export const Globe: LucideIcon = resolveIcon("Globe");
 export const AlertCircle: LucideIcon = resolveIcon("AlertCircle");
 export const ArrowRight: LucideIcon = resolveIcon("ArrowRight");
 export const ChevronRight: LucideIcon = resolveIcon("ChevronRight");

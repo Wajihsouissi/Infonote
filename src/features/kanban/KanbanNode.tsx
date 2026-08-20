@@ -37,7 +37,7 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { Move, Plus } from '../../components/icons';
+import { Maximize2, Move, Plus, X } from '../../components/icons';
 import { v4 as uuidv4 } from 'uuid';
 
 import { useStore } from '../../store/useStore';
@@ -77,7 +77,12 @@ const DRILL_GRID_COLS = 4;
 /** Ignore sub-pixel jitter when mirroring the rendered size onto the node. */
 const SIZE_EPSILON = 2;
 
-export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<KanbanNode>) => {
+type KanbanNodeViewProps = Pick<NodeProps<KanbanNode>, 'id' | 'data' | 'selected'> & {
+    /** Rendered by the app fullscreen modal instead of the React Flow canvas. */
+    fullscreenView?: boolean;
+};
+
+export const KanbanNodeComponent = memo(({ id, data, selected, fullscreenView = false }: KanbanNodeViewProps) => {
     const nodes = useStore((s) => s.nodes);
     const addNode = useStore((s) => s.addNode);
     const updateNodeData = useStore((s) => s.updateNodeData);
@@ -102,6 +107,8 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
     const [drag, setDrag] = useState<{ id: string; zoom: number; type: 'card' | 'lane' } | null>(null);
     const [overLane, setOverLane] = useState<string | null>(null);
     const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+    const fullscreenId = useStore((s) => s.fullscreenId);
+    const setFullscreenId = useStore((s) => s.setFullscreenId);
 
     /**
      * The child being worked on, if any.
@@ -149,6 +156,9 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
             const width = el.offsetWidth;
             const height = el.offsetHeight;
             if (!width || !height) return;
+            /* The modal renders a second board instance. Its responsive size is
+               presentation-only and must never overwrite the canvas node. */
+            if (fullscreenView) return;
 
             /* Compared against what this observer last wrote, not against what
                is in the store. Reading the node back to decide whether to write
@@ -171,7 +181,7 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
         observer.observe(el);
         sync();
         return () => observer.disconnect();
-    }, [id, setNodesStore]);
+    }, [fullscreenView, id, setNodesStore]);
 
     const sensors = useSensors(
         /* A few pixels of slop: a card is both draggable and clickable, and
@@ -341,6 +351,10 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
         setCenterPanelId(cardId);
     }, [setCenterPanelId]);
 
+    const toggleBoardFullscreen = useCallback(() => {
+        setFullscreenId(fullscreenId === id ? null : id);
+    }, [fullscreenId, id, setFullscreenId]);
+
     const handleGroupByChange = useCallback((field: KanbanGroupField) => {
         /* Lanes belong to the field they describe, so switching field replaces
            them wholesale. Keeping the old ones would leave a board grouped by
@@ -368,6 +382,7 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                    board up. */
                 className={`
                     ${styles.board}
+                    ${fullscreenView ? styles.fullscreenView : ''}
                     ${selected ? styles.selected : ''}
                     ${isDraggingBoard ? styles.dragging : ''}
                     custom-drag-handle
@@ -421,6 +436,16 @@ export const KanbanNodeComponent = memo(({ id, data, selected }: NodeProps<Kanba
                     </div>
 
                     <div className={styles.headTools}>
+                        <button
+                            type="button"
+                            className={`${styles.fullscreenBtn} nodrag nopan`}
+                            onClick={() => toggleBoardFullscreen()}
+                            title={fullscreenId === id ? 'Close fullscreen board' : 'Focus board fullscreen'}
+                            aria-label={fullscreenId === id ? 'Close fullscreen board' : 'Focus board fullscreen'}
+                        >
+                            {fullscreenId === id ? <X size={14} /> : <Maximize2 size={14} />}
+                        </button>
+
                         <label className={styles.groupBy}>
                             <span className={styles.groupByLabel}>Group by</span>
                             <select

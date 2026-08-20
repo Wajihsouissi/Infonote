@@ -31,6 +31,26 @@ export function useSlashCommand({
         const targetId = id || (slashMenuStateRef.current ? slashMenuStateRef.current.blockId : null);
         if (!targetId) return;
 
+        // A divider has no editable content, so it never registers a focusable
+        // DOM ref. Converting a block to one used to leave focus with nowhere
+        // to go — the user's next keystrokes were silently dropped. Give it a
+        // fresh empty block to type into instead, same as pressing Enter would.
+        // Decided up front (not inside the setBlocks updater below) because
+        // that updater isn't guaranteed to have run yet by the time this
+        // function returns — reading a value it assigned from here raced and
+        // silently used the divider's own id instead.
+        let trailingTextBlockId: string | null = null;
+        {
+            const current = blocksRef.current;
+            const index = current.findIndex(b => b.id === targetId);
+            const next = index !== -1 ? current[index + 1] : undefined;
+            if (next && next.type === 'text' && !next.content) {
+                trailingTextBlockId = next.id;
+            } else if (type === 'divider') {
+                trailingTextBlockId = uuidv4();
+            }
+        }
+
         setBlocks(prev => {
             const index = prev.findIndex(b => b.id === targetId);
             if (index === -1) return prev;
@@ -89,6 +109,10 @@ export function useSlashCommand({
                 }
             }
 
+            if (type === 'divider' && trailingTextBlockId && !updated.some(b => b.id === trailingTextBlockId)) {
+                updated.splice(index + 1, 0, { id: trailingTextBlockId, type: 'text', content: '', indent: currentBlock.indent || 0 });
+            }
+
             debouncedOnUpdate(updated);
             return updated;
         });
@@ -103,7 +127,7 @@ export function useSlashCommand({
         //     }
         // }
 
-        setFocusId(targetId);
+        setFocusId(trailingTextBlockId || targetId);
         setSlashMenuState(null);
     }, [debouncedOnUpdate, nodeId, setBlocks, setFocusId, blocksRef]); // Removed blocks from dependency
 

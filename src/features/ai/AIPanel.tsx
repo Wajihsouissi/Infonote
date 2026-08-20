@@ -24,9 +24,15 @@ import {
     Layers,
     Kanban,
     Waypoints,
+    History,
+    Globe,
+    Crosshair,
+    MessageSquare,
+    RotateCcw,
 } from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import { streamText, FREEFORM_SYSTEM_PROMPT } from '../../services/aiService';
+import { groundedAsk, citationsAsMarkdown } from '../../services/searchService';
 import { buildCanvasContext, nodeTitle } from './canvasContext';
 import { buildConversationPrompt } from './aiPrompt';
 import {
@@ -38,12 +44,13 @@ import {
     type AIAttachment,
 } from './attachments';
 import { AI_MODELS, modelLabel } from '../../config/aiModels';
-import { AI_EFFORT_LEVELS, effortLabel } from '../../config/aiEffort';
+import { AI_EFFORT_LEVELS, effortLabel, effortMaxTokens } from '../../config/aiEffort';
 import { AI_PANEL_MIN_WIDTH, AI_PANEL_MAX_WIDTH } from '../../store/slices/aiSlice';
 import { formatBytes } from '../editor/mediaTypes';
 import { addAnswerToCanvas, runCreate, runEdit, runImage, type RunnerContext } from './aiRunner';
 import { AIMarkdown } from './AIMarkdown';
 import { SelectedNodeStrip } from './SelectedNodeStrip';
+import { AIChatHistory } from './AIChatHistory';
 import type { AIAssistantMessage, AIIntent, AIStep } from './aiTypes';
 import { AI_CONTEXT_DEFINITIONS } from './aiTypes';
 import styles from './AIPanel.module.css';
@@ -54,6 +61,14 @@ const SUGGESTIONS: { label: string; prompt: string; mode: 'create' | 'ask' }[] =
     { label: 'Summarise my canvas', prompt: 'Summarise what is on this canvas and what is missing.', mode: 'ask' },
     { label: 'Rewrite the selected card', prompt: 'Rewrite this more clearly and tighten the wording.', mode: 'create' },
 ];
+
+function createdNodeIcon(type: string) {
+    if (type === 'kanban') return Kanban;
+    if (type === 'fused-note') return Network;
+    if (type === 'block') return Layers;
+    if (type === 'note') return FileText;
+    return Sparkles;
+}
 
 /* Keys must match the `icon` field in AI_CONTEXT_DEFINITIONS. A definition
    naming an icon that is missing here resolves to `undefined` and React throws
@@ -71,6 +86,7 @@ export function AIPanel() {
     const mode = useStore((s) => s.aiMode);
     const imageMode = useStore((s) => s.aiImageMode);
     const messages = useStore((s) => s.aiMessages);
+    const canvasNodes = useStore((s) => s.nodes);
     const isRunning = useStore((s) => s.aiIsRunning);
     const selectedCanvasNodeIds = useStore((s) => s.selectedCanvasNodeIds);
     const currentParentId = useStore((s) => s.currentParentId);
@@ -78,6 +94,8 @@ export function AIPanel() {
     const setAIPanelOpen = useStore((s) => s.setAIPanelOpen);
     const setAIMode = useStore((s) => s.setAIMode);
     const setAIImageMode = useStore((s) => s.setAIImageMode);
+    const webSearch = useStore((s) => s.aiWebSearch);
+    const setAIWebSearch = useStore((s) => s.setAIWebSearch);
     const setAIRunning = useStore((s) => s.setAIRunning);
     const aiSelectedContexts = useStore((s) => s.aiSelectedContexts);
     const toggleAIContext = useStore((s) => s.toggleAIContext);
@@ -88,6 +106,8 @@ export function AIPanel() {
     const pushAIStep = useStore((s) => s.pushAIStep);
     const appendAIText = useStore((s) => s.appendAIText);
     const newAIChat = useStore((s) => s.newAIChat);
+    const persistAIChat = useStore((s) => s.persistAIChat);
+    const refreshAIChats = useStore((s) => s.refreshAIChats);
 
     const aiModel = useStore((s) => s.aiModel);
     const aiEffort = useStore((s) => s.aiEffort);
@@ -107,6 +127,7 @@ export function AIPanel() {
     const [modelMenuOpen, setModelMenuOpen] = useState(false);
     const [effortMenuOpen, setEffortMenuOpen] = useState(false);
     const [contextMenuOpen, setContextMenuOpen] = useState(false);
+    const [historyOpen, setHistoryOpen] = useState(false);
     const [contextMenuPos, setContextMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -135,6 +156,25 @@ export function AIPanel() {
         if (!el) return;
         el.scrollTop = el.scrollHeight;
     }, [messages, isOpen]);
+
+    /* Autosave the transcript.
+     *
+     * Debounced because `appendAIText` fires per streamed token — saving on
+     * every change would write to IndexedDB hundreds of times per answer.
+     * Waiting for the run to finish instead would lose the conversation if the
+     * tab closed mid-answer, which is exactly when a long one is worth keeping,
+     * so this saves *during* the stream but only every 1.2s. */
+    useEffect(() => {
+        if (messages.length === 0) return;
+        const timer = window.setTimeout(() => { void persistAIChat(); }, 1200);
+        return () => window.clearTimeout(timer);
+    }, [messages, persistAIChat]);
+
+    // Prime the history list once, so the button opens to content rather than
+    // a flash of "Loading…".
+    useEffect(() => {
+        if (isOpen) void refreshAIChats();
+    }, [isOpen, refreshAIChats]);
 
     const runnerContext = useCallback((): RunnerContext => {
         const { x, y, zoom } = getViewport();
@@ -224,8 +264,9 @@ export function AIPanel() {
         const intent: AIIntent = mode === 'ask' ? 'ask' : imageMode ? 'image' : selectedIds.length > 0 ? 'edit' : 'create';
 
         const turnAttachments = attachments;
+        const userMessageId = uuidv4();
         appendAIMessage({
-            id: uuidv4(),
+            id: userMessageId,
             role: 'user',
             text: query,
             intent,
@@ -257,6 +298,11 @@ export function AIPanel() {
             contexts: intent === 'create' && aiSelectedContexts.length > 0 ? aiSelectedContexts : undefined,
         };
         const promptWithFiles = `${attachmentPreamble(turnAttachments)}${query}`;
+        const conversationPrompt = buildConversationPrompt(
+            useStore.getState().aiMessages,
+            promptWithFiles,
+            userMessageId,
+        );
 
         const base = runnerContext();
         const ctx: RunnerContext = {
@@ -276,13 +322,41 @@ export function AIPanel() {
         const context = buildCanvasContext(useStore.getState().nodes, selectedCanvasNodeIds, currentParentId);
 
         try {
-            if (intent === 'ask') {
-                const system = `${FREEFORM_SYSTEM_PROMPT}
+            const system = `${FREEFORM_SYSTEM_PROMPT}
 
 You are answering inside the user's canvas, and you can see what is on it. Ground your answer in these cards when they are relevant, and say so plainly when they are not:
 
 ${context}`;
-                await streamText(buildConversationPrompt(useStore.getState().aiMessages, promptWithFiles), {
+
+            /* Grounded Ask takes a different route entirely.
+             *
+             * Gemini runs the searches and answers in one native call, so there
+             * is no result list to fold into a prompt — and no token stream
+             * either, since grounding is not exposed on the streaming
+             * compat endpoint. The answer therefore lands whole rather than
+             * typing itself out, which is why this reports a step: without one
+             * the panel would sit silent for the entire call. */
+            if (intent === 'ask' && webSearch) {
+                const searchStep = ctx.step('action', 'Searching the web', 'running');
+                const { text, citations, queries } = await groundedAsk(
+                    conversationPrompt,
+                    {
+                        system,
+                        model: aiModel,
+                        maxTokens: effortMaxTokens(aiEffort),
+                        signal: controller.signal,
+                    }
+                );
+                ctx.settle(searchStep, 'done', queries.length > 0
+                    ? `Searched: ${queries.slice(0, 3).join(', ')}`
+                    : 'Searched the web');
+
+                updateAITurn(turnId, {
+                    status: 'done',
+                    text: `${text}${citationsAsMarkdown(citations)}`,
+                });
+            } else if (intent === 'ask') {
+                await streamText(conversationPrompt, {
                     system,
                     ...request,
                     signal: controller.signal,
@@ -294,7 +368,8 @@ ${context}`;
                     ? await runImage(query, ctx)
                     : intent === 'edit'
                         ? await runEdit(promptWithFiles, selectedIds, ctx)
-                        : await runCreate(promptWithFiles, context, ctx);
+                        : await runCreate(conversationPrompt, context, ctx);
+                if (result.createdNodeIds.length > 0) focusCreatedNodes(result.createdNodeIds);
                 updateAITurn(turnId, {
                     status: 'done',
                     text: result.summary,
@@ -316,7 +391,7 @@ ${context}`;
         }
     }, [
         draft, isRunning, mode, imageMode, selectedCanvasNodeIds, selectedNodes, currentParentId,
-        attachments, aiModel, aiEffort, aiSelectedContexts,
+        attachments, aiModel, aiEffort, aiSelectedContexts, webSearch,
         appendAIMessage, startAITurn, pushAIStep, appendAIText, updateAITurn, setAIRunning, runnerContext,
     ]);
 
@@ -335,15 +410,64 @@ ${context}`;
         updateAITurn(message.id, { createdNodeIds: [] });
     }, [pushAIStep, updateAITurn]);
 
+    const focusCreatedNodes = useCallback((ids: string[]) => {
+        if (ids.length === 0) return;
+        window.requestAnimationFrame(() => {
+            window.dispatchEvent(new CustomEvent('focusCanvasNodes', {
+                detail: { ids },
+            }));
+        });
+    }, []);
+
+    const locateCreatedNodes = useCallback((message: AIAssistantMessage) => {
+        if (message.createdNodeIds.length === 0) return;
+        focusCreatedNodes(message.createdNodeIds);
+    }, [focusCreatedNodes]);
+
     /** The question this answer belongs to — not simply the newest one. */
     const questionFor = useCallback((messageId: string) => {
         const index = messages.findIndex((m) => m.id === messageId);
+        if (index >= 0 && messages[index].role === 'user') return messages[index].text;
         for (let i = index - 1; i >= 0; i--) {
             const m = messages[i];
             if (m.role === 'user') return m.text;
         }
-        return 'AI answer';
+        return '';
     }, [messages]);
+
+    const restoreBubble = useCallback((messageId: string) => {
+        const prompt = questionFor(messageId);
+        if (!prompt) return;
+        setDraft(prompt);
+        inputRef.current?.focus();
+    }, [questionFor]);
+
+    const duplicateBubble = useCallback((messageId: string) => {
+        const prompt = questionFor(messageId);
+        if (!prompt) return;
+        setDraft((current) => current.trim() ? `${current}\n${prompt}` : prompt);
+        inputRef.current?.focus();
+    }, [questionFor]);
+
+    const regenerateBubble = useCallback(async (messageId: string) => {
+        if (isRunning) return;
+        const messageIndex = messages.findIndex((message) => message.id === messageId);
+        if (messageIndex < 0) return;
+
+        let userIndex = messageIndex;
+        if (messages[messageIndex].role === 'assistant') {
+            for (let index = messageIndex - 1; index >= 0; index -= 1) {
+                if (messages[index].role === 'user') {
+                    userIndex = index;
+                    break;
+                }
+            }
+        }
+        const prompt = messages[userIndex]?.role === 'user' ? messages[userIndex].text.trim() : '';
+        if (!prompt) return;
+        useStore.setState({ aiMessages: messages.slice(0, userIndex), aiIsRunning: false });
+        await submit(prompt);
+    }, [isRunning, messages, submit]);
 
     const keepAnswer = useCallback((message: AIAssistantMessage) => {
         const id = addAnswerToCanvas(questionFor(message.id).slice(0, 60), message.text, runnerContext());
@@ -423,6 +547,9 @@ ${context}`;
                 <div
                     className={styles.resizeHandle}
                     onMouseDown={handleResizeStart}
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label="Resize AI panel"
                 >
                     <span className={styles.resizeGrip} aria-hidden="true" />
                     <span className={styles.resizeTooltip}>Resize</span>
@@ -436,8 +563,15 @@ ${context}`;
                 </div>
                 <div className={styles.headerActions}>
                     <button
+                        className={`${styles.headerBtn} ${historyOpen ? styles.headerBtnActive : ''}`}
+                        onClick={() => setHistoryOpen((open) => !open)}
+                        title="Chat history"
+                    >
+                        <History size={15} />
+                    </button>
+                    <button
                         className={styles.headerBtn}
-                        onClick={newAIChat}
+                        onClick={() => { newAIChat(); setHistoryOpen(false); }}
                         title="New chat"
                         disabled={messages.length === 0}
                     >
@@ -450,6 +584,18 @@ ${context}`;
             </div>
 
             <div className={styles.panelBody}>
+                {historyOpen && <AIChatHistory onClose={() => setHistoryOpen(false)} />}
+
+                {/* A slow warm mesh gives the whole chat surface an active
+                    state while the faster beam traces its boundary. */}
+                {isRunning && <span className={styles.panelMesh} aria-hidden="true" />}
+                {isRunning && <span className={styles.panelLightRails} aria-hidden="true" />}
+                {isRunning && (
+                    <span className={styles.panelSparkles} aria-hidden="true">
+                        <i /><i /><i /><i /><i /><i /><i />
+                    </span>
+                )}
+
                 {/* Travelling light around the chat surface while a run is in
                     flight. Decorative only — `aria-hidden`, since the
                     transcript already announces the working state. */}
@@ -493,10 +639,54 @@ ${context}`;
                                         )}
                                     </div>
                                 )}
-                                <div className={styles.userBubble}>{message.text}</div>
+                                <div className={styles.bubbleWrap}>
+                                    <div className={styles.userBubble}>{message.text}</div>
+                                    <div className={styles.bubbleActions} role="toolbar" aria-label="Message actions">
+                                        <button className={styles.bubbleAction} onClick={() => restoreBubble(message.id)} title="Restore prompt" aria-label="Restore prompt">
+                                            <MessageSquare size={12} />
+                                        </button>
+                                        <button className={styles.bubbleAction} onClick={() => duplicateBubble(message.id)} title="Duplicate prompt" aria-label="Duplicate prompt">
+                                            <Copy size={12} />
+                                        </button>
+                                        <button className={styles.bubbleAction} onClick={() => void regenerateBubble(message.id)} title="Regenerate response" aria-label="Regenerate response">
+                                            <RotateCcw size={12} />
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         ) : (
                             <div key={message.id} className={styles.assistantTurn}>
+                                <div className={styles.bubbleActions} role="toolbar" aria-label="Message actions">
+                                    <button className={styles.bubbleAction} onClick={() => restoreBubble(message.id)} title="Restore prompt" aria-label="Restore prompt">
+                                        <MessageSquare size={12} />
+                                    </button>
+                                    <button className={styles.bubbleAction} onClick={() => duplicateBubble(message.id)} title="Duplicate prompt" aria-label="Duplicate prompt">
+                                        <Copy size={12} />
+                                    </button>
+                                    <button className={styles.bubbleAction} onClick={() => void regenerateBubble(message.id)} title="Regenerate response" aria-label="Regenerate response">
+                                        <RotateCcw size={12} />
+                                    </button>
+                                    {message.intent === 'ask' && message.text && (
+                                        <button className={styles.bubbleAction} onClick={() => keepAnswer(message)} title="Add to canvas" aria-label="Add to canvas">
+                                            <Plus size={12} />
+                                        </button>
+                                    )}
+                                    {message.createdNodeIds.length > 0 && (
+                                        <>
+                                            <button className={styles.bubbleAction} onClick={() => locateCreatedNodes(message)} title="Locate on canvas" aria-label="Locate on canvas">
+                                                <Crosshair size={12} />
+                                            </button>
+                                            <button className={styles.bubbleAction} onClick={() => undoTurn(message)} title="Undo created items" aria-label="Undo created items">
+                                                <Undo2 size={12} />
+                                            </button>
+                                        </>
+                                    )}
+                                    {message.text && (
+                                        <button className={styles.bubbleAction} onClick={() => copy(message)} title={copiedId === message.id ? 'Copied' : 'Copy response'} aria-label="Copy response">
+                                            <Copy size={12} />
+                                        </button>
+                                    )}
+                                </div>
                                 {message.steps.length > 0 && (
                                     <div className={styles.steps}>
                                         {message.steps.map((step) => (
@@ -530,25 +720,47 @@ ${context}`;
                                     </div>
                                 )}
 
-                                {message.status === 'done' && (
-                                    <div className={styles.turnActions}>
-                                        {message.intent === 'ask' && message.text && (
-                                            <button className={styles.turnAction} onClick={() => keepAnswer(message)}>
-                                                <Plus size={12} /> Add to canvas
-                                            </button>
-                                        )}
-                                        {message.createdNodeIds.length > 0 && (
-                                            <button className={styles.turnAction} onClick={() => undoTurn(message)}>
-                                                <Undo2 size={12} /> Undo {message.createdNodeIds.length} item{message.createdNodeIds.length === 1 ? '' : 's'}
-                                            </button>
-                                        )}
-                                        {message.text && (
-                                            <button className={styles.turnAction} onClick={() => copy(message)}>
-                                                <Copy size={12} /> {copiedId === message.id ? 'Copied' : 'Copy'}
-                                            </button>
-                                        )}
+                                {message.status === 'done' && message.createdNodeIds.length > 0 && (
+                                    <div className={styles.createdResult}>
+                                        <div className={styles.createdResultHeader}>
+                                            <div className={styles.createdResultHeading}>
+                                                <span className={styles.createdResultStatus}><Check size={12} /></span>
+                                                <span>
+                                                    <span className={styles.createdResultTitle}>Created on canvas</span>
+                                                    <span className={styles.createdResultSubtitle}>Ready to explore</span>
+                                                </span>
+                                            </div>
+                                            <span className={styles.createdResultCount}>{message.createdNodeIds.length}</span>
+                                        </div>
+                                        <div className={styles.createdPreview}>
+                                            {message.createdNodeIds.slice(0, 4).map((id) => {
+                                                const node = canvasNodes.find((candidate) => candidate.id === id);
+                                                const title = node ? nodeTitle(node) : 'Created item';
+                                                const CreatedIcon = createdNodeIcon(node?.type ?? '');
+                                                return (
+                                                    <button
+                                                        key={id}
+                                                        className={styles.createdTile}
+                                                        onClick={() => locateCreatedNodes(message)}
+                                                        title={`Focus “${title}” on canvas`}
+                                                    >
+                                                        <span className={styles.createdTileIcon}><CreatedIcon size={13} /></span>
+                                                        <span className={styles.createdTileTitle}>{title}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                            {message.createdNodeIds.length > 4 && (
+                                                <button className={styles.createdMore} onClick={() => locateCreatedNodes(message)}>
+                                                    +{message.createdNodeIds.length - 4} more
+                                                </button>
+                                            )}
+                                        </div>
+                                        <button className={styles.focusCreated} onClick={() => locateCreatedNodes(message)}>
+                                            <Crosshair size={12} /> View created result
+                                        </button>
                                     </div>
                                 )}
+
                             </div>
                         ))
                     )}
@@ -557,7 +769,9 @@ ${context}`;
                 {/* Cards the turn is pointed at. A sibling above the composer's
                     own border, not inside it — these qualify the message, they
                     aren't part of what gets typed. */}
-                <SelectedNodeStrip selectedIds={selectedCanvasNodeIds} />
+                <div className={styles.selectedNodeLayer}>
+                    <SelectedNodeStrip selectedIds={selectedCanvasNodeIds} />
+                </div>
 
                 <div
                     className={styles.composer}
@@ -688,6 +902,15 @@ ${context}`;
                     >
                         <Paperclip size={15} />
                     </button>
+
+                    <button
+                        className={`${styles.iconToggle} ${webSearch ? styles.iconToggleActive : ''}`}
+                        onClick={() => setAIWebSearch(!webSearch)}
+                        title={webSearch ? 'Web search on — answers use live results' : 'Search the web for this'}
+                    >
+                        <Globe size={15} />
+                    </button>
+
 
                     {mode === 'create' && (
                         <button

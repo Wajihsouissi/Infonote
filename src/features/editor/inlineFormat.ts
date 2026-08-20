@@ -205,7 +205,24 @@ export function serializeInline(root: HTMLElement): string {
 
     root.childNodes.forEach(walk);
     // Strip zero-width spaces browsers sometimes inject into contentEditable.
-    return out.replace(new RegExp('[\\u200B\\uFEFF]', 'g'), '');
+    out = out.replace(new RegExp('[\\u200B\\uFEFF]', 'g'), '');
+
+    /* Browsers park a bogus <br> at the end of a line to keep it selectable,
+       which the walk above turned into a real newline. Left in, the stored text
+       differs from what is on screen — and it was one reason the markdown
+       shortcuts fired only sometimes. */
+    out = out.replace(/\n$/, '');
+
+    /* A space typed at the END of a line is stored as a non-breaking space by
+       most browsers — which one, and when, varies — so identical typing yields
+       either "#" + U+0020 or "#" + U+00A0. Comparing against a plain space
+       worked only some of the time, which is the single biggest cause of the
+       shortcuts behaving randomly.
+
+       Normalise the TRAILING run only. Interior non-breaking spaces are real
+       content (French punctuation, "10 000 EUR") and rewriting those would
+       silently corrupt what the user typed. */
+    return out.replace(new RegExp('[\\u00A0\\u2007\\u202F ]+$'), (run) => ' '.repeat(run.length));
 }
 
 /** Nearest ancestor element with `tag`, stopping at (and excluding) `host`. */

@@ -249,6 +249,10 @@
 }
 
 .modernResizeHandle {
+    --resize-handle-start: var(--color-text-muted);
+    --resize-handle-end: var(--text-soft);
+    /* Match note cards: neutral, soft gray until the direct resize hover. */
+    --resize-handle-color: rgba(142, 142, 142, 0.68);
     position: absolute;
     bottom: -20px;
     right: -20px;
@@ -275,8 +279,9 @@
 }
 
 .handlePath {
+    stroke: var(--resize-handle-color);
     stroke-opacity: 0.9;
-    transition: background-color var(--transition-fast), transform var(--transition-fast);
+    transition: stroke var(--transition-fast), transform var(--transition-fast);
 }
 
 .fusedNoteNode:hover .modernResizeHandle,
@@ -287,6 +292,12 @@
 .modernResizeHandle:hover svg {
     filter: none;
     transform: scale(1.1) rotate(-5deg);
+}
+
+.modernResizeHandle:hover {
+    --resize-handle-start: var(--accent);
+    --resize-handle-end: var(--secondary);
+    --resize-handle-color: var(--accent);
 }
 
 .modernResizeHandle:active svg {

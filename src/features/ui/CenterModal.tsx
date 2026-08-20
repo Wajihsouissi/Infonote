@@ -36,7 +36,13 @@ export function CenterModal({
                     animate={{ opacity: 1, backdropFilter: 'blur(4px)' }}
                     exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
                     transition={{ duration: 0.2 }}
-                    onClick={() => setCenterPanelId(null)}
+                    onClick={(event) => {
+                        // The cover picker is portalled to body but still
+                        // bubbles through React's tree. It is a child dialog,
+                        // not a click on this modal's dismiss backdrop.
+                        if ((event.target as HTMLElement).closest('[data-cover-picker]')) return;
+                        setCenterPanelId(null);
+                    }}
                     onDragOver={(e: any) => {
                         if (onCanvasDragOver) {
                             onCanvasDragOver(e);

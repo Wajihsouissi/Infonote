@@ -124,7 +124,7 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
     // Get bulk action handlers from store
     const handleBulkDelete = useCallback(() => {
         console.log('[MultiSelectionToolbar] Delete clicked, selected:', Array.from(selectedCanvasNodeIds));
-        bulkDeleteNodes(Array.from(selectedCanvasNodeIds));
+        bulkDeleteNodes(Array.from(selectedCanvasNodeIds), true);
         clearSelectionFully();
     }, [selectedCanvasNodeIds, bulkDeleteNodes, clearSelectionFully]);
 
@@ -247,126 +247,93 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
                     </div>
 
                     <div className={styles.actions}>
-                        {onOpenAI && (
-                            <Tooltip label="Ask AI" desc="Use AI to edit/modify selected cards">
-                                <button
-                                    className={`${styles.actionBtn} ${styles.aiBtn}`}
-                                    onClick={onOpenAI}
-                                >
-                                    <Sparkles size={16} />
-                                </button>
-                            </Tooltip>
+                        {(onOpenAI || onOpenSearch) && (
+                            <div className={styles.actionGroup} aria-label="AI actions">
+                                {onOpenAI && (
+                                    <Tooltip label="Ask AI" desc="Use AI to edit/modify selected cards">
+                                        <button className={`${styles.actionBtn} ${styles.aiBtn}`} onClick={onOpenAI}>
+                                            <Sparkles size={16} />
+                                        </button>
+                                    </Tooltip>
+                                )}
+                                {onOpenSearch && (
+                                    <Tooltip label="AI Search" desc="Search your cards and notes">
+                                        <button className={`${styles.actionBtn} ${styles.searchBtn}`} onClick={onOpenSearch}>
+                                            <Search size={16} />
+                                        </button>
+                                    </Tooltip>
+                                )}
+                            </div>
                         )}
 
-                        {onOpenSearch && (
-                            <Tooltip label="AI Search" desc="Search your cards and notes">
-                                <button
-                                    className={`${styles.actionBtn} ${styles.searchBtn}`}
-                                    onClick={onOpenSearch}
-                                >
-                                    <Search size={16} />
-                                </button>
-                            </Tooltip>
-                        )}
+                        <div className={styles.actionGroup} aria-label="Appearance actions">
+                            <div className={styles.layoutTrigger} ref={viewsPopoverRef}>
+                                <Tooltip label="View Mode" desc="Change card view mode">
+                                    <button className={styles.actionBtn} onClick={() => setShowViewsPopover(!showViewsPopover)}>
+                                        <Eye size={16} />
+                                    </button>
+                                </Tooltip>
 
-                        {selectedCount === 1 && Array.from(selectedCanvasNodeIds)[0] && (
-                            <Tooltip label="Chunk it" desc="Split card content into multiple pieces">
-                                <button
-                                    className={styles.actionBtn}
-                                    onClick={() => setChunkItNodeId(Array.from(selectedCanvasNodeIds)[0])}
-                                >
-                                    <Scissors size={16} />
-                                </button>
-                            </Tooltip>
-                        )}
-
-                        <Tooltip label="Duplicate" desc="Duplicate selected items">
-                            <button
-                                className={styles.actionBtn}
-                                onClick={handleBulkDuplicate}
-                            >
-                                <Copy size={16} />
-                            </button>
-                        </Tooltip>
-
-                        <div className={styles.colorPickerTrigger} ref={colorPickerRef}>
-                            <Tooltip label="Color" desc="Apply color to selected items">
-                                <button
-                                    className={styles.actionBtn}
-                                    onClick={() => setShowColorPicker(!showColorPicker)}
-                                >
-                                    <Palette size={16} />
-                                </button>
-                            </Tooltip>
-
-                            {showColorPicker && (
-                                <div className={styles.colorPopover}>
-                                    <div className={styles.colorLabel}>Apply Color</div>
-                                    <div className={styles.colorGrid}>
-                                        {colors.map(color => (
-                                            <button
-                                                key={color.value}
-                                                className={`${styles.colorOption} ${color.value === 'transparent' ? styles.transparentOption : ''}`}
-                                                style={{ backgroundColor: color.value === 'transparent' ? undefined : color.displayValue }}
-                                                onClick={() => handleBulkColor(color.value)}
-                                                title={color.name}
-                                            >
-                                                {color.value === 'transparent' && (
-                                                    <span className={styles.transparentSlash} />
-                                                )}
-                                            </button>
-                                        ))}
+                                {showViewsPopover && (
+                                    <div className={styles.layoutPopover} style={{ minWidth: '150px' }}>
+                                        <div className={styles.layoutLabel}>View Mode</div>
+                                        <div className={styles.layoutGrid} style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                                            <Tooltip label="Icon" desc="Icon only"><button className={styles.layoutOption} onClick={() => handleSetViewMode('icon')}><Square size={14} /></button></Tooltip>
+                                            <Tooltip label="Folder" desc="Folder with cover & icon"><button className={styles.layoutOption} onClick={() => handleSetViewMode('folder')}><Folder size={18} /></button></Tooltip>
+                                            <Tooltip label="Title" desc="Icon + Title"><button className={styles.layoutOption} onClick={() => handleSetViewMode('titleview')}><RectangleHorizontal size={18} /></button></Tooltip>
+                                            <Tooltip label="Medium" desc="Medium card"><button className={styles.layoutOption} onClick={() => handleSetViewMode('medium')}><StickyNote size={18} /></button></Tooltip>
+                                            <Tooltip label="Expanded" desc="Expanded card"><button className={styles.layoutOption} onClick={() => handleSetViewMode('expanded')}><PanelTop size={18} /></button></Tooltip>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
+
+                            <div className={styles.colorPickerTrigger} ref={colorPickerRef}>
+                                <Tooltip label="Color" desc="Apply color to selected items">
+                                    <button className={styles.actionBtn} onClick={() => setShowColorPicker(!showColorPicker)}>
+                                        <Palette size={16} />
+                                    </button>
+                                </Tooltip>
+
+                                {showColorPicker && (
+                                    <div className={styles.colorPopover}>
+                                        <div className={styles.colorLabel}>Apply Color</div>
+                                        <div className={styles.colorGrid}>
+                                            {colors.map(color => (
+                                                <button key={color.value} className={`${styles.colorOption} ${color.value === 'transparent' ? styles.transparentOption : ''}`} style={{ backgroundColor: color.value === 'transparent' ? undefined : color.displayValue }} onClick={() => handleBulkColor(color.value)} title={color.name}>
+                                                    {color.value === 'transparent' && <span className={styles.transparentSlash} />}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
-                        <div className={styles.layoutTrigger} ref={viewsPopoverRef}>
-                            <Tooltip label="View Mode" desc="Change card view mode">
-                                <button
-                                    className={styles.actionBtn}
-                                    onClick={() => setShowViewsPopover(!showViewsPopover)}
-                                >
-                                    <Eye size={16} />
+                        <div className={styles.actionGroup} aria-label="Content actions">
+                            {selectedCount === 1 && Array.from(selectedCanvasNodeIds)[0] && (
+                                <Tooltip label="Chunk it" desc="Split card content into multiple pieces">
+                                    <button className={styles.actionBtn} onClick={() => setChunkItNodeId(Array.from(selectedCanvasNodeIds)[0])}>
+                                        <Scissors size={16} />
+                                    </button>
+                                </Tooltip>
+                            )}
+                            <Tooltip label="Duplicate" desc="Duplicate selected items">
+                                <button className={styles.actionBtn} onClick={handleBulkDuplicate}>
+                                    <Copy size={16} />
                                 </button>
                             </Tooltip>
-
-                            {showViewsPopover && (
-                                <div className={styles.layoutPopover} style={{ minWidth: '150px' }}>
-                                    <div className={styles.layoutLabel}>View Mode</div>
-                                    <div className={styles.layoutGrid} style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-                                        <Tooltip label="Icon" desc="Icon only">
-                                            <button className={styles.layoutOption} onClick={() => handleSetViewMode('icon')}>
-                                                <Square size={14} />
-                                            </button>
-                                        </Tooltip>
-                                        <Tooltip label="Folder" desc="Folder with cover & icon">
-                                            <button className={styles.layoutOption} onClick={() => handleSetViewMode('folder')}>
-                                                <Folder size={18} />
-                                            </button>
-                                        </Tooltip>
-                                        <Tooltip label="Title" desc="Icon + Title">
-                                            <button className={styles.layoutOption} onClick={() => handleSetViewMode('titleview')}>
-                                                <RectangleHorizontal size={18} />
-                                            </button>
-                                        </Tooltip>
-                                        <Tooltip label="Medium" desc="Medium card">
-                                            <button className={styles.layoutOption} onClick={() => handleSetViewMode('medium')}>
-                                                <StickyNote size={18} />
-                                            </button>
-                                        </Tooltip>
-                                        <Tooltip label="Expanded" desc="Expanded card">
-                                            <button className={styles.layoutOption} onClick={() => handleSetViewMode('expanded')}>
-                                                <PanelTop size={18} />
-                                            </button>
-                                        </Tooltip>
-                                    </div>
-                                </div>
+                            {selectedCount === 1 && (
+                                <Tooltip label="Release" desc="Release node content into blocks on canvas">
+                                    <button className={`${styles.actionBtn} ${styles.primary}`} onClick={handleRelease}>
+                                        <ArrowRight size={16} />
+                                    </button>
+                                </Tooltip>
                             )}
                         </div>
 
                         {selectedCount > 1 && (
-                            <>
+                            <div className={styles.actionGroup} aria-label="Arrange selected items">
                                 <Tooltip label="Fuse" desc="Fuse selected items into one container">
                                     <button
                                         className={`${styles.actionBtn} ${styles.primary}`}
@@ -413,20 +380,11 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
                                         </div>
                                     )}
                                 </div>
-                            </>
+                            </div>
                         )}
 
                         {selectedCount === 1 && (
-                            <>
-                                <Tooltip label="Release" desc="Release node content into blocks on canvas">
-                                    <button
-                                        className={`${styles.actionBtn} ${styles.primary}`}
-                                        onClick={handleRelease}
-                                    >
-                                        <ArrowRight size={16} />
-                                    </button>
-                                </Tooltip>
-
+                            <div className={styles.actionGroup} aria-label="Connection actions">
                                 <Tooltip label="Connected" desc="Select all nodes connected to this node">
                                     <button
                                         className={styles.actionBtn}
@@ -435,7 +393,7 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
                                         <GitBranch size={16} />
                                     </button>
                                 </Tooltip>
-                            </>
+                            </div>
                         )}
 
                         <div className={styles.separator} />

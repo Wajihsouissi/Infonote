@@ -44,6 +44,7 @@ import { ParaMethodIllustration } from './illustrations/ParaMethodIllustration';
 import { ZettelkastenIllustration } from './illustrations/ZettelkastenIllustration';
 import { MindmappingIllustration } from './illustrations/MindmappingIllustration';
 import { LinkPreview } from '../components/ui/link-preview';
+import { originFromEvent } from '../utils/themeTransition';
 
 // -------------------------------------------------------------------------
 // MAIN COMPONENT
@@ -687,7 +688,7 @@ export const MarketingPage: React.FC = () => {
             <ArrowRight size={14} className={styles.navButtonIcon} />
           </button>
           <button
-            onClick={toggleTheme}
+            onClick={(e) => toggleTheme(originFromEvent(e))}
             className={styles.themeToggleNav}
             aria-label="Toggle Theme"
           >

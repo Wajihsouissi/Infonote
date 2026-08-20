@@ -109,6 +109,17 @@
     max-width: 100%;
 }
 
+/* The selected-node controls replace the idle dock in the same bottom lane.
+   Its pill silhouette and shared layout animation make adding/removing a
+   selection feel like one island changing purpose, rather than two bars
+   trading places. */
+.selectionIsland {
+    min-height: 60px;
+    padding: 0;
+    border-radius: var(--toolbar-radius);
+    overflow: visible;
+}
+
 /* ... existing styles ... */
 
 .draggableItem:active {

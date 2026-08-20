@@ -1,6 +1,6 @@
 import { memo, useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
-import { Scan, PanelRight, PanelLeft, Monitor, Sparkles, Loader2, ArrowUpRight } from '../../components/icons';
+import { Scan, PanelRight, PanelLeft, Monitor, Sparkles, Loader2, ExternalLink } from '../../components/icons';
 import styles from './NoteCard.module.css';
 import type { NoteNode } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -13,7 +13,7 @@ import { CoverPicker } from './CoverPicker';
 
 import { AISkeletonCard } from './AISkeletonCard';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
-import { calculateNoteLayout } from '../../config/layout';
+import { calculateNoteLayout, MIN_EXPANDED_SIZE } from '../../config/layout';
 import { generateText } from '../../services/aiService';
 import { samePropsIgnoringPosition } from '../canvas/nodeMemo';
 
@@ -60,15 +60,11 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
         if (data.lastFusedAt) lastFusedTimeRef.current = data.lastFusedAt;
     }, [data.lastFusedAt]);
 
-    // Track interactivity based on selection, with a 300ms delay to allow double-clicks on unselected cards to safely navigate without entering edit mode
     const [isInteractive, setIsInteractive] = useState(selected);
     const interactionTimerRef = useRef<number | null>(null);
-
     useEffect(() => {
         if (selected) {
-            interactionTimerRef.current = window.setTimeout(() => {
-                setIsInteractive(true);
-            }, 300);
+            interactionTimerRef.current = window.setTimeout(() => setIsInteractive(true), 300);
         } else {
             if (interactionTimerRef.current) clearTimeout(interactionTimerRef.current);
             setIsInteractive(false);
@@ -226,6 +222,49 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
     // keep their size when content changes. Content overflows with scroll
     // via overflow-y: auto on .noteArea instead.
 
+    const handleResizeReset = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+
+        const card = cardRef.current;
+        if (!card) return;
+
+        const content = contentRef.current;
+        // The note area itself is flexed to the current node height, so its
+        // clientHeight cannot tell us whether the node is too tall. Measure its
+        // natural-flow body instead; scrollHeight there is the real content.
+        const contentBody = content?.firstElementChild as HTMLElement | null;
+        const contentWidth = contentBody
+            ? contentBody.scrollWidth
+            : content
+                ? content.scrollWidth
+            : Math.max(card.scrollWidth, card.clientWidth);
+        const contentHeight = contentBody
+            ? contentBody.scrollHeight
+            : content
+                ? content.scrollHeight
+            : Math.max(card.scrollHeight, card.clientHeight);
+
+        // Keep the card's surrounding chrome (header, padding, metadata) in
+        // the measurement, then snap the result through the shared note rules.
+        const chromeWidth = content ? Math.max(0, card.clientWidth - content.clientWidth) : 0;
+        const chromeHeight = content ? Math.max(0, card.clientHeight - content.clientHeight) : 0;
+        // Notes with an editor stay in the expanded family; its minimum is part
+        // of the shared layout contract. Within that family the height can now
+        // shrink to the nearest valid module instead of preserving blank space.
+        const hasBlocks = Array.isArray(data.content) && data.content.length > 0;
+        const minContentSize = hasBlocks ? MIN_EXPANDED_SIZE : 0;
+        const layout = calculateNoteLayout(
+            Math.max(minContentSize, contentWidth + chromeWidth),
+            Math.max(minContentSize, contentHeight + chromeHeight),
+        );
+
+        updateNode(id, {
+            style: { width: layout.width, height: layout.height },
+            data: { ...data, viewMode: layout.mode },
+        });
+    }, [data, id, updateNode]);
+
     // Menu Actions
     const handleCenterPeak = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -370,7 +409,16 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
             {/* custom strict resize handle */}
             <div
                 className={`${styles.modernResizeHandle} nodrag`}
+                onDoubleClick={handleResizeReset}
+                title="Drag to resize · double-click to fit content"
                 onMouseDown={(e) => {
+                    // React Flow can consume the native dblclick after a drag
+                    // gesture begins. `detail === 2` is delivered on the second
+                    // press, before that takeover, so the reset is reliable.
+                    if (e.detail === 2) {
+                        handleResizeReset(e);
+                        return;
+                    }
                     e.stopPropagation(); // prevent react flow node drag
                     e.preventDefault();
 
@@ -449,8 +497,8 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                 <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <defs>
                         <linearGradient id="arc-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="var(--accent)" />
-                            <stop offset="100%" stopColor="var(--secondary)" />
+                            <stop offset="0%" stopColor="var(--resize-handle-start)" />
+                            <stop offset="100%" stopColor="var(--resize-handle-end)" />
                         </linearGradient>
                     </defs>
                     <path
@@ -492,7 +540,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                         }} 
                         title="Open Card"
                     >
-                        <ArrowUpRight size={16} />
+                        <ExternalLink size={16} strokeWidth={2.6} color="#fff" />
                     </button>
                 </div>
             )}

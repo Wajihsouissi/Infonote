@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Trash, Copy, X } from '../../../components/icons';
+import { Trash, Copy, Scissors, X } from '../../../components/icons';
 import styles from './SelectionCapsule.module.css';
 
 interface SelectionCapsuleProps {
@@ -7,9 +7,10 @@ interface SelectionCapsuleProps {
     onClear: () => void;
     onDelete: () => void;
     onCopy?: () => void;
+    onCut?: () => void;
 }
 
-export function SelectionCapsule({ count, onClear, onDelete, onCopy }: SelectionCapsuleProps) {
+export function SelectionCapsule({ count, onClear, onDelete, onCopy, onCut }: SelectionCapsuleProps) {
     const [isHovered, setIsHovered] = useState(false);
 
     return (
@@ -29,9 +30,17 @@ export function SelectionCapsule({ count, onClear, onDelete, onCopy }: Selection
                     <button
                         className={`${styles.actionBtn} icon-hover`}
                         onClick={onCopy}
-                        title="Copy" // added title
+                        title="Copy"
                     >
                         <Copy size={16} />
+                    </button>
+
+                    <button
+                        className={`${styles.actionBtn} icon-hover`}
+                        onClick={onCut}
+                        title="Cut"
+                    >
+                        <Scissors size={16} />
                     </button>
 
                     <button

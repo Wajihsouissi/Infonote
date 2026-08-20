@@ -46,6 +46,8 @@ export type NoteData = {
     // Auto
     createdAt?: string;
     updatedAt?: string;
+    /** Personal rail preference: pinned notes appear before dated sections. */
+    isPinned?: boolean;
 
     layout?: {
         columns?: number; // 1 | 2 | 3 | 4
@@ -60,6 +62,7 @@ export type NoteData = {
 
     // Transient: AI generation placeholder card
     isAISkeleton?: boolean;
+
 };
 
 export type NoteNode = Node<NoteData, 'note'> & { parentId?: string | null };
@@ -71,16 +74,19 @@ export type BlockNodeData = BoardPlanningFields & {
     color?: string;
     // Transient: AI generation placeholder skeleton
     isAISkeleton?: boolean;
+    label?: string;
 };
 
 export type BlockNode = Node<BlockNodeData, 'block'> & { parentId?: string | null };
 
 export type FusedNoteNodeData = BoardPlanningFields & {
+    label?: string;
     content: Block[];
     isStandaloneBlock?: boolean; // Flag to indicate standalone canvas block (not part of parent content)
 
     // Animation Triggers
     lastFusedAt?: number;
+    color?: string;
 };
 
 export type FusedNoteNode = Node<FusedNoteNodeData, 'fused-note'> & { parentId?: string | null };

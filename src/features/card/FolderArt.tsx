@@ -58,7 +58,7 @@ export function FolderArt({ coverImage, icon, size = 92 }: FolderArtProps) {
     const foldId = `${uid}-fold`;
 
     return (
-        <div className={styles.art} style={{ width: size, height: size }}>
+        <div className={styles.art} style={{ width: size, height: size }} data-has-cover={coverImage ? '' : undefined}>
             <svg viewBox="0 0 24 24" className={styles.svg} aria-hidden="true">
                 <defs>
                     {coverImage && (
@@ -167,7 +167,11 @@ export function FolderArt({ coverImage, icon, size = 92 }: FolderArtProps) {
 
             {icon && (
                 <span className={styles.icon}>
-                    <CardIcon icon={icon} size={Math.round(size * 0.3)} />
+                    {/* Folder view deliberately ignores the `::colour` suffix
+                        from IconPicker. The folder is a single coloured object,
+                        so its glyph inherits the flap's soft white instead of
+                        bringing a second arbitrary icon colour onto it. */}
+                    <CardIcon icon={icon} size={Math.round(size * 0.3)} style={{ color: 'inherit' }} />
                 </span>
             )}
         </div>

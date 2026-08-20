@@ -86,15 +86,20 @@ export default async function handler(req, res) {
     // Server-chosen model only — client "model" is intentionally ignored.
     const model = getServerModel('image');
 
+    // OpenRouter's dedicated image API is /images (not the legacy
+    // /images/generations path). Keep the chat fallback for other
+    // OpenAI-compatible gateways used by older deployments.
+    const isOpenRouter = getGatewayBaseUrl().includes('openrouter.ai');
     let data;
     try {
-      data = await callGateway('/images/generations', {
+      data = await callGateway(isOpenRouter ? '/images' : '/images/generations', {
         model,
         prompt,
         n: 1,
-        response_format: 'b64_json',
+        ...(isOpenRouter ? { output_format: 'png' } : { response_format: 'b64_json' }),
       });
-    } catch {
+    } catch (error) {
+      if (isOpenRouter) throw error;
       data = await callGateway('/chat/completions', {
         model,
         messages: [{ role: 'user', content: prompt }],

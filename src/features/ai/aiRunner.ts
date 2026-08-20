@@ -74,14 +74,6 @@ function assertLive(signal?: AbortSignal) {
     if (signal?.aborted) throw new DOMException('Stopped', 'AbortError');
 }
 
-/** Colour to fall back to: whatever the canvas is already using. */
-function inheritedColor(nodes: AppNode[]): string | undefined {
-    const colored = nodes.filter((n) => n.type === 'note' && 'color' in n.data && !!n.data.color);
-    if (colored.length === 0) return undefined;
-    const pick = colored[Math.floor(Math.random() * colored.length)];
-    return 'color' in pick.data ? (pick.data.color as string) : undefined;
-}
-
 /**
  * Rewrite the cards the user has selected, one at a time.
  * Each card gets its own step so a failure on card 3 is visible and the other
@@ -610,7 +602,7 @@ function findBlockOrigin(blockW: number, blockH: number, ctx: RunnerContext): { 
 }
 
 /** Place one structured action at `position`. Returns the ids it created. */
-function placeAction(action: AIStructuredAction, position: { x: number; y: number }, ctx: RunnerContext, fallbackColor?: string): { ids: string[]; label: string } {
+function placeAction(action: AIStructuredAction, position: { x: number; y: number }, ctx: RunnerContext): { ids: string[]; label: string } {
     if (action.type === 'board') return placeBoard(action, position, ctx);
     if (action.type === 'timeline') return placeTimeline(action, position, ctx);
 
@@ -626,7 +618,6 @@ function placeAction(action: AIStructuredAction, position: { x: number; y: numbe
             {
                 label: action.title,
                 content: blocks.length > 0 ? blocks : [{ id: uuidv4(), type: 'text', content: action.content || '' }],
-                color: action.color || fallbackColor || undefined,
                 viewMode: 'expanded',
                 showMetadata: false,
                 icon: 'Sparkles',
@@ -723,7 +714,6 @@ export async function runCreate(query: string, context: string, ctx: RunnerConte
 
     ctx.settle(planStep, 'done', `Planned ${actions.length} item${actions.length === 1 ? '' : 's'}`);
 
-    const fallbackColor = inheritedColor(useStore.getState().nodes);
     const created: string[] = [];
     let blocked = 0;
 
@@ -759,7 +749,7 @@ export async function runCreate(query: string, context: string, ctx: RunnerConte
     });
 
     positioned.forEach(({ action, position }) => {
-        const { ids, label } = placeAction(action, position, ctx, fallbackColor);
+        const { ids, label } = placeAction(action, position, ctx);
         // addNode refuses silently once the canvas hits its beta node ceiling,
         // so confirm the node actually landed rather than reporting a success
         // the user can't see anywhere.

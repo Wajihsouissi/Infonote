@@ -1,6 +1,6 @@
 // ============================================================
 // AI Service - talks to our /api/ai/* routes, which proxy an OpenAI-compatible
-// endpoint (Google Gemini by default; see AI_GATEWAY_BASE_URL).
+// endpoint (OpenRouter by default; see AI_GATEWAY_BASE_URL).
 // Text: OpenAI-compatible chat completions.
 // Image: OpenAI-compatible image generations.
 // ============================================================
@@ -15,8 +15,8 @@ import { AI_CONTEXT_DEFINITIONS, type AIContextType } from '../features/ai/aiTyp
 
 // Hints only — the server owns the final model choice and ignores anything
 // that is not on its own allow-list.
-const TEXT_MODEL = import.meta.env.VITE_AI_GATEWAY_TEXT_MODEL || 'gemini-3.7-flash';
-const IMAGE_MODEL = import.meta.env.VITE_AI_GATEWAY_IMAGE_MODEL || 'gemini-3.1-flash-image';
+const TEXT_MODEL = import.meta.env.VITE_AI_GATEWAY_TEXT_MODEL || 'openrouter/auto';
+const IMAGE_MODEL = import.meta.env.VITE_AI_GATEWAY_IMAGE_MODEL || 'google/gemini-3.1-flash-image';
 
 /**
  * The /api/ai/* routes require a signed-in Supabase user (they proxy a paid

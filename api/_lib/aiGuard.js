@@ -8,7 +8,9 @@ import { createClient } from '@supabase/supabase-js';
 const RATE_LIMIT_WINDOW_MS = 60_000;
 // Per-user, per-window ceilings. Text and stream share one bucket since they
 // hit the same chat-completions backend; images are costlier so lower.
-const RATE_LIMITS = { text: 30, image: 10 };
+// Search is cheap per call but easy to fire in a loop from the UI, so it gets
+// its own bucket rather than competing with text generation.
+const RATE_LIMITS = { text: 30, image: 10, search: 40 };
 
 const rateLimits = new Map();
 
@@ -45,7 +47,7 @@ function getBearerToken(req) {
  * base-URL + key + model swap and nothing else. Point AI_GATEWAY_BASE_URL back
  * at https://ai-gateway.vercel.sh/v1 to return to the Vercel gateway.
  */
-export const DEFAULT_GATEWAY_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';
+export const DEFAULT_GATEWAY_BASE_URL = 'https://openrouter.ai/api/v1';
 
 export function getGatewayBaseUrl() {
   const base = getEnv('AI_GATEWAY_BASE_URL', 'VITE_AI_GATEWAY_BASE_URL') || DEFAULT_GATEWAY_BASE_URL;
@@ -93,10 +95,10 @@ function textModelAllowlist() {
  */
 export function getServerModel(kind, requested) {
   if (kind === 'image') {
-    return getEnv('AI_GATEWAY_IMAGE_MODEL', 'VITE_AI_GATEWAY_IMAGE_MODEL') || 'gemini-3.1-flash-image';
+    return getEnv('AI_GATEWAY_IMAGE_MODEL', 'VITE_AI_GATEWAY_IMAGE_MODEL') || 'bytedance-seed/seedream-5-0-pro';
   }
 
-  const fallback = getEnv('AI_GATEWAY_TEXT_MODEL', 'VITE_AI_GATEWAY_TEXT_MODEL') || 'gemini-3.7-flash';
+  const fallback = getEnv('AI_GATEWAY_TEXT_MODEL', 'VITE_AI_GATEWAY_TEXT_MODEL') || 'openrouter/auto';
   if (typeof requested !== 'string' || !requested.trim()) return fallback;
 
   const wanted = stripWrappingQuotes(requested.trim());

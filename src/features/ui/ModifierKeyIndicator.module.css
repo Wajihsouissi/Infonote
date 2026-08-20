@@ -31,6 +31,17 @@
         visibility 0ms linear 0ms;
 }
 
+/* The focus confirmation is product chrome, not a system toast: it uses the
+   canvas rail surface and the app's orange action colour rather than a generic
+   glass panel and green success treatment. */
+.successRoot {
+    gap: 0;
+    padding: 8px 10px;
+    border-radius: var(--r-surface);
+    background: var(--bg-rail);
+    border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
+}
+
 .line {
     display: flex;
     align-items: center;
@@ -77,31 +88,26 @@
 .successLine {
     display: flex;
     align-items: center;
-    gap: 8px;
-    animation: successPulse 1.5s infinite alternate;
+    gap: 7px;
 }
 
 .successBadge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: rgba(16, 185, 129, 0.15);
-    border: 1px solid rgba(16, 185, 129, 0.4);
-    color: #10b981;
-    font-size: 10px;
-    font-weight: 900;
+    width: 19px;
+    height: 19px;
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--accent) 16%, var(--bg-base));
+    border: 1px solid color-mix(in srgb, var(--accent) 46%, var(--line));
+    color: var(--accent);
 }
 
-@keyframes successPulse {
-    0% {
-        opacity: 0.95;
-    }
-    100% {
-        opacity: 1;
-        filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.35));
-    }
+.successLabel {
+    color: var(--text-main);
+    font-family: var(--font-sans);
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
 }
 

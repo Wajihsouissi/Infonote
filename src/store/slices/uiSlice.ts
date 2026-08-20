@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { AppState, UISlice, AppView } from '../types';
+import { runThemeTransition } from '../../utils/themeTransition';
 
 export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get) => ({
     activeIconMenuId: null,
@@ -33,20 +34,14 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     })),
     setIsLinkingMode: (isLinking) => set({ isLinkingMode: isLinking }),
 
-    toggleTheme: () => {
+    toggleTheme: (origin) => {
         const newTheme = get().theme === 'dark' ? 'light' : 'dark';
 
-        document.documentElement.classList.add('theme-transitioning');
-
-        requestAnimationFrame(() => {
+        runThemeTransition(() => {
             set({ theme: newTheme });
             document.documentElement.setAttribute('data-theme', newTheme);
             localStorage.setItem('chnk-it-theme', newTheme);
-
-            setTimeout(() => {
-                document.documentElement.classList.remove('theme-transitioning');
-            }, 300);
-        });
+        }, origin);
     },
 
     setSelectedCanvasNodeIds: (ids) => set({

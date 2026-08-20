@@ -45,7 +45,9 @@
 }
 
 .minimal .sortableWrapper {
-    align-items: flex-start;
+    /* Canvas blocks use the compact editor. Keep the drag affordance on the
+       content's vertical centre instead of pinning it to the first text line. */
+    align-items: center;
 }
 
 .sortableWrapper:has(.heading1) .dragHandle {
@@ -103,12 +105,61 @@
 
 .minimal .dragHandle {
     margin-top: 0 !important;
+    /* The dot glyph's visual mass sits slightly above the centre of its 20px
+       box. Nudge canvas-only handles down so the visible glyph aligns with the
+       text's optical centreline. */
+    --drag-handle-center-offset: 4px;
+    transform: translateY(var(--drag-handle-center-offset)) scale(0.85);
 }
 
 /* Force visible and scale to 1 on hover of wrapper */
 .sortableWrapper:hover .dragHandle {
     opacity: 0.65 !important;
     transform: scale(1) !important;
+}
+
+.minimal .sortableWrapper:hover .dragHandle {
+    transform: translateY(var(--drag-handle-center-offset, 4px)) scale(1) !important;
+}
+
+/* Structured blocks carry their own marker, rail, or padded surface. Their
+   old type-specific top margins were written for top-aligned handles, so reset
+   them explicitly and centre the canvas drag handle against that whole visual
+   block instead. */
+.minimal .sortableWrapper:has(.toggleWrapper, .quoteWrapper, .calloutWrapper) .dragHandle {
+    align-self: center;
+    margin-top: 0 !important;
+    /* Structured blocks use the actual flex centre: they already have their
+       own padding and marker/rail, so the text-only optical nudge is wrong. */
+    --drag-handle-center-offset: 0px;
+    transform: translateY(var(--drag-handle-center-offset)) scale(0.85);
+}
+
+.minimal .sortableWrapper:has(.toggleWrapper, .quoteWrapper, .calloutWrapper):hover .dragHandle {
+    transform: translateY(var(--drag-handle-center-offset)) scale(1) !important;
+}
+
+/* A toggle header lives inside its own padded group, but its grip belongs to
+   the canvas gutter. Take it out of that group’s flow so it is never covered
+   by the toggle rail; the content keeps the same reserved handle column. */
+.minimal .toggleGroupContainer {
+    overflow: visible;
+}
+
+.minimal .toggleGroupContainer > .sortableWrapper:has(.toggleWrapper) {
+    position: relative;
+}
+
+.minimal .toggleGroupContainer > .sortableWrapper:has(.toggleWrapper) .dragHandle {
+    position: absolute;
+    left: calc(-1 * (var(--block-inset) + var(--block-marker-gap) + var(--block-rail-w) + 4px));
+    z-index: 1;
+}
+
+.minimal .toggleGroupContainer > .sortableWrapper:has(.toggleWrapper) .blockContent {
+    /* The grip no longer consumes a flex column. Keep only a small breathing
+       space before the disclosure marker, rather than the old full handle gap. */
+    margin-left: 8px;
 }
 
 /* Hide internal handles in minimal mode to prevent clutter with node handles */
@@ -274,23 +325,57 @@
     align-items: flex-start;
 }
 
-/* 18px box centred in the shared 24px marker column. The browser default is
+/* 18px circle centred in the shared 24px marker column. The browser default is
    ~13px, which made the one genuinely interactive marker the smallest thing in
-   the block and smaller than the decorative callout icon beside it. */
+   the block and smaller than the decorative callout icon beside it.
+
+   `appearance: none` is load-bearing, not cosmetic: a native checkbox keeps
+   its platform-drawn box and silently ignores `border-radius` until its own
+   rendering is switched off, so border-radius alone leaves it square. Once
+   native appearance is gone, the border/background/checkmark below are what
+   the browser used to draw for us, so all three are now ours to supply. */
 .todoCheckbox {
+    appearance: none;
+    -webkit-appearance: none;
     flex: 0 0 auto;
     width: 18px;
     height: 18px;
     margin-inline: calc((var(--block-marker-col) - 18px) / 2);
     margin-top: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    accent-color: var(--accent);
+    border-radius: 50%;
+    border: 1.5px solid var(--block-handle);
+    background: transparent;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.todoCheckbox:hover {
+    border-color: var(--accent);
+}
+
+.todoCheckbox:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+/* Drawn rather than a glyph, so it stays crisp at 18px and lines up the same
+   in every font. */
+.todoCheckbox:checked::after {
+    content: '';
+    width: 4px;
+    height: 8px;
+    margin-bottom: 1px;
+    border: solid var(--on-accent);
+    border-width: 0 1.6px 1.6px 0;
+    transform: rotate(45deg);
 }
 
 .todoCheckbox:focus-visible {
     outline: none;
     box-shadow: var(--focus-ring);
-    border-radius: var(--r-xs);
 }
 
 .todo {
@@ -796,9 +881,18 @@
     width: max-content;
 }
 
+/* Row that holds the bordered table plus the add-column strip beside it,
+   outside the border — mirrors how .addRowBtn sits below, outside the table. */
+.tableRow {
+    display: flex;
+    align-items: stretch;
+}
+
 .tableMain {
     display: flex;
     align-items: stretch;
+    flex: 1 1 auto;
+    min-width: 0;
     border: 1px solid var(--table-border);
     border-radius: var(--block-radius-lg);
     overflow: hidden;
@@ -828,6 +922,7 @@
     background: var(--table-header-bg);
     border-bottom: 1.5px solid var(--table-border-strong);
     padding: 0;
+    cursor: text;
 }
 
 .tableData {
@@ -835,6 +930,7 @@
     vertical-align: top;
     border-bottom: 1px solid var(--table-border);
     padding: 0;
+    cursor: text;
 }
 
 .tableData:not(:last-child),
@@ -873,10 +969,18 @@
     white-space: pre-wrap;
     word-break: break-word;
     box-sizing: border-box;
+    cursor: text;
 }
 
 .tableCell::placeholder {
     color: var(--text-faint);
+}
+
+/* contentEditable cells have no native placeholder attribute — emulate it. */
+.tableCell[data-is-empty="true"]:before {
+    content: attr(data-placeholder);
+    color: var(--text-faint);
+    pointer-events: none;
 }
 
 /* The edit highlight belongs to the CELL, not the textarea inside it. The
@@ -970,15 +1074,19 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 0;
+    margin-left: 0;
     overflow: hidden;
     opacity: 0;
     color: var(--text-faint);
     background: transparent;
-    border: none;
-    border-left: 0 solid var(--table-border);
+    border: 0 solid var(--table-border);
+    border-radius: var(--block-radius);
     cursor: pointer;
-    transition: flex-basis var(--transition-fast), opacity var(--transition-fast),
-        background var(--transition-fast), color var(--transition-fast);
+    transition: flex-basis var(--transition-fast), width var(--transition-fast),
+        margin var(--transition-fast), opacity var(--transition-fast),
+        background var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
 }
 
 .addRowBtn {
@@ -1003,8 +1111,10 @@
 .tableWrapper:hover .addColBtn,
 .tableWrapper:focus-within .addColBtn {
     flex-basis: 22px;
+    width: 22px;
+    margin-left: 4px;
     opacity: 1;
-    border-left-width: 1px;
+    border-width: 1px;
 }
 
 .tableWrapper:hover .addRowBtn,
@@ -1510,16 +1620,12 @@
     border-radius: var(--r-xs);
 }
 
-/* Multi-select State — a faint accent wash, no border shift (keeps layout still) */
+/* Multi-select State — a soft accent wash only, no ring/border: the wash alone
+   is enough to read as "selected" without drawing a hard box around prose. */
 .sortableWrapper.selected {
     background: var(--block-selected);
-    box-shadow: var(--block-selected-ring);
     border-radius: var(--block-radius);
-    transition: background var(--transition-fast), box-shadow var(--transition-fast);
-}
-
-.sortableWrapper.selected:focus-within {
-    box-shadow: var(--block-selected-ring);
+    transition: background var(--transition-fast);
 }
 
 

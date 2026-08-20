@@ -1,4 +1,4 @@
-import { memo, useMemo, useEffect, Suspense, lazy, useRef, useCallback, useState } from 'react';
+import { memo, useMemo, useEffect, useRef, useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FEATURES } from '../../config/featureFlags';
 import {
@@ -45,8 +45,17 @@ import { ChunkItModal } from '../card/ChunkItModal';
 import { AuthModal } from '../auth/AuthModal';
 import { useStore } from '../../store/useStore';
 import type { AppNode } from '../../types';
+import type { Block } from '../editor/types';
+import { getNodeBlocks, getNodeLabel } from '../../types';
+import {
+    blocksToHtml,
+    blocksToPlainText,
+    decodePayload,
+    encodePayload,
+    type NodesPayload,
+} from '../clipboard/clipboardPayload';
 import { v4 as uuidv4 } from 'uuid';
-import { isUrl, parseFiles, parseTextOrHtml } from '../editor/pasteUtils';
+import { parseFiles, parseTextOrHtml } from '../editor/pasteUtils';
 import { endBlockDrag } from '../editor/blockDragLock';
 import { loadCanvasFromCloud } from '../../services/cloudSync';
 import { isSupabaseConfigured, supabase } from '../../services/supabase/client';
@@ -125,6 +134,15 @@ export function CanvasBoard() {
         setLastCreatedCanvasNodeId,
     } = useCanvasStoreSelectors();
 
+    /* True while a modal overlay (fullscreen or center peek) is covering the
+       canvas. Both are the only panels that fully obscure it — SidePeek docks
+       beside the canvas and leaves it visible, so it is deliberately excluded
+       here. See the `inert` usage below for why this needs to exist at all. */
+    const isCanvasObscured = useStore(useCallback(
+        s => Boolean(s.fullscreenId || s.centerPanelId),
+        []
+    ));
+
     // Throttling Ref for drag cleanup
     const lastDragCheck = useRef(0);
 
@@ -138,6 +156,7 @@ export function CanvasBoard() {
     const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
     const linkSelectedNodes = useStore(s => s.linkSelectedNodes);
     const bulkDuplicateNodes = useStore(s => s.bulkDuplicateNodes);
+    const pasteClipboardNodes = useStore(s => s.pasteClipboardNodes);
 
     // TOC Panel UI State
     const isTOCOpen = useStore(s => s.isTOCOpen);
@@ -156,6 +175,12 @@ export function CanvasBoard() {
     const lastProgrammaticSelectionTimeRef = useRef(0);
     const modifierKeys = useModifierKeys();
     const [isInEditableField, setIsInEditableField] = useState(false);
+    /* Mirrored into a ref so the clipboard listeners — which are registered once
+       and must not re-subscribe on every keystroke — can read the latest value. */
+    const isInEditableFieldRef = useRef(false);
+    useEffect(() => {
+        isInEditableFieldRef.current = isInEditableField;
+    }, [isInEditableField]);
     const [isHoveringEditor, setIsHoveringEditor] = useState(false);
     const [isFocusArmed, setIsFocusArmed] = useState(false);
 
@@ -609,6 +634,33 @@ export function CanvasBoard() {
             }, 2500);
         };
 
+        // Shared focusing path for the F shortcut and controls outside the
+        // canvas, such as an AI turn's “Locate on canvas” action.
+        const focusNodes = (nodesToFocus: AppNode[]) => {
+            if (nodesToFocus.length === 0) return false;
+
+            setSelectedCanvasNodeIds(new Set(nodesToFocus.map((node) => node.id)));
+            fitView({ nodes: nodesToFocus, padding: 0.45, duration: 450, maxZoom: 1.3 });
+            clearArm();
+
+            if (justFocusedTimeoutRef.current) {
+                window.clearTimeout(justFocusedTimeoutRef.current);
+            }
+            setJustFocused(true);
+            justFocusedTimeoutRef.current = window.setTimeout(() => {
+                setJustFocused(false);
+                justFocusedTimeoutRef.current = null;
+            }, 1500);
+
+            return true;
+        };
+
+        const handleFocusCanvasNodes = (e: Event) => {
+            const { ids } = (e as CustomEvent<{ ids?: string[] }>).detail ?? {};
+            if (!ids?.length) return;
+            focusNodes(useStore.getState().nodes.filter((node) => ids.includes(node.id)));
+        };
+
         const handleKeyDown = (e: KeyboardEvent) => {
             // Real-time active editable field verification as a robust double-lock guard
             const activeEl = document.activeElement as HTMLElement | null;
@@ -654,23 +706,7 @@ export function CanvasBoard() {
                 if (found) nodesToFocus = [found];
             }
 
-            // If we found nodes to focus, center/zoom them instantly!
-            if (nodesToFocus.length > 0) {
-                fitView({ nodes: nodesToFocus, padding: 0.45, duration: 450, maxZoom: 1.3 });
-                clearArm();
-
-                // Show success visual HUD notification
-                if (justFocusedTimeoutRef.current) {
-                    window.clearTimeout(justFocusedTimeoutRef.current);
-                }
-                setJustFocused(true);
-                justFocusedTimeoutRef.current = window.setTimeout(() => {
-                    setJustFocused(false);
-                    justFocusedTimeoutRef.current = null;
-                }, 1500);
-
-                return;
-            }
+            if (focusNodes(nodesToFocus)) return;
 
             // Fallback: If no selected/hovered/clicked nodes, toggle/arm focusing for the next mouse click
             if (isFocusArmedRef.current) {
@@ -681,9 +717,11 @@ export function CanvasBoard() {
         };
 
         window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('focusCanvasNodes', handleFocusCanvasNodes);
         window.addEventListener('blur', clearArm);
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('focusCanvasNodes', handleFocusCanvasNodes);
             window.removeEventListener('blur', clearArm);
             if (focusArmTimeoutRef.current) {
                 window.clearTimeout(focusArmTimeoutRef.current);
@@ -692,7 +730,7 @@ export function CanvasBoard() {
                 window.clearTimeout(justFocusedTimeoutRef.current);
             }
         };
-    }, [isInEditableField, fitView]);
+    }, [isInEditableField, fitView, setSelectedCanvasNodeIds]);
 
     // Track mouse coordinates on window
     const mousePosRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
@@ -831,17 +869,38 @@ export function CanvasBoard() {
     useEffect(() => {
         const handleCanvasPaste = async (e: ClipboardEvent) => {
             // Intercept paste only when not typing inside text inputs, textareas, contenteditables or code blocks
-            const target = e.target as HTMLElement;
-            const isEditable = target.tagName === 'INPUT' ||
+            const target = e.target as HTMLElement | null;
+            /* `closest` only exists on Elements. A paste dispatched while focus
+               sits on the document (or on window) used to throw here and take
+               the whole handler down with it, so nothing pasted at all. */
+            const canQuery = !!target && typeof target.closest === 'function';
+            const isEditable = canQuery && (
+                target.tagName === 'INPUT' ||
                 target.tagName === 'TEXTAREA' ||
                 target.isContentEditable ||
-                target.closest('[contenteditable]') ||
-                target.closest('[class*="BlockEditor"]') ||
-                target.closest('[class*="editor"]');
-    
+                !!target.closest('[contenteditable]') ||
+                !!target.closest('[class*="BlockEditor"]') ||
+                !!target.closest('[class*="editor"]')
+            );
+
             if (isEditable) return;
 
-            let parsedBlocks: any[] = [];
+            /* Cards copied from this app carry their full data — and the
+               connections between them — in the clipboard's HTML flavour.
+               Rebuild them on whichever canvas is open now, which is what makes
+               copying into and out of a card's inner canvas work. */
+            const internal = decodePayload(e.clipboardData?.getData('text/html'));
+            if (internal?.kind === 'nodes') {
+                e.preventDefault();
+                const flowPos = screenToFlowPosition({
+                    x: window.innerWidth / 2,
+                    y: window.innerHeight / 2,
+                });
+                pasteClipboardNodes(internal, flowPos);
+                return;
+            }
+
+            let parsedBlocks: Block[] = [];
             const files = e.clipboardData?.files;
     
             if (files && files.length > 0) {
@@ -853,7 +912,9 @@ export function CanvasBoard() {
                 if (!text && !html) return;
                 e.preventDefault();
                 // Create a synthetic React-like event for parseTextOrHtml
-                parsedBlocks = parseTextOrHtml({ clipboardData: e.clipboardData } as any);
+                parsedBlocks = parseTextOrHtml({
+                    clipboardData: e.clipboardData,
+                } as Parameters<typeof parseTextOrHtml>[0]);
             }
     
             if (parsedBlocks.length > 0) {
@@ -883,21 +944,131 @@ export function CanvasBoard() {
 
         window.addEventListener('paste', handleCanvasPaste);
         return () => window.removeEventListener('paste', handleCanvasPaste);
-    }, [addNode, currentParentId, screenToFlowPosition, setSelectedCanvasNodeIds]);
+    }, [addNode, currentParentId, screenToFlowPosition, setSelectedCanvasNodeIds, pasteClipboardNodes]);
+
+    /**
+     * Ctrl+C / Ctrl+X over selected cards.
+     *
+     * Rides the native copy/cut events rather than a keydown listener, because
+     * only inside those events can a page put both a readable text flavour and
+     * our structured payload on the clipboard at once. Ignored while focus is
+     * in a text field, so copying words inside a card still behaves normally.
+     */
+    useEffect(() => {
+        const buildPayload = () => {
+            const state = useStore.getState();
+            const selected = Array.from(state.selectedCanvasNodeIds);
+            if (selected.length === 0) return null;
+
+            const nodes = state.nodes.filter(n => selected.includes(n.id));
+            if (nodes.length === 0) return null;
+
+            // Positions are stored relative to the selection's top-left so the
+            // group keeps its shape wherever it is pasted.
+            const minX = Math.min(...nodes.map(n => n.position.x));
+            const minY = Math.min(...nodes.map(n => n.position.y));
+            const indexById = new Map(nodes.map((n, i) => [n.id, i]));
+
+            const payload: NodesPayload = {
+                v: 1,
+                kind: 'nodes',
+                nodes: nodes.map((n, i) => ({
+                    ref: i,
+                    type: n.type || 'note',
+                    dx: n.position.x - minX,
+                    dy: n.position.y - minY,
+                    width: typeof n.style?.width === 'number' ? n.style.width : undefined,
+                    height: typeof n.style?.height === 'number' ? n.style.height : undefined,
+                    data: n.data as unknown as Record<string, unknown>,
+                })),
+                edges: state.edges
+                    .filter(e => indexById.has(e.source) && indexById.has(e.target))
+                    .map(e => ({
+                        source: indexById.get(e.source)!,
+                        target: indexById.get(e.target)!,
+                        sourceHandle: e.sourceHandle ?? null,
+                        targetHandle: e.targetHandle ?? null,
+                        type: e.type,
+                    })),
+            };
+
+            // Readable fallback: the cards' own text, so pasting into another
+            // program gives something meaningful instead of nothing.
+            const text = nodes
+                .map(n => {
+                    const label = getNodeLabel(n.data);
+                    const blocks = getNodeBlocks(n.data);
+                    const body = blocks ? blocksToPlainText(blocks) : '';
+                    return [label, body].filter(Boolean).join('\n');
+                })
+                .filter(Boolean)
+                .join('\n\n---\n\n');
+
+            const html = nodes
+                .map(n => {
+                    const blocks = getNodeBlocks(n.data);
+                    return blocks ? blocksToHtml(blocks) : '';
+                })
+                .join('<hr />');
+
+            return { payload, ...encodePayload(payload, text, html), ids: selected };
+        };
+
+        const onCopy = (e: ClipboardEvent) => {
+            if (isInEditableFieldRef.current) return;
+            const built = buildPayload();
+            if (!built || !e.clipboardData) return;
+            e.clipboardData.setData('text/plain', built.text);
+            e.clipboardData.setData('text/html', built.html);
+            e.preventDefault();
+        };
+
+        const onCut = (e: ClipboardEvent) => {
+            if (isInEditableFieldRef.current) return;
+            const built = buildPayload();
+            if (!built || !e.clipboardData) return;
+            e.clipboardData.setData('text/plain', built.text);
+            e.clipboardData.setData('text/html', built.html);
+            e.preventDefault();
+            useStore.getState().bulkDeleteNodes(built.ids, true);
+        };
+
+        document.addEventListener('copy', onCopy);
+        document.addEventListener('cut', onCut);
+        return () => {
+            document.removeEventListener('copy', onCopy);
+            document.removeEventListener('cut', onCut);
+        };
+    }, []);
 
     // Native context menu handler (bypasses ReactFlow's right-click pan handling)
     useEffect(() => {
         const handleContextMenu = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
             const isPane = target.closest('.react-flow__pane');
-            const isNode = target.closest('.react-flow__node');
-            if (!isPane || isNode) return;
+            const nodeEl = target.closest('.react-flow__node') as HTMLElement | null;
+            if (!isPane && !nodeEl) return;
 
             // Don't show context menu when inside an editable field
             const isEditable = !!target.closest('[contenteditable]') ||
                 !!target.closest('[class*="BlockEditor"]') ||
                 !!target.closest('input, textarea');
             if (isEditable) return;
+
+            /* Right-clicking a card used to be ignored entirely, so there was no
+               way to reach Copy or Cut with the mouse. Now it selects the card
+               under the cursor (unless it is already part of a multi-selection)
+               and opens the same menu, which offers Copy/Cut for a selection. */
+            if (nodeEl) {
+                const nodeId = nodeEl.getAttribute('data-id');
+                if (nodeId) {
+                    const state = useStore.getState();
+                    if (!state.selectedCanvasNodeIds.has(nodeId)) {
+                        state.setSelectedCanvasNodeIds(new Set([nodeId]));
+                        state.setNodes(ns => ns.map(n => ({ ...n, selected: n.id === nodeId })));
+                    }
+                }
+            }
 
             e.preventDefault();
             e.stopPropagation();
@@ -1218,6 +1389,23 @@ export function CanvasBoard() {
                         exit={{ opacity: 0, scale: 1.02, filter: 'blur(4px)' }}
                         transition={{ duration: 0.2, ease: 'easeOut' }}
                         style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}
+                        /* A card opened in fullscreen or center peek stays mounted
+                           on the canvas underneath the overlay — React Flow never
+                           unmounts nodes just because they're covered. Without
+                           `inert` that card's own BlockEditor is still focusable
+                           and typeable, as a second live instance of the same
+                           node's content sitting right behind the blur. Any stray
+                           focus left over from before the modal opened keeps
+                           receiving keystrokes there, which the open pane then
+                           silently absorbs through its own external-content merge
+                           effect — surfacing as edits that appear to jump between
+                           panes. `inert` removes the whole canvas from the tab
+                           order and blocks its pointer events for as long as the
+                           overlay is up, and — per spec — blurs any focused
+                           descendant the moment it's applied, so this closes both
+                           the "focus left over from before" and the "tabbed back
+                           in during" paths in one attribute. */
+                        inert={isCanvasObscured || undefined}
                     >
                         <ReactFlow
                     className={isLinkingMode ? 'is-linking-mode' : ''}
@@ -1238,7 +1426,7 @@ export function CanvasBoard() {
                     onNodeMouseLeave={() => {
                         hoveredNodeRef.current = null;
                     }}
-                    onPaneClick={() => {
+                    onPaneClick={(event) => {
                         if (isLinkingMode) return;
                         setContextMenu(null);
                         blurActiveEditable();
@@ -1347,10 +1535,10 @@ export function CanvasBoard() {
                         });
                     }}
                 >
+                    <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color="var(--dot)" />
                     {FEATURES.collaboration && <LiveCursors presenceData={presenceData} currentUserId={currentUserId} />}
                     <CanvasSlashMenuM />
                     <DragChipM />
-                    <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color="var(--dot)" />
                     <Panel position="top-center">
 
                     </Panel>

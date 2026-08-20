@@ -279,6 +279,38 @@
     overflow: visible;
 }
 
+/* Colored canvas blocks are one surface, not a dark outer shell containing a
+   smaller colored card. The node paints the color all the way to its edge;
+   the existing row/container padding still gives the content breathing room. */
+.blockNode.standardBlock:has([class*="toggleGroupContainer"]),
+.blockNode.standardBlock:has([class*="quoteWrapper"]),
+.blockNode.standardBlock:has([class*="calloutWrapper"]),
+.blockNode.standardBlock:has([class*="codeBlockWrapper"]) {
+    background: var(--node-bg);
+}
+
+.blockNode.standardBlock [class*="toggleGroupContainer"],
+.blockNode.standardBlock [class*="quoteWrapper"],
+.blockNode.standardBlock [class*="calloutWrapper"],
+.blockNode.standardBlock [class*="codeBlockWrapper"] {
+    background: var(--node-bg);
+}
+
+/* The outer node ring is the code block boundary on the canvas. Keeping the
+   inner border would reveal the otherwise invisible content gutter. */
+.blockNode.standardBlock [class*="codeBlockWrapper"] {
+    border-color: transparent;
+    border-radius: inherit;
+}
+
+.blockNode.standardBlock:has([class*="toggleGroupContainer"]):hover {
+    background: var(--node-bg);
+}
+
+.blockNode.standardBlock [class*="toggleGroupContainer"]:hover {
+    background: var(--node-bg);
+}
+
 /* A hand-resized block owns its width: fill whatever React Flow stores on the
    wrapper, released from the auto cap (the drag clamps to
    --block-node-max-user instead). The dragged height is applied as a
@@ -320,8 +352,9 @@
     justify-content: center;
 }
 
-/* When the user manually resizes the block, align text to the top */
-.blockNode.standardBlock[data-user-sized='true'] [class*="editor"] {
+/* A taller hand-sized block reads from the top. Once the height returns to the
+   ordinary 56px resting footprint, it uses the normal centred rhythm again. */
+.blockNode.standardBlock[data-user-tall='true'] [class*="editor"] {
     justify-content: flex-start;
 }
 
@@ -579,6 +612,8 @@
 }
 
 .resizeHandle {
+    --resize-handle-start: var(--color-text-muted);
+    --resize-handle-end: var(--text-soft);
     position: absolute;
     bottom: -20px;
     right: -20px;
@@ -611,6 +646,11 @@
 
 .resizeHandle:hover svg {
     transform: scale(1.1);
+}
+
+.resizeHandle:hover {
+    --resize-handle-start: var(--accent);
+    --resize-handle-end: var(--secondary);
 }
 
 .resizeHandle:active svg {

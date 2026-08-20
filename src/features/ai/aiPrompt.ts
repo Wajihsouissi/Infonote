@@ -9,13 +9,14 @@ const REPLY_EXCERPT_CHARS = 900;
  *
  * The gateway route takes a single `prompt` string rather than a messages
  * array, so multi-turn context has to be carried in the text. Without this an
- * Ask turn is stateless: "plan a case study" then "expand phase 3" would send
+ * AI turn is stateless: "plan a case study" then "expand phase 3" would send
  * only the second sentence, and the answer would be about nothing. Planning is
  * iterative by nature, so the transcript is the feature.
  */
-export function buildConversationPrompt(messages: AIMessage[], question: string): string {
+export function buildConversationPrompt(messages: AIMessage[], question: string, excludeMessageId?: string): string {
     // Drop the turn currently streaming (it is the one we are asking for).
     const prior = messages
+        .filter((m) => m.id !== excludeMessageId)
         .filter((m) => m.role === 'user' || (m.role === 'assistant' && m.status !== 'streaming' && m.text.trim()))
         .slice(-HISTORY_TURNS * 2);
 

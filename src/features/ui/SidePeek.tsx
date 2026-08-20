@@ -39,12 +39,15 @@ export function SidePeek({
 
             const clickedInsidePanel = panelRef.current?.contains(e.target as Node);
             const clickedOnButton = buttonRef?.current?.contains(e.target as Node);
+            // Child dialogs are portalled to body, so DOM containment cannot
+            // see them. A cover picker belongs to this peek, not the canvas.
+            const clickedInChildDialog = (e.target as HTMLElement | null)?.closest?.('[data-cover-picker]');
             // The app menu is chrome, not canvas — it docks to the side while
             // this panel is open, so closing on its clicks would pull the rail
             // away mid-press and swallow the button hit.
             const clickedInMenu = (e.target as HTMLElement | null)?.closest?.('[data-app-menu]');
 
-            if (!clickedInsidePanel && !clickedOnButton && !clickedInMenu) {
+            if (!clickedInsidePanel && !clickedOnButton && !clickedInMenu && !clickedInChildDialog) {
                 onClose();
             }
         };
@@ -90,6 +93,7 @@ export function SidePeek({
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
             document.body.style.cursor = '';
+            document.body.style.userSelect = '';
             
             // Re-enable transitions
             if (panelRef.current) {
@@ -100,6 +104,7 @@ export function SidePeek({
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
         document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
     };
 
     // Ensure we don't render content if completely closed to save performance,
@@ -128,10 +133,16 @@ export function SidePeek({
                 <div 
                     className={styles.resizeHandle}
                     onMouseDown={handleMouseDown}
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label={`Resize ${side} panel`}
                     style={{
                         [side === 'left' ? 'right' : 'left']: 0
                     }}
-                />
+                >
+                    <span className={styles.resizeGrip} aria-hidden="true" />
+                    <span className={styles.resizeTooltip}>Resize</span>
+                </div>
             )}
             {/* Sticky Header */}
             {!hideHeader && title && (

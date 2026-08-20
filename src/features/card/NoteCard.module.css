@@ -652,6 +652,18 @@
     overflow: hidden;
     border-radius: var(--r-panel);
     contain: layout paint style;
+    /* Expanded cards are also used in Center Peek, side panels and fullscreen,
+       where there is no `.card` ancestor to supply this surface tint. */
+    --tint-card: 14%;
+    --tint-well: 14%;
+}
+
+.expandedView[data-accented] {
+    background: color-mix(in srgb, var(--node-accent) var(--tint-card), var(--bg-rail));
+}
+
+.expandedView[data-accented] .noteArea {
+    background: color-mix(in srgb, var(--node-accent) var(--tint-well), var(--bg-base));
 }
 
 /* Restored Cover Image Styles */
@@ -744,6 +756,20 @@
     transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* An empty cover belongs to its coloured card just as much as the editor well
+   does. The placeholder therefore takes a deeper monochrome of the same accent
+   instead of opening as a neutral grey panel in fullscreen, peeks, or a card. */
+.card[data-accented] .coverPlaceholder,
+.expandedView[data-accented] .coverPlaceholder {
+    background: color-mix(in srgb, var(--node-accent) 20%, var(--bg-base));
+    color: color-mix(in srgb, var(--node-accent) 72%, var(--text-main));
+}
+
+.card[data-accented] .coverEmptyState,
+.expandedView[data-accented] .coverEmptyState {
+    opacity: 0.72;
+}
+
 .coverEmptyState {
     display: flex;
     flex-direction: row;
@@ -756,6 +782,11 @@
 .coverPlaceholder:hover .coverEmptyState {
     opacity: 1;
     color: var(--text-main);
+}
+
+.card[data-accented] .coverPlaceholder:hover .coverEmptyState,
+.expandedView[data-accented] .coverPlaceholder:hover .coverEmptyState {
+    color: color-mix(in srgb, var(--node-accent) 86%, var(--text-main));
 }
 
 .coverUrlInput {
@@ -984,7 +1015,10 @@
     bottom: 0;
     background: rgba(0, 0, 0, 0.7);
 
-    z-index: 9999;
+    /* Portalled to the document body: the cover chooser is a child dialog of
+       fullscreen, centre/side peek, and expanded cards, so it must sit above
+       every app overlay rather than below fullscreen's 10000 band. */
+    z-index: 110000;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1790,6 +1824,10 @@
 
 /* Apple Vision Pro Style Resize Handle - Truly Curved Arc, Outside */
 .modernResizeHandle {
+    --resize-handle-start: var(--color-text-muted);
+    --resize-handle-end: var(--text-soft);
+    /* Neutral gray with enough transparency to sit softly on either theme. */
+    --resize-handle-color: rgba(142, 142, 142, 0.68);
     position: absolute;
     bottom: -20px;
     /* Increased distance from card */
@@ -1820,8 +1858,9 @@
 }
 
 .handlePath {
+    stroke: var(--resize-handle-color);
     stroke-opacity: 0.9;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition: stroke 0.2s ease;
 }
 
 .card:hover .modernResizeHandle {
@@ -1832,6 +1871,12 @@
 .modernResizeHandle:hover svg {
     filter: none;
     transform: scale(1.1) rotate(-5deg);
+}
+
+.modernResizeHandle:hover {
+    --resize-handle-start: var(--accent);
+    --resize-handle-end: var(--secondary);
+    --resize-handle-color: var(--accent);
 }
 
 /* Active/Dragging State */

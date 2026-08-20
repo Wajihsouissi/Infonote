@@ -21,10 +21,19 @@ const PDFViewer = React.lazy(() => import('../ui/PDFViewer').then(module => ({ d
 import ReactDOM from 'react-dom';
 import { CustomDateTimePicker } from './CustomDateTimePicker';
 
+/**
+ * What produced an edit. `inputType` comes straight from the browser's
+ * InputEvent; the markdown shortcuts use it to fire only on real insertions,
+ * never on undo/redo — otherwise undoing a conversion instantly re-converts.
+ */
+export interface EditOptions {
+    inputType?: string;
+}
+
 interface BlockProps {
     block: Block;
     readOnly?: boolean;
-    onChange: (content: string, metadata?: BlockMetadata) => void;
+    onChange: (content: string, metadata?: BlockMetadata, opts?: EditOptions) => void;
     /** Patch the whole block, including its `type` — the media picker resolves an
      *  unresolved `media` block into `image`/`video`/`file` through this. */
     onReplace?: (patch: Partial<Block>) => void;
@@ -37,7 +46,19 @@ interface BlockProps {
 }
 
 // Hook to safely handle contentEditable without cursor jumps and IME breaks
-const useContentEditable = (content: string, domRef?: React.Ref<HTMLDivElement>, renderLinks = true) => {
+const useContentEditable = (
+    content: string,
+    domRef?: React.Ref<HTMLDivElement>,
+    renderLinks = true,
+    /**
+     * Passing onChange in lets the hook own `onInput`, which is the only way to
+     * apply the composition guard consistently. It used to be re-implemented at
+     * eight call sites, none of which checked `isComposing` — so typing with a
+     * Chinese/Japanese/Korean keyboard fired an edit for every intermediate
+     * candidate, and markdown shortcuts could convert a block mid-word.
+     */
+    onChange?: (content: string, metadata?: BlockMetadata, opts?: EditOptions) => void,
+) => {
     const internalRef = useRef<HTMLDivElement>(null);
     const isFocused = useRef(false);
     const isComposing = useRef(false);
@@ -104,7 +125,20 @@ const useContentEditable = (content: string, domRef?: React.Ref<HTMLDivElement>,
             }
         },
         onCompositionStart: () => { isComposing.current = true; },
-        onCompositionEnd: () => { isComposing.current = false; },
+        onCompositionEnd: (e: React.CompositionEvent<HTMLDivElement>) => {
+            // Clear the flag BEFORE re-reading, then push the finished text
+            // through: some browsers do not fire a final `input` event after a
+            // composition ends, and the guarded onInput below would have
+            // dropped every event that came during it.
+            isComposing.current = false;
+            onChange?.(serializeInline(e.currentTarget), undefined, { inputType: 'insertCompositionText' });
+        },
+        onInput: (e: React.FormEvent<HTMLDivElement>) => {
+            if (isComposing.current) return;
+            onChange?.(serializeInline(e.currentTarget), undefined, {
+                inputType: (e.nativeEvent as InputEvent).inputType,
+            });
+        },
         onClick: (e: React.MouseEvent) => {
             if (!renderLinks) return;
             const target = (e.target as HTMLElement).closest('a');
@@ -134,7 +168,7 @@ const useContentEditable = (content: string, domRef?: React.Ref<HTMLDivElement>,
 };
 
 export const TextBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef, minimal }: BlockProps) => {
-    const { ref, handlers } = useContentEditable(block.content, domRef);
+    const { ref, handlers } = useContentEditable(block.content, domRef, true, onChange);
     
     if (readOnly) {
         return (
@@ -159,7 +193,6 @@ export const TextBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
             }}
             contentEditable={!readOnly}
             suppressContentEditableWarning
-            onInput={(e) => onChange(serializeInline(e.currentTarget))}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             data-placeholder={minimal ? "Text..." : "Type '/' for commands"}
@@ -170,7 +203,7 @@ export const TextBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
 });
 
 export const HeadingBlock = memo(({ block, level, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps & { level: 1 | 2 | 3 }) => {
-    const { ref, handlers } = useContentEditable(block.content, domRef);
+    const { ref, handlers } = useContentEditable(block.content, domRef, true, onChange);
     
     if (readOnly) {
         return (
@@ -195,7 +228,6 @@ export const HeadingBlock = memo(({ block, level, readOnly, onChange, onKeyDown,
             }}
             contentEditable={!readOnly}
             suppressContentEditableWarning
-            onInput={(e) => onChange(serializeInline(e.currentTarget))}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             data-placeholder={`Heading ${level}...`}
@@ -206,7 +238,7 @@ export const HeadingBlock = memo(({ block, level, readOnly, onChange, onKeyDown,
 });
 
 export const TodoBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
-    const { ref, handlers } = useContentEditable(block.content, domRef);
+    const { ref, handlers } = useContentEditable(block.content, domRef, true, onChange);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
     
     const formatDisplayDate = (dateString: string) => {
@@ -263,7 +295,6 @@ export const TodoBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
                 }}
                 contentEditable={!readOnly}
                 suppressContentEditableWarning
-                onInput={(e) => onChange(serializeInline(e.currentTarget))}
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
                 data-placeholder="To-do item"
@@ -294,7 +325,7 @@ export const TodoBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
 });
 
 export const QuoteBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
-    const { ref, handlers } = useContentEditable(block.content, domRef);
+    const { ref, handlers } = useContentEditable(block.content, domRef, true, onChange);
     
     if (readOnly) {
         return (
@@ -322,7 +353,6 @@ export const QuoteBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste,
                 }}
                 contentEditable={!readOnly}
                 suppressContentEditableWarning
-                onInput={(e) => onChange(serializeInline(e.currentTarget))}
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
                 data-placeholder="Empty quote"
@@ -435,7 +465,7 @@ export const ImageBlock = memo(({ block, readOnly, onChange, onReplace, disableM
 });
 
 export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef, hasChildren, ...rest }: BlockProps & { index?: number, hasChildren?: boolean }) => {
-    const { ref, handlers } = useContentEditable(block.content, domRef);
+    const { ref, handlers } = useContentEditable(block.content, domRef, true, onChange);
 
     let prefix = null;
     let wrapperClass = styles.listWrapper;
@@ -510,7 +540,6 @@ export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
                 }}
                 contentEditable={!readOnly}
                 suppressContentEditableWarning
-                onInput={(e) => onChange(serializeInline(e.currentTarget))}
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
                 data-placeholder={placeholder}
@@ -527,7 +556,7 @@ export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
 });
 
 export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
-    const { ref, handlers } = useContentEditable(block.content, domRef);
+    const { ref, handlers } = useContentEditable(block.content, domRef, true, onChange);
     const [showIconPicker, setShowIconPicker] = React.useState(false);
 
     // Default to 'Lightbulb' if no icon is set
@@ -589,7 +618,6 @@ export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPast
                 style={{ color: block.metadata?.textColor }}
                 contentEditable={!readOnly}
                 suppressContentEditableWarning
-                onInput={(e) => onChange(serializeInline(e.currentTarget))}
                 onKeyDown={onKeyDown}
                 onPaste={onPaste}
                 data-placeholder="Callout text..."
@@ -636,7 +664,7 @@ const legacyCopy = (text: string): boolean => {
 };
 
 export const CodeBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef }: BlockProps) => {
-    const { ref, handlers } = useContentEditable(block.content, domRef, false);
+    const { ref, handlers } = useContentEditable(block.content, domRef, false, onChange);
     const [copied, setCopied] = useState(false);
     const copyTimer = useRef<number | undefined>(undefined);
 
@@ -744,7 +772,6 @@ export const CodeBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
                 className={`${styles.block} ${styles.codeBlock}`}
                 contentEditable={!readOnly}
                 suppressContentEditableWarning
-                onInput={(e) => onChange(serializeInline(e.currentTarget))}
                 onKeyDown={handleCodeKeyDown}
                 onPaste={onPaste}
                 spellCheck={false}
@@ -758,6 +785,102 @@ export const CodeBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
 
 type TableAlign = 'left' | 'center' | 'right';
 
+/** A DOM node a table cell's persist hook is attached to, read by
+ *  BlockEditor's toolbar-driven persistHost (see __persistInline below). */
+type PersistableEl = HTMLDivElement & { __persistInline?: (text: string) => void };
+
+/** Place the caret at the start or end of a contentEditable element. */
+function placeCaretInCell(el: HTMLElement, toEnd: boolean) {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(!toEnd);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+}
+
+/** Caret/selection position as character offsets into a contentEditable
+ *  cell's visible text — the Selection-API equivalent of a textarea's
+ *  selectionStart/selectionEnd, used to detect "caret at the boundary" for
+ *  arrow-key cell-to-cell navigation. */
+function getCellCaretOffsets(el: HTMLElement): { start: number; end: number; length: number } | null {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return null;
+    const range = sel.getRangeAt(0);
+    if (!el.contains(range.commonAncestorContainer)) return null;
+    const pre = range.cloneRange();
+    pre.selectNodeContents(el);
+    pre.setEnd(range.startContainer, range.startOffset);
+    const start = pre.toString().length;
+    const end = start + range.toString().length;
+    const length = el.textContent?.length ?? 0;
+    return { start, end, length };
+}
+
+/** A single table cell's editable surface. Rich-HTML editing like the other
+ *  blocks (real <strong>/<em>/<u>/<s> in the DOM, serialized to markdown
+ *  markers on input) so the floating format toolbar — which only reacts to
+ *  contentEditable selections — works over cell text. */
+const TableCellEditor = memo(function TableCellEditor({
+    value,
+    align,
+    placeholder,
+    readOnly,
+    onChange,
+    onKeyDown,
+    setRef,
+}: {
+    value: string;
+    align?: TableAlign;
+    placeholder?: string;
+    readOnly?: boolean;
+    onChange: (text: string) => void;
+    onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => void;
+    setRef: (el: HTMLDivElement | null) => void;
+}) {
+    const internalRef = useRef<HTMLDivElement>(null);
+    const isFocused = useRef(false);
+    const isComposing = useRef(false);
+
+    useLayoutEffect(() => {
+        if (!internalRef.current || isFocused.current || isComposing.current) return;
+        const expectedHTML = renderContentWithLinks(value);
+        if (internalRef.current.innerHTML !== expectedHTML) internalRef.current.innerHTML = expectedHTML;
+    }, [value]);
+
+    return (
+        <div
+            ref={(el) => { internalRef.current = el; setRef(el); }}
+            className={styles.tableCell}
+            style={{ textAlign: align }}
+            contentEditable={!readOnly}
+            suppressContentEditableWarning
+            data-placeholder={placeholder}
+            data-is-empty={!value ? 'true' : 'false'}
+            onFocus={() => { isFocused.current = true; }}
+            onBlur={() => {
+                isFocused.current = false;
+                if (internalRef.current) {
+                    const expectedHTML = renderContentWithLinks(value);
+                    if (internalRef.current.innerHTML !== expectedHTML) internalRef.current.innerHTML = expectedHTML;
+                }
+            }}
+            onCompositionStart={() => { isComposing.current = true; }}
+            onCompositionEnd={(e) => {
+                isComposing.current = false;
+                onChange(serializeInline(e.currentTarget));
+            }}
+            // Same composition guard as useContentEditable — this editor
+            // hand-rolls the pattern instead of using the hook.
+            onInput={(e) => {
+                if (isComposing.current) return;
+                onChange(serializeInline(e.currentTarget));
+            }}
+            onKeyDown={onKeyDown}
+        />
+    );
+});
+
 export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
     const rows: string[][] = block.metadata?.rows || [];
     const savedWidths: number[] = block.metadata?.columnWidths || [];
@@ -769,7 +892,7 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
 
     const wrapperRef = useRef<HTMLDivElement>(null);
     const tableRef = useRef<HTMLTableElement>(null);
-    const cellRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map());
+    const cellRefs = useRef<Map<string, HTMLDivElement>>(new Map());
     const pendingFocus = useRef<{ key: string; toEnd: boolean } | null>(null);
 
     const [activeResize, setActiveResize] = useState<{ type: 'col' | 'row'; index: number } | null>(null);
@@ -788,44 +911,30 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
 
     const commit = (patch: Partial<BlockMetadata>) => onChange(block.content, { ...block.metadata, ...patch });
 
-    /* Grow a textarea cell to fit its content (multi-line, wrapping cells).
-       Reading scrollHeight right after writing style.height forces a synchronous
-       layout of the whole document, so this must only ever be called for ONE
-       cell (a keystroke). Sizing many cells goes through autosizeAll, which
-       batches the writes and reads instead — see the note there. */
-    const autosize = (el: HTMLTextAreaElement | null) => {
-        if (!el) return;
-        el.style.height = 'auto';
-        el.style.height = `${el.scrollHeight}px`;
-    };
+    /* handleCellChange is recreated every render (it closes over the latest
+       `rows`), but the cell ref callbacks below are cached and only run once
+       on mount — so the persist hook they stash on each cell's DOM node reads
+       through this ref instead of closing over a stale handleCellChange. */
+    const handleCellChangeRef = useRef<(r: number, c: number, value: string) => void>(() => {});
 
-    /* Size every cell in two layout passes instead of one per cell.
-       The naive loop (write height, read scrollHeight, write height — per cell)
-       makes the browser re-lay-out the entire document once per cell: a 300-cell
-       table cost ~2.5s and scaled quadratically with the rest of the canvas.
-       Grouping the writes and reads makes it ~30ms. */
-    const autosizeAll = () => {
-        const cells = [...cellRefs.current.values()];
-        if (cells.length === 0) return;
-        if (cells.length === 1) { autosize(cells[0]); return; }
-        for (const el of cells) el.style.height = 'auto';        // all writes
-        const heights = cells.map((el) => el.scrollHeight);      // all reads (one layout)
-        cells.forEach((el, i) => { el.style.height = `${heights[i]}px`; }); // all writes
-    };
-
-    /* Cells register here and are sized together by the layout effect below.
-       The callback per cell is cached by key: returning a fresh `(el) => …` each
-       render would make React detach and re-attach every cell ref on every
-       render, so the whole table would re-register (and previously re-size)
-       constantly instead of just on mount. */
-    const cellRefCallbacks = useRef<Map<string, (el: HTMLTextAreaElement | null) => void>>(new Map());
+    /* Cells register here. The callback per cell is cached by key: returning a
+       fresh `(el) => …` each render would make React detach and re-attach
+       every cell ref on every render. */
+    const cellRefCallbacks = useRef<Map<string, (el: HTMLDivElement | null) => void>>(new Map());
     const setCellRef = useCallback((r: number, c: number) => {
         const key = `${r}:${c}`;
         let cb = cellRefCallbacks.current.get(key);
         if (!cb) {
-            cb = (el: HTMLTextAreaElement | null) => {
-                if (el) cellRefs.current.set(key, el);
-                else cellRefs.current.delete(key);
+            cb = (el: HTMLDivElement | null) => {
+                if (el) {
+                    cellRefs.current.set(key, el);
+                    // Read by BlockEditor's toolbar-driven persistHost: a table
+                    // cell isn't a whole block, so its content can't be persisted
+                    // through the normal updateBlock(blockId, text) path.
+                    (el as PersistableEl).__persistInline = (text: string) => handleCellChangeRef.current(r, c, text);
+                } else {
+                    cellRefs.current.delete(key);
+                }
             };
             cellRefCallbacks.current.set(key, cb);
         }
@@ -837,8 +946,7 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
         const el = cellRefs.current.get(key);
         if (el) {
             el.focus();
-            const pos = toEnd ? el.value.length : 0;
-            el.setSelectionRange(pos, pos);
+            placeCaretInCell(el, toEnd);
         } else {
             // Cell doesn't exist yet (just inserted) — focus once it mounts.
             pendingFocus.current = { key, toEnd };
@@ -863,22 +971,10 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
         const el = cellRefs.current.get(pending.key);
         if (el) {
             el.focus();
-            const pos = pending.toEnd ? el.value.length : 0;
-            el.setSelectionRange(pos, pos);
+            placeCaretInCell(el, pending.toEnd);
         }
         pendingFocus.current = null;
     });
-
-    /* Size every cell on mount and after any data change (e.g. undo, paste).
-       Column widths count as a data change: narrowing a column re-wraps its
-       text onto more lines, and without a re-measure the row keeps its old
-       height and clips. Keyed on the joined widths because `savedWidths` is a
-       fresh array literal whenever the metadata has none. */
-    const widthKey = savedWidths.join(',');
-    useLayoutEffect(() => {
-        autosizeAll();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [rows, widthKey]);
 
     // Seed an empty table without mutating state during render.
     useLayoutEffect(() => {
@@ -913,6 +1009,7 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
         );
         commit({ rows: newRows });
     };
+    useLayoutEffect(() => { handleCellChangeRef.current = handleCellChange; });
 
     const insertRow = (at: number) => {
         const newRow = Array(colCount || 2).fill('');
@@ -1074,10 +1171,11 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
         }
     };
 
-    const handleCellKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, r: number, c: number) => {
+    const handleCellKeyDown = (e: React.KeyboardEvent<HTMLDivElement>, r: number, c: number) => {
         const el = e.currentTarget;
-        const atStart = el.selectionStart === 0 && el.selectionEnd === 0;
-        const atEnd = el.selectionStart === el.value.length && el.selectionEnd === el.value.length;
+        const caret = getCellCaretOffsets(el);
+        const atStart = !!caret && caret.start === 0 && caret.end === 0;
+        const atEnd = !!caret && caret.start === caret.length && caret.end === caret.length;
 
         if (e.key === 'Tab') {
             e.preventDefault();
@@ -1295,6 +1393,7 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
         <div className={styles.tableWrapper} ref={wrapperRef} contentEditable={false} data-table-sized={hasWidths ? 'true' : undefined}>
             <div className={styles.tableScroll}>
                 <div className={`${styles.tableInner} ${isSized ? styles.tableInnerSized : ''}`}>
+                    <div className={styles.tableRow}>
                     <div className={styles.tableMain}>
                         <table className={`${styles.table} ${isSized ? styles.tableSized : ''}`} ref={tableRef}>
                             {/* Always present: the resize drag writes straight to
@@ -1334,14 +1433,12 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
                                                         <GripHorizontal size={11} />
                                                     </button>
                                                 )}
-                                                <textarea
-                                                    ref={setCellRef(0, ci)}
-                                                    className={styles.tableCell}
-                                                    style={{ textAlign: alignOf(ci) }}
-                                                    rows={1}
+                                                <TableCellEditor
+                                                    setRef={setCellRef(0, ci)}
+                                                    align={alignOf(ci)}
                                                     value={cell}
                                                     readOnly={readOnly}
-                                                    onChange={(e) => { handleCellChange(0, ci, e.target.value); autosize(e.currentTarget); }}
+                                                    onChange={(v) => handleCellChange(0, ci, v)}
                                                     onKeyDown={(e) => handleCellKeyDown(e, 0, ci)}
                                                     placeholder="Header"
                                                 />
@@ -1394,16 +1491,13 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
                                                                 <GripVertical size={11} />
                                                             </button>
                                                         )}
-                                                        <textarea
-                                                            ref={setCellRef(r, ci)}
-                                                            className={styles.tableCell}
-                                                            style={{ textAlign: alignOf(ci) }}
-                                                            rows={1}
+                                                        <TableCellEditor
+                                                            setRef={setCellRef(r, ci)}
+                                                            align={alignOf(ci)}
                                                             value={cell}
                                                             readOnly={readOnly}
-                                                            onChange={(e) => { handleCellChange(r, ci, e.target.value); autosize(e.currentTarget); }}
+                                                            onChange={(v) => handleCellChange(r, ci, v)}
                                                             onKeyDown={(e) => handleCellKeyDown(e, r, ci)}
-                                                            placeholder=""
                                                         />
                                                         {!readOnly && (
                                                             <div
@@ -1419,11 +1513,12 @@ export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
                                 })}
                             </tbody>
                         </table>
-                        {!readOnly && (
-                            <button type="button" className={styles.addColBtn} onClick={() => insertColumn(colCount)} title="Add column" aria-label="Add column">
-                                <Plus size={14} />
-                            </button>
-                        )}
+                    </div>
+                    {!readOnly && (
+                        <button type="button" className={styles.addColBtn} onClick={() => insertColumn(colCount)} title="Add column" aria-label="Add column">
+                            <Plus size={14} />
+                        </button>
+                    )}
                     </div>
                     {!readOnly && (
                         <button type="button" className={styles.addRowBtn} onClick={() => insertRow(rowCount)} title="Add row" aria-label="Add row">

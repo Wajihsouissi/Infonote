@@ -31,3 +31,10 @@ node_portable/
 *.sw?
 .vercel
 .env*
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/clipboard-report/

@@ -61,7 +61,7 @@ export function BottomMenu() {
     const toggleAIPanel = useStore(s => s.toggleAIPanel);
     const setAIImageMode = useStore(s => s.setAIImageMode);
 
-    const { screenToFlowPosition, getViewport } = useReactFlow();
+    const { screenToFlowPosition, getViewport, setCenter } = useReactFlow();
     const [isSearchMode, setIsSearchMode] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [showFilters, setShowFilters] = useState(false);
@@ -230,6 +230,26 @@ export function BottomMenu() {
         return { x, y, zoom, screenW: window.innerWidth, screenH: window.innerHeight };
     };
 
+    /* The overlap-avoidance placement in findNonOverlappingPosition can push a
+       new card outside the visible viewport once the screen is crowded. A
+       card's block editor only mounts once it's near-viewport (see
+       useLazyRender/NoteExpandedContent), so an off-screen card would sit as
+       a permanently blank loading skeleton until the user happened to pan
+       onto it. Pan to a new card whenever placement landed it out of view,
+       so it's always immediately visible and editable. */
+    const panIntoViewIfNeeded = (position: { x: number; y: number }, size: { width: number; height: number }) => {
+        const { x: vpX, y: vpY, zoom } = getViewport();
+        const flowLeft = -vpX / zoom;
+        const flowTop = -vpY / zoom;
+        const flowRight = flowLeft + window.innerWidth / zoom;
+        const flowBottom = flowTop + window.innerHeight / zoom;
+        const outOfView = position.x < flowLeft || position.y < flowTop
+            || position.x + size.width > flowRight || position.y + size.height > flowBottom;
+        if (outOfView) {
+            setCenter(position.x + size.width / 2, position.y + size.height / 2, { zoom, duration: 300 });
+        }
+    };
+
     const handleAddNote = () => {
         const centerX = window.innerWidth / 2;
         const centerY = window.innerHeight / 2;
@@ -241,6 +261,7 @@ export function BottomMenu() {
         const position = findNonOverlappingPosition(flowPos, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, nodes, currentParentId, vp());
 
         addNode('note', position, { viewMode: 'expanded' }, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, currentParentId || undefined);
+        panIntoViewIfNeeded(position, { width: NOTE_WIDTH, height: NOTE_HEIGHT });
     };
     // Kept in a ref so the global Ctrl+N listener always calls the latest
     // closure without re-subscribing on every render.
@@ -407,6 +428,10 @@ export function BottomMenu() {
         : selectedCanvasNodeIds.size > 0 ? 'multi'
         : hasSelectedEdges ? 'edge'
         : null;
+    /* Selection is a mode of the bottom dock, not a second toolbar beside it.
+       Removing the idle rail lets the action surface take its exact place and
+       Motion can read the change as one continuous command island. */
+    const isSelectionIsland = flyoutState === 'multi' || flyoutState === 'edge';
 
     // Docking. The menu sits on the bottom edge by default; a side panel costs
     // the canvas its width rather than its height, so while one is open the menu
@@ -424,8 +449,10 @@ export function BottomMenu() {
                 panels' click-away handlers skip it, so pressing a rail button
                 doesn't close the panel out from under the press. */}
             <div className={`${styles.railLayer} ${dockClass}`} data-app-menu ref={menuRef}>
+            {!isSelectionIsland && (
             <motion.div
                 layout
+                layoutId="bottom-command-island"
                 className={`${styles.sideRail} ${isRail ? '' : styles.railHorizontal}`}
                 transition={{ type: 'spring', stiffness: 400, damping: 32 }}
                 whileHover={isRail ? { x: 4 } : { y: -4 }}
@@ -512,6 +539,7 @@ export function BottomMenu() {
                                                 const NOTE_HEIGHT = isSmall ? 120 : 432;
                                                 const position = findNonOverlappingPosition(flowPos, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, nodes, currentParentId, vp());
                                                 addNode('note', position, { viewMode: mode.id, showMetadata: false }, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, currentParentId || undefined);
+                                                panIntoViewIfNeeded(position, { width: NOTE_WIDTH, height: NOTE_HEIGHT });
                                                 setActiveMenu(null);
                                             }}
                                         >
@@ -639,6 +667,7 @@ export function BottomMenu() {
                         </div>
                 </motion.div>
             </motion.div>
+            )}
 
             <AnimatePresence mode="popLayout" initial={false}>
                 {flyoutState === 'search' ? (
@@ -768,14 +797,14 @@ export function BottomMenu() {
                         )}
                     </motion.div>
                 ) : flyoutState === 'multi' ? (
-                    <motion.div key="multi" variants={transitionVariants} initial="initial" animate="animate" exit="exit" className={styles.flyout}>
+                    <motion.div layout layoutId="bottom-command-island" key="multi" variants={transitionVariants} initial="initial" animate="animate" exit="exit" className={`${styles.flyout} ${styles.selectionIsland}`}>
                         <MultiSelectionToolbar
                             onOpenAI={() => openAIPanel('create')}
                             onOpenSearch={openSearch}
                         />
                     </motion.div>
                 ) : flyoutState === 'edge' ? (
-                    <motion.div key="edge" variants={transitionVariants} initial="initial" animate="animate" exit="exit" className={styles.flyout}>
+                    <motion.div layout layoutId="bottom-command-island" key="edge" variants={transitionVariants} initial="initial" animate="animate" exit="exit" className={`${styles.flyout} ${styles.selectionIsland}`}>
                         <EdgeEditingToolbar />
                     </motion.div>
                 ) : null}

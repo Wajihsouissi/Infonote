@@ -39,6 +39,241 @@
     will-change: transform;
 }
 
+/* Fullscreen splits into the note stream and the card being read. Only the
+   fullscreen modal uses this — CenterModal shares this stylesheet and keeps its
+   single-column body. */
+.workspace {
+    display: flex;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* Holds the left pane, the seam, and (when split) the right pane — separate
+   from .workspace so the seam's drag handler has a rect to measure that is
+   exactly the resizable row, not the row plus the note-list rail beside it. */
+.splitArea {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    overflow: hidden;
+}
+
+.stage {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Boards keep the card modal's pane chrome, but their content is a wide,
+   column-based workspace. Scrolling belongs to this pane so the outer modal
+   stays fixed while a board can still be wider or taller than the viewport. */
+.boardStage {
+    display: block;
+    height: 100%;
+    overflow-y: hidden;
+    overflow-x: hidden;
+    padding: 12px;
+    box-sizing: border-box;
+    background: var(--bg-base);
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+}
+
+.boardStage::-webkit-scrollbar {
+    width: 0;
+    height: 4px;
+}
+
+.boardStage::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.boardStage::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border-radius: var(--radius-xs);
+}
+
+.boardStage::-webkit-scrollbar-thumb:hover {
+    background: var(--text-soft);
+}
+
+.boardWorkspace .splitArea {
+    width: 100%;
+}
+
+.boardFullscreenCanvas {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 100%;
+    box-sizing: border-box;
+    padding: 0;
+}
+
+/* Split halves share the width evenly. `flex-basis: 0` rather than `auto` so a
+   long note cannot bid for more room than the one beside it. */
+.stageSplit {
+    flex: 1 1 0;
+}
+
+/* Which half the rail is loading into. Marked with a hairline along the top
+   rather than a border or wash: the panes are pages, and a tinted page would
+   read as the note being coloured. Left and right get different hues — not
+   just a highlight — so a glance at either pane alone still says which side
+   it is; the rail's L/R chips and the active-row accent share the same pair. */
+.stageFocused::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    opacity: 0.85;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.paneLeft.stageFocused::after {
+    background: var(--t-blue);
+}
+
+/* --danger rather than --t-red: t-red's hue sits close enough to the app's
+   own orange accent that on this line it read as orange, not red — this is
+   more saturated and pulls the hue further from the accent. */
+.paneRight.stageFocused::after {
+    background: var(--danger);
+}
+
+/* The join between the two halves, and the home of the one control that
+   belongs to neither of them. */
+/* Raised above both halves: the button straddles the join, and the pane that
+   comes after it in the DOM would otherwise paint over its right half and
+   swallow the clicks that land there. */
+.seam {
+    flex: none;
+    width: 1px;
+    position: relative;
+    z-index: 7;
+    background: var(--line-strong);
+}
+
+/* Centred by the same transform the shared .icon-hover hover/active states
+   write to — .icon-hover's `scale()` would otherwise replace the centring
+   translate instead of adding to it, which is what let the button jump off
+   centre on hover. Repeating the translate in every state keeps it centred
+   through all of them. */
+.seamButton {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-pill);
+    background: var(--bg-raised);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    z-index: 6;
+    opacity: 0.55;
+    transition: opacity var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.seam:hover .seamButton,
+.seamButton:focus-visible {
+    opacity: 1;
+}
+
+.seamButton:hover {
+    transform: translate(-50%, -50%) scale(1.1);
+}
+
+.seamButton:active {
+    transform: translate(-50%, -50%) scale(0.96);
+}
+
+/* The actual drag target. Extends 5px past the seam on each side so a 1px
+   line is not what has to be aimed at — same reasoning as AIPanel's own
+   resize handle, which this mirrors. Absolutely positioned so the extra width
+   never touches the flex layout the seam itself sits in. */
+.seamHandle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -5px;
+    right: -5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: col-resize;
+    touch-action: none;
+}
+
+/* Soft grayscale bar, not either pane's colour — this is a resize affordance,
+   not another piece of the left/right signal. Hidden until hover, same as
+   AIPanel's grip: the seam's hit area is always live, so the grip appearing is
+   feedback that the cursor found it, not a target to aim for. */
+.seamGrip {
+    width: 3px;
+    height: 120px;
+    border-radius: 999px;
+    background: var(--text-soft);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.seamHandle:hover .seamGrip,
+.seamHandle:active .seamGrip {
+    opacity: 1;
+}
+
+/* Same dark pill language as AIPanel's resize tooltip, moved above the handle
+   instead of beside it — beside would land the label on top of whichever pane
+   is narrower. */
+.seamTooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-4px) scale(0.92);
+    margin-bottom: 6px;
+    padding: 5px 10px;
+    background: rgba(20, 20, 23, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1), transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.seamHandle:hover .seamTooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+    transition-delay: 0.35s;
+}
+
+/* No delay once a drag is already under way. */
+.seamHandle:active .seamTooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+    transition-delay: 0s;
+}
+
 .header {
     padding: 24px 40px;
     border-bottom: 1px solid var(--line);

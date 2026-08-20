@@ -185,6 +185,134 @@
     flex: none;
 }
 
+.fullscreenBtn {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: var(--btn-secondary-bg);
+    border: 1px solid var(--btn-secondary-border);
+    border-radius: var(--r-control);
+    color: var(--btn-secondary-fg);
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.fullscreenBtn:hover,
+.fullscreenBtn:focus-visible {
+    background: var(--toolbar-btn-hover);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+}
+
+/* The modal owns the board's focus state, so the toolbar must stay visible
+   even though the canvas version normally reveals it only on hover. */
+.fullscreenView {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    cursor: default;
+}
+
+.fullscreenView .toolbar {
+    position: relative;
+    top: auto;
+    left: 0;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 0 12px;
+    padding: 14px 24px;
+    border-radius: 24px;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    cursor: default;
+    z-index: 20;
+}
+
+/* Keep the modal toolbar in place when the pointer enters the board. The
+   canvas hover selector is intentionally more specific, so fullscreen needs
+   the same specificity to prevent its translate-out animation. */
+.board.fullscreenView:hover .toolbar,
+.board.fullscreenView:focus-within .toolbar {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+}
+
+/* A fullscreen board is a reading surface, not a miniature canvas. Reflow
+   lanes into the available width so only the pane itself ever scrolls
+   vertically. */
+.fullscreenView .lanes {
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: stretch;
+    gap: var(--lane-gap);
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+}
+
+.fullscreenView .lanes::-webkit-scrollbar {
+    width: 0;
+    height: 4px;
+}
+
+.fullscreenView .lanes::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.fullscreenView .lanes::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border-radius: var(--radius-xs);
+}
+
+.fullscreenView .lanes::-webkit-scrollbar-thumb:hover {
+    background: var(--text-soft);
+}
+
+.fullscreenView .lane {
+    min-width: 0;
+    width: max(280px, calc((100vw - 160px) / 4));
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+    flex: 0 0 max(280px, calc((100vw - 160px) / 4));
+}
+
+.fullscreenView .laneBody {
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+}
+
+.fullscreenView .laneBody::-webkit-scrollbar {
+    width: 4px;
+}
+
+.fullscreenView .laneBody::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.fullscreenView .laneBody::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border-radius: var(--radius-xs);
+}
+
+.fullscreenView .laneBody::-webkit-scrollbar-thumb:hover {
+    background: var(--text-soft);
+}
+
 .groupBy {
     display: flex;
     align-items: center;

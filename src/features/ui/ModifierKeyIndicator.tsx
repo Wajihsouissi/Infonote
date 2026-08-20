@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Check } from '../../components/icons';
 import styles from './ModifierKeyIndicator.module.css';
 
 type Props = {
@@ -73,7 +74,7 @@ export function ModifierKeyIndicator({
 
     return (
         <div 
-            className={`${styles.root} ${visible ? styles.visible : ''}`} 
+            className={`${styles.root} ${showSuccess ? styles.successRoot : ''} ${visible ? styles.visible : ''}`} 
             style={{ top }} 
             aria-live="polite"
         >
@@ -103,8 +104,8 @@ export function ModifierKeyIndicator({
             )}
             {showSuccess && (
                 <div className={styles.successLine}>
-                    <span className={styles.successBadge}>✓</span>
-                    <span className={styles.label} style={{ color: '#34d399', fontWeight: 600 }}>View Focused</span>
+                    <span className={styles.successBadge}><Check size={12} strokeWidth={2.6} /></span>
+                    <span className={styles.successLabel}>View Focused</span>
                 </div>
             )}
         </div>

@@ -33,6 +33,7 @@ export interface NodeSlice {
     syncParentContent: (parentId: string) => void;
     bulkDeleteNodes: (nodeIds: string[], skipConfirm?: boolean) => void;
     bulkDuplicateNodes: (nodeIds: string[]) => void;
+    pasteClipboardNodes: (payload: import('../features/clipboard/clipboardPayload').NodesPayload, origin: { x: number; y: number }) => string[];
     bulkApplyColor: (nodeIds: string[], color: string) => void;
     fuseNodes: (nodeIds: string[], skipConfirm?: boolean) => void;
     hydrateCanvasFromContent: (nodeId: string) => void;
@@ -183,7 +184,7 @@ export interface UISlice {
     setTOCOpen: (isOpen: boolean) => void;
     setShortcutsPanelOpen: (isOpen: boolean) => void;
     setInteractionState: (state: Partial<UISlice['interactionState']>) => void;
-    toggleTheme: () => void;
+    toggleTheme: (origin?: { x: number; y: number }) => void;
     setSelectedCanvasNodeIds: (ids: Set<string>) => void;
     toggleCanvasNodeSelection: (id: string) => void;
     setIsLinkingMode: (isLinking: boolean) => void;
@@ -227,6 +228,8 @@ export interface AISlice {
     setAIMode: (mode: AIMode) => void;
     setAIImageMode: (on: boolean) => void;
     setAIRunning: (running: boolean) => void;
+    aiWebSearch: boolean;
+    setAIWebSearch: (on: boolean) => void;
     /** Content types the user has explicitly selected for the next create turn. Empty = AI chooses freely. */
     aiSelectedContexts: AIContextType[];
     toggleAIContext: (type: AIContextType) => void;
@@ -239,6 +242,15 @@ export interface AISlice {
     appendAIText: (id: string, delta: string) => void;
     newAIChat: () => void;
     removeAIMessages: (ids: string[]) => void;
+    aiChatId: string | null;
+    aiChats: import('../services/storage/AIChatStore').AIChatSummary[];
+    aiChatsLoading: boolean;
+    refreshAIChats: () => Promise<void>;
+    persistAIChat: () => Promise<void>;
+    openAIChat: (id: string) => Promise<void>;
+    duplicateAIChat: (id: string) => Promise<void>;
+    regenerateAIChat: (id: string) => Promise<string | null>;
+    deleteAIChat: (id: string) => Promise<void>;
 }
 
 export type AppState = NodeSlice & NavigationSlice & StorageSlice & UISlice & AuthSlice & AISlice;
