@@ -45,6 +45,7 @@ import { ZettelkastenIllustration } from './illustrations/ZettelkastenIllustrati
 import { MindmappingIllustration } from './illustrations/MindmappingIllustration';
 import { LinkPreview } from '../components/ui/link-preview';
 import { originFromEvent } from '../utils/themeTransition';
+import { Button, ButtonLink, IconButton } from '../components/ui/Button';
 
 // -------------------------------------------------------------------------
 // MAIN COMPONENT
@@ -116,28 +117,26 @@ export function CinematicFooter() {
           >
             {/* Primary Calls to Action */}
             <div className={styles.primaryButtonGroup}>
-              <a href="#" className={`${styles.editorialPill} ${styles.primaryPill} ${styles.accentPill}`}>
-                <Play className={styles.icon} />
+              <ButtonLink href="#" variant="primary" size="lg" className={styles.primaryPill} leadingIcon={<Play className={styles.icon} />}>
                 Start for Free
-              </a>
+              </ButtonLink>
               
-              <a href="#" className={`${styles.editorialPill} ${styles.primaryPill}`}>
-                <Calendar className={styles.icon} />
+              <ButtonLink href="#" variant="secondary" size="lg" className={styles.primaryPill} leadingIcon={<Calendar className={styles.icon} />}>
                 Book a Demo
-              </a>
+              </ButtonLink>
             </div>
 
             {/* Secondary Text Links */}
             <div className={styles.secondaryButtonGroup}>
-              <a href="#" className={`${styles.editorialPill} ${styles.secondaryPill}`}>
+              <ButtonLink href="#" variant="ghost" size="sm" className={styles.secondaryPill}>
                 Privacy Policy
-              </a>
-              <a href="#" className={`${styles.editorialPill} ${styles.secondaryPill}`}>
+              </ButtonLink>
+              <ButtonLink href="#" variant="ghost" size="sm" className={styles.secondaryPill}>
                 Terms of Service
-              </a>
-              <a href="#" className={`${styles.editorialPill} ${styles.secondaryPill}`}>
+              </ButtonLink>
+              <ButtonLink href="#" variant="ghost" size="sm" className={styles.secondaryPill}>
                 Support
-              </a>
+              </ButtonLink>
             </div>
           </motion.div>
         </motion.div>
@@ -162,13 +161,14 @@ export function CinematicFooter() {
             <span className={styles.badgeBrand}>Wajih</span>
           </div>
 
-          <button
+          <IconButton
+            label="Scroll to top"
+            variant="ghost"
             onClick={scrollToTop}
             className={`${styles.editorialPill} ${styles.backToTop}`}
-            aria-label="Scroll to top"
           >
             <MoveUp />
-          </button>
+          </IconButton>
         </motion.div>
       </footer>
     </div>
@@ -247,7 +247,7 @@ const YouTubeModal = memo(({ videoId, onClose }: { videoId: string; onClose: () 
           allowFullScreen
         />
       </div>
-      <button style={{
+      <IconButton label="Close video" variant="ghost" style={{
         position: 'absolute', top: 24, right: 24,
         width: 40, height: 40, borderRadius: '50%',
         background: 'var(--active-wash)', border: 'none',
@@ -255,7 +255,7 @@ const YouTubeModal = memo(({ videoId, onClose }: { videoId: string; onClose: () 
         cursor: 'pointer', color: 'white',
       }} onClick={onClose}>
         <X size={20} />
-      </button>
+      </IconButton>
     </div>,
     document.body
   );
@@ -531,6 +531,11 @@ export const MarketingPage: React.FC = () => {
   const setCurrentView = useStore((state) => state.setCurrentView);
   const theme = useStore((state) => state.theme);
   const toggleTheme = useStore((state) => state.toggleTheme);
+  const auth = useStore((state) => state.auth);
+
+  // Signed-in identity for the top nav — mirrors LandingPage's derivation.
+  const accountName = auth.displayName || auth.email?.split('@')[0] || 'Account';
+  const accountInitial = accountName.charAt(0).toUpperCase();
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 720px)');
@@ -680,20 +685,43 @@ export const MarketingPage: React.FC = () => {
           </a>
         </div>
         <div className={styles.navActions}>
-          <button className={styles.loginBtn} onClick={() => setCurrentView('login')}>
-            Login
-          </button>
-          <button className={styles.navButton} onClick={() => setCurrentView('signup')}>
-            <span>Get Started</span>
-            <ArrowRight size={14} className={styles.navButtonIcon} />
-          </button>
-          <button
+          {auth.isAuthenticated ? (
+            <button
+              type="button"
+              className={styles.navAccount}
+              onClick={() => setCurrentView('landing')}
+              title={auth.email || accountName}
+              aria-label={`Signed in as ${accountName} — open app`}
+            >
+              <span className={styles.navAccountAvatar}>{accountInitial}</span>
+              {/* Name swaps to the "Open app" call to action on hover/focus */}
+              <span className={styles.navAccountSwap}>
+                <span className={styles.navAccountName}>{accountName}</span>
+                <span className={styles.navAccountAction} aria-hidden="true">
+                  Open app
+                  <ArrowRight size={13} className={styles.navAccountArrow} />
+                </span>
+              </span>
+            </button>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" className={styles.loginBtn} onClick={() => setCurrentView('login')}>
+                Login
+              </Button>
+              <Button variant="primary" size="sm" className={styles.navButton} onClick={() => setCurrentView('signup')}>
+                <span>Get Started</span>
+                <ArrowRight size={14} className={styles.navButtonIcon} />
+              </Button>
+            </>
+          )}
+          <IconButton
+            label="Toggle theme"
+            variant="ghost"
             onClick={(e) => toggleTheme(originFromEvent(e))}
             className={styles.themeToggleNav}
-            aria-label="Toggle Theme"
           >
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
+          </IconButton>
         </div>
       </nav>
 
@@ -1090,9 +1118,9 @@ export const MarketingPage: React.FC = () => {
         </div>
 
         <div style={{ marginTop: '80px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
-          <button className={styles.navButton} style={{ padding: '14px 36px', fontSize: '15px' }}>
-            <span>VIEW DEMO</span>
-          </button>
+          <Button variant="primary" size="lg" className={styles.navButton} style={{ padding: '14px 36px', fontSize: '15px' }}>
+            VIEW DEMO
+          </Button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text-faint)', fontWeight: 500 }}>
             <div style={{ display: 'flex', position: 'relative' }}>
               <img src="https://i.pravatar.cc/100?img=4" alt="user" style={{ width: 26, height: 26, borderRadius: '50%', border: '2px solid var(--line-strong)' }} />

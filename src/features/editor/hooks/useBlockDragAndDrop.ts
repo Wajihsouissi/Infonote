@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '../../../store/useStore';
 import { getNodeBlocks } from '../../../types';
 import { endBlockDrag } from '../blockDragLock';
-import { resolveMediaTypeFromFile } from '../mediaTypes';
+import { ingestFiles } from '../../../services/assets';
 import { canAbsorbIntoGallery, mergeIntoGallery, claimGalleryItem, GALLERY_DRAG_MIME } from '../galleryTypes';
 
 interface DragAndDropProps {
@@ -295,34 +295,24 @@ export function useBlockDragAndDrop({
         e.stopPropagation();
 
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            console.log("[BlockEditor.handleDrop] Handling file drop");
-            const files = Array.from(e.dataTransfer.files);
-            files.forEach(file => {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    if (event.target?.result) {
-                        const content = event.target.result as string;
-                        const type = resolveMediaTypeFromFile(file);
-
-                        const newBlock: Block = {
-                            id: uuidv4(),
-                            type,
-                            content,
-                            metadata: {
-                                name: file.name,
-                                size: file.size,
-                                type: file.type
-                            }
-                        };
-
-                        setBlocks(prev => {
-                            const newBlocks = [...prev, newBlock];
-                            debouncedOnUpdate(newBlocks);
-                            return newBlocks;
-                        });
-                    }
-                };
-                reader.readAsDataURL(file);
+            // One write for the whole drop. The previous per-file FileReader
+            // callbacks each rebuilt `blocks` from their own stale closure, so
+            // dropping four files reliably kept only the last to finish — and
+            // none of them ever met the size limit.
+            const dropped = Array.from(e.dataTransfer.files);
+            void ingestFiles(dropped).then(({ files: stored }) => {
+                if (!stored.length) return;
+                const newBlocks: Block[] = stored.map(f => ({
+                    id: uuidv4(),
+                    type: f.type,
+                    content: f.ref,
+                    metadata: f.metadata,
+                }));
+                setBlocks(prev => {
+                    const next = [...prev, ...newBlocks];
+                    debouncedOnUpdate(next);
+                    return next;
+                });
             });
             return;
         }

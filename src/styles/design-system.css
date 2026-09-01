@@ -3,15 +3,14 @@
 @tailwind utilities;
 
 /* ============================================================
-   chnk it — GLOBAL DESIGN SYSTEM · "Paper & Ink"
+   chnk it — GLOBAL DESIGN SYSTEM · "Charcoal & Signal"
    ------------------------------------------------------------
    The single source of truth for every color, font, radius,
    shadow and motion value in the app. Components must consume
    these tokens (var(--…)) — never hardcode brand colors.
 
-   Art direction: flat editorial surfaces, hairline rules,
-   electric persimmon accent, warm golden secondary. Dark theme is
-   deep warm graphite ("Ink"), light theme is tactile warm parchment ("Paper").
+   Art direction: 80% pure-charcoal structure, 10% Hot Coral action, 10% highlights.
+   Dark theme is neutral charcoal; light theme uses the reference soft whites.
    No glassmorphism, no cheap glows.
 
    Sections:
@@ -42,7 +41,7 @@
   --radius-xl: 14px;
   --radius-pill: 999px;
 
-  /* squircle radius scale — "Paper & Ink v2". A six-step scale that
+  /* squircle radius scale — "Charcoal & Signal". A six-step scale that
      pairs with the global superellipse corner-shape:
        xs        4px → chips, ticks, small insets
        control   8px → buttons, inputs, menu items
@@ -71,11 +70,17 @@
      with an alpha channel arrives at an unknown polarity — black line work
      drawn for a white page, white logos drawn for a dark one — and either of
      our own grounds erases one of them: on ink the black art disappears, on
-     paper the white art does. A warm mid grey is the only ground both survive,
+     paper the white art does. A neutral mid grey is the only ground both survive,
      and holding it fixed across themes means a logo looks the same wherever it
      is dropped instead of inverting when the theme is toggled.
      Only ever seen through alpha; opaque media covers it completely. */
-  --media-plate: #8f8a80;
+  --media-plate: #777777;
+
+  /* Palette usage: charcoal neutrals own the interface (80%); the action
+     colour is reserved for calls to action and key states (10%); highlight
+     colours call out meaning, never form the default UI chrome (10%). */
+  --action: #ff5040;
+  --highlight: #f365c0;
 }
 
 /* ---------- 2. Ink (dark — default) ---------- */
@@ -84,95 +89,174 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  /* surfaces: layered depth hierarchy — warm graphite "Ink".
-     Every step keeps R > G > B so the darks read lamp-lit rather than slate;
-     the previous ramp (#09090b → #2e2d33) was blue-leaning and put the floating
-     chrome ~5 steps above the canvas, which made toolbars read as grey slabs.
-     The spread is now tight enough that the --line hairline does the separating. */
-  --bg-inset: #0a0908;
+  /* surfaces: charcoal replacements for the supplied navy ramp. */
+  --bg-inset: #000000;
   /* canvas ground / inset wells (deepest ink) */
-  --bg-base: #0e0d0c;
+  --bg-base: #090909;
   /* primary container ground */
-  --bg-rail: #161514;
+  --bg-rail: #121212;
   /* structural rails, sidebar, resting nodes */
-  --bg-card: #1c1a19;
+  --bg-card: #1a1a1a;
   /* note content, expanded cards */
-  --bg-raised: #232120;
+  --bg-raised: #242424;
   /* modals, popovers, floating menus, toolbars */
+  /* The four rungs below are ONE ladder — "Graphite Deep" from the palette
+     study. They hold a single neutral hue and step only in lightness, so the
+     whole ground moves together: change one and change all four, or the
+     relationships that make a card read as a card stop working. */
+  --bg-workspace: #101010;
+  /* the working ground: the infinite canvas, and the body of every panel
+     docked beside it. One value, because they are read as one surface. */
+  --bg-frame: #191919;
+  /* the chrome the workspace is inset into: app shell, top bar, panel chrome.
+     Deliberately a step LIGHTER than the ground, so the desk reads as a sheet
+     laid inside the frame rather than as the frame's own surface. */
+  --bg-node: #202020;
+  /* a resting card on the canvas — the top of the ladder, and what gives a
+     node its silhouette against the desk. */
+  --bg-node-well: #171717;
+  /* the note body inset inside a card: enough under --bg-node to read as a
+     recessed writing surface and not so much that it reads as a hole cut in
+     the card. Deliberately a wider step than the ladder's even spacing would
+     give (9 under the card rather than 5) — the inset is the one place a
+     deeper cut helps — while staying 7 clear of the desk, so it never reads as
+     a hole punched through to the canvas. */
+
+  /* A RECOLOURED card is built as a colour, not as a tint.
+     Mixing a hue into the grey card can only ever produce a tinted grey — at
+     any strength the chroma that survives is a fraction of the hue's own, and
+     the warm hues grey out fastest, so a "coral" card came out brown. These
+     four numbers are fed to `oklch(from var(--node-accent) L C h)`: the card
+     keeps the hue's H and takes a FIXED lightness and chroma, so every
+     recoloured card is genuinely its colour and all ten carry equal weight.
+     The well sits below the card on both, so the recess holds.
+     One honest limit: a dark surface cannot read as yellow — at L 0.44 the
+     yellow end of the wheel is ochre. The ring and the icon carry the bright
+     hue for those. */
+  --node-tint-l: 0.44;
+  --node-tint-c: 0.125;
+  --node-well-tint-l: 0.355;
+  --node-well-tint-c: 0.11;
 
   /* hairlines & washes */
-  --line: rgba(240, 236, 227, 0.08);
-  --line-strong: rgba(240, 236, 227, 0.16);
-  --line-heavy: rgba(240, 236, 227, 0.25);
-  --hover-wash: rgba(240, 236, 227, 0.06);
-  --active-wash: rgba(240, 236, 227, 0.12);
-  --dot: rgba(240, 236, 227, 0.12);
+  --line: rgba(255, 255, 255, 0.10);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  --line-heavy: rgba(255, 255, 255, 0.28);
+  --hover-wash: rgba(255, 255, 255, 0.08);
+  --active-wash: rgba(255, 80, 64, 0.16);
+  --dot: rgba(255, 255, 255, 0.18);
 
   /* text */
-  --text-main: #eeeae2;
-  --text-soft: #b2ad9f;
-  --text-faint: #7b776c;
+  --text-main: #ffffff;
+  --text-soft: #e6e6e6;
+  --text-faint: #a3a3a3;
 
-  /* accent — electric persimmon */
-  --accent: #ff5e2b;
-  --accent-hover: #ff7345;
-  --accent-ink: #ff8d66;
+  /* primary action and state — Hot coral from the supplied palette. */
+  --accent: #ff5040;
+  --accent-hover: #ff5040;
+  --accent-ink: #ff5040;
   /* accent for text/icons/borders on dark */
-  --accent-deep: #e04b1a;
-  --accent-dim: rgba(255, 94, 43, 0.14);
-  --accent-wash: rgba(255, 94, 43, 0.18);
-  --on-accent: #1a0903;
-  --on-accent-rgb: 26, 9, 3;
-  --accent-rgb: 255, 94, 43;
+  --accent-deep: #ff5040;
+  --accent-dim: rgba(255, 80, 64, 0.16);
+  --accent-wash: rgba(255, 80, 64, 0.22);
+  --on-accent: #000000;
+  --on-accent-rgb: 0, 0, 0;
+  --accent-rgb: 255, 80, 64;
 
-  /* secondary — warm golden amber */
-  --secondary: #f0a848;
-  --secondary-ink: #f5c578;
-  --secondary-dim: rgba(240, 168, 72, 0.14);
-  --secondary-rgb: 240, 168, 72;
+  /* Compatibility highlight — stays Hot Coral so existing controls never
+     fall back to the former orange treatment. */
+  --secondary: #ff5040;
+  --secondary-ink: #ff5040;
+  --secondary-dim: rgba(255, 80, 64, 0.15);
+  --secondary-rgb: 255, 80, 64;
 
   /* feedback */
-  --ok: #65d487;
-  --warn: #f3be65;
-  --danger: #ff6b5b;
-  --ok-rgb: 101, 212, 135;
-  --warn-rgb: 243, 190, 101;
-  --danger-rgb: 255, 107, 91;
+  --ok: #5ac875;
+  --warn: #ffc31f;
+  --danger: #f5430b;
+  --ok-rgb: 90, 200, 117;
+  --warn-rgb: 255, 195, 31;
+  --danger-rgb: 245, 67, 11;
 
-  /* tertiary — warm-adapted functional hues (tags, categories, syntax).
-     Muted and never cosmic; the -ink variants read on the dark ground. */
-  --t-blue: #6f9bb3;
-  --t-pink: #dd8fa2;
-  --t-yellow: #e3c268;
-  --t-purple: #ad8ab8;
-  --t-green: #94bd82;
-  --t-red: #e07a63;
+  /* Functional palette from the reference image. */
+  --t-charcoal: #a3a3a3;
+  --t-pink: #f365c0;
+  --t-yellow: #c3ff33;
+  --t-purple: #ffa9e2;
+  --t-green: #5ac875;
+  --t-red: #f5430b;
 
   /* accent palette — ten hues the user assigns to things they own (board
      columns today, tags and categories next). See §7 for the full rationale and
      for the wash/edge shades derived from these.
 
-     A tenth of the wheel apart, all held at one lightness and one chroma so no
-     hue shouts over another in a row of ten. Warm-adapted like everything else
-     here: even the greens and blues carry a little red, so a column never reads
-     as a cold sticker dropped onto a warm page. */
-  --a-rose: #e0837f;
-  --a-amber: #e2a066;
-  --a-citrine: #ddc16a;
-  --a-olive: #b4bf72;
-  --a-jade: #8dbd88;
-  --a-teal: #77bcae;
-  --a-azure: #74a6c4;
-  --a-indigo: #909ccb;
-  --a-violet: #ab8cc4;
-  --a-magenta: #c98bb2;
+     They are used only for user-owned content and highlights, not chrome.
+
+     Ten hues, each sitting near the most saturated point sRGB can hold for it.
+
+     The obvious construction — one lightness and one chroma for all ten — is
+     the one to avoid, and this set replaces two attempts at it. sRGB's chroma
+     ceiling varies enormously by hue at a fixed lightness (at L 0.70 teal tops
+     out around C 0.11 where red reaches 0.18), so a single lightness drags every
+     hue down to the worst common chroma: the row goes pale, and the hues that
+     were clamped hardest drift toward grey and toward each other.
+
+     Instead each hue rides its own cusp — the lightness where its chroma peaks
+     — pulled 62% of the way toward a common L 0.76 so the row still reads as
+     one family, then taking 88% of the chroma available there. Lightness
+     therefore VARIES by hue: olive sits near L 0.83, indigo near 0.65, which is
+     how those hues behave in the world and is what keeps ten of them telling
+     themselves apart. Against a card they run 4.9–9.9:1.
+
+     Citrine is the one hue that does not take the standard pull. Yellow's cusp
+     sits very high (L 0.87), so pulling it 62% of the way down to 0.76 landed it
+     in gold rather than yellow; it is pulled 30% instead.
+
+     Three slots hold a colour their name undersells: `rose` is a coral red,
+     `violet` is a purple, and `magenta` is a red-leaning pink. Renaming them is
+     a rename across every consumer, so the values moved first. */
+  --a-rose: #f67a61;
+  --a-amber: #f49b37;
+  --a-citrine: #eebf3f;
+  --a-olive: #b3d740;
+  --a-jade: #45df95;
+  --a-teal: #46dbdb;
+  --a-azure: #4cbaf6;
+  --a-indigo: #7284f2;
+  --a-violet: #bd77f4;
+  --a-magenta: #f66eae;
+
+  /* file-kind palette — informational, not decorative.
+
+     Its own set rather than the §7 accents because those are the user's to
+     assign — a file's kind is not something anyone chose, so it must not move
+     when they recolour a card. (It also predates the ten being ten distinct
+     hues: while four of them were the same coral, a Word file and a PDF came
+     out identically red.)
+     These are the conventional codes people already read at a glance — a red
+     PDF, a blue document, a green sheet — and they are worn ONLY by a file's
+     icon and artwork, never by chrome. Colour on a button or a spine still
+     means the user chose it.
+
+     Tuned to sit on Ink's near-black at full strength and at the 50% opacity
+     the sheet of FileArt uses. */
+  --file-pdf: #f2604a;
+  --file-doc: #62a0ea;
+  --file-sheet: #5ac875;
+  --file-slides: #f0a848;
+  --file-image: #c58ce0;
+  --file-video: #f365c0;
+  --file-audio: #8a90ee;
+  --file-code: #45c4b0;
+  --file-text: #d7b56d;
+  --file-archive: #a8926a;
 
   /* elevation — neutral contact shadow + ambient depth */
   --elev-1: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
   --elev-2: 0 6px 16px rgba(0, 0, 0, 0.40), 0 12px 28px rgba(0, 0, 0, 0.35);
   --elev-3: 0 20px 48px rgba(0, 0, 0, 0.50), 0 32px 72px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.52);
-  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.32);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.56);
+  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.36);
   --focus-ring: 0 0 0 3px var(--accent-dim);
 }
 
@@ -181,24 +265,38 @@
 :root[data-theme='light'] {
   color-scheme: light;
 
-  /* surfaces: warm tactile parchment hierarchy */
+  /* Paper & Ink's warm surface hierarchy supplies the quiet 80% UI ground. */
   --bg-inset: #faf9f6;
-  /* desk inset ground (light creamy) */
   --bg-base: #f8f7f5;
-  /* softer gray from design system */
   --bg-rail: #ffffff;
   /* sidebar, rails, resting nodes (white) */
   --bg-card: #ffffff;
   /* expanded card & editor paper surface */
   --bg-raised: #ffffff;
   /* floating popovers & modals */
+  --bg-workspace: #faf9f6;
+  /* canvas + panel bodies; paper keeps the value the canvas already had */
+  --bg-frame: #ffffff;
+  /* shell + panel chrome — the white the frame already was in Paper */
+  --bg-node: #ffffff;
+  /* Paper cards stay white; the ring, not a fill step, gives them their edge */
+  --bg-node-well: #f8f7f5;
+  /* the note inset — the warm off-white it already was in Paper */
+
+  /* A recoloured card, Paper side — same construction, mirrored: a tinted
+     PAPER rather than a tinted ink. High lightness, low chroma, and the well a
+     shade under the card so the recess reads the same way it does on Ink. */
+  --node-tint-l: 0.93;
+  --node-tint-c: 0.052;
+  --node-well-tint-l: 0.90;
+  --node-well-tint-c: 0.045;
 
   /* hairlines & washes */
   --line: rgba(26, 22, 14, 0.09);
   --line-strong: rgba(26, 22, 14, 0.18);
   --line-heavy: rgba(26, 22, 14, 0.30);
   --hover-wash: rgba(26, 22, 14, 0.05);
-  --active-wash: rgba(26, 22, 14, 0.10);
+  --active-wash: rgba(255, 80, 64, 0.13);
   --dot: rgba(26, 22, 14, 0.16);
 
   /* text */
@@ -206,55 +304,82 @@
   --text-soft: #565145;
   --text-faint: #888374;
 
-  /* accent — deep editorial persimmon */
-  --accent: #d43d15;
-  --accent-hover: #bd320d;
-  --accent-ink: #be3410;
-  --accent-deep: #9e2608;
-  --accent-dim: rgba(212, 61, 21, 0.11);
-  --accent-wash: rgba(212, 61, 21, 0.14);
-  --on-accent: #fff9f5;
-  --on-accent-rgb: 255, 249, 245;
-  --accent-rgb: 212, 61, 21;
+  /* primary action and state — Hot coral from the supplied palette. */
+  --accent: #ff5040;
+  --accent-hover: #ff5040;
+  --accent-ink: #ff5040;
+  --accent-deep: #ff5040;
+  --accent-dim: rgba(255, 80, 64, 0.12);
+  --accent-wash: rgba(255, 80, 64, 0.16);
+  --on-accent: #000000;
+  --on-accent-rgb: 0, 0, 0;
+  --accent-rgb: 255, 80, 64;
 
-  /* secondary — warm golden bronze */
-  --secondary: #b57a14;
-  --secondary-ink: #966209;
-  --secondary-dim: rgba(181, 122, 20, 0.12);
-  --secondary-rgb: 181, 122, 20;
+  /* Compatibility highlight — stays Hot Coral so existing controls never
+     fall back to the former orange treatment. */
+  --secondary: #ff5040;
+  --secondary-ink: #ff5040;
+  --secondary-dim: rgba(255, 80, 64, 0.12);
+  --secondary-rgb: 255, 80, 64;
 
   /* feedback */
-  --ok: #277a3f;
-  --warn: #9e6e10;
-  --danger: #b83b2a;
-  --ok-rgb: 39, 122, 63;
-  --warn-rgb: 158, 110, 16;
-  --danger-rgb: 184, 59, 42;
+  --ok: #348a51;
+  --warn: #de6e28;
+  --danger: #c9390c;
+  --ok-rgb: 52, 138, 81;
+  --warn-rgb: 222, 110, 40;
+  --danger-rgb: 201, 57, 12;
 
-  /* tertiary — warm-adapted functional hues (deepened for paper contrast) */
-  --t-blue: #3a6d87;
-  --t-pink: #a85570;
-  --t-yellow: #8f7016;
-  --t-purple: #7a5384;
-  --t-green: #4f7d3f;
-  --t-red: #ab4326;
+  /* Functional palette from the reference image, contrast-safe for paper. */
+  --t-charcoal: #737373;
+  --t-pink: #f365c0;
+  --t-yellow: #de6e28;
+  --t-purple: #f365c0;
+  --t-green: #348a51;
+  --t-red: #c9390c;
 
-  /* accent palette — the same ten hues, deepened for paper (see §7).
+  /* accent palette — the same ten hue angles as Ink, rebuilt for paper (§7).
      Only these ten values change between themes; every shade derived from them
      follows automatically, so a column keeps its identity across Ink and Paper
-     instead of needing a second set of rules. */
-  --a-rose: #a54c48;
-  --a-amber: #8f5c1f;
-  --a-citrine: #7d5f16;
-  --a-olive: #5f6b26;
-  --a-jade: #3d7040;
-  --a-teal: #2a6e64;
-  --a-azure: #2f6280;
-  --a-indigo: #48538d;
-  --a-violet: #684a86;
-  --a-magenta: #854771;
+     instead of needing a second set of rules.
 
-  /* elevation — warm brown-grey shadows so paper never casts cold grey */
+     The construction INVERTS here, and it has to. On ink a swatch must be light
+     enough to lift off a dark ground, so each hue rides its own chroma cusp. On
+     paper it must be DARK enough to be seen, and the hues that go pale on ink —
+     yellow, lime, cyan — are precisely the ones that vanish against white. So
+     these are solved for equal contrast against the page (4.6:1, so a swatch is
+     legible as text) with as much chroma as sRGB allows at that lightness.
+
+     Chroma is then capped at 0.165. Without the cap, purple and indigo have a
+     huge gamut at this lightness and come out electric beside a teal that has
+     almost none — ten swatches, three of them shouting. The cap costs the
+     wide hues nothing anyone can see and holds the row together as one warm,
+     inky set: terracotta, burnt ochre, olive gold, mulberry. */
+  --a-rose: #c94c33;
+  --a-amber: #ac641a;
+  --a-citrine: #8c7219;
+  --a-olive: #607f19;
+  --a-jade: #1d8556;
+  --a-teal: #1d8183;
+  --a-azure: #1c7caf;
+  --a-indigo: #616bd8;
+  --a-violet: #965ac5;
+  --a-magenta: #c14984;
+
+  /* file-kind palette, deepened for paper. Same hues, enough weight to hold
+     against a near-white ground at the 50% opacity the sheet uses. */
+  --file-pdf: #c9390c;
+  --file-doc: #2f6fb0;
+  --file-sheet: #2f7d4f;
+  --file-slides: #b3651a;
+  --file-image: #8b4fb0;
+  --file-video: #b03c86;
+  --file-audio: #4a52bd;
+  --file-code: #157d70;
+  --file-text: #8f6a1c;
+  --file-archive: #6f5b33;
+
+  /* Paper & Ink's subtle warm neutral elevation. */
   --elev-1: 0 1px 3px rgba(36, 26, 12, 0.07), 0 1px 2px rgba(36, 26, 12, 0.05);
   --elev-2: 0 6px 16px rgba(36, 26, 12, 0.10), 0 12px 28px rgba(36, 26, 12, 0.08);
   --elev-3: 0 20px 48px rgba(36, 26, 12, 0.16), 0 32px 72px rgba(36, 26, 12, 0.14);
@@ -274,6 +399,7 @@
   --color-primary: var(--accent);
   --color-primary-glow: var(--accent-dim);
   --color-secondary: var(--secondary);
+  --color-highlight: var(--highlight);
 
   --color-text-main: var(--text-main);
   --color-text-muted: var(--text-soft);
@@ -284,18 +410,18 @@
   --surface-elevated: var(--bg-raised);
 
   --glass-bg: var(--bg-raised);
-  --glass-bg-hover: rgba(36, 34, 42, 0.98);
+  --glass-bg-hover: rgba(52, 52, 52, 0.98);
   --glass-border: var(--line-strong);
   --glass-shadow: var(--elev-2);
   --backdrop-blur: 12px;
 
-  --handle-glass-bg: rgba(240, 236, 227, 0.1);
-  --handle-glass-border: rgba(240, 236, 227, 0.2);
+  --handle-glass-bg: rgba(255, 255, 255, 0.1);
+  --handle-glass-border: rgba(255, 255, 255, 0.2);
   --handle-glass-shadow: none;
 
   --ui-hover: var(--hover-wash);
   --ui-active: var(--active-wash);
-  --ui-border-low: rgba(240, 236, 227, 0.05);
+  --ui-border-low: rgba(255, 255, 255, 0.05);
 
   --modal-bg: var(--bg-raised);
   --note-bg: var(--bg-card);
@@ -315,6 +441,7 @@
   --color-primary: var(--accent);
   --color-primary-glow: var(--accent-dim);
   --color-secondary: var(--secondary);
+  --color-highlight: var(--highlight);
 
   --color-text-main: var(--text-main);
   --color-text-muted: var(--text-soft);
@@ -330,13 +457,13 @@
   --glass-shadow: var(--elev-2);
   --backdrop-blur: 12px;
 
-  --handle-glass-bg: rgba(28, 24, 16, 0.1);
-  --handle-glass-border: rgba(28, 24, 16, 0.2);
+  --handle-glass-bg: rgba(0, 0, 0, 0.1);
+  --handle-glass-border: rgba(0, 0, 0, 0.2);
   --handle-glass-shadow: none;
 
   --ui-hover: var(--hover-wash);
   --ui-active: var(--active-wash);
-  --ui-border-low: rgba(28, 24, 16, 0.06);
+  --ui-border-low: rgba(0, 0, 0, 0.06);
 
   --modal-bg: var(--bg-raised);
   --note-bg: var(--bg-card);
@@ -350,19 +477,21 @@
 
 /* ---------- 5. Canvas & UI Component layer ---------- */
 :root {
-  /* canvas desk ground */
-  --canvas-bg: var(--bg-inset);
+  /* canvas desk ground — one value with the panel bodies, so the desk and the
+     panels docked beside it read as a single surface. Neutral charcoal in Ink,
+     paper in Paper; never navy. */
+  --canvas-bg: var(--bg-workspace);
   --canvas-dot: var(--dot);
 
   /* app shell — the chrome the canvas is inset into. The top bar carries every
      control that used to float over the canvas as its own pill; the desk then
      sits in a frame with an even reveal on left/right/bottom, so the
      canvas reads as a sheet laid inside the app rather than under it. */
-  --shell-bg: var(--bg-rail);
-  --shell-inset: 8px;
+  --shell-bg: var(--bg-frame);
+  --shell-inset: 12px;
   --shell-radius: 40px;
   --topbar-h: 56px;
-  --topbar-pad-x: 12px;
+  --topbar-pad-x: 20px;
   --topbar-gap: 8px;
 
   /* Side panels get the same treatment as the canvas: the panel itself is
@@ -370,15 +499,19 @@
      inset surface with the frame's radius. The whole app then reads as one
      ground with rounded content islands floating in it. */
   --panel-bg: var(--shell-bg);
-  --panel-body-bg: var(--bg-base);
+  --panel-body-bg: var(--bg-workspace);
   --panel-radius: var(--shell-radius);
   --panel-inset: var(--shell-inset);
 
   /* node surfaces */
-  /* --bg-card sits one step above --bg-rail in Ink, which is what gives a node
-     a readable silhouette against the near-black desk; in Paper both are #fff
-     and the ring does the work. */
-  --node-bg: var(--bg-rail);
+  /* The Ink ladder, darkest to lightest: --bg-workspace #171717 (desk and panel
+     bodies) → --bg-frame #1e1e1e (shell, top bar, panel chrome) → --bg-node
+     #242424 (a resting card). Each step is what makes the one above it read as
+     a separate surface, so move them together. In Paper all three are white or
+     near-white and the ring does the work instead. */
+  --node-bg: var(--bg-node);
+  /* the writing surface inside a card, one step under the card itself */
+  --node-well-bg: var(--bg-node-well);
   --node-radius: var(--r-surface);
   --node-pad: 12px;
   --node-spine-w: 3px;
@@ -431,8 +564,15 @@
   --toolbar-btn-active: var(--active-wash);
 
   /* buttons */
-  --btn-radius: var(--r-control);
+  --btn-radius: var(--r-surface);
   --btn-pad: 9px 16px;
+  --btn-height-sm: 32px;
+  --btn-height-md: 40px;
+  --btn-height-lg: 48px;
+  --btn-icon-sm: 32px;
+  --btn-icon-md: 40px;
+  --btn-icon-lg: 48px;
+  --bottom-menu-icon-radius: 20px;
   --btn-primary-bg: var(--accent);
   --btn-primary-bg-hover: var(--accent-hover);
   --btn-primary-fg: var(--on-accent);
@@ -654,26 +794,6 @@
 
 [class*="avatar" i],
 [class*="Avatar"],
-[class*="iconBtn" i],
-[class*="SendBtn"],
-[class*="closeBtn" i],
-[class*="closeSearchBtn"],
-[class*="controlBtn" i],
-[class*="actionBtn" i],
-[class*="historyBtn" i],
-[class*="menuBtn" i],
-[class*="toolbarBtn" i],
-[class*="convertBtn" i],
-[class*="removeBtn" i],
-[class*="removeCoverBtn"],
-[class*="columnBtn" i],
-[class*="neonOpenBtn"],
-[class*="searchBtn" i],
-[class*="aiBtn" i],
-[class*="special-primary-btn"],
-[class*="homeButton"],
-[class*="themeSwitcher"],
-[class*="modeToggleBtn"],
 [class*="Dot"],
 [class*="dot" i],
 [class*="swatch" i],
@@ -688,7 +808,6 @@
 [class*="Badge"],
 [class*="trafficLights"],
 [class*="macDot"],
-[class*="crumb" i],
 [class*="topRightHandle"],
 [class*="colorBlockHandle"],
 /* pill-shaped block chrome: floating toolbars, toggle tracks, drop bars */
@@ -702,19 +821,23 @@
   --corner-smooth: round;
 }
 
+/* Breadcrumbs are NOT on the round list: the frame is a cluster like the button
+   groups beside it in the top bar, and the chips inside it read as controls, so
+   both keep the app's squircle. */
+
 /* ---------- 7. Special Primary Action Button ----------
    THE ONE SANCTIONED EXCEPTION to the no-glow / no-idle-motion rules.
 
    This is the canvas FAB — the single hero action in the app. It deliberately
-   keeps a warm accent glow, a white rim-light, and the slow `orbBreathe` idle
-   animation, all of which §3.11 / §9 / §11 otherwise ban. That is intentional,
+   keeps a coral accent glow, a mesh of soft light pools across its face, and
+   the slow `orbBreathe` idle animation, all of which §3.11 / §9 / §11 ban. That is intentional,
    confirmed 2026-07-24; do NOT "fix" it in a consistency pass, and do not copy
    this treatment onto any other control. Everything else in the app stays flat.
 
    All of its colour still comes from tokens (--accent-rgb / --on-accent), so it
    remains theme-aware in Ink and Paper.                                        */
 .special-primary-btn {
-  --orb-rim: 255, 224, 210;
+  --orb-rim: 255, 255, 255;
 
   --orb-glow-rest-a: rgba(var(--accent-rgb), 0.38);
   --orb-glow-rest-b: rgba(var(--accent-rgb), 0.22);
@@ -727,7 +850,14 @@
   position: relative;
   width: 48px;
   height: 48px;
-  border-radius: 50% !important;
+  --corner-smooth: superellipse(2);
+  /* Rounder than a panel: the FAB is the one control that reads as an object
+     rather than a surface. Capped at half the box so the same class on the
+     smaller orbs (the 32px "open card", the 30px AI send) stops at a full
+     squircle instead of ballooning into a circle. Held in a var so the light
+     layers over it follow the shape — three places that must never disagree. */
+  --orb-radius: min(var(--r-lg), 50%);
+  border-radius: var(--orb-radius) !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -759,24 +889,35 @@
   --orb-glow-peak-b: rgba(var(--accent-rgb), 0.16);
   --orb-glow-hover-a: rgba(var(--accent-rgb), 0.34);
   --orb-glow-hover-b: rgba(var(--accent-rgb), 0.20);
-  --orb-ground: rgba(38, 28, 14, 0.22);
+  --orb-ground: rgba(0, 0, 0, 0.22);
 }
 
+/* Mesh light. Four soft pools anchored at different points — a key light at the
+   top left, a cooler fill opposite it, and two low bounces — screened over the
+   coral so the orb reads as a lit OBJECT. This replaces the single hard
+   rim-light, which drew a bright outline around the edge and left the face of
+   the button flat. Blending is contained: the button carries z-index, so it is
+   its own stacking context and the screen never touches the canvas behind it. */
 .special-primary-btn::before {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 50%;
-  padding: 1.5px;
-  background: linear-gradient(168deg,
-      rgba(var(--orb-rim), 0.95) 0%,
-      rgba(var(--orb-rim), 0.4) 34%,
-      rgba(var(--orb-rim), 0.08) 58%,
-      transparent 76%);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
+  border-radius: var(--orb-radius);
+  background:
+    radial-gradient(62% 58% at 26% 16%,
+      rgba(var(--orb-rim), 0.50) 0%,
+      rgba(var(--orb-rim), 0.13) 46%,
+      transparent 72%),
+    radial-gradient(48% 46% at 82% 24%,
+      rgba(var(--orb-rim), 0.26) 0%,
+      transparent 68%),
+    radial-gradient(58% 54% at 74% 92%,
+      rgba(var(--orb-rim), 0.20) 0%,
+      transparent 70%),
+    radial-gradient(54% 50% at 10% 88%,
+      rgba(var(--orb-rim), 0.10) 0%,
+      transparent 66%);
+  mix-blend-mode: screen;
   pointer-events: none;
   transition: opacity 0.3s ease;
 }
@@ -785,8 +926,8 @@
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 50%;
-  background: conic-gradient(from 0deg,
+  border-radius: var(--orb-radius);
+  background: conic-gradient(from var(--orb-sweep, 0deg),
       transparent 0deg,
       rgba(var(--orb-rim), 0.5) 26deg,
       transparent 70deg);
@@ -828,8 +969,10 @@
   transition: transform 0.3s cubic-bezier(0.34, 1.4, 0.5, 1);
 }
 
+/* The glyph just grows on hover — no spin, no travel. The svg's own
+   transition (with its slight overshoot) carries it. */
 .special-primary-btn:hover svg {
-  transform: rotate(90deg) scale(1.06);
+  transform: scale(1.14);
 }
 
 @keyframes orbBreathe {
@@ -850,9 +993,19 @@
   }
 }
 
+/* The sweep turns the GRADIENT, not the box. Rotating the pseudo-element (which
+   is what this used to do) swings a square through its parent's rounded
+   silhouette, so the light visibly cut the corners on hover. Spinning the conic
+   start angle instead keeps every pixel inside the button's own shape. */
+@property --orb-sweep {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
 @keyframes orbSweep {
   to {
-    transform: rotate(1turn);
+    --orb-sweep: 1turn;
   }
 }
 
@@ -906,6 +1059,84 @@
 body.mod-key-held .editor-inline-link {
   cursor: pointer;
 }
+
+/* ============================================================
+   AI citation chips — ai-Plan.md §5.4
+   ------------------------------------------------------------
+   Two kinds, deliberately drawn differently, because they are different
+   promises. A NODE chip points at the user's own card and is worn in the
+   accent, like everything else that means "your content"; clicking it flies
+   the canvas there. A WEB marker is a superscript number pointing off the
+   canvas entirely, so it stays neutral and quiet — it is a footnote, not a
+   destination the reader is being pushed toward.
+   ============================================================ */
+
+.editor-cite-chip {
+  display: inline;
+  cursor: pointer;
+  padding: 0.06em 0.4em 0.06em 0.3em;
+  margin: 0 0.08em;
+  border-radius: var(--r-xs);
+  background: var(--accent-dim);
+  color: var(--accent-ink);
+  font-size: 0.92em;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: background var(--transition-fast);
+}
+
+.editor-cite-chip::before {
+  /* A target, echoing the "locate on canvas" affordance the trace uses for the
+     same job, so the two read as the same gesture. */
+  content: "◎ ";
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+/* Hovering a chip previews its card and clicking goes there, so the hover state
+   has to read as "there is more here" rather than as a passive highlight. */
+.editor-cite-chip:hover {
+  background: var(--accent-wash);
+  box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.45);
+}
+
+/* ============================================================
+   Editor Highlights (Text Mode)
+   ============================================================ */
+
+/* The ten hues of §7 again — a highlight, a lane and a tag pick their colour
+   from one palette, so a yellow marker in a note is the same yellow as the
+   column it came from. Mixed stronger than a surface wash: a highlight sits
+   under the ink of the line, not behind a panel, so it has to survive text on
+   top of it while still leaving that text readable in both themes. */
+
+:root {
+  --a-mark-mix: 32%;
+}
+
+.editor-mark {
+  background: color-mix(in srgb, var(--mark-hue, var(--a-citrine)) var(--a-mark-mix), transparent);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0.06em 0.16em;
+  /* Wrapped highlights get the rounding on every line, not just the ends. */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.editor-mark[data-hue='rose'] { --mark-hue: var(--a-rose); }
+.editor-mark[data-hue='amber'] { --mark-hue: var(--a-amber); }
+.editor-mark[data-hue='citrine'] { --mark-hue: var(--a-citrine); }
+.editor-mark[data-hue='olive'] { --mark-hue: var(--a-olive); }
+.editor-mark[data-hue='jade'] { --mark-hue: var(--a-jade); }
+.editor-mark[data-hue='teal'] { --mark-hue: var(--a-teal); }
+.editor-mark[data-hue='azure'] { --mark-hue: var(--a-azure); }
+.editor-mark[data-hue='indigo'] { --mark-hue: var(--a-indigo); }
+.editor-mark[data-hue='violet'] { --mark-hue: var(--a-violet); }
+.editor-mark[data-hue='magenta'] { --mark-hue: var(--a-magenta); }
 
 /* ============================================================
    Base Resets & Global Layout
@@ -976,6 +1207,34 @@ textarea {
   font-size: inherit;
 }
 
+/* The component primitives are the preferred API, but the application already
+   contains feature-owned native buttons. Apply the system baseline to every
+   one so migration cannot leave circular or mismatched controls behind. */
+button {
+  --corner-smooth: superellipse(2);
+  corner-shape: var(--corner-smooth);
+  font-weight: 600;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+button:not([data-button-shape='round']):not([data-button-shape='fab']) {
+  border-radius: var(--btn-radius) !important;
+}
+
+button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
 #root {
   width: 100%;
   height: 100%;
@@ -1008,8 +1267,8 @@ textarea {
    React Flow scopes its own `--xy-*-default` vars to `.react-flow` (and
    `.react-flow.dark`), which BEATS the `:root` aliases in design-system.css —
    a closer element always wins for custom properties. That is why the canvas
-   was painting React Flow's neutral #141414 instead of our warm --canvas-bg,
-   and why the UI stopped matching the canvas once the Ink ramp went warm.
+   was painting React Flow's neutral #141414 instead of our charcoal --canvas-bg,
+   and why the UI stopped matching the canvas once the neutral ramp changed.
 
    Every rule is `var(--xy-foo, var(--xy-foo-default))`, so setting the
    NON-default var here takes priority without fighting specificity. */
@@ -1101,26 +1360,17 @@ textarea {
   animation: none !important;
 }
 
-/* A drag sweeps the cursor across every card between grab and drop, and each
-   one it crosses lights up its hover state: a new shadow to paint, a lift
-   transform, a fading floating handle. That is a style recalc plus a paint of
-   a large blurred shadow per card per frame, all of it feedback the user is
-   not looking at while they are dragging something else. Freeze it: the only
-   node that may move during a drag is the dragged one. */
-.chnk-it-node-dragging .react-flow__node * {
-  transition: none !important;
-}
-
-/* Note: transitions only, NOT `animation: none`. Cancelling a running keyframe
-   animation and then letting it back at drop restarts it from 0% — and every
-   card's view container carries a fadeIn, so the whole board blinked the
-   moment you let go. Transitions have no such replay. */
-.chnk-it-node-dragging .react-flow__node:not(.dragging) *:hover {
-  transform: none !important;
-}
-
 .chnk-it-node-dragging .react-flow__node:not(.dragging) {
   will-change: auto !important;
+}
+
+/* Card-to-card targeting uses React Flow's geometry, so ordinary nodes do not
+   need to participate in DOM hit-testing while another card is moving. This
+   keeps :hover, toolbars and deep editor selectors from being invalidated as
+   the pointer crosses thousands of descendants. Kanban stays interactive
+   because its lane DOM carries information geometry alone cannot provide. */
+.chnk-it-node-dragging .react-flow__node:not(.dragging):not(.react-flow__node-kanban) {
+  pointer-events: none !important;
 }
 
 /* The wrapper is what actually moves, so the layer belongs here. */

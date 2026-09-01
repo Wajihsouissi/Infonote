@@ -1,15 +1,12 @@
 .container {
     display: flex;
     align-items: center;
-    padding: 0 16px;
-    height: 48px;
+    min-width: 0;
+    padding: 0;
+    height: 34px;
     box-sizing: border-box;
-    background: var(--bg-rail);
-
-    border: 1px solid var(--line);
-    border-radius: var(--radius-pill);
-    box-shadow: var(--toolbar-shadow);
-    gap: 8px;
+    background: transparent;
+    gap: 2px;
 }
 
 
@@ -17,32 +14,37 @@
 .item {
     display: flex;
     align-items: center;
+    min-width: 0;
 }
 
 .separator {
-    color: var(--color-text-muted);
-    margin: 0 6px;
+    color: var(--text-faint);
+    margin: 0 3px;
 }
 
 .crumb {
     background: transparent;
     border: 1px solid transparent;
-    color: var(--color-text-muted);
-    font-size: 0.85rem;
+    color: var(--text-soft);
+    font-size: 0.78rem;
     font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: var(--radius-pill);
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    gap: 5px;
+    min-width: 0;
+    white-space: nowrap;
+    padding: 5px 8px;
+    /* Short breadcrumb chips need a proportionally smaller radius than a
+       full-height button; 12px preserves the same squircle character. */
+    border-radius: var(--r-md);
+    corner-shape: var(--corner-smooth);
+    transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .crumb:hover:not(:disabled) {
     background: var(--hover-wash);
-    color: var(--accent);
-    transform: translateY(-1px) scale(1.02);
+    color: var(--text-main);
 }
 
 .crumb.active {
@@ -56,16 +58,17 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    font-size: 9px;
+    width: 14px;
+    height: 14px;
+    border-radius: var(--btn-radius);
+    corner-shape: var(--corner-smooth);
+    font-size: 8px;
     font-weight: 500;
     line-height: 1;
     background: var(--hover-wash);
     color: var(--text-faint);
-    border: 1px solid var(--line);
-    margin-left: 2px;
+    border: 0;
+    margin-left: 1px;
     transition: background var(--transition-fast), color var(--transition-fast),
         border-color var(--transition-fast);
     box-sizing: border-box;
@@ -79,4 +82,39 @@
     background: var(--accent-dim);
     color: var(--accent-ink);
     border-color: rgba(var(--accent-rgb), 0.3);
+}
+
+.rootLabel {
+    letter-spacing: 0.01em;
+}
+
+.label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 520px) {
+    /* Keep the useful ends of a long path: home is the reliable exit, and the
+       active crumb confirms where a new nested card will be created. */
+    .item:not(:first-child):not(:last-child) {
+        display: none;
+    }
+
+    .container {
+        width: 100%;
+    }
+
+    .item:last-child,
+    .item:last-child .crumb {
+        flex: 1;
+    }
+
+    .crumb {
+        max-width: 100%;
+    }
+
+    .levelBadge {
+        flex: none;
+    }
 }

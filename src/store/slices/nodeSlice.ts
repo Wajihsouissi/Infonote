@@ -16,8 +16,17 @@ import {
     KANBAN_DEFAULT_WIDTH,
     KANBAN_DEFAULT_HEIGHT,
 } from '../../features/kanban/kanbanTypes';
-import { computeParentContentUpdate } from '../contentSync';
-import { planHydration, layoutChunks, computeSmartHierarchy, type HydrationChunk } from '../contentHydration';
+import { computeCanvasContentReconciliation, computeParentContentUpdate } from '../contentSync';
+import {
+    isCanvasHydratableBlock,
+    planHydration,
+    layoutChunks,
+    layoutDocumentTree,
+    layoutCanvasBento,
+    computeSmartHierarchy,
+    computeRelatednessHierarchy,
+    type HydrationChunk,
+} from '../contentHydration';
 import { withoutHistory } from '../temporalControl';
 import { checkNodeCreationLimits } from '../nodeLimits';
 import {
@@ -30,6 +39,7 @@ import {
     HYDRATE_SIZE_PROFILE,
 } from '../blockNodeStyle';
 import type { AppState, NodeSlice } from '../types';
+import { createYouTubeStudyData } from '../../features/youtube/youtubeStudy';
 
 // Debug flag - set to false in production
 const DEBUG = import.meta.env.DEV;
@@ -56,6 +66,59 @@ function scheduleParentSync(parentId: string, syncFn: () => void, delayMs: numbe
     }, delayMs);
     
     pendingSyncTimers.set(parentId, timerId);
+}
+
+/** Return a selected branch in document order, including every descendant.
+ *
+ * Canvas membership is represented by `parentId`, not by React Flow's visual
+ * tree. Treating a selected parent as a single record leaves cards in its
+ * nested canvases permanently orphaned after a delete or duplicate.
+ */
+function collectNodeBranch(nodes: AppNode[], rootIds: Iterable<string>): AppNode[] {
+    const childrenByParent = new Map<string, string[]>();
+    for (const node of nodes) {
+        if (!node.parentId) continue;
+        const children = childrenByParent.get(node.parentId) ?? [];
+        children.push(node.id);
+        childrenByParent.set(node.parentId, children);
+    }
+
+    const ids = new Set<string>();
+    const pending = [...rootIds];
+    while (pending.length > 0) {
+        const id = pending.pop()!;
+        if (ids.has(id)) continue;
+        ids.add(id);
+        childrenByParent.get(id)?.forEach((childId) => pending.push(childId));
+    }
+
+    return nodes.filter((node) => ids.has(node.id));
+}
+
+/** Update page-block links after cloning a nested canvas branch.
+ *
+ * Page links can occur inside any supported nested block container, so the
+ * remap intentionally walks metadata rather than only top-level blocks.
+ */
+function remapNodeReferences(value: unknown, idMap: Map<string, string>): unknown {
+    if (Array.isArray(value)) return value.map((item) => remapNodeReferences(item, idMap));
+    if (!value || typeof value !== 'object') return value;
+
+    return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+            key,
+            key === 'nodeId' && typeof item === 'string' ? (idMap.get(item) ?? item) : remapNodeReferences(item, idMap),
+        ]),
+    );
+}
+
+function remapBlockNodeReferences(blocks: Block[], idMap: Map<string, string>): Block[] {
+    return blocks.map((block) => ({
+        ...block,
+        ...(block.metadata
+            ? { metadata: remapNodeReferences(block.metadata, idMap) as typeof block.metadata }
+            : {}),
+    }));
 }
 
 // Default initial state (will be replaced by loadGraph if storage has data)
@@ -114,6 +177,8 @@ const initialEdges: Edge[] = [];
 export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, get) => ({
     nodes: getInitialNodes(),
     edges: initialEdges,
+    pendingNodeDeletion: null,
+    lastNodeDeletion: null,
 
     onNodesChange: (changes) => {
         // Only build detailed logging for non-trivial changes to reduce console noise
@@ -279,14 +344,19 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
            meaningless on it, and leaving them on the payload is what makes a
            node type drift into being half of another one. */
         const isKanban = type === 'kanban';
+        const isYouTube = type === 'youtube';
 
         const defaultStyle = isKanban
             ? { width: KANBAN_DEFAULT_WIDTH, height: KANBAN_DEFAULT_HEIGHT }
-            : (type === 'fused-note' ? { width: MIN_FUSED_SIZE } : { width: 432, height: 432 });
+            : isYouTube
+                ? { width: 360, height: 304 }
+                : (type === 'fused-note' ? { width: MIN_FUSED_SIZE } : { width: 432, height: 432 });
 
         const createdAt = new Date().toISOString();
         const defaultData = isKanban
             ? { ...createKanbanData((initialData?.label as string) || 'Board'), ...initialData }
+            : isYouTube
+                ? { ...createYouTubeStudyData(), ...initialData }
             : {
                 label: (initialData?.label as string) || 'New Note',
                 content: '',
@@ -321,7 +391,25 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 if (DEBUG) console.warn(`[Store] Duplicate node ID detected: ${newNode.id}. Skipping add.`);
                 return {};
             }
-            return { nodes: [...state.nodes, newNode] };
+            const startsSyncedCanvas = Boolean(targetParentId) && (type === 'block' || type === 'fused-note');
+            return {
+                nodes: [
+                    ...state.nodes.map((node) => (
+                        startsSyncedCanvas && node.id === targetParentId && node.type === 'note'
+                            ? {
+                                ...node,
+                                data: {
+                                    ...node.data,
+                                    hasNestedCanvasSync: true,
+                                    nestedCanvasSync: 'synced',
+                                    nestedCanvasSyncMessage: 'The note and its canvas are synced.',
+                                },
+                            } as AppNode
+                            : node
+                    )),
+                    newNode,
+                ],
+            };
         });
         get().setCloudDirty?.(true);
 
@@ -349,54 +437,106 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             scheduleParentSync(currentParentId, () => get().syncParentContent(currentParentId));
         }
 
-        // BIDIRECTIONAL SYNC: If updating a parent note's content, sync down to child nodes
+        // BIDIRECTIONAL SYNC: once a note has been intentionally mapped, a
+        // written edit updates the existing map cards by block identity and
+        // gives genuinely new ideas their own card. This is kept outside the
+        // active child canvas to avoid responding to our own upward sync.
         if (data.content && Array.isArray(data.content)) {
             const parentContent = data.content as Block[];
             const updatedNode = get().nodes.find(n => n.id === id);
-            
-            // Only sync down if this is a parent note (has children) AND we're NOT in that parent's canvas
-            // This prevents sync loops and only syncs when editing from outside the child canvas
+
             if (updatedNode && updatedNode.type === 'note' && currentParentId !== id) {
-                const children = get().nodes.filter(n => n.parentId === id);
-                
-                if (children.length > 0) {
-                    // Update child nodes based on parent content changes
-                    set((state) => ({
-                        nodes: state.nodes.map(node => {
-                            if (node.parentId === id) {
-                                // For fused-note and block nodes, update their content from parent
-                                if (node.type === 'fused-note' || node.type === 'block') {
-                                    const childContent = getNodeBlocks(node.data);
-                                    if (childContent && childContent.length > 0) {
-                                        // Find matching blocks in parent content by ID
-                                        const firstBlockId = childContent[0].id;
-                                        const matchingIndex = parentContent.findIndex((b) => b.id === firstBlockId);
-                                        
-                                        if (matchingIndex !== -1) {
-                                            // Extract the corresponding blocks from parent
-                                            const updatedBlocks = parentContent.slice(
-                                                matchingIndex,
-                                                matchingIndex + childContent.length
-                                            );
-                                            
-                                            // Only update if blocks actually changed
-                                            const hasChanged = JSON.stringify(childContent) !== JSON.stringify(updatedBlocks);
-                                            if (hasChanged && updatedBlocks.length === childContent.length) {
+                const reconciliation = computeCanvasContentReconciliation(id, get().nodes);
+
+                if (reconciliation) {
+                    const directChildren = get().nodes.filter((node) => node.parentId === id);
+                    const remainingChildren = directChildren.filter((node) => !reconciliation.nodeIdsToRemove.includes(node.id));
+                    const limitViolation = reconciliation.missingBlocks.length > 0
+                        ? checkNodeCreationLimits({
+                            nodes: get().nodes,
+                            targetParentId: id,
+                            isAuthenticated: get().auth.isAuthenticated,
+                            addedCount: reconciliation.missingBlocks.length,
+                        })
+                        : null;
+
+                    const maxY = remainingChildren.reduce((largest, node) => {
+                        const height = typeof node.style?.height === 'number' ? node.style.height : 208;
+                        return Math.max(largest, node.position.y + height);
+                    }, BASE_UNIT);
+
+                    // New writing is never allowed to land on an existing map
+                    // card. Place it in a measured review lane below the tree;
+                    // tall media/table/code cards cannot overlap a later row.
+                    let additionY = snapToGridValue(maxY + BASE_UNIT * 2);
+                    const additions: AppNode[] = limitViolation ? [] : reconciliation.missingBlocks.map((block) => {
+                        const style = getBlockNodeStyle(block, HYDRATE_SIZE_PROFILE);
+                        const node = {
+                            id: uuidv4(),
+                            type: 'block',
+                            position: {
+                                x: BASE_UNIT,
+                                y: additionY,
+                            },
+                            style,
+                            data: {
+                                content: [block],
+                                isStandaloneBlock: true,
+                            },
+                            parentId: id,
+                        } as AppNode;
+                        additionY = snapToGridValue(additionY + style.height + BASE_UNIT);
+                        return node;
+                    });
+
+                    // Do not reshuffle a tree a person has arranged. A new
+                    // written idea stays as a clear, unclassified peer until
+                    // the person decides which section it belongs beneath.
+                    const additionEdges: Edge[] = [];
+                    const hasNewMapIdeaToReview = additions.length > 0;
+
+                    const updatesById = new Map(reconciliation.nodesToUpdate.map((update) => [update.id, update.data]));
+                    const removals = new Set(reconciliation.nodeIdsToRemove);
+                    const hasDerivedChange = reconciliation.shouldUpdate || additions.length > 0 || !updatedNode.data.hasNestedCanvasSync;
+                    const syncNeedsReview = Boolean(limitViolation) || hasNewMapIdeaToReview;
+                    const syncMessage = limitViolation
+                        ? `Your note changed, but ${reconciliation.missingBlocks.length} idea${reconciliation.missingBlocks.length === 1 ? '' : 's'} could not be added to this canvas because it is full.`
+                        : hasNewMapIdeaToReview
+                            ? `Your note and map are synced. ${additions.length} new idea${additions.length === 1 ? ' is' : 's are'} ready to organize on the map.`
+                        : 'The note and its canvas are synced.';
+
+                    if (hasDerivedChange) {
+                        // This is the other half of the writer's same edit, not
+                        // a second undo step. Undo returns both views together.
+                        withoutHistory(() => {
+                            set((state) => ({
+                                nodes: [
+                                    ...state.nodes
+                                        .filter((node) => !removals.has(node.id))
+                                        .map((node) => {
+                                            if (node.id === id) {
                                                 return {
                                                     ...node,
                                                     data: {
                                                         ...node.data,
-                                                        content: updatedBlocks
-                                                    }
-                                                };
+                                                        hasNestedCanvasSync: true,
+                                                        nestedCanvasSync: syncNeedsReview ? 'needs-review' : 'synced',
+                                                        nestedCanvasSyncMessage: syncMessage,
+                                                    },
+                                                } as AppNode;
                                             }
-                                        }
-                                    }
-                                }
-                            }
-                            return node;
-                        })
-                    }));
+                                            const update = updatesById.get(node.id);
+                                            return update ? { ...node, data: update } as AppNode : node;
+                                        }),
+                                    ...additions,
+                                ],
+                                edges: [
+                                    ...state.edges.filter((edge) => !removals.has(edge.source) && !removals.has(edge.target)),
+                                    ...additionEdges,
+                                ],
+                            }));
+                        });
+                    }
                 }
             }
 
@@ -566,8 +706,10 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 newEdges.push(...cluster.edges);
             }
         } else {
-            // Multiple sections → each section is a separate radial cluster arranged horizontally
-            const clusters: { nodes: AppNode[]; edges: Edge[]; radius: number }[] = [];
+            // Multiple sections are packed from their measured footprints. The
+            // old radius estimate was based on one card width, which let long
+            // sections collide with the next cluster.
+            const clusters: ReturnType<typeof buildRadialCluster>[] = [];
 
             for (const section of sections) {
                 let centerNode: AppNode;
@@ -585,30 +727,33 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 clusters.push(cluster);
             }
 
+            const maxRowWidth = BASE_UNIT * 32;
             let offsetX = baseCenter.x;
+            let offsetY = baseCenter.y;
+            let rowHeight = 0;
             for (let ci = 0; ci < clusters.length; ci++) {
                 const cluster = clusters[ci];
+                const clusterWidth = cluster.bounds.maxX - cluster.bounds.minX;
+                const clusterHeight = cluster.bounds.maxY - cluster.bounds.minY;
+                if (offsetX > baseCenter.x && offsetX + clusterWidth > baseCenter.x + maxRowWidth) {
+                    offsetX = baseCenter.x;
+                    offsetY += rowHeight + BASE_UNIT * 3;
+                    rowHeight = 0;
+                }
                 for (const node of cluster.nodes) {
-                    node.position.x += offsetX;
-                    node.position.y += baseCenter.y;
+                    node.position.x += offsetX - cluster.bounds.minX;
+                    node.position.y += offsetY - cluster.bounds.minY;
                 }
                 newNodes.push(...cluster.nodes);
                 newEdges.push(...cluster.edges);
 
-                if (ci > 0) {
-                    const prevCenterId = clusters[ci - 1].nodes[0].id;
-                    const currCenterId = cluster.nodes[0].id;
-                    newEdges.push({
-                        id: uuidv4(),
-                        source: prevCenterId,
-                        target: currCenterId,
-                        type: 'centered',
-                        data: { parentId: parentIdForEdge }
-                    } as Edge);
-                }
+                // Separate heading sections are peers in the original note,
+                // not a causal chain. Linking their centres would draw a line
+                // through the earlier section's outward cards, so each section
+                // keeps only the direct edges to its own released content.
 
-                const clusterSpan = cluster.radius > 0 ? cluster.radius * 2 : BASE_UNIT * 4;
-                offsetX += clusterSpan + BASE_UNIT * 3;
+                offsetX += clusterWidth + BASE_UNIT * 3;
+                rowHeight = Math.max(rowHeight, clusterHeight);
             }
         }
 
@@ -821,7 +966,18 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         const result = computeParentContentUpdate(parentId, nodes);
 
-        if (result && result.shouldUpdate) {
+        const parent = nodes.find((node) => node.id === parentId);
+        const hasContentCanvasChild = nodes.some((node) => (
+            node.parentId === parentId && (node.type === 'block' || node.type === 'fused-note')
+        ));
+        const shouldMarkSynced = Boolean(
+            parent?.type === 'note'
+            && hasContentCanvasChild
+            && parent.data.nestedCanvasSync !== 'needs-review'
+            && (parent.data.nestedCanvasSync !== 'synced' || !parent.data.hasNestedCanvasSync),
+        );
+
+        if (result && (result.shouldUpdate || shouldMarkSynced)) {
             if (DEBUG) {
                 console.log("[syncParentContent] Updating nodes:", {
                     parentId,
@@ -835,7 +991,20 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 set((state) => ({
                     nodes: state.nodes.map(n => {
                         if (n.id === parentId) {
-                            return { ...n, data: { ...n.data, content: result.parentContent } } as AppNode;
+                            return {
+                                ...n,
+                                data: {
+                                    ...n.data,
+                                    ...(result.shouldUpdate ? { content: result.parentContent } : {}),
+                                    ...(shouldMarkSynced
+                                        ? {
+                                            hasNestedCanvasSync: true,
+                                            nestedCanvasSync: 'synced',
+                                            nestedCanvasSyncMessage: 'The note and its canvas are synced.',
+                                        }
+                                        : {}),
+                                },
+                            } as AppNode;
                         }
                         const update = result.nodesToUpdate.find(u => u.id === n.id);
                         if (update) {
@@ -860,29 +1029,130 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         }
     },
 
+    requestNodeDeletion: (nodeIds: string[]) => {
+        const { nodes } = get();
+        const requested = new Set(nodeIds);
+        const byId = new Map(nodes.map((node) => [node.id, node]));
+
+        // A selected descendant is already covered by a selected ancestor.
+        // Walk the full path rather than only checking the immediate parent so
+        // a mixed selection cannot inflate the branch impact in the dialog.
+        const roots = nodes.filter((node) => {
+            if (!requested.has(node.id)) return false;
+            let parentId = node.parentId;
+            while (parentId) {
+                if (requested.has(parentId)) return false;
+                parentId = byId.get(parentId)?.parentId;
+            }
+            return true;
+        });
+        if (roots.length === 0) return;
+
+        const branch = collectNodeBranch(nodes, roots.map((node) => node.id));
+        set({
+            pendingNodeDeletion: {
+                nodeIds: roots.map((node) => node.id),
+                selectedCount: roots.length,
+                nestedCount: Math.max(0, branch.length - roots.length),
+                totalCount: branch.length,
+            },
+        });
+    },
+
+    cancelNodeDeletion: () => set({ pendingNodeDeletion: null }),
+
+    confirmNodeDeletion: () => {
+        const pending = get().pendingNodeDeletion;
+        if (!pending) return;
+        get().bulkDeleteNodes(pending.nodeIds, true);
+        set({ pendingNodeDeletion: null });
+    },
+
+    undoLastNodeDeletion: () => {
+        const deletion = get().lastNodeDeletion;
+        if (!deletion) return;
+
+        // Never roll back work made after the delete. The toast turns into a
+        // normal history action as soon as anything else changes.
+        if (get().nodes !== deletion.afterNodes || get().edges !== deletion.afterEdges) {
+            set({ lastNodeDeletion: null });
+            return;
+        }
+
+        set({
+            nodes: deletion.beforeNodes,
+            edges: deletion.beforeEdges,
+            lastNodeDeletion: null,
+        });
+        get().setCloudDirty?.(true);
+    },
+
+    dismissLastNodeDeletion: () => set({ lastNodeDeletion: null }),
+
     bulkDeleteNodes: (nodeIds: string[], skipConfirm?: boolean) => {
         if (nodeIds.length === 0) return;
-        if (!skipConfirm && !window.confirm(
-            `Delete ${nodeIds.length} node${nodeIds.length === 1 ? '' : 's'}? This can be undone via undo (up to 200 steps).`
-        )) return;
+        const { nodes, edges, currentParentId } = get();
+        const selectedIds = new Set(nodeIds);
+        const selectedNodes = nodes.filter((node) => selectedIds.has(node.id));
+        if (selectedNodes.length === 0) return;
 
-        const { nodes, edges } = get();
+        const deletedNodes = collectNodeBranch(nodes, selectedNodes.map((node) => node.id));
+        const deletedIds = new Set(deletedNodes.map((node) => node.id));
+        const nestedCount = deletedNodes.length - selectedNodes.length;
+
+        if (!skipConfirm && !window.confirm(
+            `Delete ${selectedNodes.length} node${selectedNodes.length === 1 ? '' : 's'}?${nestedCount > 0 ? ` This also deletes ${nestedCount} nested card${nestedCount === 1 ? '' : 's'}.` : ''} This can be undone via undo (up to 200 steps).`
+        )) return;
 
         if (DEBUG) {
             console.log("[bulkDeleteNodes] Input nodeIds:", nodeIds);
             console.log("[bulkDeleteNodes] Total nodes before:", nodes.length);
         }
 
-        // Filter out nodes and edges connected to deleted nodes
-        const newNodes = nodes.filter(n => !nodeIds.includes(n.id));
-        const newEdges = edges.filter(e => !nodeIds.includes(e.source) && !nodeIds.includes(e.target));
+        // Delete an entire nested branch, including every edge that touches it.
+        const newNodes = nodes.filter((node) => !deletedIds.has(node.id));
+        const newEdges = edges.filter((edge) => !deletedIds.has(edge.source) && !deletedIds.has(edge.target));
+        const survivingParentIds = new Set(
+            deletedNodes
+                .map((node) => node.parentId)
+                .filter((parentId): parentId is string => !!parentId && !deletedIds.has(parentId)),
+        );
+        const deletedCurrentCanvas = !!currentParentId && deletedIds.has(currentParentId);
+        const remainingSelectionIds = new Set(
+            Array.from(get().selectedCanvasNodeIds).filter((id) => !deletedIds.has(id)),
+        );
 
         if (DEBUG) {
             console.log("[bulkDeleteNodes] Total nodes after:", newNodes.length);
             console.log("[bulkDeleteNodes] Deleted count:", nodes.length - newNodes.length);
         }
 
-        set({ nodes: newNodes, edges: newEdges });
+        set({
+            nodes: newNodes,
+            edges: newEdges,
+            selectedCanvasNodeIds: remainingSelectionIds,
+            ...(deletedCurrentCanvas
+                ? { currentParentId: null, lastExitedNodeId: null, breadcrumbs: [{ id: null, label: 'Home' }] }
+                : {}),
+        });
+        if (deletedCurrentCanvas && typeof window !== 'undefined') {
+            localStorage.removeItem('chnk-it-current-parent-id');
+        }
+        // Parent page blocks are a derived view of their immediate children.
+        // Reconcile every surviving parent that lost a child so reopening it
+        // cannot resurrect a deleted card from stale page-block content.
+        survivingParentIds.forEach((parentId) => get().syncParentContent(parentId));
+        const restoredCurrentNodes = get().nodes;
+        const restoredCurrentEdges = get().edges;
+        set({
+            lastNodeDeletion: {
+                beforeNodes: nodes,
+                beforeEdges: edges,
+                afterNodes: restoredCurrentNodes,
+                afterEdges: restoredCurrentEdges,
+                message: `Deleted ${deletedNodes.length} card${deletedNodes.length === 1 ? '' : 's'}${nestedCount > 0 ? `, including ${nestedCount} nested` : ''}.`,
+            },
+        });
         get().setCloudDirty?.(true);
 
         if (DEBUG) console.log("[bulkDeleteNodes] Completed");
@@ -890,7 +1160,13 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
     bulkDuplicateNodes: (nodeIds: string[]) => {
         const { nodes } = get();
-        const nodesToDuplicate = nodes.filter(n => nodeIds.includes(n.id));
+        const requestedIds = new Set(nodeIds);
+        const requestedNodes = nodes.filter((node) => requestedIds.has(node.id));
+        // A parent already brings its descendants with it. If both are
+        // selected, clone the branch once rather than producing a second,
+        // unrelated copy of the selected child.
+        const roots = requestedNodes.filter((node) => !node.parentId || !requestedIds.has(node.parentId));
+        const nodesToDuplicate = collectNodeBranch(nodes, roots.map((node) => node.id));
 
         if (DEBUG) {
             console.log("[bulkDuplicateNodes] Input nodeIds:", nodeIds);
@@ -905,17 +1181,28 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         const OFFSET = BASE_UNIT; // Offset by one grid cell (56px) for duplicated nodes to keep them aligned
         const newNodes: AppNode[] = [];
         const newIds = new Set<string>();
+        const rootIds = new Set(roots.map((node) => node.id));
         /** old node id -> new node id, so the copied edges can be rewired. */
         const idMap = new Map<string, string>();
 
+        // Allocate every id before cloning content: a parent can contain a
+        // page block that points at a descendant which appears later in the
+        // document order.
+        nodesToDuplicate.forEach(node => {
+            const newId = uuidv4();
+            idMap.set(node.id, newId);
+            if (rootIds.has(node.id)) newIds.add(newId);
+        });
+
         nodesToDuplicate.forEach(node => {
             if (DEBUG) console.log("[bulkDuplicateNodes] Duplicating node:", node.id, "type:", node.type);
-            const newId = uuidv4();
-            newIds.add(newId);
+            const newId = idMap.get(node.id)!;
+            const blocks = getNodeBlocks(node.data);
             const newNode = {
                 ...node,
                 id: newId,
-                selected: true,
+                selected: rootIds.has(node.id),
+                ...(node.parentId ? { parentId: idMap.get(node.parentId) ?? node.parentId } : {}),
                 position: {
                     x: node.position.x + OFFSET,
                     y: node.position.y + OFFSET
@@ -925,14 +1212,11 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                     // Deep clone content so nested blocks (gallery items, toggle
                     // children, per-column blocks) get fresh ids too — sharing
                     // them meant editing the copy edited the original.
-                    content: (() => {
-                        const blocks = getNodeBlocks(node.data);
-                        if (blocks) return cloneBlocks(blocks);
-                        return 'content' in node.data ? node.data.content : undefined;
-                    })()
+                    content: blocks
+                        ? remapBlockNodeReferences(cloneBlocks(blocks), idMap)
+                        : ('content' in node.data ? node.data.content : undefined)
                 }
             } as AppNode;
-            idMap.set(node.id, newId);
             newNodes.push(newNode);
         });
 
@@ -948,6 +1232,12 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 id: uuidv4(),
                 source: idMap.get(e.source)!,
                 target: idMap.get(e.target)!,
+                data: {
+                    ...(e.data || {}),
+                    parentId: typeof (e.data as { parentId?: unknown } | undefined)?.parentId === 'string'
+                        ? (idMap.get((e.data as { parentId: string }).parentId) ?? (e.data as { parentId: string }).parentId)
+                        : ((e.data as { parentId?: string | null } | undefined)?.parentId ?? null),
+                },
                 selected: false,
             }));
 
@@ -959,6 +1249,14 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             edges: [...state.edges, ...clonedEdges],
             selectedCanvasNodeIds: newIds
         }));
+        // A copied root is a new direct child of its existing parent. Keep that
+        // parent's page-block projection in sync so it survives a later
+        // hydration instead of looking like an unowned canvas.
+        new Set(
+            roots
+                .map((node) => node.parentId)
+                .filter((parentId): parentId is string => !!parentId),
+        ).forEach((parentId) => get().syncParentContent(parentId));
         get().setCloudDirty?.(true);
     },
 
@@ -1211,18 +1509,27 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         // Collect all block IDs currently represented on the canvas
         const representedBlockIds = new Set<string>();
+        const pageBlockByNodeId = new Map<string, Block>();
+        parentContent.forEach((block) => {
+            if (block.type === 'page' && typeof block.metadata?.nodeId === 'string') {
+                pageBlockByNodeId.set(block.metadata.nodeId, block);
+            }
+        });
         children.forEach(child => {
             getNodeBlocks(child.data)?.forEach((b) => representedBlockIds.add(b.id));
             if (child.type === 'note') {
-                const matchingBlock = parentContent.find(b => b.type === 'page' && b.metadata?.nodeId === child.id);
+                const matchingBlock = pageBlockByNodeId.get(child.id);
                 if (matchingBlock) {
                     representedBlockIds.add(matchingBlock.id);
                 }
             }
         });
 
-        // Identify orphan blocks (not yet represented in the canvas)
-        const orphanBlocks = parentContent.filter(b => !representedBlockIds.has(b.id));
+        // Identify meaningful, orphan blocks. Editor-only composition scaffolding
+        // stays in the parent card and never becomes a canvas card.
+        const orphanBlocks = parentContent.filter((block) =>
+            !representedBlockIds.has(block.id) && isCanvasHydratableBlock(block)
+        );
 
         if (orphanBlocks.length === 0) {
             if (DEBUG) console.log("[hydrateCanvas] No orphan blocks found.");
@@ -1231,8 +1538,10 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         if (DEBUG) console.log("[hydrateCanvas] Found orphans:", orphanBlocks.length);
 
-        const orphanIdSet = new Set(orphanBlocks.map(b => b.id));
-        const orphanBlocksOrdered = parentContent.filter(b => orphanIdSet.has(b.id));
+        // A first map represents the complete note. Do not silently mark a
+        // partial batch as synced: the creation-limit check below either
+        // accepts the complete map or explains why it cannot be made.
+        const orphanBlocksOrdered = orphanBlocks;
 
         // --- Relatedness-based semantic grouping ---
         // Group blocks by content relatedness (not just heading/divider markers),
@@ -1245,7 +1554,9 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
 
         if (validChunks.length === 0) return;
 
-        // --- Layout (Horizontal Mind-Map / Flow) ---
+        // --- Build the first document tree ---------------------------------
+        // The note's own sections are the first visible row. No synthetic
+        // title card duplicates the note or competes with the hierarchy.
         const getNodeStyle = (block: Block) => getBlockNodeStyle(block, HYDRATE_SIZE_PROFILE);
 
         const getFusedNoteStyle = (blocks: Block[]) => {
@@ -1273,33 +1584,33 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             return { width: MIN_FUSED_SIZE, height: finalHeight };
         };
 
-        // --- Cluster-aware compact layout ---
-        // Related groups are packed together (short, local connectors); unrelated
-        // clusters are separated into a tidy wrapping grid. See contentHydration.
+        const nonTextStandaloneTypes = new Set(['media', 'image', 'video', 'file', 'gallery', 'code', 'table']);
+        const mapChunks: Chunk[] = validChunks.map((chunk) => {
+            const isMainChapter = !chunk.sourceId;
+            const firstBlock = chunk.blocks[0];
+            // A single heading or idea should still read as a chapter, not as a
+            // small loose card. Rich standalone material keeps its own card.
+            const shouldFuseMainChapter = isMainChapter
+                && !!firstBlock
+                && !nonTextStandaloneTypes.has(firstBlock.type);
+            return shouldFuseMainChapter ? { ...chunk, type: 'fused-note' } : chunk;
+        });
+
         const sizeOf = (chunk: Chunk): { width: number; height: number } =>
             chunk.type === 'block' ? getNodeStyle(chunk.blocks[0]) : getFusedNoteStyle(chunk.blocks);
 
-        const margin = BASE_UNIT;
-        let startY = margin;
-        const startX = margin;
-
-        if (children.length > 0) {
-            const maxY = Math.max(
-                ...children.map(c => c.position.y + ((c.style?.height as number) || 208))
-            );
-            startY = snapToGridValue(maxY + BASE_UNIT * 3);
-        }
-
-        const positions = layoutChunks(validChunks, plan.relatedEdges, sizeOf, {
-            originX: startX,
-            originY: startY,
+        const treeLayout = layoutDocumentTree(mapChunks, sizeOf, {
             gridStep: BASE_UNIT,
+            maxRootRowWidth: typeof window !== 'undefined' && window.innerWidth < 720
+                ? BASE_UNIT * 30
+                : BASE_UNIT * 44,
         });
 
-        // --- Creation of Nodes and Edges ---
-        const newNodes: AppNode[] = validChunks.map(chunk => {
-            const pos = positions.get(chunk.id) || { x: startX, y: startY };
+        // --- Creation of chapter and section nodes --------------------------
+        const newNodes: AppNode[] = mapChunks.map(chunk => {
+            const pos = treeLayout.positions.get(chunk.id) || { x: BASE_UNIT, y: BASE_UNIT };
             const style = chunk.type === 'block' ? getNodeStyle(chunk.blocks[0]) : getFusedNoteStyle(chunk.blocks);
+            const isChapter = !chunk.sourceId && chunk.type === 'fused-note';
             
             return {
                 id: chunk.id,
@@ -1308,19 +1619,20 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 style: style,
                 data: {
                     content: chunk.blocks,
-                    isStandaloneBlock: true
+                    isStandaloneBlock: true,
+                    ...(chunk.type === 'fused-note'
+                        ? { mapRole: isChapter ? 'chapter' : 'section' }
+                        : {}),
                 },
                 parentId: nodeId
             } as AppNode;
         });
 
-        const chunkIds = new Set(validChunks.map(c => c.id));
+        const chunkIds = new Set(mapChunks.map(c => c.id));
         const newEdges: Edge[] = [];
 
-        // Connect ONLY groups that are genuinely related to each other (default
-        // edge style). The hierarchy/relatedness tree is used purely for layout
-        // positioning above — it is intentionally NOT drawn, to avoid connecting
-        // every node on the canvas.
+        // The planner's links describe the document hierarchy. Draw them here
+        // so the visual map explains both chapters and their lower sections.
         plan.relatedEdges.forEach(rel => {
             if (chunkIds.has(rel.source) && chunkIds.has(rel.target)) {
                 newEdges.push({
@@ -1328,7 +1640,7 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                     source: rel.source,
                     target: rel.target,
                     type: 'centered',
-                    data: { parentId: nodeId } // Scope edge to this canvas
+                    data: { parentId: nodeId, color: 'var(--accent-ink)', strokeWidth: 1.5 } // Scope edge to this canvas
                 } as Edge);
             }
         });
@@ -1346,12 +1658,93 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         }
 
         set(state => ({
-            nodes: [...state.nodes, ...newNodes],
+            nodes: [
+                ...state.nodes.map((node) => node.id === nodeId && node.type === 'note'
+                    ? {
+                        ...node,
+                        data: {
+                            ...node.data,
+                            hasNestedCanvasSync: true,
+                            nestedCanvasSync: 'synced',
+                            nestedCanvasSyncMessage: 'The note and its canvas are synced.',
+                        },
+                    } as AppNode
+                    : node),
+                ...newNodes,
+            ],
             edges: [...state.edges, ...newEdges]
         }));
         get().setCloudDirty?.(true);
 
         if (DEBUG) console.log("[hydrateCanvas] Created semantic chunks and edges:", newNodes.length, newEdges.length);
+    },
+
+    migrateTopicMapToDocumentTree: (nodeId: string) => {
+        const { nodes, edges } = get();
+        const topicRoot = nodes.find((node) => (
+            node.parentId === nodeId
+            && node.type === 'fused-note'
+            && node.data.mapRole === 'topic-root'
+        ));
+        if (!topicRoot) return false;
+
+        /* The predicate is a type guard, not a plain boolean: `filter` does not
+           narrow the element type on its own, so without it `node.type` stays
+           the full node union and `layoutDocumentTree` — which accepts only
+           block and fused-note — rejects the mapped input. */
+        const treeNodes = nodes.filter((node): node is Extract<AppNode, { type: 'block' | 'fused-note' }> => (
+            node.parentId === nodeId
+            && node.id !== topicRoot.id
+            && (node.type === 'block' || node.type === 'fused-note')
+        ));
+        const treeNodeIds = new Set(treeNodes.map((node) => node.id));
+        const incomingByTarget = new Map<string, string>();
+        edges.forEach((edge) => {
+            if (
+                edge.source !== topicRoot.id
+                && treeNodeIds.has(edge.source)
+                && treeNodeIds.has(edge.target)
+                && !incomingByTarget.has(edge.target)
+            ) {
+                incomingByTarget.set(edge.target, edge.source);
+            }
+        });
+
+        const nodesById = new Map(treeNodes.map((node) => [node.id, node]));
+        const layout = layoutDocumentTree(
+            treeNodes.map((node) => ({
+                id: node.id,
+                type: node.type,
+                sourceId: incomingByTarget.get(node.id),
+            })),
+            (input) => {
+                const node = nodesById.get(input.id)!;
+                return {
+                    width: node.measured?.width
+                        ?? (typeof node.style?.width === 'number' ? node.style.width : 432),
+                    height: node.measured?.height
+                        ?? (typeof node.style?.height === 'number' ? node.style.height : 208),
+                };
+            },
+            {
+                gridStep: BASE_UNIT,
+                maxRootRowWidth: typeof window !== 'undefined' && window.innerWidth < 720
+                    ? BASE_UNIT * 30
+                    : BASE_UNIT * 44,
+            },
+        );
+
+        set({
+            nodes: nodes
+                .filter((node) => node.id !== topicRoot.id)
+                .map((node) => {
+                    const position = layout.positions.get(node.id);
+                    return position ? { ...node, position } : node;
+                }),
+            edges: edges.filter((edge) => edge.source !== topicRoot.id && edge.target !== topicRoot.id),
+        });
+        get().setCloudDirty?.(true);
+        return true;
     },
 
     updateEdge: (id, updates) => {
@@ -1609,6 +2002,200 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
             nodes: nodes.map(n => (positions[n.id] ? { ...n, position: positions[n.id] } : n)),
             ...(rebuiltEdges ? { edges: rebuiltEdges } : {}),
         });
+        get().setCloudDirty?.(true);
+    },
+
+    organizeCanvas: () => {
+        const { nodes, edges, currentParentId } = get();
+        const parentId = currentParentId ?? null;
+        const activeNodes = nodes
+            .filter((node) => (node.parentId ?? null) === parentId)
+            .sort((a, b) => a.id.localeCompare(b.id));
+
+        if (activeNodes.length < 2) return 0;
+
+        const nodeIds = new Set(activeNodes.map((node) => node.id));
+        const estimatedBlockSize = (node: typeof activeNodes[number]) => {
+            if (node.type !== 'block') return undefined;
+            const blocks = getNodeBlocks(node.data);
+            if (!blocks || blocks.length !== 1) return undefined;
+            const block = blocks[0];
+            const intrinsicTypes = new Set([
+                'text', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered',
+                'todo', 'callout', 'code', 'quote', 'link', 'toggle',
+            ]);
+            if (!intrinsicTypes.has(block.type)) return undefined;
+            if (block.type === 'link'
+                && block.content.trim()
+                && (block.metadata?.displayMode ?? 'bookmark') !== 'text') return undefined;
+            const profile = getBlockNodeStyle(block, RELEASE_SIZE_PROFILE);
+            const textLength = normalizeText(blockText(block.content)).length;
+            const intrinsicWidth = Math.max(260, Math.min(432, textLength * 6 + 60));
+            const userWidth = 'userWidth' in node.data && typeof node.data.userWidth === 'number'
+                ? node.data.userWidth
+                : undefined;
+            const userHeight = 'userHeight' in node.data && typeof node.data.userHeight === 'number'
+                ? node.data.userHeight
+                : undefined;
+            return {
+                width: userWidth ?? intrinsicWidth,
+                height: userHeight ?? profile.height,
+            };
+        };
+        const widthOf = (node: typeof activeNodes[number]) => {
+            const intrinsic = estimatedBlockSize(node);
+            // Auto-sized blocks can retain a wide, stale measurement while
+            // culled. Their content-derived footprint predicts the width they
+            // will actually render at after organization.
+            if (intrinsic) return intrinsic.width;
+            return node.measured?.width
+                ?? (typeof node.style?.width === 'number' ? node.style.width : 432);
+        };
+        const heightOf = (node: typeof activeNodes[number]) => {
+            const intrinsic = estimatedBlockSize(node);
+            if (intrinsic) return intrinsic.height;
+            return node.measured?.height
+                ?? (typeof node.style?.height === 'number' ? node.style.height : 432);
+        };
+        const gridWidthOf = (node: typeof activeNodes[number]) =>
+            Math.ceil(widthOf(node) / BASE_UNIT) * BASE_UNIT;
+        const gridHeightOf = (node: typeof activeNodes[number]) =>
+            Math.ceil(heightOf(node) / BASE_UNIT) * BASE_UNIT;
+
+        const originalBounds = activeNodes.reduce((bounds, node) => ({
+            minX: Math.min(bounds.minX, node.position.x),
+            minY: Math.min(bounds.minY, node.position.y),
+            maxX: Math.max(bounds.maxX, node.position.x + widthOf(node)),
+            maxY: Math.max(bounds.maxY, node.position.y + heightOf(node)),
+        }), { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+
+        const relatedness = computeRelatednessHierarchy(activeNodes.map((node) => {
+            const blocks = getNodeBlocks(node.data);
+            const description = 'description' in node.data ? node.data.description : undefined;
+            const stringContent = 'content' in node.data && typeof node.data.content === 'string'
+                ? node.data.content
+                : undefined;
+            const fallbackText = [getNodeLabel(node.data), description, stringContent]
+                .filter((value): value is string => Boolean(value?.trim()))
+                .join(' ');
+            return {
+                id: node.id,
+                blocks: blocks && blocks.length > 0
+                    ? blocks
+                    : [{ type: 'text', content: fallbackText }],
+            };
+        }));
+
+        const sizes = new Map(activeNodes.map((node) => [node.id, {
+            width: gridWidthOf(node),
+            height: gridHeightOf(node),
+        }]));
+
+        // Real connectors are another useful relationship signal, but are never
+        // rewritten by this action. They only help the layout keep linked cards
+        // near one another.
+        const connectorRelationships = edges
+            .filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
+            .map((edge) => ({ source: edge.source, target: edge.target, score: 1 }));
+        const provisional = layoutCanvasBento(
+            activeNodes.map((node) => ({ id: node.id })),
+            relatedness.edges,
+            connectorRelationships,
+            (node) => sizes.get(node.id) ?? { width: 432, height: 432 },
+            { originX: 0, originY: 0, gridStep: BASE_UNIT }
+        );
+
+        // Keep the layout centred where the user's nodes already are. This
+        // changes positions only; React Flow's camera is deliberately untouched.
+        const organizedBounds = activeNodes.reduce((bounds, node) => {
+            const position = provisional.get(node.id) ?? node.position;
+            return {
+                minX: Math.min(bounds.minX, position.x),
+                minY: Math.min(bounds.minY, position.y),
+                maxX: Math.max(bounds.maxX, position.x + widthOf(node)),
+                maxY: Math.max(bounds.maxY, position.y + heightOf(node)),
+            };
+        }, { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+        const offsetX = snapToGridValue(
+            (originalBounds.minX + originalBounds.maxX - organizedBounds.minX - organizedBounds.maxX) / 2
+        );
+        const offsetY = snapToGridValue(
+            (originalBounds.minY + originalBounds.maxY - organizedBounds.minY - organizedBounds.maxY) / 2
+        );
+
+        const positions = new Map<string, { x: number; y: number }>();
+        provisional.forEach((position, id) => positions.set(id, {
+            x: snapToGridValue(position.x + offsetX),
+            y: snapToGridValue(position.y + offsetY),
+        }));
+
+        set({
+            nodes: nodes.map((node) => {
+                const position = positions.get(node.id);
+                return position ? { ...node, position } : node;
+            }),
+        });
+        get().setCloudDirty?.(true);
+        return activeNodes.length;
+    },
+
+    applyCanvasOrganization: (operation) => {
+        const { nodes, edges, currentParentId } = get();
+        const positions: Record<string, { x: number; y: number }> = {};
+        const previousPositions: Record<string, { x: number; y: number }> = {};
+        const nodeIds = new Set(nodes.map((node) => node.id));
+        Object.entries(operation.positions).forEach(([id, position]) => {
+            if (!nodeIds.has(id)) return;
+            positions[id] = { x: position.x, y: position.y };
+            const node = nodes.find((candidate) => candidate.id === id);
+            if (node) previousPositions[id] = { ...node.position };
+        });
+
+        // Capture the complete connector set before changing anything. The
+        // preview owns this snapshot so its Undo button is truly one-click.
+        const snapshot = { positions: previousPositions, edges: [...edges] };
+        const removed = new Set(operation.removeEdgeIds);
+        const keptEdges = edges.filter((edge) => !removed.has(edge.id));
+        const existing = new Set(keptEdges.map((edge) => `${edge.source}:${edge.target}`));
+        const addedEdges = operation.connections
+            .filter(({ source, target }) => (
+                source !== target
+                && nodeIds.has(source)
+                && nodeIds.has(target)
+                && !existing.has(`${source}:${target}`)
+            ))
+            .map(({ source, target, label }) => {
+                existing.add(`${source}:${target}`);
+                return {
+                    id: uuidv4(),
+                    source,
+                    target,
+                    type: 'centered',
+                    data: {
+                        parentId: currentParentId ?? null,
+                        aiOrganization: true,
+                        ...(label ? { label } : {}),
+                    },
+                } as Edge;
+            });
+
+        set({
+            nodes: nodes.map((node) => positions[node.id]
+                ? { ...node, position: positions[node.id] }
+                : node),
+            edges: [...keptEdges, ...addedEdges],
+        });
+        get().setCloudDirty?.(true);
+        return snapshot;
+    },
+
+    restoreCanvasOrganization: (snapshot) => {
+        set((state) => ({
+            nodes: state.nodes.map((node) => snapshot.positions[node.id]
+                ? { ...node, position: snapshot.positions[node.id] }
+                : node),
+            edges: [...snapshot.edges],
+        }));
         get().setCloudDirty?.(true);
     },
 });

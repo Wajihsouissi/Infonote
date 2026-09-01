@@ -245,6 +245,33 @@
     border-bottom: 1px solid var(--line);
 }
 
+.studyButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex: 0 0 auto;
+    min-height: 28px;
+    padding: 5px 9px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-sm);
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.studyButton:hover {
+    background: var(--hover-wash);
+    border-color: var(--accent-ink);
+}
+
+.studyButton:focus-visible {
+    outline: 2px solid var(--accent-ink);
+    outline-offset: 2px;
+}
+
 .embedTitle {
     display: flex;
     align-items: center;

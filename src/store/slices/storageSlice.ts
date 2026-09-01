@@ -1,7 +1,7 @@
 import type { StateCreator } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import type { AppState, StorageSlice } from '../types';
-import type { AppNode } from '../../types';
+import { isAppNodeType, type AppNode } from '../../types';
 import { withoutHistory, clearHistory } from '../temporalControl';
 import {
     DEFAULT_COLUMNS,
@@ -20,6 +20,7 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
         // Dynamic Save States initialization:
         localLastSaved: null,
         cloudLastSaved: null,
+        cloudLastLoaded: null,
         isLocalDirty: false,
         isCloudDirty: false,
         localError: null,
@@ -29,7 +30,7 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
         backupNodes: [],
         backupEdges: [],
 
-        isInitialCloudLoading: false,
+        cloudLoad: { phase: 'idle', progress: null },
 
         // Delta Tracking
         dirtyNodeIds: new Set<string>(),
@@ -49,12 +50,18 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
     setLocalLastSaved: (date) => set((state) => ({
         storage: { ...state.storage, localLastSaved: date }
     })),
+    /* Real writes only. `cloudLastSaveTimeMs` is what the realtime listener
+       uses to recognise its own save echoing back from Supabase, so stamping
+       it on a load would suppress genuine collaborator events for 5s. */
     setCloudLastSaved: (date) => set((state) => ({
-        storage: { 
-            ...state.storage, 
+        storage: {
+            ...state.storage,
             cloudLastSaved: date,
-            cloudLastSaveTimeMs: Date.now() 
+            cloudLastSaveTimeMs: Date.now()
         }
+    })),
+    setCloudLastLoaded: (date) => set((state) => ({
+        storage: { ...state.storage, cloudLastLoaded: date }
     })),
     setLocalDirty: (dirty) => set((state) => ({
         storage: { ...state.storage, isLocalDirty: dirty }
@@ -68,9 +75,27 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
     setCloudError: (err) => set((state) => ({
         storage: { ...state.storage, cloudError: err }
     })),
-    setInitialCloudLoading: (loading) => set((state) => ({
-        storage: { ...state.storage, isInitialCloudLoading: loading }
-    })),
+    setCloudLoad: (phase, progress) => set((state) => {
+        const current = state.storage.cloudLoad;
+        /* More than one caller can report on the same load (the canvas view and
+           the storage controls both watch it). A blocking load outranks a
+           background one, so a second reporter can never quietly dismiss the
+           full-screen loader while data is still arriving. Only 'idle' — which
+           means the load is genuinely over — clears the rank. */
+        const nextPhase =
+            phase !== 'idle' && current.phase === 'blocking' ? 'blocking' : phase;
+        return {
+            storage: {
+                ...state.storage,
+                cloudLoad: {
+                    phase: nextPhase,
+                    // Going idle drops the progress so a later load never starts
+                    // by flashing the previous one's percentage.
+                    progress: nextPhase === 'idle' ? null : progress ?? current.progress,
+                },
+            },
+        };
+    }),
 
     markNodesDirty: (ids) => set((state) => {
         const next = new Set(state.storage.dirtyNodeIds);
@@ -139,7 +164,7 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
             if (!node || typeof node !== 'object') return null;
             if (!node.id || !node.type) return null;
 
-            if (!['note', 'block', 'fused-note', 'kanban'].includes(node.type)) {
+            if (!isAppNodeType(node.type)) {
                 console.warn('Invalid node type:', node.type);
                 return null;
             }
@@ -216,7 +241,11 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
                     isRestoringGraph: true,
                     backupNodes: prevNodes,
                     backupEdges: prevEdges,
-                    cloudLastSaved: new Date().toLocaleTimeString(),
+                    /* No timestamp here. `loadGraph` is generic — it serves the
+                       cloud load, a local folder load, a backup restore and the
+                       Notion import alike, so it cannot claim anything about
+                       the cloud. The cloud read paths stamp `cloudLastLoaded`
+                       themselves. */
                     cloudError: null,
                 },
             }));

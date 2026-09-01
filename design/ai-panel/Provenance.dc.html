@@ -1,0 +1,143 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #000; font-family: 'Outfit', system-ui, sans-serif; }
+    a { color: #ff5040; } a:hover { color: #ff6a5c; }
+
+    .stage {
+      --bg-card:#1a1a1a; --bg-raised:#242424;
+      --line:rgba(255,255,255,.10); --line-strong:rgba(255,255,255,.18);
+      --tx:#fff; --ts:#e6e6e6; --tf:#a3a3a3;
+      --acc:#ff5040; --acc-dim:rgba(255,80,64,.16);
+      width:560px; min-height:660px; padding:20px; box-sizing:border-box;
+      color:var(--tx); position:relative;
+      background-image:radial-gradient(rgba(255,255,255,.18) 1px, transparent 1px);
+      background-size:22px 22px;
+      -webkit-font-smoothing:antialiased;
+    }
+    .cap { font-size:.63rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--tf); margin-bottom:12px; }
+
+    /* the "Created by AI" canvas filter */
+    .filter { display:inline-flex; align-items:center; gap:7px; height:30px; padding:0 12px 0 10px; border-radius:999px; background:var(--acc-dim); border:1px solid rgba(255,80,64,.4); color:var(--acc); font-size:.72rem; font-weight:600; margin-bottom:16px; }
+    .filter .n { padding:1px 6px; border-radius:999px; background:rgba(255,80,64,.22); font-size:.65rem; font-weight:700; }
+
+    /* a canvas note card */
+    .card { width:300px; border-radius:16px; background:var(--bg-card); border:1px solid var(--line); overflow:hidden; box-shadow:0 6px 16px rgba(0,0,0,.4), 0 12px 28px rgba(0,0,0,.35); }
+    .spine { display:flex; }
+    .rib { width:5px; background:#5ac875; flex-shrink:0; }
+    .cIn { flex:1; min-width:0; padding:12px 13px 13px; }
+    .cTop { display:flex; align-items:center; gap:7px; margin-bottom:7px; }
+    .cIc { width:22px; height:22px; border-radius:6px; background:rgba(90,200,117,.16); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .cT { flex:1; min-width:0; font-size:.84rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .aiMark { display:inline-flex; align-items:center; gap:4px; padding:2px 6px 2px 5px; border-radius:5px; background:var(--acc-dim); color:var(--acc); font-size:.6rem; font-weight:700; letter-spacing:.03em; flex-shrink:0; }
+    .cBody { font-size:.74rem; line-height:1.55; color:var(--tf); }
+    .cBody b { color:var(--ts); font-weight:600; }
+    .cRow { display:flex; align-items:center; gap:8px; margin-top:5px; }
+    .cRow::before { content:''; width:13px; height:13px; border-radius:4px; border:1.5px solid var(--line-strong); flex-shrink:0; }
+
+    /* the provenance popover */
+    .pop { position:absolute; left:262px; top:170px; width:272px; border-radius:16px; background:var(--bg-raised); border:1px solid var(--line-strong); box-shadow:0 20px 48px rgba(0,0,0,.5), 0 32px 72px rgba(0,0,0,.45); overflow:hidden; }
+    .pH { display:flex; align-items:center; gap:8px; padding:11px 12px 10px; border-bottom:1px solid var(--line); }
+    .pHi { width:22px; height:22px; border-radius:6px; background:var(--acc-dim); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .pHt { flex:1; font-size:.75rem; font-weight:600; }
+    .pHd { font-size:.65rem; color:var(--tf); }
+    .pSec { padding:10px 12px; border-bottom:1px solid var(--line); }
+    .pL { font-size:.6rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--tf); margin-bottom:5px; }
+    .pQ { font-size:.74rem; line-height:1.5; color:var(--ts); }
+    .pMeta { display:flex; flex-wrap:wrap; gap:4px; }
+    .mp { padding:2px 7px; border-radius:6px; background:rgba(255,255,255,.06); font-size:.66rem; font-weight:600; color:var(--ts); }
+    .srcs { display:flex; flex-direction:column; gap:4px; }
+    .s { display:flex; align-items:center; gap:8px; padding:5px 7px; border-radius:8px; background:rgba(255,255,255,.035); }
+    .sN { width:15px; height:15px; border-radius:4px; background:rgba(255,255,255,.10); color:var(--tf); font-size:.58rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .sN.n { background:var(--acc-dim); color:var(--acc); }
+    .sT { flex:1; min-width:0; font-size:.7rem; color:var(--ts); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .sH { font-size:.62rem; color:var(--tf); flex-shrink:0; }
+    .pFoot { display:flex; gap:5px; padding:9px 12px 11px; }
+    .pB { flex:1; display:inline-flex; align-items:center; justify-content:center; gap:6px; height:28px; border-radius:8px; border:1px solid var(--line); color:var(--ts); font-size:.7rem; font-weight:600; }
+
+    .note { position:absolute; left:20px; bottom:18px; right:20px; font-size:.7rem; line-height:1.5; color:var(--tf); }
+    .note b { color:var(--ts); font-weight:600; }
+  </style>
+</helmet>
+
+<div class="stage">
+  <div class="cap">On the canvas · three weeks later</div>
+
+  <div class="filter">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/></svg>
+    Created by AI
+    <span class="n">14</span>
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".7"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </div>
+
+  <div class="card">
+    <div class="spine">
+      <div class="rib"></div>
+      <div class="cIn">
+        <div class="cTop">
+          <span class="cIc"><svg width="13" height="13" viewBox="0 0 24 24" fill="#5ac875"><rect x="4" y="3" width="16" height="18" rx="2.4" opacity=".5"/><rect x="4" y="3" width="3.4" height="18" rx="1.6"/></svg></span>
+          <div class="cT">Pricing page rewrite</div>
+          <span class="aiMark"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/></svg>AI</span>
+        </div>
+        <div class="cBody">
+          <b>Three things the current page gets wrong.</b> The plan headline sells the tier, not the outcome; the comparison table hides annual…
+          <div class="cRow">Rewrite the hero into one outcome sentence</div>
+          <div class="cRow">Move annual pricing above the fold</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pop">
+    <div class="pH">
+      <span class="pHi"><svg width="12" height="12" viewBox="0 0 24 24" fill="#ff5040"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/></svg></span>
+      <div style="flex:1;min-width:0">
+        <div class="pHt">Where this came from</div>
+        <div class="pHd">30 Aug 2026 · 14:22</div>
+      </div>
+    </div>
+
+    <div class="pSec">
+      <div class="pL">You asked</div>
+      <div class="pQ">“Plan the beta launch using what’s on this canvas, and check what we’re missing.”</div>
+    </div>
+
+    <div class="pSec">
+      <div class="pL">Settings</div>
+      <div class="pMeta">
+        <span class="mp">Smart</span>
+        <span class="mp">Gemini 3.7 Flash</span>
+        <span class="mp">18 blocks</span>
+        <span class="mp">verified</span>
+      </div>
+    </div>
+
+    <div class="pSec">
+      <div class="pL">Built from</div>
+      <div class="srcs">
+        <div class="s"><span class="sN n">◫</span><span class="sT">Pricing model v3</span><span class="sH">card</span></div>
+        <div class="s"><span class="sN n">◫</span><span class="sT">Beta scope cut</span><span class="sH">card</span></div>
+        <div class="s"><span class="sN">1</span><span class="sT">Pricing page conversion benchmarks</span><span class="sH">stripe.com</span></div>
+      </div>
+    </div>
+
+    <div class="pFoot">
+      <div class="pB"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/></svg>Show sources</div>
+      <div class="pB"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M20 11a8 8 0 1 0-2.3 6.3M20 5v6h-6"/></svg>Open the turn</div>
+    </div>
+  </div>
+
+  <div class="note"><b>Rule 2 of the plan made visible.</b> A card the AI wrote still names its prompt, its model, its effort and its sources — weeks after the chat that produced it is gone.</div>
+</div>
+</x-dc>
+</body>
+</html>

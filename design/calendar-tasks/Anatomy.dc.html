@@ -1,0 +1,165 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Outfit', system-ui, sans-serif;
+      background: #000000;
+      color: #ffffff;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #ff5040; text-decoration: none; }
+    a:hover { color: #ffa9e2; }
+    * { box-sizing: border-box; }
+
+    .sec { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+           color: #a3a3a3; margin: 0; }
+    .row { display: grid; grid-template-columns: 200px 1fr; align-items: center; gap: 20px;
+           padding: 9px 12px; border-radius: 12px; background: #1a1a1a; }
+    .label { font-size: 12.5px; font-weight: 500; color: #e6e6e6; }
+    .label i { display: block; font-style: normal; font-size: 11.5px; font-weight: 400;
+               color: #a3a3a3; line-height: 1.45; margin-top: 2px; }
+
+    .card { display: flex; align-items: center; gap: 4px; min-width: 0; min-height: 19px;
+            padding: 2px 7px; border-radius: 4px; }
+    .card .name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+                  font-size: 11px; font-weight: 500; color: #ffffff; }
+    .count { flex: none; margin-left: auto; display: inline-flex; align-items: center; padding: 1px 5px;
+             background: rgba(255,255,255,0.08); border-radius: 4px; font-size: 10px; font-weight: 600;
+             color: #e6e6e6; font-variant-numeric: tabular-nums; }
+
+    .task { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 18px;
+            padding: 1px 6px 1px 0; border-radius: 4px; }
+    .task .spine { flex: none; width: 2px; align-self: stretch; border-radius: 999px;
+                   background: #5ac875; }
+    .task .box { flex: none; display: grid; place-items: center; width: 12px; height: 12px;
+                 border-radius: 4px; border: 1.5px solid rgba(255,255,255,0.28); color: transparent; }
+    .task .text { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+                  font-size: 11px; font-weight: 500; color: #e6e6e6; }
+    .task.hover { background: rgba(255,255,255,0.08); }
+    .task.hover .box { border-color: #5ac875; background: color-mix(in srgb, #5ac875 18%, transparent); }
+    .task.hover .text { color: #ffffff; }
+    .task.done .spine { opacity: 0.5; }
+    .task.done .box { background: #5ac875; border-color: #5ac875; color: #000000; }
+    .task.done .text { color: #a3a3a3; text-decoration: line-through;
+                       text-decoration-color: rgba(255,255,255,0.28); }
+    .task.late { background: color-mix(in srgb, #f5430b 10%, transparent); }
+    .task.late .spine { background: #f5430b; }
+    .task.late .box { border-color: #f5430b; }
+    .task.late .text { color: #f5430b; }
+    .sample { width: 188px; }
+  </style>
+</helmet>
+
+<div style="padding: 32px 36px; background: #090909; width: 900px; display: flex; flex-direction: column; gap: 26px">
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <h1 style="margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.014em; color: #ffffff">Cards fill, tasks mark</h1>
+    <p style="margin: 0; max-width: 660px; font-size: 13.5px; line-height: 1.6; color: #e6e6e6">
+      A day cell already reads a card as a flat wash of its lane's hue. Tasks cannot use the same
+      device — five tasks on one day would fill the tile edge to edge and the hue would stop meaning
+      anything. So a task keeps the hue but spends it on a 2&#8239;px spine, the same signal the tray
+      row already uses for an accented card, and carries a real tick box instead of a fill.
+    </p>
+  </div>
+
+  <!-- ===================================================== the two objects -->
+  <div style="display: flex; flex-direction: column; gap: 6px">
+    <h2 class="sec">The two objects</h2>
+
+    <div class="row">
+      <span class="label">Card chip<i>Flat wash at 12% of the lane hue. Gains a done/total badge when the card holds tasks.</i></span>
+      <span class="sample"><span class="card" style="background: color-mix(in srgb, #5ac875 12%, transparent)"><span class="name">Kanban calendar</span><span class="count">1/5</span></span></span>
+    </div>
+
+    <div class="row">
+      <span class="label">Task chip<i>No fill. Spine in the parent card's hue, 12&#8239;px tick box, 11&#8239;px text.</i></span>
+      <span class="sample"><span class="task"><span class="spine"></span><span class="box"></span><span class="text">Granularity switch</span></span></span>
+    </div>
+  </div>
+
+  <!-- ============================================================== states -->
+  <div style="display: flex; flex-direction: column; gap: 6px">
+    <h2 class="sec">Task states</h2>
+
+    <div class="row">
+      <span class="label">Hover<i>The row takes the hover wash; the box previews green so the tick target is obvious.</i></span>
+      <span class="sample"><span class="task hover"><span class="spine"></span><span class="box"></span><span class="text">Task chips on the grid</span></span></span>
+    </div>
+
+    <div class="row">
+      <span class="label">Done<i>Green box, struck text, spine at half opacity. Green, not accent — accent is one hue off overdue.</i></span>
+      <span class="sample"><span class="task done"><span class="spine"></span><span class="box"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"></path></svg></span><span class="text">Day-cell drop target</span></span></span>
+    </div>
+
+    <div class="row">
+      <span class="label">Overdue<i>Spine, box and text go danger over a 10% wash. The only task state that adds a fill.</i></span>
+      <span class="sample"><span class="task late"><span class="spine"></span><span class="box"></span><span class="text">Solar icon attribution</span><span style="flex: none; margin-left: auto; color: #f5430b"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9L2.5 17.5A2 2 0 004.2 20.5h15.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"></path></svg></span></span></span>
+    </div>
+
+    <div class="row">
+      <span class="label">Subtask<i>Indented 14&#8239;px, spine at 45% — the same step KanbanCard's checklist already draws.</i></span>
+      <span class="sample"><span class="task" style="margin-left: 14px"><span class="spine" style="background: rgba(90,200,117,0.45)"></span><span class="box"></span><span class="text" style="color: #a3a3a3">Overdue and done states</span></span></span>
+    </div>
+
+    <div class="row">
+      <span class="label">Dragging<i>The row left behind sits at 55% with a dashed box; the day cell under the cursor takes the accent wash.</i></span>
+      <span class="sample"><span class="task" style="opacity: 0.55"><span class="spine"></span><span class="box" style="border-style: dashed; border-color: rgba(255,255,255,0.45)"></span><span class="text" style="color: #ffffff">Day sheet layout</span></span></span>
+    </div>
+  </div>
+
+  <!-- ============================================================ ordering -->
+  <div style="display: flex; flex-direction: column; gap: 6px">
+    <h2 class="sec">Order inside a day</h2>
+    <div style="display: flex; gap: 20px; align-items: flex-start">
+      <div style="flex: 0 0 200px; display: flex; flex-direction: column; padding: 6px; background: #1a1a1a; border-radius: 12px">
+        <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 4px">
+          <span style="font-size: 12px; font-weight: 600; color: #e6e6e6; font-variant-numeric: tabular-nums">12</span>
+          <span style="display: inline-flex; align-items: center; padding: 0 5px; height: 14px; border-radius: 999px; background: rgba(255,255,255,0.08); font-size: 10px; font-weight: 600; color: #e6e6e6; font-variant-numeric: tabular-nums">1/3</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px">
+          <span class="card" style="background: color-mix(in srgb, #5ac875 12%, transparent)"><span class="name">Kanban calendar</span><span class="count">1/5</span></span>
+          <span class="task"><span class="spine"></span><span class="box"></span><span class="text">Granularity switch</span></span>
+          <span class="task"><span class="spine"></span><span class="box"></span><span class="text">Task chips</span></span>
+          <span class="task done"><span class="spine"></span><span class="box"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"></path></svg></span><span class="text">Drop target</span></span>
+          <span class="task"><span class="spine" style="background: #f365c0"></span><span class="box"></span><span class="text">Fix 2 red specs</span></span>
+        </div>
+      </div>
+      <p style="flex: 1 1 auto; max-width: 520px; margin: 0; font-size: 13px; line-height: 1.65; color: #e6e6e6">
+        Cards first, in <code style="font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: #c3ff33">byBoardOrder</code> — the board's own comparator, so the
+        calendar never disagrees with the lanes about which card is first. Then each card's tasks in
+        body order directly beneath it, so a task is always adjacent to the card it belongs to. Tasks
+        whose card has no chip on this day (the card is dated elsewhere) sort last, grouped by card.
+        Done tasks stay in place rather than sinking — a day you finished should look finished, not reordered.
+      </p>
+    </div>
+  </div>
+
+  <!-- ============================================================ what bends -->
+  <div style="display: flex; flex-direction: column; gap: 6px">
+    <h2 class="sec">What this costs</h2>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div class="row" style="grid-template-columns: 1fr">
+        <span class="label">The day cell grows from 104&#8239;px to 132&#8239;px<i>Five rows of content instead of three. Six week rows are still fixed, so the node's mirrored height stays stable — it just settles at a taller constant. Month view goes from 624&#8239;px of grid to 792&#8239;px.</i></span>
+      </div>
+      <div class="row" style="grid-template-columns: 1fr">
+        <span class="label">Two tick vocabularies exist today and one has to go<i><code style="font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: #c3ff33">KanbanCard.box</code> ticks in <code style="font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: #c3ff33">--ok</code> green; <code style="font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: #c3ff33">CardTasks.taskBox</code> ticks in <code style="font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: #c3ff33">--accent</code> red. On a calendar where red already means overdue, red cannot also mean done. Green wins; the task modal moves.</i></span>
+      </div>
+      <div class="row" style="grid-template-columns: 1fr">
+        <span class="label">Only notes can carry tasks<i><code style="font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: #c3ff33">buildCalendarIndex</code> already excludes blocks and fused notes for having no date fields. Task chips inherit that limit exactly — no new exclusion to explain.</i></span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

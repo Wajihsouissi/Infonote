@@ -8,7 +8,7 @@ import styles from './BlockEditor.module.css';
 import { SlashMenu } from './SlashMenu';
 import { BlockMenu } from './BlockMenu';
 import { FloatingToolbar } from './FloatingToolbar';
-import { getActiveFormatsFromSelection, getActiveLinkUrlFromSelection, applyInlineFormat, applyLinkElement, serializeInline, type InlineFormat } from './inlineFormat';
+import { getActiveFormatsFromSelection, getActiveLinkUrlFromSelection, getActiveHighlightFromSelection, applyInlineFormat, applyLinkElement, applyHighlight, serializeInline, isHighlightHue, DEFAULT_HIGHLIGHT_HUE, type InlineFormat, type HighlightHue } from './inlineFormat';
 
 import { BlockItem } from './BlockItem';
 import type { EditOptions } from './BlockComponents';
@@ -54,6 +54,8 @@ interface BlockEditorProps {
     editorId?: string; // Stable identifier for drag-and-drop tracking
     renderBetweenBlocks?: (index: number) => React.ReactNode;
     globalStartIndex?: number; // Starting index for numbered lists computed globally
+    /** Use an ordinal carried by an imported list item when this editor is one standalone canvas card. */
+    useStoredListNumbers?: boolean;
     /** A standalone canvas text block has one root block. Multi-block content
      * belongs in a fused note, not in a stretched single-block shell. */
     singleBlockOnly?: boolean;
@@ -120,7 +122,7 @@ function offsetsToRange(host: HTMLElement, start: number, end: number): Range | 
     return r;
 }
 
-export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles, disableMediaControls, promoteBlockHandles, selectionIslandPortalId, syncUpdate, editorId, renderBetweenBlocks, globalStartIndex = 1, singleBlockOnly = false }: BlockEditorProps) {
+export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate, readOnly, autoFocus, minimal, nodeId, hideBlockHandles, disableMediaControls, promoteBlockHandles, selectionIslandPortalId, syncUpdate, editorId, renderBetweenBlocks, globalStartIndex = 1, useStoredListNumbers = false, singleBlockOnly = false }: BlockEditorProps) {
     const editorRef = useRef<HTMLDivElement>(null);
     const editorInstanceId = useRef(editorId || `editor-${uuidv4()}`);
 
@@ -133,7 +135,9 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
     const savedOffsetsRef = useRef<{ blockId: string; start: number; end: number } | null>(null);
     const [activeFormats, setActiveFormats] = useState<Set<InlineFormat>>(new Set());
     const [activeLinkUrl, setActiveLinkUrl] = useState<string | null>(null);
+    const [activeHighlight, setActiveHighlight] = useState<HighlightHue | null>(null);
     const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
+    const [colorPopoverOpen, setColorPopoverOpen] = useState(false);
     useEffect(() => {
         const onSelChange = () => {
             const sel = window.getSelection();
@@ -162,6 +166,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 savedOffsetsRef.current = blockId ? { blockId, start, end } : null;
                 setActiveFormats(getActiveFormatsFromSelection());
                 setActiveLinkUrl(getActiveLinkUrlFromSelection());
+                setActiveHighlight(getActiveHighlightFromSelection());
             }
         };
         document.addEventListener('selectionchange', onSelChange);
@@ -220,6 +225,17 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             timeoutRef.current = null;
         }, 300); // 300ms debounce for store sync
     }, [onUpdate, syncUpdate]);
+
+    // A card can be selected, entered, or deleted before the ordinary typing
+    // debounce expires. Commit the editor's current block identities as it
+    // genuinely loses focus so navigation and destructive-action safeguards
+    // always inspect the same content the person just saw and typed.
+    const flushPendingUpdate = useCallback(() => {
+        if (!timeoutRef.current) return;
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+        onUpdate?.(blocksRef.current);
+    }, [onUpdate]);
 
     // Sync external content and block-level updates
 
@@ -931,49 +947,84 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         const sel = window.getSelection();
         if (sel && sel.rangeCount > 0) savedRangeRef.current = sel.getRangeAt(0).cloneRange();
         setActiveFormats(getActiveFormatsFromSelection());
+        setActiveHighlight(getActiveHighlightFromSelection());
     }, [blockIdForHost, updateBlock]);
+
+    // The editable + range a toolbar action should act on: the live selection
+    // when it is still inside the block we last saw, otherwise the saved one
+    // restored into the DOM (a toolbar click can move focus first).
+    const editTarget = useCallback((): { host: HTMLElement; range?: Range } | null => {
+        let host = savedHostRef.current;
+        let range: Range | undefined = undefined;
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0 || (host && !host.contains(sel.anchorNode))) {
+            const restored = restoreSavedSelection();
+            host = restored?.host || host;
+            range = restored?.range;
+        }
+        return host ? { host, range } : null;
+    }, [restoreSavedSelection]);
 
     // Toggle a mark on the current (or saved) selection — pure DOM, then persist.
     const formatSelection = useCallback((format: InlineFormat) => {
-        let host = savedHostRef.current;
-        let activeRange: Range | undefined = undefined;
+        const target = editTarget();
+        if (!target) return;
+        applyInlineFormat(target.host, format, target.range);
+        persistHost(target.host);
+    }, [editTarget, persistHost]);
+
+    // Highlight the selection in one of the palette hues, or clear it (null).
+    const highlightSelection = useCallback((hue: HighlightHue | null) => {
+        const target = editTarget();
+        if (!target) return;
+        applyHighlight(target.host, hue, target.range);
+        persistHost(target.host);
+
+        /* Picking a colour ends the job — bold invites a second click (italic,
+           then a link), a colour doesn't. The toolbar is mounted on the live
+           selection, so dropping the selection is what dismisses it. The caret
+           lands AFTER the highlight rather than inside it, so whatever is typed
+           next isn't swallowed by the colour just applied. */
         const sel = window.getSelection();
-        if (!sel || sel.rangeCount === 0 || (host && !host.contains(sel.anchorNode))) {
-            const restored = restoreSavedSelection();
-            host = restored?.host || host;
-            activeRange = restored?.range;
+        if (!sel || sel.rangeCount === 0) return;
+        const range = sel.getRangeAt(0);
+        let node: Node | null = range.endContainer;
+        let mark: HTMLElement | null = null;
+        while (node && node !== target.host) {
+            if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).tagName === 'MARK') {
+                mark = node as HTMLElement;
+                break;
+            }
+            node = node.parentNode;
         }
-        if (!host) return;
-        applyInlineFormat(host, format, activeRange);
-        persistHost(host);
-    }, [restoreSavedSelection, persistHost]);
+        const caret = document.createRange();
+        try {
+            if (mark) caret.setStartAfter(mark);
+            else caret.setStart(range.endContainer, range.endOffset);
+            caret.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(caret);
+        } catch {
+            // A detached node after the re-render — collapsing is enough.
+            sel.collapseToEnd();
+        }
+    }, [editTarget, persistHost]);
 
     // Wrap the saved selection in a link.
     const applyLink = useCallback((url: string) => {
-        let host = savedHostRef.current;
-        let activeRange: Range | undefined = undefined;
-        const sel = window.getSelection();
-        if (!sel || sel.rangeCount === 0 || (host && !host.contains(sel.anchorNode))) {
-            const restored = restoreSavedSelection();
-            host = restored?.host || host;
-            activeRange = restored?.range;
-        }
-        if (!host) return;
-        applyLinkElement(host, { href: url.trim() }, activeRange);
-        persistHost(host);
-    }, [restoreSavedSelection, persistHost]);
+        const target = editTarget();
+        if (!target) return;
+        applyLinkElement(target.host, { href: url.trim() }, target.range);
+        persistHost(target.host);
+    }, [editTarget, persistHost]);
 
     // "Turn into Page": extract selection, split block into 3 (text, page block, text).
     const createPageChip = useCallback(() => {
         const text = (savedRangeRef.current?.toString() ?? '').trim();
-        let host = savedHostRef.current;
-        let activeRange: Range | undefined = undefined;
+        const target = editTarget();
+        const host = target?.host ?? null;
+        const activeRange = target?.range;
         const sel = window.getSelection();
-        if (!sel || sel.rangeCount === 0 || (host && !host.contains(sel.anchorNode))) {
-            const restored = restoreSavedSelection();
-            host = restored?.host || host;
-            activeRange = restored?.range;
-        }
         if (!host || !text) return;
 
         // Ensure range is selected so execCommand targets it
@@ -1054,7 +1105,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 return newBlocks;
             });
         }
-    }, [restoreSavedSelection, setBlocks, debouncedOnUpdate, setFocusId]);
+    }, [editTarget, setBlocks, debouncedOnUpdate, setFocusId]);
 
     const checkCaretFirstLine = useCallback((): boolean => {
         try {
@@ -1145,7 +1196,17 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
         }
         if (isCtrl && !e.shiftKey && lowerKey === 'k') {
             e.preventDefault();
+            setColorPopoverOpen(false);
             setLinkPopoverOpen(true);
+            return;
+        }
+        // Ctrl+Shift+H — highlight in the default hue, or lift the one already
+        // under the selection. The other nine hues live on the toolbar.
+        if (isCtrl && e.shiftKey && lowerKey === 'h') {
+            e.preventDefault();
+            // Read off the live selection, not the toolbar's state: this handler
+            // is memoized without the format callbacks in its deps.
+            highlightSelection(getActiveHighlightFromSelection() ? null : DEFAULT_HIGHLIGHT_HUE);
             return;
         }
 
@@ -2023,6 +2084,12 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             className={`${styles.editor} ${minimal ? styles.minimal : ''}`}
             ref={editorRef}
             tabIndex={-1}
+            onBlurCapture={(event) => {
+                const nextTarget = event.relatedTarget as Node | null;
+                if (!nextTarget || !editorRef.current?.contains(nextTarget)) {
+                    flushPendingUpdate();
+                }
+            }}
             onPaste={handleContainerPaste}
             onDrop={(e) => { handleDrop(e); clearBlockDropIndicators(); }}
             onDragOver={handleEditorDragOver}
@@ -2160,6 +2227,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                     block={node.block}
                                     index={node.listIndex}
                                     hasChildren={node.hasChildren}
+                                    useStoredListNumber={useStoredListNumbers}
                                     isSelected={selectedBlockIds.has(node.block.id)}
                                     isFirstChildOfToggle={isFirstChildOfToggle}
                                     readOnly={currentReadOnly}
@@ -2204,6 +2272,7 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                         block={node.block}
                                         index={node.listIndex}
                                         hasChildren={node.hasChildren}
+                                        useStoredListNumber={useStoredListNumbers}
                                         isSelected={selectedBlockIds.has(node.block.id)}
                                         readOnly={currentReadOnly}
                                         nodeId={nodeId}
@@ -2277,18 +2346,34 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                 />
             )}
             {/* Floating Toolbar */}
-            {(selectionRect || (linkPopoverOpen && lastSelectionRect)) && !slashMenuState && !blockMenuState && (
+            {/* selectionRect goes null the moment the DOM selection collapses,
+                which a click on the toolbar itself can do — so a row the user is
+                still working in (the link field, the palette) keeps the toolbar
+                mounted against the last known rect. */}
+            {(selectionRect || ((linkPopoverOpen || colorPopoverOpen) && lastSelectionRect)) && !slashMenuState && !blockMenuState && (
                 <FloatingToolbar
                     selectionRect={(selectionRect || lastSelectionRect)!}
                     activeFormats={activeFormats}
+                    activeHighlight={activeHighlight}
                     initialLinkUrl={activeLinkUrl}
                     linkOpen={linkPopoverOpen}
-                    onLinkOpenChange={setLinkPopoverOpen}
+                    onLinkOpenChange={(open) => {
+                        setLinkPopoverOpen(open);
+                        if (open) setColorPopoverOpen(false);   // one row at a time
+                    }}
+                    colorOpen={colorPopoverOpen}
+                    onColorOpenChange={(open) => {
+                        setColorPopoverOpen(open);
+                        if (open) setLinkPopoverOpen(false);
+                    }}
                     onFormat={(format, value) => {
                         if (format === 'createLink') {
                             if (value !== undefined) applyLink(value);
                         } else if (format === 'createPage') {
                             createPageChip();
+                        } else if (format === 'highlight') {
+                            // No value = clear it; the swatches always send a hue.
+                            highlightSelection(isHighlightHue(value) ? value : null);
                         } else {
                             formatSelection(format as InlineFormat);
                         }

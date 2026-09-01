@@ -141,7 +141,7 @@
 }
 
 .paneLeft.stageFocused::after {
-    background: var(--t-blue);
+    background: var(--t-charcoal);
 }
 
 /* --danger rather than --t-red: t-red's hue sits close enough to the app's

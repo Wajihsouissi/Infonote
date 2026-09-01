@@ -2,14 +2,29 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Edge } from '@xyflow/react';
 import { useStore } from '../../store/useStore';
 import type { AppState } from '../../store/types';
-import type { AppNode } from '../../types';
+import type { AIProvenance, AppNode } from '../../types';
 import { getNodeBlocks } from '../../types';
 import { findNonOverlappingPosition } from '../../utils/findNonOverlappingPosition';
 import { GRID_GAP, MEDIUM_SIZE, snapToGridValue } from '../../config/layout';
 import { parsePlainText } from '../editor/pasteUtils';
-import { extractJsonFromString, generateImage, generateText, parseStructuredAction, type AIRequestOptions, type AIStructuredAction } from '../../services/aiService';
-import { structuredEffortDirective } from '../../config/aiEffort';
+import {
+    composeItemBodies,
+    extractJsonFromString,
+    generateImage,
+    generateText,
+    planArtifacts,
+    verifyArtifacts,
+    type AIArtifactPlan,
+    type AIPlanResult,
+    type AIRequestOptions,
+    type AIStructuredAction,
+} from '../../services/aiService';
+import { composeBody, mapWithConcurrency, splitItemBodies, ITEM_BATCH_SIZE } from './aiCompose';
+import { recordAIRun } from './aiTelemetry';
+import { normalizeAIText } from './aiResultUtils';
+import { effortBudget, structuredEffortDirective } from '../../config/aiEffort';
 import { nodeTitle } from './canvasContext';
+import type { AIPhase, AITraceDetail } from './aiTypes';
 import {
     createKanbanData,
     DEFAULT_COLUMNS,
@@ -39,13 +54,63 @@ export interface RunnerContext {
     origin: { x: number; y: number };
     viewport: () => { x: number; y: number; zoom: number; screenW: number; screenH: number };
     currentParentId: string | null;
-    /** Log a step; returns its id so the caller can flip it to done/failed. */
-    step: (kind: 'thought' | 'action' | 'result' | 'error', text: string, status?: 'running' | 'done' | 'failed') => string;
-    /** Update a step already logged. */
-    settle: (id: string, status: 'done' | 'failed', text?: string) => void;
+    /**
+     * Log a step; returns its id so the caller can flip it to done/failed.
+     *
+     * `extra` carries the trace phase and the expandable payload (ai-Plan.md
+     * §5.1). Both are optional and appended rather than woven into the
+     * positional arguments, so every existing call site keeps working and only
+     * the steps with something worth expanding pay for it.
+     */
+    step: (
+        kind: 'thought' | 'action' | 'result' | 'error',
+        text: string,
+        status?: 'queued' | 'running' | 'done' | 'failed',
+        extra?: { phase?: AIPhase; detail?: AITraceDetail },
+    ) => string;
+    /**
+     * Update a step already logged.
+     *
+     * Takes `running` as well as the terminal states so a step announced as
+     * `queued` can be started later without being re-logged — which is what
+     * lets the trace show the whole plan up front and then light each line as
+     * it begins.
+     */
+    settle: (
+        id: string,
+        status: 'running' | 'done' | 'failed',
+        text?: string,
+        extra?: { phase?: AIPhase; detail?: AITraceDetail },
+    ) => void;
     signal?: AbortSignal;
     /** Model the composer asked for, and any images attached to the turn. */
     request?: AIRequestOptions;
+    /** The answer-to-mindmap action groups sections into compact clusters. */
+    mindmapLayout?: 'tree' | 'clustered';
+    /**
+     * Stamped onto every node this run places (ai-Plan.md §5.4).
+     *
+     * Passed in rather than assembled here because only the panel knows the
+     * turn id, the untrimmed request and the sources the answer actually used.
+     * Absent on paths that place nothing the user would later audit.
+     */
+    provenance?: AIProvenance;
+    /**
+     * Collected by `runEdit`: what each rewritten card looked like beforehand.
+     *
+     * An edit turn is the only path that DESTROYS the user's own writing, so
+     * the before-state has to survive the turn (ai-Plan.md §5.7). The array is
+     * supplied by the caller and filled here, which keeps the runner free of
+     * any opinion about how the revert is offered.
+     */
+    edits?: AIEditSnapshot[];
+}
+
+/** One card as it was before an AI edit overwrote it. */
+export interface AIEditSnapshot {
+    nodeId: string;
+    title: string;
+    before: Record<string, unknown>;
 }
 
 export interface RunnerResult {
@@ -73,6 +138,30 @@ const DRILL_GRID_COLS = 4;
 function assertLive(signal?: AbortSignal) {
     if (signal?.aborted) throw new DOMException('Stopped', 'AbortError');
 }
+
+/**
+ * Stamp provenance onto everything a run just placed.
+ *
+ * Applied AFTER placement in one pass rather than threaded through every
+ * `addNode` call in `placeAction`, `placeBoard`, `placeTimeline` and
+ * `placeMindmap`. Those four are the load-bearing layout code and are
+ * deliberately left alone; a card that landed is a card that gets stamped, and
+ * that stays true however placement changes later.
+ */
+function stampProvenance(ids: string[], provenance?: AIProvenance): void {
+    if (!provenance || ids.length === 0) return;
+    const { updateNodeData } = useStore.getState();
+    for (const id of ids) updateNodeData(id, { aiProvenance: provenance });
+}
+
+/** Schema type -> the word the user calls it. Drives the plan trace chips. */
+const SHAPE_LABEL: Record<AIStructuredAction['type'], string> = {
+    note: 'Card',
+    'fused-note': 'Document',
+    mindmap: 'Mind map',
+    board: 'Board',
+    timeline: 'Timeline',
+};
 
 /**
  * Rewrite the cards the user has selected, one at a time.
@@ -170,6 +259,20 @@ Respond ONLY with a valid JSON object. No markdown, no code fences, no commentar
                 continue;
             }
 
+            /* Keep what is being overwritten so the change is reversible on its
+               own (ai-Plan.md §5.7). `runEdit` destroys the user's own writing;
+               Ctrl+Z is a blunt instrument for that — it walks back everything
+               since, and the user has to notice within the undo window. A
+               per-card snapshot makes "put that one back" a specific action. */
+            ctx.edits?.push({
+                nodeId,
+                title,
+                before: {
+                    ...(node.type === 'note' ? { label: node.data.label, description } : {}),
+                    content: getNodeBlocks(node.data) ?? [],
+                },
+            });
+
             updateNodeData(nodeId, update);
             edited += 1;
             ctx.settle(stepId, 'done', newContent
@@ -209,6 +312,8 @@ interface MindmapPlacement {
     width: number;
     height: number;
     depth: number;
+    /** Top-level section within a compact answer-derived cluster. */
+    clusterRoot?: boolean;
 }
 
 /**
@@ -366,12 +471,139 @@ function layoutMindmap(nodes: MindmapInput[]): { placements: MindmapPlacement[];
 }
 
 /**
+ * Answer-derived maps read better as a handful of related piles than a wide,
+ * abstract tree. Each first-level section becomes an anchor; everything below
+ * it stays tightly stacked in the same cluster, while the original parent
+ * links are preserved so no idea becomes a disconnected ornament.
+ */
+function layoutClusteredMindmap(nodes: MindmapInput[]): { placements: MindmapPlacement[]; width: number; height: number } {
+    if (nodes.length === 0) return { placements: [], width: 0, height: 0 };
+
+    const byId = new Map(nodes.map((node) => [node.id, node]));
+    const root = nodes.find((node) => !node.parentId) || nodes[0];
+    const parentOf = new Map<string, string>();
+
+    for (const node of nodes) {
+        if (node.id === root.id) continue;
+        const requestedParent = node.parentId;
+        parentOf.set(node.id, requestedParent && requestedParent !== node.id && byId.has(requestedParent)
+            ? requestedParent
+            : root.id);
+    }
+
+    const reachesRoot = (id: string): boolean => {
+        const walked = new Set<string>([id]);
+        let cursor = parentOf.get(id);
+        while (cursor) {
+            if (cursor === root.id) return true;
+            if (walked.has(cursor)) return false;
+            walked.add(cursor);
+            cursor = parentOf.get(cursor);
+        }
+        return false;
+    };
+    for (const node of nodes) {
+        if (node.id !== root.id && !reachesRoot(node.id)) parentOf.set(node.id, root.id);
+    }
+
+    const children = new Map<string, MindmapInput[]>();
+    for (const node of nodes) {
+        if (node.id === root.id) continue;
+        const parent = parentOf.get(node.id)!;
+        const siblings = children.get(parent) || [];
+        siblings.push(node);
+        children.set(parent, siblings);
+    }
+
+    const sections = children.get(root.id) || [];
+    if (sections.length === 0) {
+        return {
+            placements: [{
+                id: root.id,
+                parent: null,
+                x: 0,
+                y: 0,
+                width: MINDMAP_ROOT_SIZE.width,
+                height: MINDMAP_ROOT_SIZE.height,
+                depth: 0,
+            }],
+            width: MINDMAP_ROOT_SIZE.width,
+            height: MINDMAP_ROOT_SIZE.height,
+        };
+    }
+    const placements: MindmapPlacement[] = [];
+    const CLUSTER_WIDTH = MINDMAP_NODE_SIZE.width + 36;
+    const CLUSTER_GAP_X = 64;
+    const CLUSTER_GAP_Y = 66;
+    const STACK_GAP = 14;
+    const columns = sections.length > 1 ? 2 : 1;
+    const clusterHeights: number[] = [];
+    const sectionStacks: Array<Array<{ node: MindmapInput; depth: number }>> = [];
+
+    const collect = (node: MindmapInput, depth: number, stack: Array<{ node: MindmapInput; depth: number }>, guard: Set<string>) => {
+        if (guard.has(node.id)) return;
+        guard.add(node.id);
+        stack.push({ node, depth });
+        for (const child of children.get(node.id) || []) collect(child, depth + 1, stack, guard);
+    };
+
+    for (const section of sections) {
+        const stack: Array<{ node: MindmapInput; depth: number }> = [];
+        collect(section, 1, stack, new Set<string>());
+        sectionStacks.push(stack);
+        clusterHeights.push(Math.max(MINDMAP_NODE_SIZE.height, stack.length * MINDMAP_NODE_SIZE.height + Math.max(0, stack.length - 1) * STACK_GAP));
+    }
+
+    const rowHeights: number[] = [];
+    for (let index = 0; index < clusterHeights.length; index += columns) {
+        rowHeights.push(Math.max(...clusterHeights.slice(index, index + columns)));
+    }
+    const rowOffsets = rowHeights.reduce<number[]>((offsets, height, row) => {
+        offsets.push(row === 0 ? 0 : offsets[row - 1] + rowHeights[row - 1] + CLUSTER_GAP_Y);
+        return offsets;
+    }, []);
+
+    sectionStacks.forEach((stack, sectionIndex) => {
+        const column = sectionIndex % columns;
+        const row = Math.floor(sectionIndex / columns);
+        const clusterX = MINDMAP_ROOT_SIZE.width + 112 + column * (CLUSTER_WIDTH + CLUSTER_GAP_X);
+        const clusterY = rowOffsets[row];
+        stack.forEach(({ node, depth }, itemIndex) => {
+            placements.push({
+                id: node.id,
+                parent: parentOf.get(node.id) || root.id,
+                x: clusterX + Math.min(depth - 1, 2) * 18,
+                y: clusterY + itemIndex * (MINDMAP_NODE_SIZE.height + STACK_GAP),
+                width: MINDMAP_NODE_SIZE.width,
+                height: MINDMAP_NODE_SIZE.height,
+                depth,
+                clusterRoot: itemIndex === 0,
+            });
+        });
+    });
+
+    const clusterHeight = rowHeights.reduce((sum, height) => sum + height, 0) + Math.max(0, rowHeights.length - 1) * CLUSTER_GAP_Y;
+    placements.push({
+        id: root.id,
+        parent: null,
+        x: 0,
+        y: Math.max(0, clusterHeight / 2 - MINDMAP_ROOT_SIZE.height / 2),
+        width: MINDMAP_ROOT_SIZE.width,
+        height: MINDMAP_ROOT_SIZE.height,
+        depth: 0,
+    });
+
+    const width = MINDMAP_ROOT_SIZE.width + 112 + columns * CLUSTER_WIDTH + Math.max(0, columns - 1) * CLUSTER_GAP_X;
+    return { placements, width, height: Math.max(MINDMAP_ROOT_SIZE.height, clusterHeight) };
+}
+
+/**
  * The footprint an action will occupy, so the batch packer can reserve room for
  * it. A board is as wide as its lanes and a timeline as long as its milestones,
  * both of which dwarf a card — reserving NOTE_SIZE for them would drop the next
  * action straight on top.
  */
-function sizeFor(action: AIStructuredAction) {
+function sizeFor(action: AIStructuredAction, mindmapLayout: RunnerContext['mindmapLayout'] = 'tree') {
     if (action.type === 'fused-note') return DOC_SIZE;
 
     if (action.type === 'board') {
@@ -395,7 +627,7 @@ function sizeFor(action: AIStructuredAction) {
         // rectangle is exactly what gets drawn. The old radial guess reserved a
         // square around a radius the tree never filled, which both wasted space
         // and let the next action land inside the map's actual spread.
-        const { width, height } = layoutMindmap(action.nodes ?? []);
+        const { width, height } = (mindmapLayout === 'clustered' ? layoutClusteredMindmap : layoutMindmap)(action.nodes ?? []);
         return width > 0 ? { width, height } : NOTE_SIZE;
     }
 
@@ -427,7 +659,7 @@ function placeBoard(action: AIStructuredAction, position: { x: number; y: number
             return { id: value || 'column', value: value || 'column', label: c.label, tone };
         });
 
-    const size = sizeFor(action);
+    const size = sizeFor(action, ctx.mindmapLayout);
     const data: KanbanNodeData = {
         ...createKanbanData(action.title || 'Board'),
         groupBy,
@@ -607,7 +839,7 @@ function placeAction(action: AIStructuredAction, position: { x: number; y: numbe
     if (action.type === 'timeline') return placeTimeline(action, position, ctx);
 
     const { addNode } = useStore.getState();
-    const size = sizeFor(action);
+    const size = sizeFor(action, ctx.mindmapLayout);
 
     if (action.type === 'note') {
         const id = uuidv4();
@@ -651,7 +883,7 @@ function placeAction(action: AIStructuredAction, position: { x: number; y: numbe
 
     const newNodes: AppNode[] = [];
     const newEdges: Edge[] = [];
-    const { placements } = layoutMindmap(action.nodes);
+    const { placements } = (ctx.mindmapLayout === 'clustered' ? layoutClusteredMindmap : layoutMindmap)(action.nodes);
 
     // The model's ids are arbitrary strings; remap so two mindmaps in one
     // session can't collide on the canvas.
@@ -669,7 +901,7 @@ function placeAction(action: AIStructuredAction, position: { x: number; y: numbe
             data: {
                 content: [{
                     id: uuidv4(),
-                    type: placement.depth === 0 ? 'heading2' : 'text',
+                    type: placement.depth === 0 ? 'heading2' : placement.clusterRoot ? 'heading3' : 'text',
                     content: labelOf.get(placement.id) || '',
                 }],
                 isStandaloneBlock: true,
@@ -695,24 +927,248 @@ function placeAction(action: AIStructuredAction, position: { x: number; y: numbe
     return { ids: newNodes.map((n) => n.id), label: `Mindmap “${action.title}” (${newNodes.length} nodes)` };
 }
 
-/** Build new cards from a request, using the canvas as context. */
+/**
+ * Build new cards from a request, using the canvas as context.
+ *
+ * Two passes, not one (ai-Plan.md §5.5). The old version asked a single call
+ * for every artifact AND every body, so a Smart six-card request needed
+ * thousands of tokens of balanced JSON in one reply; when it truncated the user
+ * got nothing after two round trips. Now the plan is one small call, the bodies
+ * are one call each (batched for board cards and timeline steps), and a body
+ * that fails costs its own artifact rather than the whole turn.
+ */
 export async function runCreate(query: string, context: string, ctx: RunnerContext): Promise<RunnerResult> {
-    const planStep = ctx.step('action', 'Planning what to build', 'running');
-    let actions: AIStructuredAction[];
+    const budget = effortBudget(ctx.request?.effort);
+    const startedAt = Date.now();
+    // §9.3's targets were unmeasurable because nothing counted anything.
+    const metrics = { repaired: 0, unwrittenItems: 0, blocks: [] as number[] };
+
+    /* ---- Pass 1: what to build ---- */
+    const planStep = ctx.step('action', 'Working out what to build', 'running', { phase: 'compose' });
+    let plan: AIPlanResult;
     try {
-        actions = await parseStructuredAction(query, context, ctx.request);
+        plan = await planArtifacts(query, context, ctx.request);
         assertLive(ctx.signal);
     } catch (err) {
-        ctx.settle(planStep, 'failed', 'Planning failed');
+        ctx.settle(planStep, 'failed', 'Could not work out a safe plan', { phase: 'compose' });
         throw err;
     }
 
-    if (actions.length === 0) {
-        ctx.settle(planStep, 'done', 'Nothing to build for that request');
-        return { createdNodeIds: [], summary: 'I couldn\'t turn that into anything to place on the canvas. Try naming what you want — "3 cards on X", "a doc about Y", "mindmap of Z".' };
+    const artifacts = plan.artifacts;
+    if (artifacts.length === 0) {
+        ctx.settle(planStep, 'done', 'Nothing to build for that request', { phase: 'compose' });
+        return { createdNodeIds: [], summary: 'I couldn’t turn that into anything to place on the canvas. Try naming what you want — "3 cards on X", "a doc about Y", "mindmap of Z".' };
     }
 
-    ctx.settle(planStep, 'done', `Planned ${actions.length} item${actions.length === 1 ? '' : 's'}`);
+    ctx.settle(
+        planStep,
+        'done',
+        `Planned ${artifacts.length} item${artifacts.length === 1 ? '' : 's'}`,
+        {
+            phase: 'compose',
+            detail: {
+                kind: 'plan',
+                artifacts: artifacts.map((a) => ({ shape: SHAPE_LABEL[a.type], title: a.title })),
+                why: plan.why,
+            },
+        },
+    );
+
+    /* ---- Pass 2: write the bodies, one artifact at a time ----
+       Bounded concurrency rather than Promise.all: the gateway rate-limits per
+       user, and nine bodies in flight on a Smart turn is the reliable way to
+       have three of them refused. */
+    const failed: string[] = [];
+    const outlined: { title: string; itemCount: number }[] = [];
+    let thin = 0;
+
+    /* Announce the whole plan before writing any of it.
+       Every artifact gets its line the moment the plan is known, dimmed and
+       waiting, and the placing step after them. This is the difference between
+       a trace that reports the past and one that shows a process: the user can
+       see what is still coming, and stop early if the shape is wrong rather
+       than after paying for all of it. */
+    const bodyWork = artifacts.filter((a) => a.type !== 'mindmap');
+    const stepFor = new Map<AIArtifactPlan, string>();
+    bodyWork.forEach((artifact, index) => {
+        stepFor.set(artifact, ctx.step(
+            'action',
+            `Writing ${SHAPE_LABEL[artifact.type].toLowerCase()} “${artifact.title}”`,
+            'queued',
+            {
+                phase: 'compose',
+                detail: { kind: 'artifact', shape: SHAPE_LABEL[artifact.type], title: artifact.title, index: index + 1, total: bodyWork.length },
+            },
+        ));
+    });
+    const placeStepId = ctx.step(
+        'action',
+        `Placing ${artifacts.length} item${artifacts.length === 1 ? '' : 's'} on the canvas`,
+        'queued',
+        { phase: 'place' },
+    );
+
+    await mapWithConcurrency(artifacts, budget.concurrency, async (artifact, index) => {
+        assertLive(ctx.signal);
+        // Mindmaps are labels all the way down; there is no body to write.
+        if (artifact.type === 'mindmap') return;
+
+        const label = `Writing ${SHAPE_LABEL[artifact.type].toLowerCase()} “${artifact.title}”`;
+        // Light the line that was already announced, rather than adding a new one.
+        const stepId = stepFor.get(artifact) ?? ctx.step('action', label, 'running', { phase: 'compose' });
+        /* What this artifact is going to be, stated while it is being written
+           rather than only after. "5 lanes · 14 cards" is knowable from the
+           plan the moment writing starts, and it is the line that makes the
+           wait informative instead of merely narrated. */
+        const shapeOf = (a: AIArtifactPlan): string => {
+            if (a.type === 'board') {
+                const lanes = a.columns?.length ?? 0;
+                const cards = a.cards?.length ?? 0;
+                return [lanes ? `${lanes} lanes` : '', cards ? `${cards} cards` : ''].filter(Boolean).join(' · ');
+            }
+            if (a.type === 'timeline') {
+                const n = a.milestones?.length ?? 0;
+                return n ? `${n} milestone${n === 1 ? '' : 's'}` : '';
+            }
+            if (a.type === 'mindmap') {
+                const n = a.nodes?.length ?? 0;
+                return n ? `${n} nodes` : '';
+            }
+            return `aiming for ${budget.targetBlocks} blocks`;
+        };
+        const grounded = ctx.provenance?.sources?.filter((s) => s.kind === 'node').length ?? 0;
+        const shapeNote = [shapeOf(artifact), grounded ? `grounded on ${grounded} of your cards` : '']
+            .filter(Boolean).join(' · ');
+
+        ctx.settle(stepId, 'running', label, {
+            phase: 'compose',
+            detail: { kind: 'artifact', shape: SHAPE_LABEL[artifact.type], title: artifact.title, index: index + 1, total: bodyWork.length, note: shapeNote || undefined },
+        });
+
+        const shared = {
+            shape: artifact.type,
+            title: artifact.title,
+            brief: artifact.brief,
+            userRequest: query,
+            context,
+        };
+
+        try {
+            if (artifact.type === 'note' || artifact.type === 'fused-note') {
+                const body = await composeBody(shared, { ...ctx.request, signal: ctx.signal });
+                artifact.content = body.markdown;
+                if (body.thin) thin += 1;
+                if (body.repaired) metrics.repaired += 1;
+                metrics.blocks.push(body.blocks);
+                ctx.settle(stepId, 'done', `${label} — ${body.blocks} blocks${body.thin ? ', came back thin' : ''}`, {
+                    phase: 'compose',
+                });
+                return;
+            }
+
+            /* Board cards and timeline steps: batched, because one call each
+               would mean fourteen round trips for a fourteen-card board. */
+            const items: { title: string; set: (body: string) => void }[] =
+                artifact.type === 'board'
+                    ? (artifact.cards ?? []).map((card) => ({ title: card.title, set: (b: string) => { card.content = b; } }))
+                    : (artifact.milestones ?? []).map((m) => ({ title: m.title, set: (b: string) => { m.content = b; } }));
+
+            let written = 0;
+            for (let start = 0; start < items.length; start += ITEM_BATCH_SIZE) {
+                assertLive(ctx.signal);
+                const batch = items.slice(start, start + ITEM_BATCH_SIZE);
+                const markdown = await composeItemBodies(
+                    { ...shared, items: batch.map((i) => i.title) },
+                    ctx.request,
+                );
+                const bodies = splitItemBodies(normalizeAIText(markdown), batch.map((i) => i.title));
+                batch.forEach((item) => {
+                    const body = bodies.get(item.title);
+                    if (body) { item.set(body); written += 1; }
+                });
+            }
+
+            /* An item with no body is placed with its title. Degraded, still
+               usable, and the count says so rather than the turn failing. */
+            const missing = items.length - written;
+            metrics.unwrittenItems += missing;
+            ctx.settle(
+                stepId,
+                'done',
+                `${label} — ${written} of ${items.length} item${items.length === 1 ? '' : 's'} written${missing > 0 ? `, ${missing} left as titles` : ''}`,
+                { phase: 'compose' },
+            );
+        } catch (err) {
+            if (err instanceof DOMException && err.name === 'AbortError') throw err;
+
+            /* A board or timeline has a complete, valid structure before this
+               enrichment pass starts: its lanes/milestones and item titles all
+               came from the plan. Losing that useful scaffold because a
+               best-effort prose request timed out or was rate-limited turned a
+               recoverable body failure into the all-or-nothing error shown to
+               the user. Place the titled structure, make the limitation
+               explicit, and leave each item editable for them to flesh out. */
+            if (artifact.type === 'board' || artifact.type === 'timeline') {
+                const itemCount = artifact.type === 'board'
+                    ? artifact.cards?.length ?? 0
+                    : artifact.milestones?.length ?? 0;
+                outlined.push({ title: artifact.title, itemCount });
+                metrics.unwrittenItems += itemCount;
+                ctx.settle(
+                    stepId,
+                    'done',
+                    `${label} — details unavailable; adding ${itemCount} titled ${artifact.type === 'board' ? 'card' : 'milestone'}${itemCount === 1 ? '' : 's'}`,
+                    {
+                        phase: 'compose',
+                        detail: {
+                            kind: 'note',
+                            text: 'The structure is ready to place. Its item descriptions can be filled in on the canvas.',
+                        },
+                    },
+                );
+                return;
+            }
+
+            failed.push(artifact.title);
+            ctx.settle(stepId, 'failed', `Couldn’t write “${artifact.title}” — skipped`, { phase: 'compose' });
+        }
+    });
+
+    assertLive(ctx.signal);
+
+    /* An artifact whose body failed is dropped rather than placed empty: a card
+       with a title and nothing in it is worse than no card. */
+    const placeable = artifacts.filter((a) => !failed.includes(a.title));
+
+    /* Say when something already exists rather than quietly making a second one
+       (ai-Plan.md §5.6). Duplicates are the failure mode of a canvas assistant
+       that cannot see what it has already done: ask twice, get two "Pricing
+       page rewrite" cards and no idea which is current.
+       It reports rather than skips — the user asked for this, and the AI is not
+       entitled to decide their card is close enough. Naming it is the honest
+       middle: they can undo the turn or merge, both cheap; a silently skipped
+       artifact is neither visible nor recoverable. */
+    const existingTitles = new Map(
+        useStore.getState().nodes
+            .filter((n) => (n.parentId ?? null) === ctx.currentParentId)
+            .map((n) => [nodeTitle(n).trim().toLowerCase(), nodeTitle(n)]),
+    );
+    const duplicates = placeable
+        .map((a) => existingTitles.get(a.title.trim().toLowerCase()))
+        .filter((title): title is string => Boolean(title));
+    if (placeable.length === 0) {
+        return {
+            createdNodeIds: [],
+            summary: 'Every part of that came back unusable, so nothing was added. Try again, or lower the effort — shorter pieces come back cleanly more often.',
+        };
+    }
+
+    ctx.settle(
+        placeStepId,
+        'running',
+        `Placing ${placeable.length} item${placeable.length === 1 ? '' : 's'} on the canvas`,
+        { phase: 'place' },
+    );
 
     const created: string[] = [];
     let blocked = 0;
@@ -720,8 +1176,8 @@ export async function runCreate(query: string, context: string, ctx: RunnerConte
     // Measure the block first so it can be placed as one unit, then fill it in
     // reading order — card 1 top-left, card 6 bottom-right.
     const rows: { items: AIStructuredAction[]; width: number; height: number; full: boolean }[] = [];
-    actions.forEach((action) => {
-        const size = sizeFor(action);
+    placeable.forEach((action) => {
+        const size = sizeFor(action, ctx.mindmapLayout);
         const wide = size.width >= FULL_ROW_WIDTH;
         const row = rows[rows.length - 1];
         if (!row || wide || row.full || row.items.length === PER_ROW) {
@@ -743,7 +1199,7 @@ export async function runCreate(query: string, context: string, ctx: RunnerConte
         let cursorX = blockOrigin.x;
         row.items.forEach((action) => {
             positioned.push({ action, position: { x: cursorX, y: cursorY } });
-            cursorX += sizeFor(action).width + GRID_GAP;
+            cursorX += sizeFor(action, ctx.mindmapLayout).width + GRID_GAP;
         });
         cursorY += row.height + GRID_GAP;
     });
@@ -759,16 +1215,93 @@ export async function runCreate(query: string, context: string, ctx: RunnerConte
 
         if (landed.length === 0 && ids.length > 0) {
             blocked += 1;
-            ctx.step('error', `Couldn't add ${label} — the canvas is at its card limit`);
+            ctx.step('error', `Couldn't add ${label} — the canvas is at its card limit`, undefined, { phase: 'place' });
         } else if (label) {
-            ctx.step('result', `Added ${label}`);
+            ctx.step('result', `Added ${label}`, undefined, {
+                phase: 'place',
+                // The ids let the trace line offer the cards as click-to-locate
+                // chips, so "what exactly did it just put on my canvas" is
+                // answerable from the transcript rather than by hunting.
+                detail: { kind: 'cards', nodeIds: landed },
+            });
         }
     });
+
+    ctx.settle(
+        placeStepId,
+        created.length > 0 ? 'done' : 'failed',
+        created.length > 0
+            ? `Placed ${created.length} item${created.length === 1 ? '' : 's'} on the canvas`
+            : 'Nothing could be placed',
+        { phase: 'place', ...(created.length > 0 ? { detail: { kind: 'cards' as const, nodeIds: created } } : {}) },
+    );
+
+    stampProvenance(created, ctx.provenance);
+
+    /* Check the work before the user acts on it (ai-Plan.md §5.6). Runs AFTER
+       placement, not before: the cards are already useful, and holding them
+       back behind another round trip would double the perceived latency of the
+       one effort level that is already the slowest (§10 D2). */
+    let concerns: { title: string; concern: string }[] = [];
+    if (budget.verify && created.length > 0) {
+        const reviewable = placeable
+            .filter((a) => typeof a.content === 'string' && a.content.trim())
+            .map((a) => ({ title: a.title, body: a.content as string }));
+        if (reviewable.length > 0) {
+            const verifyStep = ctx.step('action', 'Checking the claims it made', 'running', { phase: 'verify' });
+            concerns = await verifyArtifacts(reviewable, context, ctx.request);
+            ctx.settle(
+                verifyStep,
+                'done',
+                concerns.length === 0
+                    ? 'Checked the claims — nothing flagged'
+                    : `Flagged ${concerns.length} claim${concerns.length === 1 ? '' : 's'} worth verifying`,
+                {
+                    phase: 'verify',
+                    ...(concerns.length > 0
+                        ? { detail: { kind: 'note' as const, text: concerns.map((c) => `“${c.title}” — ${c.concern}`).join('\n') } }
+                        : {}),
+                },
+            );
+        }
+    }
+
+    recordAIRun({
+        at: startedAt,
+        effort: ctx.request?.effort ?? 'efficient',
+        planned: artifacts.length,
+        placed: placeable.length,
+        failed: failed.length,
+        repaired: metrics.repaired,
+        thin,
+        unwrittenItems: metrics.unwrittenItems,
+        blocks: metrics.blocks,
+        durationMs: Date.now() - startedAt,
+    });
+
+    /* Partial success is stated, not hidden. The old all-or-nothing path had
+       nothing to say here because there was no such thing as a partial turn. */
+    const notes: string[] = [];
+    if (failed.length > 0) {
+        notes.push(`${failed.length} of ${artifacts.length} couldn’t be written and ${failed.length === 1 ? 'was' : 'were'} skipped: ${failed.map((t) => `“${t}”`).join(', ')}.`);
+    }
+    if (outlined.length > 0) {
+        notes.push(`${outlined.map(({ title, itemCount }) => `“${title}” (${itemCount} titled item${itemCount === 1 ? '' : 's'})`).join(', ')} was added without descriptions after its writing pass was unavailable.`);
+    }
+    if (thin > 0) {
+        notes.push(`${thin} came back shorter than this effort level usually gives — asking again often fixes it.`);
+    }
+    if (concerns.length > 0) {
+        notes.push(`Worth checking: ${concerns.map((c) => `“${c.title}” — ${c.concern}`).join(' ')}`);
+    }
+    if (duplicates.length > 0) {
+        notes.push(`You already had ${duplicates.length === 1 ? 'a card' : 'cards'} called ${duplicates.map((t) => `“${t}”`).join(', ')} on this canvas — these are new, so merge or undo if that was not what you wanted.`);
+    }
 
     return {
         createdNodeIds: created,
         summary: created.length > 0
-            ? ''
+            ? notes.join(' ')
             : blocked > 0
                 ? 'Nothing could be added — this canvas has hit its card limit. Delete a few cards or open a sub-canvas and try again.'
                 : 'Nothing landed on the canvas — try rephrasing the request.',
@@ -833,5 +1366,8 @@ export function addAnswerToCanvas(title: string, markdown: string, ctx: RunnerCo
         ctx.currentParentId || undefined,
         id
     );
+    // Keeping an answer is as much an AI-created card as a generated one, and
+    // it is the one most likely to be found later with no memory of its origin.
+    stampProvenance([id], ctx.provenance);
     return id;
 }

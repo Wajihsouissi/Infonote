@@ -1,0 +1,141 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Outfit', system-ui, sans-serif;
+      background: #000000;
+      color: #ffffff;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #ff5040; text-decoration: none; }
+    a:hover { color: #ffa9e2; }
+    * { box-sizing: border-box; }
+
+    /* Low-fi on purpose: greys, one accent, blocks instead of chrome. */
+    .bar { border-radius: 4px; background: rgba(255,255,255,0.16); }
+    .lo { font-size: 11px; font-weight: 500; color: #a3a3a3; }
+    .colHead { display: flex; flex-direction: column; gap: 2px; padding: 0 0 8px 2px; }
+  </style>
+</helmet>
+
+<div style="padding: 28px 30px; background: #090909; width: 860px; display: flex; flex-direction: column; gap: 20px">
+
+  <div style="display: flex; flex-direction: column; gap: 7px">
+    <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #a3a3a3">Alternate — task lanes</span>
+    <h1 style="margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.012em; color: #ffffff">The week is a board whose columns are days</h1>
+    <p style="margin: 0; max-width: 700px; font-size: 13px; line-height: 1.6; color: #e6e6e6">
+      Instead of showing tasks inside a month grid, Week scale drops the hour grid and becomes seven
+      lanes of tasks. Cards are not placed at all here — they only tint their tasks. This is a
+      planner rather than a diary: you move work between days the way you move it between lanes.
+    </p>
+  </div>
+
+  <!-- seven day columns, wireframe -->
+  <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; background: #000000; border-radius: 16px; padding: 12px">
+
+    <div>
+      <div class="colHead"><span class="lo" style="font-weight: 600; color: #e6e6e6">Mon 24</span><span class="lo">3 tasks</span></div>
+      <div style="display: flex; flex-direction: column; gap: 5px">
+        <div style="display: flex; gap: 5px; align-items: center; padding: 6px; background: #1a1a1a; border-radius: 8px">
+          <span style="flex: none; width: 2px; align-self: stretch; min-height: 22px; border-radius: 999px; background: #5ac875"></span>
+          <span style="flex: 1; display: flex; flex-direction: column; gap: 3px"><span class="bar" style="height: 6px; width: 90%"></span><span class="bar" style="height: 6px; width: 55%; opacity: 0.6"></span></span>
+        </div>
+        <div style="display: flex; gap: 5px; align-items: center; padding: 6px; background: #1a1a1a; border-radius: 8px">
+          <span style="flex: none; width: 2px; align-self: stretch; min-height: 14px; border-radius: 999px; background: #c3ff33"></span>
+          <span class="bar" style="flex: 1; height: 6px"></span>
+        </div>
+        <div style="display: flex; gap: 5px; align-items: center; padding: 6px; background: #1a1a1a; border-radius: 8px; opacity: 0.45">
+          <span style="flex: none; width: 2px; align-self: stretch; min-height: 14px; border-radius: 999px; background: #5ac875"></span>
+          <span class="bar" style="flex: 1; height: 6px"></span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="colHead"><span class="lo" style="font-weight: 600; color: #e6e6e6">Tue 25</span><span class="lo">1 task</span></div>
+      <div style="display: flex; flex-direction: column; gap: 5px">
+        <div style="display: flex; gap: 5px; align-items: center; padding: 6px; background: #1a1a1a; border-radius: 8px">
+          <span style="flex: none; width: 2px; align-self: stretch; min-height: 14px; border-radius: 999px; background: #f5430b"></span>
+          <span class="bar" style="flex: 1; height: 6px; background: rgba(245,67,11,0.5)"></span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="colHead"><span class="lo" style="font-weight: 600; color: #e6e6e6">Wed 26</span><span class="lo">—</span></div>
+      <div style="height: 44px; border-radius: 8px; border: 1px dashed rgba(255,255,255,0.14)"></div>
+    </div>
+
+    <div>
+      <div class="colHead"><span class="lo" style="font-weight: 600; color: #e6e6e6">Thu 27</span><span class="lo">2 tasks</span></div>
+      <div style="display: flex; flex-direction: column; gap: 5px">
+        <div style="display: flex; gap: 5px; align-items: center; padding: 6px; background: #1a1a1a; border-radius: 8px">
+          <span style="flex: none; width: 2px; align-self: stretch; min-height: 14px; border-radius: 999px; background: #c3ff33"></span>
+          <span class="bar" style="flex: 1; height: 6px"></span>
+        </div>
+        <div style="display: flex; gap: 5px; align-items: center; padding: 6px; background: #1a1a1a; border-radius: 8px">
+          <span style="flex: none; width: 2px; align-self: stretch; min-height: 14px; border-radius: 999px; background: #ffa9e2"></span>
+          <span class="bar" style="flex: 1; height: 6px"></span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="colHead"><span class="lo" style="font-weight: 600; color: #e6e6e6">Fri 28</span><span class="lo">—</span></div>
+      <div style="height: 44px; border-radius: 8px; border: 1px dashed rgba(255,255,255,0.14)"></div>
+    </div>
+
+    <div style="background: color-mix(in srgb, #ff5040 12%, transparent); border-radius: 10px; padding: 6px; margin: -6px -2px">
+      <div class="colHead"><span class="lo" style="font-weight: 600; color: #ff5040">Sat 29</span><span class="lo" style="color: #ff5040">4 tasks · today</span></div>
+      <div style="display: flex; flex-direction: column; gap: 5px">
+        <div style="display: flex; gap: 5px; align-items: center; padding: 6px; background: #1a1a1a; border-radius: 8px">
+          <span style="flex: none; width: 2px; align-self: stretch; min-height: 22px; border-radius: 999px; background: #5ac875"></span>
+          <span style="flex: 1; display: flex; flex-direction: column; gap: 3px"><span class="bar" style="height: 6px; width: 85%"></span><span class="bar" style="height: 6px; width: 50%; opacity: 0.6"></span></span>
+        </div>
+        <div style="display: flex; gap: 5px; align-items: center; padding: 6px; background: #1a1a1a; border-radius: 8px">
+          <span style="flex: none; width: 2px; align-self: stretch; min-height: 14px; border-radius: 999px; background: #f365c0"></span>
+          <span class="bar" style="flex: 1; height: 6px"></span>
+        </div>
+        <div style="display: flex; gap: 5px; align-items: center; padding: 6px; background: #1a1a1a; border-radius: 8px; opacity: 0.45">
+          <span style="flex: none; width: 2px; align-self: stretch; min-height: 14px; border-radius: 999px; background: #5ac875"></span>
+          <span class="bar" style="flex: 1; height: 6px"></span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="colHead"><span class="lo" style="font-weight: 600; color: #e6e6e6">Sun 30</span><span class="lo">1 task</span></div>
+      <div style="display: flex; flex-direction: column; gap: 5px">
+        <div style="display: flex; gap: 5px; align-items: center; padding: 6px; background: #1a1a1a; border-radius: 8px">
+          <span style="flex: none; width: 2px; align-self: stretch; min-height: 14px; border-radius: 999px; background: #ffa9e2"></span>
+          <span class="bar" style="flex: 1; height: 6px"></span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
+    <div style="padding: 12px 14px; background: #1a1a1a; border-radius: 12px">
+      <span style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5ac875; margin-bottom: 6px">Why it might win</span>
+      <p style="margin: 0; font-size: 12.5px; line-height: 1.6; color: #e6e6e6">The strongest weekly planner of the three. Nothing competes for the cell — a day is a list of work, full stop — and dragging between days is one obvious gesture. It also reuses the lane drag code the board already has.</p>
+    </div>
+    <div style="padding: 12px 14px; background: #1a1a1a; border-radius: 12px">
+      <span style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #ffc31f; margin-bottom: 6px">What it costs</span>
+      <p style="margin: 0; font-size: 12.5px; line-height: 1.6; color: #e6e6e6">It replaces the hour grid, so timed events lose their home and multi-day card spans have nowhere to draw. Month view still needs an answer, so you end up designing task display twice.</p>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

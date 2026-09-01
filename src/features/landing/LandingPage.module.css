@@ -245,43 +245,10 @@
   gap: 2px;
 }
 
-/* segmented theme control — an inset well with a raised active segment */
+/* The inset well and raised active segment now come from the shared Tabs
+   component; only the gap to the next rail item is local. */
 .themeRow {
-  display: flex;
-  gap: 2px;
-  padding: 3px;
   margin-bottom: 10px;
-  background: var(--input-bg);
-  border: 1px solid var(--input-border);
-  border-radius: var(--r-md);
-}
-
-.themeBtn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 28px;
-  background: transparent;
-  border: none;
-  color: var(--btn-ghost-fg);
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: var(--r-control);
-  cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast);
-}
-
-.themeBtn:hover {
-  color: var(--text-main);
-}
-
-.themeBtnActive,
-.themeBtnActive:hover {
-  background: var(--bg-raised);
-  color: var(--text-main);
-  box-shadow: var(--elev-1);
 }
 
 .railToggle {

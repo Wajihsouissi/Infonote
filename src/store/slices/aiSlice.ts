@@ -4,6 +4,7 @@ import type { AppState, AISlice } from '../types';
 import type { AIAssistantMessage, AIMessage, AIStep } from '../../features/ai/aiTypes';
 import { isKnownModel } from '../../config/aiModels';
 import { DEFAULT_AI_EFFORT, isKnownEffort, type AIEffort } from '../../config/aiEffort';
+import { addScopeSource, removeScopeSource } from '../../features/ai/aiScope';
 import {
     deleteChat,
     deriveChatTitle,
@@ -12,6 +13,13 @@ import {
     pruneChats,
     saveChat,
 } from '../../services/storage/AIChatStore';
+import {
+    deleteCloudChat,
+    listCloudChats,
+    loadCloudChat,
+    saveChatToCloud,
+} from '../../services/storage/AIChatCloudStore';
+import type { AIChatSession } from '../../services/storage/AIChatStore';
 
 const AI_MODEL_STORAGE_KEY = 'chnk-it-ai-model';
 const AI_EFFORT_STORAGE_KEY = 'chnk-it-ai-effort';
@@ -50,6 +58,25 @@ function readSavedEffort(): AIEffort {
     return DEFAULT_AI_EFFORT;
 }
 
+function asSummary(session: AIChatSession) {
+    const { messages, ...meta } = session;
+    return { ...meta, messageCount: messages.length };
+}
+
+/** Same id means the copies are the same conversation. The newest transcript
+ * wins, whether it was written offline or on another signed-in device. */
+function newestSession(a: AIChatSession | undefined, b: AIChatSession | undefined): AIChatSession | undefined {
+    if (!a) return b;
+    if (!b) return a;
+    return a.updatedAt >= b.updatedAt ? a : b;
+}
+
+function logCloudSyncError(action: string, error: unknown) {
+    // Cloud history enriches local chat; it must never make the composer or
+    // IndexedDB cache unusable. Keep the diagnostic available in development.
+    if (import.meta.env.DEV) console.warn(`[AI] Cloud chat ${action} failed; using local history.`, error);
+}
+
 /**
  * The AI panel's session state. Deliberately outside the undo history and
  * outside the saved document: the transcript is a record of a working session,
@@ -58,6 +85,10 @@ function readSavedEffort(): AIEffort {
  */
 export const createAISlice: StateCreator<AppState, [], [], AISlice> = (set, get) => ({
     isAIPanelOpen: false,
+    aiPresentation: 'side',
+    setAIPresentation: (presentation) => set({ aiPresentation: presentation, aiHistoryRailOpen: presentation === 'fullscreen' }),
+    aiHistoryRailOpen: true,
+    setAIHistoryRailOpen: (isOpen) => set({ aiHistoryRailOpen: isOpen }),
     aiMode: 'create',
     aiImageMode: false,
     aiMessages: [],
@@ -93,12 +124,19 @@ export const createAISlice: StateCreator<AppState, [], [], AISlice> = (set, get)
         set({ aiPanelWidth: clamped });
     },
 
-    setAIPanelOpen: (isOpen) => set({ isAIPanelOpen: isOpen }),
+    setAIPanelOpen: (isOpen) => set({
+        isAIPanelOpen: isOpen,
+        // Closing the panel should not leave an invisible fullscreen layer in
+        // the shell. Draft and scroll live in AIPanel, so returning to side
+        // keeps both intact.
+        ...(!isOpen ? { aiPresentation: 'side' as const, aiHistoryRailOpen: true } : {}),
+    }),
 
     // Opening AI is a "put it beside my work" gesture, so it takes the side
     // slot from whatever else was in it rather than stacking two panels.
     openAIPanel: (mode) => set({
         isAIPanelOpen: true,
+        aiPresentation: 'side',
         ...(mode ? { aiMode: mode } : {}),
         isMetadataOpen: false,
         isTOCOpen: false,
@@ -129,6 +167,29 @@ export const createAISlice: StateCreator<AppState, [], [], AISlice> = (set, get)
     }),
 
     clearAIContexts: () => set({ aiSelectedContexts: [] }),
+
+    /* Scope is per-turn permission. AIPanel freezes it onto the sent message,
+       then clears it so later requests need a fresh @ attachment. */
+    aiScope: [],
+
+    addAIScopeSource: (source) => set((state) => ({
+        aiScope: addScopeSource(state.aiScope, source),
+    })),
+
+    removeAIScopeSource: (key) => set((state) => ({
+        aiScope: removeScopeSource(state.aiScope, key),
+    })),
+
+    clearAIScope: () => set({ aiScope: [] }),
+
+    /* Settling a form is a `role: 'form'` message update, not a new message:
+       the questions stay where they were asked in the transcript and collapse
+       to a receipt in place (ai-Plan.md §5.2). */
+    settleAIForm: (id, status, answers) => set((state) => ({
+        aiMessages: state.aiMessages.map((m) =>
+            m.id === id && m.role === 'form' ? { ...m, status, answers: answers ?? m.answers } : m
+        ),
+    })),
 
     appendAIMessage: (message) => set((state) => ({ aiMessages: [...state.aiMessages, message] })),
 
@@ -182,7 +243,9 @@ export const createAISlice: StateCreator<AppState, [], [], AISlice> = (set, get)
        one misclick on the header pencil and the session was gone with no undo. */
     newAIChat: () => {
         void get().persistAIChat().then(() => get().refreshAIChats());
-        set({ aiMessages: [], aiIsRunning: false, aiChatId: null });
+        // Scope goes with the conversation, not the app: a new chat starts with
+        // the AI seeing nothing again, which is the documented default.
+        set({ aiMessages: [], aiIsRunning: false, aiChatId: null, aiScope: [] });
     },
 
     removeAIMessages: (ids) => set((state) => ({
@@ -198,7 +261,48 @@ export const createAISlice: StateCreator<AppState, [], [], AISlice> = (set, get)
     refreshAIChats: async () => {
         set({ aiChatsLoading: true });
         try {
-            set({ aiChats: await listChats() });
+            const userId = get().auth.userId;
+            const local = (await listChats()).filter((chat) =>
+                // Pre-cloud records have no owner and remain available as an
+                // offline cache. Account-bound records never bleed into a
+                // different account's history list on a shared browser.
+                chat.ownerId == null || chat.ownerId === userId,
+            );
+            let cloud: AIChatSession[] = [];
+            try {
+                cloud = await listCloudChats(userId);
+            } catch (error) {
+                logCloudSyncError('read', error);
+            }
+
+            // IndexedDB reads run in parallel. A populated history should feel
+            // instant, not incur one round-trip per saved chat before drawing.
+            const localSessions = (await Promise.all(local.map((summary) => loadChat(summary.id).catch(() => null))))
+                .filter((session): session is AIChatSession => session !== null);
+            const localById = new Map(localSessions.map((session) => [session.id, session]));
+            const cloudById = new Map(cloud.map((session) => [session.id, session]));
+            const ids = new Set([...localById.keys(), ...cloudById.keys()]);
+            const merged: AIChatSession[] = [];
+
+            for (const id of ids) {
+                const localSession = localById.get(id) ?? null;
+                const remoteSession = cloudById.get(id);
+                const winner = newestSession(localSession ?? undefined, remoteSession);
+                if (!winner) continue;
+                const ownedWinner = { ...winner, ownerId: winner.ownerId ?? userId };
+                merged.push(ownedWinner);
+
+                // Seed a fresh device and repair an out-of-date cache in the
+                // background. The history list must not wait on either write.
+                if (!localSession || winner.updatedAt > localSession.updatedAt) {
+                    void saveChat(ownedWinner).catch((error) => console.error('[AI] Could not cache cloud chat:', error));
+                }
+                if (userId && (!remoteSession || winner.updatedAt > remoteSession.updatedAt)) {
+                    void saveChatToCloud(ownedWinner, userId, get().auth.activeWorkspaceId).catch((error) => logCloudSyncError('merge', error));
+                }
+            }
+
+            set({ aiChats: merged.sort((a, b) => b.updatedAt - a.updatedAt).map(asSummary) });
         } catch (error) {
             // A blocked or unavailable IndexedDB must not take the panel down;
             // history simply reads as empty.
@@ -216,8 +320,8 @@ export const createAISlice: StateCreator<AppState, [], [], AISlice> = (set, get)
      * idempotent. A transcript with no completed exchange is not worth a row —
      * otherwise every panel open would leave an empty "New chat" behind.
      */
-    persistAIChat: async () => {
-        const { aiMessages, aiChatId } = get();
+    persistAIChat: async (boardId) => {
+        const { aiMessages, aiChatId, auth, currentParentId } = get();
         if (aiMessages.length === 0) return;
 
         const id = aiChatId ?? uuidv4();
@@ -225,15 +329,23 @@ export const createAISlice: StateCreator<AppState, [], [], AISlice> = (set, get)
         const existing = aiChatId ? get().aiChats.find((c) => c.id === aiChatId) : undefined;
 
         try {
-            await saveChat({
+            const session: AIChatSession = {
                 id,
                 title: deriveChatTitle(aiMessages),
                 messages: aiMessages,
                 createdAt: existing?.createdAt ?? now,
                 updatedAt: now,
-            });
+                boardId: boardId ?? currentParentId,
+                ownerId: auth.userId,
+            };
+            await saveChat(session);
             if (!aiChatId) set({ aiChatId: id });
             await pruneChats();
+            try {
+                await saveChatToCloud(session, auth.userId, auth.activeWorkspaceId);
+            } catch (error) {
+                logCloudSyncError('write', error);
+            }
         } catch (error) {
             console.error('[AI] Could not save this chat:', error);
         }
@@ -243,9 +355,24 @@ export const createAISlice: StateCreator<AppState, [], [], AISlice> = (set, get)
         // Don't lose the transcript that is on screen to open another one.
         await get().persistAIChat();
         try {
-            const session = await loadChat(id);
-            if (!session) return;
-            set({ aiMessages: session.messages, aiChatId: session.id, aiIsRunning: false });
+            // Local-first means the click opens instantly when a cache exists;
+            // the cloud response may then replace it only if it is newer.
+            const local = await loadChat(id);
+            if (local) set({ aiMessages: local.messages, aiChatId: local.id, aiIsRunning: false });
+
+            let remote: AIChatSession | null = null;
+            try {
+                remote = await loadCloudChat(id, get().auth.userId);
+            } catch (error) {
+                logCloudSyncError('open', error);
+            }
+            const winner = newestSession(local ?? undefined, remote ?? undefined);
+            if (!winner) return;
+            set({ aiMessages: winner.messages, aiChatId: winner.id, aiIsRunning: false });
+            if (!local || winner.updatedAt > local.updatedAt) await saveChat({ ...winner, ownerId: winner.ownerId ?? get().auth.userId });
+            if (get().auth.userId && (!remote || winner.updatedAt > remote.updatedAt)) {
+                void saveChatToCloud(winner, get().auth.userId, get().auth.activeWorkspaceId).catch((error) => logCloudSyncError('open merge', error));
+            }
         } catch (error) {
             console.error('[AI] Could not open that chat:', error);
         }
@@ -255,17 +382,25 @@ export const createAISlice: StateCreator<AppState, [], [], AISlice> = (set, get)
     duplicateAIChat: async (id) => {
         await get().persistAIChat();
         try {
-            const session = await loadChat(id);
+            const session = await loadChat(id) ?? await loadCloudChat(id, get().auth.userId);
             if (!session) return;
             const now = Date.now();
             const copyId = uuidv4();
-            await saveChat({
+            const copy: AIChatSession = {
                 ...session,
                 id: copyId,
                 title: `${session.title} · copy`,
                 createdAt: now,
                 updatedAt: now,
-            });
+                boardId: get().currentParentId,
+                ownerId: get().auth.userId,
+            };
+            await saveChat(copy);
+            try {
+                await saveChatToCloud(copy, get().auth.userId, get().auth.activeWorkspaceId);
+            } catch (error) {
+                logCloudSyncError('duplicate', error);
+            }
             set({ aiMessages: session.messages, aiChatId: copyId, aiIsRunning: false });
         } catch (error) {
             console.error('[AI] Could not duplicate that chat:', error);
@@ -286,7 +421,10 @@ export const createAISlice: StateCreator<AppState, [], [], AISlice> = (set, get)
                 }
             }
             if (lastUserIndex < 0) return null;
-            const prompt = session.messages[lastUserIndex].text.trim();
+            // The message union now includes clarifying forms, which carry
+            // questions rather than text — narrow rather than assume.
+            const lastUser = session.messages[lastUserIndex];
+            const prompt = lastUser.role === 'user' ? lastUser.text.trim() : '';
             if (!prompt) return null;
             set({
                 aiMessages: session.messages.slice(0, lastUserIndex),
@@ -306,6 +444,11 @@ export const createAISlice: StateCreator<AppState, [], [], AISlice> = (set, get)
             await deleteChat(id);
         } catch (error) {
             console.error('[AI] Could not delete that chat:', error);
+        }
+        try {
+            await deleteCloudChat(id, get().auth.userId);
+        } catch (error) {
+            logCloudSyncError('delete', error);
         }
         // Deleting the open session leaves the transcript on screen but detached,
         // so the next save starts a fresh row rather than resurrecting this one.

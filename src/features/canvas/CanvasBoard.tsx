@@ -1,10 +1,8 @@
 import { memo, useMemo, useEffect, useRef, useCallback, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { FEATURES } from '../../config/featureFlags';
 import {
     ReactFlow,
     Controls,
-    MiniMap,
     SelectionMode,
     Background,
     BackgroundVariant,
@@ -18,18 +16,26 @@ import { NoteCard } from '../card/NoteCard';
 import { BlockNode } from '../block/BlockNode';
 import { FusedNoteNode } from '../card/FusedNoteNode';
 import { KanbanNodeComponent } from '../kanban/KanbanNode';
+import {
+    YouTubeNode,
+    createYouTubeStudyData,
+    OPEN_YOUTUBE_STUDY_EVENT,
+    parseYouTubeUrl,
+    type OpenYouTubeStudyDetail,
+} from '../youtube';
 import { Breadcrumbs } from '../navigation/Breadcrumbs';
 import { BottomMenu } from '../ui/BottomMenu';
 import { SidePanel } from '../ui/SidePanel';
 import { FullscreenModal } from '../ui/FullscreenModal';
 import { CenterModal } from '../ui/CenterModal';
+import { CardTasksModal } from '../card/tasks/CardTasksModal';
 import { MetadataPanel } from '../ui/MetadataPanel';
 import { TableOfContentsPanel } from '../ui/TableOfContentsPanel';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { StorageControls } from '../ui/StorageControls';
 import { KeyboardShortcutsPanel } from '../ui/KeyboardShortcutsPanel';
 import { AIPanel } from '../ai/AIPanel';
-import { SlidersHorizontal, ListCollapse, Keyboard } from '../../components/icons';
+import { SlidersHorizontal, ListCollapse, Keyboard, Plus } from '../../components/icons';
 import { DuotoneIcon } from '../../components/ui/DuotoneIcon';
 import { HomeButton } from '../ui/HomeButton';
 import { HistoryControls } from '../ui/HistoryControls';
@@ -38,10 +44,12 @@ import { ModifierKeyIndicator } from '../ui/ModifierKeyIndicator';
 import { CanvasSlashMenu } from './CanvasSlashMenu';
 import { DragChip } from './DragChip';
 import { CanvasContextMenu } from './CanvasContextMenu';
+import { BranchDeleteConfirmation } from './BranchDeleteConfirmation';
 
 import { CenteredEdge } from './CenteredEdge';
 import { CustomConnectionLine } from './CustomConnectionLine';
-import { ChunkItModal } from '../card/ChunkItModal';
+import { CanvasMiniMap } from './CanvasMiniMap';
+import { ChunkItPanel } from '../card/ChunkItPanel';
 import { AuthModal } from '../auth/AuthModal';
 import { useStore } from '../../store/useStore';
 import type { AppNode } from '../../types';
@@ -57,11 +65,20 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { parseFiles, parseTextOrHtml } from '../editor/pasteUtils';
 import { endBlockDrag } from '../editor/blockDragLock';
-import { loadCanvasFromCloud } from '../../services/cloudSync';
+import { loadCanvasFromCloud, type CloudLoadProgress } from '../../services/cloudSync';
+import {
+    forgetWorkspace,
+    hasHydrated,
+    loadWorkspaceOnce,
+    unsubscribeWorkspaceProgress,
+} from './workspaceHydration';
+import { WorkspaceLoadOverlay, WorkspaceSyncPill } from './WorkspaceLoadOverlay';
+import { useDelayedFlag } from './useDelayedFlag';
 import { isSupabaseConfigured, supabase } from '../../services/supabase/client';
+import { isCanvasHydratableBlock } from '../../store/contentHydration';
 
 // Hooks
-import { setStreaming } from './hooks/lodStore';
+import { isStreaming, setStreaming } from './hooks/lodStore';
 import {
     useCanvasStoreSelectors,
     useCanvasViewport,
@@ -100,7 +117,7 @@ const MetadataPanelM = memo(MetadataPanel);
 const TableOfContentsPanelM = memo(TableOfContentsPanel);
 const KeyboardShortcutsPanelM = memo(KeyboardShortcutsPanel);
 const AIPanelM = memo(AIPanel);
-const ChunkItModalM = memo(ChunkItModal);
+const ChunkItPanelM = memo(ChunkItPanel);
 const BottomMenuM = memo(BottomMenu);
 const SidePanelM = memo(SidePanel);
 const FullscreenModalM = memo(FullscreenModal);
@@ -109,12 +126,30 @@ const AuthModalM = memo(AuthModal);
 const CanvasSlashMenuM = memo(CanvasSlashMenu);
 const DragChipM = memo(DragChip);
 
+// Trackpad and wheel zooms arrive as many tiny, separate React Flow gestures.
+// Keeping the canvas in its inexpensive movement state across that small gap
+// prevents an editor-detail promotion between two consecutive wheel ticks.
+const VIEWPORT_SETTLE_MS = 130;
+const MIN_CANVAS_ZOOM = 0.3;
+const PROGRAMMATIC_SELECTION_GUARD_MS = 250;
+
+const isDirectViewportGesture = (event?: MouseEvent | TouchEvent | null) => event instanceof WheelEvent
+    || event instanceof TouchEvent
+    || (event instanceof MouseEvent && event.buttons !== 0);
+
+const isEditableTarget = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) return false;
+    return target.tagName === 'INPUT'
+        || target.tagName === 'TEXTAREA'
+        || target.isContentEditable
+        || Boolean(target.closest('[contenteditable], [data-chnk-it-block-editor], [class*="BlockEditor"], [class*="editor"]'));
+};
+
 export function CanvasBoard() {
     // Store selectors and actions
     const {
         edges,
         currentParentId,
-        selectedCanvasNodeIds,
         theme,
         onNodesChange,
         onConnect,
@@ -134,10 +169,11 @@ export function CanvasBoard() {
         setLastCreatedCanvasNodeId,
     } = useCanvasStoreSelectors();
 
-    /* True while a modal overlay (fullscreen or center peek) is covering the
-       canvas. Both are the only panels that fully obscure it — SidePeek docks
-       beside the canvas and leaves it visible, so it is deliberately excluded
-       here. See the `inert` usage below for why this needs to exist at all. */
+    const canvasAreaRef = useRef<HTMLDivElement | null>(null);
+    const requestNodeDeletion = useStore(s => s.requestNodeDeletion);
+    const navigateToNode = useStore(s => s.navigateToNode);
+
+    /* True while a card-level modal is covering the canvas. */
     const isCanvasObscured = useStore(useCallback(
         s => Boolean(s.fullscreenId || s.centerPanelId),
         []
@@ -204,12 +240,60 @@ export function CanvasBoard() {
     const [justFocused, setJustFocused] = useState(false);
     const justFocusedTimeoutRef = useRef<number | null>(null);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
-    const loadedCloudWorkspaceRef = useRef<string | null>(null);
+    const [organizationNotice, setOrganizationNotice] = useState<{
+        count: number;
+        historyDepth: number;
+    } | null>(null);
+    const organizationNoticeTimeoutRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        const handleCanvasOrganized = (event: Event) => {
+            const { count, historyDepth } = (event as CustomEvent<{
+                count: number;
+                historyDepth: number;
+            }>).detail;
+            setOrganizationNotice({ count, historyDepth });
+            if (organizationNoticeTimeoutRef.current !== null) {
+                window.clearTimeout(organizationNoticeTimeoutRef.current);
+            }
+            organizationNoticeTimeoutRef.current = window.setTimeout(() => {
+                setOrganizationNotice(null);
+                organizationNoticeTimeoutRef.current = null;
+            }, 5000);
+        };
+        window.addEventListener('chnk-it:canvas-organized', handleCanvasOrganized);
+        return () => {
+            window.removeEventListener('chnk-it:canvas-organized', handleCanvasOrganized);
+            if (organizationNoticeTimeoutRef.current !== null) {
+                window.clearTimeout(organizationNoticeTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    const undoCanvasOrganization = useCallback(() => {
+        if (!organizationNotice) return;
+        const temporal = useStore.temporal.getState();
+        if (temporal.pastStates.length === organizationNotice.historyDepth) {
+            temporal.undo();
+        }
+        setOrganizationNotice(null);
+        if (organizationNoticeTimeoutRef.current !== null) {
+            window.clearTimeout(organizationNoticeTimeoutRef.current);
+            organizationNoticeTimeoutRef.current = null;
+        }
+    }, [organizationNotice]);
+    /* Cloud load state lives in the store, not here: the cloud status icon in
+       the top bar reads the same field, so the loader and the icon cannot
+       disagree about whether data is still arriving.
+         blocking   — first open of an empty canvas; the shell is frozen.
+         background — any later refresh; the canvas stays interactive. */
+    const cloudLoad = useStore(s => s.storage.cloudLoad);
+    const setCloudLoad = useStore(s => s.setCloudLoad);
     const authUserId = useStore(s => s.auth.userId);
     const activeWorkspaceId = useStore(s => s.auth.activeWorkspaceId);
     const isAuthenticated = useStore(s => s.auth.isAuthenticated);
     const loadGraph = useStore(s => s.loadGraph);
-    const setCloudLastSaved = useStore(s => s.setCloudLastSaved);
+    const setCloudLastLoaded = useStore(s => s.setCloudLastLoaded);
     const setCloudDirty = useStore(s => s.setCloudDirty);
     const setCloudError = useStore(s => s.setCloudError);
 
@@ -218,17 +302,91 @@ export function CanvasBoard() {
 
     // Viewport culling and visible nodes
     /* Detail streams in when the gesture stops rather than during it: promoting
-       a row of cards to a richer tier mid-pan is what makes the drag stutter. */
-    const handleMoveStart = useCallback(() => setStreaming(true), []);
-    const handleMoveEnd = useCallback(() => setStreaming(false), []);
+       a row of cards to a richer tier mid-pan is what makes the drag stutter.
+       Wheel/trackpad events can each look like a complete gesture to React
+       Flow, so allow a short quiet period before restoring rich detail. */
+    const viewportSettleTimerRef = useRef<number | null>(null);
+    const flushViewportRef = useRef<() => void>(() => {});
+    const publishZoomRef = useRef<() => void>(() => {});
+    const clearViewportSettleTimer = useCallback(() => {
+        if (viewportSettleTimerRef.current !== null) {
+            window.clearTimeout(viewportSettleTimerRef.current);
+            viewportSettleTimerRef.current = null;
+        }
+    }, []);
+    const handleMoveStart = useCallback((event?: MouseEvent | TouchEvent | null) => {
+        clearViewportSettleTimer();
+        // Programmatic camera moves (fit/pan-to-new-card) pass a null event and
+        // must remain clickable. Some React Flow camera paths surface a mouse
+        // event with no pressed buttons, so presence alone is not enough to
+        // identify a gesture. Freeze hit-testing only for an actual pressed
+        // pointer, touch, or wheel interaction.
+        // Do not freeze nodes on pointer-down alone: a pane click has no move
+        // phase, and would otherwise make an immediate card click miss. The
+        // class is added by onViewportMove after the camera actually changes.
+        if (!isDirectViewportGesture(event)) canvasAreaRef.current?.classList.remove(styles.viewportMoving);
+        setStreaming(true);
+    }, [clearViewportSettleTimer]);
+    const handleMoveEnd = useCallback((immediate = false) => {
+        clearViewportSettleTimer();
+        if (immediate) {
+            canvasAreaRef.current?.classList.remove(styles.viewportMoving);
+            setStreaming(false);
+            flushViewportRef.current();
+            publishZoomRef.current();
+            return;
+        }
+        viewportSettleTimerRef.current = window.setTimeout(() => {
+            viewportSettleTimerRef.current = null;
+            canvasAreaRef.current?.classList.remove(styles.viewportMoving);
+            setStreaming(false);
+            // The movement path deliberately re-culls less often. Bring the
+            // viewport fully up to date once, after it is safe to spend work.
+            flushViewportRef.current();
+            // Counter-scaled card controls only need the final zoom. Mutating
+            // an inherited custom property on every wheel tick invalidated the
+            // styles of the entire canvas and was the dominant zoom cost.
+            publishZoomRef.current();
+        }, VIEWPORT_SETTLE_MS);
+    }, [clearViewportSettleTimer]);
 
-    const { visibleNodes, handleViewportChange } = useCanvasViewport({
+    /* React Flow normally closes a viewport gesture through `onMoveEnd`. Keep a
+       native release as a safety net for pointerups that land outside its pane
+       (for example after a fast pan reaches the window edge). Without it the
+       LOD store can remain in streaming mode and correctly-demoted editors
+       would never be eligible to remount. The same settle window is used here
+       so a pointer release and React Flow's `onMoveEnd` cannot cause rich
+       cards to mount between consecutive wheel events. */
+    useEffect(() => {
+        const canvasArea = canvasAreaRef.current;
+        const releaseStreaming = () => handleMoveEnd();
+        const releaseImmediately = () => handleMoveEnd(true);
+        window.addEventListener('pointerup', releaseStreaming);
+        window.addEventListener('pointercancel', releaseStreaming);
+        window.addEventListener('mouseup', releaseStreaming);
+        window.addEventListener('blur', releaseImmediately);
+        return () => {
+            window.removeEventListener('pointerup', releaseStreaming);
+            window.removeEventListener('pointercancel', releaseStreaming);
+            window.removeEventListener('mouseup', releaseStreaming);
+            window.removeEventListener('blur', releaseImmediately);
+            clearViewportSettleTimer();
+            canvasArea?.classList.remove(styles.viewportMoving);
+        };
+    }, [handleMoveEnd, clearViewportSettleTimer]);
+
+    const { visibleNodes, handleViewportChange, flushViewportChange } = useCanvasViewport({
         currentParentId,
     });
 
+    useEffect(() => {
+        flushViewportRef.current = flushViewportChange;
+        return () => { flushViewportRef.current = () => {}; };
+    }, [flushViewportChange]);
+
     const processedNodes = useMemo(() => {
         return visibleNodes.map(node => {
-            const isSelected = selectedCanvasNodeIds.has(node.id);
+            const isSelected = Boolean(node.selected);
             const baseClass = node.className || '';
 
             let nextClass = baseClass
@@ -249,42 +407,7 @@ export function CanvasBoard() {
                 className: nextClass,
             };
         });
-    }, [visibleNodes, selectedCanvasNodeIds, isLinkingMode]);
-
-    // Sync node.selected into the store whenever selectedCanvasNodeIds changes.
-    // This is what React Flow reads to decide which nodes join a multi-drag.
-    //
-    // CRITICAL: We use useStore.setState directly instead of setNodes because
-    // setNodes unconditionally calls setCloudDirty(true), which triggers the
-    // useStore.subscribe delta-tracker. That tracker diffs nodes by reference,
-    // finds "changed" objects (because we create new objects with flipped
-    // `selected`), and calls markNodesDirty → further store updates →
-    // onSelectionChange re-fires → new Set → this effect re-runs → infinite loop.
-    //
-    // The `selected` flag is purely a UI concern and must NOT mark the cloud dirty.
-    useEffect(() => {
-        const currentNodes = useStore.getState().nodes;
-        let needsUpdate = false;
-        for (const n of currentNodes) {
-            if (!!n.selected !== selectedCanvasNodeIds.has(n.id)) {
-                needsUpdate = true;
-                break;
-            }
-        }
-        if (!needsUpdate) return;
-
-        // Record timestamp so onSelectionChange ignores ReactFlow's callback
-        // that fires as an async side-effect of us changing nodes.
-        lastProgrammaticSelectionTimeRef.current = Date.now();
-
-        // Direct setState bypasses setNodes → setCloudDirty chain
-        const nextNodes = currentNodes.map(n => {
-            const shouldBeSelected = selectedCanvasNodeIds.has(n.id);
-            if (!!n.selected === shouldBeSelected) return n;
-            return { ...n, selected: shouldBeSelected };
-        });
-        useStore.setState({ nodes: nextNodes as AppNode[] });
-    }, [selectedCanvasNodeIds]);
+    }, [visibleNodes, isLinkingMode]);
 
 
 
@@ -320,9 +443,58 @@ export function CanvasBoard() {
     }, [currentParentId, visibleNodes]);
 
     const addNode = useStore(s => s.addNode);
+    const hydrateCanvasFromContent = useStore(s => s.hydrateCanvasFromContent);
+    const migrateTopicMapToDocumentTree = useStore(s => s.migrateTopicMapToDocumentTree);
 
     // Focus viewport when parent changes
     const { fitView, screenToFlowPosition, getViewport, setViewport, setCenter } = useReactFlow();
+    const fitViewRef = useRef(fitView);
+    const visibleNodesRef = useRef(visibleNodes);
+
+    useEffect(() => {
+        fitViewRef.current = fitView;
+        visibleNodesRef.current = visibleNodes;
+    }, [fitView, visibleNodes]);
+
+    // Existing Smart Link blocks intentionally remain ordinary links. Their
+    // explicit "Study" action enters through this event so an older YouTube
+    // embed can become a proper study source without re-pasting its URL.
+    useEffect(() => {
+        if (!FEATURES.youtubeStudy) return;
+
+        const handleOpenYoutubeStudy = (event: Event) => {
+            const { url } = (event as CustomEvent<OpenYouTubeStudyDetail>).detail || {};
+            const youtube = typeof url === 'string' ? parseYouTubeUrl(url) : null;
+            if (!youtube) return;
+
+            const existing = useStore.getState().nodes.find((node) =>
+                node.type === 'youtube' && node.data?.video?.videoId === youtube.videoId,
+            );
+            if (existing) {
+                setRightSidePanelId(existing.id);
+                return;
+            }
+
+            const flowPos = screenToFlowPosition({
+                x: window.innerWidth / 2,
+                y: window.innerHeight / 2,
+            });
+            const sourceNodeId = uuidv4();
+            addNode(
+                'youtube',
+                { x: flowPos.x - 180, y: flowPos.y - 152 },
+                createYouTubeStudyData(youtube.canonicalUrl),
+                { width: 360, height: 304 },
+                currentParentId || undefined,
+                sourceNodeId,
+            );
+            setSelectedCanvasNodeIds(new Set([sourceNodeId]));
+            setRightSidePanelId(sourceNodeId);
+        };
+
+        window.addEventListener(OPEN_YOUTUBE_STUDY_EVENT, handleOpenYoutubeStudy);
+        return () => window.removeEventListener(OPEN_YOUTUBE_STUDY_EVENT, handleOpenYoutubeStudy);
+    }, [addNode, currentParentId, screenToFlowPosition, setRightSidePanelId, setSelectedCanvasNodeIds]);
 
     // Focus last exited node when navigating backwards
     const lastExitedNodeId = useStore(s => s.lastExitedNodeId);
@@ -363,22 +535,56 @@ export function CanvasBoard() {
        screen — the card hover menus, whose 32px buttons shrink to an unclickable
        12px at 0.4x — counter-scales off this. It writes a custom property rather
        than feeding state, so zooming costs one style mutation instead of a
-       re-render of every visible node. handleViewportChange can't carry it: that
-       one is throttled and skips small moves, and the size has to track the wheel
-       exactly or the buttons visibly jump. */
+       re-render of every visible node. Coalesce raw wheel events to one update
+       per paint: high-resolution trackpads otherwise produce several style and
+       culling reads before the browser has rendered even one frame. */
+    const viewportWorkFrameRef = useRef<number | null>(null);
+    const lastPublishedZoomRef = useRef<number | null>(null);
     const publishZoom = useCallback(() => {
-        document.documentElement.style.setProperty('--rf-zoom', String(getViewportRef.current().zoom));
+        const zoom = getViewportRef.current().zoom;
+        const canvasArea = canvasAreaRef.current;
+        if (!canvasArea) return;
+        if (lastPublishedZoomRef.current === zoom) return;
+        lastPublishedZoomRef.current = zoom;
+        // This is consumed only by card chrome inside the canvas. Publishing
+        // it at the root invalidates styles for the whole app on each zoom
+        // frame (menus, panels, modals, and every mounted node).
+        canvasArea.style.setProperty('--rf-zoom', String(zoom));
     }, []);
 
-    const onViewportMove = useCallback(() => {
-        publishZoom();
-        handleViewportChange();
-    }, [publishZoom, handleViewportChange]);
+    const scheduleViewportWork = useCallback(() => {
+        if (viewportWorkFrameRef.current !== null) return;
+        viewportWorkFrameRef.current = requestAnimationFrame(() => {
+            viewportWorkFrameRef.current = null;
+            handleViewportChange();
+        });
+    }, [handleViewportChange]);
+
+    const onViewportMove = useCallback((event?: MouseEvent | TouchEvent | null) => {
+        // Some wheel devices do not emit a fresh onMoveStart for every tick.
+        // Treat any transform as active movement so deferred LOD work cannot
+        // be flushed in the middle of a continuous zoom.
+        clearViewportSettleTimer();
+        if (isDirectViewportGesture(event)) canvasAreaRef.current?.classList.add(styles.viewportMoving);
+        else canvasAreaRef.current?.classList.remove(styles.viewportMoving);
+        setStreaming(true);
+        scheduleViewportWork();
+    }, [clearViewportSettleTimer, scheduleViewportWork]);
 
     // fitView on mount settles the viewport without ever firing onMove.
     useEffect(() => {
         publishZoom();
-    }, [publishZoom, currentParentId, visibleNodes.length]);
+        publishZoomRef.current = publishZoom;
+        return () => { publishZoomRef.current = () => {}; };
+    }, [publishZoom, currentParentId]);
+
+    useEffect(() => {
+        return () => {
+            if (viewportWorkFrameRef.current !== null) {
+                cancelAnimationFrame(viewportWorkFrameRef.current);
+            }
+        };
+    }, []);
 
     /* Presence cursors ride on pointermove, which fires far faster than any
        collaborator can perceive — and during a node drag it fires on the same
@@ -386,7 +592,7 @@ export function CanvasBoard() {
        at all mid-drag, where the moving card is the message. */
     const lastCursorPush = useRef(0);
     const handlePointerMove = useCallback((e: React.PointerEvent) => {
-        if (useStore.getState().interactionState.draggedNodeId) return;
+        if (isStreaming() || useStore.getState().interactionState.draggedNodeId) return;
         const now = performance.now();
         if (now - lastCursorPush.current < 50) return;
         lastCursorPush.current = now;
@@ -448,7 +654,7 @@ export function CanvasBoard() {
             if (plusPressed) {
                 newZoom = Math.min(2, zoom * zoomFactorPerFrame);
             } else if (minusPressed) {
-                newZoom = Math.max(0.05, zoom / zoomFactorPerFrame);
+                newZoom = Math.max(MIN_CANVAS_ZOOM, zoom / zoomFactorPerFrame);
             }
 
             if (newZoom !== zoom) {
@@ -503,13 +709,14 @@ export function CanvasBoard() {
                 setShortcutsPanelOpen(!isShortcutsPanelOpen);
             } else if (e.key === 'l') {
                 e.preventDefault();
-                if (selectedCanvasNodeIds.size >= 2) {
+                if (useStore.getState().selectedCanvasNodeIds.size >= 2) {
                     setIsLinkingMode(!isLinkingMode);
                 }
             } else if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
                 e.preventDefault();
-                if (selectedCanvasNodeIds.size > 0) {
-                    bulkDuplicateNodes(Array.from(selectedCanvasNodeIds));
+                const selectedIds = Array.from(useStore.getState().selectedCanvasNodeIds);
+                if (selectedIds.length > 0) {
+                    bulkDuplicateNodes(selectedIds);
                 }
             }
         };
@@ -540,7 +747,7 @@ export function CanvasBoard() {
                 cancelAnimationFrame(animationFrameId.current);
             }
         };
-    }, [isInEditableField, fitView, isShortcutsPanelOpen, setShortcutsPanelOpen, selectedCanvasNodeIds, setIsLinkingMode, isLinkingMode, bulkDuplicateNodes]);
+    }, [isInEditableField, fitView, isShortcutsPanelOpen, setShortcutsPanelOpen, setIsLinkingMode, isLinkingMode, bulkDuplicateNodes]);
 
     useEffect(() => {
         isFocusArmedRef.current = isFocusArmed;
@@ -605,13 +812,19 @@ export function CanvasBoard() {
         };
     }, [blurActiveEditable, isInEditableField]);
 
-    const selectedCanvasNodeIdsRef = useRef(selectedCanvasNodeIds);
-    // Sync node selection to ReactFlow when changed externally
+    const selectedCanvasNodeIdsRef = useRef(useStore.getState().selectedCanvasNodeIds);
     const nodesRef = useRef(useStore.getState().nodes);
     useEffect(() => {
-        selectedCanvasNodeIdsRef.current = selectedCanvasNodeIds;
-        nodesRef.current = useStore.getState().nodes;
-    }, [selectedCanvasNodeIds]); // Use selectedCanvasNodeIds as a proxy to keep ref roughly updated since it doesn't trigger re-renders now on drag
+        return useStore.subscribe((state, previousState) => {
+            if (state.selectedCanvasNodeIds !== previousState.selectedCanvasNodeIds) {
+                selectedCanvasNodeIdsRef.current = state.selectedCanvasNodeIds;
+                const selectionChanged = state.selectedCanvasNodeIds.size !== previousState.selectedCanvasNodeIds.size
+                    || Array.from(state.selectedCanvasNodeIds).some(id => !previousState.selectedCanvasNodeIds.has(id));
+                if (selectionChanged) lastProgrammaticSelectionTimeRef.current = Date.now();
+            }
+            if (state.nodes !== previousState.nodes) nodesRef.current = state.nodes;
+        });
+    }, []);
 
     useEffect(() => {
         const clearArm = () => {
@@ -636,11 +849,11 @@ export function CanvasBoard() {
 
         // Shared focusing path for the F shortcut and controls outside the
         // canvas, such as an AI turn's “Locate on canvas” action.
-        const focusNodes = (nodesToFocus: AppNode[]) => {
+        const focusNodes = (nodesToFocus: AppNode[], duration = 450) => {
             if (nodesToFocus.length === 0) return false;
 
             setSelectedCanvasNodeIds(new Set(nodesToFocus.map((node) => node.id)));
-            fitView({ nodes: nodesToFocus, padding: 0.45, duration: 450, maxZoom: 1.3 });
+            fitView({ nodes: nodesToFocus, padding: 0.45, duration, maxZoom: 1.3 });
             clearArm();
 
             if (justFocusedTimeoutRef.current) {
@@ -656,9 +869,9 @@ export function CanvasBoard() {
         };
 
         const handleFocusCanvasNodes = (e: Event) => {
-            const { ids } = (e as CustomEvent<{ ids?: string[] }>).detail ?? {};
+            const { ids, duration } = (e as CustomEvent<{ ids?: string[]; duration?: number }>).detail ?? {};
             if (!ids?.length) return;
-            focusNodes(useStore.getState().nodes.filter((node) => ids.includes(node.id)));
+            focusNodes(useStore.getState().nodes.filter((node) => ids.includes(node.id)), duration);
         };
 
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -910,6 +1123,22 @@ export function CanvasBoard() {
                 const text = e.clipboardData?.getData('text/plain')?.trim();
                 const html = e.clipboardData?.getData('text/html');
                 if (!text && !html) return;
+                const youtube = FEATURES.youtubeStudy && text ? parseYouTubeUrl(text) : null;
+                if (youtube) {
+                    e.preventDefault();
+                    const flowPos = screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+                    const forceId = uuidv4();
+                    addNode(
+                        'youtube',
+                        { x: flowPos.x - 180, y: flowPos.y - 152 },
+                        createYouTubeStudyData(youtube.canonicalUrl),
+                        { width: 360, height: 304 },
+                        currentParentId || undefined,
+                        forceId,
+                    );
+                    setSelectedCanvasNodeIds(new Set([forceId]));
+                    return;
+                }
                 e.preventDefault();
                 // Create a synthetic React-like event for parseTextOrHtml
                 parsedBlocks = parseTextOrHtml({
@@ -1030,7 +1259,7 @@ export function CanvasBoard() {
             e.clipboardData.setData('text/plain', built.text);
             e.clipboardData.setData('text/html', built.html);
             e.preventDefault();
-            useStore.getState().bulkDeleteNodes(built.ids, true);
+            useStore.getState().requestNodeDeletion(built.ids);
         };
 
         document.addEventListener('copy', onCopy);
@@ -1079,10 +1308,14 @@ export function CanvasBoard() {
         return () => document.removeEventListener('contextmenu', handleContextMenu, { capture: true });
     }, []);
 
+    const lastFittedParentRef = useRef<string | null | undefined>(undefined);
     useEffect(() => {
-        if (visibleNodes.length > 0) {
+        if (lastFittedParentRef.current === currentParentId) return;
+        lastFittedParentRef.current = currentParentId;
+
+        if (visibleNodesRef.current.length > 0) {
             const timer = setTimeout(() => {
-                fitView({ duration: 400, padding: 0.2, minZoom: 0.5, maxZoom: 1 });
+                fitViewRef.current({ duration: 400, padding: 0.2, minZoom: MIN_CANVAS_ZOOM, maxZoom: 1 });
             }, 50);
             return () => clearTimeout(timer);
         }
@@ -1092,22 +1325,30 @@ export function CanvasBoard() {
     //  1. Endpoints must be in the visible (current parent context) node set.
     //  2. Edge.data.parentId must match the active currentParentId so connections
     //     made inside a drilled-down canvas don't bleed into the root view.
+    /* Dragging replaces only positions, not membership. Keep the edge list
+       referentially stable through those frames: filtering every edge while a
+       card follows the pointer is enough to make a large graph fall behind. */
+    const visibleNodeIdKey = useMemo(
+        () => visibleNodes.map(node => node.id).join('\u0000'),
+        [visibleNodes],
+    );
     const visibleEdges = useMemo(() => {
-        const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
+        const visibleNodeIds = new Set(visibleNodeIdKey ? visibleNodeIdKey.split('\u0000') : []);
         const activeParent = currentParentId ?? null;
         return edges.filter(e => {
             if (!visibleNodeIds.has(e.source) || !visibleNodeIds.has(e.target)) return false;
             const edgeParent = (e.data as { parentId?: string | null } | undefined)?.parentId ?? null;
             return edgeParent === activeParent;
         });
-    }, [edges, visibleNodes, currentParentId]);
+    }, [edges, visibleNodeIdKey, currentParentId]);
 
     // Node types registration
     const nodeTypes = useMemo(() => ({
         note: NoteCard,
         block: BlockNode,
         'fused-note': FusedNoteNode,
-        kanban: KanbanNodeComponent
+        kanban: KanbanNodeComponent,
+        youtube: YouTubeNode,
     }), []);
 
     // Custom edge types — register both `centered` and `default` so legacy or
@@ -1136,45 +1377,251 @@ export function CanvasBoard() {
         currentParentId ? s.nodes.find(n => n.id === currentParentId) : null,
         [currentParentId]
     ));
+    const [canvasAnnouncement, setCanvasAnnouncement] = useState('');
+    const announcedCanvasParentRef = useRef<string | null | undefined>(undefined);
+    const autoMappedParentIdsRef = useRef(new Set<string>());
+    const [pendingAutoMapFitParentId, setPendingAutoMapFitParentId] = useState<string | null>(null);
+    const hasLegacyTopicRoot = visibleNodes.some((node) => (
+        node.type === 'fused-note' && node.data.mapRole === 'topic-root'
+    ));
+    const hasGeneratedDocumentTree = visibleNodes.some((node) => (
+        node.type === 'fused-note'
+        && (node.data.mapRole === 'chapter' || node.data.mapRole === 'section')
+    ));
+
+    // Maps created before the top-to-bottom document tree used a synthetic
+    // centre title. It owns no source content, so remove it and reflow only
+    // those generated maps; hand-arranged canvases remain untouched.
+    useEffect(() => {
+        if (!currentParentId || !hasLegacyTopicRoot) return;
+        if (migrateTopicMapToDocumentTree(currentParentId)) {
+            setPendingAutoMapFitParentId(currentParentId);
+            setCanvasAnnouncement('Arranged this note as a top-to-bottom document tree.');
+        }
+    }, [currentParentId, hasLegacyTopicRoot, migrateTopicMapToDocumentTree]);
+
+    // Opening a written card should reveal its existing thinking as a map, not
+    // interrupt the person with an import decision. This runs once for an
+    // untouched nested canvas; a deliberate empty map or a manual canvas is
+    // never rebuilt behind its owner's back.
+    useEffect(() => {
+        if (
+            !currentParentId
+            || activeParentNode?.type !== 'note'
+            || activeParentNode.data.hasNestedCanvasSync
+            || visibleNodes.length > 0
+            || autoMappedParentIdsRef.current.has(currentParentId)
+        ) return;
+
+        const noteBlocks = getNodeBlocks(activeParentNode.data) ?? [];
+        if (!noteBlocks.some(isCanvasHydratableBlock)) return;
+
+        autoMappedParentIdsRef.current.add(currentParentId);
+        hydrateCanvasFromContent(currentParentId);
+        setPendingAutoMapFitParentId(currentParentId);
+        setCanvasAnnouncement(`Created a mind map for ${getNodeLabel(activeParentNode.data) || 'this note'}.`);
+    }, [activeParentNode, currentParentId, hydrateCanvasFromContent, visibleNodes.length]);
+
+    // The first fit on entering a previously empty canvas happens before its
+    // generated nodes exist. Wait for those nodes, then frame the whole map in
+    // one calm movement rather than leaving its topic or chapters off-screen.
+    useEffect(() => {
+        if (pendingAutoMapFitParentId !== currentParentId || visibleNodes.length === 0) return;
+        const timer = window.setTimeout(() => {
+            fitView({ duration: 420, padding: 0.24, minZoom: MIN_CANVAS_ZOOM, maxZoom: 1 });
+            setPendingAutoMapFitParentId(null);
+        // React Flow measures a newly mounted editor card after its first
+        // paint. Giving that measurement one short beat keeps fitView from
+        // framing the old empty canvas and leaving the new map off-screen.
+        }, 180);
+        return () => window.clearTimeout(timer);
+    }, [currentParentId, fitView, pendingAutoMapFitParentId, visibleNodes.length]);
+
+    // A map is spatial, so a device rotation or a narrow window must reframe
+    // its whole hierarchy. This observes only generated maps; hand-built
+    // canvases keep their existing camera position on resize.
+    useEffect(() => {
+        const canvasArea = canvasAreaRef.current;
+        if (!canvasArea || !hasGeneratedDocumentTree) return;
+
+        let timer: number | undefined;
+        const frameMap = () => {
+            if (timer) window.clearTimeout(timer);
+            timer = window.setTimeout(() => {
+                fitView({ duration: 260, padding: 0.22, minZoom: MIN_CANVAS_ZOOM, maxZoom: 1 });
+            }, 120);
+        };
+        const observer = new ResizeObserver(frameMap);
+        observer.observe(canvasArea);
+        return () => {
+            observer.disconnect();
+            if (timer) window.clearTimeout(timer);
+        };
+    }, [fitView, hasGeneratedDocumentTree]);
 
     useEffect(() => {
-        if (!isSupabaseConfigured || !isAuthenticated || !authUserId || !activeWorkspaceId) return;
+        // Do not steal focus on first load, but when a person intentionally
+        // changes level, put their keyboard and screen reader at the new
+        // canvas and name exactly where they landed.
+        if (announcedCanvasParentRef.current === undefined) {
+            announcedCanvasParentRef.current = currentParentId;
+            return;
+        }
+        if (announcedCanvasParentRef.current === currentParentId) return;
+        announcedCanvasParentRef.current = currentParentId;
+
+        const label = activeParentNode ? (getNodeLabel(activeParentNode.data) || 'Untitled card') : '';
+        setCanvasAnnouncement(currentParentId
+            ? `Opened ${label}'s nested canvas. Press Alt+Up to return to its parent.`
+            : 'Returned to the home canvas.');
+        requestAnimationFrame(() => canvasAreaRef.current?.focus({ preventScroll: true }));
+    }, [activeParentNode, currentParentId]);
+
+    useEffect(() => {
+        const handleNestedCanvasKeys = (event: KeyboardEvent) => {
+            const target = event.target;
+            if (
+                isCanvasObscured
+                || isEditableTarget(target)
+                || !(target instanceof HTMLElement)
+                || (!canvasAreaRef.current?.contains(target) && target !== document.body)
+            ) return;
+
+            const nodeElement = target.closest<HTMLElement>('.react-flow__node');
+            const nodeId = nodeElement?.getAttribute('data-id') ?? null;
+
+            if (event.key === 'Enter' && nodeId) {
+                const node = useStore.getState().nodes.find((candidate) => candidate.id === nodeId);
+                if (node?.type === 'note') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    navigateToNode(nodeId);
+                }
+                return;
+            }
+
+            if ((event.key === 'Delete' || event.key === 'Backspace')) {
+                const selectedIds = Array.from(useStore.getState().selectedCanvasNodeIds);
+                if (selectedIds.length > 0) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    requestNodeDeletion(selectedIds);
+                }
+                return;
+            }
+
+            const shouldExit = event.altKey && event.key === 'ArrowUp';
+            const shouldExitFromPane = event.key === 'Escape' && !nodeId;
+            if ((shouldExit || shouldExitFromPane) && currentParentId) {
+                const parent = useStore.getState().nodes.find((node) => node.id === currentParentId);
+                event.preventDefault();
+                event.stopPropagation();
+                navigateToNode(parent?.parentId ?? null);
+            }
+        };
+
+        // Capture before React Flow sees a Delete or Enter key. React Flow
+        // otherwise removes selected cards before our branch warning can run.
+        document.addEventListener('keydown', handleNestedCanvasKeys, true);
+        return () => document.removeEventListener('keydown', handleNestedCanvasKeys, true);
+    }, [currentParentId, isCanvasObscured, navigateToNode, requestNodeDeletion]);
+    const showFirstCardOffer = Boolean(
+        currentParentId
+        && activeParentNode?.type === 'note'
+        && visibleNodes.length === 0
+        && !(getNodeBlocks(activeParentNode.data) ?? []).some(isCanvasHydratableBlock),
+    );
+    const createFirstNestedCard = useCallback(() => {
+        if (!currentParentId) return;
+        const nodeId = uuidv4();
+        addNode(
+            'note',
+            { x: 0, y: 0 },
+            { label: 'New card' },
+            { width: 432, height: 320 },
+            currentParentId,
+            nodeId,
+        );
+        setSelectedCanvasNodeIds(new Set([nodeId]));
+        setLastCreatedCanvasNodeId(nodeId);
+    }, [addNode, currentParentId, setLastCreatedCanvasNodeId, setSelectedCanvasNodeIds]);
+
+    useEffect(() => {
+        if (!isSupabaseConfigured || !isAuthenticated || !authUserId || !activeWorkspaceId) {
+            setCloudLoad('idle');
+            return;
+        }
         const loadKey = `${authUserId}:${activeWorkspaceId}`;
-        if (loadedCloudWorkspaceRef.current === loadKey) return;
-        loadedCloudWorkspaceRef.current = loadKey;
+
+        /* Two conditions have to hold before we are allowed to freeze the app:
+           this must be the workspace's first load of the session, AND there
+           must be nothing on the canvas yet. A canvas with live session edits
+           stays usable while a background refresh is in flight. */
+        const firstOpen = !hasHydrated(loadKey);
+        const canvasIsEmpty = useStore.getState().nodes.length === 0;
+        const blocking = firstOpen && canvasIsEmpty;
 
         let cancelled = false;
-        (async () => {
-            setCloudError(null);
-            const result = await loadCanvasFromCloud(authUserId, activeWorkspaceId);
-            if (cancelled) return;
-            if (result.ok) {
-                const state = useStore.getState();
-                if (result.nodes.length === 0 && state.nodes.length > 0) {
-                    // Empty cloud must never wipe existing local work — e.g. an
-                    // anonymous canvas restored from the IndexedDB snapshot right
-                    // before sign-in, or a brand-new workspace. Keep the local
-                    // canvas and mark everything dirty so auto-sync pushes it up
-                    // to the empty cloud instead.
-                    state.markNodesDirty(state.nodes.map(n => n.id));
-                    state.markEdgesDirty(state.edges.map(e => e.id));
-                    setCloudDirty(true);
-                    return;
-                }
-                loadGraph(result.nodes, result.edges);
-                setCloudLastSaved(new Date().toLocaleTimeString());
-                setCloudDirty(false);
+        const phase = blocking ? 'blocking' : 'background';
+        const handleProgress = (progress: CloudLoadProgress) => {
+            if (!cancelled) setCloudLoad(phase, progress);
+        };
+
+        setCloudLoad(phase, { stage: 'authorizing', value: 0 });
+
+        void (async () => {
+            try {
                 setCloudError(null);
-            } else {
-                loadedCloudWorkspaceRef.current = null;
-                setCloudError(result.error);
+                /* `loadWorkspaceOnce` de-duplicates concurrent calls for this
+                   key, which is what makes Strict Mode's teardown-and-rerun
+                   safe: the second run joins the first run's request (and its
+                   progress stream) instead of firing a second one. */
+                const result = await loadWorkspaceOnce(
+                    loadKey,
+                    (onProgress) => loadCanvasFromCloud(authUserId, activeWorkspaceId, onProgress),
+                    handleProgress,
+                );
+                if (cancelled) return;
+                if (result.ok) {
+                    const state = useStore.getState();
+                    if (result.nodes.length === 0 && state.nodes.length > 0) {
+                        // Empty cloud must never wipe existing local work — e.g. a
+                        // user who started a new session before signing in. Keep the
+                        // live canvas and mark everything dirty so auto-sync pushes
+                        // it up to the empty cloud instead.
+                        state.markNodesDirty(state.nodes.map(n => n.id));
+                        state.markEdgesDirty(state.edges.map(e => e.id));
+                        setCloudDirty(true);
+                        return;
+                    }
+                    /* A *repeat* load runs against a canvas the user has been
+                       editing, so it must yield to unsaved local changes rather
+                       than swapping the graph out from under them. A first open
+                       keeps the original semantics — cloud is the source of
+                       truth for the session's initial state. */
+                    if (!firstOpen && state.storage.isCloudDirty) return;
+                    loadGraph(result.nodes, result.edges);
+                    setCloudLastLoaded(new Date().toLocaleTimeString());
+                    setCloudDirty(false);
+                    setCloudError(null);
+                } else {
+                    // Let a retry earn the full-fidelity loader again.
+                    forgetWorkspace(loadKey);
+                    setCloudError(result.error);
+                }
+            } finally {
+                /* Same commit as the loadGraph/status updates above: React
+                   batches this continuation, so the icon and the loader flip
+                   together rather than one lagging the other. */
+                if (!cancelled) setCloudLoad('idle');
             }
         })();
 
         return () => {
             cancelled = true;
+            unsubscribeWorkspaceProgress(loadKey, handleProgress);
         };
-    }, [authUserId, activeWorkspaceId, isAuthenticated, loadGraph, setCloudLastSaved, setCloudDirty, setCloudError]);
+    }, [authUserId, activeWorkspaceId, isAuthenticated, loadGraph, setCloudLastLoaded, setCloudDirty, setCloudError, setCloudLoad]);
 
     useEffect(() => {
         if (!isSupabaseConfigured || !supabase || !isAuthenticated || !authUserId || !activeWorkspaceId) return;
@@ -1214,20 +1661,34 @@ export function CanvasBoard() {
                 const lastSaveMs = state.storage.cloudLastSaveTimeMs;
                 if (lastSaveMs && Date.now() - lastSaveMs < 5000) return;
 
-                const result = await loadCanvasFromCloud(authUserId, activeWorkspaceId);
-                if (cancelled) return;
-                if (result.ok) {
-                    // Local is clean here (checked above), so a non-empty local
-                    // canvas should match the cloud. An empty result against
-                    // non-empty local is almost certainly a transient glitch —
-                    // skip rather than wipe the canvas.
-                    if (result.nodes.length === 0 && useStore.getState().nodes.length > 0) return;
-                    loadGraph(result.nodes, result.edges);
-                    setCloudLastSaved(new Date().toLocaleTimeString());
-                    setCloudDirty(false);
-                    setCloudError(null);
-                } else {
-                    setCloudError(result.error);
+                /* A collaborator's edit rearranges cards under the user's
+                   cursor. The pill is what tells them why — it never blocks,
+                   and it clears the moment the refetch lands. Routed through
+                   the same store field as the initial load so the cloud icon
+                   spins for this too. */
+                setCloudLoad('background', { stage: 'fetching', value: 0.3 });
+                try {
+                    const result = await loadCanvasFromCloud(
+                        authUserId,
+                        activeWorkspaceId,
+                        (progress) => { if (!cancelled) setCloudLoad('background', progress); },
+                    );
+                    if (cancelled) return;
+                    if (result.ok) {
+                        // Local is clean here (checked above), so a non-empty local
+                        // canvas should match the cloud. An empty result against
+                        // non-empty local is almost certainly a transient glitch —
+                        // skip rather than wipe the canvas.
+                        if (result.nodes.length === 0 && useStore.getState().nodes.length > 0) return;
+                        loadGraph(result.nodes, result.edges);
+                        setCloudLastLoaded(new Date().toLocaleTimeString());
+                        setCloudDirty(false);
+                        setCloudError(null);
+                    } else {
+                        setCloudError(result.error);
+                    }
+                } finally {
+                    if (!cancelled) setCloudLoad('idle');
                 }
             }, 650);
         };
@@ -1259,9 +1720,12 @@ export function CanvasBoard() {
         return () => {
             cancelled = true;
             if (reloadTimer) window.clearTimeout(reloadTimer);
+            // An in-flight refetch is abandoned here, so its `finally` will not
+            // clear the pill — drop it now rather than leaving one pinned.
+            setCloudLoad('idle');
             void supabase.removeChannel(channel);
         };
-    }, [authUserId, activeWorkspaceId, isAuthenticated, loadGraph, setCloudLastSaved, setCloudDirty, setCloudError]);
+    }, [authUserId, activeWorkspaceId, isAuthenticated, loadGraph, setCloudLastLoaded, setCloudDirty, setCloudError, setCloudLoad]);
 
     // Recently viewed tracking
     const { trackNoteView } = useRecentlyViewed(activeWorkspaceId || undefined);
@@ -1302,7 +1766,6 @@ export function CanvasBoard() {
         setNodes,
         updateNodeData,
         syncParentContent,
-        selectedCanvasNodeIds,
     });
 
 
@@ -1322,56 +1785,85 @@ export function CanvasBoard() {
     const closeRightPanel = useCallback(() => setRightSidePanelId(null), [setRightSidePanelId]);
     const closeLeftPanel = useCallback(() => setLeftSidePanelId(null), [setLeftSidePanelId]);
 
+    /* Both indicators wait out a short grace period, so a load that returns in
+       under ~260ms resolves without anything ever appearing on screen. Neither
+       delays its own dismissal: they vanish with the data landing. */
+    const showBlockingLoader = useDelayedFlag(cloudLoad.phase === 'blocking');
+    const showSyncPill = useDelayedFlag(cloudLoad.phase === 'background');
+
     return (
-        <div className={styles.container}>
+        <>
+        {/* The shell is frozen only while the blocking overlay is actually on
+            screen — a background refresh leaves the canvas fully usable. */}
+        <div className={styles.container} inert={showBlockingLoader || undefined} aria-busy={showBlockingLoader}>
             {/* Shell = top bar + framed canvas. It's a separate wrapper because
                 the side panels below are in-flow siblings of .container and
                 must stay in its row axis. */}
             <div className={styles.shell}>
-            <header className={styles.topBar}>
+            <header className={styles.topBar} aria-label="Canvas workspace controls">
                 <div className={styles.topBarLeft}>
-                    <HomeButtonM />
-                    <div className={styles.topBarSeparator} />
-                    <HistoryControlsM />
-                    <div className={styles.crumbSlot}>
-                        <BreadcrumbsM />
+                    <div className={styles.navGroup} aria-label="Workspace navigation">
+                        <HomeButtonM />
+                        <HistoryControlsM />
                     </div>
+                    <nav className={styles.crumbSlot} aria-label="Canvas location">
+                        <BreadcrumbsM />
+                    </nav>
                 </div>
-                <div className={styles.topBarRight}>
-                    <StorageControlsM />
-                    <div className={styles.topBarSeparator} />
-                    <ThemeSwitcherM />
-                    <button
-                        ref={tocBtnRef}
-                        className={`${styles.toolbarBtn} ${isTOCOpen ? styles.toolbarBtnActive : ''}`}
-                        onClick={() => setTOCOpen(!isTOCOpen)}
-                        data-tooltip={isTOCOpen ? "Close Outline" : "Open Outline"}
-                    >
-                        <DuotoneIcon icon={ListCollapse} size={18} />
-                    </button>
-                    <button
-                        ref={shortcutsBtnRef}
-                        className={`${styles.toolbarBtn} ${isShortcutsPanelOpen ? styles.toolbarBtnActive : ''}`}
-                        onClick={() => setShortcutsPanelOpen(!isShortcutsPanelOpen)}
-                        data-tooltip={isShortcutsPanelOpen ? "Close Shortcuts" : "Keyboard Shortcuts (K)"}
-                    >
-                        <DuotoneIcon icon={Keyboard} size={18} />
-                    </button>
-                    {activeParentNode && (
+                    <div className={styles.topBarRight}>
+                    <div className={styles.syncGroup} aria-label="Save and sync">
+                        <StorageControlsM />
+                    </div>
+                    <div className={styles.utilityGroup} aria-label="Canvas utilities">
+                        <ThemeSwitcherM />
                         <button
-                            ref={metadataBtnRef}
-                            className={`${styles.toolbarBtn} ${isMetadataOpen ? styles.toolbarBtnActive : ''}`}
-                            onClick={() => setMetadataOpen(!isMetadataOpen)}
-                            data-tooltip={isMetadataOpen ? "Close Metadata" : "Open Metadata"}
+                            ref={tocBtnRef}
+                            className={`${styles.toolbarBtn} ${isTOCOpen ? styles.toolbarBtnActive : ''}`}
+                            onClick={() => setTOCOpen(!isTOCOpen)}
+                            data-tooltip={isTOCOpen ? "Close Outline" : "Open Outline"}
+                            aria-label={isTOCOpen ? "Close Outline" : "Open Outline"}
                         >
-                            <DuotoneIcon icon={SlidersHorizontal} size={18} />
+                            <DuotoneIcon icon={ListCollapse} size={18} />
                         </button>
-                    )}
+                        <button
+                            ref={shortcutsBtnRef}
+                            className={`${styles.toolbarBtn} ${isShortcutsPanelOpen ? styles.toolbarBtnActive : ''}`}
+                            onClick={() => setShortcutsPanelOpen(!isShortcutsPanelOpen)}
+                            data-tooltip={isShortcutsPanelOpen ? "Close Shortcuts" : "Keyboard Shortcuts (K)"}
+                            aria-label={isShortcutsPanelOpen ? "Close Keyboard Shortcuts" : "Open Keyboard Shortcuts"}
+                        >
+                            <DuotoneIcon icon={Keyboard} size={18} />
+                        </button>
+                        {activeParentNode && (
+                            <button
+                                ref={metadataBtnRef}
+                                className={`${styles.toolbarBtn} ${isMetadataOpen ? styles.toolbarBtnActive : ''}`}
+                                onClick={() => setMetadataOpen(!isMetadataOpen)}
+                                data-tooltip={isMetadataOpen ? "Close Metadata" : "Open Metadata"}
+                                aria-label={isMetadataOpen ? "Close Metadata" : "Open Metadata"}
+                            >
+                                <DuotoneIcon icon={SlidersHorizontal} size={18} />
+                            </button>
+                        )}
+                    </div>
                 </div>
             </header>
 
             <div className={styles.canvasFrame}>
-            <div className={styles.canvasArea}>
+            <div
+                ref={canvasAreaRef}
+                className={styles.canvasArea}
+                role="region"
+                aria-label={currentParentId ? 'Nested canvas' : 'Home canvas'}
+                aria-describedby="canvas-keyboard-guidance"
+                tabIndex={-1}
+            >
+                <p id="canvas-keyboard-guidance" className={styles.canvasScreenReaderHelp}>
+                    Use Tab to focus a card. Press Enter to enter a card's nested canvas, Alt plus Up Arrow to return, and Delete to review a card deletion.
+                </p>
+                <div className={styles.canvasAnnouncement} role="status" aria-live="polite" aria-atomic="true">
+                    {canvasAnnouncement}
+                </div>
                 <ModifierKeyIndicatorM
                     showCtrl={modifierKeys.ctrl}
                     showShift={modifierKeys.shift}
@@ -1380,14 +1872,8 @@ export function CanvasBoard() {
                     suppress={isInEditableField}
                     top={20}
                 />
-
-                <AnimatePresence mode="wait">
-                    <motion.div
+                    <div
                         key={currentParentId || 'root'}
-                        initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
-                        animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-                        exit={{ opacity: 0, scale: 1.02, filter: 'blur(4px)' }}
-                        transition={{ duration: 0.2, ease: 'easeOut' }}
                         style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}
                         /* A card opened in fullscreen or center peek stays mounted
                            on the canvas underneath the overlay — React Flow never
@@ -1426,22 +1912,20 @@ export function CanvasBoard() {
                     onNodeMouseLeave={() => {
                         hoveredNodeRef.current = null;
                     }}
-                    onPaneClick={(event) => {
+                    onPaneClick={() => {
                         if (isLinkingMode) return;
                         setContextMenu(null);
                         blurActiveEditable();
                         if (isFocusArmedRef.current) setIsFocusArmed(false);
-                        setSelectedEdgeId(null);
                         clearCanvasSelection();
                     }}
                     onNodeClick={(e, node) => {
                         e.stopPropagation();
                         setContextMenu(null);
-                        setSelectedEdgeId(null);
 
                         // If in linking mode, clicking a node establishes it as the main node
                         if (isLinkingMode) {
-                            linkSelectedNodes(node.id, Array.from(selectedCanvasNodeIds));
+                            linkSelectedNodes(node.id, Array.from(useStore.getState().selectedCanvasNodeIds));
                             setIsLinkingMode(false);
                             clearCanvasSelection();
                             return;
@@ -1453,7 +1937,7 @@ export function CanvasBoard() {
                         }
                         if (e.shiftKey) {
                             toggleCanvasNodeSelection(node.id);
-                            // processedNodes derives node.selected from selectedCanvasNodeIds automatically
+                            // The selection action updates node.selected atomically.
                         } else {
                             setSelectedCanvasNodeIds(new Set([node.id]));
                         }
@@ -1468,7 +1952,7 @@ export function CanvasBoard() {
                     }}
                     fitView={!currentParentId}
                     colorMode={theme}
-                    minZoom={0.05}
+                    minZoom={MIN_CANVAS_ZOOM}
                     maxZoom={2}
                     snapToGrid={false}
                     onDragOver={onDragOver}
@@ -1478,26 +1962,45 @@ export function CanvasBoard() {
                     onNodeDragStop={onNodeDragStop}
                     onMove={onViewportMove}
                     onMoveStart={handleMoveStart}
-                    onMoveEnd={handleMoveEnd}
+                    onMoveEnd={() => handleMoveEnd()}
                     onSelectionStart={() => {
                         isBoxSelectingRef.current = true;
                         setSelectedEdgeId(null);
                     }}
                     onSelectionEnd={() => {
-                        isBoxSelectingRef.current = false;
+                        // React Flow publishes the final box result just after
+                        // onSelectionEnd. Keep the gate open through that turn,
+                        // then close it before ordinary node-click callbacks.
+                        requestAnimationFrame(() => {
+                            isBoxSelectingRef.current = false;
+                        });
                     }}
                     onSelectionChange={({ nodes: selectedNodes }) => {
                         // Skip if we recently updated node.selected —
                         // ReactFlow fires onSelectionChange asynchronously as a side-effect
                         // of receiving new processedNodes, which would revert our selection.
-                        if (Date.now() - lastProgrammaticSelectionTimeRef.current < 50) return;
+                        if (Date.now() - lastProgrammaticSelectionTimeRef.current < PROGRAMMATIC_SELECTION_GUARD_MS) return;
 
                         const nextIds = new Set(selectedNodes.map(n => n.id));
                         const currentIds = useStore.getState().selectedCanvasNodeIds;
                         const isSame = nextIds.size === currentIds.size && Array.from(nextIds).every(id => currentIds.has(id));
-                        if (!isSame) {
-                            setSelectedCanvasNodeIds(nextIds);
+                        if (isSame) return;
+
+                        /* React Flow deselects the current node on mousedown before
+                           a plain click selects the next one, publishing an empty
+                           selection in between. Honouring it makes the selection
+                           toolbar flash out and back on every click-through. Skip
+                           that transient gap and save the empty for changes that
+                           genuinely end the selection: box deselection and the
+                           deletion of the selected nodes. */
+                        if (nextIds.size === 0 && !isBoxSelectingRef.current) {
+                            const storeNodes = useStore.getState().nodes;
+                            const selectionStillExists = Array.from(currentIds)
+                                .some(id => storeNodes.some(n => n.id === id));
+                            if (selectionStillExists) return;
                         }
+
+                        setSelectedCanvasNodeIds(nextIds);
                     }}
                     onPointerMove={handlePointerMove}
                     selectionOnDrag={true}
@@ -1506,9 +2009,13 @@ export function CanvasBoard() {
                     multiSelectionKeyCode="Shift"
                     selectionMode={SelectionMode.Partial}
                     // Performance optimizations
+                    // Unmount cards and connections that are outside the camera.
+                    // The note data stays in Zustand; React Flow recreates visual
+                    // nodes when they re-enter view.
+                    onlyRenderVisibleElements
                     nodesDraggable={!isLinkingMode}
                     nodesConnectable={!isLinkingMode}
-                    nodesFocusable={false}
+                    nodesFocusable={true}
                     edgesFocusable={!isLinkingMode}
                     elementsSelectable={!isLinkingMode}
                     selectNodesOnDrag={false}
@@ -1521,14 +2028,7 @@ export function CanvasBoard() {
                     autoPanOnNodeDrag={false}
                     connectOnClick={false}
                     nodeDragThreshold={0}
-                    deleteKeyCode={['Delete', 'Backspace']}
-                    onNodesDelete={(deletedNodes) => {
-                        const ids = deletedNodes.map(n => n.id);
-                        if (ids.length > 0) {
-                            // React Flow already committed the removal; prompting here can't cancel it.
-                            useStore.getState().bulkDeleteNodes(ids, true);
-                        }
-                    }}
+                    deleteKeyCode={null}
                     onEdgesDelete={(deletedEdges) => {
                         deletedEdges.forEach(e => {
                             useStore.getState().deleteEdge(e.id);
@@ -1536,27 +2036,48 @@ export function CanvasBoard() {
                     }}
                 >
                     <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color="var(--dot)" />
+                    {showFirstCardOffer && (
+                        <Panel position="top-center" className={styles.emptyStatePanel}>
+                            <section className={styles.emptyState} aria-labelledby="first-card-canvas-title">
+                                <p className={styles.emptyEyebrow}>Nested canvas</p>
+                                <h2 id="first-card-canvas-title">Ready for its first idea</h2>
+                                <p>
+                                    Anything you add here belongs inside this card. You can always return to the parent canvas with Alt and Up Arrow.
+                                </p>
+                                <button type="button" className={styles.emptyStateAction} onClick={createFirstNestedCard}>
+                                    <Plus size={17} aria-hidden="true" />
+                                    Add a card
+                                </button>
+                            </section>
+                        </Panel>
+                    )}
                     {FEATURES.collaboration && <LiveCursors presenceData={presenceData} currentUserId={currentUserId} />}
                     <CanvasSlashMenuM />
                     <DragChipM />
-                    <Panel position="top-center">
-
-                    </Panel>
+                    {organizationNotice && (
+                        <Panel position="top-center" className={styles.organizationNoticePanel}>
+                            <div className={styles.organizationNotice}>
+                                <span role="status" aria-live="polite">
+                                    {organizationNotice.count} nodes organized
+                                </span>
+                                <button type="button" onClick={undoCanvasOrganization}>Undo</button>
+                            </div>
+                        </Panel>
+                    )}
                     <Panel position="bottom-right" className={styles.bottomRightControls}>
                         {/* No nodeColor/maskColor props: those become SVG presentation
                             attributes that can't read var(). We style .react-flow__minimap-*
                             in index.css instead, where `fill` IS a CSS property and does
                             resolve tokens — so the minimap tracks the live palette and the
                             theme automatically, with no literals to keep in sync (§10). */}
-                        <MiniMap
+                        <CanvasMiniMap
                             className={styles.canvasMiniMap}
-                            style={{ width: 160, height: 116 }}
+                            nodes={processedNodes}
                         />
                         <Controls className={styles.canvasControls} />
                     </Panel>
                 </ReactFlow>
-                    </motion.div>
-                </AnimatePresence>
+                    </div>
             </div>
 
             {/* Inside the frame, not the shell: the menu docks against the
@@ -1587,7 +2108,7 @@ export function CanvasBoard() {
 
             <AIPanelM />
 
-            <ChunkItModalM />
+            <ChunkItPanelM />
 
             {/* Dual Panel Backdrop (only when both sides are open) */}
             {rightSidePanelId && leftSidePanelId && (
@@ -1613,7 +2134,15 @@ export function CanvasBoard() {
             />
             <FullscreenModalM onCanvasDragOver={onDragOver} onCanvasDrop={onDrop} />
             <CenterModalM onCanvasDragOver={onDragOver} onCanvasDrop={onDrop} />
+            {/* Opened from a board card or a calendar chip via `tasksCardId`. */}
+            <CardTasksModal />
             <AuthModalM />
+            <BranchDeleteConfirmation />
         </div>
+        {showBlockingLoader && (
+            <WorkspaceLoadOverlay progress={cloudLoad.progress ?? { stage: 'authorizing', value: 0 }} />
+        )}
+        {showSyncPill && <WorkspaceSyncPill />}
+        </>
     );
 }

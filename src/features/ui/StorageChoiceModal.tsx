@@ -72,7 +72,7 @@ export const StorageChoiceModal: React.FC = () => {
         setChosen(mode);
         localStorage.setItem(storageModeKey(uid), mode);
         // Cloud participation is what the autosync flag controls: on for
-        // cloud/both, off for local-only. IndexedDB safety net always runs.
+        // cloud/both, off for local-only.
         const autosyncKey = `chnk-it-cloud-autosync-${state.auth.activeWorkspaceId || 'default'}`;
         localStorage.setItem(autosyncKey, mode === 'local' ? 'false' : 'true');
         window.dispatchEvent(new CustomEvent('chnk-it-storage-mode-changed'));

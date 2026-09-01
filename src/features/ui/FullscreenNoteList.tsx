@@ -5,7 +5,9 @@ import { getNodeById } from '../../store/nodeIndex';
 import { FolderArt } from '../card/FolderArt';
 import { CardIcon } from '../card/iconMap';
 import { ChevronDown, ChevronRight, Columns2, Flag, PanelLeftClose, PanelLeftOpen, Plus, Search } from '../../components/icons';
-import type { AppNode, NoteNode } from '../../types';
+import type { AppNode, BlockNode, NoteNode } from '../../types';
+import { FileArt, describeFile, isFileNode, nodeFileBlock } from '../file';
+import { formatBytes } from '../editor/mediaTypes';
 import type { FullscreenPane } from './FullscreenModal';
 import styles from './FullscreenNoteList.module.css';
 
@@ -30,7 +32,54 @@ import styles from './FullscreenNoteList.module.css';
  * still navigable, which a rail collapsing to nothing would not be.
  */
 
-const isNote = (node: AppNode): node is NoteNode => node.type === 'note';
+/**
+ * What the rail lists: the canvas's cards, and its files.
+ *
+ * A file is a `block` node holding one `file` block, so it has none of the
+ * fields a note keeps — no `createdAt`, no icon, no description. Rather than
+ * teach every reader below about two shapes, the accessors under this comment
+ * answer the same handful of questions for both, and the rest of the rail is
+ * written against them.
+ */
+type RailNode = NoteNode | BlockNode;
+
+const isRailNode = (node: AppNode): node is RailNode =>
+    node.type === 'note' || isFileNode(node);
+
+const isNoteRow = (node: RailNode): node is NoteNode => node.type === 'note';
+
+const railLabel = (node: RailNode): string => {
+    if (isNoteRow(node)) return node.data.label || 'Untitled';
+    return nodeFileBlock(node)?.metadata?.name || 'File';
+};
+
+/** A note's own subtitle; for a file, what it is and how big. */
+const railDescription = (node: RailNode): string | undefined => {
+    if (isNoteRow(node)) return node.data.description;
+    const block = nodeFileBlock(node);
+    if (!block) return undefined;
+    const kind = describeFile(block.metadata?.type, block.metadata?.name);
+    const size = block.metadata?.size;
+    return typeof size === 'number' ? `${kind.label} · ${formatBytes(size)}` : kind.label;
+};
+
+const railColor = (node: RailNode): string | undefined => node.data.color;
+
+const railIsPinned = (node: RailNode): boolean => Boolean(node.data.isPinned);
+
+/** Glyph for the collapsed strip, where there is no room for the artwork. */
+const railIcon = (node: RailNode): string => {
+    if (isNoteRow(node)) return node.data.icon ?? 'FileText';
+    const block = nodeFileBlock(node);
+    return describeFile(block?.metadata?.type, block?.metadata?.name).icon;
+};
+
+/** ISO timestamps, from wherever each kind of node keeps them. */
+const railCreatedAt = (node: RailNode): string | undefined =>
+    isNoteRow(node) ? node.data.createdAt : nodeFileBlock(node)?.metadata?.addedAt;
+
+const railUpdatedAt = (node: RailNode): string | undefined =>
+    isNoteRow(node) ? node.data.updatedAt : nodeFileBlock(node)?.metadata?.addedAt;
 
 /** Gap left under the lowest sibling when a new card is dropped on the canvas. */
 const NEW_CARD_GAP = 48;
@@ -47,7 +96,7 @@ const INDENT_CAP = 3;
 const MAX_TREE_DEPTH = 20;
 
 type TreeRow = {
-    node: NoteNode;
+    node: RailNode;
     depth: number;
     hasChildren: boolean;
 };
@@ -62,24 +111,28 @@ const DATE_GROUPS: ReadonlyArray<{ id: DateGroupId; label: string }> = [
     { id: 'older', label: 'Older' },
 ];
 
-const creationTime = (node: NoteNode) => {
-    const value = Date.parse(node.data.createdAt ?? '');
+const creationTime = (node: RailNode) => {
+    const value = Date.parse(railCreatedAt(node) ?? '');
     return Number.isFinite(value) ? value : 0;
 };
 
-const updatedTime = (node: NoteNode) => {
-    const value = Date.parse(node.data.updatedAt ?? '');
+const updatedTime = (node: RailNode) => {
+    const value = Date.parse(railUpdatedAt(node) ?? '');
     return Number.isFinite(value) ? value : 0;
 };
 
-/** Body copy belongs to the same local search as a note's visible metadata. */
-const searchableText = (node: NoteNode) => {
+/** Body copy belongs to the same local search as a node's visible metadata.
+ *  A file has no body to search — its name and kind are all there is. */
+const searchableText = (node: RailNode) => {
+    if (!isNoteRow(node)) {
+        return `${railLabel(node)} ${railDescription(node) ?? ''}`.toLocaleLowerCase();
+    }
     const { label = '', description = '', content } = node.data;
     const body = typeof content === 'string' ? content : JSON.stringify(content ?? '');
     return `${label} ${description} ${body}`.toLocaleLowerCase();
 };
 
-function creationGroup(node: NoteNode, now = new Date()): DateGroupId {
+function creationGroup(node: RailNode, now = new Date()): DateGroupId {
     const createdAt = creationTime(node);
     if (!createdAt) return 'older';
 
@@ -153,9 +206,9 @@ export function FullscreenNoteList({
        times below (rows, totals) and re-scanning the array for each level would
        make the rail O(nodes × levels). */
     const childrenByParent = useMemo(() => {
-        const map = new Map<string | null, NoteNode[]>();
+        const map = new Map<string | null, RailNode[]>();
         for (const node of nodes) {
-            if (!isNote(node)) continue;
+            if (!isRailNode(node)) continue;
             const key = node.parentId ?? null;
             const bucket = map.get(key);
             if (bucket) bucket.push(node);
@@ -166,7 +219,7 @@ export function FullscreenNoteList({
         for (const bucket of map.values()) {
             bucket.sort((a, b) => {
                 if (sortMode === 'title') {
-                    const byTitle = (a.data.label || 'Untitled').localeCompare(b.data.label || 'Untitled', undefined, { sensitivity: 'base' });
+                    const byTitle = railLabel(a).localeCompare(railLabel(b), undefined, { sensitivity: 'base' });
                     if (byTitle) return byTitle;
                 } else if (sortMode === 'created') {
                     const byCreated = creationTime(b) - creationTime(a);
@@ -243,8 +296,8 @@ export function FullscreenNoteList({
         onOpenSplit(id);
     }, [revealPath, onOpenSplit]);
 
-    const togglePinned = useCallback((node: NoteNode) => {
-        updateNodeData(node.id, { isPinned: !node.data.isPinned });
+    const togglePinned = useCallback((node: RailNode) => {
+        updateNodeData(node.id, { isPinned: !railIsPinned(node) });
     }, [updateNodeData]);
 
     /**
@@ -257,13 +310,13 @@ export function FullscreenNoteList({
         for (const group of DATE_GROUPS) groups.set(group.id, []);
 
         const normalizedQuery = query.trim().toLocaleLowerCase();
-        const branchMatches = (node: NoteNode, depth: number): boolean => {
+        const branchMatches = (node: RailNode, depth: number): boolean => {
             if (depth > MAX_TREE_DEPTH) return false;
             if (searchableText(node).includes(normalizedQuery)) return true;
             return (childrenByParent.get(node.id) ?? []).some(child => branchMatches(child, depth + 1));
         };
 
-        const appendBranch = (node: NoteNode, depth: number, out: TreeRow[]) => {
+        const appendBranch = (node: RailNode, depth: number, out: TreeRow[]) => {
             if (depth > MAX_TREE_DEPTH) return;
             const children = childrenByParent.get(node.id) ?? [];
             if (normalizedQuery && !branchMatches(node, depth)) return;
@@ -292,10 +345,10 @@ export function FullscreenNoteList({
 
     /** The collapsed icon rail keeps this exact filtered and sorted order. */
     const rows = useMemo(() => dateSections.flatMap((section) => section.rows), [dateSections]);
-    const pinnedRows = useMemo(() => rows.filter(({ node }) => node.data.isPinned), [rows]);
+    const pinnedRows = useMemo(() => rows.filter(({ node }) => railIsPinned(node)), [rows]);
     const unpinnedSections = useMemo(() => dateSections.map(section => ({
         ...section,
-        rows: section.rows.filter(({ node }) => !node.data.isPinned),
+        rows: section.rows.filter(({ node }) => !railIsPinned(node)),
     })).filter(section => section.rows.length > 0), [dateSections]);
 
     /* The header counts the whole tree, not the visible rows — a number that
@@ -349,8 +402,12 @@ export function FullscreenNoteList({
 
     const focusedRef = useRef<HTMLButtonElement | null>(null);
 
-    const renderRow = (node: NoteNode, depth: number, hasChildren: boolean) => {
-        const { label, description, icon, coverImage, color } = node.data;
+    const renderRow = (node: RailNode, depth: number, hasChildren: boolean) => {
+        const label = railLabel(node);
+        const description = railDescription(node);
+        const color = railColor(node);
+        const pinned = railIsPinned(node);
+        const file = nodeFileBlock(node);
         const pane = paneOf(node.id);
         const isFocused = pane === focusedPane;
         const expanded = hasChildren && isExpanded(node.id);
@@ -381,9 +438,19 @@ export function FullscreenNoteList({
                     style={color ? ({ '--node-accent': color } as React.CSSProperties) : undefined}
                     data-accented={color ? '' : undefined}
                 >
-                    <span className={styles.art}><FolderArt coverImage={coverImage} icon={icon} size={46} /></span>
+                    {/* Each row wears its object's own artwork: a card shows the
+                        folder the canvas draws for it, a file shows its sheet.
+                        Recognising a row by the picture it already has is the
+                        whole point of the rail, and a file is no exception. */}
+                    <span className={styles.art}>
+                        {file
+                            ? <FileArt name={file.metadata?.name} mime={file.metadata?.type} poster={file.metadata?.poster} size={46} />
+                            : isNoteRow(node)
+                                ? <FolderArt coverImage={node.data.coverImage} icon={node.data.icon} size={46} />
+                                : null}
+                    </span>
                     <span className={styles.text}>
-                        <span className={styles.label}>{label || 'Untitled'}</span>
+                        <span className={styles.label}>{label}</span>
                         {description && <span className={styles.description}>{description}</span>}
                     </span>
                     {isSplit && pane && <span className={styles.side}>{pane === 'left' ? 'L' : 'R'}</span>}
@@ -396,10 +463,10 @@ export function FullscreenNoteList({
                 )}
 
                 <button
-                    className={`${styles.pinButton} ${node.data.isPinned ? styles.pinButtonActive : ''}`}
+                    className={`${styles.pinButton} ${pinned ? styles.pinButtonActive : ''}`}
                     onClick={() => togglePinned(node)}
-                    title={node.data.isPinned ? 'Unpin note' : 'Pin note'}
-                    aria-label={`${node.data.isPinned ? 'Unpin' : 'Pin'} ${label || 'Untitled'}`}
+                    title={pinned ? 'Unpin' : 'Pin'}
+                    aria-label={`${pinned ? 'Unpin' : 'Pin'} ${label}`}
                 >
                     <Flag size={13} />
                 </button>
@@ -470,7 +537,8 @@ export function FullscreenNoteList({
                     {rows.map(({ node }) => {
                         const pane = paneOf(node.id);
                         const isFocused = pane === focusedPane;
-                        const label = node.data.label || 'Untitled';
+                        const label = railLabel(node);
+                        const color = railColor(node);
 
                         return (
                             <button
@@ -478,13 +546,13 @@ export function FullscreenNoteList({
                                 ref={isFocused ? focusedRef : undefined}
                                 className={`${styles.railItem} ${pane ? styles.railItemOpen : ''} ${pane === 'left' ? styles.paneLeft : pane === 'right' ? styles.paneRight : ''} ${isFocused ? styles.railItemActive : ''}`}
                                 onClick={() => handleSelect(node.id)}
-                                title={isSplit && pane ? `${label || 'Untitled'} — open ${pane}` : label || 'Untitled'}
-                                aria-label={label || 'Untitled'}
+                                title={isSplit && pane ? `${label} — open ${pane}` : label}
+                                aria-label={label}
                                 aria-current={isFocused ? 'true' : undefined}
-                                style={node.data.color ? ({ '--node-accent': node.data.color } as React.CSSProperties) : undefined}
-                                data-accented={node.data.color ? '' : undefined}
+                                style={color ? ({ '--node-accent': color } as React.CSSProperties) : undefined}
+                                data-accented={color ? '' : undefined}
                             >
-                                <CardIcon icon={node.data.icon ?? 'FileText'} size={18} />
+                                <CardIcon icon={railIcon(node)} size={18} />
                                 {isSplit && pane && (
                                     <span className={styles.railSide}>{pane === 'left' ? 'L' : 'R'}</span>
                                 )}

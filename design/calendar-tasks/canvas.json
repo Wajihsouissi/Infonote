@@ -1,0 +1,41 @@
+{
+  "pages": [
+    { "id": "page-1", "name": "Tasks on the calendar" },
+    { "id": "page-2", "name": "Alternates" }
+  ],
+  "artboards": [
+    { "file": "Main.dc.html", "page": "page-1", "x": 0, "y": 0, "w": 1744, "h": 960, "title": "Month — cards and tasks" },
+    { "file": "DaySheet.dc.html", "page": "page-1", "x": 1844, "y": 0, "w": 560, "h": 850, "title": "Day sheet" },
+    { "file": "Board.dc.html", "page": "page-1", "x": 0, "y": 1120, "w": 1352, "h": 780, "title": "Board — task-forward lanes" },
+    { "file": "Anatomy.dc.html", "page": "page-1", "x": 1472, "y": 1120, "w": 972, "h": 1240, "title": "Chip anatomy and cost" },
+    { "file": "AltTaskLanes.dc.html", "page": "page-2", "x": 0, "y": 0, "w": 920, "h": 580, "title": "Alt A — task lanes" },
+    { "file": "AltInspector.dc.html", "page": "page-2", "x": 1020, "y": 0, "w": 920, "h": 660, "title": "Alt B — task inspector" }
+  ],
+  "annotations": [
+    {
+      "id": "brief",
+      "page": "page-1",
+      "x": 0,
+      "y": -190,
+      "w": 700,
+      "text": "The gap: the board and the calendar both place CARDS. A card's tasks — body todos plus data.tasks, each already carrying startDate/dueDate — never appear on either surface.\n\nThis set makes the task a first-class citizen of both, without a second data model."
+    },
+    {
+      "id": "one-control",
+      "page": "page-1",
+      "x": 1844,
+      "y": 930,
+      "w": 560,
+      "text": "Everything here hangs off ONE new control: the Cards / Tasks / Both switch in the header. The board grows the same switch, so one board speaks one language."
+    },
+    {
+      "id": "alternates-note",
+      "page": "page-2",
+      "x": 0,
+      "y": -150,
+      "w": 700,
+      "text": "Two directions I did not take, sketched so the choice is visible. Both are honest options — Alt B is much cheaper to build, Alt A is the better weekly planner."
+    }
+  ],
+  "launch": { "view": "canvas", "page": "page-1" }
+}

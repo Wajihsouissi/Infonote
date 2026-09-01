@@ -1,0 +1,596 @@
+/* =====================================================
+   Settings (ProfilePage) — editorial ledger layout
+   -----------------------------------------------------
+   Language: Paper & Ink. Flat surfaces, hairline rules,
+   serif italic section numerals, mono uppercase asides.
+   Rows on rules — never boxes inside boxes. Every colour
+   comes from src/styles/design-system.css.
+   ===================================================== */
+
+/* #root is a flex row (design-system.css), so the page must claim the whole
+   viewport width — otherwise it shrink-wraps its max-width container and the
+   entire screen sits left-aligned with dead space on the right. */
+.page {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 100vh;
+  overflow-y: auto;
+  background: var(--bg-base);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+}
+
+/* ── Sticky top bar ─────────────────────────────────── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg-base);
+  border-bottom: 1px solid var(--line);
+}
+
+.topbarInner {
+  max-width: 1080px;
+  margin: 0 auto;
+  height: 64px;
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.crumb {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+
+.topActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Masthead ───────────────────────────────────────── */
+.masthead {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 48px 32px 40px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  border-bottom: 1px solid var(--line-heavy);
+}
+
+.avatar {
+  width: 68px;
+  height: 68px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-md);
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.identity {
+  min-width: 0;
+  flex: 1;
+}
+
+.name {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mail {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mastheadMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+
+.chipAccent {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ── Two-column body ────────────────────────────────── */
+.body {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 32px 120px;
+  display: grid;
+  grid-template-columns: 196px 1fr;
+  gap: 56px;
+  align-items: start;
+}
+
+/* ── Section rail ───────────────────────────────────── */
+/* A ruled index: one continuous hairline spine, the active section's segment
+   inked in accent. The 2px marker sits on the spine, never beside it. */
+.rail {
+  position: sticky;
+  top: 96px;
+  display: flex;
+  flex-direction: column;
+  padding-top: 47px;
+  border-left: 1px solid var(--line);
+}
+
+.railLink {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-left: -1px;
+  padding: 9px 12px 9px 16px;
+  border: none;
+  border-left: 2px solid transparent;
+  background: none;
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.railLink:hover {
+  color: var(--text-main);
+}
+
+.railLinkActive {
+  color: var(--text-main);
+  border-left-color: var(--accent);
+}
+
+.railIndex {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.railLinkActive .railIndex {
+  color: var(--accent-ink);
+}
+
+/* ── Sections ───────────────────────────────────────── */
+.sections {
+  min-width: 0;
+}
+
+.section {
+  scroll-margin-top: 96px;
+}
+
+/* Every section after the first opens on its own rule, so the seam between
+   two sections never reads as an accidental gap. */
+.section + .section {
+  border-top: 1px solid var(--line);
+  margin-top: 48px;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  padding: 48px 0 20px;
+  border-bottom: 1px solid var(--line-heavy);
+}
+
+.index {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 20px;
+  color: var(--text-soft);
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.aside {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  text-align: right;
+}
+
+.lede {
+  margin: 16px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-soft);
+  max-width: 62ch;
+}
+
+/* ── Rows ───────────────────────────────────────────── */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+/* The section's closing rule is the divider above the next section — a rule
+   under the last row as well would double it. */
+.row:last-of-type {
+  border-bottom: none;
+}
+
+.rowStacked {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rowMain {
+  min-width: 0;
+  flex: 1;
+}
+
+.rowLabel {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.rowHint {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-faint);
+  max-width: 54ch;
+}
+
+.rowControl {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rowStacked .rowControl {
+  width: 100%;
+}
+
+.value {
+  font-size: 14px;
+  color: var(--text-soft);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+/* ── Fields ─────────────────────────────────────────── */
+.input,
+.select {
+  width: 260px;
+  max-width: 100%;
+  padding: var(--input-pad);
+  border: 1px solid var(--input-border);
+  border-radius: var(--input-radius);
+  background: var(--input-bg);
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.input:focus,
+.select:focus {
+  border-color: var(--input-border-focus);
+  box-shadow: var(--focus-ring);
+}
+
+.input:disabled,
+.select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.select {
+  cursor: pointer;
+  appearance: none;
+  background-image: none;
+}
+
+/* ── Toggle ─────────────────────────────────────────── */
+.toggle {
+  position: relative;
+  width: 46px;
+  height: 26px;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--bg-inset);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.toggleOn {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.knob {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  transform: translateY(-50%);
+  transition: transform var(--transition-fast), background-color var(--transition-fast);
+}
+
+.toggleOn .knob {
+  background: var(--on-accent);
+  transform: translate(20px, -50%);
+}
+
+/* ── Dirty bar (per section) ────────────────────────── */
+.dirtyBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 12px 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--r-control);
+  background: var(--accent-dim);
+}
+
+.dirtyNote {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-ink);
+}
+
+/* ── Feedback ───────────────────────────────────────── */
+.flash {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: var(--r-control);
+  font-size: 13px;
+  border: 1px solid transparent;
+}
+
+.flashOk {
+  background: rgba(var(--ok-rgb), 0.1);
+  border-color: rgba(var(--ok-rgb), 0.28);
+  color: var(--ok);
+}
+
+.flashErr {
+  background: rgba(var(--danger-rgb), 0.1);
+  border-color: rgba(var(--danger-rgb), 0.28);
+  color: var(--danger);
+}
+
+/* ── People list ────────────────────────────────────── */
+.people {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.person:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.personAvatar {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--bg-raised);
+  border: 1px solid var(--line-strong);
+  font-family: var(--font-serif);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.personMeta {
+  min-width: 0;
+  flex: 1;
+}
+
+.personName {
+  font-size: 14px;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personMail {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  padding: 14px 0;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+/* ── Danger zone ────────────────────────────────────── */
+.dangerLabel {
+  color: var(--danger);
+}
+
+/* ── Responsive ─────────────────────────────────────── */
+@media (max-width: 980px) {
+  .body {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .rail {
+    position: sticky;
+    top: 64px;
+    z-index: 10;
+    flex-direction: row;
+    gap: 4px;
+    padding: 12px 0;
+    border-left: none;
+    margin: 0 -32px;
+    padding-left: 32px;
+    padding-right: 32px;
+    overflow-x: auto;
+    background: var(--bg-base);
+    border-bottom: 1px solid var(--line);
+    scrollbar-width: none;
+  }
+
+  .rail::-webkit-scrollbar {
+    display: none;
+  }
+
+  .railLink {
+    margin-left: 0;
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    padding: 6px 10px;
+    white-space: nowrap;
+  }
+
+  .railLinkActive {
+    border-bottom-color: var(--accent);
+  }
+
+  .head {
+    padding-top: 40px;
+  }
+}
+
+@media (max-width: 620px) {
+  .topbarInner,
+  .masthead,
+  .body {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .rail {
+    margin: 0 -20px;
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .masthead {
+    padding-top: 32px;
+    gap: 16px;
+  }
+
+  .avatar {
+    width: 54px;
+    height: 54px;
+    font-size: 21px;
+  }
+
+  .name {
+    font-size: 24px;
+  }
+
+  .row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .rowControl {
+    width: 100%;
+  }
+
+  .input,
+  .select {
+    width: 100%;
+  }
+
+  .aside {
+    display: none;
+  }
+}

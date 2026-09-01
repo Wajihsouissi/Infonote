@@ -41,7 +41,7 @@ export function CustomConnectionLine({
             {/* Glowing flowing dash path */}
             <path
                 fill="none"
-                stroke="var(--color-primary, #f95d2e)"
+                stroke="var(--color-primary, #ff5040)"
                 strokeWidth={3}
                 className="animated-connection-preview-glow"
                 d={path}
@@ -51,7 +51,7 @@ export function CustomConnectionLine({
             <circle
                 cx={toX}
                 cy={toY}
-                fill="var(--color-primary, #f95d2e)"
+                fill="var(--color-primary, #ff5040)"
                 r={5}
                 stroke="white"
                 strokeWidth={2}

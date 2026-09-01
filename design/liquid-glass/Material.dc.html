@@ -1,0 +1,225 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #ff5040; text-decoration: none; }
+    a:hover { color: #f365c0; }
+
+    .ink {
+      --text-main: #ffffff;
+      --text-soft: #e6e6e6;
+      --text-faint: #a3a3a3;
+      font-family: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      color: #ffffff;
+    }
+
+    /* The desk every sample below is laid on — same #0d0d0d, same 24px dot
+       grid as the canvas, because a glass sample only means something over
+       the surface it will actually sit on. */
+    .desk {
+      background-color: #0d0d0d;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.18) 1px, transparent 1px);
+      background-size: 24px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .lg {
+      position: relative;
+      isolation: isolate;
+      background: linear-gradient(177deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.028) 46%, rgba(255,255,255,0.062) 100%);
+      backdrop-filter: blur(20px) saturate(200%) brightness(1.07);
+      -webkit-backdrop-filter: blur(20px) saturate(200%) brightness(1.07);
+      box-shadow:
+        inset 0 1.2px 0 rgba(255,255,255,0.44),
+        inset 1px 0 0 rgba(255,255,255,0.15),
+        inset -1px 0 0 rgba(255,255,255,0.09),
+        inset 0 -1.2px 0 rgba(255,255,255,0.20),
+        inset 0 0 26px rgba(255,255,255,0.045),
+        0 1px 0 rgba(0,0,0,0.6),
+        0 16px 38px rgba(0,0,0,0.5);
+      corner-shape: superellipse(2);
+    }
+    .lg::before {
+      content: ''; position: absolute; inset: 0; border-radius: inherit; corner-shape: inherit;
+      pointer-events: none; z-index: 1;
+      background:
+        radial-gradient(125% 90% at 14% -30%, rgba(255,255,255,0.30), rgba(255,255,255,0) 58%),
+        radial-gradient(95% 70% at 86% 130%, rgba(255,255,255,0.13), rgba(255,255,255,0) 62%);
+    }
+    .lg::after {
+      content: ''; position: absolute; inset: 0; border-radius: inherit; corner-shape: inherit;
+      padding: 1.2px; pointer-events: none; z-index: 2;
+      background: linear-gradient(133deg,
+        rgba(255,80,64,0.62) 0%, rgba(255,255,255,0.30) 16%, rgba(255,255,255,0.04) 40%,
+        rgba(255,255,255,0.04) 62%, rgba(255,255,255,0.22) 84%, rgba(243,101,192,0.58) 100%);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      mask-composite: exclude;
+    }
+    .refract {
+      position: absolute; inset: 0; border-radius: inherit; corner-shape: inherit;
+      pointer-events: none; z-index: 0;
+      backdrop-filter: url(#lens-m); -webkit-backdrop-filter: url(#lens-m);
+    }
+    .lg > .content { position: relative; z-index: 3; }
+
+    /* Isolated layers, for the anatomy row. Each one is the recipe above with
+       everything but the named effect switched off. */
+    .only-blur {
+      backdrop-filter: blur(20px) saturate(200%) brightness(1.07);
+      -webkit-backdrop-filter: blur(20px) saturate(200%) brightness(1.07);
+      background: linear-gradient(177deg, rgba(255,255,255,0.11), rgba(255,255,255,0.028) 46%, rgba(255,255,255,0.062));
+      corner-shape: superellipse(2);
+    }
+    .only-refract {
+      backdrop-filter: url(#lens-m); -webkit-backdrop-filter: url(#lens-m);
+      corner-shape: superellipse(2);
+    }
+    .only-bezel {
+      corner-shape: superellipse(2);
+      box-shadow:
+        inset 0 1.2px 0 rgba(255,255,255,0.44),
+        inset 1px 0 0 rgba(255,255,255,0.15),
+        inset -1px 0 0 rgba(255,255,255,0.09),
+        inset 0 -1.2px 0 rgba(255,255,255,0.20),
+        inset 0 0 26px rgba(255,255,255,0.045);
+      background: radial-gradient(125% 90% at 14% -30%, rgba(255,255,255,0.30), rgba(255,255,255,0) 58%),
+                  radial-gradient(95% 70% at 86% 130%, rgba(255,255,255,0.13), rgba(255,255,255,0) 62%);
+    }
+    .only-rim { position: relative; corner-shape: superellipse(2); }
+    .only-rim::after {
+      content: ''; position: absolute; inset: 0; border-radius: inherit; corner-shape: inherit;
+      padding: 1.2px;
+      background: linear-gradient(133deg,
+        rgba(255,80,64,0.85) 0%, rgba(255,255,255,0.45) 16%, rgba(255,255,255,0.06) 40%,
+        rgba(255,255,255,0.06) 62%, rgba(255,255,255,0.32) 84%, rgba(243,101,192,0.8) 100%);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      mask-composite: exclude;
+    }
+
+    .h { font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #a3a3a3; }
+    .cap { font-size: 12px; line-height: 1.5; color: #a3a3a3; }
+    .num { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 11px; color: #c3ff33; }
+  </style>
+</helmet>
+
+<div class="ink" style="width: 1000px; height: 760px; background: #090909; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; gap: 26px">
+
+  <div style="display: flex; flex-direction: column; gap: 7px">
+    <div style="font-size: 26px; font-weight: 600; letter-spacing: -0.02em">Liquid Charcoal</div>
+    <div style="font-size: 14px; line-height: 1.55; color: #a3a3a3; max-width: 620px">A glass layer added on top of Charcoal &amp; Signal. Nothing in the existing token set changes — the material only decides which surfaces stop being opaque.</div>
+  </div>
+
+  <!-- ---------- the rule ---------- -->
+  <div style="display: flex; gap: 16px">
+    <div style="flex: 1; padding: 16px 18px; border-radius: 20px; corner-shape: superellipse(2); background: rgba(255,80,64,0.09); box-shadow: inset 0 0 0 1px rgba(255,80,64,0.28); display: flex; flex-direction: column; gap: 7px">
+      <div class="h" style="color: #ff5040">Glass — chrome only</div>
+      <div class="cap" style="color: #e6e6e6">Top-bar clusters, the bottom rail, the AI dock, context and slash menus, tooltips, the multi-select toolbar, modal scrims. Things that float <em>over</em> the work.</div>
+    </div>
+    <div style="flex: 1; padding: 16px 18px; border-radius: 20px; corner-shape: superellipse(2); background: rgba(255,255,255,0.045); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14); display: flex; flex-direction: column; gap: 7px">
+      <div class="h">Ink — content stays opaque</div>
+      <div class="cap" style="color: #e6e6e6">Note cards, editor wells, kanban cards, the AI transcript. You read and type here for hours; a moving backdrop behind body text is a legibility tax, not a material.</div>
+    </div>
+  </div>
+
+  <!-- ---------- anatomy ---------- -->
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <div class="h">Anatomy — four layers, in the order light meets them</div>
+    <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px">
+
+      <div style="display: flex; flex-direction: column; gap: 9px">
+        <div class="desk" style="height: 108px; border-radius: 20px; corner-shape: superellipse(2); display: flex; align-items: center; justify-content: center">
+          <div class="only-bezel" style="width: 118px; height: 66px; border-radius: 18px"></div>
+        </div>
+        <div style="font-size: 12.5px; font-weight: 600">1 · Specular</div>
+        <div class="cap">Light from above-left, bounce below-right. <span class="num">inset 0 1.2px 0 / .44</span></div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 9px">
+        <div class="desk" style="height: 108px; border-radius: 20px; corner-shape: superellipse(2); display: flex; align-items: center; justify-content: center">
+          <div class="only-refract" style="width: 118px; height: 66px; border-radius: 18px"></div>
+        </div>
+        <div style="font-size: 12.5px; font-weight: 600">2 · Refraction</div>
+        <div class="cap">Displacement map bends the grid at the bezel. <span class="num">scale 26</span></div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 9px">
+        <div class="desk" style="height: 108px; border-radius: 20px; corner-shape: superellipse(2); display: flex; align-items: center; justify-content: center">
+          <div class="only-blur" style="width: 118px; height: 66px; border-radius: 18px"></div>
+        </div>
+        <div style="font-size: 12.5px; font-weight: 600">3 · Frosted core</div>
+        <div class="cap">Blur plus saturation, so colour survives. <span class="num">blur 20 · sat 200%</span></div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 9px">
+        <div class="desk" style="height: 108px; border-radius: 20px; corner-shape: superellipse(2); display: flex; align-items: center; justify-content: center">
+          <div class="only-rim" style="width: 118px; height: 66px; border-radius: 18px"></div>
+        </div>
+        <div style="font-size: 12.5px; font-weight: 600">4 · Rim dispersion</div>
+        <div class="cap">Coral into pink — the split uses the two hues you already own.</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 9px">
+        <div class="desk" style="height: 108px; border-radius: 20px; corner-shape: superellipse(2); display: flex; align-items: center; justify-content: center">
+          <div class="lg" style="width: 118px; height: 66px; border-radius: 18px">
+            <div class="refract"></div>
+          </div>
+        </div>
+        <div style="font-size: 12.5px; font-weight: 600; color: #ff5040">All four</div>
+        <div class="cap">The whole material. Each layer fails on its own, so it degrades instead of breaking.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ---------- radii + degradation ---------- -->
+  <div style="display: flex; gap: 16px; align-items: stretch">
+
+    <div style="flex: 1.35; display: flex; flex-direction: column; gap: 12px">
+      <div class="h">Radii — the existing squircle scale, unchanged</div>
+      <div class="desk" style="border-radius: 20px; corner-shape: superellipse(2); padding: 20px; display: flex; align-items: center; gap: 16px">
+        <div class="lg" style="width: 62px; height: 62px; border-radius: 8px"><div class="refract"></div></div>
+        <div class="lg" style="width: 62px; height: 62px; border-radius: 12px"><div class="refract"></div></div>
+        <div class="lg" style="width: 62px; height: 62px; border-radius: 16px"><div class="refract"></div></div>
+        <div class="lg" style="width: 62px; height: 62px; border-radius: 24px"><div class="refract"></div></div>
+        <div class="lg" style="width: 62px; height: 62px; border-radius: 32px"><div class="refract"></div></div>
+        <div class="lg" style="width: 62px; height: 62px; border-radius: 999px"><div class="refract"></div></div>
+      </div>
+      <div class="cap"><span class="num">8 · 12 · 16 · 24 · 32 · pill</span> — all still on <span class="num">corner-shape: superellipse(2)</span>. The bezel is what makes the superellipse finally legible: on a flat fill you had to look for it.</div>
+    </div>
+
+    <div style="flex: 1; display: flex; flex-direction: column; gap: 12px">
+      <div class="h">Degradation</div>
+      <div style="display: flex; flex-direction: column; gap: 9px; padding: 16px 18px; border-radius: 20px; corner-shape: superellipse(2); background: rgba(255,255,255,0.045); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14)">
+        <div style="display: flex; gap: 10px; align-items: baseline"><span class="num" style="min-width: 74px; color: #5ac875">Chromium</span><span class="cap" style="color: #e6e6e6">refraction, bezel, rim</span></div>
+        <div style="display: flex; gap: 10px; align-items: baseline"><span class="num" style="min-width: 74px; color: #ffc31f">Safari / FF</span><span class="cap" style="color: #e6e6e6">frosted core, bezel, rim — the displacement layer is simply inert</span></div>
+        <div style="display: flex; gap: 10px; align-items: baseline"><span class="num" style="min-width: 74px; color: #a3a3a3">Reduced</span><span class="cap" style="color: #e6e6e6">no backdrop-filter: falls back to <span class="num">--bg-raised</span> #242424 at full opacity</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <svg width="0" height="0" style="position: absolute; pointer-events: none" aria-hidden="true">
+    <filter id="lens-m" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feImage preserveAspectRatio="none" result="map" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='160' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='x' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='rgb(255,0,0)'/%3E%3Cstop offset='0.2' stop-color='rgb(128,0,0)'/%3E%3Cstop offset='0.8' stop-color='rgb(128,0,0)'/%3E%3Cstop offset='1' stop-color='rgb(0,0,0)'/%3E%3C/linearGradient%3E%3ClinearGradient id='y' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='rgb(0,0,255)'/%3E%3Cstop offset='0.24' stop-color='rgb(0,0,128)'/%3E%3Cstop offset='0.76' stop-color='rgb(0,0,128)'/%3E%3Cstop offset='1' stop-color='rgb(0,0,0)'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='300' height='160' fill='url(%23x)'/%3E%3Crect width='300' height='160' fill='url(%23y)' style='mix-blend-mode:screen'/%3E%3C/svg%3E"></feImage>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="26" xChannelSelector="R" yChannelSelector="B"></feDisplacementMap>
+    </filter>
+  </svg>
+
+</div>
+</x-dc>
+</body>
+</html>

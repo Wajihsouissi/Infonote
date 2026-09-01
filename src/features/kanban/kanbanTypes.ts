@@ -24,6 +24,7 @@
 
 import { MIN_EXPANDED_SIZE } from '../../config/layout';
 import type { BlockNode, FusedNoteNode, NoteNode } from '../../types';
+import type { CardDateField } from '../../utils/cardDate';
 
 /**
  * The metadata a board plans by, carried by every node type a board can hold.
@@ -72,8 +73,78 @@ export const KANBAN_DEFAULT_WIDTH =
     DEFAULT_LANE_COUNT * KANBAN_LANE_WIDTH + (DEFAULT_LANE_COUNT - 1) * KANBAN_LANE_GAP; // 1752
 export const KANBAN_DEFAULT_HEIGHT = KANBAN_LANE_MIN_HEIGHT;
 
+/**
+ * The calendar is exactly four lanes wide — always, whatever the board's lane
+ * count happens to be.
+ *
+ * Not an aesthetic choice. `.board` is `width: max-content` and its rendered
+ * size is mirrored onto the canvas node for culling and hit-testing (see
+ * KanbanNode's resize observer), so a grid whose width tracked its contents
+ * would make that mirror chase itself. Fixing it here also means switching
+ * Board → Calendar on a four-lane board does not move the node at all.
+ */
+export const KANBAN_CALENDAR_WIDTH = KANBAN_DEFAULT_WIDTH; // 1752
+export const KANBAN_TRAY_WIDTH = 260;
+/** Six week rows always, so paging a month never changes the node's height. */
+export const CALENDAR_MONTH_ROWS = 6;
+
 /** Card metadata fields a board can group by. */
 export type KanbanGroupField = 'status' | 'priority' | 'category' | 'assignee';
+
+/**
+ * Which view of the same cards a board is showing.
+ *
+ * The cards are identical either way — a calendar is the board's other reading
+ * of one set of notes, not a second place to keep them. Lanes are one value of
+ * one metadata field; days are one value of one date field.
+ */
+export type KanbanViewMode = 'board' | 'calendar';
+
+/** The card date field a calendar places cards by. Defined in cardDate so the
+ *  pure date helpers can talk about it without importing this feature. */
+export type KanbanDateField = CardDateField;
+
+/** How much time one screen of the calendar covers. */
+export type KanbanCalendarScale = 'day' | 'week' | 'month' | 'year';
+
+/**
+ * What a day is made of.
+ *
+ * A card is a cluster of tasks, and until now both views only ever placed the
+ * cluster: a task carrying its own due date had nowhere to appear. This is the
+ * one switch that changes that, and it is deliberately one switch rather than a
+ * second calendar — the tasks are read off the same cards the lanes hold, by
+ * the same date field the cards are placed by.
+ *
+ * 'cards' is the default so that every board saved before this existed opens
+ * exactly as it always did, with nothing to migrate.
+ */
+export type KanbanGranularity = 'cards' | 'tasks' | 'both';
+
+export const DATE_FIELDS: KanbanDateField[] = ['dueDate', 'startDate', 'createdAt'];
+
+export const DATE_FIELD_LABEL: Record<KanbanDateField, string> = {
+    dueDate: 'Due date',
+    startDate: 'Start date',
+    createdAt: 'Created',
+};
+
+export const CALENDAR_SCALES: KanbanCalendarScale[] = ['day', 'week', 'month', 'year'];
+
+export const CALENDAR_SCALE_LABEL: Record<KanbanCalendarScale, string> = {
+    day: 'Day',
+    week: 'Week',
+    month: 'Month',
+    year: 'Year',
+};
+
+export const GRANULARITIES: KanbanGranularity[] = ['cards', 'tasks', 'both'];
+
+export const GRANULARITY_LABEL: Record<KanbanGranularity, string> = {
+    cards: 'Cards',
+    tasks: 'Tasks',
+    both: 'Both',
+};
 
 /**
  * A column's colour: one of the ten accent hues, or none.
@@ -148,6 +219,20 @@ export type KanbanNodeData = {
      * its lane instead of jumping to the top of it.
      */
     cardOrder?: string[];
+    /**
+     * Which view this board is showing. Absent means 'board', so every board
+     * saved before the calendar existed opens exactly as it always did — there
+     * is nothing to migrate.
+     */
+    viewMode?: KanbanViewMode;
+    /** The date field the calendar places cards by. Absent means 'dueDate'. */
+    dateField?: KanbanDateField;
+    /** How much time one calendar screen covers. Absent means 'month'. */
+    calendarScale?: KanbanCalendarScale;
+    /** Whether the calendar draws cards, their tasks, or both. Absent means
+     *  'cards', so an old board opens unchanged. */
+    granularity?: KanbanGranularity;
+
     /** Hand-set size from the resize handle; see NoteData.userWidth. */
     userWidth?: number;
     userHeight?: number;
@@ -155,6 +240,28 @@ export type KanbanNodeData = {
     createdAt?: string;
     updatedAt?: string;
 };
+
+/**
+ * The view settings a board actually renders, tolerating anything stored.
+ *
+ * Read rather than trusted, for the same reason `toneOf` exists: this data has
+ * already survived one rename, it comes back from cloud documents nobody
+ * validated, and a board whose `viewMode` is some string from the future should
+ * open as a board rather than as a blank rectangle.
+ */
+export const viewModeOf = (data: KanbanNodeData): KanbanViewMode =>
+    data.viewMode === 'calendar' ? 'calendar' : 'board';
+
+export const dateFieldOf = (data: KanbanNodeData): KanbanDateField =>
+    data.dateField === 'startDate' || data.dateField === 'createdAt' ? data.dateField : 'dueDate';
+
+export const scaleOf = (data: KanbanNodeData): KanbanCalendarScale =>
+    CALENDAR_SCALES.includes(data.calendarScale as KanbanCalendarScale)
+        ? (data.calendarScale as KanbanCalendarScale)
+        : 'month';
+
+export const granularityOf = (data: KanbanNodeData): KanbanGranularity =>
+    data.granularity === 'tasks' || data.granularity === 'both' ? data.granularity : 'cards';
 
 /** The lane that holds cards with no value for the group field. */
 export const UNSORTED_VALUE = '';
@@ -164,6 +271,61 @@ export const LANE_PREFIX = 'lane:';
 
 /** dnd-kit id for a lane's own droppable. */
 export const laneDroppableId = (value: string) => `${LANE_PREFIX}${value}`;
+
+/** Prefix that keeps a day cell's droppable id clear of card ids and lane ids. */
+export const DAY_PREFIX = 'day:';
+
+/** dnd-kit id for one day cell. The suffix is a `DayKey` — see cardDate.ts. */
+export const dayDroppableId = (key: string) => `${DAY_PREFIX}${key}`;
+
+/** dnd-kit id for the calendar's unscheduled tray. */
+export const TRAY_DROPPABLE_ID = 'unscheduled';
+
+/**
+ * Prefix that keeps a task chip's draggable id clear of the card ids.
+ *
+ * A task is addressed through the card that owns it — `cardTasks` merges body
+ * blocks and `data.tasks` entries, so a task id is only unique *within* a card,
+ * and a block id is a uuid that could in principle collide with a node id. Both
+ * halves travel in the drag id rather than being looked up at drop time, which
+ * is what lets the drop handler write the patch without searching every card.
+ */
+export const TASK_PREFIX = 'task:';
+
+/** dnd-kit id for one task chip. */
+export const taskDraggableId = (cardId: string, taskId: string) =>
+    `${TASK_PREFIX}${cardId}:${taskId}`;
+
+/** The card and task a draggable id names, or null if it is not a task chip. */
+export const parseTaskDragId = (id: string): { cardId: string; taskId: string } | null => {
+    if (!id.startsWith(TASK_PREFIX)) return null;
+    const rest = id.slice(TASK_PREFIX.length);
+    /* First colon, not last: a task id can be a block id, and neither half is
+       allowed to contain one — both are uuids. */
+    const at = rest.indexOf(':');
+    if (at === -1) return null;
+    const cardId = rest.slice(0, at);
+    const taskId = rest.slice(at + 1);
+    return cardId && taskId ? { cardId, taskId } : null;
+};
+
+/** Prefix for one half-hour slot of the day/week hour grid. */
+export const SLOT_PREFIX = 'slot:';
+
+/** dnd-kit id for one time slot: `slot:YYYY-MM-DD:540` for 9am. */
+export const slotDroppableId = (key: string, minutes: number) =>
+    `${SLOT_PREFIX}${key}:${minutes}`;
+
+/** The day and time a slot droppable id names, or null if it is not one. */
+export const parseSlotId = (id: string): { dayKey: string; minutes: number } | null => {
+    if (!id.startsWith(SLOT_PREFIX)) return null;
+    const rest = id.slice(SLOT_PREFIX.length);
+    const at = rest.lastIndexOf(':');
+    if (at === -1) return null;
+    const minutes = Number(rest.slice(at + 1));
+    if (!Number.isFinite(minutes)) return null;
+    return { dayKey: rest.slice(0, at), minutes };
+};
 
 const UNSORTED_LABEL: Record<KanbanGroupField, string> = {
     status: 'Backlog',
@@ -322,7 +484,6 @@ export function groupCards(
     field: KanbanGroupField,
     cardOrder: string[] = [],
 ): Map<string, BoardChild[]> {
-    const rank = new Map(cardOrder.map((id, i) => [id, i]));
     const lanes = new Map<string, BoardChild[]>(columns.map((c) => [c.value, []]));
 
     for (const card of cards) {
@@ -330,21 +491,37 @@ export function groupCards(
         lane?.push(card);
     }
 
-    // Unranked children sort last, then by creation so the fallback is stable
-    // rather than dependent on store order. Only notes carry `createdAt`; for a
-    // block the id is the tiebreaker, which is arbitrary but at least constant.
-    const UNRANKED = Number.MAX_SAFE_INTEGER;
-    const born = (c: BoardChild) => ('createdAt' in c.data ? c.data.createdAt ?? '' : '');
-    for (const lane of lanes.values()) {
-        lane.sort((a, b) => {
-            const ra = rank.get(a.id) ?? UNRANKED;
-            const rb = rank.get(b.id) ?? UNRANKED;
-            if (ra !== rb) return ra - rb;
-            return born(a).localeCompare(born(b)) || a.id.localeCompare(b.id);
-        });
-    }
+    const compare = byBoardOrder(rankOf(cardOrder));
+    for (const lane of lanes.values()) lane.sort(compare);
     return lanes;
 }
+
+/** `cardOrder` as a lookup, which is all any comparator wants from it. */
+export const rankOf = (cardOrder: string[] = []): Map<string, number> =>
+    new Map(cardOrder.map((id, i) => [id, i]));
+
+/**
+ * The board's idea of card order, as a comparator.
+ *
+ * Shared by the lanes and the calendar's day cells deliberately. Two views of
+ * one set of cards that sorted them differently would be two views disagreeing
+ * about which card is first, which is exactly the drift this file's header
+ * warns about — so there is one comparator and both call it.
+ *
+ * Unranked children sort last, then by creation so the fallback is stable
+ * rather than dependent on store order. Only notes carry `createdAt`; for a
+ * block the id is the tiebreaker, which is arbitrary but at least constant.
+ */
+export const byBoardOrder = (rank: Map<string, number>) => {
+    const UNRANKED = Number.MAX_SAFE_INTEGER;
+    const born = (c: BoardChild) => ('createdAt' in c.data ? c.data.createdAt ?? '' : '');
+    return (a: BoardChild, b: BoardChild): number => {
+        const ra = rank.get(a.id) ?? UNRANKED;
+        const rb = rank.get(b.id) ?? UNRANKED;
+        if (ra !== rb) return ra - rb;
+        return born(a).localeCompare(born(b)) || a.id.localeCompare(b.id);
+    };
+};
 
 /**
  * `cardOrder` rewritten so `movedId` sits at `index` of the lane it just landed

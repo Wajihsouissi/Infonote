@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Block, BlockMetadata } from '../editor/types';
+import { normalizeTableRows } from '../editor/pasteUtils';
 
 /**
  * The clipboard format.
@@ -184,7 +185,7 @@ export function blocksToPlainText(blocks: Block[]): string {
                 break;
             }
             case 'table': {
-                const rows = Array.isArray(block.metadata?.rows) ? (block.metadata.rows as string[][]) : [];
+                const rows = normalizeTableRows(Array.isArray(block.metadata?.rows) ? (block.metadata.rows as string[][]) : []);
                 for (const row of rows) lines.push(`${indent}${row.join('\t')}`);
                 break;
             }
@@ -273,7 +274,7 @@ export function blocksToHtml(blocks: Block[]): string {
                 break;
             case 'table': {
                 closeList();
-                const rows = Array.isArray(block.metadata?.rows) ? (block.metadata.rows as string[][]) : [];
+                const rows = normalizeTableRows(Array.isArray(block.metadata?.rows) ? (block.metadata.rows as string[][]) : []);
                 parts.push(
                     `<table>${rows
                         .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell ?? '')}</td>`).join('')}</tr>`)

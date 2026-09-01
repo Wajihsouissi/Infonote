@@ -12,6 +12,16 @@
     overflow: hidden;
 }
 
+/* The same component in fullscreen. It becomes a contained column rather
+   than an absolute transcript cover, preserving one chat-history behavior in
+   both presentations. */
+.rail {
+    position: relative;
+    height: 100%;
+    border-radius: 0;
+    border-right: 1px solid var(--line);
+}
+
 .head {
     flex-shrink: 0;
     display: flex;

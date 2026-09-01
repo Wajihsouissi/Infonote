@@ -200,3 +200,21 @@
     transform: translateY(-50%) translateX(0) scale(1);
     transition-delay: 0s;
 }
+
+@media (max-width: 780px) {
+    .panel.fullscreenNarrow {
+        position: fixed;
+        inset: 0;
+        z-index: 1200;
+        width: 100vw !important;
+        height: 100dvh;
+        transform: none !important;
+    }
+
+    .fullscreenNarrow .scrollContent {
+        margin: 0;
+        border-radius: 0;
+    }
+
+    .fullscreenNarrow .resizeHandle { display: none; }
+}

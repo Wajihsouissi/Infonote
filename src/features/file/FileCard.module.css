@@ -1,0 +1,67 @@
+/* The closed file, laid out to match the folder card exactly: art centred, an
+   editable label under it, no surface of its own. The node it sits in is what
+   removes the card chrome — see BlockNode.module.css. */
+
+.card {
+    animation: fileCardIn 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    width: 100%;
+    height: 100%;
+}
+
+@keyframes fileCardIn {
+    from { opacity: 0; transform: scale(0.98); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .card { animation: none; }
+}
+
+/* On the canvas rather than on a panel, so the label needs its own contrast:
+   full-strength ink and a hairline of ground behind it keep it readable over a
+   busy background. Same treatment as .folderLabel. */
+.label {
+    width: 100%;
+    margin-top: 2px;
+    padding: 1px 4px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--node-title);
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: center;
+    text-overflow: ellipsis;
+    text-shadow: 0 1px 2px var(--bg-base);
+    outline: none;
+    cursor: text;
+    transition: background var(--transition-fast);
+}
+
+.label:hover {
+    background: var(--hover-wash);
+}
+
+.label:focus {
+    background: var(--active-wash);
+    text-shadow: none;
+}
+
+.label:read-only {
+    cursor: default;
+}
+
+.size {
+    color: var(--text-faint);
+    font-size: 0.625rem;
+    line-height: 1.4;
+    text-shadow: 0 1px 2px var(--bg-base);
+    pointer-events: none;
+}

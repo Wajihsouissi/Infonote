@@ -29,6 +29,8 @@ import {
     KeyboardSensor,
     PointerSensor,
     closestCorners,
+    pointerWithin,
+    rectIntersection,
     useSensor,
     useSensors,
     type CollisionDetection,
@@ -37,39 +39,74 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { Maximize2, Move, Plus, X } from '../../components/icons';
+import { Calendar, LayoutGrid, Maximize2, Move, Plus, X } from '../../components/icons';
 import { v4 as uuidv4 } from 'uuid';
 
 import { useStore } from '../../store/useStore';
 import type { AppNode, KanbanNode } from '../../types';
 import { GRID_GAP, MEDIUM_SIZE } from '../../config/layout';
+import {
+    fromDayKey,
+    resizeCardPatch,
+    scheduleCardAtTime,
+    toStoredDate,
+    unscheduleCardPatch,
+    type DayKey,
+} from '../../utils/cardDate';
 import { samePropsIgnoringPosition } from '../canvas/nodeMemo';
 import { KanbanCard } from './KanbanCard';
 import { KanbanBlockPreview } from './KanbanBlockPreview';
 import { KanbanLane } from './KanbanLane';
+import { KanbanCalendar } from './KanbanCalendar';
+import { KanbanCalendarChip } from './KanbanCalendarChip';
+import { KanbanCalendarTaskChip } from './KanbanCalendarTaskChip';
 import { KanbanColumnDeleteModal } from './KanbanColumnDeleteModal';
 import { KanbanZoomContext } from './kanbanDragScale';
 import {
+    DATE_FIELDS,
+    DATE_FIELD_LABEL,
+    DAY_PREFIX,
     DEFAULT_COLUMNS,
     GROUP_FIELDS,
     GROUP_FIELD_LABEL,
     LANE_PREFIX,
+    TRAY_DROPPABLE_ID,
+    parseSlotId,
+    parseTaskDragId,
     UNSORTED_VALUE,
     cardValue,
     configuredColumns,
     createColumn,
+    dateFieldOf,
+    granularityOf,
     groupCards,
     isUnsortedColumn,
     laneDroppableId,
     moveColumn,
     reorderCardOrder,
     resolveColumns,
+    scaleOf,
+    toneOf,
+    viewModeOf,
     type BoardChild,
+    type KanbanCalendarScale,
     type KanbanColumn,
+    type KanbanDateField,
+    type KanbanGranularity,
     type KanbanTone,
     type KanbanGroupField,
+    type KanbanViewMode,
 } from './kanbanTypes';
+import { cardTasks, setTaskDetails } from '../card/cardTasks';
 import styles from './KanbanNode.module.css';
+import { Tabs, type TabItem } from '../../components/ui/Tabs';
+
+/* Two readings of one board. Glyph-only, so the label doubles as the tooltip
+   and the accessible name. */
+const BOARD_VIEW_TABS: TabItem<KanbanViewMode>[] = [
+    { id: 'board', ariaLabel: 'Board', icon: <LayoutGrid size={14} /> },
+    { id: 'calendar', ariaLabel: 'Calendar', icon: <Calendar size={14} /> },
+];
 
 /** Columns the drilled-in canvas lays new cards out in. */
 const DRILL_GRID_COLS = 4;
@@ -104,11 +141,27 @@ export const KanbanNodeComponent = memo(({ id, data, selected, fullscreenView = 
     /* The held item and the zoom it is held at, captured together at drag start.
        Both are constant for the length of a gesture, so this is two renders per
        drag rather than two per frame. */
-    const [drag, setDrag] = useState<{ id: string; zoom: number; type: 'card' | 'lane' } | null>(null);
+    const [drag, setDrag] = useState<{ id: string; zoom: number; type: 'card' | 'lane' | 'chip' | 'task' } | null>(null);
     const [overLane, setOverLane] = useState<string | null>(null);
     const [pendingDelete, setPendingDelete] = useState<string | null>(null);
     const fullscreenId = useStore((s) => s.fullscreenId);
     const setFullscreenId = useStore((s) => s.setFullscreenId);
+
+    const view = viewModeOf(data);
+
+    /**
+     * Which screenful of time the calendar is showing, and whether its tray is
+     * folded away.
+     *
+     * Local, and reset to today on mount, deliberately. `updateNodeData` stamps
+     * `updatedAt` and marks the document cloud-dirty unconditionally, so a
+     * persisted cursor would be a sync-marking store write on every arrow
+     * press. It would also couple the two live copies of a board — the canvas
+     * one and the fullscreen one are the same component with the same data
+     * (see peekContent) — so paging one would page the other.
+     */
+    const [cursor, setCursor] = useState<Date>(() => new Date());
+    const [trayCollapsed, setTrayCollapsed] = useState(false);
 
     /**
      * The child being worked on, if any.
@@ -135,9 +188,34 @@ export const KanbanNodeComponent = memo(({ id, data, selected, fullscreenView = 
     );
 
     const activeCard = useMemo(
-        () => (drag?.type === 'card' ? cards.find((c) => c.id === drag.id) ?? null : null),
+        () => (drag && drag.type !== 'lane' && drag.type !== 'task'
+            ? cards.find((c) => c.id === drag.id) ?? null
+            : null),
         [drag, cards],
     );
+
+    /** The lane colour a card wears, for anything drawn outside a lane. */
+    const toneOfCardId = useCallback((cardId: string): KanbanTone => {
+        const card = cards.find((c) => c.id === cardId);
+        if (!card) return 'neutral';
+        const value = cardValue(card.data, data.groupBy);
+        const column = columns.find((c) => c.value === value);
+        return column ? toneOf(column) : 'neutral';
+    }, [cards, columns, data.groupBy]);
+
+    /* The held task, for the overlay. A task's drag id is not a node id, so it
+       cannot come out of `activeCard` — both halves are unpacked from the id
+       rather than being carried in state, which keeps the drag state one shape
+       whatever is being held. */
+    const activeTask = useMemo(() => {
+        if (drag?.type !== 'task') return null;
+        const dragged = parseTaskDragId(drag.id);
+        if (!dragged) return null;
+        const card = cards.find((c) => c.id === dragged.cardId);
+        if (!card || card.type !== 'note') return null;
+        const task = cardTasks(card.data).find((t) => t.id === dragged.taskId);
+        return task ? { card, task } : null;
+    }, [drag, cards]);
 
     /**
      * Mirror the rendered size onto the node.
@@ -196,13 +274,23 @@ export const KanbanNodeComponent = memo(({ id, data, selected, fullscreenView = 
      * catch-all, which holds no configured position to take.
      */
     const collisionDetection = useCallback<CollisionDetection>((args) => {
+        /* A grid of equal cells wants the cell under the pointer, not the
+           nearest corner: `closestCorners` favours large containers, which lets
+           a chip released near a cell edge resolve to its neighbour — a card
+           filed on the wrong day. `rectIntersection` covers the gaps between
+           cells, where the pointer is inside no cell at all. */
+        if (view === 'calendar') {
+            const hits = pointerWithin(args);
+            return hits.length > 0 ? hits : rectIntersection(args);
+        }
+
         if (args.active.data.current?.type !== 'lane') return closestCorners(args);
         return closestCorners({
             ...args,
             droppableContainers: args.droppableContainers.filter((c) =>
                 c.data.current?.type === 'lane' && c.data.current?.value !== UNSORTED_VALUE),
         });
-    }, []);
+    }, [view]);
 
     /** Which lane a dnd-kit `over` id refers to — a lane's own id, or the lane
      *  holding the card hovered. Read from `lanes` rather than the card's field
@@ -216,17 +304,23 @@ export const KanbanNodeComponent = memo(({ id, data, selected, fullscreenView = 
     }, [lanes]);
 
     const handleDragStart = useCallback((event: DragStartEvent) => {
+        const kind = event.active.data.current?.type;
         setDrag({
             id: String(event.active.id),
             zoom: getZoom(),
-            type: event.active.data.current?.type === 'lane' ? 'lane' : 'card',
+            type: kind === 'lane' ? 'lane'
+                : kind === 'task' ? 'task'
+                    : kind === 'chip' ? 'chip' : 'card',
         });
     }, [getZoom]);
 
     const handleDragOver = useCallback((event: DragOverEvent) => {
-        if (event.active.data.current?.type === 'lane') return;
+        /* Lane highlighting is a board concern; on the calendar each cell owns
+           its own `isOver`, because a cell has no nested droppables to swallow
+           the collision the way a lane's cards do. */
+        if (view === 'calendar' || event.active.data.current?.type === 'lane') return;
         setOverLane(event.over ? laneValueOf(String(event.over.id)) : null);
-    }, [laneValueOf]);
+    }, [view, laneValueOf]);
 
     const handleDragCancel = useCallback(() => {
         setDrag(null);
@@ -238,6 +332,100 @@ export const KanbanNodeComponent = memo(({ id, data, selected, fullscreenView = 
         updateNodeData(id, { columns: next });
     }, [id, updateNodeData]);
 
+    /**
+     * A chip released on a day cell or on the tray.
+     *
+     * The patch is worked out here, at drop time, from the card as it stands
+     * now — never from a snapshot taken when the drag began, which would
+     * resurrect a value something else has since changed. A card that vanished
+     * mid-gesture simply produces no write.
+     *
+     * `cardOrder` is deliberately untouched: that is lane order, and moving a
+     * card on the calendar must not quietly reshuffle the board's columns.
+     */
+    /**
+     * A task chip released on a day cell or on the tray.
+     *
+     * The card and the task both travel in the drag id, so nothing has to be
+     * searched for at drop time beyond the card itself. Which field is written
+     * is the calendar's choice, not the chip's — the same field the cards are
+     * being placed by, so a task and its card always answer the same question.
+     *
+     * A task is placed by day and never by hour: `cardTasks` reads a body
+     * task's due date out of its `todo` block, which has room for a date and
+     * not for a clock reading. Dropping one on a half-hour slot therefore sets
+     * the day and drops the time, rather than writing a time only one of the
+     * two storage shapes could hold.
+     */
+    const handleTaskDrop = useCallback((activeId: string, overId: string) => {
+        const dragged = parseTaskDragId(activeId);
+        if (!dragged) return false;
+
+        const card = cards.find((c) => c.id === dragged.cardId);
+        if (!card || card.type !== 'note') return true;
+
+        const field = dateFieldOf(data);
+        // Created is not a field a task carries; the chips are disabled there.
+        if (field === 'createdAt') return true;
+
+        const slot = parseSlotId(overId);
+        const key = overId === TRAY_DROPPABLE_ID
+            ? null
+            : slot
+                ? slot.dayKey
+                : overId.startsWith(DAY_PREFIX)
+                    ? overId.slice(DAY_PREFIX.length)
+                    : undefined;
+
+        // Dropped on nothing this handler understands: leave the task alone.
+        if (key === undefined) return true;
+
+        const date = key === null ? null : fromDayKey(key);
+        if (key !== null && !date) return true;
+        const next = date ? toStoredDate(date) : undefined;
+
+        /* `updateNodeData` stamps `updatedAt` and marks the document
+           cloud-dirty whatever it is handed, so a drop onto the day the task is
+           already on must not reach it. */
+        const task = cardTasks(card.data).find((t) => t.id === dragged.taskId);
+        if (!task || (task[field] ?? undefined) === next) return true;
+
+        const patch = setTaskDetails(card.data, dragged.taskId, { [field]: next });
+        if (Object.keys(patch).length > 0) updateNodeData(card.id, patch);
+        return true;
+    }, [cards, data, updateNodeData]);
+
+    const handleCalendarDrop = useCallback((activeId: string, overId: string) => {
+        if (handleTaskDrop(activeId, overId)) return;
+
+        const card = cards.find((c) => c.id === activeId);
+        // Only notes carry dates — see calendarModel's `excluded`.
+        if (!card || card.type !== 'note') return;
+
+        const field = dateFieldOf(data);
+
+        /* Three targets, and the middle one is the hour grid: dropping on a
+           half-hour slot sets the day AND the clock reading, dropping on a day
+           cell or the all-day strip sets the day and clears the time. */
+        const slot = parseSlotId(overId);
+        const patch = overId === TRAY_DROPPABLE_ID
+            ? unscheduleCardPatch(field)
+            : slot
+                ? scheduleCardAtTime(card.data, field, slot.dayKey, slot.minutes)
+                : overId.startsWith(DAY_PREFIX)
+                    ? scheduleCardAtTime(card.data, field, overId.slice(DAY_PREFIX.length), null)
+                    : {};
+
+        /* The board's own rule, for the board's own reason: `updateNodeData`
+           stamps `updatedAt` and marks the document cloud-dirty whatever it is
+           handed, so a drop that changes nothing must not reach it. */
+        const keys = Object.keys(patch) as (keyof typeof patch)[];
+        if (keys.length === 0) return;
+        if (keys.every((k) => patch[k] === undefined && card.data[k] === undefined)) return;
+
+        updateNodeData(activeId, patch);
+    }, [handleTaskDrop, cards, data, updateNodeData]);
+
     const handleDragEnd = useCallback((event: DragEndEvent) => {
         setDrag(null);
         setOverLane(null);
@@ -247,6 +435,11 @@ export const KanbanNodeComponent = memo(({ id, data, selected, fullscreenView = 
 
         const activeId = String(active.id);
         const overId = String(over.id);
+
+        if (view === 'calendar') {
+            handleCalendarDrop(activeId, overId);
+            return;
+        }
 
         // ---- reordering lanes
         if (active.data.current?.type === 'lane') {
@@ -280,7 +473,7 @@ export const KanbanNodeComponent = memo(({ id, data, selected, fullscreenView = 
         updateNodeData(id, {
             cardOrder: reorderCardOrder(lanes, activeId, targetValue, index),
         });
-    }, [cards, lanes, laneValueOf, data, id, updateNodeData, persistColumns]);
+    }, [view, handleCalendarDrop, cards, lanes, laneValueOf, data, id, updateNodeData, persistColumns]);
 
     /**
      * A new card, born into the lane whose "+" was pressed.
@@ -290,7 +483,7 @@ export const KanbanNodeComponent = memo(({ id, data, selected, fullscreenView = 
      * origin — those coordinates are invisible from the board itself, which is
      * exactly why they would otherwise never get set.
      */
-    const handleAddCard = useCallback((value: string) => {
+    const spawnCard = useCallback((extra: Record<string, unknown>) => {
         const slot = cards.length;
         const step = MEDIUM_SIZE + GRID_GAP;
 
@@ -302,16 +495,60 @@ export const KanbanNodeComponent = memo(({ id, data, selected, fullscreenView = 
             },
             {
                 label: 'New card',
-                [data.groupBy]: value || undefined,
                 viewMode: 'medium',
                 icon: 'FileText',
                 createdAt: new Date().toISOString(),
+                ...extra,
             },
             { width: MEDIUM_SIZE, height: MEDIUM_SIZE },
             id,
             uuidv4(),
         );
-    }, [addNode, cards.length, data.groupBy, id]);
+    }, [addNode, cards.length, id]);
+
+    const handleAddCard = useCallback((value: string) => {
+        spawnCard({ [data.groupBy]: value || undefined });
+    }, [spawnCard, data.groupBy]);
+
+    /**
+     * A new card, dated to the day whose "+" was pressed.
+     *
+     * With `createdAt` selected there is nothing to set — the card is stamped
+     * with now on the way in, which is the same thing that field means — so it
+     * lands on today rather than on the day clicked. That is honest: created is
+     * a fact about the card, and this view cannot choose it.
+     */
+    /**
+     * An event resized by its edge in the hour grid.
+     *
+     * Writes both dates whatever field the calendar is placing by, because that
+     * is what a resize says — this begins here and ends there. `resizeCardPatch`
+     * orders and floors the pair, so a wild drag cannot leave a card reading as
+     * inverted.
+     */
+    const handleResizeCard = useCallback((
+        cardId: string,
+        key: DayKey,
+        startMinutes: number,
+        endMinutes: number,
+    ) => {
+        const card = cards.find((c) => c.id === cardId);
+        if (!card || card.type !== 'note') return;
+        if (dateFieldOf(data) === 'createdAt') return;
+
+        const patch = resizeCardPatch(key, startMinutes, endMinutes);
+        if (Object.keys(patch).length === 0) return;
+        if (patch.startDate === card.data.startDate && patch.dueDate === card.data.dueDate) return;
+
+        updateNodeData(cardId, patch);
+    }, [cards, data, updateNodeData]);
+
+    const handleAddCardOn = useCallback((key: DayKey) => {
+        const date = fromDayKey(key);
+        if (!date) return;
+        const field = dateFieldOf(data);
+        spawnCard(field === 'createdAt' ? {} : { [field]: toStoredDate(date) });
+    }, [spawnCard, data]);
 
     const handleAddColumn = useCallback(() => {
         const existing = configuredColumns(data, cards);
@@ -361,6 +598,29 @@ export const KanbanNodeComponent = memo(({ id, data, selected, fullscreenView = 
            assignee showing columns called "In Review". */
         updateNodeData(id, { groupBy: field, columns: DEFAULT_COLUMNS[field] ?? [] });
     }, [id, updateNodeData]);
+
+    /* Each of these guards on "did it actually change". A select re-picking the
+       value it already holds still fires onChange, and `updateNodeData` would
+       stamp `updatedAt` and mark the document cloud-dirty for it. */
+    const handleViewChange = useCallback((next: KanbanViewMode) => {
+        if (next === view) return;
+        updateNodeData(id, { viewMode: next });
+    }, [view, id, updateNodeData]);
+
+    const handleDateFieldChange = useCallback((next: KanbanDateField) => {
+        if (next === dateFieldOf(data)) return;
+        updateNodeData(id, { dateField: next });
+    }, [data, id, updateNodeData]);
+
+    const handleScaleChange = useCallback((next: KanbanCalendarScale) => {
+        if (next === scaleOf(data)) return;
+        updateNodeData(id, { calendarScale: next });
+    }, [data, id, updateNodeData]);
+
+    const handleGranularityChange = useCallback((next: KanbanGranularity) => {
+        if (next === granularityOf(data)) return;
+        updateNodeData(id, { granularity: next });
+    }, [data, id, updateNodeData]);
 
     const laneIds = useMemo(
         () => columns.filter((c) => !isUnsortedColumn(c)).map((c) => laneDroppableId(c.value)),
@@ -446,36 +706,79 @@ export const KanbanNodeComponent = memo(({ id, data, selected, fullscreenView = 
                             {fullscreenId === id ? <X size={14} /> : <Maximize2 size={14} />}
                         </button>
 
-                        <label className={styles.groupBy}>
-                            <span className={styles.groupByLabel}>Group by</span>
-                            <select
-                                className={`${styles.groupBySelect} nodrag`}
-                                value={data.groupBy}
-                                onChange={(e) => handleGroupByChange(e.target.value as KanbanGroupField)}
-                            >
-                                {GROUP_FIELDS.map((field) => (
-                                    <option key={field} value={field}>{GROUP_FIELD_LABEL[field]}</option>
-                                ))}
-                            </select>
-                        </label>
-
-                        <button
-                            type="button"
-                            className={`${styles.addBtn} nodrag`}
-                            onClick={handleAddColumn}
+                        {/* Two readings of one board, so one control with two
+                            positions rather than a button that toggles. Sits
+                            after the window control and before the field
+                            selects, because it decides what those selects are
+                            for. */}
+                        <div
+                            className={`${styles.viewToggle} nodrag`}
+                            onPointerDown={(e) => e.stopPropagation()}
                         >
-                            <Plus size={13} strokeWidth={2.5} />
-                            Add column
-                        </button>
+                            <Tabs
+                                items={BOARD_VIEW_TABS}
+                                value={view}
+                                onChange={handleViewChange}
+                                variant="light"
+                                color="accent"
+                                iconOnly
+                                semantics="radio"
+                                aria-label="Board view"
+                            />
+                        </div>
 
-                        <button
-                            type="button"
-                            className={`${styles.addBtn} nodrag`}
-                            onClick={() => handleAddCard(columns[0]?.value ?? '')}
-                        >
-                            <Plus size={13} strokeWidth={2.5} />
-                            Add card
-                        </button>
+                        {/* One slot, two contents, so the bar never grows. The
+                            calendar's field select reuses the group-by classes
+                            rather than cloning them: two controls that must
+                            read as one family should share the rules, not
+                            resemble each other. */}
+                        {view === 'board' ? (
+                            <>
+                                <label className={styles.groupBy}>
+                                    <span className={styles.groupByLabel}>Group by</span>
+                                    <select
+                                        className={`${styles.groupBySelect} nodrag`}
+                                        value={data.groupBy}
+                                        onChange={(e) => handleGroupByChange(e.target.value as KanbanGroupField)}
+                                    >
+                                        {GROUP_FIELDS.map((field) => (
+                                            <option key={field} value={field}>{GROUP_FIELD_LABEL[field]}</option>
+                                        ))}
+                                    </select>
+                                </label>
+
+                                <button
+                                    type="button"
+                                    className={`${styles.addBtn} nodrag`}
+                                    onClick={handleAddColumn}
+                                >
+                                    <Plus size={13} strokeWidth={2.5} />
+                                    Add column
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className={`${styles.addBtn} nodrag`}
+                                    onClick={() => handleAddCard(columns[0]?.value ?? '')}
+                                >
+                                    <Plus size={13} strokeWidth={2.5} />
+                                    Add card
+                                </button>
+                            </>
+                        ) : (
+                            <label className={styles.groupBy}>
+                                <span className={styles.groupByLabel}>Date</span>
+                                <select
+                                    className={`${styles.groupBySelect} nodrag`}
+                                    value={dateFieldOf(data)}
+                                    onChange={(e) => handleDateFieldChange(e.target.value as KanbanDateField)}
+                                >
+                                    {DATE_FIELDS.map((field) => (
+                                        <option key={field} value={field}>{DATE_FIELD_LABEL[field]}</option>
+                                    ))}
+                                </select>
+                            </label>
+                        )}
                     </div>
                 </header>
 
@@ -487,39 +790,75 @@ export const KanbanNodeComponent = memo(({ id, data, selected, fullscreenView = 
                     onDragEnd={handleDragEnd}
                     onDragCancel={handleDragCancel}
                 >
-                    <SortableContext items={laneIds} strategy={horizontalListSortingStrategy}>
-                        {/* Neither `nodrag` nor `nowheel` any more: the lanes are
-                            part of what you grab the board by, and nothing inside
-                            them scrolls, so the wheel belongs to the canvas. */}
-                        <div className={styles.lanes}>
-                            {columns.map((column) => (
-                                <KanbanLane
-                                    key={column.id}
-                                    boardId={id}
-                                    column={column}
-                                    cards={lanes.get(column.value) ?? []}
-                                    groupBy={data.groupBy}
-                                    isDropTarget={overLane === column.value}
-                                    selectedId={selectedChildId}
-                                    onSelectCard={setSelectedChildId}
-                                    onAddCard={handleAddCard}
-                                    onOpenCard={handleOpenCard}
-                                    onRename={handleRenameColumn}
-                                    onRecolor={handleRecolorColumn}
-                                    onRequestDelete={setPendingDelete}
-                                />
-                            ))}
-                        </div>
-                    </SortableContext>
+                    {/* The two views are mutually exclusive, so one DndContext
+                        wraps both and its handlers branch on the view mode. A
+                        second context would only mean a second overlay and a
+                        second held-item state to keep in step. */}
+                    {view === 'calendar' ? (
+                        <KanbanCalendar
+                            boardId={id}
+                            data={data}
+                            cards={cards}
+                            columns={columns}
+                            cursor={cursor}
+                            onCursorChange={setCursor}
+                            scale={scaleOf(data)}
+                            onScaleChange={handleScaleChange}
+                            onGranularityChange={handleGranularityChange}
+                            trayCollapsed={trayCollapsed}
+                            onTrayToggle={() => setTrayCollapsed((v) => !v)}
+                            onOpenCard={handleOpenCard}
+                            onAddCardOn={handleAddCardOn}
+                            onResizeCard={handleResizeCard}
+                            fullscreenView={fullscreenView}
+                        />
+                    ) : (
+                        <SortableContext items={laneIds} strategy={horizontalListSortingStrategy}>
+                            {/* Neither `nodrag` nor `nowheel` any more: the lanes are
+                                part of what you grab the board by, and nothing inside
+                                them scrolls, so the wheel belongs to the canvas. */}
+                            <div className={styles.lanes}>
+                                {columns.map((column) => (
+                                    <KanbanLane
+                                        key={column.id}
+                                        boardId={id}
+                                        column={column}
+                                        cards={lanes.get(column.value) ?? []}
+                                        groupBy={data.groupBy}
+                                        isDropTarget={overLane === column.value}
+                                        selectedId={selectedChildId}
+                                        onSelectCard={setSelectedChildId}
+                                        onAddCard={handleAddCard}
+                                        onOpenCard={handleOpenCard}
+                                        onRename={handleRenameColumn}
+                                        onRecolor={handleRecolorColumn}
+                                        onRequestDelete={setPendingDelete}
+                                    />
+                                ))}
+                            </div>
+                        </SortableContext>
+                    )}
 
                     {/* Portalled to the body so the overlay lives in unscaled client
                         space, where dnd-kit's client-pixel deltas are already correct
                         — see kanbanDragScale.ts. */}
                     {createPortal(
                         <DragOverlay dropAnimation={null}>
-                            {activeCard && (activeCard.type === 'note'
-                                ? <KanbanCard node={activeCard} groupBy={data.groupBy} isOverlay />
-                                : <KanbanBlockPreview node={activeCard} isOverlay />)}
+                            {activeTask && (
+                                <KanbanCalendarTaskChip
+                                    card={activeTask.card}
+                                    task={activeTask.task}
+                                    tone={toneOfCardId(activeTask.card.id)}
+                                    isOverlay
+                                />
+                            )}
+                            {activeCard && (drag?.type === 'chip'
+                                ? (activeCard.type === 'note'
+                                    ? <KanbanCalendarChip node={activeCard} isOverlay />
+                                    : null)
+                                : activeCard.type === 'note'
+                                    ? <KanbanCard node={activeCard} groupBy={data.groupBy} isOverlay />
+                                    : <KanbanBlockPreview node={activeCard} isOverlay />)}
                         </DragOverlay>,
                         document.body,
                     )}

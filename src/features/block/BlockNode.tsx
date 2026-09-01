@@ -1,6 +1,6 @@
 import { memo, useState, useLayoutEffect, useCallback, useRef, useMemo, useEffect } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
-import { StickyNote, Copy, Check, Loader2 } from '../../components/icons';
+import { StickyNote, Copy, Check, Loader2, Maximize2, ChevronsDownUp } from '../../components/icons';
 import { BlockEditor } from '../editor/BlockEditor';
 import { ColorBlockModal } from '../editor/ColorBlockModal';
 import { useStore } from '../../store/useStore';
@@ -12,10 +12,16 @@ import styles from './BlockNode.module.css';
 import { MIN_EXPANDED_SIZE, ICON_SIZE, MAX_HEIGHT } from '../../config/layout';
 import { isMediaType } from '../editor/mediaTypes';
 import { isGalleryType, GALLERY_NODE_WIDTH, GALLERY_MIN_ROW } from '../editor/galleryTypes';
-import { useCanvasDetail } from '../canvas/hooks/useCanvasDetail';
-import { useScheduledMount } from '../card/hooks/useScheduledMount';
-import { BlockLodBody } from './BlockLodBody';
+import {
+    FileCard,
+    FileViewer,
+    getFileView,
+    isFileBlock,
+    sizeForFileView,
+    type FileView,
+} from '../file';
 import { samePropsIgnoringPosition } from '../canvas/nodeMemo';
+import { PeekMenu } from '../ui/PeekMenu';
 import { MIN_COL_W } from '../editor/tableLayout';
 
 /* Resize bounds for a standard block. These mirror --block-node-w and
@@ -31,6 +37,24 @@ const TABLE_MIN_W = 240;
    a deliberate drag: a plain click on the handle (mousedown + a pixel of
    tremor + mouseup) must leave the block sizing itself. */
 const RESIZE_THRESHOLD_PX = 3;
+
+const STANDARD_BLOCK_NODE_TYPES = new Set([
+    'text', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered',
+    'todo', 'callout', 'code', 'quote', 'link', 'toggle',
+]);
+
+/** Whether this content uses the compact standalone-block shell. */
+function usesStandardBlockShell(blocks: Block[]) {
+    const first = blocks[0];
+    if (!first) return false;
+    if (first.type === 'toggle') return true;
+    if (blocks.length !== 1 || !STANDARD_BLOCK_NODE_TYPES.has(first.type)) return false;
+    const linkMode = first.type === 'link' ? first.metadata?.displayMode ?? 'bookmark' : undefined;
+    const isRichLink = first.type === 'link'
+        && Boolean(first.content.trim())
+        && (linkMode === 'bookmark' || linkMode === 'embed');
+    return !isRichLink;
+}
 
 const useGlobalListIndex = (nodeId: string, isSingleNumbered: boolean) => {
     return useStore(
@@ -82,10 +106,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const connection = useConnection();
     const isConnecting = connection.inProgress;
     const updateNodeData = useStore(s => s.updateNodeData);
-    const detailTier = useCanvasDetail(id);
-    const showEditor = useScheduledMount(detailTier === 'full');
-    const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
-    const theme = useStore(s => s.theme);
+    const isMultiSelected = useStore(s => s.selectedCanvasNodeIds.size > 1 && s.selectedCanvasNodeIds.has(id));
     // Narrow selectors: a block only re-renders when ITS own drop-target status changes
     // (not on every drag tick across all nodes).
     const isDropTarget = useStore(s => s.interactionState.dropTarget?.id === id);
@@ -101,25 +122,14 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const [copiedHex, setCopiedHex] = useState(false);
     const [colorOriginal, setColorOriginal] = useState<string>('');
 
-    const [isInteractive, setIsInteractive] = useState(selected);
-    const interactionTimerRef = useRef<number | null>(null);
+    // Selection must be usable on the frame it is painted. The previous 300ms
+    // timer made standalone blocks feel slower than cards and compounded the
+    // contextual-toolbar swap cost.
+    const isInteractive = selected;
 
     /** Where a press on an empty media node started, to tell a click from a drag. */
     const mediaPressRef = useRef<{ x: number; y: number } | null>(null);
 
-    useEffect(() => {
-        if (selected) {
-            interactionTimerRef.current = window.setTimeout(() => setIsInteractive(true), 300);
-        } else {
-            if (interactionTimerRef.current) clearTimeout(interactionTimerRef.current);
-            setIsInteractive(false);
-        }
-        return () => {
-            if (interactionTimerRef.current) clearTimeout(interactionTimerRef.current);
-        };
-    }, [selected]);
-
-    const isMultiSelected = selectedCanvasNodeIds.has(id) && selectedCanvasNodeIds.size > 1;
     const isDragging = useStore(s => s.interactionState.draggedNodeId === id && !s.interactionState.isMultiDragging);
 
     const colorBlocks: Block[] = Array.isArray(data.content) ? data.content : [];
@@ -137,6 +147,14 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     const linkMode = (singleBlock?.metadata?.displayMode || 'bookmark') as 'bookmark' | 'embed' | 'text';
     const isLinkEmpty = isSingleLink && (!singleBlock?.content || singleBlock.content.trim() === '');
     const isLinkCard = isSingleLink && !isLinkEmpty && (linkMode === 'bookmark' || linkMode === 'embed');
+    /* A file is a media block that grew a second state. Closed it is a card the
+       size of a folder; open it is the live document. Which one shows is the
+       block's own `metadata.fileView`, so the state survives the block moving
+       between a card's content and the canvas. */
+    const isSingleFile = isFileBlock(singleBlock);
+    const fileView = isSingleFile ? getFileView(singleBlock) : 'file';
+    const isFileClosed = isSingleFile && fileView === 'file';
+    const isFileOpen = isSingleFile && fileView === 'expandedfile';
     const isSingleColor = singleBlock?.type === 'color';
     const isSingleNumbered = singleBlock?.type === 'numbered';
     // A table is a wide object like a column set: it gets its own default width
@@ -155,7 +173,6 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
         && tableWidths.every((w) => typeof w === 'number' && w > 0);
     const singleColorValue = isSingleColor ? (singleBlock?.content || '#1E944A') : undefined;
     const isColumns = singleBlock?.type === 'columns';
-    const standardBlockTypes = ['text', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered', 'todo', 'callout', 'code', 'quote', 'link', 'toggle'];
     // A toggle keeps its nested children in the SAME node, so `singleBlock`
     // (which requires exactly one block) is undefined as soon as it has any
     // content — which silently dropped toggle nodes out of the standard-block
@@ -165,11 +182,13 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     // Link CARDS (bookmark/embed) are resizable rich objects, not uniform 56px
     // blocks — they must not get the standardBlock footprint. Empty and text
     // links still do, so they match the rest of the blocks.
-    const isStandardBlock = (!!singleBlock && standardBlockTypes.includes(singleBlock.type) && !isLinkCard) || isToggleRoot;
+    const isStandardBlock = usesStandardBlockShell(colorBlocks);
     const isWideBlock = false;
     const isAutoWidthText = false;
     // Only the rich link cards resize — the empty input and text link do not.
-    const isResizable = isSingleMedia || isLinkCard || isSingleGallery;
+    // A closed file card is a fixed 120px object like the folder card it mirrors;
+    // an open one is a page you can pull to whatever size reads well.
+    const isResizable = (isSingleMedia && !isFileClosed) || isLinkCard || isSingleGallery;
 
     // A standard block sizes itself to its text until the user drags the resize
     // handle; from then on it keeps whatever they set. Width lives on the React
@@ -208,10 +227,13 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
         let changed = false;
 
         const n = node;
-        const needsHeightAuto = !isSingleColor && n.style?.height !== 'auto';
+        // A file is excluded from the shared sizing ladder entirely — it owns
+        // both of its dimensions, and they change when it opens. See the
+        // dedicated effect below.
+        const needsHeightAuto = !isSingleColor && !isSingleFile && n.style?.height !== 'auto';
         const needsAutoWidthInit = isAutoWidthText && !isResizable && !isColumns && !isSingleColor && !isWideBlock && n.style?.width !== 'fit-content';
         const needsWidthInit = !isStandardBlock && !isAutoWidthText && !isResizable && !isColumns && !isSingleTable && !isSingleColor && !isWideBlock && (n.style?.width === 'auto' || n.style?.width === undefined);
-        const needsResizableWidthInit = isResizable && (n.style?.width === 'auto' || n.style?.width === undefined || (isLinkCard && n.style?.width === 260));
+        const needsResizableWidthInit = isResizable && !isSingleFile && (n.style?.width === 'auto' || n.style?.width === undefined || (isLinkCard && n.style?.width === 260));
         const shouldForcePlaceholderWidth = isMediaEmpty && n.style?.width !== 208 && n.style?.width !== '208px';
         const needsColumnsWidthInit = isColumns && (n.style?.width === 'auto' || n.style?.width === undefined);
         const needsTableWidthInit = isSingleTable && !isTableSized && (n.style?.width === 'auto' || n.style?.width === undefined);
@@ -241,7 +263,51 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     : node
             ));
         }
-    }, [id, setNodesStore, isResizable, isColumns, isSingleTable, isTableSized, isSingleLink, isLinkCard, isSingleGallery, isSingleColor, isStandardBlock, isMediaEmpty, isUserSized]);
+    }, [id, setNodesStore, isResizable, isColumns, isSingleTable, isTableSized, isSingleLink, isLinkCard, isSingleGallery, isSingleColor, isSingleFile, isStandardBlock, isMediaEmpty, isUserSized]);
+
+    /**
+     * A file's footprint follows its view.
+     *
+     * Closed it takes the folder card's 120px square, because a file and a
+     * folder are the same kind of object to someone scanning a board and should
+     * sit at the same weight. Open it takes a page. Once the user has dragged an
+     * open file to a size of their own, that size is theirs and this stops
+     * writing — but closing and reopening still returns to the page default,
+     * which is the behaviour the note card's view modes already have.
+     */
+    useLayoutEffect(() => {
+        if (!isSingleFile) return;
+        if (fileView === 'expandedfile' && isUserSized) return;
+
+        const target = sizeForFileView(fileView);
+        const node = useStore.getState().nodes.find(n => n.id === id);
+        if (!node) return;
+        if (node.style?.width === target.width && node.style?.height === target.height) return;
+
+        setNodesStore(nodes => nodes.map(n =>
+            n.id === id ? { ...n, style: { ...n.style, width: target.width, height: target.height } } : n
+        ));
+    }, [id, isSingleFile, fileView, isUserSized, setNodesStore]);
+
+    /** Switch a file between its closed card and the live document. */
+    const setFileView = useCallback((next: FileView) => {
+        if (!singleBlock) return;
+        updateNodeData(id, {
+            content: [{ ...singleBlock, metadata: { ...singleBlock.metadata, fileView: next } }],
+            // Reopening returns to the page default rather than inheriting the
+            // 120px square a closed card was last dragged to.
+            userWidth: undefined,
+            userHeight: undefined,
+        });
+    }, [id, singleBlock, updateNodeData]);
+
+    /** Rename from the card's label field. */
+    const setFileName = useCallback((name: string) => {
+        if (!singleBlock) return;
+        updateNodeData(id, {
+            content: [{ ...singleBlock, metadata: { ...singleBlock.metadata, name } }],
+        });
+    }, [id, singleBlock, updateNodeData]);
 
     // Repair legacy/accidental multi-root standalone blocks as soon as they
     // are encountered. A multi-block document is always represented by the
@@ -495,6 +561,8 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 ${isMultiSelected ? styles.multiSelected : ''} 
                 ${isMediaEmpty ? styles.mediaPlaceholderBlock : ''}
                 ${isSingleMedia ? styles.mediaBlockNode : ''}
+                ${isFileClosed ? styles.fileCardNode : ''}
+                ${isFileOpen ? styles.fileOpenNode : ''}
                 ${isSingleGallery ? styles.galleryNode : ''}
                 ${/* Lets the board's own stylesheet see a hover on the NODE. Until
                       a node is selected an overlay covers it to keep it draggable,
@@ -568,7 +636,14 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     // select the node first and hunt for the hover button through the
                     // 300ms interactive delay. Same forwarding trick — the media is not an
                     // ancestor of this overlay, so the event cannot come back around.
-                    onDoubleClick={isSingleMedia && !isMediaEmpty ? (e) => {
+                    /* A file has no `.mediaViewTarget` to forward to — it opens
+                       in place rather than into a lightbox — so it needs its own
+                       branch here. Without one this overlay swallowed the
+                       double-click and a closed file card did nothing at all. */
+                    onDoubleClick={isSingleFile ? (e) => {
+                        e.stopPropagation();
+                        setFileView(isFileOpen ? 'file' : 'expandedfile');
+                    } : isSingleMedia && !isMediaEmpty ? (e) => {
                         e.stopPropagation();
                         nodeRef.current?.querySelector('.mediaViewTarget')?.dispatchEvent(
                             new MouseEvent('dblclick', { bubbles: true, cancelable: true })
@@ -708,10 +783,9 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                         console.log("[BlockNode Overlay Click] Clicked ID:", id);
                         e.stopPropagation();
                         e.preventDefault();
-                        linkSelectedNodes(id, Array.from(selectedCanvasNodeIds));
+                        linkSelectedNodes(id, Array.from(useStore.getState().selectedCanvasNodeIds));
                         setIsLinkingMode(false);
                         clearCanvasSelection();
-                        setNodesStore(nds => nds.map(n => n.selected ? { ...n, selected: false } : n));
                     }}
                     onPointerDown={(e) => {
                         console.log("[BlockNode Overlay PointerDown] ID:", id);
@@ -736,7 +810,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 />
             )}
 
-            {showEditor && (
+            {!isSingleFile && (
                 <button
                     className={`${styles.convertBtn} nodrag`}
                     onClick={handleConvertToCard}
@@ -745,6 +819,28 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                 >
                     <StickyNote size={16} />
                 </button>
+            )}
+
+            {/* A file gets the card's own hover bar, in the card's own place:
+                the same four peeks plus the open/close toggle. Learning where
+                these live once should be enough. */}
+            {isSingleFile && !isLinkingMode && (
+                <div className={`${styles.fileMenu} nodrag`}>
+                    <PeekMenu nodeId={id} buttonClassName={styles.fileMenuBtn} />
+                    <div className={styles.fileMenuDivider} />
+                    <button
+                        className={styles.fileMenuBtn}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setFileView(isFileOpen ? 'file' : 'expandedfile');
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        title={isFileOpen ? 'Close the file' : 'Open the file'}
+                        type="button"
+                    >
+                        {isFileOpen ? <ChevronsDownUp size={16} /> : <Maximize2 size={16} />}
+                    </button>
+                </div>
             )}
 
             <div 
@@ -760,10 +856,32 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             >
                 {isSkeleton ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)', fontWeight: 'bold', fontSize: '14px' }}>
-                        <Loader2 className="animate-spin" size={16} /> 
+                        <Loader2 className="animate-spin" size={16} />
                         {Array.isArray(data.content) ? data.content[0]?.content : 'Generating...'}
                     </div>
-                ) : showEditor ? (
+                ) : isFileClosed ? (
+                    <FileCard
+                        name={singleBlock?.metadata?.name}
+                        mime={singleBlock?.metadata?.type}
+                        size={singleBlock?.metadata?.size}
+                        poster={singleBlock?.metadata?.poster}
+                        onOpen={() => setFileView('expandedfile')}
+                        onRename={setFileName}
+                    />
+                ) : isFileOpen ? (
+                    /* Standalone files follow the same live-canvas rule as
+                       every other standalone block. */
+                    <FileViewer
+                        content={singleBlock?.content ?? ''}
+                        name={singleBlock?.metadata?.name}
+                        mime={singleBlock?.metadata?.type}
+                        size={singleBlock?.metadata?.size}
+                        poster={singleBlock?.metadata?.poster}
+                        live
+                        onClose={() => setFileView('file')}
+                        onRename={setFileName}
+                    />
+                ) : (
                     <BlockEditor
                         initialContent={data.content}
                         readOnly={false}
@@ -774,10 +892,9 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                         disableMediaControls={true}
                         promoteBlockHandles={true}
                         globalStartIndex={globalListIndex}
+                        useStoredListNumbers={isSingleNumbered}
                         singleBlockOnly={isStandardBlock && !isToggleRoot}
                     />
-                ) : (
-                    <BlockLodBody blocks={colorBlocks} />
                 )}
             </div>
 
@@ -798,7 +915,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             )}
 
             {/* Resize Handle for Resizable, Column, or standard text blocks */}
-            {showEditor && (isResizable || isColumns || isStandardBlock || isSingleTable) && (
+            {(isResizable || isColumns || isStandardBlock || isSingleTable) && (
                 <div
                     className={`${styles.resizeHandle} nodrag`}
                     onMouseDown={handleResizeStart}

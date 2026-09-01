@@ -1,0 +1,405 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #ff5040; text-decoration: none; }
+    a:hover { color: #ff7566; }
+    
+  </style>
+</helmet>
+<div style="width: 1440px; min-height: 1020px; padding: 40px; box-sizing: border-box; background: #131313; color: #ffffff;">
+  <div style="margin-bottom: 28px;">
+    <div style="font-size: 26px; font-weight: 600; letter-spacing: -0.015em;">Three Graphites, ten tertiaries each</div>
+    <div style="margin-top: 7px; max-width: 880px; font-size: 14px; line-height: 1.55; color: #9c9c9c;">
+      One neutral hue, one set of four rungs, and only the lightness moves: 01 → 03 gets darker while every relationship holds, and the deepest desk stops at #0d0d0d rather than going to black. The ten tertiaries no longer share one lightness. Each hue rides its own cusp — the lightness where sRGB holds the most chroma for it — which is what stops the row going pale and stops the hues sRGB cannot saturate collapsing into each other. Lightness varies by hue on purpose: citrine and olive sit high, indigo low. They fill the <span style="font-family: ui-monospace, monospace; font-size: 13px; color: #d6d6d6;">--a-&lt;name&gt;</span> slots that already exist, with <span style="font-family: ui-monospace, monospace; font-size: 13px; color: #d6d6d6;">--a-rose</span> → red and <span style="font-family: ui-monospace, monospace; font-size: 13px; color: #d6d6d6;">--a-violet</span> → purple.
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px;">
+    
+      <div style="display: flex; flex-direction: column; gap: 18px; padding: 24px; border-radius: 20px; background: #1c1c1c; border: 1px solid rgba(255,255,255,0.09);">
+        <div>
+          <div style="display: flex; align-items: baseline; gap: 9px;">
+            <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; color: #7d7d7d;">01</span>
+            <span style="font-size: 20px; font-weight: 600; letter-spacing: -0.01em;">Graphite 01</span>
+          </div>
+          <div style="margin-top: 5px; font-size: 13px; line-height: 1.45; color: #9c9c9c;">One step under the Graphite you saw. Cards still lift off the desk.</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="width: 46px; height: 34px; border-radius: 9px; background: #131313; border: 1px solid rgba(255,255,255,0.12);"></span>
+          <span style="flex: 1; min-width: 0;">
+            <span style="display: block; font-size: 13px; font-weight: 600; color: #f2f2f2;">Desk &amp; panel bodies</span>
+            <span style="display: block; font-size: 11.5px; color: #8f8f8f;">--bg-workspace</span>
+          </span>
+          <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; color: #c9c9c9;">#131313</span>
+        </div>
+          
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="width: 46px; height: 34px; border-radius: 9px; background: #1c1c1c; border: 1px solid rgba(255,255,255,0.12);"></span>
+          <span style="flex: 1; min-width: 0;">
+            <span style="display: block; font-size: 13px; font-weight: 600; color: #f2f2f2;">Shell, top bar, panel chrome</span>
+            <span style="display: block; font-size: 11.5px; color: #8f8f8f;">--bg-frame</span>
+          </span>
+          <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; color: #c9c9c9;">#1c1c1c</span>
+        </div>
+          
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="width: 46px; height: 34px; border-radius: 9px; background: #1f1f1f; border: 1px solid rgba(255,255,255,0.12);"></span>
+          <span style="flex: 1; min-width: 0;">
+            <span style="display: block; font-size: 13px; font-weight: 600; color: #f2f2f2;">Note well</span>
+            <span style="display: block; font-size: 11.5px; color: #8f8f8f;">--bg-node-well</span>
+          </span>
+          <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; color: #c9c9c9;">#1f1f1f</span>
+        </div>
+          
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="width: 46px; height: 34px; border-radius: 9px; background: #242424; border: 1px solid rgba(255,255,255,0.12);"></span>
+          <span style="flex: 1; min-width: 0;">
+            <span style="display: block; font-size: 13px; font-weight: 600; color: #f2f2f2;">Card</span>
+            <span style="display: block; font-size: 11.5px; color: #8f8f8f;">--bg-node</span>
+          </span>
+          <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; color: #c9c9c9;">#242424</span>
+        </div>
+        </div>
+
+        <div>
+          <div style="margin-bottom: 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #7d7d7d;">Ten tertiaries — --a-&lt;name&gt;</div>
+          <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px 10px;">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #f67a61;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">red</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#f67a61</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #f49b37;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">amber</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#f49b37</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #eebf3f;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">citrine</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#eebf3f</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #b3d740;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">olive</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#b3d740</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #45df95;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">jade</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#45df95</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #46dbdb;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">teal</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#46dbdb</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #4cbaf6;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">azure</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#4cbaf6</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #7284f2;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">indigo</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#7284f2</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #bd77f4;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">purple</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#bd77f4</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #f66eae;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">magenta</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#f66eae</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+          <div style="flex: 1; padding: 12px 13px; border-radius: 14px; background: color-mix(in srgb, #f67a61 14%, #242424); border: 1px solid color-mix(in srgb, #f67a61 34%, transparent);">
+            <span style="display: block; width: 9px; height: 9px; margin-bottom: 8px; border-radius: 999px; background: #f67a61;"></span>
+            <span style="display: block; font-size: 12px; font-weight: 600; color: #ededed;">Card</span>
+            <span style="display: block; font-size: 10.5px; color: #9c9c9c;">14% wash</span>
+          </div>
+          <div style="flex: 1; padding: 12px 13px; border-radius: 14px; background: color-mix(in srgb, #45df95 14%, #242424); border: 1px solid color-mix(in srgb, #45df95 34%, transparent);">
+            <span style="display: block; width: 9px; height: 9px; margin-bottom: 8px; border-radius: 999px; background: #45df95;"></span>
+            <span style="display: block; font-size: 12px; font-weight: 600; color: #ededed;">Card</span>
+            <span style="display: block; font-size: 10.5px; color: #9c9c9c;">14% wash</span>
+          </div>
+          <div style="flex: 1; padding: 12px 13px; border-radius: 14px; background: color-mix(in srgb, #bd77f4 14%, #242424); border: 1px solid color-mix(in srgb, #bd77f4 34%, transparent);">
+            <span style="display: block; width: 9px; height: 9px; margin-bottom: 8px; border-radius: 999px; background: #bd77f4;"></span>
+            <span style="display: block; font-size: 12px; font-weight: 600; color: #ededed;">Card</span>
+            <span style="display: block; font-size: 10.5px; color: #9c9c9c;">14% wash</span>
+          </div>
+        </div>
+      </div>
+    
+      <div style="display: flex; flex-direction: column; gap: 18px; padding: 24px; border-radius: 20px; background: #191919; border: 1px solid rgba(255,255,255,0.09);">
+        <div>
+          <div style="display: flex; align-items: baseline; gap: 9px;">
+            <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; color: #7d7d7d;">02</span>
+            <span style="font-size: 20px; font-weight: 600; letter-spacing: -0.01em;">Graphite Deep</span>
+          </div>
+          <div style="margin-top: 5px; font-size: 13px; line-height: 1.45; color: #9c9c9c;">The middle setting. Chrome recedes and the tints carry the colour.</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="width: 46px; height: 34px; border-radius: 9px; background: #101010; border: 1px solid rgba(255,255,255,0.12);"></span>
+          <span style="flex: 1; min-width: 0;">
+            <span style="display: block; font-size: 13px; font-weight: 600; color: #f2f2f2;">Desk &amp; panel bodies</span>
+            <span style="display: block; font-size: 11.5px; color: #8f8f8f;">--bg-workspace</span>
+          </span>
+          <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; color: #c9c9c9;">#101010</span>
+        </div>
+          
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="width: 46px; height: 34px; border-radius: 9px; background: #191919; border: 1px solid rgba(255,255,255,0.12);"></span>
+          <span style="flex: 1; min-width: 0;">
+            <span style="display: block; font-size: 13px; font-weight: 600; color: #f2f2f2;">Shell, top bar, panel chrome</span>
+            <span style="display: block; font-size: 11.5px; color: #8f8f8f;">--bg-frame</span>
+          </span>
+          <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; color: #c9c9c9;">#191919</span>
+        </div>
+          
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="width: 46px; height: 34px; border-radius: 9px; background: #1b1b1b; border: 1px solid rgba(255,255,255,0.12);"></span>
+          <span style="flex: 1; min-width: 0;">
+            <span style="display: block; font-size: 13px; font-weight: 600; color: #f2f2f2;">Note well</span>
+            <span style="display: block; font-size: 11.5px; color: #8f8f8f;">--bg-node-well</span>
+          </span>
+          <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; color: #c9c9c9;">#1b1b1b</span>
+        </div>
+          
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="width: 46px; height: 34px; border-radius: 9px; background: #202020; border: 1px solid rgba(255,255,255,0.12);"></span>
+          <span style="flex: 1; min-width: 0;">
+            <span style="display: block; font-size: 13px; font-weight: 600; color: #f2f2f2;">Card</span>
+            <span style="display: block; font-size: 11.5px; color: #8f8f8f;">--bg-node</span>
+          </span>
+          <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; color: #c9c9c9;">#202020</span>
+        </div>
+        </div>
+
+        <div>
+          <div style="margin-bottom: 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #7d7d7d;">Ten tertiaries — --a-&lt;name&gt;</div>
+          <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px 10px;">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #f67a61;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">red</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#f67a61</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #f49b37;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">amber</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#f49b37</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #eebf3f;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">citrine</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#eebf3f</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #b3d740;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">olive</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#b3d740</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #45df95;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">jade</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#45df95</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #46dbdb;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">teal</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#46dbdb</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #4cbaf6;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">azure</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#4cbaf6</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #7284f2;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">indigo</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#7284f2</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #bd77f4;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">purple</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#bd77f4</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #f66eae;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">magenta</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#f66eae</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+          <div style="flex: 1; padding: 12px 13px; border-radius: 14px; background: color-mix(in srgb, #f67a61 14%, #202020); border: 1px solid color-mix(in srgb, #f67a61 34%, transparent);">
+            <span style="display: block; width: 9px; height: 9px; margin-bottom: 8px; border-radius: 999px; background: #f67a61;"></span>
+            <span style="display: block; font-size: 12px; font-weight: 600; color: #ededed;">Card</span>
+            <span style="display: block; font-size: 10.5px; color: #9c9c9c;">14% wash</span>
+          </div>
+          <div style="flex: 1; padding: 12px 13px; border-radius: 14px; background: color-mix(in srgb, #45df95 14%, #202020); border: 1px solid color-mix(in srgb, #45df95 34%, transparent);">
+            <span style="display: block; width: 9px; height: 9px; margin-bottom: 8px; border-radius: 999px; background: #45df95;"></span>
+            <span style="display: block; font-size: 12px; font-weight: 600; color: #ededed;">Card</span>
+            <span style="display: block; font-size: 10.5px; color: #9c9c9c;">14% wash</span>
+          </div>
+          <div style="flex: 1; padding: 12px 13px; border-radius: 14px; background: color-mix(in srgb, #bd77f4 14%, #202020); border: 1px solid color-mix(in srgb, #bd77f4 34%, transparent);">
+            <span style="display: block; width: 9px; height: 9px; margin-bottom: 8px; border-radius: 999px; background: #bd77f4;"></span>
+            <span style="display: block; font-size: 12px; font-weight: 600; color: #ededed;">Card</span>
+            <span style="display: block; font-size: 10.5px; color: #9c9c9c;">14% wash</span>
+          </div>
+        </div>
+      </div>
+    
+      <div style="display: flex; flex-direction: column; gap: 18px; padding: 24px; border-radius: 20px; background: #161616; border: 1px solid rgba(255,255,255,0.09);">
+        <div>
+          <div style="display: flex; align-items: baseline; gap: 9px;">
+            <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; color: #7d7d7d;">03</span>
+            <span style="font-size: 20px; font-weight: 600; letter-spacing: -0.01em;">Graphite Deepest</span>
+          </div>
+          <div style="margin-top: 5px; font-size: 13px; line-height: 1.45; color: #9c9c9c;">As far as this goes before the desk turns black — #0d0d0d is 13 of 255.</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="width: 46px; height: 34px; border-radius: 9px; background: #0d0d0d; border: 1px solid rgba(255,255,255,0.12);"></span>
+          <span style="flex: 1; min-width: 0;">
+            <span style="display: block; font-size: 13px; font-weight: 600; color: #f2f2f2;">Desk &amp; panel bodies</span>
+            <span style="display: block; font-size: 11.5px; color: #8f8f8f;">--bg-workspace</span>
+          </span>
+          <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; color: #c9c9c9;">#0d0d0d</span>
+        </div>
+          
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="width: 46px; height: 34px; border-radius: 9px; background: #161616; border: 1px solid rgba(255,255,255,0.12);"></span>
+          <span style="flex: 1; min-width: 0;">
+            <span style="display: block; font-size: 13px; font-weight: 600; color: #f2f2f2;">Shell, top bar, panel chrome</span>
+            <span style="display: block; font-size: 11.5px; color: #8f8f8f;">--bg-frame</span>
+          </span>
+          <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; color: #c9c9c9;">#161616</span>
+        </div>
+          
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="width: 46px; height: 34px; border-radius: 9px; background: #181818; border: 1px solid rgba(255,255,255,0.12);"></span>
+          <span style="flex: 1; min-width: 0;">
+            <span style="display: block; font-size: 13px; font-weight: 600; color: #f2f2f2;">Note well</span>
+            <span style="display: block; font-size: 11.5px; color: #8f8f8f;">--bg-node-well</span>
+          </span>
+          <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; color: #c9c9c9;">#181818</span>
+        </div>
+          
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="width: 46px; height: 34px; border-radius: 9px; background: #1d1d1d; border: 1px solid rgba(255,255,255,0.12);"></span>
+          <span style="flex: 1; min-width: 0;">
+            <span style="display: block; font-size: 13px; font-weight: 600; color: #f2f2f2;">Card</span>
+            <span style="display: block; font-size: 11.5px; color: #8f8f8f;">--bg-node</span>
+          </span>
+          <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; color: #c9c9c9;">#1d1d1d</span>
+        </div>
+        </div>
+
+        <div>
+          <div style="margin-bottom: 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #7d7d7d;">Ten tertiaries — --a-&lt;name&gt;</div>
+          <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px 10px;">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #f67a61;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">red</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#f67a61</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #f49b37;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">amber</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#f49b37</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #eebf3f;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">citrine</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#eebf3f</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #b3d740;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">olive</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#b3d740</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #45df95;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">jade</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#45df95</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #46dbdb;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">teal</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#46dbdb</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #4cbaf6;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">azure</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#4cbaf6</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #7284f2;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">indigo</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#7284f2</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #bd77f4;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">purple</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#bd77f4</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="height: 34px; border-radius: 9px; background: #f66eae;"></span>
+              <span style="font-size: 11px; font-weight: 600; color: #d6d6d6;">magenta</span>
+              <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #8f8f8f;">#f66eae</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+          <div style="flex: 1; padding: 12px 13px; border-radius: 14px; background: color-mix(in srgb, #f67a61 14%, #1d1d1d); border: 1px solid color-mix(in srgb, #f67a61 34%, transparent);">
+            <span style="display: block; width: 9px; height: 9px; margin-bottom: 8px; border-radius: 999px; background: #f67a61;"></span>
+            <span style="display: block; font-size: 12px; font-weight: 600; color: #ededed;">Card</span>
+            <span style="display: block; font-size: 10.5px; color: #9c9c9c;">14% wash</span>
+          </div>
+          <div style="flex: 1; padding: 12px 13px; border-radius: 14px; background: color-mix(in srgb, #45df95 14%, #1d1d1d); border: 1px solid color-mix(in srgb, #45df95 34%, transparent);">
+            <span style="display: block; width: 9px; height: 9px; margin-bottom: 8px; border-radius: 999px; background: #45df95;"></span>
+            <span style="display: block; font-size: 12px; font-weight: 600; color: #ededed;">Card</span>
+            <span style="display: block; font-size: 10.5px; color: #9c9c9c;">14% wash</span>
+          </div>
+          <div style="flex: 1; padding: 12px 13px; border-radius: 14px; background: color-mix(in srgb, #bd77f4 14%, #1d1d1d); border: 1px solid color-mix(in srgb, #bd77f4 34%, transparent);">
+            <span style="display: block; width: 9px; height: 9px; margin-bottom: 8px; border-radius: 999px; background: #bd77f4;"></span>
+            <span style="display: block; font-size: 12px; font-weight: 600; color: #ededed;">Card</span>
+            <span style="display: block; font-size: 10.5px; color: #9c9c9c;">14% wash</span>
+          </div>
+        </div>
+      </div>
+  </div>
+
+  <div style="margin-top: 26px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.09); font-size: 12.5px; line-height: 1.6; color: #8f8f8f;">
+    The accent stays <span style="font-family: ui-monospace, monospace; color: #ff5040;">#ff5040</span> in all three — it is the brand, not part of the ground.
+    <span style="font-family: ui-monospace, monospace; color: #d6d6d6;">--a-&lt;name&gt;-wash</span> and <span style="font-family: ui-monospace, monospace; color: #d6d6d6;">--a-&lt;name&gt;-edge</span> keep deriving at 12% and 34%, so only the ten base hues change.
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

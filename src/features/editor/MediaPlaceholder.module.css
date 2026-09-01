@@ -104,36 +104,10 @@
     }
 }
 
-/* Tabs */
+/* The underline and the spacing below it come from the shared Tabs component;
+   only the gap to the content area is local. */
 .tabs {
-    display: flex;
-    gap: 0;
-    border-bottom: 1px solid var(--line);
     margin-bottom: var(--block-marker-gap);
-}
-
-.tab {
-    padding: var(--block-marker-gap) var(--block-inset);
-    font-size: 0.85rem;
-    color: var(--text-soft);
-    cursor: pointer;
-    background: transparent;
-    border: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    transition: background-color var(--transition-fast), color var(--transition-fast),
-        border-color var(--transition-fast);
-    font-weight: 500;
-}
-
-.tab:hover {
-    color: var(--text-main);
-    background: var(--hover-wash);
-}
-
-.tab.active {
-    color: var(--accent-ink);
-    border-bottom-color: var(--accent);
 }
 
 /* Content Area */

@@ -14,6 +14,12 @@
     transition: opacity var(--lod-fade, 180ms) ease;
 }
 
+/* Passive content is ordinary semantic DOM, but its layout and paint work is
+   isolated from neighbouring cards on the transformed canvas. */
+.passiveLayer {
+    contain: layout paint style;
+}
+
 /* The layer on its way out sits on top and stops catching input. */
 .overlay {
     position: absolute;

@@ -1,10 +1,8 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../../store/useStore';
 import { getNodeById } from '../../store/nodeIndex';
-import { BlockEditor } from '../editor/BlockEditor';
 import styles from './FullscreenModal.module.css';
-import { NoteExpandedContent } from '../card/NoteExpandedContent';
-import { getNodeBlocks } from '../../types';
+import { resolvePeekContent } from './peekContent';
 
 export function CenterModal({
     onCanvasDragOver,
@@ -68,26 +66,14 @@ export function CenterModal({
                         transition={{ type: 'spring', stiffness: 400, damping: 32 }}
                     >
                         <div style={{ height: '100%', width: '100%', overflow: 'hidden' }}>
-                            {activeNode.type === 'note' ? (
-                                <NoteExpandedContent
-                                    id={centerPanelId}
-                                    nodeId={centerPanelId}
-                                    data={activeNode.data}
-                                    onUpdate={updateNodeData}
-                                    onClose={() => setCenterPanelId(null)}
-                                    onNavigate={handleNavigate}
-                                />
-                            ) : (
-                                <div className={styles.editorContainer}>
-                                    <BlockEditor
-                                        key={centerPanelId}
-                                        nodeId={centerPanelId}
-                                        initialContent={getNodeBlocks(activeNode.data)}
-                                        onUpdate={(blocks) => updateNodeData(centerPanelId, { content: blocks })}
-                                        autoFocus={true}
-                                    />
-                                </div>
-                            )}
+                            {resolvePeekContent({
+                                node: activeNode,
+                                nodeId: centerPanelId,
+                                onUpdate: updateNodeData,
+                                onClose: () => setCenterPanelId(null),
+                                onNavigate: handleNavigate,
+                                editorClassName: styles.editorContainer,
+                            })}
                         </div>
                     </motion.div>
                 </motion.div>

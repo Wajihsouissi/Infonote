@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ZoomIn, ZoomOut, Maximize2, Download, ExternalLink, ChevronLeft, ChevronRight } from '../../components/icons';
 import styles from './MediaLightbox.module.css';
+import { useAssetUrl } from '../../services/assets';
 
 interface MediaLightboxProps {
     src: string;
@@ -28,7 +29,12 @@ const ZOOM_STEP = 0.25;
  * gets the browser's own controls at full size. Escape or a click on the backdrop
  * closes, matching every other overlay in the app.
  */
-export const MediaLightbox = ({ src, type, name, onClose, onPrev, onNext, position }: MediaLightboxProps) => {
+export const MediaLightbox = ({ src: content, type, name, onClose, onPrev, onNext, position }: MediaLightboxProps) => {
+    /* Callers pass whatever the block stores, which is now an `asset:` reference
+       rather than the bytes. Resolved here, once, so every use below — the
+       picture, the download link, "open in new tab" — points at the same URL. */
+    const { url: resolved } = useAssetUrl(content);
+    const src = resolved ?? '';
     const [zoom, setZoom] = useState(1);
     const [isFit, setIsFit] = useState(true);
     const hasSet = !!(onPrev || onNext);

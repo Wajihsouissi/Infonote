@@ -1575,38 +1575,83 @@
     margin: 0 4px;
 }
 
-/* Color Tab Switcher */
-.tabContainer {
+/* Highlight palette. The swatch is the same control as the kanban column
+   picker — one round chip per hue, the hue named by data-swatch and read from
+   the accent tokens (design-system.css §7) rather than restated here. */
+.toolbarSwatchRow {
     display: flex;
-    background: var(--bg-inset);
-    padding: 4px;
-    border-radius: var(--r-control);
-    margin: 4px var(--block-inset) var(--block-inset);
+    align-items: center;
     gap: 4px;
+    padding: 0 2px;
 }
 
-.tabButton {
-    flex: 1;
+.toolbarSwatch {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.toolbarSwatch:hover {
+    transform: scale(1.14);
+}
+
+.toolbarSwatch:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.toolbarSwatch[aria-selected='true'] {
+    box-shadow: 0 0 0 2px var(--toolbar-bg), 0 0 0 3.5px var(--text-main);
+}
+
+.toolbarSwatch[data-swatch='rose'] { background: var(--a-rose); }
+.toolbarSwatch[data-swatch='amber'] { background: var(--a-amber); }
+.toolbarSwatch[data-swatch='citrine'] { background: var(--a-citrine); }
+.toolbarSwatch[data-swatch='olive'] { background: var(--a-olive); }
+.toolbarSwatch[data-swatch='jade'] { background: var(--a-jade); }
+.toolbarSwatch[data-swatch='teal'] { background: var(--a-teal); }
+.toolbarSwatch[data-swatch='azure'] { background: var(--a-azure); }
+.toolbarSwatch[data-swatch='indigo'] { background: var(--a-indigo); }
+.toolbarSwatch[data-swatch='violet'] { background: var(--a-violet); }
+.toolbarSwatch[data-swatch='magenta'] { background: var(--a-magenta); }
+
+/* Link row — the toolbar's other alternate row, styled to the same rhythm. */
+.toolbarLinkRow {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 2px;
+}
+
+.toolbarLinkIcon {
+    flex: none;
+    margin-left: 4px;
+    color: var(--text-faint);
+}
+
+.toolbarLinkInput {
+    width: 220px;
+    padding: 4px 6px;
     border: none;
     background: transparent;
-    color: var(--text-soft);
-    padding: 6px 4px;
-    font-size: 0.85rem;
-    font-weight: 500;
-    cursor: pointer;
-    border-radius: var(--r-xs);
-    transition: background-color var(--transition-fast), color var(--transition-fast);
-}
-
-.tabButton:hover {
     color: var(--text-main);
-    background: var(--hover-wash);
+    font-size: 0.8125rem;
+    outline: none;
 }
 
-.tabButton.active {
-    background: var(--accent-dim);
-    color: var(--accent-ink);
-    box-shadow: none;
+.toolbarLinkInput::placeholder {
+    color: var(--text-faint);
+}
+
+/* Color Tab Switcher */
+/* Just the inset of the strip within the menu — the shared Tabs component
+   owns the well, the cursor and the type. */
+.tabContainer {
+    margin: 4px var(--block-inset) var(--block-inset);
 }
 
 /* Selection Box */
@@ -1731,15 +1776,38 @@
     transform: translateY(-50%);
 }
 
+/* Wears the file kind's colour, overridden by the card's own accent when it
+   has one. See features/file/fileKinds.ts for the palette and its rationale. */
+
 .fileIconWrapper {
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 10px;
-    background: var(--accent-dim);
-    color: var(--accent-ink);
+    background: color-mix(in srgb, var(--file-ink, var(--file-kind, var(--text-soft))) 12%, transparent);
+    color: var(--file-ink, var(--file-kind, var(--text-soft)));
     border-radius: var(--block-radius);
     flex-shrink: 0;
+}
+
+.fileMeta {
+    color: var(--text-faint);
+    font-size: 0.75rem;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* The open file inside a card. It owns its own header and ground, so the block
+   only has to give it a box and the media silhouette. */
+.fileOpen {
+    width: 100%;
+    height: 100%;
+    min-height: 420px;
+    overflow: hidden;
+    border-radius: var(--media-radius);
+    box-shadow: inset 0 0 0 1px var(--line);
 }
 
 .fileInfo {

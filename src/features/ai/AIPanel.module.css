@@ -12,7 +12,7 @@
     flex-shrink: 0;
     overflow: hidden;
     position: relative;
-    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     font-family: var(--font-sans);
 }
 
@@ -68,10 +68,10 @@
     transform: translateY(-50%) translateX(4px) scale(0.92);
     margin-left: 6px;
     padding: 5px 10px;
-    background: rgba(20, 20, 23, 0.95);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: var(--menu-bg);
+    border: 1px solid var(--menu-border);
     border-radius: 10px;
-    color: #fff;
+    color: var(--text-main);
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.01em;
@@ -154,9 +154,9 @@
     left: -24%;
     top: -10%;
     background:
-        radial-gradient(circle at 28% 30%, rgba(255, 55, 40, 0.72) 0, rgba(255, 55, 40, 0.22) 24%, transparent 57%),
-        radial-gradient(circle at 70% 26%, rgba(255, 42, 166, 0.68) 0, rgba(255, 42, 166, 0.18) 25%, transparent 56%),
-        radial-gradient(circle at 52% 78%, rgba(123, 76, 255, 0.62) 0, rgba(123, 76, 255, 0.16) 27%, transparent 59%);
+        radial-gradient(circle at 28% 30%, color-mix(in srgb, var(--accent) 72%, transparent) 0, color-mix(in srgb, var(--accent) 22%, transparent) 24%, transparent 57%),
+        radial-gradient(circle at 70% 26%, color-mix(in srgb, var(--a-magenta) 68%, transparent) 0, color-mix(in srgb, var(--a-magenta) 18%, transparent) 25%, transparent 56%),
+        radial-gradient(circle at 52% 78%, color-mix(in srgb, var(--a-indigo) 62%, transparent) 0, color-mix(in srgb, var(--a-indigo) 16%, transparent) 27%, transparent 59%);
     animation: aiMeshRoamPrimary 9.7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 
@@ -164,9 +164,9 @@
     right: -28%;
     bottom: -12%;
     background:
-        radial-gradient(circle at 70% 68%, rgba(0, 207, 255, 0.66) 0, rgba(0, 207, 255, 0.17) 26%, transparent 58%),
-        radial-gradient(circle at 26% 72%, rgba(255, 215, 48, 0.68) 0, rgba(255, 215, 48, 0.18) 24%, transparent 56%),
-        radial-gradient(circle at 46% 24%, rgba(255, 74, 204, 0.58) 0, rgba(255, 74, 204, 0.14) 27%, transparent 60%);
+        radial-gradient(circle at 70% 68%, color-mix(in srgb, var(--a-azure) 66%, transparent) 0, color-mix(in srgb, var(--a-azure) 17%, transparent) 26%, transparent 58%),
+        radial-gradient(circle at 26% 72%, color-mix(in srgb, var(--a-citrine) 68%, transparent) 0, color-mix(in srgb, var(--a-citrine) 18%, transparent) 24%, transparent 56%),
+        radial-gradient(circle at 46% 24%, color-mix(in srgb, var(--a-violet) 58%, transparent) 0, color-mix(in srgb, var(--a-violet) 14%, transparent) 27%, transparent 60%);
     animation: aiMeshRoamSecondary 12.3s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 
@@ -182,19 +182,19 @@
         116deg,
         transparent 0%,
         transparent 17%,
-        rgba(0, 207, 255, 0.08) 19%,
-        rgba(0, 207, 255, 0.72) 20%,
-        rgba(123, 76, 255, 0.2) 21.5%,
+        color-mix(in srgb, var(--a-azure) 8%, transparent) 19%,
+        color-mix(in srgb, var(--a-azure) 72%, transparent) 20%,
+        color-mix(in srgb, var(--a-indigo) 20%, transparent) 21.5%,
         transparent 24%,
         transparent 46%,
-        rgba(255, 42, 166, 0.08) 48%,
-        rgba(255, 42, 166, 0.68) 49%,
-        rgba(255, 55, 40, 0.18) 50.5%,
+        color-mix(in srgb, var(--a-magenta) 8%, transparent) 48%,
+        color-mix(in srgb, var(--a-magenta) 68%, transparent) 49%,
+        color-mix(in srgb, var(--accent) 18%, transparent) 50.5%,
         transparent 53%,
         transparent 73%,
-        rgba(255, 215, 48, 0.08) 75%,
-        rgba(255, 215, 48, 0.66) 76%,
-        rgba(255, 74, 204, 0.16) 77.5%,
+        color-mix(in srgb, var(--a-citrine) 8%, transparent) 75%,
+        color-mix(in srgb, var(--a-citrine) 66%, transparent) 76%,
+        color-mix(in srgb, var(--a-violet) 16%, transparent) 77.5%,
         transparent 80%,
         transparent 100%
     );
@@ -244,7 +244,7 @@
 
 .panelSparkles i:nth-child(1) { left: 13%; top: 16%; --sparkle-color: var(--secondary-ink); --sparkle-delay: -0.4s; }
 .panelSparkles i:nth-child(2) { left: 79%; top: 21%; --sparkle-color: var(--t-pink); --sparkle-delay: -2.1s; --sparkle-duration: 4.4s; }
-.panelSparkles i:nth-child(3) { left: 61%; top: 42%; --sparkle-color: var(--t-blue); --sparkle-delay: -1.2s; --sparkle-duration: 3.4s; }
+.panelSparkles i:nth-child(3) { left: 61%; top: 42%; --sparkle-color: var(--t-green); --sparkle-delay: -1.2s; --sparkle-duration: 3.4s; }
 .panelSparkles i:nth-child(4) { left: 24%; top: 53%; --sparkle-color: var(--accent-hover); --sparkle-delay: -2.8s; --sparkle-duration: 4.8s; }
 .panelSparkles i:nth-child(5) { left: 84%; top: 67%; --sparkle-color: var(--t-purple); --sparkle-delay: -0.9s; --sparkle-duration: 4.1s; }
 .panelSparkles i:nth-child(6) { left: 42%; top: 78%; --sparkle-color: var(--secondary-ink); --sparkle-delay: -3.3s; --sparkle-duration: 5s; }
@@ -266,7 +266,7 @@
         rgba(var(--accent-rgb), 0.92) 30deg,
         var(--t-pink) 48deg,
         var(--t-purple) 64deg,
-        var(--t-blue) 82deg,
+        var(--t-green) 82deg,
         transparent 112deg,
         transparent 194deg,
         var(--secondary-ink) 220deg,
@@ -309,6 +309,124 @@
     opacity: 0;
     transform: translateX(15px);
     pointer-events: none;
+}
+
+/* Presentation modes keep this exact panel mounted. There is no second chat
+   tree to desynchronise from the side panel — only the surrounding frame
+   changes. */
+.presentationBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 398;
+    border: 0;
+    background: color-mix(in srgb, var(--bg-canvas) 45%, transparent);
+    backdrop-filter: blur(5px);
+    cursor: default;
+}
+
+.panelCenter {
+    position: fixed;
+    z-index: 400;
+    top: max(28px, 7vh);
+    right: 50%;
+    width: min(900px, calc(100vw - 48px)) !important;
+    height: min(760px, calc(100vh - 56px));
+    border: 1px solid var(--line-strong);
+    border-radius: 18px;
+    box-shadow: var(--elev-3);
+    transform: translateX(50%);
+}
+
+.panelCenter .panelBody { margin: 10px; }
+
+.panelFullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 400;
+    width: 100vw !important;
+    height: 100vh;
+    border-radius: 0;
+    transform: none;
+}
+
+.panelFullscreen .header {
+    height: 58px;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--line);
+}
+
+.panelFullscreen .panelBody {
+    margin: 0;
+    border-radius: 0;
+}
+
+.fullscreenHistoryRail {
+    position: absolute;
+    z-index: 7;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 270px;
+    box-shadow: var(--elev-1);
+}
+
+.historyRailToggle {
+    position: absolute;
+    z-index: 7;
+    top: 13px;
+    left: 13px;
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--bg-raised);
+    color: var(--text-soft);
+    cursor: pointer;
+}
+
+.historyRailToggle:hover { color: var(--text-main); background: var(--hover-wash); }
+
+.panelFullscreen .scrollContent {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-content: start;
+    column-gap: 20px;
+    row-gap: 18px;
+    padding: 32px max(32px, calc((100vw - 1440px) / 2));
+}
+
+.panelFullscreen .scrollContent > * { grid-column: 4 / span 6; }
+
+/* The stream remains six columns for a comfortable reading measure. The
+   composer is a deliberate one-column wider working surface. */
+.panelFullscreen .selectedNodeLayer,
+.panelFullscreen .mentionLayer,
+.panelFullscreen .runBar,
+.panelFullscreen .composer,
+.panelFullscreen .composerToolbar,
+.panelFullscreen .effortHint {
+    width: min(58.333%, 900px);
+    align-self: center;
+}
+
+.panelFullscreen .composer { margin-left: auto; margin-right: auto; }
+.panelFullscreen .composerToolbar,
+.panelFullscreen .mentionLayer,
+.panelFullscreen .runBar { margin-left: auto; margin-right: auto; }
+
+@media (max-width: 800px) {
+    .panelCenter { top: 12px; width: calc(100vw - 24px) !important; height: calc(100vh - 24px); border-radius: 14px; }
+    .panelFullscreen .scrollContent { display: flex; padding: 22px 18px; }
+    .panelFullscreen .selectedNodeLayer,
+    .panelFullscreen .mentionLayer,
+    .panelFullscreen .runBar,
+    .panelFullscreen .composer,
+    .panelFullscreen .composerToolbar,
+    .panelFullscreen .effortHint { width: auto; align-self: stretch; }
+    .fullscreenHistoryRail { width: min(270px, 78vw); }
 }
 
 .header {
@@ -417,63 +535,203 @@
     display: none;
 }
 
+/* Canvas-native shortcuts live beside the composer instead of competing with
+   message actions. They only prepare an explicit, editable request; sending
+   remains in the user's hands. */
+.canvasQuickActions {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    flex-shrink: 0;
+    margin: 0 12px 7px;
+}
+
+.canvasQuickAction {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 26px;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--text-faint);
+    font: inherit;
+    font-size: 0.64rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+
+.canvasQuickAction:hover,
+.canvasQuickAction:focus-visible {
+    border-color: color-mix(in srgb, var(--accent) 48%, var(--line));
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+    outline: none;
+}
+
+.canvasQuickAction svg { flex: 0 0 auto; }
+
 /* ---------- Empty state ---------- */
 
 .emptyState {
+    /* The starter cards below size to THIS, not to the window: the same panel
+       is a 340px side dock, a centred peek and a fullscreen column. */
+    container-type: inline-size;
     margin: auto 0;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 8px 4px;
+    align-items: center;
+    gap: 18px;
+    width: 100%;
+    min-width: 0;
+    padding: 20px 0 10px;
+    text-align: center;
 }
 
-.emptyIcon {
+.emptyOrb {
+    position: relative;
+    width: 82px;
+    height: 82px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
     color: var(--accent-ink);
-    opacity: 0.9;
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line));
+    border-radius: 50%;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 14px 28px color-mix(in srgb, var(--accent) 20%, transparent);
+    backdrop-filter: blur(16px) saturate(1.2);
+}
+
+.emptyOrb::after {
+    content: '';
+    position: absolute;
+    inset: 9px;
+    border: 1px solid color-mix(in srgb, var(--accent) 36%, transparent);
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+.emptyCopy {
+    display: grid;
+    justify-items: center;
+    gap: 7px;
+    max-width: 330px;
 }
 
 .emptyTitle {
-    font-size: 0.95rem;
-    font-weight: 600;
+    font-size: 1.24rem;
+    font-weight: 650;
     color: var(--text-main);
     margin: 0;
     font-family: var(--font-serif);
+    letter-spacing: -0.018em;
 }
 
 .emptyText {
     font-size: 0.78rem;
-    line-height: 1.55;
+    line-height: 1.5;
     color: var(--text-soft);
     margin: 0;
 }
 
+/* Four starter prompts that have to sit in a 340px side panel, a centred peek
+   and a fullscreen column. They used to be fixed 180px cards in a horizontal
+   scroller with its scrollbar hidden, so at most widths the last card was cut
+   in half by the panel edge with nothing to say it could be scrolled to.
+   As a grid they reflow instead: as many 180px-or-wider columns as fit, and the
+   cards share out whatever is left over. */
 .suggestions {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     align-items: stretch;
-    gap: 6px;
+    align-self: stretch;
+    gap: 10px;
     width: 100%;
-    margin-top: 6px;
+    min-width: 0;
+    max-width: 100%;
+    padding: 2px 2px 10px;
+}
+
+/* There are four cards, so the useful counts are 1, 2 and 4 — `auto-fit` alone
+   would also pick 3 in the middle band and leave a lone card orphaned on a
+   second row. The base rule above stays as the fallback if @container is not
+   available; these two say what the layout should actually be. */
+@container (min-width: 420px) {
+    .suggestions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@container (min-width: 760px) {
+    .suggestions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 .suggestion {
+    min-width: 0;
+    min-height: 86px;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: center;
+    gap: 11px;
+    padding: 12px 13px;
+    overflow: hidden;
     text-align: left;
-    background: transparent;
+    background: color-mix(in srgb, var(--bg-raised) 72%, transparent);
     border: 1px solid var(--line);
-    border-radius: var(--btn-radius, 10px);
-    padding: 8px 12px;
-    font-size: 0.76rem;
+    border-radius: 14px;
     font-family: inherit;
-    color: var(--text-soft);
     cursor: pointer;
-    transition: all var(--transition-fast);
+    backdrop-filter: blur(10px) saturate(1.05);
+    transition: border-color var(--transition-fast);
+}
+
+.suggestionIcon {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    color: var(--accent-ink);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-radius: 50%;
+}
+
+.suggestion:nth-child(2) .suggestionIcon { color: var(--secondary-ink); background: color-mix(in srgb, var(--secondary-ink) 12%, transparent); }
+/* Was `--t-blue`, which this design system does not define. An unresolved var()
+   makes `color` fall back to inherit and drops the background declaration
+   entirely, so the third tile alone rendered as a dark glyph on no wash. */
+.suggestion:nth-child(3) .suggestionIcon { color: var(--t-green); background: color-mix(in srgb, var(--t-green) 14%, transparent); }
+.suggestion:nth-child(4) .suggestionIcon { color: var(--t-pink); background: color-mix(in srgb, var(--t-pink) 12%, transparent); }
+
+.suggestionCopy {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.suggestionCopy strong {
+    color: var(--text-main);
+    font-size: 0.76rem;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.suggestionCopy small {
+    color: var(--text-soft);
+    font-size: 0.66rem;
+    font-weight: 500;
+    line-height: 1.35;
 }
 
 .suggestion:hover {
-    background: var(--hover-wash);
-    color: var(--text-main);
-    border-color: var(--line-strong);
+    border-color: color-mix(in srgb, var(--text-soft) 44%, var(--line));
+}
+
+.suggestion:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 /* ---------- Turns ---------- */
@@ -546,25 +804,6 @@
     transform: translateY(-100%);
 }
 
-/* Created-result previews are the assistant's final visual output. Anchor the
-   actions to that output instead of the top of the whole assistant turn, so
-   they stay directly beneath the preview even when the response has steps or
-   markdown above it. */
-.assistantTurn:has(.createdResult) > .bubbleActions {
-    position: static;
-    top: auto;
-    right: auto;
-    bottom: auto;
-    align-self: flex-end;
-    order: 1;
-    margin-bottom: 6px;
-    transform: none;
-}
-
-.assistantTurn:has(.createdResult) .createdResult {
-    order: 2;
-}
-
 .bubbleAction {
     display: flex;
     align-items: center;
@@ -612,175 +851,137 @@
     gap: 10px;
 }
 
-.createdResult {
-    padding: 11px;
-    background: linear-gradient(145deg, var(--bg-raised), var(--bg-card));
-    border: 1px solid var(--line-strong);
-    border-radius: var(--r-surface);
-    box-shadow: var(--elev-1);
-}
-
-.createdResultHeader {
+/* The answer is the source material; these quiet icon controls make the next
+   canvas move available without competing with the reading flow above it. */
+.answerActions {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 10px;
+    gap: 4px;
+    padding-top: 2px;
 }
 
-.createdResultHeading {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-}
-
-.createdResultStatus {
+.answerAction {
     display: grid;
+    width: 32px;
+    height: 32px;
     place-items: center;
-    width: 24px;
-    height: 24px;
-    flex: 0 0 24px;
+    padding: 0;
+    border: 1px solid transparent;
     border-radius: 8px;
-    background: rgba(var(--ok-rgb), 0.14);
-    color: var(--ok);
+    background: transparent;
+    color: var(--text-soft);
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
 
-.createdResultTitle,
-.createdResultCount {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 0.7rem;
-}
-
-.createdResultTitle {
-    display: block;
-    color: var(--ok);
-    font-weight: 600;
-}
-
-.createdResultSubtitle {
-    display: block;
-    margin-top: 1px;
-    color: var(--text-faint);
-    font-size: 0.64rem;
-}
-
-.createdResultCount {
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 8px;
-    background: var(--active-wash);
+.answerAction:hover:not(:disabled) {
+    background: var(--hover-wash);
+    border-color: var(--line);
     color: var(--accent-ink);
-    font-weight: 700;
+    transform: translateY(-1px);
 }
 
-.createdPreview {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 5px;
+.answerAction:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
-.createdTile {
-    min-width: 0;
+.answerAction:disabled {
+    cursor: wait;
+    opacity: 0.52;
+}
+
+
+/* ---------- Collapsible AI process ---------- */
+
+/* The transcript contains a short, inspectable process receipt rather than
+   exposing hidden model reasoning. It is open while work is running, then
+   collapses to one calm, scannable line when the turn has finished. */
+.thought {
+    overflow: hidden;
+    background: color-mix(in srgb, var(--bg-raised) 78%, transparent);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+}
+
+.thoughtToggle {
+    width: 100%;
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 7px;
-    background: var(--bg-card);
-    border: 1px solid var(--line);
-    border-radius: var(--r-control);
-    color: var(--text-soft);
+    gap: 7px;
+    padding: 8px 9px;
+    background: transparent;
+    border: none;
+    color: var(--text-main);
     font: inherit;
     text-align: left;
     cursor: pointer;
-    transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+    transition: background var(--transition-fast), color var(--transition-fast);
 }
 
-.createdTile:hover,
-.createdTile:focus-visible {
-    background: var(--active-wash);
-    border-color: var(--accent);
-    color: var(--text-main);
+.thoughtToggle:hover {
+    background: var(--hover-wash);
 }
 
-.createdTileMark {
-    flex: 0 0 22px;
-    display: grid;
-    place-items: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 6px;
-    background: var(--accent-dim);
-    color: var(--accent-ink);
-    font-size: 0.68rem;
-    font-weight: 700;
+.thoughtToggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
 }
 
-.createdTileIcon {
-    flex: 0 0 24px;
-    display: grid;
-    place-items: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 8px;
-    background: var(--accent-dim);
-    color: var(--accent-ink);
-}
-
-.createdTileTitle {
+.thoughtHeading {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     min-width: 0;
+    font-size: 0.72rem;
+    font-weight: 650;
+}
+
+.thoughtSignal {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    border-radius: 7px;
+    background: var(--active-wash);
+    color: var(--accent-ink);
+}
+
+.thoughtState {
+    min-width: 0;
+    margin-left: auto;
     overflow: hidden;
-    font-size: 0.67rem;
+    color: var(--text-soft);
+    font-size: 0.65rem;
     line-height: 1.25;
+    text-align: right;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.createdMore {
-    grid-column: 1 / -1;
-    padding: 4px;
-    background: transparent;
-    border: none;
-    color: var(--accent-ink);
-    font: inherit;
-    font-size: 0.68rem;
-    text-align: left;
-    cursor: pointer;
+.thoughtChevron {
+    flex: 0 0 auto;
+    color: var(--text-faint);
+    transition: transform var(--transition-fast), color var(--transition-fast);
 }
 
-.focusCreated {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    margin-top: 8px;
-    padding: 0;
-    background: transparent;
-    border: none;
-    color: var(--accent-ink);
-    font: inherit;
-    font-size: 0.7rem;
-    cursor: pointer;
+.thoughtChevronOpen {
+    color: var(--text-main);
+    transform: rotate(180deg);
 }
 
-.focusCreated:hover,
-.focusCreated:focus-visible {
-    color: var(--accent-hover);
-    text-decoration: underline;
+.thoughtDetails {
+    padding: 0 9px 10px 12px;
+    border-top: 1px solid var(--line);
 }
 
-/* ---------- Activity log ---------- */
-
-/* The steps are the point of the panel for Create turns: they are the only
-   record of what the model did to the canvas. */
 .steps {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    border-left: 1px solid var(--line);
-    padding-left: 12px;
+    padding-left: 9px;
+    border-left: 1px solid var(--line-strong);
 }
 
 .step {
@@ -891,6 +1092,108 @@
     gap: 8px;
 }
 
+.askMeChip {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: 6px;
+    min-height: 26px;
+    padding: 3px 5px 3px 8px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    /* A translucent neutral wash, not a fixed surface: it lifts off the composer
+       in both themes from one rule, where --bg-raised would be white on white in
+       Paper. Same treatment as AIContextBar's chips, which this sits beside. */
+    background: var(--hover-wash);
+    color: var(--text-main);
+    font-size: 0.69rem;
+    font-weight: 600;
+}
+
+.askMeChip > svg { flex: 0 0 auto; }
+
+.askMeChip button {
+    display: grid;
+    width: 16px;
+    height: 16px;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: inherit;
+    opacity: 0.62;
+    cursor: pointer;
+    transition: opacity var(--transition-fast), background var(--transition-fast);
+}
+
+/* One rule, both themes: --hover-wash is white in Ink and ink in Paper, which
+   is what let the hand-maintained [data-theme='light'] block for this chip go
+   away entirely. */
+.askMeChip button:hover,
+.askMeChip button:focus-visible { opacity: 1; background: var(--hover-wash); outline: none; }
+
+.composerReply {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 6px 7px 6px 9px;
+    border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+    border-radius: 10px;
+    background: var(--active-wash);
+}
+
+.composerReplyIcon {
+    flex: 0 0 auto;
+    color: var(--accent-ink);
+}
+
+.composerReplyCopy {
+    min-width: 0;
+    flex: 1;
+}
+
+.composerReplyCopy span {
+    display: block;
+    color: var(--accent-ink);
+    font-size: 0.64rem;
+    font-weight: 650;
+    line-height: 1.2;
+}
+
+.composerReplyCopy p {
+    margin: 2px 0 0;
+    overflow: hidden;
+    color: var(--text-soft);
+    font-size: 0.66rem;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.composerReplyRemove {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-soft);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.composerReplyRemove:hover,
+.composerReplyRemove:focus-visible {
+    background: var(--hover-wash);
+    color: var(--text-main);
+    outline: none;
+}
+
 /* Attach/image toggles and the effort/model pickers, below the composer's
    border rather than inside it — a settings strip for the turn, not part of
    the input surface itself. */
@@ -954,20 +1257,6 @@
 }
 
 :global([data-theme='light']) .panelLightRails { opacity: 0.08; }
-
-.composerContext {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-}
-
-.composerContextHint {
-    font-size: 0.66rem;
-    color: var(--text-soft);
-    opacity: 0.75;
-    white-space: nowrap;
-}
 
 .input {
     width: 100%;
@@ -1290,33 +1579,6 @@
     line-height: 1.35;
 }
 
-.modeToggle {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    padding: 2px;
-    background: var(--hover-wash);
-    border-radius: 999px;
-}
-
-.modePill {
-    border: none;
-    background: transparent;
-    color: var(--text-soft);
-    font-family: inherit;
-    font-size: 0.72rem;
-    font-weight: 500;
-    padding: 4px 12px;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-}
-
-.modePillActive {
-    background: var(--bg-rail);
-    color: var(--text-main);
-}
-
 .iconToggle {
     width: 28px;
     height: 28px;
@@ -1371,6 +1633,301 @@
     line-height: 1.6;
     color: var(--text-main);
     word-break: break-word;
+}
+
+/* An answer should read as ONE piece of writing, not a stack of boxes.
+   The section frame is an editing affordance — it exists so you can grab a
+   chunk and drag it to the canvas — so it belongs to the hover state, not to
+   the resting page. At rest the sections are invisible and the prose flows
+   through them; only the pointer reveals where the seams are. */
+.responseWorkspace {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 0;
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.65;
+    letter-spacing: 0.002em;
+    /* Some font renderers make the normal Outfit word space too tight at
+       answer-preview sizes. This is deliberately modest: it restores word
+       boundaries without making prose look tracked out. */
+    word-spacing: 0.075em;
+    color: var(--text-main);
+}
+
+.responseSection {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    /* Was 22px of top padding reserving room for the action bar even while it
+       was hidden, which is what put a visible gutter between every section.
+       The bar floats over the top edge on hover instead (see below), so the
+       resting padding is only what the text itself needs. */
+    padding: 5px 4px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.responseSection:hover,
+.responseSection:focus-within {
+    background: color-mix(in srgb, var(--hover-wash) 45%, transparent);
+    border-color: color-mix(in srgb, var(--line-strong) 55%, transparent);
+}
+
+.responseSectionActions,
+.responseBlockActions {
+    position: absolute;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    padding: 2px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg-card);
+    box-shadow: var(--menu-shadow);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+/* Floats over the section's top edge rather than sitting inside it, so no
+   space has to be reserved for it while it is hidden. */
+.responseSectionActions {
+    top: -12px;
+    right: 4px;
+    transform: translateY(-2px);
+}
+
+.responseBlockActions {
+    top: -10px;
+    right: 4px;
+    transform: translateX(3px);
+}
+
+.responseSection:hover .responseSectionActions,
+.responseSection:focus-within .responseSectionActions,
+.responseBlockRow:hover .responseBlockActions,
+.responseBlockRow:focus-within .responseBlockActions {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(0);
+}
+
+/* A line is the more precise target, so its toolbar takes precedence over the
+   section toolbar while the pointer is inside that line. */
+.responseSection:has(.responseBlockRow:hover) .responseSectionActions,
+.responseSection:has(.responseBlockRow:focus-within) .responseSectionActions {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.responseContextAction {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 21px;
+    padding: 3px 5px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-soft);
+    font: inherit;
+    font-size: 0.62rem;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.responseContextAction:hover:not(:disabled),
+.responseContextAction:focus-visible {
+    background: var(--hover-wash);
+    color: var(--text-main);
+    outline: none;
+}
+
+.responseContextActionDanger:hover:not(:disabled),
+.responseContextActionDanger:focus-visible {
+    background: rgba(var(--danger-rgb), 0.1);
+    color: var(--danger);
+}
+
+.responseContextAction:disabled {
+    cursor: wait;
+    opacity: 0.5;
+}
+
+.responseSectionHandle,
+.responseBlockHandle {
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-faint);
+    cursor: grab;
+    opacity: 0;
+    transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.responseSectionHandle {
+    position: absolute;
+    /* The first line's drag handle sits in the section's left inset. Keep the
+       section handle just outside that inset so the two never overlap — an
+       invisible section grip used to intercept clicks intended for the first
+       line of a streamed answer. */
+    top: 6px;
+    left: -16px;
+    z-index: 2;
+    width: 16px;
+    height: 16px;
+}
+
+.responseBlockHandle {
+    position: absolute;
+    top: 4px;
+    left: 5px;
+    width: 12px;
+    height: 16px;
+}
+
+.responseSection:hover .responseSectionHandle,
+.responseSection:focus-within .responseSectionHandle,
+.responseSectionSelected .responseSectionHandle,
+.responseBlockRow:hover .responseBlockHandle,
+.responseBlockRow:focus-within .responseBlockHandle,
+.responseBlockSelected .responseBlockHandle {
+    opacity: 1;
+}
+
+.responseSectionHandle:hover,
+.responseSectionHandle:focus-visible,
+.responseBlockHandle:hover,
+.responseBlockHandle:focus-visible {
+    color: var(--accent-ink);
+    outline: none;
+}
+
+.responseSectionHandle:active,
+.responseBlockHandle:active { cursor: grabbing; }
+
+.responseSectionSelected {
+    background: var(--active-wash);
+    border-color: color-mix(in srgb, var(--accent) 38%, var(--line));
+}
+
+.responseBlockRow {
+    position: relative;
+    min-width: 0;
+    padding: 4px 7px 4px 24px;
+    border-radius: 7px;
+    transition: background var(--transition-fast);
+}
+
+.responseBlockRow:hover,
+.responseBlockRow:focus-within {
+    background: color-mix(in srgb, var(--hover-wash) 72%, transparent);
+}
+
+.responseBlockSelected {
+    background: var(--active-wash);
+}
+
+/* ---- a part being rewritten ----
+   Redo on one line promises to touch only that line, so the run state has to
+   be scoped the same way: no panel beam, no whole-answer streaming dress, just
+   a wash travelling over the rows that are actually being replaced. The text
+   underneath is the live stream, so the sweep reads as the writing arriving
+   rather than as a placeholder. */
+.responseSectionRegenerating,
+.responseBlockRegenerating {
+    isolation: isolate;
+    background: rgba(var(--accent-rgb), 0.07);
+    box-shadow: inset 2px 0 0 rgba(var(--accent-rgb), 0.55);
+}
+
+.responseSectionRegenerating::before,
+.responseBlockRegenerating::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+        100deg,
+        transparent 18%,
+        rgba(var(--accent-rgb), 0.16) 44%,
+        rgba(var(--accent-rgb), 0.04) 62%,
+        transparent 86%
+    );
+    background-size: 220% 100%;
+    background-repeat: no-repeat;
+    animation: aiPartRewriteSweep 1.5s linear infinite;
+}
+
+@keyframes aiPartRewriteSweep {
+    from { background-position: 180% 0; }
+    to { background-position: -80% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .responseSectionRegenerating::before,
+    .responseBlockRegenerating::before {
+        animation: none;
+        background: rgba(var(--accent-rgb), 0.07);
+    }
+}
+
+.responseBlockPreview {
+    --block-font: 0.875rem;
+    --block-leading: 1.65;
+    --block-leading-heading: 1.22;
+    --block-min-h: 23px;
+    --block-pad-y: 0;
+    --block-pad-x: 0;
+    --block-h1: 1.5rem;
+    --block-h2: 1.18rem;
+    --block-h3: 1rem;
+    min-width: 0;
+    pointer-events: none;
+    /* Above the rewrite sweep, which paints on the row's ::before. */
+    position: relative;
+    z-index: 1;
+}
+
+.responseBlockPreview :global([data-chnk-it-block-editor]) {
+    min-height: auto;
+    padding: 0;
+    background: transparent;
+}
+
+.responseBlockPreview :global(.sortableWrapper) { min-height: 0; }
+
+.responseBlockPreview :global(.block) {
+    font-weight: 400;
+    letter-spacing: 0.002em;
+    word-spacing: 0.075em;
+}
+
+.responseBlockPreview :global(.heading1),
+.responseBlockPreview :global(.heading2),
+.responseBlockPreview :global(.heading3) {
+    margin: 7px 0 2px;
+    font-weight: 650;
+    letter-spacing: -0.012em;
+    word-spacing: normal;
+}
+
+.responseBlockPreview :global(strong) { font-weight: 650; }
+
+.responseBlockPreview :global(.listWrapper),
+.responseBlockPreview :global(.todoWrapper) {
+    gap: 9px;
 }
 
 .mdP {
@@ -1429,4 +1986,290 @@
     font-family: var(--font-mono, monospace);
     font-size: 0.74rem;
     line-height: 1.5;
+}
+
+/* ---------- P1: labelled toolbar, effort segment, run bar, @ layer ----------
+   ai-Plan.md §5.8. The old toolbar was six bare icon toggles whose only
+   description was a tooltip; these replace them with controls that read at a
+   glance and state what they change about the result. */
+
+.labelToggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 26px;
+    padding: 0 9px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--text-faint);
+    font-family: inherit;
+    font-size: 0.69rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.labelToggle:hover:not(:disabled) {
+    color: var(--text-main);
+    border-color: var(--line-strong);
+}
+
+.labelToggle:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.labelToggleActive,
+.labelToggleActive:hover:not(:disabled) {
+    border-color: rgba(var(--accent-rgb), 0.4);
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+}
+
+.labelToggle svg {
+    flex-shrink: 0;
+}
+
+.effortHint {
+    flex-shrink: 0;
+    margin: -6px 12px 10px;
+    padding: 0 2px;
+    font-size: 0.66rem;
+    line-height: 1.4;
+    color: var(--text-faint);
+    text-align: right;
+}
+
+/* ---- run bar (replaces the composer while a turn is in flight) ---- */
+
+.runBar {
+    /* Above the running beam and mesh, which is exactly when this is on screen.
+       `.composer` and `.composerToolbar` carry the same pair for the same
+       reason; without it the bar renders correctly, is measurable in the DOM,
+       and is completely invisible behind the z-index:3 beam overlay. */
+    position: relative;
+    z-index: 4;
+    flex-shrink: 0;
+    margin: 0 12px 6px;
+    padding: 11px 12px 12px;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--accent-rgb), 0.35);
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.runBarTop {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.runPulse {
+    width: 8px;
+    height: 8px;
+    flex-shrink: 0;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-dim);
+    animation: aiRunPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes aiRunPulse {
+    50% { box-shadow: 0 0 0 7px rgba(var(--accent-rgb), 0.05); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .runPulse { animation: none; }
+}
+
+.runLabel {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.runStop {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    height: 28px;
+    padding: 0 11px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--text-soft);
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.runStop:hover {
+    border-color: var(--line-heavy);
+    color: var(--text-main);
+}
+
+.runBarSub {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.68rem;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+}
+
+/* The `@` picker sits above the composer and opens upward, so it needs to
+   escape the transcript's scroll box without being clipped by it. */
+.mentionLayer {
+    flex-shrink: 0;
+    margin: 0 12px 6px;
+    position: relative;
+    z-index: 4;
+}
+
+/* Clarify-form generation — ai-Plan.md §5.2. Sits where the context bar does,
+   because it is the same slot answering a different question: not "what can it
+   see" but "what is it doing before it answers". */
+.clarifyingStrip {
+    /* Same reason as .runBar: this shows while the beam is running. */
+    position: relative;
+    z-index: 4;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 12px 6px;
+    padding: 9px 11px;
+    border: 1px solid rgba(var(--accent-rgb), 0.25);
+    border-radius: var(--r-md);
+    background: var(--accent-dim);
+    font-size: 0.73rem;
+    font-weight: 500;
+    color: var(--accent-ink);
+}
+
+/* ---------- Tables inside an AI answer ----------
+   Responses use a semantic read-only table instead of the canvas editor's
+   editable grid. The table can now choose useful column widths; only genuinely
+   wide tables scroll, and words never collapse to a column of syllables. */
+.responseTableScroll {
+    width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-control);
+    background: var(--bg-card);
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+    pointer-events: auto;
+}
+
+.responseTable {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: auto;
+    color: var(--text-main);
+    font-size: 0.8125rem;
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: 0.002em;
+    word-spacing: 0.075em;
+    text-align: left;
+}
+
+.responseTable th,
+.responseTable td {
+    min-width: clamp(6.75rem, 21vw, 10rem);
+    max-width: 19rem;
+    padding: 9px 11px;
+    vertical-align: top;
+    border: 0 solid var(--line);
+    border-width: 0 1px 1px 0;
+    word-break: normal;
+    overflow-wrap: break-word;
+    hyphens: none;
+}
+
+.responseTable tr > :last-child { border-right: 0; }
+.responseTable tbody tr:last-child > * { border-bottom: 0; }
+
+.responseTable th {
+    color: var(--text-main);
+    background: var(--hover-wash);
+    font-size: 0.75rem;
+    font-weight: 650;
+    letter-spacing: 0.008em;
+    word-spacing: normal;
+}
+
+.responseTable tbody tr:nth-child(even) td {
+    background: color-mix(in srgb, var(--hover-wash) 46%, transparent);
+}
+
+.responseTable tbody tr:hover td { background: var(--table-row-hover); }
+
+.responseTable :global(strong) { font-weight: 650; }
+
+.responseTableScroll:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* "2 of 4" beside the running label. Tabular so the width does not jitter as
+   the count changes, which on a long run is the difference between a steady
+   readout and a twitch. */
+.runCounter {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Scope receipt above a sent message — what the AI could see when it was asked.
+   Right-aligned with the bubble it belongs to, and worn in the accent for
+   anything that reads the user's own canvas, neutral for the web. */
+.turnScope {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.turnScopeChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px 3px 7px;
+    border-radius: var(--radius-pill);
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+    font-size: 0.65rem;
+    font-weight: 600;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.turnScopeChipWeb {
+    background: var(--hover-wash);
+    color: var(--text-soft);
+}
+
+.turnScopeChip svg {
+    flex-shrink: 0;
+    opacity: 0.8;
 }

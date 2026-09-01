@@ -42,6 +42,7 @@ interface BlockItemProps {
     // Ref Registration
     onRegisterRef: (id: string, el: HTMLDivElement | null) => void;
     hasChildren?: boolean;
+    useStoredListNumber?: boolean;
     minimal?: boolean;
     isFirstChildOfToggle?: boolean;
 }
@@ -67,6 +68,7 @@ export const BlockItem = memo(function BlockItem({
     onRegisterRef,
     index,
     hasChildren,
+    useStoredListNumber,
     minimal,
     isFirstChildOfToggle
 }: BlockItemProps & { index?: number }) {
@@ -132,6 +134,7 @@ export const BlockItem = memo(function BlockItem({
             domRef: handleRegisterRef,
             index, // Pass to children (ListBlock needs it)
             hasChildren, // Pass to children
+            useStoredListNumber,
             minimal,
             onDeleteBlock: handleDelete,
         };

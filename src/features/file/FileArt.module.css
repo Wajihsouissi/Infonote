@@ -1,0 +1,92 @@
+/* File artwork for the closed file card.
+
+   One ink drives the whole shape — `--file-ink` — read here and never set, in
+   exactly the arrangement FolderArt has with `--folder-ink`: a recoloured node
+   redefines that single value to pull the sheet onto the card's own accent, and
+   the sheet, the fold, the glyph and the tab all follow.
+
+   Underneath it sits `--file-kind`, set by FileArt from the file-kind palette
+   in design-system.css — a red PDF, a blue document, a green sheet. The order
+   matters: a card the user has coloured overrides its file's kind, never the
+   other way round. Below both, the faint text grey. */
+.art {
+    position: relative;
+    flex: none;
+    display: block;
+    color: var(--file-ink, var(--file-kind, var(--text-faint)));
+}
+
+.svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+/* The page. Held back from the fold exactly as the source artwork has it, so
+   the sheet still reads as two planes when there is no poster. */
+.sheet {
+    fill: currentColor;
+    opacity: 0.5;
+}
+
+/* The turned corner. The one piece that says "document" on its own at small
+   sizes, so it stays solid whatever else is going on. */
+.fold {
+    fill: currentColor;
+}
+
+/* Centred on the page rather than the square: the fold eats the top-right, so
+   the optical middle of the sheet sits slightly low and left of true centre.
+
+   Full-strength ink, the same weight as the fold. FolderArt lifts its glyph
+   toward white because a folder's flap is opaque, but this sheet is the hue at
+   half opacity — lifting the glyph made it disappear against a light sheet in
+   the Paper theme. The fold already proves 100% reads cleanly on 50%, in both
+   themes, so the glyph simply matches it. */
+.icon {
+    position: absolute;
+    left: 47%;
+    top: 56%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--file-ink, var(--file-kind, var(--text-faint)));
+    pointer-events: none;
+}
+
+/* A poster has no CSS colour token for the glyph to inherit, and the picture is
+   already saying what the file is — but if a caller keeps both, blend rather
+   than stamp, the same way a folder's cover treats its icon. */
+.art[data-has-poster] .icon {
+    color: white;
+    mix-blend-mode: soft-light;
+    filter: saturate(1.35) contrast(1.2) drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.3));
+}
+
+/* The extension, on a tab across the lower edge of the sheet — where a real
+   label would be, and the one place on the silhouette that is never covered by
+   the fold. Full-strength hue against a paper ground, so it reads at canvas
+   zoom levels where the glyph has already dissolved. */
+.badge {
+    position: absolute;
+    left: 50%;
+    bottom: 6%;
+    transform: translateX(-50%);
+    max-width: 78%;
+    padding: 2px 7px;
+    border-radius: var(--r-xs);
+    background: var(--bg-card);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--file-ink, var(--file-kind, var(--text-faint))) 34%, transparent);
+    color: var(--file-ink, var(--file-kind, var(--text-faint)));
+    font-size: 0.5625rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+}

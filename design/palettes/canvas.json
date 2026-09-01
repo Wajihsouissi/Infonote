@@ -1,0 +1,49 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1340,
+      "title": "01 Graphite"
+    },
+    {
+      "file": "GraphiteDeep.dc.html",
+      "x": 1560,
+      "y": 0,
+      "w": 1440,
+      "h": 1340,
+      "title": "02 Graphite Deep"
+    },
+    {
+      "file": "GraphiteDeepest.dc.html",
+      "x": 3120,
+      "y": 0,
+      "w": 1440,
+      "h": 1340,
+      "title": "03 Graphite Deepest"
+    },
+    {
+      "file": "Tokens.dc.html",
+      "x": 1560,
+      "y": 1520,
+      "w": 1440,
+      "h": 1020,
+      "title": "Tokens",
+      "print": "flow"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "read-me",
+      "x": 0,
+      "y": 1520,
+      "w": 380,
+      "text": "Three Graphites, each darker than the last. Same neutral hue, same four rungs — only the lightness moves, so the relationships hold all the way down. 03 stops at #0d0d0d rather than going to black.\n\nThe ten tertiaries sit lower and stronger than the first round. That is what buys a real red and a real purple: at the old lightness, hue 24 is salmon and hue 306 is lavender no matter what you name them.\n\nThe Features card carries the jade wash, Tech Stack the purple, and the popover is where all ten live. Every hex is on the sheet below."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

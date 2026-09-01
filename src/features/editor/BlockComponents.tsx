@@ -1,8 +1,7 @@
-import React, { useState, useRef, useLayoutEffect, useEffect, memo, useCallback } from 'react';
+import React, { useState, useRef, useLayoutEffect, useEffect, useMemo, memo, useCallback } from 'react';
 import { FileText, Trash2, Sparkles, Loader2, Clock, Plus, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, AlignLeft, AlignCenter, AlignRight, GripHorizontal, GripVertical, Eraser, ChevronRight, Copy, Check, Columns3, Maximize2 } from '../../components/icons';
-import { FEATURES } from '../../config/featureFlags';
 import { useStore } from '../../store/useStore';
-import { renderContentWithLinks } from './pasteUtils';
+import { normalizeTableRows, renderContentWithLinks } from './pasteUtils';
 import { serializeInline } from './inlineFormat';
 import pageStyles from './PageBlock.module.css'; // Import page styles
 import { ContainerBlock } from './ContainerBlock'; // Import ContainerBlock
@@ -16,9 +15,10 @@ import type { Block, BlockMetadata } from './types';
 import styles from './BlockEditor.module.css';
 import { IconPicker, getIconByName } from '../card/IconPicker';
 import { generateText, FREEFORM_SYSTEM_PROMPT } from '../../services/aiService';
-// Lazy load PDFViewer
-const PDFViewer = React.lazy(() => import('../ui/PDFViewer').then(module => ({ default: module.PDFViewer })));
-import ReactDOM from 'react-dom';
+import { AssetImage, AssetVideo } from '../../services/assets';
+import { CardIcon } from '../card/iconMap';
+import { describeFile, FileViewer, getFileView } from '../file';
+import { formatBytes } from './mediaTypes';
 import { CustomDateTimePicker } from './CustomDateTimePicker';
 
 /**
@@ -143,7 +143,22 @@ const useContentEditable = (
             if (!renderLinks) return;
             const target = (e.target as HTMLElement).closest('a');
             if (!target) return;
-            
+
+            /* An AI node citation is a plain click, not Ctrl-click.
+               It navigates nothing and edits nothing — it selects the card the
+               answer leaned on and flies the canvas to it. Making the one
+               affordance whose whole job is "show me your source" require a
+               modifier would bury it (ai-Plan.md §5.4). Checked before the
+               modifier gate below for exactly that reason. */
+            const citedNodeId = target.getAttribute('data-cite-node');
+            if (citedNodeId) {
+                e.preventDefault();
+                e.stopPropagation();
+                useStore.getState().setSelectedCanvasNodeIds(new Set([citedNodeId]));
+                window.dispatchEvent(new CustomEvent('focusCanvasNodes', { detail: { ids: [citedNodeId] } }));
+                return;
+            }
+
             // Only follow links if Ctrl (Windows/Linux) or Cmd (Mac) is held
             if (!e.ctrlKey && !e.metaKey) return;
 
@@ -443,7 +458,7 @@ export const ImageBlock = memo(({ block, readOnly, onChange, onReplace, disableM
             disableMediaControls={disableMediaControls}
         >
             <div className={`${styles.mediaWrapper} mediaViewTarget`} onDoubleClick={() => setShowLightbox(true)}>
-                <img
+                <AssetImage
                     src={block.content}
                     alt="User content"
                     className={styles.mediaImage}
@@ -464,7 +479,7 @@ export const ImageBlock = memo(({ block, readOnly, onChange, onReplace, disableM
     );
 });
 
-export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef, hasChildren, ...rest }: BlockProps & { index?: number, hasChildren?: boolean }) => {
+export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, domRef, hasChildren, useStoredListNumber, ...rest }: BlockProps & { index?: number, hasChildren?: boolean, useStoredListNumber?: boolean }) => {
     const { ref, handlers } = useContentEditable(block.content, domRef, true, onChange);
 
     let prefix = null;
@@ -480,8 +495,12 @@ export const ListBlock = memo(({ block, readOnly, onChange, onKeyDown, onPaste, 
     if (block.type === 'bullet') {
         prefix = <span className={styles.listBullet}>•</span>;
     } else if (block.type === 'numbered') {
-        // Use index from props (passed via BlockItem), fallback to 1 if undefined
-        const idx = rest.index || 1;
+        // Imported / AI-generated items carry their ordinal so splitting a list
+        // into separate canvas cards does not restart every card at "1.".
+        // Hand-authored lists still derive their live index from the editor.
+        const idx = useStoredListNumber && typeof block.metadata?.listNumber === 'number'
+            ? block.metadata.listNumber
+            : rest.index ?? block.metadata?.listNumber ?? 1;
         prefix = <span className={styles.listNumber}>{idx}.</span>;
     } else if (block.type === 'toggle') {
         wrapperClass = styles.toggleWrapper;
@@ -882,7 +901,15 @@ const TableCellEditor = memo(function TableCellEditor({
 });
 
 export const TableBlock = memo(({ block, readOnly, onChange }: BlockProps) => {
-    const rows: string[][] = block.metadata?.rows || [];
+    /* Repaired on the way in, not only at parse time: a table that was already
+       saved with a delimiter row glued to its first data row (see
+       `normalizeTableRows`) would otherwise keep rendering seven cells under a
+       three-column header until someone retyped it. Rows that are already
+       rectangular pass straight through, so nothing is rewritten needlessly. */
+    const rows: string[][] = useMemo(
+        () => normalizeTableRows(block.metadata?.rows || []),
+        [block.metadata?.rows],
+    );
     const savedWidths: number[] = block.metadata?.columnWidths || [];
     const savedHeights: number[] = block.metadata?.rowHeights || [];
     const alignments: TableAlign[] = block.metadata?.alignments || [];
@@ -1666,7 +1693,7 @@ export const VideoBlock = memo(({ block, readOnly, onChange, onReplace, disableM
             disableMediaControls={disableMediaControls}
         >
             <div className={`${styles.mediaWrapper} mediaViewTarget`} onDoubleClick={() => setShowLightbox(true)}>
-                <video src={block.content} controls className={styles.mediaImage} />
+                <AssetVideo src={block.content} controls className={styles.mediaImage} />
                 <MediaExpandButton onOpen={() => setShowLightbox(true)} />
             </div>
             {showLightbox && (
@@ -1681,58 +1708,71 @@ export const VideoBlock = memo(({ block, readOnly, onChange, onReplace, disableM
     );
 });
 
+/**
+ * A file inside a card's content.
+ *
+ * Two states, the same two the file node has on the canvas: closed is a row —
+ * kind glyph, name, weight — and open is the live document. The block's own
+ * `metadata.fileView` is what switches between them, so a file opened in a
+ * card stays open when that block is released onto the canvas.
+ */
 export const FileBlock = memo(({ block, readOnly, onChange, onReplace }: BlockProps) => {
-    const fileName = block.metadata?.name || block.content.split('/').pop() || "File";
-    const [showPDF, setShowPDF] = React.useState(false);
+    const fileName = block.metadata?.name || block.content.split('/').pop() || 'File';
+    const view = getFileView(block);
+    const kind = describeFile(block.metadata?.type, fileName);
 
-    // Check if it is a PDF (data URL or file ext)
-    const isPDF = block.content?.startsWith('data:application/pdf') ||
-        block.metadata?.type === 'application/pdf' ||
-        fileName.toLowerCase().endsWith('.pdf');
+    const setView = React.useCallback((next: 'file' | 'expandedfile') => {
+        onChange(block.content, { ...block.metadata, fileView: next });
+    }, [block.content, block.metadata, onChange]);
 
     if (!block.content) {
         return <MediaBlock block={block} readOnly={readOnly} onChange={onChange} onReplace={onReplace} />;
     }
 
-    const handleClick = (e: React.MouseEvent) => {
-        if (isPDF && FEATURES.pdfBlock) {
-            e.preventDefault();
-            setShowPDF(true);
-        }
-        // Else let default link behavior happen (download/open tab)
-    };
+    if (view === 'expandedfile') {
+        return (
+            <div className={styles.fileOpen} contentEditable={false}>
+                <FileViewer
+                    content={block.content}
+                    name={fileName}
+                    mime={block.metadata?.type}
+                    size={block.metadata?.size}
+                    variant="peek"
+                    onClose={readOnly ? undefined : () => setView('file')}
+                />
+            </div>
+        );
+    }
 
     return (
-        <>
-            <div
-                className={styles.fileWrapper}
-                contentEditable={false}
-                onClick={handleClick}
-            >
-                <div className={styles.fileIconWrapper}>
-                    <FileText size={32} />
-                </div>
-                <div className={styles.fileInfo}>
-                    <span className={styles.fileLink}>{fileName}</span>
-                    {block.metadata?.size && (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', display: 'block' }}>
-                            {(block.metadata.size / 1024).toFixed(1)} KB
-                        </span>
-                    )}
-                </div>
-
+        <div
+            className={styles.fileWrapper}
+            contentEditable={false}
+            style={{ ['--file-kind' as string]: `var(${kind.hue})` }}
+            onClick={(e) => {
+                e.preventDefault();
+                setView('expandedfile');
+            }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setView('expandedfile');
+                }
+            }}
+            title={`Open ${fileName}`}
+        >
+            <div className={styles.fileIconWrapper}>
+                <CardIcon icon={kind.icon} size={26} style={{ color: 'inherit' }} />
             </div>
-
-            {showPDF && FEATURES.pdfBlock && ReactDOM.createPortal(
-                <React.Suspense fallback={null}>
-                    <PDFViewer
-                        fileUrl={block.content}
-                        fileName={fileName}
-                        onClose={() => setShowPDF(false)}
-                    />
-                </React.Suspense>,
-                document.body
-            )}
-        </>
+            <div className={styles.fileInfo}>
+                <span className={styles.fileLink}>{fileName}</span>
+                <span className={styles.fileMeta}>
+                    {kind.label}
+                    {typeof block.metadata?.size === 'number' ? ` · ${formatBytes(block.metadata.size)}` : ''}
+                </span>
+            </div>
+        </div>
     );
 });

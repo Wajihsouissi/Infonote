@@ -24,6 +24,39 @@ export const INLINE_MARKERS: Record<InlineFormat, string> = {
 };
 
 /**
+ * Highlight colours — the ten accent hues of the design system (§7 of
+ * design-system.css), the same set a kanban lane, a tag or a card picks from.
+ * A highlight is one of those hues and nothing else, which is what lets the
+ * stored marker stay a short name instead of a hex value that could never
+ * follow the theme between Ink and Paper.
+ */
+export const HIGHLIGHT_HUES = [
+    'rose', 'amber', 'citrine', 'olive', 'jade',
+    'teal', 'azure', 'indigo', 'violet', 'magenta',
+] as const;
+
+export type HighlightHue = (typeof HIGHLIGHT_HUES)[number];
+
+/** What a highlight with no hue named on it means (the classic yellow marker). */
+export const DEFAULT_HIGHLIGHT_HUE: HighlightHue = 'citrine';
+
+export const isHighlightHue = (value: string | null | undefined): value is HighlightHue =>
+    !!value && (HIGHLIGHT_HUES as readonly string[]).includes(value);
+
+/**
+ * `==hue|text==`, or a bare `==text==` for the default hue. Groups: 1=hue,
+ * 2=text. The hue is a fixed alternation rather than a free word, so nothing
+ * a user types between the markers can reach an HTML attribute.
+ *
+ * The text may not begin or end with whitespace, which is what keeps prose
+ * like "x == y == z" from being read as a highlight of " y ".
+ */
+export const HIGHLIGHT_PATTERN = new RegExp(
+    `==(?:(${HIGHLIGHT_HUES.join('|')})\\|)?(\\S|\\S[\\s\\S]*?\\S)==`,
+    'g',
+);
+
+/**
  * Pure string transform: wrap / toggle the [start,end) slice of `raw` with the
  * given format's marker. Returns the new text and where the selection should
  * land afterward. No DOM involved — trivially testable.
@@ -183,6 +216,23 @@ export function serializeInline(root: HTMLElement): string {
         }
 
         if (tag === 'br') { out += '\n'; return; }
+
+        // Highlight -> ==hue|text==. Asymmetric (the hue rides on the opening
+        // marker only), so it can't go through the TAG_MARKER table below.
+        if (tag === 'mark') {
+            const hue = el.getAttribute('data-hue');
+            const start = out.length;
+            el.childNodes.forEach(walk);
+            const inner = out.slice(start);
+            out = out.slice(0, start);
+            // Whitespace at either end goes OUTSIDE the markers: selecting a word
+            // usually takes the space after it too, and `==word ==` is not a
+            // highlight when it is read back (see HIGHLIGHT_PATTERN).
+            const [, lead, core, trail] = inner.match(/^(\s*)([\s\S]*?)(\s*)$/) ?? ['', '', inner, ''];
+            if (!core) { out += inner; return; }
+            out += `${lead}==${isHighlightHue(hue) ? hue : DEFAULT_HIGHLIGHT_HUE}|${core}==${trail}`;
+            return;
+        }
 
         const marker = TAG_MARKER[tag];
         if (marker) {
@@ -364,6 +414,181 @@ export function applyInlineFormat(host: HTMLElement, format: InlineFormat, overr
     }
 }
 
+/** Replace `el` with its own children, leaving the selection over them. */
+function unwrapElement(el: HTMLElement): void {
+    const parent = el.parentNode;
+    if (!parent) return;
+    const frag = document.createDocumentFragment();
+    while (el.firstChild) frag.appendChild(el.firstChild);
+    const first = frag.firstChild;
+    const last = frag.lastChild;
+    parent.replaceChild(frag, el);
+    if (first && last) {
+        const r = document.createRange();
+        r.setStartBefore(first);
+        r.setEndAfter(last);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+    }
+}
+
+/**
+ * Fold neighbouring highlights of the same hue into one run. Splitting and
+ * recolouring leaves them side by side, and `==jade|q====jade|uick==` is both
+ * uglier than it needs to be and one more seam for a later edit to trip on.
+ */
+function mergeAdjacentMarks(host: HTMLElement): void {
+    for (const mark of Array.from(host.querySelectorAll('mark'))) {
+        let next = mark.nextSibling;
+        while (
+            next?.nodeType === Node.ELEMENT_NODE &&
+            (next as HTMLElement).tagName.toLowerCase() === 'mark' &&
+            (next as HTMLElement).getAttribute('data-hue') === mark.getAttribute('data-hue')
+        ) {
+            const sibling = next as HTMLElement;
+            next = sibling.nextSibling;
+            while (sibling.firstChild) mark.appendChild(sibling.firstChild);
+            sibling.remove();
+        }
+    }
+}
+
+function makeMark(hue: HighlightHue, contents: Node): HTMLElement {
+    const mark = document.createElement('mark');
+    // Same class + attribute renderContentWithLinks emits, so live-edited and
+    // re-rendered markup are byte-identical and the block doesn't churn.
+    mark.className = 'editor-mark';
+    mark.setAttribute('data-hue', hue);
+    mark.appendChild(contents);
+    return mark;
+}
+
+/**
+ * Highlight the selection in `hue`, or clear it when `hue` is null.
+ *
+ * Re-highlighting part of an existing highlight splits that run in three — the
+ * untouched head and tail keep the old hue — rather than nesting one <mark>
+ * inside another, which would serialize to unreadable stacked markers.
+ */
+export function applyHighlight(host: HTMLElement, hue: HighlightHue | null, overrideRange?: Range): void {
+    const sel = window.getSelection();
+    let range: Range;
+    if (overrideRange) {
+        range = overrideRange;
+    } else {
+        if (!sel || sel.rangeCount === 0) return;
+        range = sel.getRangeAt(0);
+    }
+
+    if (!host.contains(range.commonAncestorContainer)) return;
+    if (range.collapsed) return;
+
+    // Merging can move (or retire) the element the selection was set on, so the
+    // range is rebuilt afterwards from the child nodes themselves — those are
+    // re-parented, never replaced.
+    const finish = (el: HTMLElement) => {
+        const first = el.firstChild;
+        const last = el.lastChild;
+        mergeAdjacentMarks(host);
+        if (!first?.isConnected || !last?.isConnected) return;
+        const r = document.createRange();
+        r.setStartBefore(first);
+        r.setEndAfter(last);
+        const s = window.getSelection();
+        s?.removeAllRanges();
+        s?.addRange(r);
+    };
+
+    const enclosing = ancestorWithTag(range.commonAncestorContainer, 'mark', host);
+
+    if (enclosing) {
+        const parent = enclosing.parentNode;
+        if (!parent) return;
+        const oldHue = enclosing.getAttribute('data-hue');
+        const keepHue = isHighlightHue(oldHue) ? oldHue : DEFAULT_HIGHLIGHT_HUE;
+
+        // Carve the selection out of the run. Ranges are live, so `range` still
+        // spans the same characters after each extraction. Tail first: taking
+        // the head out first would shift the offsets the tail is measured from.
+        const post = document.createRange();
+        post.selectNodeContents(enclosing);
+        post.setStart(range.endContainer, range.endOffset);
+        const postFrag = post.extractContents();
+
+        const pre = document.createRange();
+        pre.selectNodeContents(enclosing);
+        pre.setEnd(range.startContainer, range.startOffset);
+        const preFrag = pre.extractContents();
+
+        if (preFrag.textContent) parent.insertBefore(makeMark(keepHue, preFrag), enclosing);
+        if (postFrag.textContent) parent.insertBefore(makeMark(keepHue, postFrag), enclosing.nextSibling);
+
+        // `enclosing` now holds exactly the selection.
+        if (hue === null) {
+            unwrapElement(enclosing);
+            mergeAdjacentMarks(host);
+        } else {
+            enclosing.className = 'editor-mark';
+            enclosing.setAttribute('data-hue', hue);
+            finish(enclosing);
+        }
+        return;
+    }
+
+    if (hue === null) {
+        // Nothing encloses the selection, so clearing means dropping every
+        // highlight it touches — including ones it only partly covers.
+        const touched = Array.from(host.querySelectorAll('mark'))
+            .filter((m) => range.intersectsNode(m)) as HTMLElement[];
+        touched.forEach(unwrapElement);
+        mergeAdjacentMarks(host);
+        return;
+    }
+
+    const contents = range.extractContents();
+    // Flatten highlights fully inside the selection: the new hue replaces them.
+    for (const nested of Array.from(contents.querySelectorAll('mark'))) {
+        const p = nested.parentNode;
+        if (!p) continue;
+        while (nested.firstChild) p.insertBefore(nested.firstChild, nested);
+        p.removeChild(nested);
+    }
+
+    try {
+        const wrapper = makeMark(hue, contents);
+        range.insertNode(wrapper);
+        // Drop empty remnants the extraction can leave behind, before the merge
+        // pass reads which highlights are actually neighbours.
+        for (const mark of Array.from(host.querySelectorAll('mark'))) {
+            if (!mark.textContent) mark.parentNode?.removeChild(mark);
+        }
+        finish(wrapper);
+    } catch {
+        // extract/insert can throw on exotic partial selections — leave as-is.
+    }
+}
+
+/** The hue of the highlight wrapping the current selection, if any. */
+export function getActiveHighlightFromSelection(): HighlightHue | null {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+
+    let node: Node | null = sel.getRangeAt(0).startContainer;
+    while (node) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+            const el = node as HTMLElement;
+            if (el.tagName.toLowerCase() === 'mark') {
+                const hue = el.getAttribute('data-hue');
+                return isHighlightHue(hue) ? hue : DEFAULT_HIGHLIGHT_HUE;
+            }
+            if (el.getAttribute('contenteditable') === 'true') break;
+        }
+        node = node.parentNode;
+    }
+    return null;
+}
+
 /** Wrap the current selection in a link (or a page chip when pageId is given). */
 export function applyLinkElement(host: HTMLElement, opts: { href?: string; pageId?: string; text?: string }, overrideRange?: Range): void {
     const sel = window.getSelection();
@@ -504,6 +729,9 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
         getActiveFormatsFromSelection,
         serializeInline,
         applyInlineFormat,
+        applyHighlight,
+        getActiveHighlightFromSelection,
         INLINE_MARKERS,
+        HIGHLIGHT_HUES,
     };
 }

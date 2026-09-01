@@ -1,7 +1,7 @@
 /**
  * AnonSaveReminder — periodic, non-blocking nudge for anonymous users
- * (see BETA_SCOPE.md): their work persists only in this browser via the
- * IndexedDB snapshot, so we honestly remind them to sign in to keep it.
+ * (see BETA_SCOPE.md): unsaved work is only available for the active session,
+ * so we honestly remind them to sign in or connect a folder.
  *
  * Cadence: first shown shortly after the first meaningful edit of the
  * session, then roughly every 10 minutes. Dismissing hides it for a full
@@ -16,7 +16,7 @@ import { useStore } from '../../store/useStore';
 const LAST_SHOWN_KEY = 'chnk-it-anon-reminder-last-shown';
 const INTERVAL_MS = 10 * 60 * 1000; // ~10 minutes between nudges
 const FIRST_EDIT_DELAY_MS = 15 * 1000; // breathing room after the first edit
-const BOOT_GRACE_MS = 3000; // snapshot restore churn right after boot is not an edit
+const BOOT_GRACE_MS = 3000; // initial app setup churn is not a meaningful edit
 
 function lastShownAt(): number {
     const raw = localStorage.getItem(LAST_SHOWN_KEY);
@@ -92,7 +92,7 @@ export const AnonSaveReminder: React.FC = () => {
                 <CloudOff size={16} />
             </div>
             <div className={styles.text}>
-                Your work only lives in this browser — sign in to keep it safe.
+                Save your work by signing in or connecting a folder.
             </div>
             <button className={styles.signInButton} type="button" onClick={signIn}>
                 Sign in

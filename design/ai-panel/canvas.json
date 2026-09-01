@@ -1,0 +1,63 @@
+{
+  "artboards": [
+    { "file": "Running.dc.html", "title": "1 · Mid-run — what is it doing?", "x": 0, "y": 0, "w": 440, "h": 1000 },
+    { "file": "Main.dc.html", "title": "2 · Create turn — generated content", "x": 520, "y": 0, "w": 440, "h": 1240 },
+    { "file": "AskAnswer.dc.html", "title": "3 · Ask — citations & drag-out", "x": 1040, "y": 0, "w": 440, "h": 1260 },
+    { "file": "ClarifyForm.dc.html", "title": "4 · Clarify form", "x": 1560, "y": 0, "w": 440, "h": 1020 },
+    { "file": "Composer.dc.html", "title": "5 · Composer anatomy", "x": 0, "y": 1400, "w": 440, "h": 1080 },
+    { "file": "Provenance.dc.html", "title": "6 · Provenance on the canvas", "x": 520, "y": 1400, "w": 560, "h": 700 },
+    { "file": "PaperTheme.dc.html", "title": "7 · Paper theme", "x": 1160, "y": 1400, "w": 440, "h": 1060 }
+  ],
+  "annotations": [
+    {
+      "id": "north-star",
+      "x": 0,
+      "y": -230,
+      "w": 900,
+      "text": "Chunk It AI panel — designed against ai-Plan.md\n\nThree properties, in priority order: reliable, legible, grounded.\nTokens are lifted from src/styles/design-system.css (Charcoal & Signal): Outfit, Hot Coral #ff5040, 40px panel body, 18px composer, 8px controls."
+    },
+    {
+      "id": "note-trace",
+      "x": 0,
+      "y": 1030,
+      "w": 440,
+      "text": "W1 — the trace names the OBJECT, never the verb.\n\n\"Searching: beta launch checklist saas 2026\", not \"Analysing\". The four queries are printed verbatim, the cards read are chips you can click, and the plan carries the model's one-sentence justification for choosing a board.\n\nDuring a run the composer is REPLACED by the run bar — one focus at a time."
+    },
+    {
+      "id": "note-made",
+      "x": 520,
+      "y": 1270,
+      "w": 440,
+      "text": "W5 — every artifact is its own row with its own receipt: block count against the effort budget, and what it was grounded on.\n\nBecause bodies are written one call each, three good cards survive a fourth that fails. The gap-analysis card (amber) is W6: what the canvas is MISSING, which no competitor does."
+    },
+    {
+      "id": "note-cite",
+      "x": 1040,
+      "y": 1290,
+      "w": 440,
+      "text": "W4 — two kinds of citation.\n\nCoral pills are cards on your canvas (click to fly there). Grey [1] [2] are web sources, placed inline from Gemini's groundingSupports spans — which today we throw away and staple to the bottom as a list.\n\nDrag handles and the hover action bar are the parts of today's panel that already work. Kept exactly."
+    },
+    {
+      "id": "note-form",
+      "x": 1560,
+      "y": 1050,
+      "w": 440,
+      "text": "W2 — the clarify form.\n\nEvery question ships pre-answered, so Continue without touching anything is a sane run, and \"Just answer\" skips the whole thing. Fires on under ~25% of turns: never on a direct question, never on Fast."
+    },
+    {
+      "id": "note-composer",
+      "x": 0,
+      "y": 2510,
+      "w": 440,
+      "text": "W3 + W8 — the fix for six unlabeled icon toggles.\n\nState 1 is the honest empty state: nothing attached, answering from general knowledge. The canvas is read ONLY when a chip says so — no more regex sniffing the question for the word \"note\".\n\nEffort states its consequence, not its name."
+    },
+    {
+      "id": "note-prov",
+      "x": 520,
+      "y": 2130,
+      "w": 560,
+      "text": "W4 — provenance outlives the chat. A card found three weeks later still names the prompt, model, effort and sources that made it, and the canvas can filter to Created by AI."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

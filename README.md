@@ -8,7 +8,7 @@ content generation — in the browser.
 
 - **Frontend:** React 19 + TypeScript + Vite, Zustand (+ zundo undo history), @xyflow/react canvas, Tailwind CSS 4
 - **Backend:** Supabase (auth, Postgres + RLS, realtime), Vercel serverless functions under `api/`
-- **AI:** Vercel AI Gateway proxied through `api/ai/*` (auth-gated, server-chosen models)
+- **AI:** Google Gemini API proxied through `api/ai/*` (auth-gated, server-chosen models)
 - **Email:** Resend (workspace invitations), with Supabase Auth fallback
 
 ## Getting started
@@ -38,7 +38,7 @@ The dev server mirrors the production `api/` routes as Vite middleware (see
 See [.env.example](.env.example) for the full annotated list. Highlights:
 
 - `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` — client Supabase config
-- `AI_GATEWAY_API_KEY` — **server-side only**; required for AI features
+- `GEMINI_API_KEY` — **server-side only**; required for AI features
 - `RESEND_API_KEY`, `INVITE_FROM_EMAIL` — server-side invitation emails
 - `SUPABASE_SERVICE_ROLE_KEY` — optional, server-side only, never `VITE_`-prefixed
 

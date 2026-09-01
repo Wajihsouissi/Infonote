@@ -11,6 +11,7 @@ export const createNavigationSlice: StateCreator<AppState, [], [], NavigationSli
     rightSidePanelId: null,
     leftSidePanelId: null,
     centerPanelId: null,
+    tasksCardId: null,
 
     navigateToNode: (nodeId) => {
         const { nodes, breadcrumbs, currentParentId } = get();
@@ -26,11 +27,6 @@ export const createNavigationSlice: StateCreator<AppState, [], [], NavigationSli
 
         // Persist to localStorage
         if (typeof window !== 'undefined') localStorage.setItem('chnk-it-current-parent-id', nodeId);
-
-        // Hydrate canvas from content if it's a note
-        if (targetNode.type === 'note') {
-            get().hydrateCanvasFromContent(nodeId);
-        }
 
         const existingIndex = breadcrumbs.findIndex((b) => b.id === nodeId);
         if (existingIndex !== -1) {
@@ -54,6 +50,10 @@ export const createNavigationSlice: StateCreator<AppState, [], [], NavigationSli
     setLeftSidePanelId: (id) => set({ leftSidePanelId: id, fullscreenId: null, centerPanelId: null }),
     setCenterPanelId: (id) => set({ centerPanelId: id, fullscreenId: null, rightSidePanelId: null, leftSidePanelId: null }),
 
+    /* Independent of the panels above on purpose — the task list opens over a
+       board or a calendar, and closing it should leave that where it was. */
+    setTasksCardId: (id) => set({ tasksCardId: id }),
+
     reconstructBreadcrumbs: () => {
         const { nodes, currentParentId } = get();
 
@@ -76,10 +76,6 @@ export const createNavigationSlice: StateCreator<AppState, [], [], NavigationSli
         while (currId) {
             const node = nodes.find(n => n.id === currId);
             if (!node) break;
-
-            if (currId === currentParentId && node.type === 'note') {
-                get().hydrateCanvasFromContent(currId);
-            }
 
             path.unshift({
                 id: node.id,

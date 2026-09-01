@@ -1,0 +1,214 @@
+/* The open file. Same component on the canvas and in a peek — only the density
+   of the header changes, so a file reads the same wherever it is opened. */
+
+.viewer {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--panel-body-bg);
+}
+
+.node {
+    border-radius: var(--media-radius);
+    box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.peek {
+    background: var(--panel-body-bg);
+}
+
+.header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: none;
+    padding: 9px 10px 9px 12px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel-bg);
+}
+
+/* The card's accent as a spine across the top, at exactly the weight and place
+   a canvas node wears its own — transparent until the node has been coloured,
+   the same rule `.blockNode::before` follows. A file that has not been given a
+   colour does not invent one. */
+.header::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: var(--node-spine-w, 3px);
+    background: var(--node-accent-color, transparent);
+    pointer-events: none;
+}
+
+.peek .header {
+    padding: 13px 14px 13px 18px;
+}
+
+.glyph {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--r-control);
+    background: color-mix(in srgb, var(--file-ink, var(--file-kind, var(--text-soft))) 12%, transparent);
+    color: var(--file-ink, var(--file-kind, var(--text-soft)));
+}
+
+.peek .glyph {
+    width: 34px;
+    height: 34px;
+    border-radius: var(--r-md);
+}
+
+.titleGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    flex: 1;
+}
+
+/* An input at rest, dressed as text: no border, no field background, so the
+   header reads as a title until you put the caret in it. */
+.title {
+    width: 100%;
+    padding: 1px 5px;
+    margin-left: -5px;
+    border: none;
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    outline: none;
+    transition: background var(--transition-fast);
+}
+
+.peek .title {
+    font-size: 0.9375rem;
+}
+
+.title:not(:read-only):hover {
+    background: var(--hover-wash);
+    cursor: text;
+}
+
+.title:focus {
+    background: var(--input-bg);
+    box-shadow: 0 0 0 1px var(--input-border-focus);
+}
+
+.meta {
+    padding-left: 5px;
+    margin-left: -5px;
+    color: var(--text-faint);
+    font-size: 0.6875rem;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: none;
+}
+
+/* `actionBtn` is in the corner-shape round reset list in design-system.css, so
+   these stay true circles rather than picking up the squircle. */
+.actionBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-soft);
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.body {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--bg-base);
+}
+
+.pending {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: var(--hover-wash);
+}
+
+.pending::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, var(--active-wash), transparent);
+    animation: fileViewerShimmer 1.5s infinite;
+}
+
+@keyframes fileViewerShimmer {
+    100% { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pending::after { animation: none; }
+}
+
+.missing {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 100%;
+    padding: 32px 24px;
+    text-align: center;
+}
+
+.missingTitle {
+    margin: 6px 0 0;
+    color: var(--text-main);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.missingText {
+    max-width: 34ch;
+    margin: 0;
+    color: var(--text-faint);
+    font-size: 0.8125rem;
+    line-height: 1.5;
+}
+
+/* The resting state of an open file: the artwork centred in the body the live
+   document would otherwise fill. Deliberately not a spinner — nothing is
+   loading, the canvas is simply moving, and a spinner would suggest otherwise.
+   Deliberately not dimmed either: a faded page reads as disabled, and this one
+   is a heartbeat from being live. */
+.resting {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 24px;
+}

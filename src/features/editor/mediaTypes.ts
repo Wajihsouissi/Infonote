@@ -21,12 +21,6 @@ export function isMediaType(type?: BlockType | string): boolean {
     return MEDIA_TYPES.includes(type as BlockType);
 }
 
-/**
- * Inline data URLs are the storage format, so a file's bytes land in the document
- * and then in every sync payload — base64 inflates them by a further ~33%. Cap it.
- */
-export const MAX_MEDIA_BYTES = 10 * 1024 * 1024;
-
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|avif|svg|bmp|ico|heic|heif)(\?|#|$)/i;
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v|ogv|avi|mkv)(\?|#|$)/i;
 
@@ -66,21 +60,6 @@ export function formatBytes(bytes: number): string {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** Reads a file into the inline data URL that block content stores.
- *  Rejects with a user-facing message — callers surface it inline. */
-export function readMediaFile(file: File): Promise<{ url: string; type: ResolvedMediaType }> {
-    return new Promise((resolve, reject) => {
-        if (file.size > MAX_MEDIA_BYTES) {
-            reject(new Error(`${file.name} is ${formatBytes(file.size)} — the limit is ${formatBytes(MAX_MEDIA_BYTES)}.`));
-            return;
-        }
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const url = e.target?.result;
-            if (typeof url === 'string') resolve({ url, type: resolveMediaTypeFromFile(file) });
-            else reject(new Error(`Could not read ${file.name}.`));
-        };
-        reader.onerror = () => reject(new Error(`Could not read ${file.name}.`));
-        reader.readAsDataURL(file);
-    });
-}
+/* Reading a file is no longer this module's job. Bytes go to the asset store
+   via `ingestFile` in services/assets, which is the single place that enforces
+   the size limit and hands back the `asset:<id>` reference a block stores. */

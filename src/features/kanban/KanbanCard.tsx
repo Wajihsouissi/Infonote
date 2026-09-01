@@ -25,6 +25,9 @@ import { displaySrc } from '../editor/mediaThumbnail';
 import { useStore } from '../../store/useStore';
 import type { Block } from '../editor/types';
 import type { NoteData, NoteNode } from '../../types';
+import { diffDays, parseCardDate } from '../../utils/cardDate';
+import { cardTasks, taskProgress, toggleTask } from '../card/cardTasks';
+import { TaskProgressMeter } from '../card/tasks/TaskProgress';
 import { KanbanCardMetaEditor } from './KanbanCardMetaEditor';
 import type { KanbanGroupField } from './kanbanTypes';
 import styles from './KanbanCard.module.css';
@@ -36,18 +39,30 @@ const MAX_CHECKLIST_ROWS = 4;
 const MAX_TAGS = 4;
 
 /**
- * A checklist line, and where it came from.
+ * A checklist line as the card draws it.
  *
- * A card's checklist is drawn from `subtasks` when it has them and from its
- * `todo` blocks when it does not, and ticking one has to write back to whichever
- * it was — the row carries its own origin so the click does not have to guess.
+ * Where it is actually stored — a `todo` block in the body, or an entry in
+ * `tasks` — is cardTasks.ts's business, and ticking one goes back through
+ * `toggleTask` rather than being written from here.
  */
 type ChecklistRow = {
     id: string;
     text: string;
     done: boolean;
-    from: 'subtask' | 'block';
+    /** 0 is a task; deeper is a subtask, indented to match. */
+    depth: number;
+    /**
+     * The task's own due date, read the way the card's is.
+     *
+     * Null on a finished task: the deadline stopped mattering when the work
+     * landed, and a lane of struck-through rows still shouting "3d late" is a
+     * board that cannot tell you what is actually wrong. The calendar's overdue
+     * chip makes the same call.
+     */
+    due: DueLabel | null;
 };
+
+type DueLabel = { text: string; state: 'overdue' | 'today' | 'soon' | 'later' };
 
 type CardPreview = {
     cover?: string;
@@ -86,19 +101,17 @@ function buildPreview(data: NoteData): CardPreview {
         if (image) cover = displaySrc(image.content, image.metadata?.thumb as string | undefined);
     }
 
-    const subtasks = data.subtasks ?? [];
-    const todoBlocks = subtasks.length === 0
-        ? blocks.filter((b) => b.type === 'todo')
-        : [];
-
-    const checklist: ChecklistRow[] = subtasks.length > 0
-        ? subtasks.map((t) => ({ id: t.id, text: t.text, done: t.completed, from: 'subtask' as const }))
-        : todoBlocks.map((b) => ({
-            id: b.id,
-            text: stripInline(b.content),
-            done: !!b.metadata?.checked,
-            from: 'block' as const,
-        }));
+    /* One list, however it was written — a checklist typed into the body and a
+       task added from the metadata panel are the same thing to a card. See
+       features/card/cardTasks.ts; the board must not have its own idea of what
+       a task is. */
+    const checklist: ChecklistRow[] = cardTasks(data).map((t) => ({
+        id: t.id,
+        text: t.text,
+        done: t.completed,
+        depth: t.depth,
+        due: t.completed ? null : dueLabel(t.dueDate),
+    }));
 
     let snippet = data.description?.trim();
     if (!snippet) {
@@ -124,13 +137,14 @@ function buildPreview(data: NoteData): CardPreview {
 }
 
 /** How a due date should read, which is mostly about how alarming it is. */
-function dueLabel(iso?: string): { text: string; state: 'overdue' | 'today' | 'soon' | 'later' } | null {
-    if (!iso) return null;
-    const due = new Date(iso);
-    if (Number.isNaN(due.getTime())) return null;
+function dueLabel(iso?: string): DueLabel | null {
+    /* Both through cardDate, not `new Date(iso)`: a bare `YYYY-MM-DD` parses as
+       UTC midnight, which read a card due today as due yesterday everywhere
+       west of UTC. See src/utils/cardDate.ts. */
+    const due = parseCardDate(iso);
+    if (!due) return null;
 
-    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-    const days = Math.round((startOfDay(due) - startOfDay(new Date())) / 86_400_000);
+    const days = diffDays(new Date(), due);
 
     if (days < 0) return { text: days === -1 ? 'Yesterday' : `${Math.abs(days)}d late`, state: 'overdue' };
     if (days === 0) return { text: 'Today', state: 'today' };
@@ -168,6 +182,7 @@ export interface KanbanCardProps {
 export const KanbanCard = memo(({ node, groupBy, isGhost, isOverlay, isSelected }: KanbanCardProps) => {
     const { data } = node;
     const updateNodeData = useStore((s) => s.updateNodeData);
+    const setTasksCardId = useStore((s) => s.setTasksCardId);
     const preview = useMemo(() => buildPreview(data), [data]);
     const [iconPickerOpen, setIconPickerOpen] = useState(false);
 
@@ -183,26 +198,12 @@ export const KanbanCard = memo(({ node, groupBy, isGhost, isOverlay, isSelected 
      *
      * Deliberately available whether or not the card is selected: ticking a task
      * is the one edit you make *while reading* a board, and making it wait for a
-     * selection would turn the commonest action into a two-step. It writes back
-     * to whichever source the row came from — see ChecklistRow.
+     * selection would turn the commonest action into a two-step. Which store the
+     * tick lands in is `toggleTask`'s decision, not this component's.
      */
     const toggleCheck = useCallback((row: ChecklistRow) => {
-        if (row.from === 'subtask') {
-            patch({
-                subtasks: (data.subtasks ?? []).map((t) => (
-                    t.id === row.id ? { ...t, completed: !t.completed } : t
-                )),
-            });
-            return;
-        }
-        patch({
-            content: asBlocks(data.content).map((b) => (
-                b.id === row.id
-                    ? { ...b, metadata: { ...b.metadata, checked: !b.metadata?.checked } }
-                    : b
-            )),
-        });
-    }, [data.subtasks, data.content, patch]);
+        patch(toggleTask(data, row.id));
+    }, [data, patch]);
 
     const due = dueLabel(data.dueDate);
     const tags = data.tags ?? [];
@@ -214,9 +215,8 @@ export const KanbanCard = memo(({ node, groupBy, isGhost, isOverlay, isSelected 
        nothing when there is neither. */
     const progress = typeof data.progress === 'number'
         ? Math.max(0, Math.min(100, data.progress))
-        : preview.checklistTotal > 0
-            ? Math.round((preview.checklistDone / preview.checklistTotal) * 100)
-            : null;
+        : null;
+    const tasks = useMemo(() => taskProgress(data), [data]);
 
     const extraChecks = preview.checklist.length - MAX_CHECKLIST_ROWS;
     const extraTags = tags.length - MAX_TAGS;
@@ -309,7 +309,12 @@ export const KanbanCard = memo(({ node, groupBy, isGhost, isOverlay, isSelected 
                 {preview.checklist.length > 0 && (
                     <ul className={styles.checklist}>
                         {preview.checklist.slice(0, MAX_CHECKLIST_ROWS).map((row) => (
-                            <li key={row.id} className={styles.check} data-done={row.done || undefined}>
+                            <li
+                                key={row.id}
+                                className={styles.check}
+                                style={{ ['--check-depth' as string]: row.depth }}
+                                data-done={row.done || undefined}
+                            >
                                 {/* A real button: ticking a task is the one edit worth
                                     making straight from a board, so it never waits for
                                     the card to be selected. */}
@@ -328,6 +333,15 @@ export const KanbanCard = memo(({ node, groupBy, isGhost, isOverlay, isSelected 
                                     {row.done && <Check size={11} strokeWidth={3.5} />}
                                 </button>
                                 <span className={styles.checkText}>{row.text}</span>
+                                {/* A task's own deadline, in the same words the
+                                    card's uses. Right-aligned into the space the
+                                    text leaves, so a checklist with no dates on
+                                    it looks exactly as it did before. */}
+                                {row.due && (
+                                    <span className={styles.checkWhen} data-state={row.due.state}>
+                                        {row.due.text}
+                                    </span>
+                                )}
                             </li>
                         ))}
                         {extraChecks > 0 && (
@@ -336,16 +350,22 @@ export const KanbanCard = memo(({ node, groupBy, isGhost, isOverlay, isSelected 
                     </ul>
                 )}
 
-                {progress !== null && (
+                {/* Tasks get their own meter, which is also the way into the
+                    full list — the card can only show the first few rows, so
+                    the count is where "and the rest" lives. A hand-set
+                    `progress` with no tasks behind it keeps the plain bar,
+                    because there is nothing to open into. */}
+                {tasks.total > 0 ? (
+                    <TaskProgressMeter
+                        progress={tasks}
+                        onOpen={() => setTasksCardId(node.id)}
+                    />
+                ) : progress !== null && (
                     <div className={styles.progress}>
                         <div className={styles.track}>
                             <div className={styles.fill} style={{ width: `${progress}%` }} />
                         </div>
-                        <span className={styles.progressValue}>
-                            {preview.checklistTotal > 0 && typeof data.progress !== 'number'
-                                ? `${preview.checklistDone}/${preview.checklistTotal}`
-                                : `${progress}%`}
-                        </span>
+                        <span className={styles.progressValue}>{progress}%</span>
                     </div>
                 )}
 

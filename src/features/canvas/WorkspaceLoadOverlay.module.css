@@ -1,0 +1,263 @@
+/* ---------------------------------------------------------------------------
+   Workspace load indicators.
+
+   Two surfaces, one source of truth:
+     .overlay — blocking, first open only, determinate progress.
+     .pill    — non-blocking, every background refresh after that.
+   Paper & Ink: flat surfaces, token colours, no glass or blur.
+   --------------------------------------------------------------------------- */
+
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    /* A plain scrim keeps the shell visible without inviting interaction. */
+    background: rgba(0, 0, 0, 0.58);
+    animation: overlayIn 160ms ease-out both;
+}
+
+@keyframes overlayIn {
+    from { opacity: 0; }
+}
+
+.card {
+    width: 100%;
+    max-width: 380px;
+    padding: 24px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-panel);
+    background: var(--bg-rail);
+    box-shadow: var(--shadow-lg);
+    color: var(--text-main);
+    font-family: var(--font-sans);
+    animation: cardIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes cardIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.985);
+    }
+}
+
+.heading {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.stage {
+    margin: 4px 0 0;
+    min-height: 18px;
+    color: var(--text-soft);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+/* ----- Determinate bar ----- */
+
+.meter {
+    margin-top: 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.track {
+    position: relative;
+    flex: 1;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--bg-inset);
+    border: 1px solid var(--line);
+    overflow: hidden;
+}
+
+.fill {
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent);
+    /* The width is driven by real load checkpoints; the transition only
+       smooths the jump between them so the bar reads as motion, not as a
+       series of snaps. */
+    transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* A sheen travelling over the filled portion signals "still working" during
+   the wait between two checkpoints, without faking forward progress. */
+.fill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.28) 50%,
+        transparent 100%
+    );
+    animation: sheen 1.4s linear infinite;
+}
+
+@keyframes sheen {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(100%); }
+}
+
+.percent {
+    flex: 0 0 auto;
+    min-width: 42px;
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-faint);
+}
+
+/* ----- Checkpoint list ----- */
+
+.steps {
+    margin: 18px 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text-faint);
+    transition: color 200ms ease;
+}
+
+.stepMark {
+    flex: 0 0 auto;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid var(--line-strong);
+    display: grid;
+    place-items: center;
+    transition: border-color 200ms ease, background-color 200ms ease;
+}
+
+.stepMark::after {
+    content: '';
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: transparent;
+    transition: background-color 200ms ease, transform 200ms ease;
+}
+
+.stepActive {
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+.stepActive .stepMark {
+    border-color: var(--accent);
+}
+
+.stepActive .stepMark::after {
+    background: var(--accent);
+    animation: stepPulse 1s ease-in-out infinite;
+}
+
+.stepDone {
+    color: var(--text-soft);
+}
+
+.stepDone .stepMark {
+    border-color: var(--accent);
+    background: var(--accent);
+}
+
+.stepDone .stepMark::after {
+    background: var(--on-accent, #fff);
+    transform: scale(1.1);
+}
+
+@keyframes stepPulse {
+    50% {
+        transform: scale(0.55);
+        opacity: 0.5;
+    }
+}
+
+.counts {
+    margin: 16px 0 0;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    color: var(--text-faint);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ----- Background refresh pill ----- */
+
+.pill {
+    position: fixed;
+    top: calc(var(--topbar-h, 56px) + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 900;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg-rail);
+    box-shadow: var(--shadow-lg);
+    color: var(--text-soft);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 600;
+    /* Purely informational — never intercepts a click meant for the canvas. */
+    pointer-events: none;
+    animation: pillIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pillIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -8px);
+    }
+}
+
+.pillDot {
+    width: 7px;
+    height: 7px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: stepPulse 900ms ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .overlay,
+    .card,
+    .pill {
+        animation: none;
+    }
+
+    .fill {
+        transition: none;
+    }
+
+    .fill::after,
+    .stepActive .stepMark::after,
+    .pillDot {
+        animation: none;
+    }
+}

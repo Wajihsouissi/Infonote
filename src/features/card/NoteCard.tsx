@@ -1,6 +1,6 @@
 import { memo, useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
-import { Scan, PanelRight, PanelLeft, Monitor, Sparkles, Loader2, ExternalLink } from '../../components/icons';
+import { Sparkles, Loader2, ExternalLink, Play } from '../../components/icons';
 import styles from './NoteCard.module.css';
 import type { NoteNode } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -16,6 +16,9 @@ import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { calculateNoteLayout, MIN_EXPANDED_SIZE } from '../../config/layout';
 import { generateText } from '../../services/aiService';
 import { samePropsIgnoringPosition } from '../canvas/nodeMemo';
+import { PeekMenu } from '../ui/PeekMenu';
+import { FloatingActionButton } from '../../components/ui/Button';
+import { formatTimestamp, youtubeUrlAt } from '../youtube/youtubeStudy';
 
 export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<NoteNode>) => {
     const { setNodes, getViewport } = useReactFlow();
@@ -24,20 +27,19 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
     // Use atomic selectors to prevent unnecessary re-renders when other parts of the store change
     const navigateToNode = useStore(s => s.navigateToNode);
-    const setFullscreenId = useStore(s => s.setFullscreenId);
-    const setRightSidePanelId = useStore(s => s.setRightSidePanelId);
-    const setLeftSidePanelId = useStore(s => s.setLeftSidePanelId);
-    const setCenterPanelId = useStore(s => s.setCenterPanelId);
     const activeIconMenuId = useStore(s => s.activeIconMenuId);
     const setActiveIconMenuId = useStore(s => s.setActiveIconMenuId);
     const updateNodeData = useStore(s => s.updateNodeData);
     const updateNode = useStore(s => s.updateNode);
-    const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
+    const isMultiSelected = useStore(s => s.selectedCanvasNodeIds.size > 1 && s.selectedCanvasNodeIds.has(id));
     const isLinkingMode = useStore(s => s.isLinkingMode);
     const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
     const linkSelectedNodes = useStore(s => s.linkSelectedNodes);
     const clearCanvasSelection = useStore(s => s.clearCanvasSelection);
-    const setNodesStore = useStore(s => s.setNodes);
+    const setRightSidePanelId = useStore(s => s.setRightSidePanelId);
+    const sourceNodeExists = useStore(s => data.sourceRef
+        ? s.nodes.some(node => node.id === data.sourceRef?.sourceNodeId && node.type === 'youtube')
+        : false);
 
     // Narrow selectors — only re-render when THIS node's status changes
     const isDragging = useStore(s => s.interactionState.draggedNodeId === id && !s.interactionState.isMultiDragging);
@@ -60,23 +62,11 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
         if (data.lastFusedAt) lastFusedTimeRef.current = data.lastFusedAt;
     }, [data.lastFusedAt]);
 
-    const [isInteractive, setIsInteractive] = useState(selected);
-    const interactionTimerRef = useRef<number | null>(null);
-    useEffect(() => {
-        if (selected) {
-            interactionTimerRef.current = window.setTimeout(() => setIsInteractive(true), 300);
-        } else {
-            if (interactionTimerRef.current) clearTimeout(interactionTimerRef.current);
-            setIsInteractive(false);
-        }
-        return () => {
-            if (interactionTimerRef.current) clearTimeout(interactionTimerRef.current);
-        };
-    }, [selected]);
+    // Selection is already committed after React Flow's pointer bookkeeping;
+    // the old 300 ms guard only made the canvas feel unresponsive.
+    const isInteractive = selected;
 
     const viewMode = data.viewMode || 'medium';
-    const isMultiSelected = selectedCanvasNodeIds.has(id) && selectedCanvasNodeIds.size > 1;
-
     // Use the raw color without converting to pastel/glow
     const displayColor = data.color;
 
@@ -86,9 +76,9 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
      * The colour is never painted on directly. A card is a page with text on it,
      * and a full-strength accent behind body copy is unreadable — which is why
      * the old `backgroundColor: displayColor` had to be undone. Instead the hue
-     * goes out as a variable and the stylesheet mixes it: a wash for the card,
-     * a deeper shade of the same hue for the editor well inside it. See
-     * design-system.css §7 for the shade scale this follows.
+     * goes out as a variable and the stylesheet rebuilds it at a fixed lightness
+     * and chroma: `oklch(from var(--node-accent) …)` for the card, one step down
+     * for the editor well inside it. See `--node-tint-*` in design-system.css.
      */
     const dynamicStyles = useMemo(() => {
         if (!displayColor) return {};
@@ -265,29 +255,8 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
         });
     }, [data, id, updateNode]);
 
-    // Menu Actions
-    const handleCenterPeak = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setCenterPanelId(id);
-    };
-
-    const handleSidePeak = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setRightSidePanelId(id);
-    };
-
-    const handleLeftSidePeak = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setLeftSidePanelId(id);
-    };
-
-    const handleFullScreen = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        document.documentElement.requestFullscreen().catch((err) => {
-            console.error("Error attempting to enable full-screen mode:", err);
-        });
-        setFullscreenId(id);
-    };
+    /* The four peek actions live in PeekMenu now, so a file node offers the
+       same row of controls in the same place rather than a near-miss copy. */
 
 
 
@@ -318,6 +287,15 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                 ...dynamicStyles
             }}
         >
+            {/* The cover, blurred out under the whole card — see .coverAmbient.
+                Decorative only: the real cover is rendered below with its alt
+                text, so this one is hidden from assistive tech. */}
+            {data.coverImage && (
+                <div className={styles.coverAmbientClip} aria-hidden="true">
+                    <img className={styles.coverAmbient} src={data.coverImage} alt="" draggable={false} />
+                </div>
+            )}
+
             {isLinkingMode && (
                 <div
                     style={{
@@ -330,7 +308,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                         cursor: 'pointer',
                         backgroundColor: isHoveredLinking ? 'rgba(227, 162, 79, 0.15)' : 'rgba(227, 162, 79, 0.04)',
                         border: '2px solid transparent',
-                        borderColor: isHoveredLinking ? '#e3a24f' : 'transparent',
+                        borderColor: isHoveredLinking ? '#ff5040' : 'transparent',
                         boxShadow: isHoveredLinking ? '0 0 15px rgba(227, 162, 79, 0.4)' : 'none',
                         transition: 'all 0.2s ease',
                         borderRadius: 'inherit',
@@ -342,10 +320,9 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                         console.log("[NoteCard Overlay Click] Clicked ID:", id);
                         e.stopPropagation();
                         e.preventDefault();
-                        linkSelectedNodes(id, Array.from(selectedCanvasNodeIds));
+                        linkSelectedNodes(id, Array.from(useStore.getState().selectedCanvasNodeIds));
                         setIsLinkingMode(false);
                         clearCanvasSelection();
-                        setNodesStore(nds => nds.map(n => n.selected ? { ...n, selected: false } : n));
                     }}
                     onPointerDown={(e) => {
                         console.log("[NoteCard Overlay PointerDown] ID:", id);
@@ -404,6 +381,32 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                         navigateToNode(id);
                     }}
                 />
+            )}
+
+            {data.sourceRef?.kind === 'youtube' && (
+                <button
+                    type="button"
+                    className={`${styles.youtubeSourceChip} nodrag`}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        if (sourceNodeExists) {
+                            setRightSidePanelId(data.sourceRef!.sourceNodeId);
+                            window.setTimeout(() => window.dispatchEvent(new CustomEvent('chnk-it:youtube-seek', {
+                                detail: {
+                                    nodeId: data.sourceRef!.sourceNodeId,
+                                    startMs: data.sourceRef!.startMs,
+                                    endMs: data.sourceRef!.endMs,
+                                },
+                            })), 80);
+                        } else {
+                            window.open(youtubeUrlAt(data.sourceRef!.url, data.sourceRef!.startMs), '_blank', 'noopener,noreferrer');
+                        }
+                    }}
+                    title={sourceNodeExists ? 'Open source video at this timestamp' : 'Source card removed — open on YouTube'}
+                >
+                    <Play size={12} fill="currentColor" />
+                    {formatTimestamp(data.sourceRef.startMs)}
+                </button>
             )}
 
             {/* custom strict resize handle */}
@@ -518,21 +521,10 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                 cursor, and pointerup lands elsewhere, so no click ever fires. */}
             {!data.hideHoverMenu && (
                 <div className={`${styles.hoverMenu} nodrag`}>
-                    <button className={styles.menuBtn} onClick={handleLeftSidePeak} title="Side Panel (Left)">
-                        <PanelLeft size={16} />
-                    </button>
-                    <button className={styles.menuBtn} onClick={handleFullScreen} title="Full Screen">
-                        <Monitor size={16} />
-                    </button>
-                    <button className={styles.menuBtn} onClick={handleCenterPeak} title="Center Peak">
-                        <Scan size={16} />
-                    </button>
-                    <button className={styles.menuBtn} onClick={handleSidePeak} title="Side Panel (Right)">
-                        <PanelRight size={16} />
-                    </button>
+                    <PeekMenu nodeId={id} buttonClassName={styles.menuBtn} />
                     <div className={styles.menuDivider} />
-                    <button 
-                        className="special-primary-btn" 
+                    <FloatingActionButton
+                        label="Open card"
                         style={{ width: 32, height: 32, minWidth: 32, minHeight: 32 }}
                         onClick={(e) => {
                             e.stopPropagation();
@@ -541,7 +533,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                         title="Open Card"
                     >
                         <ExternalLink size={16} strokeWidth={2.6} color="#fff" />
-                    </button>
+                    </FloatingActionButton>
                 </div>
             )}
 
@@ -750,7 +742,6 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                                 contentRef={contentRef}
                                 nodeId={id}
                                 selectionIslandPortalId={`selection-island-${id}`}
-                                zoomAwareBody
                             />
                         )}
                     </ErrorBoundary>

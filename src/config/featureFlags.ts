@@ -31,6 +31,23 @@ export const FEATURES = {
      *  Rebuilt 2026-08-10; set VITE_FEATURE_KANBAN=false to pull it from the
      *  beta surface again without touching code. */
     kanban: envFlag('KANBAN') ?? true,
-    /** Deferred from beta v1 — flip on after its QA pass. */
-    pdfBlock: envFlag('PDF_BLOCK') ?? false,
+    /** Files: upload any filetype, hold it in the asset store, open it as a
+     *  card on the canvas or in a peek. Replaces the old `pdfBlock` flag —
+     *  react-pdf is gone and files render natively, so there is no longer a
+     *  heavy dependency to defer. */
+    files: envFlag('FILES') ?? true,
+    /**
+     * Expanded card metadata as a wrapping chip bar instead of stacked
+     * property rows (2026-08-29).
+     *
+     * The old NotePropertiesPanel is untouched and still wired up behind this
+     * flag, so going back is this one line — or `VITE_FEATURE_COMPACT_CARD_META=false`
+     * in .env.local, with no code change at all. The stacked panel cost 303px
+     * of a 542px card to show seven words; the bar costs about 60.
+     */
+    compactCardMeta: envFlag('COMPACT_CARD_META') ?? true,
+    /** Timestamp-linked YouTube study studio. Kept off until Study Core QA. */
+    youtubeStudy: envFlag('YOUTUBE_STUDY') ?? false,
+    /** Paid rewrite/summary actions; deliberately ships behind its own gate. */
+    youtubeStudyAI: envFlag('YOUTUBE_STUDY_AI') ?? false,
 } as const;

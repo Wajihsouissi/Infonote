@@ -41,7 +41,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
+    gap: 12px;
     padding: 0 var(--topbar-pad-x);
     background: var(--shell-bg);
     z-index: 1000;
@@ -51,7 +51,7 @@
 .topBarRight {
     display: flex;
     align-items: center;
-    gap: var(--topbar-gap);
+    gap: 8px;
     min-width: 0;
 }
 
@@ -63,29 +63,72 @@
     flex: none;
 }
 
-/* Breadcrumbs carries its own pill so it can stand alone in the marketing
-   mock; in the bar the rail does that job, so strip it back to bare crumbs. */
+/* The compact clusters deliberately separate navigation, persistence, and
+   utilities without turning the strip into a sequence of independent pills. */
+.navGroup,
+.syncGroup,
+.utilityGroup,
 .crumbSlot {
     display: flex;
     align-items: center;
-    min-width: 0;
-    overflow: hidden;
+    height: 40px;
+    padding: 3px;
+    /* The controls read as a single, lighter instrument panel — separation
+       comes from spacing and shape, not a nest of hairline boxes. */
+    background: color-mix(in srgb, var(--bg-card) 88%, var(--shell-bg));
+    border: 0;
+    border-radius: var(--btn-radius);
+    corner-shape: var(--corner-smooth);
 }
 
+.navGroup,
+.utilityGroup {
+    gap: 2px;
+}
+
+.syncGroup {
+    padding-inline: 3px;
+}
+
+.navGroup :global(button),
+.syncGroup :global(button),
+.utilityGroup :global(button) {
+    width: 32px;
+    height: 32px;
+    border: 0 !important;
+    border-radius: var(--btn-radius);
+    corner-shape: var(--corner-smooth);
+    box-shadow: none !important;
+}
+
+.navGroup :global(button):hover:not(:disabled),
+.syncGroup :global(button):hover:not(:disabled),
+.utilityGroup :global(button):hover:not(:disabled) {
+    transform: none;
+    background: var(--hover-wash);
+}
+
+/* The breadcrumb frame is the SAME frame as the button clusters beside it —
+   height, padding, background and radius all come from the shared rule above,
+   with nothing added here but the truncation the other clusters don't need. */
+.crumbSlot {
+    min-width: 0;
+    overflow: hidden;
+    /* The chip inside is shorter than the 34px inner box, so the frame's 3px of
+       padding reads as ~6.5px of air above and below it. Match that optically
+       on the sides — an equal number here would leave the chip looking pinched
+       against the left and right edges. */
+    padding-inline: 7px;
+}
+
+/* The Breadcrumbs component brings its own box; flatten it and size it to the
+   frame's inner height (40 − 3 − 3) so nothing is clipped by the overflow. */
 .crumbSlot > div {
-    height: 36px;
+    height: 34px;
     padding: 0;
     background: transparent;
     border-color: transparent;
     box-shadow: none;
-}
-
-.topBarSeparator {
-    width: 1px;
-    height: 22px;
-    background: var(--line-strong);
-    margin: 0 2px;
-    flex: none;
 }
 
 /* Canvas Frame */
@@ -94,9 +137,12 @@
     min-height: 0;
     position: relative;
     margin: 0 var(--shell-inset) var(--shell-inset);
-    border-radius: var(--shell-radius);
+    border: 0;
+    /* Match the inset frame used by every side-panel body. */
+    border-radius: var(--panel-radius);
+    corner-shape: var(--corner-smooth);
     overflow: hidden;
-    /* No ring or border: the reveal and the radius draw the frame on their own. */
+    box-shadow: none;
 }
 
 /* Canvas Area */
@@ -106,6 +152,40 @@
     background-color: var(--xy-background-color-default);
     background-image: none;
     transition: background-color 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.canvasArea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+/* Present for assistive technology without becoming a second visual label on
+   an already information-dense canvas. */
+.canvasScreenReaderHelp,
+.canvasAnnouncement {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* The viewport is the one surface that moves for every pan and zoom frame.
+   Promote that single layer, then make the node/edge hit regions inert only
+   while it is moving. This prevents hover selectors, menus and shadows from
+   being recomputed as the pointer sweeps across a stationary screen. */
+.canvasArea :global(.react-flow__viewport) {
+    will-change: transform;
+}
+
+.canvasArea.viewportMoving :global(.react-flow__node),
+.canvasArea.viewportMoving :global(.react-flow__edge),
+.canvasArea.viewportMoving :global(.react-flow__edge *) {
+    pointer-events: none !important;
 }
 
 /* ---------------------------------------------------------------
@@ -120,7 +200,7 @@
     pointer-events: stroke;
 }
 .canvasArea :global(.react-flow__edge-path) {
-    transition: stroke 0.18s ease, stroke-width 0.18s ease;
+    transition: stroke 0.18s ease;
 }
 .canvasArea :global(.react-flow__edge.selected .react-flow__edge-path),
 .canvasArea :global(.react-flow__edge:focus .react-flow__edge-path),
@@ -130,6 +210,139 @@
 }
 .canvasArea :global(.react-flow__nodes) {
     z-index: 1;
+}
+
+/* Position changes animate only while the explicit organize command runs.
+   Keeping this off during normal interaction prevents drag and pan latency. */
+.canvasArea :global(.react-flow.is-organizing .react-flow__node) {
+    transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform;
+}
+
+.organizationNoticePanel {
+    top: 16px !important;
+    pointer-events: auto;
+}
+
+.organizationNotice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 0 6px 0 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-control);
+    background: var(--bg-rail);
+    color: var(--text-main);
+    box-shadow: var(--toolbar-shadow);
+    font-size: 0.82rem;
+    font-weight: 650;
+}
+
+.organizationNotice button {
+    min-width: 44px;
+    min-height: 36px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--accent-ink);
+    font: inherit;
+    font-weight: 750;
+    cursor: pointer;
+}
+
+.organizationNotice button:hover {
+    background: var(--hover-wash);
+}
+
+.organizationNotice button:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .canvasArea :global(.react-flow.is-organizing .react-flow__node) {
+        transition: none;
+    }
+}
+
+/* The empty state belongs to the active canvas level, rather than reading as a
+   global onboarding card. It stays above the dots but below cards and panels. */
+.emptyStatePanel {
+    top: 22% !important;
+    pointer-events: auto;
+}
+
+.emptyState {
+    width: min(392px, calc(100vw - 48px));
+    padding: 26px;
+    text-align: center;
+    color: var(--text-soft);
+    background: color-mix(in srgb, var(--bg-rail) 94%, transparent);
+    border: 1px solid var(--line);
+    border-radius: var(--r-panel);
+    box-shadow: var(--toolbar-shadow);
+}
+
+.emptyEyebrow {
+    margin: 0 0 6px;
+    color: var(--accent-ink);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.emptyState h2 {
+    margin: 0;
+    color: var(--text-main);
+    font-size: 1.12rem;
+    letter-spacing: -0.02em;
+}
+
+.emptyState > p:not(.emptyEyebrow) {
+    margin: 9px auto 18px;
+    max-width: 32ch;
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.emptyStateAction {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid transparent;
+    border-radius: var(--r-control);
+    background: var(--accent);
+    color: var(--on-accent);
+    font: inherit;
+    font-size: 0.84rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.emptyStateAction:hover {
+    filter: brightness(1.06);
+}
+
+.emptyStateAction:focus-visible {
+    outline: 2px solid var(--accent-ink);
+    outline-offset: 3px;
+}
+
+.emptyStateAction kbd {
+    padding: 2px 5px;
+    border-radius: var(--r-xs);
+    background: rgb(0 0 0 / 0.16);
+    color: inherit;
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 600;
 }
 
 .canvasWithSidebar {
@@ -176,6 +389,17 @@
     position: relative !important;
     bottom: auto !important;
     right: auto !important;
+    cursor: grab;
+    touch-action: none;
+}
+
+.canvasMiniMap:active {
+    cursor: grabbing;
+}
+
+.canvasMiniMap:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
 }
 
 .canvasMiniMap svg {
@@ -254,6 +478,91 @@
 
 .toolbarBtn:active {
     transform: scale(0.95);
+}
+
+@media (max-width: 720px) {
+    .navGroup > :last-child {
+        display: none;
+    }
+
+    .topBarLeft,
+    .topBarRight {
+        gap: 5px;
+    }
+}
+
+@media (max-width: 520px) {
+    .topBar {
+        gap: 5px;
+        padding-inline: 8px;
+    }
+
+    .syncGroup {
+        display: none;
+    }
+
+    .navGroup > :not(:first-child),
+    .utilityGroup > :not(:first-child) {
+        display: none;
+    }
+
+    .topBarLeft {
+        gap: 5px;
+    }
+
+    .topBarRight {
+        gap: 0;
+    }
+
+    .crumbSlot {
+        flex: 1;
+        max-width: none;
+    }
+
+    .canvasFrame {
+        margin-inline: 8px;
+        margin-bottom: 8px;
+    }
+
+    .emptyStatePanel {
+        top: 18% !important;
+    }
+
+    .emptyState {
+        width: min(320px, calc(100vw - 40px));
+        padding: 22px 18px;
+    }
+
+    /* React Flow nodes carry desktop dimensions inline. Constrain their outer
+       wrappers here so a first expanded card has breathing room on a phone
+       instead of creating a horizontal overflow strip. */
+    .canvasArea :global(.react-flow__node-note) {
+        width: min(360px, calc(100vw - 48px)) !important;
+    }
+
+    .bottomRightControls {
+        margin: 12px;
+        height: 87px;
+    }
+
+    .canvasMiniMap { height: 87px !important; }
+
+    .canvasMiniMap {
+        width: 116px !important;
+    }
+
+    .canvasControls {
+        display: grid !important;
+        grid-template-columns: repeat(2, 44px);
+        grid-auto-rows: 44px;
+        width: 88px !important;
+        height: 88px !important;
+    }
+
+    .canvasControls button {
+        width: 44px !important;
+        height: 44px !important;
+    }
 }
 
 .modifierHint {

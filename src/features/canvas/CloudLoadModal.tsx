@@ -1,11 +1,9 @@
 /**
  * CloudLoadModal — popup that lets the user inspect and load saved cloud
- * data before it overwrites the canvas.
+ * versions before it overwrites the canvas.
  *
- * On open it fetches `fetchCloudMetadata` (lightweight summary, not full
- * node bodies) and renders:
- *   - last-updated timestamp + node/edge counts
- *   - the list of root-level pages with their titles + child counts
+ * On open it fetches the current cloud-copy metadata and lightweight version
+ * history. Version bodies are downloaded only after the user chooses one.
  *
  * Confirm → calls `loadCanvasFromCloud` and pipes the result into
  * `loadGraph(nodes, edges)`. All data comes from real Supabase queries —
@@ -18,16 +16,15 @@ import {
     CloudDownload,
     Loader2,
     AlertCircle,
-    FileText,
-    Clock,
-    Layers,
-    GitBranch,
     RefreshCw,
 } from '../../components/icons';
 import {
     fetchCloudMetadata,
+    fetchCloudVersions,
     loadCanvasFromCloud,
+    loadCloudVersion,
     type CloudSnapshotMetadata,
+    type CloudVersionSummary,
 } from '../../services/cloudSync';
 import { useStore } from '../../store/useStore';
 import { History } from '../../components/icons';
@@ -66,6 +63,8 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
     const loadGraph = useStore((s) => s.loadGraph);
 
     const [metadata, setMetadata] = useState<CloudSnapshotMetadata | null>(null);
+    const [versions, setVersions] = useState<CloudVersionSummary[]>([]);
+    const [selectedVersionId, setSelectedVersionId] = useState<string>('current');
     const [status, setStatus] = useState<Status>({ kind: 'idle' });
 
     // Track open transitions for render-time state reset (avoids setState in effect)
@@ -73,6 +72,8 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
     if (open && !prevOpen) {
         setPrevOpen(true);
         setMetadata(null);
+        setVersions([]);
+        setSelectedVersionId('current');
         setStatus({ kind: 'fetching' });
     }
     if (!open && prevOpen) {
@@ -81,12 +82,18 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
 
     const refresh = useCallback(async () => {
         setStatus({ kind: 'fetching' });
-        const res = await fetchCloudMetadata(userId, workspaceId);
-        if (res.ok) {
-            setMetadata(res.metadata);
-            setStatus({ kind: 'idle' });
+        const [metadataResult, versionsResult] = await Promise.all([
+            fetchCloudMetadata(userId, workspaceId),
+            fetchCloudVersions(userId, workspaceId),
+        ]);
+        if (!metadataResult.ok) {
+            setStatus({ kind: 'error', message: metadataResult.error });
+        } else if (!versionsResult.ok) {
+            setStatus({ kind: 'error', message: versionsResult.error });
         } else {
-            setStatus({ kind: 'error', message: res.error });
+            setMetadata(metadataResult.metadata);
+            setVersions(versionsResult.versions);
+            setStatus({ kind: 'idle' });
         }
     }, [userId, workspaceId]);
 
@@ -95,13 +102,19 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
     useEffect(() => {
         if (!open) return;
         let cancelled = false;
-        fetchCloudMetadata(userId, workspaceId).then(res => {
+        void Promise.all([
+            fetchCloudMetadata(userId, workspaceId),
+            fetchCloudVersions(userId, workspaceId),
+        ]).then(([metadataResult, versionsResult]) => {
             if (cancelled) return;
-            if (res.ok) {
-                setMetadata(res.metadata);
-                setStatus({ kind: 'idle' });
+            if (!metadataResult.ok) {
+                setStatus({ kind: 'error', message: metadataResult.error });
+            } else if (!versionsResult.ok) {
+                setStatus({ kind: 'error', message: versionsResult.error });
             } else {
-                setStatus({ kind: 'error', message: res.error });
+                setMetadata(metadataResult.metadata);
+                setVersions(versionsResult.versions);
+                setStatus({ kind: 'idle' });
             }
         });
         return () => { cancelled = true; };
@@ -117,7 +130,7 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
         return () => document.removeEventListener('keydown', handleKey);
     }, [open, onClose]);
 
-    const handleLoadAll = useCallback(async () => {
+    const handleRestore = useCallback(async () => {
         // Backup current canvas so the user can undo via the existing
         // "Restore Backup" button in CloudSyncControls.
         try {
@@ -136,7 +149,9 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
         }
 
         setStatus({ kind: 'loading' });
-        const res = await loadCanvasFromCloud(userId, workspaceId);
+        const res = selectedVersionId === 'current'
+            ? await loadCanvasFromCloud(userId, workspaceId)
+            : await loadCloudVersion(userId, workspaceId, selectedVersionId);
         if (res.ok) {
             // Validate returned nodes: must have id (non-empty string),
             // position with numeric x and y, and type (string).
@@ -195,19 +210,18 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
         } else {
             setStatus({ kind: 'error', message: res.error });
         }
-    }, [userId, workspaceId, loadGraph, onLoaded, onClose]);
+    }, [userId, workspaceId, selectedVersionId, loadGraph, onLoaded, onClose]);
 
     if (!open) return null;
 
     const fetching = status.kind === 'fetching';
     const loadingFromCloud = status.kind === 'loading';
     const busy = fetching || loadingFromCloud;
-    const isEmpty = Boolean(
-        metadata && metadata.nodeCount === 0 && metadata.edgeCount === 0,
-    );
+    const currentIsEmpty = Boolean(metadata && metadata.nodeCount === 0 && metadata.edgeCount === 0);
+    const selectedVersion = versions.find((version) => version.id === selectedVersionId);
 
     const modalContent = (
-        <div style={overlay} role="dialog" aria-modal="true" aria-label="Load saved cloud data">
+        <div style={overlay} role="dialog" aria-modal="true" aria-label="Restore a cloud version">
             <div style={modal} onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div style={header}>
@@ -216,9 +230,9 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
                             <CloudDownload size={20} />
                         </div>
                         <div>
-                            <h2 style={title}>Reload Saved Data</h2>
+                            <h2 style={title}>Restore a version</h2>
                             <p style={subtitle}>
-                                Pick a snapshot to load from your cloud account.
+                                Choose a restore point. Your current canvas is backed up first.
                             </p>
                         </div>
                     </div>
@@ -254,72 +268,58 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
 
                     {!fetching && status.kind !== 'error' && metadata && (
                         <>
-                            {/* Summary stats */}
-                            <div style={statsGrid}>
-                                <Stat
-                                    icon={<Clock size={14} />}
-                                    label="Last saved"
-                                    value={formatTimestamp(metadata.lastUpdated)}
-                                />
-                                <Stat
-                                    icon={<Layers size={14} />}
-                                    label="Saved nodes"
-                                    value={String(metadata.nodeCount)}
-                                />
-                                <Stat
-                                    icon={<GitBranch size={14} />}
-                                    label="Saved edges"
-                                    value={String(metadata.edgeCount)}
-                                />
+                            <div style={restoreNotice}>
+                                <History size={16} aria-hidden="true" />
+                                <span>Restore only changes this device. You can undo it with the local backup.</span>
                             </div>
 
-                            {/* Pages list */}
-                            <h3 style={listHeader}>
-                                {isEmpty
-                                    ? 'No saved data found'
-                                    : `Your saved pages (${metadata.pages.length})`}
-                            </h3>
+                            <h3 style={listHeader}>Current cloud copy</h3>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedVersionId('current')}
+                                style={{ ...versionRow, ...(selectedVersionId === 'current' ? versionRowSelected : {}) }}
+                                aria-pressed={selectedVersionId === 'current'}
+                            >
+                                <div style={versionIcon}><CloudDownload size={17} /></div>
+                                <div style={versionContent}>
+                                    <div style={versionTitle}>Current cloud copy <span style={versionBadge}>Latest</span></div>
+                                    <div style={versionMeta}>
+                                        {currentIsEmpty ? 'Empty canvas' : `${metadata.nodeCount} notes · ${metadata.edgeCount} connections`} · {formatTimestamp(metadata.lastUpdated)}
+                                    </div>
+                                </div>
+                            </button>
 
-                            {isEmpty && (
+                            <h3 style={listHeader}>Version history</h3>
+                            {versions.length === 0 ? (
                                 <div style={emptyState}>
-                                    <FileText size={32} style={{ opacity: 0.4 }} />
+                                    <History size={28} style={{ opacity: 0.55 }} />
                                     <p style={muted}>
-                                        You haven't saved any canvases yet. Click "Save
-                                        Cloud" on the canvas to push your work here.
+                                        No restore points yet. Use “Save version” to mark a milestone; a daily safety copy is also kept while you work.
                                     </p>
                                 </div>
-                            )}
-
-                            {!isEmpty && metadata.pages.length === 0 && (
-                                <div style={emptyState}>
-                                    <FileText size={28} style={{ opacity: 0.4 }} />
-                                    <p style={muted}>
-                                        Your saved canvas has {metadata.nodeCount} nodes
-                                        but no top-level pages — load all data with the
-                                        button below.
-                                    </p>
-                                </div>
-                            )}
-
-                            {!isEmpty && metadata.pages.length > 0 && (
-                                <ul style={pageList}>
-                                    {metadata.pages.map((p) => (
-                                        <li key={p.id} style={pageRow}>
-                                            <div style={pageIcon}>
-                                                <FileText size={18} />
-                                            </div>
-                                            <div style={{ minWidth: 0, flex: 1 }}>
-                                                <div style={pageTitle}>{p.title}</div>
-                                                <div style={pageMeta}>
-                                                    {p.childCount} item
-                                                    {p.childCount === 1 ? '' : 's'} ·
-                                                    {' '}
-                                                    {formatTimestamp(p.updatedAt)}
+                            ) : (
+                                <div style={versionList}>
+                                    {versions.map((version) => (
+                                        <button
+                                            key={version.id}
+                                            type="button"
+                                            onClick={() => setSelectedVersionId(version.id)}
+                                            style={{ ...versionRow, ...(selectedVersionId === version.id ? versionRowSelected : {}) }}
+                                            aria-pressed={selectedVersionId === version.id}
+                                        >
+                                            <div style={versionIcon}><History size={17} /></div>
+                                            <div style={versionContent}>
+                                                <div style={versionTitle}>
+                                                    {version.label || (version.kind === 'manual' ? 'Saved version' : 'Daily safety copy')}
+                                                    <span style={versionBadge}>{version.kind === 'manual' ? 'Manual' : 'Daily'}</span>
+                                                </div>
+                                                <div style={versionMeta}>
+                                                    {version.nodeCount} notes · {version.edgeCount} connections · {formatTimestamp(version.createdAt)}
                                                 </div>
                                             </div>
-                                        </li>
+                                        </button>
                                     ))}
-                                </ul>
+                                </div>
                             )}
                         </>
                     )}
@@ -354,8 +354,8 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
                     </button>
                     <button
                         type="button"
-                        onClick={handleLoadAll}
-                        disabled={busy || !metadata || isEmpty}
+                        onClick={handleRestore}
+                        disabled={busy || !metadata || (selectedVersionId === 'current' && currentIsEmpty)}
                         style={btnPrimary}
                     >
                         {loadingFromCloud ? (
@@ -363,7 +363,7 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
                         ) : (
                             <CloudDownload size={14} />
                         )}
-                        <span>{loadingFromCloud ? 'Loading…' : 'Load all data'}</span>
+                        <span>{loadingFromCloud ? 'Restoring…' : selectedVersion ? 'Restore version' : 'Restore current copy'}</span>
                     </button>
                 </div>
             </div>
@@ -372,21 +372,6 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
 
     return createPortal(modalContent, document.body);
 };
-
-/** Compact stat tile used at the top of the modal body. */
-const Stat: React.FC<{ icon: React.ReactNode; label: string; value: string }> = ({
-    icon,
-    label,
-    value,
-}) => (
-    <div style={statTile}>
-        <div style={statLabel}>
-            {icon}
-            <span>{label}</span>
-        </div>
-        <div style={statValue}>{value}</div>
-    </div>
-);
 
 // ───── Inline styles (Paper & Ink tokens — theme-aware, no glass) ─────
 const overlay: React.CSSProperties = {
@@ -440,7 +425,7 @@ const subtitle: React.CSSProperties = {
 const iconBadge: React.CSSProperties = {
     width: 38,
     height: 38,
-    background: 'linear-gradient(135deg, var(--accent), var(--secondary))',
+    background: 'var(--accent)',
     borderRadius: 'var(--r-control)',
     display: 'inline-flex',
     alignItems: 'center',
@@ -482,42 +467,6 @@ const muted: React.CSSProperties = {
     maxWidth: 360,
 };
 
-const statsGrid: React.CSSProperties = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-    gap: 10,
-    marginBottom: 20,
-};
-
-const statTile: React.CSSProperties = {
-    background: 'var(--bg-card)',
-    border: '1px solid var(--line)',
-    borderRadius: 'var(--r-control)',
-    padding: '12px 14px',
-};
-
-const statLabel: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    fontFamily: 'var(--font-mono)',
-    fontSize: 11,
-    fontWeight: 500,
-    color: 'var(--text-faint)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.08em',
-    marginBottom: 4,
-};
-
-const statValue: React.CSSProperties = {
-    fontSize: 14,
-    fontWeight: 600,
-    color: 'var(--text-main)',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-};
-
 const listHeader: React.CSSProperties = {
     fontFamily: 'var(--font-mono)',
     fontSize: 12,
@@ -528,51 +477,92 @@ const listHeader: React.CSSProperties = {
     letterSpacing: '0.08em',
 };
 
-const pageList: React.CSSProperties = {
-    listStyle: 'none',
-    padding: 0,
-    margin: 0,
+const restoreNotice: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 8,
+    padding: '10px 12px',
+    marginBottom: 20,
+    background: 'var(--bg-inset)',
+    border: '1px solid var(--line)',
+    borderRadius: 'var(--r-control)',
+    color: 'var(--text-soft)',
+    fontSize: 12,
+    lineHeight: 1.45,
+};
+
+const versionList: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
     gap: 8,
 };
 
-const pageRow: React.CSSProperties = {
+const versionRow: React.CSSProperties = {
     display: 'flex',
+    width: '100%',
     alignItems: 'center',
     gap: 12,
     padding: '12px 14px',
     background: 'var(--bg-card)',
     border: '1px solid var(--line)',
     borderRadius: 'var(--r-control)',
+    color: 'var(--text-main)',
+    cursor: 'pointer',
+    textAlign: 'left',
 };
 
-const pageIcon: React.CSSProperties = {
-    width: 36,
-    height: 36,
-    flexShrink: 0,
+const versionRowSelected: React.CSSProperties = {
+    borderColor: 'var(--accent)',
     background: 'var(--accent-dim)',
-    border: '1px solid rgba(var(--accent-rgb), 0.3)',
-    borderRadius: 'var(--btn-radius)',
+};
+
+const versionIcon: React.CSSProperties = {
+    width: 32,
+    height: 32,
+    flexShrink: 0,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
+    background: 'var(--bg-inset)',
+    border: '1px solid var(--line)',
+    borderRadius: 'var(--btn-radius)',
     color: 'var(--accent-ink)',
 };
 
-const pageTitle: React.CSSProperties = {
+const versionContent: React.CSSProperties = {
+    minWidth: 0,
+    flex: 1,
+};
+
+const versionTitle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
     fontSize: 14,
-    fontWeight: 600,
-    color: 'var(--text-main)',
+    fontWeight: 650,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
 };
 
-const pageMeta: React.CSSProperties = {
-    fontSize: 12,
+const versionBadge: React.CSSProperties = {
+    padding: '2px 6px',
+    border: '1px solid var(--line)',
+    borderRadius: 6,
+    color: 'var(--text-soft)',
+    fontSize: 10,
+    fontWeight: 600,
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+};
+
+const versionMeta: React.CSSProperties = {
+    marginTop: 3,
     color: 'var(--text-faint)',
-    marginTop: 2,
+    fontSize: 12,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
 };
 
 const emptyState: React.CSSProperties = {

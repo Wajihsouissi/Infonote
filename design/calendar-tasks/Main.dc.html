@@ -1,0 +1,555 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap">
+  <style>
+    /* Ink theme, values lifted from src/styles/design-system.css. */
+    body {
+      margin: 0;
+      font-family: 'Outfit', system-ui, sans-serif;
+      background: #000000;
+      color: #ffffff;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #ff5040; text-decoration: none; }
+    a:hover { color: #ffa9e2; }
+    * { box-sizing: border-box; }
+
+    /* --- the calendar's own vocabulary, so a row is one class not ten styles */
+    .cell { display: flex; flex-direction: column; min-width: 0; padding: 6px;
+            background: #1a1a1a; border-radius: 12px; overflow: hidden; }
+    .cell.out { background: transparent; }
+    .cell.today { background: color-mix(in srgb, #ff5040 14%, #1a1a1a); }
+    .cell.over { background: color-mix(in srgb, #ff5040 26%, #1a1a1a); }
+    .dayHead { display: flex; align-items: center; gap: 5px; flex: none; margin-bottom: 4px; }
+    .dayNum { font-size: 12px; font-weight: 600; color: #e6e6e6; font-variant-numeric: tabular-nums; }
+    .out .dayNum { color: #a3a3a3; }
+    .today .dayNum { color: #ff5040; }
+    .body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+
+    /* A CARD is a fill. */
+    .card { display: flex; align-items: center; gap: 4px; min-width: 0; min-height: 19px;
+            padding: 2px 7px; border-radius: 4px; }
+    .card .name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+                  font-size: 11px; font-weight: 500; color: #ffffff; }
+    .count { flex: none; margin-left: auto; display: inline-flex; align-items: center; padding: 1px 5px;
+             background: rgba(255,255,255,0.08); border-radius: 4px; font-size: 10px; font-weight: 600;
+             color: #e6e6e6; font-variant-numeric: tabular-nums; }
+
+    /* A TASK is a mark. No fill — a spine in its card's hue, and a real tick box. */
+    .task { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 18px;
+            padding: 1px 6px 1px 0; border-radius: 4px; }
+    .task .spine { flex: none; width: 2px; align-self: stretch; border-radius: 999px; }
+    .task .box { flex: none; display: grid; place-items: center; width: 12px; height: 12px;
+                 border-radius: 4px; border: 1.5px solid rgba(255,255,255,0.28); }
+    .task .text { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+                  font-size: 11px; font-weight: 500; color: #e6e6e6; }
+    .task.hover { background: rgba(255,255,255,0.08); }
+    .task.hover .text { color: #ffffff; }
+    .task.hover .box { border-color: #5ac875; background: color-mix(in srgb, #5ac875 18%, transparent); }
+    .task.done .box { border-color: #5ac875; background: #5ac875; color: #000000; }
+    .task.done .text { color: #a3a3a3; text-decoration: line-through;
+                       text-decoration-color: rgba(255,255,255,0.28); }
+    .task.late { background: color-mix(in srgb, #f5430b 10%, transparent); }
+    .task.late .spine { background: #f5430b; }
+    .task.late .box { border-color: #f5430b; }
+    .task.late .text { color: #f5430b; }
+    .task.sub { margin-left: 14px; }
+    .task.sub .text { color: #a3a3a3; }
+    .more { align-self: flex-start; margin-top: 1px; padding: 1px 5px; font-size: 11px;
+            font-weight: 500; color: #a3a3a3; }
+
+    /* Header controls */
+    .pill { display: grid; place-items: center; min-width: 30px; height: 26px; padding: 0 10px;
+            border-radius: 999px; font-size: 11.5px; font-weight: 500; color: #a3a3a3; white-space: nowrap; }
+    .pill.on { background: rgba(255, 80, 64, 0.16); color: #ff5040; font-weight: 600; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; height: 28px;
+           padding: 0 13px; background: #1a1a1a; border-radius: 999px; color: #a3a3a3;
+           font-size: 11.5px; font-weight: 500; }
+    .iconBtn { display: grid; place-items: center; width: 28px; height: 28px; background: #1a1a1a;
+               border-radius: 8px; color: #a3a3a3; }
+    .wd { padding: 2px 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+          text-transform: uppercase; color: #a3a3a3; }
+
+    /* Tray */
+    .trayHead { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+                flex: none; padding: 12px 10px 8px 14px; font-size: 11.5px; font-weight: 600;
+                letter-spacing: 0.08em; text-transform: uppercase; color: #a3a3a3; }
+    .trayCount { display: inline-flex; align-items: center; justify-content: center; min-width: 18px;
+                 height: 18px; padding: 0 5px; border-radius: 999px; background: rgba(255,255,255,0.08);
+                 font-size: 11px; font-weight: 600; letter-spacing: 0; color: #e6e6e6; }
+    .trayRow { position: relative; display: flex; align-items: center; gap: 12px; min-width: 0;
+               padding: 8px 10px; border-radius: 12px; }
+    .art { flex: none; display: grid; place-items: center; width: 24px; height: 24px;
+           border-radius: 12px; background: rgba(255,255,255,0.08); color: #a3a3a3; }
+    .trayLabel { font-size: 13.7px; font-weight: 550; line-height: 1.35; color: #ffffff;
+                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .trayDesc { font-size: 12px; line-height: 1.4; color: #a3a3a3; overflow: hidden;
+                text-overflow: ellipsis; white-space: nowrap; }
+    .taskRow { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 5px 10px;
+               border-radius: 8px; }
+    .taskRow .box { flex: none; width: 13px; height: 13px; border-radius: 4px;
+                    border: 1.5px solid rgba(255,255,255,0.28); }
+    .taskRow .text { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis;
+                     white-space: nowrap; font-size: 12.5px; color: #e6e6e6; }
+    .owner { display: flex; align-items: center; gap: 6px; padding: 2px 10px 3px; min-width: 0;
+             font-size: 11px; font-weight: 600; color: #a3a3a3; }
+    .owner .dot { flex: none; width: 6px; height: 6px; border-radius: 50%; }
+    .owner .n { margin-left: auto; flex: none; font-variant-numeric: tabular-nums; }
+  </style>
+</helmet>
+
+<div style="padding: 20px; background: #000000">
+
+  <!-- ================================================ the calendar panel === -->
+  <div style="display: flex; flex-direction: column; width: 1704px; background: #090909; border-radius: 32px; padding: 14px; gap: 12px">
+
+    <!-- ------------------------------------------------------------ header -->
+    <div style="display: flex; align-items: center; gap: 14px; flex: none">
+
+      <div style="display: flex; align-items: center; gap: 4px; flex: none">
+        <span class="iconBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg></span>
+        <span class="iconBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"></path></svg></span>
+        <span class="btn">Today</span>
+      </div>
+
+      <h1 style="flex: 1 1 auto; min-width: 0; margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: #ffffff; white-space: nowrap">August 2026</h1>
+
+      <div style="display: flex; align-items: center; gap: 10px; flex: none">
+
+        <!-- The one control this design adds: what the days are made of. -->
+        <div style="display: flex; align-items: center; gap: 2px; flex: none">
+          <span class="pill">Cards</span>
+          <span class="pill">Tasks</span>
+          <span class="pill on">Both</span>
+        </div>
+
+        <span style="width: 1px; height: 18px; background: rgba(255, 255, 255, 0.10)"></span>
+
+        <div style="display: flex; align-items: center; gap: 2px; flex: none">
+          <span class="pill">Day</span>
+          <span class="pill">Week</span>
+          <span class="pill on">Month</span>
+          <span class="pill">Year</span>
+        </div>
+
+        <span class="btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>Add here</span>
+      </div>
+    </div>
+
+    <!-- -------------------------------------------------------------- body -->
+    <div style="display: flex; align-items: stretch; gap: 12px; flex: 1 1 auto; min-height: 0">
+
+      <!-- =================================================== month grid === -->
+      <div style="display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; gap: 4px">
+
+        <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; flex: none">
+          <span class="wd">Sun</span><span class="wd">Mon</span><span class="wd">Tue</span><span class="wd">Wed</span><span class="wd">Thu</span><span class="wd">Fri</span><span class="wd">Sat</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: repeat(6, 132px); gap: 4px; flex: none">
+
+          <!-- ============================================== week of Jul 26 -->
+          <div class="cell out"><div class="dayHead"><span class="dayNum">26</span></div></div>
+          <div class="cell out"><div class="dayHead"><span class="dayNum">27</span></div></div>
+          <div class="cell out"><div class="dayHead"><span class="dayNum">28</span></div></div>
+          <div class="cell out"><div class="dayHead"><span class="dayNum">29</span></div></div>
+          <div class="cell out">
+            <div class="dayHead"><span class="dayNum">30</span></div>
+            <div class="body">
+              <div class="task done">
+                <span class="spine" style="background: #5ac875; opacity: 0.5"></span>
+                <span class="box"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"></path></svg></span>
+                <span class="text">Freeze block editor API</span>
+              </div>
+            </div>
+          </div>
+          <div class="cell out"><div class="dayHead"><span class="dayNum">31</span></div></div>
+          <div class="cell"><div class="dayHead"><span class="dayNum">1</span></div></div>
+
+          <!-- =============================================== week of Aug 2 -->
+          <div class="cell"><div class="dayHead"><span class="dayNum">2</span></div></div>
+
+          <div class="cell">
+            <div class="dayHead"><span class="dayNum">3</span></div>
+            <div class="body">
+              <!-- a card that spans Aug 3-5: the fill starts here -->
+              <div class="card" style="background: color-mix(in srgb, #c3ff33 12%, transparent); border-radius: 4px 0 0 4px; margin-right: -4px">
+                <span style="flex: none; width: 5px; height: 5px; border-radius: 50%; background: #ffc31f"></span>
+                <span class="name">Design-system audit</span>
+                <span class="count">2/6</span>
+              </div>
+              <div class="task">
+                <span class="spine" style="background: #c3ff33"></span>
+                <span class="box"></span>
+                <span class="text">Tier 3 — real toolbars</span>
+              </div>
+              <div class="task">
+                <span class="spine" style="background: #c3ff33"></span>
+                <span class="box"></span>
+                <span class="text">Audit picker labels</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cell">
+            <div class="dayHead"><span class="dayNum">4</span></div>
+            <div class="body">
+              <div style="min-width: 0; min-height: 14px; background: color-mix(in srgb, #c3ff33 12%, transparent); margin: 0 -4px"></div>
+              <div class="task" style="margin-top: 3px">
+                <span class="spine" style="background: #f365c0"></span>
+                <span class="box"></span>
+                <span class="text">Tier 2 fake session</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cell">
+            <div class="dayHead"><span class="dayNum">5</span></div>
+            <div class="body">
+              <div style="min-width: 0; min-height: 14px; background: color-mix(in srgb, #c3ff33 12%, transparent); border-radius: 0 4px 4px 0; margin-left: -4px"></div>
+              <div class="task done" style="margin-top: 3px">
+                <span class="spine" style="background: #c3ff33; opacity: 0.5"></span>
+                <span class="box"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"></path></svg></span>
+                <span class="text">Tier 4 — NoteCard washes</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cell">
+            <div class="dayHead"><span class="dayNum">6</span></div>
+            <div class="body">
+              <div class="card" style="background: color-mix(in srgb, #ff5040 12%, transparent)">
+                <span class="name">AI panel polish</span>
+                <span class="count">0/3</span>
+              </div>
+              <div class="task">
+                <span class="spine" style="background: #ff5040"></span>
+                <span class="box"></span>
+                <span class="text">Effort control copy</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cell">
+            <div class="dayHead"><span class="dayNum">7</span></div>
+            <div class="body">
+              <div class="task done">
+                <span class="spine" style="background: #ff5040; opacity: 0.5"></span>
+                <span class="box"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"></path></svg></span>
+                <span class="text">Flip compactCardMeta</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cell"><div class="dayHead"><span class="dayNum">8</span></div></div>
+
+          <!-- =============================================== week of Aug 9 -->
+          <div class="cell"><div class="dayHead"><span class="dayNum">9</span></div></div>
+
+          <div class="cell">
+            <div class="dayHead"><span class="dayNum">10</span></div>
+            <div class="body">
+              <div class="card" style="background: color-mix(in srgb, #5ac875 12%, transparent)">
+                <span class="name">Kanban calendar</span>
+                <span class="count">1/5</span>
+              </div>
+              <div class="task done">
+                <span class="spine" style="background: #5ac875; opacity: 0.5"></span>
+                <span class="box"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"></path></svg></span>
+                <span class="text">Day-cell drop target</span>
+              </div>
+              <div class="task">
+                <span class="spine" style="background: #5ac875"></span>
+                <span class="box"></span>
+                <span class="text">Task chip anatomy</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cell">
+            <div class="dayHead"><span class="dayNum">11</span></div>
+            <div class="body">
+              <div class="task">
+                <span class="spine" style="background: #5ac875"></span>
+                <span class="box"></span>
+                <span class="text">Tray: two sections</span>
+              </div>
+              <div class="task sub">
+                <span class="spine" style="background: rgba(90, 200, 117, 0.45)"></span>
+                <span class="box"></span>
+                <span class="text">Group by parent card</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cell">
+            <div class="dayHead"><span class="dayNum">12</span></div>
+            <div class="body">
+              <div class="card" style="background: color-mix(in srgb, #f365c0 12%, transparent)">
+                <span class="name">E2E Playwright suite</span>
+                <span class="count">4/9</span>
+              </div>
+              <div class="task">
+                <span class="spine" style="background: #f365c0"></span>
+                <span class="box"></span>
+                <span class="text">Fix 2 red specs</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cell"><div class="dayHead"><span class="dayNum">13</span></div></div>
+
+          <div class="cell">
+            <div class="dayHead"><span class="dayNum">14</span></div>
+            <div class="body">
+              <div class="task">
+                <span class="spine" style="background: #ffa9e2"></span>
+                <span class="box"></span>
+                <span class="text">Write BETA_SCOPE</span>
+              </div>
+              <div class="task">
+                <span class="spine" style="background: #ff5040"></span>
+                <span class="box"></span>
+                <span class="text">Gemini allow-list</span>
+              </div>
+              <span class="more">+2 tasks</span>
+            </div>
+          </div>
+
+          <div class="cell"><div class="dayHead"><span class="dayNum">15</span></div></div>
+
+          <!-- ============================================== week of Aug 16 -->
+          <div class="cell"><div class="dayHead"><span class="dayNum">16</span></div></div>
+
+          <div class="cell">
+            <div class="dayHead"><span class="dayNum">17</span></div>
+            <div class="body">
+              <div class="task late">
+                <span class="spine"></span>
+                <span class="box"></span>
+                <span class="text">Solar icon attribution</span>
+                <span style="flex: none; margin-left: auto; color: #f5430b"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9L2.5 17.5A2 2 0 004.2 20.5h15.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"></path></svg></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cell">
+            <div class="dayHead"><span class="dayNum">18</span></div>
+            <div class="body">
+              <div class="card" style="background: color-mix(in srgb, #ffa9e2 12%, transparent); border-radius: 4px 0 0 4px; margin-right: -4px">
+                <span style="flex: none; width: 5px; height: 5px; border-radius: 50%; background: #f5430b"></span>
+                <span class="name">Beta scope + flags</span>
+                <span class="count">3/7</span>
+              </div>
+              <div class="task">
+                <span class="spine" style="background: #ffa9e2"></span>
+                <span class="box"></span>
+                <span class="text">Audit flag defaults</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cell">
+            <div class="dayHead"><span class="dayNum">19</span></div>
+            <div class="body">
+              <div style="min-width: 0; min-height: 14px; background: color-mix(in srgb, #ffa9e2 12%, transparent); margin: 0 -4px"></div>
+            </div>
+          </div>
+
+          <div class="cell">
+            <div class="dayHead"><span class="dayNum">20</span></div>
+            <div class="body">
+              <div style="min-width: 0; min-height: 14px; background: color-mix(in srgb, #ffa9e2 12%, transparent); border-radius: 0 4px 4px 0; margin-left: -4px"></div>
+              <div class="task" style="margin-top: 3px">
+                <span class="spine" style="background: #ffa9e2"></span>
+                <span class="box"></span>
+                <span class="text">Cut deferred features</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cell"><div class="dayHead"><span class="dayNum">21</span></div></div>
+          <div class="cell"><div class="dayHead"><span class="dayNum">22</span></div></div>
+
+          <!-- ============================================== week of Aug 23 -->
+          <div class="cell"><div class="dayHead"><span class="dayNum">23</span></div></div>
+
+          <div class="cell">
+            <div class="dayHead"><span class="dayNum">24</span></div>
+            <div class="body">
+              <div class="task done">
+                <span class="spine" style="background: #f365c0; opacity: 0.5"></span>
+                <span class="box"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"></path></svg></span>
+                <span class="text">Asset store cutover</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cell">
+            <div class="dayHead"><span class="dayNum">25</span></div>
+            <div class="body">
+              <div class="task late">
+                <span class="spine"></span>
+                <span class="box"></span>
+                <span class="text">Card date parse tests</span>
+                <span style="flex: none; margin-left: auto; color: #f5430b"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9L2.5 17.5A2 2 0 004.2 20.5h15.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"></path></svg></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cell"><div class="dayHead"><span class="dayNum">26</span></div></div>
+
+          <div class="cell">
+            <div class="dayHead"><span class="dayNum">27</span></div>
+            <div class="body">
+              <div class="task">
+                <span class="spine" style="background: #c3ff33"></span>
+                <span class="box"></span>
+                <span class="text">Squircle radii pass</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cell"><div class="dayHead"><span class="dayNum">28</span></div></div>
+
+          <!-- TODAY. The day head gains the day's own roll-up. -->
+          <div class="cell today">
+            <div class="dayHead">
+              <span class="dayNum">29</span>
+              <span style="display: inline-flex; align-items: center; padding: 0 5px; height: 14px; border-radius: 999px; background: rgba(255,255,255,0.08); font-size: 10px; font-weight: 600; color: #e6e6e6; font-variant-numeric: tabular-nums">1/4</span>
+              <span style="margin-left: auto; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; color: #ff5040"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></span>
+            </div>
+            <div class="body">
+              <div class="card" style="background: color-mix(in srgb, #5ac875 12%, transparent)">
+                <span class="name">Kanban calendar</span>
+                <span class="count">1/5</span>
+              </div>
+              <div class="task">
+                <span class="spine" style="background: #5ac875"></span>
+                <span class="box"></span>
+                <span class="text">Granularity switch</span>
+              </div>
+              <div class="task hover">
+                <span class="spine" style="background: #f365c0"></span>
+                <span class="box"></span>
+                <span class="text">Green the calendar spec</span>
+              </div>
+              <span class="more">+1 task</span>
+            </div>
+          </div>
+
+          <!-- ============================================== week of Aug 30 -->
+          <div class="cell"><div class="dayHead"><span class="dayNum">30</span></div></div>
+
+          <!-- a task from the tray is being held over Aug 31 -->
+          <div class="cell over">
+            <div class="dayHead"><span class="dayNum" style="color: #ffffff">31</span></div>
+            <div class="body">
+              <div class="task" style="opacity: 0.55">
+                <span class="spine" style="background: #5ac875"></span>
+                <span class="box" style="border-style: dashed; border-color: rgba(255,255,255,0.45)"></span>
+                <span class="text" style="color: #ffffff">Day sheet layout</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cell out"><div class="dayHead"><span class="dayNum">1</span></div></div>
+          <div class="cell out">
+            <div class="dayHead"><span class="dayNum">2</span></div>
+            <div class="body">
+              <div class="task">
+                <span class="spine" style="background: #ffa9e2"></span>
+                <span class="box"></span>
+                <span class="text" style="color: #a3a3a3">Beta invite copy</span>
+              </div>
+            </div>
+          </div>
+          <div class="cell out"><div class="dayHead"><span class="dayNum">3</span></div></div>
+          <div class="cell out"><div class="dayHead"><span class="dayNum">4</span></div></div>
+          <div class="cell out"><div class="dayHead"><span class="dayNum">5</span></div></div>
+
+        </div>
+      </div>
+
+      <!-- ========================================================= tray === -->
+      <div style="display: flex; flex-direction: column; flex: 0 0 288px; width: 288px; min-width: 0; overflow: hidden; background: #1a1a1a; border-radius: 12px">
+
+        <div class="trayHead">
+          <span style="display: flex; align-items: center; gap: 8px; min-width: 0">Cards<span class="trayCount">3</span></span>
+          <span style="display: grid; place-items: center; width: 26px; height: 26px; flex: none; border-radius: 8px; color: #a3a3a3"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"></path></svg></span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 2px; padding: 0 8px 8px">
+          <div class="trayRow">
+            <span style="position: absolute; left: 2px; top: 8px; bottom: 8px; width: 3px; border-radius: 999px; background: #ff5040"></span>
+            <span class="art" style="background: color-mix(in srgb, #ff5040 15%, transparent); color: #ff5040"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V6z"></path></svg></span>
+            <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1">
+              <span class="trayLabel">Attribution page</span>
+              <span class="trayDesc">CC BY credit for Solar icons</span>
+            </div>
+          </div>
+          <div class="trayRow">
+            <span class="art"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V6z"></path></svg></span>
+            <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1">
+              <span class="trayLabel">Pricing research</span>
+            </div>
+          </div>
+          <div class="trayRow">
+            <span class="art"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V6z"></path></svg></span>
+            <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1">
+              <span class="trayLabel">Onboarding tour</span>
+            </div>
+            <span style="flex: none; color: #ffc31f"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9L2.5 17.5A2 2 0 004.2 20.5h15.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"></path></svg></span>
+          </div>
+        </div>
+
+        <!-- The two sections are told apart by a step down the ramp, not a rule. -->
+        <div style="flex: none; height: 4px; background: #090909"></div>
+
+        <div class="trayHead">
+          <span style="display: flex; align-items: center; gap: 8px; min-width: 0">Tasks<span class="trayCount">11</span></span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px; padding: 0 8px 12px; flex: 1 1 auto; min-height: 0; overflow: hidden">
+
+          <div style="display: flex; flex-direction: column; gap: 1px; min-width: 0">
+            <div class="owner"><span class="dot" style="background: #5ac875"></span><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Kanban calendar</span><span class="n">4</span></div>
+            <div class="taskRow"><span class="box"></span><span class="text">Week view: task lanes</span></div>
+            <div class="taskRow" style="background: rgba(255,255,255,0.08)">
+              <span class="box"></span>
+              <span class="text" style="color: #ffffff">Day sheet layout</span>
+              <span style="flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 999px; background: rgba(255,255,255,0.08); font-size: 11px; font-weight: 500; color: #a3a3a3"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>Set date</span>
+            </div>
+            <div class="taskRow"><span class="box"></span><span class="text">Mirror onto the board</span></div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 1px; min-width: 0">
+            <div class="owner"><span class="dot" style="background: #ffa9e2"></span><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Beta scope + flags</span><span class="n">3</span></div>
+            <div class="taskRow"><span class="box"></span><span class="text">Decide cloud sync scope</span></div>
+            <div class="taskRow"><span class="box"></span><span class="text">Kill the load-b2 page</span></div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 1px; min-width: 0">
+            <div class="owner"><span class="dot" style="background: #c3ff33"></span><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Design-system audit</span><span class="n">4</span></div>
+            <div class="taskRow"><span class="box"></span><span class="text">Tier 5 — deep washes</span></div>
+            <div class="taskRow"><span class="box"></span><span class="text">Tier 6 — input tokens</span></div>
+          </div>
+
+          <p style="margin: 6px 10px 0; font-size: 12.5px; line-height: 1.5; color: #a3a3a3">Drag a task onto a day to set its due date. Ticking one here ticks it in the card.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

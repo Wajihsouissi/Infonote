@@ -11,21 +11,31 @@ import styles from './DragChip.module.css';
 export function DragChip() {
     const dropTarget = useStore(s => s.interactionState.dropTarget);
     const ref = useRef<HTMLDivElement>(null);
+    const pointRef = useRef({ x: 0, y: 0 });
+    const frameRef = useRef<number | null>(null);
 
     const isActive = !!dropTarget;
 
     useEffect(() => {
         if (!isActive) return;
         const onMove = (e: PointerEvent) => {
-            const el = ref.current;
-            if (!el) return;
-            el.style.left = `${e.clientX}px`;
-            el.style.top = `${e.clientY}px`;
-            el.style.opacity = '1';
-            el.style.transform = 'translate(-50%, -50%) scale(1)';
+            pointRef.current = { x: e.clientX, y: e.clientY };
+            if (frameRef.current !== null) return;
+            frameRef.current = requestAnimationFrame(() => {
+                frameRef.current = null;
+                const el = ref.current;
+                if (!el) return;
+                const { x, y } = pointRef.current;
+                el.style.opacity = '1';
+                el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) scale(1)`;
+            });
         };
         window.addEventListener('pointermove', onMove);
-        return () => window.removeEventListener('pointermove', onMove);
+        return () => {
+            window.removeEventListener('pointermove', onMove);
+            if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+            frameRef.current = null;
+        };
     }, [isActive]);
 
     if (!isActive) return null;

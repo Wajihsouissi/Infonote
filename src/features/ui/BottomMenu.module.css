@@ -16,6 +16,75 @@
     pointer-events: auto;
 }
 
+/* The rail and the AI dock are two separate surfaces standing side by side (or
+   stacked, when the rail is docked left). The row itself is only a spacer, so
+   the gap between them stays canvas — the > .railRow specificity beats the
+   blanket rule above regardless of where these land in the file. */
+.railLayer > .railRow {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    pointer-events: none;
+}
+
+.railRow > * {
+    pointer-events: auto;
+}
+
+/* The idle rail stays mounted while contextual node actions are visible. This
+   avoids tearing down and rebuilding two icon trees during the selection
+   event; only compositor-friendly properties change. */
+.railLayer:has(> .contextualToolbarActive) > .railRow {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(6px) scale(0.985);
+    pointer-events: none;
+}
+
+/* Node selection owns the bottom command lane even if another side panel had
+   previously docked the idle controls vertically. This is a pure CSS response
+   to the isolated child, so BottomMenu itself still does not re-render. */
+.railLayer.dockLeft:has(> .contextualToolbarActive) {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 24px;
+    width: max-content;
+    height: auto;
+    max-width: calc(100% - 48px);
+    max-height: none;
+    margin: 0 auto;
+    flex-direction: column-reverse;
+}
+
+/* Matches the specificity of the rule above, which would otherwise pin the row
+   horizontal even when the rail is docked to the side. */
+.railLayer > .railRowVertical {
+    flex-direction: column;
+}
+
+/* Same surface as .sideRail, sized to the same 60px so the two read as one
+   instrument split in two rather than a button that fell off the bar. */
+.aiDock {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 60px;
+    min-height: 60px;
+    padding: 6px;
+    box-sizing: border-box;
+    background: var(--bg-rail);
+    border: 1px solid var(--line);
+    border-radius: var(--toolbar-radius);
+    box-shadow: var(--toolbar-shadow);
+    transition: background 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.aiDock:hover {
+    box-shadow: var(--shadow-lg);
+}
+
 /* Bottom dock — the default home. A horizontal bar centred on the bottom edge;
    column-reverse floats the flyout above it, since the rail comes first in the
    DOM and the wide states need the room over the bar, not beside it. */
@@ -109,15 +178,48 @@
     max-width: 100%;
 }
 
-/* The selected-node controls replace the idle dock in the same bottom lane.
-   Its pill silhouette and shared layout animation make adding/removing a
-   selection feel like one island changing purpose, rather than two bars
-   trading places. */
+/* The selected-node controls replace the idle dock in the same bottom lane. */
 .selectionIsland {
     min-height: 60px;
     padding: 0;
     border-radius: var(--toolbar-radius);
     overflow: visible;
+}
+
+/* Pre-mounted contextual actions are overlaid on the idle dock. Selection no
+   longer waits on a shared-layout measurement or a toolbar mount; opacity and
+   transform animate independently of layout and paint. */
+.railLayer > .contextualToolbar {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: max-content;
+    max-width: calc(100vw - 48px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateX(-50%) translateY(6px) scale(0.985);
+    transform-origin: 50% 100%;
+    transition:
+        opacity 110ms ease-out,
+        transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
+        visibility 0s linear 150ms;
+    contain: layout style;
+}
+
+.railLayer > .contextualToolbarActive {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0) scale(1);
+    transition-delay: 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .railLayer > .contextualToolbar {
+        transition: none;
+        transform: translateX(-50%);
+    }
 }
 
 /* ... existing styles ... */
@@ -158,7 +260,9 @@
     width: 36px;
     height: 36px;
     min-width: 36px;
-    border-radius: 50%;
+    /* The dock is the most tactile area of the canvas: its icon controls use
+       a roomier squircle than the app-wide 16px default. */
+    border-radius: var(--bottom-menu-icon-radius) !important;
     background: transparent;
     border: 1px solid transparent;
     color: var(--text-soft);
@@ -248,43 +352,95 @@
 }
 
 .aiIconBtn {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.1), rgba(var(--accent-rgb), 0.1));
-    border: 1px solid rgba(var(--accent-rgb), 0.3);
+    width: 44px;
+    height: 44px;
+    border-radius: var(--bottom-menu-icon-radius) !important;
+    background: radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.26), transparent 26%), rgba(var(--accent-rgb), 0.13);
+    border: 1px solid rgba(var(--accent-rgb), 0.24);
     color: var(--accent-ink);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     position: relative;
-    overflow: hidden;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    box-shadow: none;
+    isolation: isolate;
+    transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.25s var(--ease-rise), box-shadow 0.25s ease;
+    box-shadow: 0 5px 16px rgba(var(--accent-rgb), 0.14);
+}
+
+.aiIconBtn::after {
+    content: '';
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: var(--r-xs);
+    background: var(--on-accent);
+    box-shadow: 13px 7px 0 -0.5px rgba(var(--accent-rgb), 0.9), -10px 12px 0 -0.5px rgba(var(--accent-rgb), 0.72);
+    transform: translate(-8px, -10px);
+    animation: aiSparkOrbit 3.2s linear infinite;
+    pointer-events: none;
+}
+
+.aiGlyph {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    filter: drop-shadow(0 1px 4px rgba(var(--accent-rgb), 0.38));
+    transition: transform 0.3s var(--ease-rise);
 }
 
 .aiIconBtn:hover {
-    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.25), rgba(var(--accent-rgb), 0.25));
-    color: var(--accent);
-    transform: translateY(-2px) scale(1.1);
-    box-shadow: none;
-    border-color: rgba(var(--accent-rgb), 0.5);
-    animation: none;
+    background: radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.32), transparent 26%), rgba(var(--accent-rgb), 0.24);
+    color: var(--text-main);
+    transform: translateY(-2px) scale(1.06);
+    box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.11), 0 9px 24px rgba(var(--accent-rgb), 0.24);
+    border-color: rgba(var(--accent-rgb), 0.42);
+}
+
+.aiIconBtn:hover .aiGlyph {
+    transform: rotate(8deg) scale(1.12);
+}
+
+.aiIconBtnActive {
+    background: var(--accent) !important;
+    color: var(--on-accent) !important;
+    box-shadow: 0 10px 28px rgba(var(--accent-rgb), 0.30) !important;
+    border-color: rgba(0, 0, 0, 0.14) !important;
+}
+
+.aiIconBtnActive::after {
+    background: var(--bg-inset);
+    box-shadow: 13px 7px 0 -0.5px rgba(0, 0, 0, 0.72), -10px 12px 0 -0.5px rgba(0, 0, 0, 0.52);
 }
 
 .aiIconBtn:active {
     transform: scale(0.95);
 }
 
-.aiIconBtn:hover svg {
+@keyframes aiSparkOrbit {
+    from { transform: translate(-8px, -10px) rotate(0deg) scale(0.8); opacity: 0.56; }
+    50% { transform: translate(13px, 11px) rotate(180deg) scale(1.2); opacity: 1; }
+    to { transform: translate(-8px, -10px) rotate(360deg) scale(0.8); opacity: 0.56; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .aiIconBtn::after {
+        animation: none;
+    }
+
+    .aiIconBtn,
+    .aiIconBtn:hover,
+    .aiIconBtn:hover .aiGlyph {
+        transform: none;
+    }
 }
 
 .aiSendBtn {
     width: 32px;
     height: 32px;
     min-width: 32px;
-    border-radius: 50%;
+    border-radius: var(--bottom-menu-icon-radius) !important;
     background: transparent;
     border: 1px solid transparent;
     color: var(--accent-ink);
@@ -305,7 +461,7 @@
     background: transparent;
     border: none;
     padding: 6px;
-    border-radius: 50%;
+    border-radius: var(--bottom-menu-icon-radius) !important;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -390,7 +546,7 @@
 .aiImageIconBtn {
     width: 40px;
     height: 40px;
-    border-radius: 50%;
+    border-radius: var(--bottom-menu-icon-radius) !important;
     background: linear-gradient(135deg, rgba(var(--secondary-rgb), 0.1), rgba(var(--secondary-rgb), 0.1));
     border: 1px solid rgba(var(--secondary-rgb), 0.3);
     color: var(--text-soft);
@@ -420,7 +576,7 @@
     width: 32px;
     height: 32px;
     min-width: 32px;
-    border-radius: 50%;
+    border-radius: var(--bottom-menu-icon-radius) !important;
     background: transparent;
     border: 1px solid transparent;
     color: var(--text-soft);
@@ -440,7 +596,7 @@
 .mainAddBtn {
     width: 48px;
     height: 48px;
-    border-radius: 50%;
+    border-radius: var(--bottom-menu-icon-radius) !important;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -476,7 +632,7 @@
 .iconBtn {
     width: 40px;
     height: 40px;
-    border-radius: 50%;
+    border-radius: var(--bottom-menu-icon-radius) !important;
     background: transparent;
     border: 1px solid transparent;
     color: var(--text-soft);
@@ -585,7 +741,7 @@
     cursor: pointer;
     width: 22px;
     height: 22px;
-    border-radius: var(--radius-sm);
+    border-radius: var(--bottom-menu-icon-radius) !important;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1181,7 +1337,7 @@
     color: var(--text-soft);
     cursor: pointer;
     padding: 6px;
-    border-radius: 4px;
+    border-radius: var(--bottom-menu-icon-radius) !important;
     display: flex;
     align-items: center;
     justify-content: center;

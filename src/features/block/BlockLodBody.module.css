@@ -1,5 +1,6 @@
-/* Static LOD bodies for block / fused-note nodes: the wireframe fills the
-   node so it still reads as the thing it is while zoomed out. */
+/* Static LOD bodies use the editor's visual classes, with the same content
+   inset as the node they replace. They are semantic read-only views, not a
+   simplified wireframe. */
 
 .previewWrap {
     width: 100%;
@@ -8,12 +9,26 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 10px 14px; /* Matches .content padding from BlockNode */
+    padding: 0;
     box-sizing: border-box;
     overflow: hidden;
     pointer-events: none;
     /* Mirror the node's own corners so the wireframe doesn't poke out. */
     border-radius: inherit;
-    /* Cancel out NoteBodyPreview's internal block-inset so we control exact placement */
+    /* The host node owns its gutter; avoid a second inset in the static view. */
     --block-inset: 0px;
+    contain: layout paint style;
+}
+
+/* Fused notes use the full card editor, whose scroll area has a 20px inset. */
+.fused {
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 20px;
+}
+
+/* Standard standalone blocks add their precise gutter through the existing
+   .blockNode > editor > sortableWrapper rules. */
+.single {
+    min-height: 100%;
 }

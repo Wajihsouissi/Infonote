@@ -1,0 +1,53 @@
+{
+  "artboards": [
+    { "file": "Current.dc.html", "title": "Today", "x": 0, "y": 0, "w": 720, "h": 560 },
+    { "file": "Main.dc.html", "title": "A — Rank", "x": 800, "y": 0, "w": 720, "h": 560 },
+    { "file": "Grouped.dc.html", "title": "B — Grouped", "x": 0, "y": 700, "w": 720, "h": 560 },
+    { "file": "Summary.dc.html", "title": "C — Headline", "x": 800, "y": 700, "w": 720, "h": 560 }
+  ],
+  "annotations": [
+    {
+      "id": "brief",
+      "x": 1600,
+      "y": 0,
+      "w": 300,
+      "text": "The problem\n\nNine chips, all the same height, weight and shape. Nothing tells the eye where to start, so you read all nine to find the one you wanted.\n\nAnd the header spends 77px on a 65px icon tile, a settings pill, a 24px title and a padded description block — plus 53px above it for a strip that only says \"Add cover\"."
+    },
+    {
+      "id": "rank",
+      "x": 1600,
+      "y": 290,
+      "w": 300,
+      "text": "A — Rank\n\nOne row, three weights. Lead (28px, hued): where it stands, when it is due. Support (24px, no hue): completion, owner, priority. Trail (no fill at all): tags and links are reference, not status.\n\nDegrades well — a card with only a status still reads correctly.\n\nTradeoff: still one wrapping row, so a very full card wraps to two."
+    },
+    {
+      "id": "grouped",
+      "x": 1600,
+      "y": 560,
+      "w": 300,
+      "text": "B — Grouped\n\nTwo labelled runs that never move: PLAN answers where and when, WORK answers who and how far. Position teaches you where to look, so you stop re-reading.\n\nTradeoff: 16px taller than A, and the two tiny labels are chrome — the only labels I would keep anywhere on this bar."
+    },
+    {
+      "id": "headline",
+      "x": 1600,
+      "y": 830,
+      "w": 300,
+      "text": "C — Headline\n\nOne fact is promoted to the only filled pill on the card — whatever most needs attention now, overdue beating due-today beating status. Everything else is a quiet monochrome run.\n\nTitle, icon and description share one line.\n\nTradeoff: the boldest and the most compact, but the promotion rule has to be right or it shouts about the wrong thing."
+    },
+    {
+      "id": "colour-bug",
+      "x": 0,
+      "y": -190,
+      "w": 620,
+      "text": "Found while measuring: status colours cannot currently be told apart.\n\nIn design-system.css the accent hues collapse — --a-amber, --a-azure and --a-rose are all #ff5040. So In Progress and In Review render the SAME colour today, and no hierarchy will fix that.\n\nThese mockups use genuinely distinct hues that already exist in your palette: To Do #a3a3a3, In Progress #ffc31f, In Review #f365c0, Done #5ac875."
+    },
+    {
+      "id": "shared",
+      "x": 660,
+      "y": -190,
+      "w": 620,
+      "text": "Shared by all three directions\n\n· The 65px icon tile drops to 40 and moves ONTO the title line.\n· The \"Shown / Hidden\" pill leaves the header — it is a setting, not metadata.\n· The description loses its padded box and becomes one clamped line.\n· The 53px \"Add cover\" strip becomes a hover action in the header corner; a card WITH a cover still shows it.\n· Progress and tasks merge — \"40%\" and \"0/3\" were the same question asked twice."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

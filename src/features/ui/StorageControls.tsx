@@ -4,7 +4,7 @@ import { useStore } from '../../store/useStore';
 import { DuotoneIcon } from '../../components/ui/DuotoneIcon';
 import { connectBackend, disconnectBackend, getActiveBackendKind } from '../../services/StorageManager';
 import { fileSystemStorage } from '../../services/FileSystemStorage';
-import { saveCanvasToCloud } from '../../services/cloudSync';
+import { createCloudVersion, saveCanvasToCloud } from '../../services/cloudSync';
 import { useAuth } from '../auth/useAuth';
 import { CloudLoadModal } from '../canvas/CloudLoadModal';
 import { LocalSyncModal } from '../canvas/LocalSyncModal';
@@ -35,6 +35,7 @@ export const StorageControls: React.FC = () => {
 
     // Store setters for dynamic status
     const setCloudLastSaved = useStore(s => s.setCloudLastSaved);
+    const setCloudLastLoaded = useStore(s => s.setCloudLastLoaded);
     const setCloudDirty = useStore(s => s.setCloudDirty);
     const setLocalError = useStore(s => s.setLocalError);
     const setCloudError = useStore(s => s.setCloudError);
@@ -60,6 +61,7 @@ export const StorageControls: React.FC = () => {
         () => localStorage.getItem(`chnk-it-cloud-autosync-${workspaceId || 'default'}`) !== 'false'
     );
     const autoSaveTimerRef = useRef<number | null>(null);
+    const dailyVersionDateRef = useRef<string | null>(null);
 
     // The mount-time read above runs before auth resolves (workspaceId null →
     // 'default' key). Re-read once the real workspace id arrives so a
@@ -69,6 +71,7 @@ export const StorageControls: React.FC = () => {
             localStorage.getItem(`chnk-it-cloud-autosync-${workspaceId || 'default'}`) !== 'false'
         );
         setHasAutoLoadedCloud(false);
+        dailyVersionDateRef.current = null;
     }, [workspaceId]);
 
     // The first-login storage choice modal writes the autosync key directly;
@@ -132,15 +135,43 @@ export const StorageControls: React.FC = () => {
                     return;
                 }
 
+                /* CanvasBoard owns the workspace load and reports its progress
+                   to the UI. A second independent fetch here would land
+                   silently and out of step — flipping the cloud icon to
+                   "Synced" while CanvasBoard's indicator was still up, or
+                   overwriting the canvas after it finished.
+
+                   So: if that load already completed, there is nothing to do.
+                   Otherwise go through the same registry, which joins an
+                   in-flight request rather than issuing a competing one. This
+                   path still matters when the canvas view is not mounted. */
                 const { loadCanvasFromCloud } = await import('../../services/cloudSync');
-                
-                const loadRes = await loadCanvasFromCloud(user.id, workspaceId);
+                const { hasHydrated, loadWorkspaceOnce } = await import('../canvas/workspaceHydration');
                 if (cancelled) return;
-                
+
+                const loadKey = `${user.id}:${workspaceId}`;
+                if (hasHydrated(loadKey)) {
+                    setHasAutoLoadedCloud(true);
+                    return;
+                }
+
+                const { setCloudLoad } = useStore.getState();
+                setCloudLoad('background', { stage: 'authorizing', value: 0 });
+                let loadRes;
+                try {
+                    loadRes = await loadWorkspaceOnce(
+                        loadKey,
+                        (onProgress) => loadCanvasFromCloud(user.id, workspaceId, onProgress),
+                        (progress) => { if (!cancelled) setCloudLoad('background', progress); },
+                    );
+                } finally {
+                    if (!cancelled) setCloudLoad('idle');
+                }
+                if (cancelled) return;
+
                 if (loadRes.ok && loadRes.nodes.length > 0) {
                     loadGraph(loadRes.nodes, loadRes.edges);
-                    const timeStr = new Date().toLocaleTimeString();
-                    if (setCloudLastSaved) setCloudLastSaved(timeStr);
+                    setCloudLastLoaded(new Date().toLocaleTimeString());
                 }
             } catch (err) {
                 console.warn('[StorageControls] Auto-load from cloud failed:', err);
@@ -154,7 +185,7 @@ export const StorageControls: React.FC = () => {
         return () => {
             cancelled = true;
         };
-    }, [hasAutoLoadedCloud, authLoading, configured, user, workspaceId, loadGraph, setCloudLastSaved]);
+    }, [hasAutoLoadedCloud, authLoading, configured, user, workspaceId, loadGraph, setCloudLastLoaded]);
 
 
     const activeKind = storage.isConnected ? getActiveBackendKind() : null;
@@ -206,7 +237,7 @@ export const StorageControls: React.FC = () => {
         void runConnect('filesystem', true, 'save');
     }, [runConnect]);
 
-    const performCloudSave = useCallback(async (forceFullSync = false) => {
+    const performCloudSave = useCallback(async (forceFullSync = false, createManualVersion = false) => {
         if (!isOnline) {
             if (setCloudError) setCloudError("You're offline. Connect to the internet to sync.");
             return;
@@ -255,6 +286,34 @@ export const StorageControls: React.FC = () => {
                 if (setCloudLastSaved) setCloudLastSaved(timeStr);
                 if (setCloudDirty) setCloudDirty(false);
                 if (setCloudError) setCloudError(null);
+
+                const today = new Date().toISOString().slice(0, 10);
+                const versionKind = createManualVersion
+                    ? 'manual'
+                    : dailyVersionDateRef.current === today ? null : 'daily';
+                if (versionKind) {
+                    // A recovery copy can be much larger than the delta sync.
+                    // The cloud status represents the working canvas, so let it
+                    // return to “Synced” as soon as that save completes rather
+                    // than making it wait on this independent safety task.
+                    if (versionKind === 'daily') {
+                        dailyVersionDateRef.current = today;
+                    }
+                    void createCloudVersion(
+                        user.id,
+                        workspaceId,
+                        nodes,
+                        edges,
+                        versionKind,
+                    ).then((versionResult) => {
+                        if (!versionResult.ok) {
+                            if (versionKind === 'daily' && dailyVersionDateRef.current === today) {
+                                dailyVersionDateRef.current = null;
+                            }
+                            console.warn('[StorageControls] Recovery version was not created:', versionResult.error);
+                        }
+                    });
+                }
             } else {
                 if (setCloudError) setCloudError(result.error || 'Cloud save failed');
             }
@@ -337,13 +396,23 @@ export const StorageControls: React.FC = () => {
         : localStatus === 'synced' ? `Local Save: Synced to folder "${storage.directoryName}" (Last saved: ${storage.localLastSaved})`
         : 'Never saved locally. Click to select folder.';
 
-    // Cloud button state
-    const cloudStatus = 
+    // Cloud button state.
+    /* A load in flight counts as busy exactly like a save does. Without this
+       the icon settles on "Synced" while the canvas is still coming down —
+       the status and the loader telling the user two different things. */
+    const isLoadingCloud = storage.cloudLoad.phase !== 'idle';
+    const cloudBusy = authLoading || isSavingCloud || isLoadingCloud;
+
+    /* A load and a save both establish that the canvas matches the cloud, so
+       either one is enough to leave "never saved". They are tracked separately
+       because only one of them can honestly be called a save. */
+    const cloudKnown = Boolean(storage.cloudLastSaved || storage.cloudLastLoaded);
+    const cloudStatus =
         storage.cloudError ? 'error' :
-        (!user || !storage.cloudLastSaved) ? 'never-saved' :
+        (!user || !cloudKnown) ? 'never-saved' :
         storage.isCloudDirty ? 'not-synced' : 'synced';
 
-    const cloudIcon = (authLoading || isSavingCloud) ? <CloudSync size={18} className="animate-spin" />
+    const cloudIcon = cloudBusy ? <CloudSync size={18} className="animate-spin" />
         : cloudStatus === 'error' ? <CloudAlert size={18} />
         : cloudStatus === 'synced' ? <CloudCheck size={18} />
         : cloudStatus === 'not-synced' ? <CloudUpload size={18} />
@@ -351,10 +420,14 @@ export const StorageControls: React.FC = () => {
 
     const cloudTitle = !configured ? 'Cloud disabled (env not configured)'
         : !user ? 'Sign in to connect & save to cloud'
+        : isLoadingCloud ? 'Loading your canvas from the cloud...'
         : isSavingCloud ? 'Saving to cloud...'
         : cloudStatus === 'error' ? `Cloud Sync Error: ${storage.cloudError}`
-        : cloudStatus === 'not-synced' ? `Cloud Save: Unsynced changes exist! (Last synced: ${storage.cloudLastSaved || 'Never'})`
-        : cloudStatus === 'synced' ? `Cloud Save: Synced to cloud (Last synced: ${storage.cloudLastSaved})`
+        : cloudStatus === 'not-synced' ? `Cloud Save: Unsynced changes exist! (Last saved: ${storage.cloudLastSaved || 'Never'})`
+        // Clean, but nothing has been written this session — say so rather than
+        // reporting a save that never happened.
+        : cloudStatus === 'synced' && !storage.cloudLastSaved ? `Cloud Save: Up to date — loaded from cloud at ${storage.cloudLastLoaded}. Nothing new to save.`
+        : cloudStatus === 'synced' ? `Cloud Save: Synced to cloud (Last saved: ${storage.cloudLastSaved})`
         : 'Cloud Sync Menu';
 
     const localClassName = `${styles.iconBtn} ` + (
@@ -366,7 +439,7 @@ export const StorageControls: React.FC = () => {
     );
 
     const cloudClassName = `${styles.iconBtn} ` + (
-        (authLoading || isSavingCloud) ? styles.saving :
+        cloudBusy ? styles.saving :
         cloudStatus === 'error' ? styles.error :
         cloudStatus === 'not-synced' ? styles.notSynced :
         cloudStatus === 'synced' ? styles.synced :
@@ -420,7 +493,7 @@ export const StorageControls: React.FC = () => {
             <CloudSyncModal 
                 open={cloudModalOpen}
                 onClose={() => setCloudModalOpen(false)}
-                onSave={() => { performCloudSave(true); setCloudModalOpen(false); }}
+                onSave={() => { void performCloudSave(true, true); setCloudModalOpen(false); }}
                 onReload={() => { setLoadModalOpen(true); setCloudModalOpen(false); }}
                 onRestoreBackup={handleRestoreBackup}
                 hasCloudBackup={hasCloudBackup}

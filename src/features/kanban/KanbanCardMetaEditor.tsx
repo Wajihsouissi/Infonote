@@ -58,6 +58,7 @@ export const KanbanCardMetaEditor = memo(({ data, onChange }: KanbanCardMetaEdit
                 <CustomDatePicker
                     value={data.dueDate ?? ''}
                     placeholder="No date"
+                    withTime
                     onChange={(v) => onChange({ dueDate: v || undefined })}
                 />
             </label>

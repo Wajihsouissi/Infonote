@@ -12,6 +12,8 @@ import {
     Edit3
 } from '../../components/icons';
 import { fetchMetadata, getDomain, getShortUrl } from '../../services/metadataService';
+import { FEATURES } from '../../config/featureFlags';
+import { OPEN_YOUTUBE_STUDY_EVENT, parseYouTubeUrl, type OpenYouTubeStudyDetail } from '../youtube/youtubeStudy';
 import type { Block, BlockMetadata } from './types';
 import styles from './LinkBlock.module.css';
 
@@ -36,6 +38,8 @@ export const LinkBlock: React.FC<LinkBlockProps> = ({
     const displayMode = (metadata.displayMode || 'bookmark') as 'bookmark' | 'embed' | 'text';
     const isEmbeddable = metadata.isEmbeddable ?? false;
     const isLoading = metadata.isLoading ?? false;
+    const youtube = parseYouTubeUrl(url);
+    const canOpenStudy = FEATURES.youtubeStudy && Boolean(youtube);
 
     const [showMenu, setShowMenu] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -80,6 +84,9 @@ export const LinkBlock: React.FC<LinkBlockProps> = ({
     }, [url, metadata, onChange, displayMode]);
 
     useEffect(() => {
+        // Metadata loading synchronizes this external URL resource. The helper
+        // publishes its loading state before awaiting the network response.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         loadMetadata();
     }, [url]);
 
@@ -123,6 +130,15 @@ export const LinkBlock: React.FC<LinkBlockProps> = ({
         e.preventDefault();
         window.open(url, '_blank', 'noopener,noreferrer');
     }, [url]);
+
+    const handleOpenStudy = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        if (!youtube) return;
+        window.dispatchEvent(new CustomEvent<OpenYouTubeStudyDetail>(OPEN_YOUTUBE_STUDY_EVENT, {
+            detail: { url: youtube.canonicalUrl },
+        }));
+    }, [youtube]);
 
     // Ref registry
     const handleRef = useCallback((el: HTMLDivElement | null) => {
@@ -243,6 +259,17 @@ export const LinkBlock: React.FC<LinkBlockProps> = ({
                         <Tv size={12} />
                         <span>{metadata.title || `Embedded ${metadata.provider || domain}`}</span>
                     </div>
+                    {canOpenStudy && (
+                        <button
+                            type="button"
+                            className={styles.studyButton}
+                            onClick={handleOpenStudy}
+                            title="Open this video in YouTube Study Studio"
+                        >
+                            <Tv size={13} />
+                            Study
+                        </button>
+                    )}
                 </div>
                 <div className={`${styles.embedContent} ${isPdf ? styles.pdfContent : ''}`}>
                     <iframe
@@ -356,6 +383,16 @@ export const LinkBlock: React.FC<LinkBlockProps> = ({
             {/* Hover Floating Actions & Mode Switcher */}
             {!readOnly && (
                 <div className={styles.floatingControls}>
+                    {canOpenStudy && (
+                        <button
+                            type="button"
+                            onClick={handleOpenStudy}
+                            className={styles.controlBtn}
+                            title="Open in YouTube Study Studio"
+                        >
+                            <Tv size={13} />
+                        </button>
+                    )}
                     <button 
                         onClick={handleOpen} 
                         className={styles.controlBtn} 

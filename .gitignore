@@ -38,3 +38,6 @@ node_portable/
 /blob-report/
 /playwright/.cache/
 /clipboard-report/
+.pnpm-store/
+.impeccable/
+vite.config.ts.timestamp-*

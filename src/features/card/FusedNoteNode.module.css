@@ -1,7 +1,7 @@
 .fusedNoteNode {
     position: relative;
     display: block;
-    background: var(--bg-rail);
+    background: var(--node-bg);
     border: none;
     border-left: var(--block-rail-w) solid var(--node-accent-color, var(--block-rail));
     border-radius: var(--r-panel);
@@ -24,10 +24,11 @@
 /* Recoloured, the node is tinted with its accent and keeps the binding at full
    strength — the spine states the colour, the surface carries it. `--node-accent`
    is published only when the node actually has a colour, so an uncoloured node
-   never reaches this rule. Same 14% as NoteCard's --tint-card, so a fused note
-   and a card given the same hue land on exactly the same surface. */
+   never reaches this rule. Built from the same --node-tint-* pair a NoteCard
+   uses, so a fused note and a card given the same hue land on exactly the same
+   surface. */
 .fusedNoteNode[data-accented] {
-    background: color-mix(in srgb, var(--node-accent) 14%, var(--bg-rail));
+    background: oklch(from var(--node-accent) var(--node-tint-l) var(--node-tint-c) h);
 }
 
 .dragging {
@@ -155,6 +156,23 @@
     cursor: text;
     overflow-y: auto;
     min-width: 0;
+}
+
+.chapterMeta {
+    position: absolute;
+    top: 13px;
+    left: 20px;
+    z-index: 2;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    font-weight: 720;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    pointer-events: none;
+}
+
+.chapterMeta + .content {
+    padding-top: 39px;
 }
 
 .content::-webkit-scrollbar {

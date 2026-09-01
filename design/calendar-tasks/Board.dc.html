@@ -1,0 +1,307 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Outfit', system-ui, sans-serif;
+      background: #000000;
+      color: #ffffff;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #ff5040; text-decoration: none; }
+    a:hover { color: #ffa9e2; }
+    * { box-sizing: border-box; }
+
+    /* --- lane, from KanbanNode.module.css --- */
+    .lane { flex: 0 0 432px; display: flex; flex-direction: column; background: #121212;
+            border-radius: 32px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10); }
+    .laneHead { flex: none; display: flex; align-items: center; gap: 8px;
+                padding: 14px 14px 10px 16px; }
+    .laneTitle { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 14px; font-weight: 600;
+                 letter-spacing: -0.004em; color: #ffffff; overflow: hidden;
+                 text-overflow: ellipsis; white-space: nowrap; }
+    .laneCount { flex: none; min-width: 20px; text-align: center; font-size: 11.5px;
+                 font-weight: 600; color: #a3a3a3; font-variant-numeric: tabular-nums; }
+    .laneBody { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 14px; }
+
+    /* --- card, from KanbanCard.module.css --- */
+    .card { --pad: 16px; --row: 6px; --group: 12px; --gutter: 36px;
+            position: relative; display: flex; flex-direction: column; background: #090909;
+            border-radius: 24px; min-height: 64px; }
+    .cardBody { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center;
+                gap: var(--group); padding: var(--pad); min-width: 0; }
+    .head { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+    .tile { flex: none; display: grid; place-items: center; width: 24px; height: 24px;
+            margin-top: -1px; border-radius: 12px; }
+    .title { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 15px; font-weight: 600;
+             line-height: 1.4; letter-spacing: -0.006em; color: #ffffff; }
+    .snippet { margin: -6px 0 0; padding-left: var(--gutter); font-size: 13px; line-height: 1.5;
+               color: #e6e6e6; }
+
+    /* --- checklist --- */
+    .checklist { display: flex; flex-direction: column; gap: 6px; margin: 0;
+                 padding: 0 0 0 36px; list-style: none; }
+    .check { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 1.45;
+             color: #e6e6e6; min-width: 0; }
+    .check .box { flex: none; display: grid; place-items: center; width: 13px; height: 13px;
+                  border: 1.5px solid rgba(255,255,255,0.28); border-radius: 4px;
+                  color: transparent; }
+    .check .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .check.done .box { background: #5ac875; border-color: #5ac875; color: #000000; }
+    .check.done .t { color: #a3a3a3; text-decoration: line-through;
+                     text-decoration-color: rgba(255,255,255,0.28); }
+    .check.sub { margin-left: 14px; }
+    .check.late .box { border-color: #f5430b; }
+    .check.late .t { color: #f5430b; }
+
+    /* NEW: a per-task date chip on the board's own checklist. */
+    .when { flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: 4px;
+            padding: 1px 7px; border-radius: 999px; font-size: 11.2px; font-weight: 500;
+            background: rgba(163,163,163,0.13); color: #a3a3a3; font-variant-numeric: tabular-nums; }
+    .when.today { background: rgba(255,80,64,0.13); color: #ff5040; }
+    .when.late  { background: rgba(245,67,11,0.13); color: #f5430b; }
+    .when.none  { background: transparent; color: #a3a3a3; opacity: 0.55; }
+
+    /* --- meta chips --- */
+    .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-left: 36px; }
+    .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px;
+            border-radius: 999px; font-size: 12px; font-weight: 500; line-height: 1.5;
+            white-space: nowrap; }
+    .pill { display: grid; place-items: center; min-width: 30px; height: 26px; padding: 0 10px;
+            border-radius: 999px; font-size: 11.5px; font-weight: 500; color: #a3a3a3; }
+    .pill.on { background: rgba(255, 80, 64, 0.16); color: #ff5040; font-weight: 600; }
+  </style>
+</helmet>
+
+<div style="padding: 20px; background: #000000; display: flex; flex-direction: column; gap: 12px">
+
+  <!-- ------------------------------------------------------- board header -->
+  <div style="display: flex; align-items: center; gap: 8px; padding: 0 6px 2px">
+    <h1 style="margin: 0; padding: 2px 5px; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; color: #ffffff">Beta launch</h1>
+    <span style="flex: none; font-size: 11.5px; color: #a3a3a3; font-variant-numeric: tabular-nums">9 cards · 41 tasks</span>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 10px">
+      <span style="display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 13px; background: #1a1a1a; border-radius: 999px; color: #a3a3a3; font-size: 11.5px; font-weight: 500">Status
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+      </span>
+      <!-- the same switch the calendar grew, so one board speaks one language -->
+      <div style="display: flex; align-items: center; gap: 2px">
+        <span class="pill on">Cards</span>
+        <span class="pill">Tasks</span>
+      </div>
+      <span style="width: 1px; height: 18px; background: rgba(255,255,255,0.10)"></span>
+      <div style="display: flex; align-items: center; gap: 2px">
+        <span class="pill on">Board</span>
+        <span class="pill">Calendar</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: stretch; gap: 8px">
+
+    <!-- ========================================================= lane 1 === -->
+    <div class="lane">
+      <div class="laneHead">
+        <span style="flex: none; width: 8px; height: 8px; border-radius: 50%; background: #ff5040"></span>
+        <h2 class="laneTitle">In Progress</h2>
+        <span class="laneCount">3</span>
+        <span style="display: grid; place-items: center; width: 22px; height: 22px; border-radius: 8px; color: #a3a3a3"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></span>
+      </div>
+
+      <!-- NEW: the lane's task roll-up. A column of cards is a column of work,
+           and until now the header only counted the containers. -->
+      <div style="display: flex; align-items: center; gap: 9px; flex: none; padding: 0 16px 12px">
+        <span style="position: relative; flex: 1 1 auto; height: 4px; min-width: 0; border-radius: 999px; background: rgba(255,80,64,0.16); overflow: hidden">
+          <span style="display: block; width: 42%; height: 100%; border-radius: 999px; background: #5ac875"></span>
+        </span>
+        <span style="flex: none; font-size: 11.2px; font-weight: 500; color: #a3a3a3; font-variant-numeric: tabular-nums">8/19 tasks</span>
+        <span style="flex: none; display: inline-flex; align-items: center; gap: 3px; font-size: 11.2px; font-weight: 600; color: #f5430b">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9L2.5 17.5A2 2 0 004.2 20.5h15.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"></path></svg>2
+        </span>
+      </div>
+
+      <div class="laneBody">
+
+        <div class="card">
+          <div class="cardBody">
+            <div class="head">
+              <span class="tile" style="background: color-mix(in srgb, #c3ff33 15%, transparent); color: #c3ff33"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><path d="M12 4v16"></path></svg></span>
+              <h3 class="title">Design-system audit</h3>
+            </div>
+            <p class="snippet">Six tiers of migration drift found on 17 July. Tiers 1–2 landed; the rest is open.</p>
+
+            <ul class="checklist">
+              <li class="check done"><span class="box"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"></path></svg></span><span class="t">Tier 1 — picker labels</span><span class="when">5 Aug</span></li>
+              <li class="check done"><span class="box"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"></path></svg></span><span class="t">Tier 2 — indigo gradients</span><span class="when">5 Aug</span></li>
+              <li class="check"><span class="box"></span><span class="t">Tier 3 — real toolbars</span><span class="when today">Today</span></li>
+              <li class="check sub"><span class="box"></span><span class="t">Toolbar button tokens</span><span class="when none">Set date</span></li>
+              <li class="check late"><span class="box"></span><span class="t">Tier 4 — NoteCard washes</span><span class="when late">27 Aug</span></li>
+            </ul>
+
+            <div style="display: flex; align-items: center; gap: 12px; padding-left: 36px">
+              <span style="flex: 1 1 auto; height: 4px; border-radius: 999px; background: rgba(255,80,64,0.16); overflow: hidden">
+                <span style="display: block; width: 33%; height: 100%; border-radius: 999px; background: #5ac875"></span>
+              </span>
+              <span style="flex: none; font-size: 12px; color: #a3a3a3; font-variant-numeric: tabular-nums">2/6</span>
+            </div>
+
+            <div class="meta">
+              <span class="chip" style="background: rgba(255,195,31,0.14); color: #ffc31f"><span style="width: 6px; height: 6px; border-radius: 50%; background: #ffc31f"></span>High</span>
+              <span class="chip" style="background: rgba(245,67,11,0.13); color: #f5430b">Overdue 2 Sep</span>
+              <span class="chip" style="background: rgba(163,163,163,0.13); color: #a3a3a3">design</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- a card mid-hover: the add-a-task row is the only thing hover reveals -->
+        <div class="card" style="background: color-mix(in srgb, #090909 82%, #121212); box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 1px 3px rgba(0,0,0,0.35)">
+          <div class="cardBody">
+            <div class="head">
+              <span class="tile" style="background: color-mix(in srgb, #f365c0 15%, transparent); color: #f365c0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 6-6"></path><rect x="3" y="4" width="18" height="16" rx="2"></rect></svg></span>
+              <h3 class="title">E2E Playwright suite</h3>
+            </div>
+
+            <ul class="checklist">
+              <li class="check done"><span class="box"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"></path></svg></span><span class="t">Tier 1 smoke</span><span class="when">18 Aug</span></li>
+              <li class="check"><span class="box"></span><span class="t">Fix 2 red specs</span><span class="when">12 Aug</span></li>
+              <li class="check"><span class="box"></span><span class="t">Assert store oracle for task moves</span><span class="when today">Today</span></li>
+              <li style="display: flex; align-items: center; gap: 8px; margin-top: 1px; padding: 3px 7px 3px 0; margin-left: -7px; border-radius: 8px; background: rgba(255,255,255,0.08)">
+                <span style="flex: none; display: grid; place-items: center; width: 13px; height: 13px; margin-left: 7px; color: #a3a3a3"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></span>
+                <span style="font-size: 13px; line-height: 1.45; color: #a3a3a3">Add a task</span>
+              </li>
+            </ul>
+
+            <div style="display: flex; align-items: center; gap: 12px; padding-left: 36px">
+              <span style="flex: 1 1 auto; height: 4px; border-radius: 999px; background: rgba(255,80,64,0.16); overflow: hidden">
+                <span style="display: block; width: 44%; height: 100%; border-radius: 999px; background: #5ac875"></span>
+              </span>
+              <span style="flex: none; font-size: 12px; color: #a3a3a3; font-variant-numeric: tabular-nums">4/9</span>
+            </div>
+
+            <div class="meta">
+              <span class="chip" style="background: rgba(255,80,64,0.14); color: #ff5040"><span style="width: 6px; height: 6px; border-radius: 50%; background: #ff5040"></span>Medium</span>
+              <span class="chip" style="background: rgba(163,163,163,0.13); color: #a3a3a3">12 Aug</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ========================================================= lane 2 === -->
+    <div class="lane">
+      <div class="laneHead">
+        <span style="flex: none; width: 8px; height: 8px; border-radius: 50%; background: #ffa9e2"></span>
+        <h2 class="laneTitle">In Review</h2>
+        <span class="laneCount">2</span>
+        <span style="display: grid; place-items: center; width: 22px; height: 22px; border-radius: 8px; color: #a3a3a3"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 9px; flex: none; padding: 0 16px 12px">
+        <span style="position: relative; flex: 1 1 auto; height: 4px; min-width: 0; border-radius: 999px; background: rgba(255,80,64,0.16); overflow: hidden">
+          <span style="display: block; width: 20%; height: 100%; border-radius: 999px; background: #5ac875"></span>
+        </span>
+        <span style="flex: none; font-size: 11.2px; font-weight: 500; color: #a3a3a3; font-variant-numeric: tabular-nums">1/5 tasks</span>
+      </div>
+
+      <div class="laneBody">
+        <div class="card">
+          <div class="cardBody">
+            <div class="head">
+              <span class="tile" style="background: color-mix(in srgb, #5ac875 15%, transparent); color: #5ac875"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M9 4v16M15 4v16"></path></svg></span>
+              <h3 class="title">Kanban calendar</h3>
+            </div>
+            <p class="snippet">Task-level scheduling on the month grid, plus the day sheet.</p>
+
+            <ul class="checklist">
+              <li class="check done"><span class="box"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"></path></svg></span><span class="t">Day-cell drop target</span><span class="when">10 Aug</span></li>
+              <li class="check"><span class="box"></span><span class="t">Granularity switch</span><span class="when today">Today</span></li>
+              <li class="check"><span class="box"></span><span class="t">Task chips on the grid</span><span class="when today">Today</span></li>
+              <li class="check sub"><span class="box"></span><span class="t">Overdue and done states</span><span class="when none">Set date</span></li>
+              <li class="check"><span class="box"></span><span class="t">Green the calendar spec</span><span class="when">4 Sep</span></li>
+            </ul>
+
+            <div style="display: flex; align-items: center; gap: 12px; padding-left: 36px">
+              <span style="flex: 1 1 auto; height: 4px; border-radius: 999px; background: rgba(255,80,64,0.16); overflow: hidden">
+                <span style="display: block; width: 20%; height: 100%; border-radius: 999px; background: #5ac875"></span>
+              </span>
+              <span style="flex: none; font-size: 12px; color: #a3a3a3; font-variant-numeric: tabular-nums">1/5</span>
+            </div>
+
+            <div class="meta">
+              <span class="chip" style="background: rgba(163,163,163,0.13); color: #a3a3a3">10–29 Aug</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="cardBody">
+            <div class="head">
+              <span class="tile" style="background: rgba(255,255,255,0.08); color: #a3a3a3"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14v14H5z"></path></svg></span>
+              <h3 class="title">Asset store &amp; files</h3>
+            </div>
+            <div class="meta" style="padding-top: 2px">
+              <span class="chip" style="background: rgba(90,200,117,0.14); color: #5ac875">All 7 done</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================= lane 3 === -->
+    <div class="lane">
+      <div class="laneHead">
+        <span style="flex: none; width: 8px; height: 8px; border-radius: 50%; background: #5ac875"></span>
+        <h2 class="laneTitle">Done</h2>
+        <span class="laneCount">4</span>
+        <span style="display: grid; place-items: center; width: 22px; height: 22px; border-radius: 8px; color: #a3a3a3"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></span>
+      </div>
+
+      <!-- A finished lane says so once, and stops drawing a meter at 100%. -->
+      <div style="display: flex; align-items: center; gap: 9px; flex: none; padding: 0 16px 12px">
+        <span style="flex: none; display: inline-flex; align-items: center; gap: 5px; font-size: 11.2px; font-weight: 500; color: #5ac875">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"></path></svg>
+          All 17 tasks done
+        </span>
+      </div>
+
+      <div class="laneBody">
+        <div class="card">
+          <div class="cardBody">
+            <div class="head">
+              <span class="tile" style="background: color-mix(in srgb, #5ac875 15%, transparent); color: #5ac875"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"></path></svg></span>
+              <h3 class="title">Solar icon system</h3>
+            </div>
+            <div class="meta" style="padding-top: 2px">
+              <span class="chip" style="background: rgba(90,200,117,0.14); color: #5ac875">All 6 done</span>
+              <span class="chip" style="background: rgba(163,163,163,0.13); color: #a3a3a3">18 Aug</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="cardBody">
+            <div class="head">
+              <span class="tile" style="background: rgba(255,255,255,0.08); color: #a3a3a3"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h10"></path></svg></span>
+              <h3 class="title">Card date storage</h3>
+            </div>
+            <div class="meta" style="padding-top: 2px">
+              <span class="chip" style="background: rgba(90,200,117,0.14); color: #5ac875">All 4 done</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

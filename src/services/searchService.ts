@@ -7,6 +7,7 @@
 // error on the free tier even while ordinary AI calls on the same key succeed.
 // ============================================================
 import { supabase, isSupabaseConfigured } from './supabase/client';
+import type { GroundingSpan } from '../features/ai/aiCitations';
 
 export interface GroundingCitation {
     title: string;
@@ -18,6 +19,13 @@ export interface GroundedAnswer {
     text: string;
     /** Pages the answer leaned on, in citation order. */
     citations: GroundingCitation[];
+    /**
+     * Which spans of the answer each citation supports — the mapping that makes
+     * inline `[1]` markers possible instead of a list stapled to the bottom
+     * (ai-Plan.md §2.3 C1). Offsets are UTF-8 BYTES; `insertWebCitations`
+     * converts. Empty when the model returned no support mapping.
+     */
+    supports: GroundingSpan[];
     /** The searches Gemini chose to run. */
     queries: string[];
 }
@@ -63,13 +71,7 @@ export async function groundedAsk(
     return {
         text: typeof data.text === 'string' ? data.text : '',
         citations: Array.isArray(data.citations) ? data.citations : [],
+        supports: Array.isArray(data.supports) ? data.supports : [],
         queries: Array.isArray(data.queries) ? data.queries : [],
     };
-}
-
-/** Render citations as a markdown Sources list appended to the answer. */
-export function citationsAsMarkdown(citations: GroundingCitation[]): string {
-    if (citations.length === 0) return '';
-    const lines = citations.map((c, i) => `${i + 1}. [${c.title || c.source}](${c.url})`);
-    return `\n\n---\n\n**Sources**\n\n${lines.join('\n')}`;
 }

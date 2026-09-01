@@ -70,12 +70,12 @@
 }
 
 .crystal:nth-child(4) {
-  background: linear-gradient(45deg, #f74b12, var(--accent, #ff5e2b));
+  background: var(--accent, #ff5040);
   animation-delay: 0.9s;
 }
 
 .crystal:nth-child(5) {
-  background: linear-gradient(45deg, var(--accent, #ff5e2b), #ff8359);
+  background: var(--accent, #ff5040);
   animation-delay: 1.2s;
 }
 

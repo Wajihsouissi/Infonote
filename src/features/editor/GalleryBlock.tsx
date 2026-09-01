@@ -6,7 +6,7 @@ import {
 import { createPortal } from 'react-dom';
 import { v4 as uuidv4 } from 'uuid';
 import type { Block, BlockMetadata } from './types';
-import { readMediaFile } from './mediaTypes';
+import { ingestFiles, AssetImage, AssetVideo } from '../../services/assets';
 import { canThumbnail, displaySrc, makeThumbnail } from './mediaThumbnail';
 import {
     cellSizeForHeight, claimGalleryItem, clampTileRatio, columnsForWidth, dealMasonry,
@@ -21,6 +21,7 @@ import { endBlockDrag } from './blockDragLock';
 import { useTileFlip } from './useTileFlip';
 import { MediaLightbox } from '../ui/MediaLightbox';
 import styles from './GalleryBlock.module.css';
+import { Tabs, type TabItem } from '../../components/ui/Tabs';
 
 interface GalleryBlockProps {
     block: Block;
@@ -119,6 +120,14 @@ const LAYOUTS: { id: GalleryLayout; label: string; icon: typeof LayoutGrid }[] =
     { id: 'masonry', label: 'Masonry — natural heights', icon: Rows3 },
     { id: 'scatter', label: 'Collage — pinned, tilted, overlapping', icon: Layers },
 ];
+
+/* The same four layouts as tab items. The label doubles as the tooltip and
+   the accessible name, since these tabs are glyphs only. */
+const LAYOUT_TABS: TabItem<GalleryLayout>[] = LAYOUTS.map(({ id, label, icon: Icon }) => ({
+    id,
+    ariaLabel: label,
+    icon: <Icon size={15} />,
+}));
 
 const LAYOUT_CLASS: Record<GalleryLayout, string> = {
     bento: styles.layoutBento,
@@ -252,25 +261,17 @@ export const GalleryBlock = memo(function GalleryBlock({
         const list = Array.from(files);
         if (list.length === 0) return;
         setError(null);
-        const added: Block[] = [];
-        const failures: string[] = [];
-        // Read every file before writing once — a per-file commit would make each
-        // read race the previous state and silently drop all but the last.
-        for (const file of list) {
-            try {
-                const { url, type } = await readMediaFile(file);
-                added.push({
-                    id: uuidv4(),
-                    type,
-                    content: url,
-                    metadata: { name: file.name, size: file.size, type: file.type },
-                });
-            } catch (e) {
-                failures.push(e instanceof Error ? e.message : `Could not read ${file.name}.`);
-            }
-        }
+        // Store every file before writing once — a per-file commit would make
+        // each read race the previous state and silently drop all but the last.
+        const { files: stored, errors } = await ingestFiles(list);
+        const added: Block[] = stored.map((f) => ({
+            id: uuidv4(),
+            type: f.type,
+            content: f.ref,
+            metadata: f.metadata,
+        }));
         if (added.length) setItems([...getGalleryItems(block), ...added]);
-        if (failures.length) setError(failures[0]);
+        if (errors.length) setError(errors[0]);
     }, [block, setItems]);
 
     /**
@@ -1538,22 +1539,19 @@ export const GalleryBlock = memo(function GalleryBlock({
                    the display toggles, then the things that aren't editing at
                    all, then the single primary action. */
                 <div className={styles.panel} onMouseDown={(e) => e.stopPropagation()}>
-                    <div className={styles.segmented} role="radiogroup" aria-label="Board layout">
-                        {LAYOUTS.map(({ id, label, icon: Icon }) => (
-                            <button
-                                key={id}
-                                type="button"
-                                className={`${styles.segBtn} ${layout === id ? styles.segActive : ''} nodrag`}
-                                title={label}
-                                aria-label={label}
-                                role="radio"
-                                aria-checked={layout === id}
-                                onClick={() => commit({ galleryLayout: id })}
-                            >
-                                <Icon size={15} />
-                            </button>
-                        ))}
-                    </div>
+                    {/* `nodrag` on the strip rather than each tab — React Flow
+                        looks for the nearest such ancestor, so one is enough
+                        to stop a click here from dragging the node. */}
+                    <Tabs
+                        className="nodrag"
+                        items={LAYOUT_TABS}
+                        value={layout}
+                        onChange={(id) => commit({ galleryLayout: id })}
+                        iconOnly
+                        radius="control"
+                        semantics="radio"
+                        aria-label="Board layout"
+                    />
 
                     <span className={styles.panelDivider} />
 
@@ -1850,7 +1848,7 @@ const TileMedia = ({ item, onRatio, focal }: {
     if (item.type === 'video') {
         return (
             <>
-                <video
+                <AssetVideo
                     className={styles.tileMedia}
                     src={item.content}
                     preload="metadata"
@@ -1867,7 +1865,7 @@ const TileMedia = ({ item, onRatio, focal }: {
     }
     if (item.type === 'image') {
         return (
-            <img
+            <AssetImage
                 className={styles.tileMedia}
                 /* The thumbnail when there is one. The original is still what
                    the lightbox opens — this is only what the tile paints. */

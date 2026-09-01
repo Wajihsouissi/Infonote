@@ -1,0 +1,64 @@
+/* Context stays inside the composer, immediately above the text it qualifies. */
+
+.chips {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    min-height: 26px;
+    padding: 3px 5px 3px 8px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--hover-wash);
+    color: var(--text-main);
+    font-size: 0.69rem;
+    font-weight: 600;
+}
+
+/* A translucent neutral wash rather than a fixed surface: it lifts off the
+   composer in both themes from ONE rule, where --bg-raised would come out white
+   on white in Paper. This used to be a pair of hand-picked olive-grey palettes
+   (a dark set plus a [data-theme='light'] override) belonging to no ramp in the
+   design system. */
+.chipCanvas,
+.chipCard,
+.chipSelection,
+.chipWeb {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.chip svg {
+    flex-shrink: 0;
+}
+
+.remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: inherit;
+    opacity: 0.62;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: opacity var(--transition-fast), background var(--transition-fast);
+}
+
+.remove:hover,
+.remove:focus-visible {
+    opacity: 1;
+    background: var(--hover-wash);
+}

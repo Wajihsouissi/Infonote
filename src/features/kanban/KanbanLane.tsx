@@ -12,11 +12,13 @@
  * which drag you got would come down to event order.
  */
 
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Trash2, GripVertical } from '../../components/icons';
+import { AlertTriangle, Check, Plus, Trash2, GripVertical } from '../../components/icons';
 
+import { cardTasks } from '../card/cardTasks';
+import { dayKeyOf, todayKey } from '../../utils/cardDate';
 import { useStore } from '../../store/useStore';
 import { KanbanCard } from './KanbanCard';
 import { KanbanBlockPreview } from './KanbanBlockPreview';
@@ -177,6 +179,37 @@ export const KanbanLane = memo(({
         if (next !== column.label) onRename(column.value, next);
     };
 
+    /**
+     * Every task in this lane, counted once.
+     *
+     * Read through `cardTasks` like everything else, so a lane can never
+     * disagree with the cards in it about how many tasks there are — that is
+     * the whole reason that module exists. Blocks and fused notes contribute
+     * nothing: they carry no tasks, and counting them as zero-of-zero would
+     * make a lane of blocks claim to be finished.
+     */
+    const rollup = useMemo(() => {
+        const today = todayKey();
+        let done = 0;
+        let total = 0;
+        let late = 0;
+
+        for (const card of cards) {
+            if (card.type !== 'note') continue;
+            for (const task of cardTasks(card.data)) {
+                total++;
+                if (task.completed) {
+                    done++;
+                    continue;
+                }
+                const due = dayKeyOf(task.dueDate);
+                if (due !== null && due < today) late++;
+            }
+        }
+
+        return total === 0 ? null : { done, total, late };
+    }, [cards]);
+
     return (
         <section
             ref={setNodeRef}
@@ -301,6 +334,44 @@ export const KanbanLane = memo(({
                     </button>
                 )}
             </header>
+
+            {/* The lane's work, as opposed to its containers.
+                A column of cards IS a column of tasks, and until now the header
+                only ever counted the boxes they came in — "3" told you nothing
+                about whether this lane was nearly done or barely started. Drawn
+                only when the lane holds tasks, so a board of plain cards keeps
+                exactly the header it had. */}
+            {rollup && (
+                <div className={styles.laneTasks}>
+                    {rollup.done === rollup.total ? (
+                        <span className={styles.laneTasksDone}>
+                            <Check size={12} strokeWidth={2.4} />
+                            All {rollup.total} {rollup.total === 1 ? 'task' : 'tasks'} done
+                        </span>
+                    ) : (
+                        <>
+                            <span className={styles.laneTasksTrack}>
+                                <span
+                                    className={styles.laneTasksFill}
+                                    style={{ width: `${Math.round((rollup.done / rollup.total) * 100)}%` }}
+                                />
+                            </span>
+                            <span className={styles.laneTasksValue}>
+                                {rollup.done}/{rollup.total} tasks
+                            </span>
+                            {rollup.late > 0 && (
+                                <span
+                                    className={styles.laneTasksLate}
+                                    title={`${rollup.late} overdue in this column`}
+                                >
+                                    <AlertTriangle size={11} />
+                                    {rollup.late}
+                                </span>
+                            )}
+                        </>
+                    )}
+                </div>
+            )}
 
             <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
                 <div className={styles.laneBody}>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import { FEATURES } from '../../config/featureFlags';
-import { StickyNote, Layers, KanbanSquare } from '../../components/icons';
+import { StickyNote, Layers, KanbanSquare, Video } from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import { v4 as uuidv4 } from 'uuid';
 import { MENU_ITEMS } from '../editor/menuConstants';
@@ -10,6 +10,7 @@ import { createGalleryMetadata, GALLERY_NODE_WIDTH } from '../editor/galleryType
 import styles from './CanvasSlashMenu.module.css';
 import { findNonOverlappingPosition } from '../../utils/findNonOverlappingPosition';
 import { MIN_EXPANDED_SIZE } from '../../config/layout';
+import { createYouTubeStudyData } from '../youtube';
 
 interface SlashMenuItem {
     id: string;
@@ -33,7 +34,6 @@ export function CanvasSlashMenu() {
 
     const { screenToFlowPosition, getViewport } = useReactFlow();
     const addNode = useStore(s => s.addNode);
-    const nodes = useStore(s => s.nodes);
     const centerPanelId = useStore(s => s.centerPanelId);
     const fullscreenId = useStore(s => s.fullscreenId);
     const currentParentId = useStore(s => s.currentParentId);
@@ -77,6 +77,20 @@ export function CanvasSlashMenu() {
                 action: (pos) => {
                     addNode('kanban', pos, undefined, undefined, currentParentId || undefined);
                 }
+            });
+        }
+
+        if (FEATURES.youtubeStudy) {
+            containers.push({
+                id: 'youtube',
+                label: 'YouTube video',
+                description: 'Study a video with transcript, notes, and clips',
+                icon: Video,
+                keywords: ['youtube', 'video', 'transcript', 'study', 'clip'],
+                category: 'Canvas',
+                action: (pos) => {
+                    addNode('youtube', pos, createYouTubeStudyData(), { width: 360, height: 304 }, currentParentId || undefined);
+                },
             });
         }
 
@@ -233,10 +247,10 @@ export function CanvasSlashMenu() {
         const { x, y, zoom } = getViewport();
         const vp = { x, y, zoom, screenW: window.innerWidth, screenH: window.innerHeight };
         const size = { width: 432, height: 100 };
-        const position = findNonOverlappingPosition(rawPos, size, nodes, currentParentId, vp);
+        const position = findNonOverlappingPosition(rawPos, size, useStore.getState().nodes, currentParentId, vp);
         item.action(position);
         setIsOpen(false);
-    }, [menuPosition, screenToFlowPosition, getViewport, nodes, currentParentId]);
+    }, [menuPosition, screenToFlowPosition, getViewport, currentParentId]);
 
     const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
         switch (e.key) {

@@ -6,7 +6,7 @@ import { defineConfig, loadEnv, type Plugin } from 'vite'
 // OpenAI-compatible endpoint. Defaults to Google's Gemini compatibility layer;
 // override with AI_GATEWAY_BASE_URL to use Vercel's gateway or anything else
 // that speaks /chat/completions. Keep in step with api/_lib/aiGuard.js.
-const DEFAULT_AI_GATEWAY_BASE_URL = 'https://openrouter.ai/api/v1'
+const DEFAULT_AI_GATEWAY_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai'
 const NOTION_API_BASE_URL = 'https://api.notion.com/v1'
 const DEFAULT_NOTION_VERSION = '2022-06-28'
 const MAX_EMAIL_LENGTH = 254
@@ -20,9 +20,19 @@ type JsonBody = Record<string, unknown>
 type DevAiHandler = (req: IncomingMessage, res: ServerResponse) => Promise<void>
 
 function getGatewayKey(): string {
-  const key = getEnvValue('AI_GATEWAY_API_KEY', 'VITE_AI_GATEWAY_API_KEY', 'GEMINI_API_KEY')
+  const usingGemini = getGatewayBaseUrl().includes('generativelanguage.googleapis.com')
+  // Keep this provider-aware order in step with api/_lib/aiGuard.js. Local
+  // development used to prefer an old OpenRouter key even after the base URL
+  // had changed to Gemini, which Gemini correctly rejected as invalid.
+  const genericGatewayKey = getEnvValue('AI_GATEWAY_API_KEY', 'VITE_AI_GATEWAY_API_KEY')
+  const geminiKey = getEnvValue('GEMINI_API_KEY', 'GOOGLE_API_KEY')
+  const key = usingGemini
+    ? geminiKey || (/^sk-or-/i.test(genericGatewayKey) ? '' : genericGatewayKey)
+    : genericGatewayKey || geminiKey
   if (!key || key.trim() === '') {
-    throw new Error('AI is not configured. Add AI_GATEWAY_API_KEY to your local .env or Vercel Project Settings.')
+    throw new Error(usingGemini
+      ? 'Gemini is not configured. Add a valid GEMINI_API_KEY; an OpenRouter key cannot be used with Gemini.'
+      : 'AI is not configured. Add AI_GATEWAY_API_KEY to your local .env or Vercel Project Settings.')
   }
   return key.trim()
 }
@@ -102,7 +112,20 @@ function checkInviteRateLimit(key: string): number | null {
 
 // ── AI route guard (mirrors api/_lib/aiGuard.js so dev === prod behavior) ──
 const AI_RATE_LIMIT_WINDOW_MS = 60_000
-const AI_RATE_LIMITS: Record<'text' | 'image', number> = { text: 30, image: 10 }
+/* Must stay in step with RATE_LIMITS in api/_lib/aiGuard.js, including the
+   phase buckets: a Create turn is a plan call plus one body call per artifact
+   plus a verify call, so a flat `text: 30` here would 429 after about three
+   Smart turns in development while production allowed them. The two ends of
+   this pair have drifted before, and the failure is always silent. */
+const AI_RATE_LIMITS: Record<string, number> = {
+  text: 30,
+  plan: 12,
+  body: 90,
+  verify: 12,
+  image: 10,
+}
+const AI_TOTAL_TEXT_LIMIT = 120
+const AI_PHASE_BUCKETS = new Set(['plan', 'body', 'verify'])
 const aiRateLimits = new Map<string, { count: number; resetAt: number }>()
 
 type AiAccessResult =
@@ -116,6 +139,7 @@ const DEFAULT_TEXT_MODEL_ALLOWLIST = [
   'gemini-3.5-flash',
   'gemini-3.5-flash-lite',
 ]
+const AI_GATEWAY_TIMEOUT_MS = 40_000
 
 function textModelAllowlist(): string[] {
   const configured = getEnvValue('AI_GATEWAY_TEXT_MODELS')
@@ -128,9 +152,9 @@ function textModelAllowlist(): string[] {
 
 function getServerAiModel(kind: 'text' | 'image', requested?: string): string {
   if (kind === 'image') {
-    return getEnvValue('AI_GATEWAY_IMAGE_MODEL', 'VITE_AI_GATEWAY_IMAGE_MODEL') || 'bytedance-seed/seedream-5-0-pro'
+    return getEnvValue('AI_GATEWAY_IMAGE_MODEL', 'VITE_AI_GATEWAY_IMAGE_MODEL') || 'gemini-3.1-flash-image'
   }
-  const fallback = getEnvValue('AI_GATEWAY_TEXT_MODEL', 'VITE_AI_GATEWAY_TEXT_MODEL') || 'openrouter/auto'
+  const fallback = getEnvValue('AI_GATEWAY_TEXT_MODEL', 'VITE_AI_GATEWAY_TEXT_MODEL') || 'gemini-3.7-flash'
   if (!requested?.trim()) return fallback
   return textModelAllowlist().includes(requested.trim()) ? requested.trim() : fallback
 }
@@ -155,20 +179,53 @@ async function requireDevAiAccess(req: IncomingMessage, kind: 'text' | 'image'):
     return { ok: false, status: 401, message: 'Your session expired. Sign in again to use AI features.' }
   }
 
-  const limitKey = `${data.user.id}:${kind}`
   const now = Date.now()
-  const current = aiRateLimits.get(limitKey)
-  if (!current || now >= current.resetAt) {
-    aiRateLimits.set(limitKey, { count: 1, resetAt: now + AI_RATE_LIMIT_WINDOW_MS })
-  } else {
+  const userId = data.user.id
+
+  const hit = (bucketKey: string, limit: number): number => {
+    const current = aiRateLimits.get(bucketKey)
+    if (!current || now >= current.resetAt) {
+      aiRateLimits.set(bucketKey, { count: 1, resetAt: now + AI_RATE_LIMIT_WINDOW_MS })
+      // A bucket of 0 means disabled, including its first request — matches
+      // hitBucket in api/_lib/aiGuard.js.
+      return limit >= 1 ? 0 : Math.ceil(AI_RATE_LIMIT_WINDOW_MS / 1000)
+    }
     current.count += 1
-    if (current.count > AI_RATE_LIMITS[kind]) {
-      const retryAfter = Math.max(1, Math.ceil((current.resetAt - now) / 1000))
-      return { ok: false, status: 429, message: `Too many AI requests. Try again in ${retryAfter} seconds.`, retryAfter }
+    if (current.count > limit) return Math.max(1, Math.ceil((current.resetAt - now) / 1000))
+    return 0
+  }
+
+  if (kind === 'image') {
+    const retryAfter = hit(`${userId}:image`, AI_RATE_LIMITS.image)
+    if (retryAfter) {
+      return { ok: false, status: 429, message: `Too many image requests. Try again in ${retryAfter} seconds.`, retryAfter }
+    }
+    return { ok: true, userId }
+  }
+
+  // Phase rides on a header so this runs before the body is parsed; an absent
+  // or unrecognised value falls back to the strictest bucket.
+  const claimed = String(req.headers['x-ai-phase'] ?? '').toLowerCase()
+  const bucket = AI_PHASE_BUCKETS.has(claimed) ? claimed : 'text'
+
+  const totalRetry = hit(`${userId}:total`, AI_TOTAL_TEXT_LIMIT)
+  if (totalRetry) {
+    return { ok: false, status: 429, message: `You have hit this minute's AI limit. Try again in ${totalRetry} seconds.`, retryAfter: totalRetry }
+  }
+
+  const retryAfter = hit(`${userId}:${bucket}`, AI_RATE_LIMITS[bucket])
+  if (retryAfter) {
+    return {
+      ok: false,
+      status: 429,
+      message: bucket === 'body'
+        ? `That turn needed more writing than one minute allows. What was already made is on your canvas — try again in ${retryAfter} seconds, or lower the effort.`
+        : `Too many AI requests. Try again in ${retryAfter} seconds.`,
+      retryAfter,
     }
   }
 
-  return { ok: true, userId: data.user.id }
+  return { ok: true, userId }
 }
 
 async function guardDevAiRoute(req: IncomingMessage, res: ServerResponse, kind: 'text' | 'image'): Promise<boolean> {
@@ -246,11 +303,40 @@ function firstChoiceMessage(data: unknown): Record<string, unknown> | null {
   return recordValue(choice, 'message')
 }
 
+/** Keep development text extraction aligned with api/ai/text.js. */
+function visibleGatewayText(value: unknown, depth = 0): string {
+  if (depth > 4 || value == null) return ''
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) return value.map((part) => visibleGatewayText(part, depth + 1)).join('')
+  if (!isRecord(value)) return ''
+
+  const text = value.text
+  if (typeof text === 'string') return text
+  if (text && typeof text === 'object') return visibleGatewayText(text, depth + 1)
+  if (typeof value.value === 'string') return value.value
+  const content = value.content
+  if (typeof content === 'string' || Array.isArray(content) || (content && typeof content === 'object')) return visibleGatewayText(content, depth + 1)
+  if (Array.isArray(value.parts)) return visibleGatewayText(value.parts, depth + 1)
+  if (value.delta && typeof value.delta === 'object') return visibleGatewayText(value.delta, depth + 1)
+  if (typeof value.output_text === 'string') return value.output_text
+  return ''
+}
+
 function extractTextContent(data: unknown): string {
-  const content = firstChoiceMessage(data)?.content
-  if (typeof content === 'string') return content
-  if (Array.isArray(content)) {
-    return content.map((part) => stringValue(part, 'text')).join('')
+  const choice = arrayValue(data, 'choices').find(isRecord)
+  const message = recordValue(choice, 'message')
+  const candidates = [
+    message?.content,
+    message?.output_text,
+    choice?.text,
+    isRecord(data) ? data.output_text : undefined,
+    isRecord(data) ? data.text : undefined,
+    isRecord(data) ? data.output : undefined,
+    recordValue(arrayValue(data, 'candidates').find(isRecord), 'content')?.parts,
+  ]
+  for (const candidate of candidates) {
+    const output = visibleGatewayText(candidate).trim()
+    if (output) return output
   }
   return ''
 }
@@ -336,6 +422,7 @@ async function callGateway(path: string, payload: JsonBody): Promise<unknown> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(AI_GATEWAY_TIMEOUT_MS),
   })
 
   const text = await response.text()
@@ -821,6 +908,22 @@ function buildChatMessages(body: JsonBody, prompt: string): Array<{ role: string
   const messages: Array<{ role: string; content: ChatContent }> = []
   if (system) messages.push({ role: 'system', content: system })
 
+  /* Prior turns as real messages rather than folded into `prompt`
+     (ai-Plan.md §2.3 A2). Must stay in step with `buildMessages` in
+     api/_lib/aiGuard.js — including the 16-turn cap and the same validation:
+     these two have drifted before, and the failure mode is silent, working
+     locally and dropping the history in production. */
+  const history = body['history']
+  if (Array.isArray(history)) {
+    for (const turn of history.slice(-16)) {
+      if (!turn || typeof turn !== 'object') continue
+      const { role, content } = turn as { role?: unknown; content?: unknown }
+      if (role !== 'user' && role !== 'assistant') continue
+      if (typeof content !== 'string' || !content.trim()) continue
+      messages.push({ role, content })
+    }
+  }
+
   // Images ride as data URLs in the OpenAI `image_url` shape; text-only calls
   // keep plain-string content so nothing changes for models that never see one.
   const raw = body['images']
@@ -875,10 +978,11 @@ async function handleDevText(req: IncomingMessage, res: ServerResponse): Promise
   const output = extractTextContent(data)
 
   if (!output) {
-    sendError(res, 502, 'AI Gateway returned no text content.')
+    sendError(res, 502, 'The configured AI model produced an empty response. Choose a text-capable model and try again.')
     return
   }
 
+  res.setHeader('X-AI-Model', model)
   sendJson(res, 200, { text: output })
 }
 
@@ -951,6 +1055,7 @@ async function handleDevStream(req: IncomingMessage, res: ServerResponse): Promi
       max_tokens: getMaxTokens(body),
       stream: true,
     }),
+    signal: AbortSignal.timeout(AI_GATEWAY_TIMEOUT_MS),
   })
 
   if (!gatewayRes.ok || !gatewayRes.body) {
@@ -962,11 +1067,13 @@ async function handleDevStream(req: IncomingMessage, res: ServerResponse): Promi
   res.writeHead(200, {
     'Content-Type': 'text/plain; charset=utf-8',
     'Cache-Control': 'no-store',
+    'X-AI-Model': model,
   })
 
   const reader = gatewayRes.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
+  let finishReason: string | null = null
 
   while (true) {
     const { value, done } = await reader.read()
@@ -982,12 +1089,36 @@ async function handleDevStream(req: IncomingMessage, res: ServerResponse): Promi
       const payload = trimmed.slice(5).trim()
       if (!payload || payload === '[DONE]') continue
 
-      const parsed: unknown = JSON.parse(payload)
+      // One malformed frame is worth skipping, not throwing away an answer
+      // that was streaming fine until now. Matches api/ai/stream.js.
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(payload)
+      } catch {
+        continue
+      }
+
+      const reason = (parsed as { choices?: Array<{ finish_reason?: unknown }> })?.choices?.[0]?.finish_reason
+      if (typeof reason === 'string' && reason) finishReason = reason
+
       const text = extractStreamText(parsed)
       if (text) res.write(text)
     }
   }
 
+  /* Terminal trailer, so the client can tell "finished" from "hit the ceiling".
+     Keep the marker in step with STREAM_TRAILER_MARK in api/_lib/aiGuard.js.
+
+     Deliberately NOT a dynamic import of that module, tempting as it is for
+     avoiding drift: this runs after `res.writeHead`, so anything that throws
+     here can destroy the socket before the buffered answer flushes, and the
+     client sees an empty response for a request that actually succeeded. One
+     control character is worth duplicating to keep that impossible. */
+  try {
+    res.write(`\u001E${JSON.stringify({ finishReason })}`)
+  } catch {
+    // finishReason is simply unknown to the client; the answer stands.
+  }
   res.end()
 }
 
@@ -1018,7 +1149,7 @@ async function handleDevGrounded(req: IncomingMessage, res: ServerResponse): Pro
     return
   }
 
-  for (const name of ['AI_GATEWAY_API_KEY', 'GEMINI_API_KEY', 'AI_GROUNDING_MODEL', 'AI_GATEWAY_TEXT_MODEL']) {
+  for (const name of ['AI_GATEWAY_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'AI_GROUNDING_MODEL', 'AI_GATEWAY_TEXT_MODEL']) {
     if (!process.env[name]) {
       const fromEnvFile = getEnvValue(name)
       if (fromEnvFile) process.env[name] = fromEnvFile
@@ -1033,12 +1164,37 @@ async function handleDevGrounded(req: IncomingMessage, res: ServerResponse): Pro
   }) as unknown as JsonBody)
 }
 
+/** Run the exact production transcript route in dev so provider normalization,
+ * auth, polling, and sanitized errors cannot drift between environments. */
+async function handleDevYoutubeTranscript(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  for (const name of [
+    'SUPADATA_API_KEY',
+    'SUPABASE_URL',
+    'SUPABASE_ANON_KEY',
+    'SUPABASE_PUBLISHABLE_KEY',
+    'VITE_SUPABASE_URL',
+    'VITE_SUPABASE_ANON_KEY',
+    'VITE_SUPABASE_PUBLISHABLE_KEY',
+  ]) {
+    if (!process.env[name]) {
+      const fromEnvFile = getEnvValue(name)
+      if (fromEnvFile) process.env[name] = fromEnvFile
+    }
+  }
+  // The deployed API route is plain JavaScript by design; importing it here is
+  // the dev/prod parity bridge and it has no TypeScript declaration surface.
+  // @ts-expect-error JavaScript Vercel route intentionally has no .d.ts file.
+  const { default: handler } = await import('./api/youtube/transcript.js')
+  await handler(req, res)
+}
+
 function aiGatewayDevPlugin(): Plugin {
   const routes: Record<string, DevAiHandler> = {
     '/api/ai/text': handleDevText,
     '/api/ai/image': handleDevImage,
     '/api/ai/stream': handleDevStream,
     '/api/ai/grounded': handleDevGrounded,
+    '/api/youtube/transcript': handleDevYoutubeTranscript,
     '/api/notion/search': handleDevNotionSearch,
     '/api/notion/fetch': handleDevNotionFetch,
     '/api/workspace/invite': handleDevWorkspaceInvite,

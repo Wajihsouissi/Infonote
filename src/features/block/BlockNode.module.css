@@ -4,7 +4,7 @@
     align-items: stretch;
     justify-content: center;
     margin: 0 auto;
-    background: var(--bg-rail);
+    background: var(--node-bg);
     border: none;
     border-radius: var(--node-radius);
     padding: 0;
@@ -134,7 +134,7 @@
 
 .blockNode.mediaBlockNode {
     display: block;
-    background: var(--bg-rail);
+    background: var(--node-bg);
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     border: none !important;
@@ -165,7 +165,7 @@
     width: 208px !important;
     min-width: 208px !important;
     max-width: 208px !important;
-    background: var(--bg-rail) !important;
+    background: var(--node-bg) !important;
     border: none !important;
     box-shadow: var(--node-ring) !important;
 }
@@ -596,7 +596,7 @@
 
 .blockNode.mediaBlockNode.selected,
 .blockNode.mediaBlockNode.multiSelected {
-    background: var(--bg-rail);
+    background: var(--node-bg);
     box-shadow: none;
     outline: 2px solid var(--accent);
     outline-offset: 2px;
@@ -708,4 +708,168 @@
     opacity: 1;
     outline: none;
     box-shadow: var(--focus-ring);
+}
+
+/* ---------------------------------------------------------------------------
+   Files
+   ---------------------------------------------------------------------------
+   A closed file is the folder card's twin: no surface behind it, because the
+   artwork is already a finished object and a rectangle around it reads as a
+   second container. Hover and selection are staged on the art instead, exactly
+   as NoteCard.module.css does for `.card.folder`.
+*/
+.blockNode.fileCardNode {
+    background: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0;
+    min-width: 0;
+    min-height: 0;
+    overflow: visible;
+}
+
+/* The accent spine belongs to a card with a surface. Without one it is a stripe
+   floating above a sheet of paper. */
+.blockNode.fileCardNode::before {
+    display: none;
+}
+
+.blockNode.fileCardNode:hover {
+    background: none !important;
+    box-shadow: none !important;
+    transform: none;
+}
+
+.blockNode.fileCardNode:hover .content {
+    transform: translateY(-3px);
+    filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.22));
+}
+
+.blockNode.fileCardNode .content {
+    height: 100%;
+    transition: transform 0.18s var(--ease-rise), filter 0.18s var(--ease-rise);
+}
+
+.blockNode.fileCardNode.selected,
+.blockNode.fileCardNode.selected:hover,
+.blockNode.fileCardNode.multiSelected {
+    background: none !important;
+    box-shadow: var(--node-ring-selected) !important;
+    border-radius: var(--media-radius);
+}
+
+/* A recoloured file node pulls the sheet onto the card's accent, mixed toward
+   the kind hue rather than replacing it — the same restraint the folder card
+   shows with `--folder-ink`. */
+.blockNode.fileCardNode[style*="--node-accent-color"] .content {
+    --file-ink: color-mix(in srgb, var(--node-accent-color) 62%, var(--file-hue, var(--text-faint)));
+}
+
+/* An open file. FileViewer draws its own surface, ring and radius, so the node
+   gets out of the way entirely and just supplies the box. */
+.blockNode.fileOpenNode {
+    display: block;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0;
+    max-width: none;
+    height: 100% !important;
+    overflow: visible;
+}
+
+.blockNode.fileOpenNode::before {
+    display: none;
+}
+
+.blockNode.fileOpenNode:hover {
+    transform: none;
+}
+
+.blockNode.fileOpenNode .content {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: var(--media-radius);
+}
+
+.blockNode.fileOpenNode.selected .content,
+.blockNode.fileOpenNode.multiSelected .content {
+    box-shadow: var(--node-ring-selected);
+}
+
+/* The file node's hover bar. Same shape, same buttons and same place as
+   NoteCard's `.hoverMenu` — the counter-scale included, so it stays legible at
+   any canvas zoom instead of shrinking away with the card. */
+.fileMenu {
+    position: absolute;
+    top: -46px;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: max-content;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 40px;
+    padding: 4px 6px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    /* Percentage translates resolve against the unscaled box, so the counter
+       scale would walk the bar off the node. Auto margins stay correct. */
+    transform: translateY(10px);
+    scale: max(1, calc(1 / var(--rf-zoom, 1)));
+    transform-origin: bottom center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s var(--transition-smooth), transform 0.2s var(--transition-smooth);
+    z-index: 2000;
+}
+
+/* Bridges the gap between bar and node so travelling to it does not dismiss it. */
+.fileMenu::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    height: 20px;
+    background: transparent;
+}
+
+.blockNode.fileCardNode:hover .fileMenu,
+.blockNode.fileOpenNode:hover .fileMenu,
+.blockNode.fileCardNode.selected .fileMenu,
+.blockNode.fileOpenNode.selected .fileMenu {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.fileMenuBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-soft);
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.fileMenuBtn:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+    transform: scale(1.1);
+}
+
+.fileMenuDivider {
+    width: 1px;
+    height: 20px;
+    margin: 0 2px;
+    background: var(--line);
 }

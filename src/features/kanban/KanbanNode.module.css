@@ -313,6 +313,24 @@
     background: var(--text-soft);
 }
 
+/* The board's view switcher and the calendar's Day|Week|Month|Year control are
+   both the shared Tabs component now, in its `light` variant — no track, no
+   border, the accent tint on the cursor carrying all the signal.
+
+   That variant is what these two need: they sit on different grounds, and a
+   filled track that separated from one would disappear into the other. Paper
+   also renders `--bg-card` and `--bg-raised` at the same white, so a
+   selected-vs-unselected difference built on the ramp alone would be invisible
+   there — the tint survives both themes.
+
+   All that is left here is the slot the strip sits in. The calendar imports
+   this stylesheet to share it, as KanbanLane already does. */
+.viewToggle {
+    display: flex;
+    align-items: center;
+    flex: none;
+}
+
 .groupBy {
     display: flex;
     align-items: center;
@@ -380,9 +398,13 @@
 
 /* With no board surface left to put a ring on, selection reads as a frame drawn
    clear of the columns — an outline rather than a fill, so a selected board is
-   still only its columns. */
+   still only its columns. The calendar is the same shape at the same radius, so
+   it takes the same frame: switching views must not change what "selected"
+   looks like. */
 .selected .lanes,
-.dragging .lanes {
+.dragging .lanes,
+.selected > [data-kanban-board],
+.dragging > [data-kanban-board] {
     outline: 2px solid var(--accent);
     outline-offset: 7px;
     /* Offset outward from the lanes, so it needs the lane's own radius plus the
@@ -619,6 +641,73 @@
 .laneTitleInput:focus {
     background: var(--input-bg);
     border-color: var(--accent);
+}
+
+/* The lane's task roll-up.
+   ---------------------------------------------------------------------------
+   Sits between the header and the cards, indented to the header's text so the
+   lane still hangs off one left edge. Deliberately not inside `.laneHead`: the
+   header is a row of controls you can click, and this is a readout — putting it
+   there would have made the meter look pressable.
+
+   The track borrows `--active-wash` and the fill `--ok`, exactly as the card's
+   own progress bar does, so a lane and the cards inside it are measuring in the
+   same units and drawn in the same colours. */
+.laneTasks {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex: none;
+    padding: 0 16px 12px;
+}
+
+.laneTasksTrack {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--active-wash);
+    overflow: hidden;
+}
+
+.laneTasksFill {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background: var(--ok);
+    transition: width var(--transition-smooth);
+}
+
+.laneTasksValue {
+    flex: none;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+}
+
+.laneTasksLate {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--danger);
+    font-variant-numeric: tabular-nums;
+}
+
+/* A finished lane says so once and stops drawing a meter pinned at 100% — a
+   full bar is a thing you have to read before you can tell it is full. */
+.laneTasksDone {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--ok);
 }
 
 .laneCount {

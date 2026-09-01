@@ -1,5 +1,4 @@
 import { SearchResults } from './SearchResults';
-import { FEATURES } from '../../config/featureFlags';
 import {
     Plus,
     LayoutGrid,
@@ -37,19 +36,34 @@ import { MultiSelectionToolbar } from './MultiSelectionToolbar';
 import { EdgeEditingToolbar } from './EdgeEditingToolbar';
 import { TEMPLATES } from '../templates/templateDefinitions';
 import { TemplatePreviewModal } from '../templates/TemplatePreviewModal';
+import { FloatingActionButton } from '../../components/ui/Button';
+
+/* Selection is intentionally isolated from BottomMenu. The menu is a large
+   command surface; subscribing it to selection made every click reconcile the
+   entire rail before the browser could paint the selected card. */
+function NodeSelectionToolbarLayer({ suspended }: { suspended: boolean }) {
+    const hasSelection = useStore(s => s.selectedCanvasNodeIds.size > 0);
+    const isActive = hasSelection && !suspended;
+
+    return (
+        <div
+            className={`${styles.flyout} ${styles.selectionIsland} ${styles.contextualToolbar} ${isActive ? styles.contextualToolbarActive : ''}`}
+            data-selection-toolbar="true"
+            aria-hidden={!isActive}
+        >
+            <MultiSelectionToolbar isActive={isActive} />
+        </div>
+    );
+}
 
 export function BottomMenu() {
     // Atomic Selectors
     const addNode = useStore(s => s.addNode);
-    const nodes = useStore(s => s.nodes);
     const centerPanelId = useStore(s => s.centerPanelId);
     const fullscreenId = useStore(s => s.fullscreenId);
     const currentParentId = useStore(s => s.currentParentId);
     const updateNodeData = useStore(s => s.updateNodeData);
-    const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
-    const selectedEdgeId = useStore(s => s.selectedEdgeId);
-    const selectedEdgeIds = useStore(s => s.selectedEdgeIds);
-    const hasSelectedEdges = selectedEdgeId || (selectedEdgeIds && selectedEdgeIds.size > 0);
+    const hasSelectedEdges = useStore(s => Boolean(s.selectedEdgeId) || s.selectedEdgeIds.size > 0);
     // Which edges the side panels are eating — the menu docks against a free one.
     const rightSidePanelId = useStore(s => s.rightSidePanelId);
     const leftSidePanelId = useStore(s => s.leftSidePanelId);
@@ -181,17 +195,22 @@ export function BottomMenu() {
 
     const activeFilters = useMemo(() => parseSearchQuery(searchQuery), [searchQuery]);
 
-    // Extract all unique tags from nodes
-    const allTags = useMemo(() => {
+    /* Position-only writes happen every node-drag frame. Subscribing to the
+       nodes array made this motion-heavy command island re-render (and re-run
+       Motion's layout projection) for every one of them. The tag signature is
+       stable through movement; action handlers read the latest node geometry
+       imperatively at the moment they run. */
+    const allTagsKey = useStore(state => {
         const tags = new Set<string>();
-        nodes.forEach(node => {
+        state.nodes.forEach(node => {
             const nodeTags = 'tags' in node.data ? node.data.tags : undefined;
             if (Array.isArray(nodeTags)) {
                 nodeTags.forEach(tag => tags.add(tag));
             }
         });
-        return Array.from(tags);
-    }, [nodes]);
+        return JSON.stringify(Array.from(tags).sort());
+    });
+    const allTags = useMemo(() => JSON.parse(allTagsKey) as string[], [allTagsKey]);
 
     const toggleFilter = (key: string, value: string) => {
         const filters = { ...activeFilters };
@@ -258,7 +277,13 @@ export function BottomMenu() {
         const NOTE_WIDTH = 432;
         const NOTE_HEIGHT = 432;
 
-        const position = findNonOverlappingPosition(flowPos, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, nodes, currentParentId, vp());
+        const position = findNonOverlappingPosition(
+            flowPos,
+            { width: NOTE_WIDTH, height: NOTE_HEIGHT },
+            useStore.getState().nodes,
+            currentParentId,
+            vp(),
+        );
 
         addNode('note', position, { viewMode: 'expanded' }, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, currentParentId || undefined);
         panIntoViewIfNeeded(position, { width: NOTE_WIDTH, height: NOTE_HEIGHT });
@@ -268,6 +293,16 @@ export function BottomMenu() {
     useEffect(() => {
         handleAddNoteRef.current = handleAddNote;
     });
+
+    // The contextual empty state lives with React Flow, while creation logic
+    // (placement, collision avoidance and panning) belongs here. A tiny event
+    // keeps that CTA on the same proven creation path as the Add button and
+    // Ctrl/Cmd+N shortcut.
+    useEffect(() => {
+        const addFromEmptyState = () => handleAddNoteRef.current();
+        window.addEventListener('chnk-it:add-note', addFromEmptyState);
+        return () => window.removeEventListener('chnk-it:add-note', addFromEmptyState);
+    }, []);
 
     const handleDragStart = (e: React.DragEvent, type: string, metadata?: Record<string, unknown>) => {
         e.dataTransfer.setData('application/reactflow-block-type', type);
@@ -300,7 +335,13 @@ export function BottomMenu() {
         const flowPos = screenToFlowPosition({ x: centerX, y: centerY });
         
         // Use a large size approximation for template to find non-overlapping space
-        const position = findNonOverlappingPosition(flowPos, { width: 1200, height: 1000 }, nodes, currentParentId, vp());
+        const position = findNonOverlappingPosition(
+            flowPos,
+            { width: 1200, height: 1000 },
+            useStore.getState().nodes,
+            currentParentId,
+            vp(),
+        );
 
         const { nodes: newNodes, edges: newEdges } = template.generateNodes(position, currentParentId || null);
         
@@ -334,7 +375,7 @@ export function BottomMenu() {
         const targetNodeId = centerPanelId || fullscreenId;
 
         if (targetNodeId) {
-            const activeNode = nodes.find(n => n.id === targetNodeId);
+            const activeNode = useStore.getState().nodes.find(n => n.id === targetNodeId);
             if (activeNode) {
                 const safeContent = getNodeBlocks(activeNode.data) ?? [];
                 updateNodeData(targetNodeId, {
@@ -358,7 +399,13 @@ export function BottomMenu() {
         const BLOCK_WIDTH = block.type === 'columns' ? Math.max(550, columnsPerRow * 220) : block.type === 'gallery' ? GALLERY_NODE_WIDTH : isMediaType(block.type) ? 208 : block.type === 'table' ? MIN_EXPANDED_SIZE : 300;
         const BLOCK_HEIGHT = 100;
 
-        const position = findNonOverlappingPosition(flowPos, { width: BLOCK_WIDTH, height: BLOCK_HEIGHT }, nodes, currentParentId, vp());
+        const position = findNonOverlappingPosition(
+            flowPos,
+            { width: BLOCK_WIDTH, height: BLOCK_HEIGHT },
+            useStore.getState().nodes,
+            currentParentId,
+            vp(),
+        );
 
         addNode('block', position, {
             content: [newBlock],
@@ -413,7 +460,7 @@ export function BottomMenu() {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [activeMenu, highlightedIndex, screenToFlowPosition, addNode, currentParentId, nodes]);
+    }, [activeMenu, highlightedIndex, screenToFlowPosition, addNode, currentParentId]);
 
     const transitionVariants: Variants = {
         initial: { opacity: 0, scale: 0.95 },
@@ -425,13 +472,17 @@ export function BottomMenu() {
     // beside the rail rather than inside it: a 60px icon column has nowhere to
     // put a 520px field. (AI is a side panel of its own, not a flyout.)
     const flyoutState = isSearchMode ? 'search'
-        : selectedCanvasNodeIds.size > 0 ? 'multi'
         : hasSelectedEdges ? 'edge'
         : null;
     /* Selection is a mode of the bottom dock, not a second toolbar beside it.
        Removing the idle rail lets the action surface take its exact place and
        Motion can read the change as one continuous command island. */
-    const isSelectionIsland = flyoutState === 'multi' || flyoutState === 'edge';
+    const isEdgeSelectionIsland = flyoutState === 'edge';
+
+    /* A node side peek is an editing surface, not a split view. The vertical
+       rail that used to appear beside it duplicated controls and crowded the
+       reading edge, so it stays fully out of the way until the peek closes. */
+    const hasNodeSidePeekOpen = Boolean(rightSidePanelId) || Boolean(leftSidePanelId);
 
     // Docking. The menu sits on the bottom edge by default; a side panel costs
     // the canvas its width rather than its height, so while one is open the menu
@@ -443,18 +494,33 @@ export function BottomMenu() {
     const isRail = isSidePanelOpen && flyoutState === null;
     const dockClass = isRail ? styles.dockLeft : styles.dockBottom;
 
+    if (hasNodeSidePeekOpen) return null;
+
     return (
         <>
             {/* data-app-menu marks the menu as chrome, not canvas: the side
                 panels' click-away handlers skip it, so pressing a rail button
                 doesn't close the panel out from under the press. */}
             <div className={`${styles.railLayer} ${dockClass}`} data-app-menu ref={menuRef}>
-            {!isSelectionIsland && (
+            {!isEdgeSelectionIsland && (
+            <div className={`${styles.railRow} ${isRail ? styles.railRowVertical : ''}`}>
+            {/* The AI entry point sits on its own surface beside the rail rather
+                than inside it: everything in the rail acts on the canvas, this
+                one opens a panel. */}
+            <div className={styles.aiDock}>
+                <button
+                    className={`${styles.aiIconBtn} ${isAIPanelOpen ? styles.aiIconBtnActive : ''}`}
+                    onClick={toggleAIPanel}
+                    title="AI (Ctrl+J)"
+                    aria-label="Open AI assistant"
+                >
+                    <span className={styles.aiGlyph} aria-hidden="true">
+                        <Sparkles size={20} />
+                    </span>
+                </button>
+            </div>
             <motion.div
-                layout
-                layoutId="bottom-command-island"
                 className={`${styles.sideRail} ${isRail ? '' : styles.railHorizontal}`}
-                transition={{ type: 'spring', stiffness: 400, damping: 32 }}
                 whileHover={isRail ? { x: 4 } : { y: -4 }}
             >
                 {/* gap has to live on the column, not on .sideRail: AnimatePresence
@@ -467,13 +533,6 @@ export function BottomMenu() {
                     animate="animate"
                     style={{ display: 'flex', flexDirection: isRail ? 'column' : 'row', width: isRail ? '100%' : 'auto', height: isRail ? 'auto' : '100%', justifyContent: 'center', alignItems: 'center', gap: 12 }}
                 >
-                        <button
-                            className={`${styles.aiIconBtn} ${isAIPanelOpen ? styles.aiIconBtnActive : ''}`}
-                            onClick={toggleAIPanel}
-                            title="AI (Ctrl+J)"
-                        >
-                            <Sparkles size={20} />
-                        </button>
                         <button
                             className={styles.iconBtn}
                             onClick={openSearch}
@@ -494,8 +553,8 @@ export function BottomMenu() {
                                 }
                             }}
                         >
-                            <button
-                                className="special-primary-btn"
+                            <FloatingActionButton
+                                label="Add new note card"
                                 onClick={() => {
                                     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
                                     handleAddNote();
@@ -503,7 +562,7 @@ export function BottomMenu() {
                                 title="Add New Note Card (Hover for modes)"
                             >
                                 <Plus size={24} color="#fff" />
-                            </button>
+                            </FloatingActionButton>
 
                             <div className={`${styles.hoverMenu} ${activeMenu === 'addNoteModes' ? styles.menuVisible : ''}`}>
                                 <div className={styles.menuHeader}>
@@ -537,7 +596,13 @@ export function BottomMenu() {
                                                 const isSmall = mode.id === 'icon' || mode.id === 'folder';
                                                 const NOTE_WIDTH = isSmall ? 120 : 432;
                                                 const NOTE_HEIGHT = isSmall ? 120 : 432;
-                                                const position = findNonOverlappingPosition(flowPos, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, nodes, currentParentId, vp());
+                                                const position = findNonOverlappingPosition(
+                                                    flowPos,
+                                                    { width: NOTE_WIDTH, height: NOTE_HEIGHT },
+                                                    useStore.getState().nodes,
+                                                    currentParentId,
+                                                    vp(),
+                                                );
                                                 addNode('note', position, { viewMode: mode.id, showMetadata: false }, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, currentParentId || undefined);
                                                 panIntoViewIfNeeded(position, { width: NOTE_WIDTH, height: NOTE_HEIGHT });
                                                 setActiveMenu(null);
@@ -667,6 +732,7 @@ export function BottomMenu() {
                         </div>
                 </motion.div>
             </motion.div>
+            </div>
             )}
 
             <AnimatePresence mode="popLayout" initial={false}>
@@ -796,19 +862,17 @@ export function BottomMenu() {
                             </div>
                         )}
                     </motion.div>
-                ) : flyoutState === 'multi' ? (
-                    <motion.div layout layoutId="bottom-command-island" key="multi" variants={transitionVariants} initial="initial" animate="animate" exit="exit" className={`${styles.flyout} ${styles.selectionIsland}`}>
-                        <MultiSelectionToolbar
-                            onOpenAI={() => openAIPanel('create')}
-                            onOpenSearch={openSearch}
-                        />
-                    </motion.div>
                 ) : flyoutState === 'edge' ? (
                     <motion.div layout layoutId="bottom-command-island" key="edge" variants={transitionVariants} initial="initial" animate="animate" exit="exit" className={`${styles.flyout} ${styles.selectionIsland}`}>
                         <EdgeEditingToolbar />
                     </motion.div>
                 ) : null}
             </AnimatePresence>
+
+            {/* Keep contextual actions warm while letting a tiny child own the
+                selection subscription. Search and edge editing temporarily
+                suspend this layer because they occupy the same command lane. */}
+            <NodeSelectionToolbarLayer suspended={isSearchMode || hasSelectedEdges} />
             </div>
             
             {/* Modal is rendered outside the menu container */}

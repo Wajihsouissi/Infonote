@@ -237,10 +237,10 @@ export const SearchResults = memo(function SearchResults({ query, onClose }: Sea
                                     <div className={styles.resultCardAccent}
                                         style={{
                                             background: result.type === 'note'
-                                                ? 'linear-gradient(180deg, #f95d2e, #d94e22)'
+                                                ? 'linear-gradient(180deg, #ff5040, #ff5040)'
                                                 : result.type === 'kanban'
                                                 ? 'linear-gradient(180deg, #f59e0b, #d97706)'
-                                                : 'linear-gradient(180deg, #e3a24f, #b07818)'
+                                                : 'linear-gradient(180deg, #ff5040, #ff5040)'
                                         }}
                                     />
                                     <div className={styles.resultIcon}>

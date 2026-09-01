@@ -1,0 +1,419 @@
+/* The hour grid — Day and Week.
+
+   Same borderless language as the rest of the calendar: the grid body is a
+   raised surface on the panel's ground, events are blocks on it, and states are
+   washes. The hour rules are the one place a line earns its keep — a time grid
+   with no rhythm cannot be read against a clock — and even they are a tone
+   mixed from the text colour rather than a stroke on a box.
+
+   Night reads a step darker than the working day, which is real information
+   said the way the rest of this feature says things. */
+
+.timeGrid {
+    --gutter-w: 58px;
+    --hour-rule: color-mix(in srgb, var(--text-faint) 16%, transparent);
+
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+}
+
+/* --------------------------------------------------------------- headers */
+
+.gridHead {
+    display: flex;
+    flex: none;
+    padding-bottom: 6px;
+}
+
+.gutterHead {
+    flex: 0 0 var(--gutter-w);
+}
+
+.colHead {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 4px 8px;
+    border-radius: var(--r-control);
+}
+
+.colWeekday {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.colDate {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Today is named by its number going accent, not by a ring around the column. */
+.colHead[data-today] .colWeekday,
+.colHead[data-today] .colDate {
+    color: var(--accent-ink);
+}
+
+.colAdd {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    margin-left: auto;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-xs);
+    color: var(--text-faint);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+
+.colHead:hover .colAdd,
+.colAdd:focus-visible {
+    opacity: 1;
+}
+
+.colAdd:hover {
+    background: var(--hover-wash);
+    color: var(--accent-ink);
+}
+
+/* --------------------------------------------------------- all-day strip */
+
+/* Where a card that names a day but no hour lives. Most of this app's cards
+   are exactly that, because the date picker writes a day — so this row is the
+   normal case rather than an exception, and it sits above the grid where every
+   calendar puts it. */
+.allDayRow {
+    display: flex;
+    flex: none;
+    align-items: stretch;
+    padding-bottom: 8px;
+}
+
+.gutterLabel {
+    flex: 0 0 var(--gutter-w);
+    padding-right: 9px;
+    text-align: right;
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    line-height: 1.8;
+}
+
+.allDayCell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 22px;
+    padding: 2px 3px;
+    border-radius: var(--radius-xs);
+    transition: background var(--transition-fast);
+}
+
+.allDayCell[data-over] {
+    background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+/* ---------------------------------------------------------------- body */
+
+.gridBody {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--bg-card);
+    border-radius: var(--r-md);
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+}
+
+.gridBody::-webkit-scrollbar {
+    width: 6px;
+}
+
+.gridBody::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.gridBody::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: var(--radius-xs);
+}
+
+.gutter {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 var(--gutter-w);
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--bg-card);
+}
+
+/* The label sits astride its own rule rather than under it, which is how a
+   clock face reads: "9 AM" marks where nine begins. */
+.hourLabel {
+    display: block;
+    flex: none;
+    padding-right: 9px;
+    text-align: right;
+    font-size: 0.625rem;
+    font-weight: 500;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+    transform: translateY(-0.5em);
+    white-space: nowrap;
+}
+
+.gridCols {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* One set of rules behind every column, so the lines stay aligned across the
+   week instead of each column rounding its own. */
+.hourLines {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    pointer-events: none;
+}
+
+.hourLine {
+    display: block;
+    flex: none;
+    box-shadow: inset 0 1px 0 var(--hour-rule);
+}
+
+.hourLine:nth-child(-n + 8),
+.hourLine:nth-child(n + 20) {
+    background: color-mix(in srgb, var(--bg-base) 45%, transparent);
+}
+
+/* ---------------------------------------------------------- day columns */
+
+.dayColumn {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+/* A tonal hairline between days, and none before the first. */
+.dayColumn + .dayColumn {
+    box-shadow: inset 1px 0 0 var(--hour-rule);
+}
+
+.slots {
+    display: flex;
+    flex-direction: column;
+}
+
+.slot {
+    display: block;
+    flex: none;
+    transition: background var(--transition-fast);
+}
+
+.slot[data-over] {
+    background: color-mix(in srgb, var(--accent) 26%, transparent);
+}
+
+/* ------------------------------------------------------------- now line */
+
+.nowLine {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 0;
+    z-index: 3;
+    box-shadow: 0 1px 0 var(--danger);
+    pointer-events: none;
+}
+
+.nowDot {
+    position: absolute;
+    left: -3px;
+    top: -3px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--danger);
+}
+
+/* --------------------------------------------------------------- events */
+
+.event {
+    --tone: var(--text-soft);
+    --tone-wash: var(--hover-wash);
+
+    position: absolute;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    margin-left: 2px;
+    padding: 3px 7px;
+    background: var(--tone-wash);
+    /* The one edge on an event, and it is the calendar convention rather than
+       chrome: a colour bar down the leading side naming the card's lane. */
+    box-shadow: inset 2px 0 0 var(--tone);
+    border-radius: var(--radius-xs);
+    overflow: hidden;
+    cursor: grab;
+    user-select: none;
+    transition: background var(--transition-fast);
+}
+
+.event:hover {
+    background: color-mix(in srgb, var(--tone) 26%, transparent);
+}
+
+.event:active {
+    cursor: grabbing;
+}
+
+.event[data-static] {
+    cursor: default;
+}
+
+.event[data-ghost] {
+    opacity: 0.4;
+}
+
+/* A block under 45 minutes has room for one line and nothing else. */
+.event[data-compact] {
+    padding: 1px 7px;
+    justify-content: center;
+}
+
+.eventHead {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    color: var(--tone);
+}
+
+.eventTitle {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.eventTime {
+    font-size: 0.625rem;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+}
+
+.eventWarn {
+    flex: none;
+    font-weight: 700;
+    color: var(--warn);
+}
+
+/* The same ten hues the lanes and the month chips use. */
+.event[data-tone='rose']    { --tone: var(--a-rose);    --tone-wash: var(--a-rose-wash); }
+.event[data-tone='amber']   { --tone: var(--a-amber);   --tone-wash: var(--a-amber-wash); }
+.event[data-tone='citrine'] { --tone: var(--a-citrine); --tone-wash: var(--a-citrine-wash); }
+.event[data-tone='olive']   { --tone: var(--a-olive);   --tone-wash: var(--a-olive-wash); }
+.event[data-tone='jade']    { --tone: var(--a-jade);    --tone-wash: var(--a-jade-wash); }
+.event[data-tone='teal']    { --tone: var(--a-teal);    --tone-wash: var(--a-teal-wash); }
+.event[data-tone='azure']   { --tone: var(--a-azure);   --tone-wash: var(--a-azure-wash); }
+.event[data-tone='indigo']  { --tone: var(--a-indigo);  --tone-wash: var(--a-indigo-wash); }
+.event[data-tone='violet']  { --tone: var(--a-violet);  --tone-wash: var(--a-violet-wash); }
+.event[data-tone='magenta'] { --tone: var(--a-magenta); --tone-wash: var(--a-magenta-wash); }
+
+/* Day view has one column, so it can afford a roomier header. */
+.timeGrid[data-variant='day'] .colHead {
+    padding: 4px 10px;
+}
+
+/* Resize handles ---------------------------------------------------------
+   A strip along each edge of an event. Invisible until the block is hovered,
+   like every other affordance on this board, and a little taller than it looks
+   so the target is grabbable without being a visual band. */
+.resizeHandle {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 7px;
+    z-index: 4;
+    cursor: ns-resize;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.resizeHandle::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 26px;
+    height: 3px;
+    border-radius: var(--radius-pill);
+    background: var(--tone);
+}
+
+.resizeTop {
+    top: 0;
+}
+
+.resizeTop::after {
+    top: 2px;
+}
+
+.resizeBottom {
+    bottom: 0;
+}
+
+.resizeBottom::after {
+    bottom: 2px;
+}
+
+.event:hover .resizeHandle,
+.resizeHandle:focus-visible {
+    opacity: 0.9;
+}
+
+/* While an edge is held the block is the thing being read, so it lifts off the
+   grid and keeps its handle showing. */
+.event[data-resizing] {
+    z-index: 5;
+    box-shadow: inset 2px 0 0 var(--tone), var(--elev-2);
+    cursor: ns-resize;
+}
+
+.event[data-resizing] .resizeHandle {
+    opacity: 1;
+}
+
+/* A very short block has no room for two 7px strips plus its own text. */
+.event[data-compact] .resizeHandle {
+    height: 5px;
+}

@@ -195,7 +195,11 @@ export function scheduleMount(job: () => void): () => void {
     }
     if (!running) {
         running = true;
-        requestAnimationFrame(drain);
+        /* Leave one guaranteed paint between the interaction that requested an
+           editor and the expensive editor commit. A single rAF can release the
+           job in the same pre-paint phase as selection, making the selected
+           ring and contextual toolbar wait behind the mount. */
+        requestAnimationFrame(() => requestAnimationFrame(drain));
     }
     publish();
     return () => { cancelled.add(token); };

@@ -7,7 +7,6 @@
 
 import { fileSystemBackend } from './storage/FileSystemBackend';
 import type { GraphBackend, BackendKind } from './storage/types';
-import { saveSnapshot, loadSnapshot } from './storage/LocalSnapshotStore';
 import { shallow } from 'zustand/shallow';
 import { useStore } from '../store/useStore';
 import type { AppState } from '../store/types';
@@ -16,7 +15,6 @@ import type { Edge } from '@xyflow/react';
 
 let isInitialized = false;
 let saveTimeout: number | null = null;
-let snapshotTimeout: number | null = null;
 let isRestoring = false;
 let autoReconnectPromise: Promise<void> | null = null;
 
@@ -70,7 +68,7 @@ export function initStorageManager(
 
             if (nodesChanged || edgesChanged) {
                 /* A drag rewrites the nodes array on every frame. None of what
-                   follows — dirty flags, snapshots, backend saves — describes
+                   follows — dirty flags and backend saves — describes
                    anything the user has finished doing yet, and all of it is
                    charged to the frame. The drop is a nodes change too, so
                    nothing is lost by waiting for it. */
@@ -79,11 +77,6 @@ export function initStorageManager(
                 // Mark both states as unsynced/dirty
                 if (curr.setLocalDirty) curr.setLocalDirty(true);
                 if (curr.setCloudDirty) curr.setCloudDirty(true);
-
-                // Safety-net IndexedDB snapshot — runs regardless of which
-                // (if any) explicit backend is connected, so users without a
-                // local folder or cloud session survive a refresh/crash.
-                if (!isRestoring) scheduleSnapshot();
 
                 if (!curr.isConnected || isRestoring) return;
 
@@ -107,30 +100,6 @@ export function initStorageManager(
     );
 }
 
-function scheduleSnapshot(): void {
-    if (snapshotTimeout) {
-        clearTimeout(snapshotTimeout);
-    }
-    snapshotTimeout = window.setTimeout(() => {
-        snapshotTimeout = null;
-        const state = useStore.getState();
-        /* Writing a snapshot deep-copies the whole workspace before handing it
-           to IndexedDB — a single synchronous chunk of work that must not land
-           in the middle of a drag. Wait for the user to let go. */
-        if (state.interactionState.draggedNodeId) {
-            scheduleSnapshot();
-            return;
-        }
-        // Never write an empty snapshot: empty ones are never restored (see
-        // restoreFromLocalSnapshot), and an accidental wipe (e.g. a bad cloud
-        // load) must not cascade into destroying the last good snapshot.
-        if (state.nodes.length === 0) return;
-        saveSnapshot(state.nodes, state.edges).catch((err) => {
-            console.warn('[StorageManager] Snapshot write failed:', err);
-        });
-    }, 800);
-}
-
 async function autoReconnect(): Promise<void> {
     if (!storeCallbacks) return;
 
@@ -141,11 +110,6 @@ async function autoReconnect(): Promise<void> {
     try {
         const connected = await fileSystemBackend.reconnect().catch(() => false);
         if (!connected) {
-            // No folder connected — fall back to the IndexedDB safety net so
-            // anonymous / non-Chromium users get their canvas back after a
-            // refresh. Signed-in users may still get a cloud auto-load right
-            // after this; that path snapshots the replaced state as a backup.
-            await restoreFromLocalSnapshot();
             return;
         }
 
@@ -174,20 +138,6 @@ async function autoReconnect(): Promise<void> {
 
 export function getAutoReconnectPromise(): Promise<void> {
     return autoReconnectPromise || Promise.resolve();
-}
-
-async function restoreFromLocalSnapshot(): Promise<void> {
-    if (!storeCallbacks) return;
-    try {
-        const snapshot = await loadSnapshot();
-        if (!snapshot || snapshot.nodes.length === 0) return;
-        isRestoring = true;
-        storeCallbacks.loadGraph(snapshot.nodes, snapshot.edges);
-        isRestoring = false;
-    } catch (err) {
-        isRestoring = false;
-        console.warn('[StorageManager] Snapshot restore failed:', err);
-    }
 }
 
 async function performSave(): Promise<void> {

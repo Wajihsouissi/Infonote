@@ -20,10 +20,14 @@
 const NATIVE_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
 export function getGeminiKey() {
-  const raw = process.env.AI_GATEWAY_API_KEY || process.env.GEMINI_API_KEY || '';
+  // The generic gateway key can be an OpenRouter credential while this route
+  // calls Gemini's native API directly. Prefer the provider-specific key.
+  const dedicated = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+  const generic = process.env.AI_GATEWAY_API_KEY || '';
+  const raw = dedicated || (/^sk-or-/i.test(generic.trim()) ? '' : generic);
   const key = String(raw).trim().replace(/^["']|["']$/g, '');
   if (!key) {
-    throw new Error('AI is not configured. Add AI_GATEWAY_API_KEY to your environment or Vercel Project Settings.');
+    throw new Error('Gemini is not configured. Add a valid GEMINI_API_KEY; an OpenRouter key cannot be used with Gemini.');
   }
   return key;
 }
@@ -54,7 +58,7 @@ function hostOf(url) {
  * returned, so a page the model retrieved but never used is not presented to
  * the reader as a citation.
  */
-function extractCitations(metadata) {
+function extractGrounding(metadata) {
   const chunks = Array.isArray(metadata?.groundingChunks) ? metadata.groundingChunks : [];
   const supports = Array.isArray(metadata?.groundingSupports) ? metadata.groundingSupports : [];
 
@@ -63,17 +67,49 @@ function extractCitations(metadata) {
     for (const index of support?.groundingChunkIndices ?? []) used.add(index);
   }
 
-  return chunks
-    .map((chunk, index) => ({ index, web: chunk?.web }))
+  /* Filtering renumbers the list, so the mapping from ORIGINAL chunk index to
+     the index a reader will see has to be built here. Returning spans that
+     point at pre-filter indices would put "[4]" against the wrong source —
+     worse than no inline citations at all. */
+  const citationIndexByChunk = new Map();
+  const citations = [];
+
+  chunks.forEach((chunk, index) => {
     // No supports at all means the mapping is absent, not that nothing was
     // used — fall back to listing every retrieved page rather than none.
-    .filter(({ index }) => used.size === 0 || used.has(index))
-    .map(({ web }) => ({
-      title: text(web?.title) || hostOf(text(web?.uri)),
-      url: text(web?.uri),
-      source: hostOf(text(web?.uri)) || text(web?.title),
-    }))
-    .filter((c) => c.url);
+    if (used.size > 0 && !used.has(index)) return;
+    const web = chunk?.web;
+    const url = text(web?.uri);
+    if (!url) return;
+    citationIndexByChunk.set(index, citations.length);
+    citations.push({
+      title: text(web?.title) || hostOf(url),
+      url,
+      source: hostOf(url) || text(web?.title),
+    });
+  });
+
+  /* The spans that make inline citations possible.
+     `segment.startIndex`/`endIndex` are BYTE offsets into the UTF-8 answer, not
+     JS string indices — the client converts. They were previously discarded
+     entirely, which is why citations could only ever be a list stapled to the
+     bottom of the answer (ai-Plan.md §2.3 C1). */
+  const spans = [];
+  for (const support of supports) {
+    const segment = support?.segment;
+    const start = Number(segment?.startIndex ?? 0);
+    const end = Number(segment?.endIndex);
+    if (!Number.isFinite(end) || end <= 0) continue;
+
+    const indexes = (support?.groundingChunkIndices ?? [])
+      .map((i) => citationIndexByChunk.get(i))
+      .filter((i) => i !== undefined);
+    if (indexes.length === 0) continue;
+
+    spans.push({ start: Number.isFinite(start) ? start : 0, end, citationIndexes: [...new Set(indexes)] });
+  }
+
+  return { citations, supports: spans };
 }
 
 /** The searches Gemini decided to run — useful for showing what it looked up. */
@@ -155,9 +191,11 @@ export async function groundedAnswer(prompt, { model, system, maxTokens } = {}) 
   }
 
   const metadata = candidate?.groundingMetadata;
+  const { citations, supports } = extractGrounding(metadata);
   return {
     text: answer,
-    citations: extractCitations(metadata),
+    citations,
+    supports,
     queries: extractQueries(metadata),
   };
 }

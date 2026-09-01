@@ -12,9 +12,15 @@ import {
     isDuplicateSignupResponse,
     isEmailRegistered,
 } from './authFlow';
+import { Tabs, type TabItem } from '../../components/ui/Tabs';
 import styles from './AuthModal.module.css';
 
 type Mode = 'signin' | 'signup';
+
+const AUTH_TABS: TabItem<Mode>[] = [
+    { id: 'signin', label: 'Sign in' },
+    { id: 'signup', label: 'Sign up' },
+];
 
 interface FormState {
     email: string;
@@ -199,26 +205,16 @@ export const AuthModal: React.FC = () => {
                                 : 'It only takes a few seconds to get started.'}
                         </p>
 
-                        <div className={styles.tabs} role="tablist">
-                            <button
-                                type="button"
-                                role="tab"
-                                aria-selected={mode === 'signin'}
-                                className={`${styles.tab} ${mode === 'signin' ? styles.tabActive : ''}`}
-                                onClick={() => { setMode('signin'); setError(null); setSuccess(null); }}
-                            >
-                                Sign in
-                            </button>
-                            <button
-                                type="button"
-                                role="tab"
-                                aria-selected={mode === 'signup'}
-                                className={`${styles.tab} ${mode === 'signup' ? styles.tabActive : ''}`}
-                                onClick={() => { setMode('signup'); setError(null); setSuccess(null); }}
-                            >
-                                Sign up
-                            </button>
-                        </div>
+                        <Tabs
+                            className={styles.tabs}
+                            items={AUTH_TABS}
+                            value={mode}
+                            onChange={(next) => { setMode(next); setError(null); setSuccess(null); }}
+                            color="primary"
+                            radius="md"
+                            fullWidth
+                            aria-label="Sign in or sign up"
+                        />
 
                         {error && (
                             <div className={styles.error} role="alert">

@@ -1,18 +1,22 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { v4 as uuidv4 } from 'uuid';
 import { UploadCloud, Sparkles, Paperclip } from '../../components/icons';
 import styles from './MediaPlaceholder.module.css';
-import type { BlockMetadata } from './types';
+import { Tabs, type TabItem } from '../../components/ui/Tabs';
+import type { Block, BlockMetadata } from './types';
+import { createGalleryBlock } from './galleryTypes';
+import { ingestFiles, MAX_ASSET_BYTES } from '../../services/assets';
 import {
     formatBytes,
-    MAX_MEDIA_BYTES,
-    readMediaFile,
     resolveMediaTypeFromUrl,
     type ResolvedMediaType,
 } from './mediaTypes';
 
 export interface MediaSelection {
-    type: ResolvedMediaType;
+    /** `gallery` when several files came in at once — the same board two
+     *  pieces of media make when one is dropped on the other. */
+    type: ResolvedMediaType | 'gallery';
     content: string;
     metadata?: BlockMetadata;
 }
@@ -32,9 +36,17 @@ interface MediaPlaceholderProps {
  * Drop and paste work on the inline trigger as well as inside the modal, so the
  * common case (drag a file straight onto the block) never opens the modal at all.
  */
+type MediaTab = 'upload' | 'embed' | 'generate';
+
+const MEDIA_TABS: TabItem<MediaTab>[] = [
+    { id: 'upload', label: 'Upload' },
+    { id: 'embed', label: 'Embed Link' },
+    { id: 'generate', label: 'Generate AI', icon: <Sparkles size={14} /> },
+];
+
 export const MediaPlaceholder = ({ onSelect, readOnly }: MediaPlaceholderProps) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<'upload' | 'embed' | 'generate'>('upload');
+    const [activeTab, setActiveTab] = useState<MediaTab>('upload');
     const [isDragging, setIsDragging] = useState(false);
     const [urlInput, setUrlInput] = useState('');
     const [aiPrompt, setAiPrompt] = useState('');
@@ -42,22 +54,43 @@ export const MediaPlaceholder = ({ onSelect, readOnly }: MediaPlaceholderProps) 
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleFiles = useCallback(async (files: FileList | File[]) => {
-        const file = Array.from(files)[0];
-        if (!file) return;
+    const handleFiles = useCallback(async (input: FileList | File[]) => {
+        if (!Array.from(input).length) return;
         setError(null);
-        try {
-            const { url, type } = await readMediaFile(file);
-            onSelect({
-                type,
-                content: url,
-                metadata: { name: file.name, size: file.size, type: file.type },
-            });
-            setIsOpen(false);
-        } catch (e) {
-            setError(e instanceof Error ? e.message : 'Could not read that file.');
+
+        const { files, errors } = await ingestFiles(input);
+
+        if (!files.length) {
+            setError(errors[0] ?? 'Could not read that file.');
             setIsOpen(true);
             setActiveTab('upload');
+            return;
+        }
+
+        if (files.length === 1) {
+            const [only] = files;
+            onSelect({ type: only.type, content: only.ref, metadata: only.metadata });
+        } else {
+            // Several at once is the same thing as dropping one piece of media
+            // on another: a board, not a stack of loose blocks.
+            const items: Block[] = files.map((f) => ({
+                id: uuidv4(),
+                type: f.type,
+                content: f.ref,
+                metadata: f.metadata,
+            }));
+            const gallery = createGalleryBlock(items);
+            onSelect({ type: 'gallery', content: gallery.content, metadata: gallery.metadata });
+        }
+
+        // Partial success still opens the block; the rejected files are worth
+        // saying out loud rather than silently dropping.
+        if (errors.length) {
+            setError(errors[0]);
+            setIsOpen(true);
+            setActiveTab('upload');
+        } else {
+            setIsOpen(false);
         }
     }, [onSelect]);
 
@@ -143,7 +176,7 @@ export const MediaPlaceholder = ({ onSelect, readOnly }: MediaPlaceholderProps) 
             <div className={styles.triggerContent}>
                 <UploadCloud size={24} className={styles.triggerIcon} />
                 <span className={styles.triggerText}>
-                    {isDragging ? 'Drop to upload' : 'Add media — image, video, or file'}
+                    {isDragging ? 'Drop to upload' : 'Add media — image, video, or any file'}
                 </span>
             </div>
         </div>
@@ -161,27 +194,15 @@ export const MediaPlaceholder = ({ onSelect, readOnly }: MediaPlaceholderProps) 
                 onPaste={handlePaste}
                 tabIndex={-1}
             >
-                <div className={styles.tabs}>
-                    <button
-                        className={`${styles.tab} ${activeTab === 'upload' ? styles.active : ''}`}
-                        onClick={() => setActiveTab('upload')}
-                    >
-                        Upload
-                    </button>
-                    <button
-                        className={`${styles.tab} ${activeTab === 'embed' ? styles.active : ''}`}
-                        onClick={() => setActiveTab('embed')}
-                    >
-                        Embed Link
-                    </button>
-                    <button
-                        className={`${styles.tab} ${activeTab === 'generate' ? styles.active : ''}`}
-                        onClick={() => setActiveTab('generate')}
-                    >
-                        <Sparkles size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-top' }} />
-                        Generate AI
-                    </button>
-                </div>
+                <Tabs
+                    className={styles.tabs}
+                    items={MEDIA_TABS}
+                    value={activeTab}
+                    onChange={setActiveTab}
+                    variant="underlined"
+                    color="accent"
+                    aria-label="Add media by"
+                />
 
                 <div className={styles.contentArea}>
                     {activeTab === 'upload' ? (
@@ -189,7 +210,7 @@ export const MediaPlaceholder = ({ onSelect, readOnly }: MediaPlaceholderProps) 
                             <div className={styles.uploadHeader}>
                                 <h3 className={styles.uploadTitle}>Upload your files</h3>
                                 <p className={styles.uploadSubtitle}>
-                                    Images, video, PDF, any file up to {formatBytes(MAX_MEDIA_BYTES)}
+                                    Images, video, PDF, documents — any file up to {formatBytes(MAX_ASSET_BYTES)}
                                 </p>
                             </div>
                             <div
@@ -202,6 +223,7 @@ export const MediaPlaceholder = ({ onSelect, readOnly }: MediaPlaceholderProps) 
                                 <input
                                     type="file"
                                     ref={fileInputRef}
+                                    multiple
                                     style={{ display: 'none' }}
                                     onChange={(e) => {
                                         if (e.target.files?.length) handleFiles(e.target.files);

@@ -1,0 +1,186 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #121212; font-family: 'Outfit', system-ui, sans-serif; }
+    a { color: #ff5040; } a:hover { color: #ff6a5c; }
+
+    .p {
+      --bg-rail:#121212; --bg-base:#090909; --bg-card:#1a1a1a; --bg-raised:#242424;
+      --line:rgba(255,255,255,.10); --line-strong:rgba(255,255,255,.18);
+      --hover:rgba(255,255,255,.08); --active:rgba(255,80,64,.16);
+      --tx:#fff; --ts:#e6e6e6; --tf:#a3a3a3;
+      --acc:#ff5040; --acc-dim:rgba(255,80,64,.16); --ok:#5ac875;
+      width:440px; background:var(--bg-rail); color:var(--tx);
+      display:flex; flex-direction:column; min-height:1180px;
+      -webkit-font-smoothing:antialiased;
+    }
+    .hd { height:44px; display:flex; align-items:center; justify-content:space-between; padding:0 16px 0 24px; flex-shrink:0; }
+    .hdT { display:flex; align-items:center; gap:8px; font-size:.82rem; font-weight:600; }
+    .ib { width:26px; height:26px; border-radius:7px; display:flex; align-items:center; justify-content:center; color:var(--ts); }
+    .hdA { display:flex; gap:2px; }
+    .body { flex:1; min-height:0; margin:12px; background:var(--bg-base); border-radius:40px; display:flex; flex-direction:column; overflow:hidden; }
+    .scroll { flex:1; min-height:0; padding:22px 16px 10px; display:flex; flex-direction:column; gap:13px; }
+
+    .turn { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+    .scope { display:flex; gap:4px; }
+    .sc { display:inline-flex; align-items:center; gap:5px; padding:3px 8px; border-radius:999px; background:var(--acc-dim); color:var(--acc); font-size:.66rem; font-weight:600; }
+    .ub { background:var(--active); border-radius:14px 14px 4px 14px; padding:9px 13px; font-size:.82rem; line-height:1.5; max-width:90%; }
+
+    .tsum { display:flex; align-items:center; gap:9px; padding:7px 11px; border:1px solid var(--line); border-radius:10px; background:rgba(255,255,255,.025); }
+    .tsumL { flex:1; font-size:.73rem; color:var(--ts); font-weight:500; }
+    .tsumL i { font-style:normal; color:var(--tf); font-weight:400; }
+    .tsumT { font-size:.68rem; color:var(--tf); font-variant-numeric:tabular-nums; }
+
+    /* answer as real blocks, each draggable */
+    .sec { position:relative; border-radius:12px; padding:2px 0 2px 0; }
+    .sec.hov { background:rgba(255,255,255,.03); box-shadow:inset 0 0 0 1px var(--line); }
+    .blk { display:flex; align-items:flex-start; gap:7px; padding:2px 8px 2px 2px; border-radius:8px; }
+    .blk.sel { background:rgba(255,80,64,.10); box-shadow:inset 0 0 0 1px rgba(255,80,64,.35); }
+    .grip { width:14px; flex-shrink:0; display:flex; align-items:center; justify-content:center; padding-top:5px; color:var(--tf); opacity:.0; }
+    .sec.hov .grip { opacity:.55; }
+    .blk.sel .grip { opacity:1; color:var(--acc); }
+    .txt { flex:1; min-width:0; font-size:.82rem; line-height:1.6; color:var(--ts); }
+    .h2 { font-size:1rem; font-weight:600; color:var(--tx); line-height:1.3; padding-top:2px; }
+    .txt strong { color:var(--tx); font-weight:600; }
+    .bul { display:flex; gap:9px; }
+    .bul::before { content:''; width:4px; height:4px; border-radius:999px; background:var(--tf); margin-top:9px; flex-shrink:0; }
+    .quote { border-left:2px solid var(--acc); padding-left:10px; color:var(--tx); font-size:.8rem; line-height:1.55; }
+
+    .cit { display:inline-flex; align-items:center; justify-content:center; min-width:15px; height:15px; padding:0 4px; margin:0 1px; border-radius:4px; background:rgba(255,255,255,.10); color:var(--tf); font-size:.6rem; font-weight:700; vertical-align:1px; }
+    .ncit { display:inline-flex; align-items:center; gap:4px; padding:1px 6px 1px 4px; margin:0 1px; border-radius:5px; background:var(--acc-dim); color:var(--acc); font-size:.7rem; font-weight:600; }
+
+    /* the hover action bar on a section */
+    .abar { position:absolute; top:-11px; right:6px; display:flex; align-items:center; gap:1px; padding:2px; border-radius:9px; background:var(--bg-raised); border:1px solid var(--line-strong); box-shadow:0 6px 16px rgba(0,0,0,.40), 0 12px 28px rgba(0,0,0,.35); }
+    .ab { width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:var(--ts); }
+    .ab.hi { background:var(--acc-dim); color:var(--acc); }
+    .abTip { position:absolute; top:26px; right:0; padding:5px 9px; border-radius:9px; background:rgba(20,20,23,.96); border:1px solid rgba(255,255,255,.15); font-size:.68rem; font-weight:600; white-space:nowrap; color:#fff; }
+
+    .secH { display:flex; align-items:center; gap:8px; font-size:.68rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--tf); }
+    .secH::after { content:''; flex:1; height:1px; background:var(--line); }
+
+    .srcList { display:flex; flex-direction:column; gap:5px; }
+    .srow { display:flex; align-items:center; gap:9px; padding:6px 9px; border:1px solid var(--line); border-radius:9px; background:rgba(255,255,255,.02); }
+    .snum { width:16px; height:16px; border-radius:4px; background:rgba(255,255,255,.10); color:var(--tf); font-size:.6rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .snum.n { background:var(--acc-dim); color:var(--acc); }
+    .sB { flex:1; min-width:0; }
+    .sT { font-size:.72rem; color:var(--ts); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .sH { font-size:.64rem; color:var(--tf); }
+
+    .make { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; }
+    .mk { display:flex; align-items:center; gap:7px; min-height:34px; padding:7px 9px; border:1px solid var(--line); border-radius:10px; color:var(--ts); font-size:.72rem; font-weight:600; }
+
+    .comp { flex-shrink:0; margin:0 12px 6px; padding:10px 12px; background:var(--bg-card); border:1px solid var(--line); border-radius:18px; display:flex; flex-direction:column; gap:9px; }
+    .ph { font-size:.82rem; color:var(--tf); }
+    .row { display:flex; align-items:center; gap:6px; }
+    .seg { display:flex; padding:2px; border-radius:9px; background:rgba(255,255,255,.05); }
+    .sg { padding:4px 11px; border-radius:7px; font-size:.72rem; font-weight:600; color:var(--tf); }
+    .sg.on { background:var(--acc); color:#000; }
+    .send { width:30px; height:30px; border-radius:8px; background:var(--acc); display:flex; align-items:center; justify-content:center; margin-left:auto; }
+    .tools { flex-shrink:0; margin:0 12px 12px; display:flex; align-items:center; gap:5px; }
+    .tg { display:inline-flex; align-items:center; gap:5px; height:26px; padding:0 9px; border:1px solid var(--line); border-radius:8px; color:var(--tf); font-size:.69rem; font-weight:600; }
+    .tg.on { border-color:rgba(255,80,64,.4); background:var(--acc-dim); color:var(--acc); }
+    .eff { margin-left:auto; font-size:.69rem; font-weight:600; color:var(--ts); }
+    .eff span { color:var(--tf); font-weight:400; }
+  </style>
+</helmet>
+
+<div class="p">
+  <div class="hd">
+    <div class="hdT">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" fill="#ff5040"/><path d="M18.5 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z" fill="#ff5040" opacity=".45"/></svg>
+      Beta launch plan
+    </div>
+    <div class="hdA">
+      <div class="ib"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 8v4l2.5 1.5"/><circle cx="12" cy="12" r="8.2"/></svg></div>
+      <div class="ib"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+      <div class="ib"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="scroll">
+
+      <div class="turn">
+        <div class="scope">
+          <span class="sc"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="3" width="16" height="18" rx="2.4" opacity=".5"/><rect x="4" y="3" width="3.4" height="18" rx="1.6"/></svg>3 cards selected</span>
+        </div>
+        <div class="ub">What’s the strongest argument against launching in September?</div>
+      </div>
+
+      <div class="tsum">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5ac875" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>
+        <div class="tsumL">3 steps <i>· read 3 cards · 2 searches</i></div>
+        <div class="tsumT">9.7s</div>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a3a3a3" stroke-width="2" stroke-linecap="round"><path d="M7 10l5 5 5-5"/></svg>
+      </div>
+
+      <div class="sec hov">
+        <div class="abar">
+          <div class="ab hi"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+          <div class="ab"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M8 10h8M8 14h5"/><rect x="3.5" y="4.5" width="17" height="15" rx="3"/></svg></div>
+          <div class="ab"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M20 11a8 8 0 1 0-2.3 6.3M20 5v6h-6"/></svg></div>
+          <div class="ab"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 7h14M10 7V5h4v2M8 7l.8 12h6.4L16 7"/></svg></div>
+          <div class="abTip">Drag this section to the canvas</div>
+        </div>
+
+        <div class="blk"><div class="grip"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg></div><div class="txt h2">Support capacity, not readiness</div></div>
+
+        <div class="blk"><div class="grip"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg></div><div class="txt">The product argument is fine — <span class="ncit"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="3" width="16" height="18" rx="2.4" opacity=".5"/><rect x="4" y="3" width="3.4" height="18" rx="1.6"/></svg>Beta scope cut</span> is honest about what ships. The real risk is that you are two people and September is when your <strong>enterprise pilot renewals</strong> land.</div></div>
+
+        <div class="blk sel"><div class="grip"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg></div><div class="txt bul">A beta at your waitlist size (1,400) typically produces 40–60 tickets in the first fortnight<span class="cit">1</span>, concentrated in the first 72 hours.</div></div>
+
+        <div class="blk"><div class="grip"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg></div><div class="txt bul">Your renewal calls sit in the same window, and <span class="ncit"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="3" width="16" height="18" rx="2.4" opacity=".5"/><rect x="4" y="3" width="3.4" height="18" rx="1.6"/></svg>Pricing model v3</span> puts 62% of ARR behind them.</div></div>
+
+        <div class="blk"><div class="grip"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg></div><div class="txt quote">If support and renewals collide, you will discount to buy back the time — which is exactly the outcome the new pricing was meant to prevent.</div></div>
+      </div>
+
+      <div class="sec">
+        <div class="blk"><div class="grip"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg></div><div class="txt h2">The counter-argument</div></div>
+        <div class="blk"><div class="grip"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg></div><div class="txt">October pushes you into the November noise floor, where launch attention drops sharply<span class="cit">2</span>. If you can staff the first 72 hours, September still wins.</div></div>
+      </div>
+
+      <div class="secH">Sources</div>
+      <div class="srcList">
+        <div class="srow"><span class="snum n">◫</span><div class="sB"><div class="sT">Pricing model v3</div><div class="sH">card on this canvas · click to fly there</div></div></div>
+        <div class="srow"><span class="snum n">◫</span><div class="sB"><div class="sT">Beta scope cut</div><div class="sH">card on this canvas · click to fly there</div></div></div>
+        <div class="srow"><span class="snum">1</span><div class="sB"><div class="sT">Support volume in early-access launches</div><div class="sH">firstround.com</div></div></div>
+        <div class="srow"><span class="snum">2</span><div class="sB"><div class="sT">Launch timing and seasonal attention</div><div class="sH">stripe.com</div></div></div>
+      </div>
+
+      <div class="secH">Make this real</div>
+      <div class="make">
+        <div class="mk"><svg width="14" height="14" viewBox="0 0 24 24" fill="#ff5040"><rect x="4" y="3" width="16" height="18" rx="2.4" opacity=".5"/><rect x="4" y="3" width="3.4" height="18" rx="1.6"/></svg>Keep as card</div>
+        <div class="mk"><svg width="14" height="14" viewBox="0 0 24 24" fill="#f365c0"><circle cx="6" cy="12" r="2.4"/><circle cx="17" cy="7" r="2.4" opacity=".5"/><circle cx="17" cy="17" r="2.4" opacity=".5"/><path d="M8 11.4l7-3.4M8 12.6l7 3.4" stroke="#f365c0" stroke-width="1.4" opacity=".5"/></svg>Add as mind map</div>
+        <div class="mk"><svg width="14" height="14" viewBox="0 0 24 24" fill="#5ac875"><circle cx="5" cy="12" r="2.4"/><circle cx="12" cy="12" r="2.4" opacity=".5"/><circle cx="19" cy="12" r="2.4" opacity=".5"/></svg>Make a plan</div>
+        <div class="mk"><svg width="14" height="14" viewBox="0 0 24 24" fill="#ffc31f"><rect x="3" y="4" width="5" height="16" rx="1.6"/><rect x="9.5" y="4" width="5" height="16" rx="1.6" opacity=".5"/><rect x="16" y="4" width="5" height="16" rx="1.6" opacity=".5"/></svg>Create board</div>
+      </div>
+
+    </div>
+
+    <div class="comp">
+      <div class="ph">Ask about this answer, or @ a card…</div>
+      <div class="row">
+        <div class="seg"><span class="sg">Create</span><span class="sg on">Ask</span></div>
+        <div class="send"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+      </div>
+    </div>
+
+    <div class="tools">
+      <div class="tg"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M20 12l-7.6 7.6a4.5 4.5 0 1 1-6.4-6.4l7.7-7.7a3 3 0 1 1 4.2 4.2l-7.6 7.7a1.5 1.5 0 1 1-2.1-2.1l7-7"/></svg>Attach</div>
+      <div class="tg on"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.4 2.4 14.6 0 17M12 3.5c-2.4 2.4-2.4 14.6 0 17"/></svg>Web on</div>
+      <div class="eff">Efficient <span>· balanced</span></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

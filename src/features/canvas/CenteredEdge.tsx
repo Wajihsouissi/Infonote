@@ -465,7 +465,7 @@ export const CenteredEdge = memo(function CenteredEdge({
 
     const markerId = `marker-${id}`;
 
-    const handleColor = dragState?.isValid ? '#10b981' : '#f95d2e';
+    const handleColor = dragState?.isValid ? '#5ac875' : '#ff5040';
     const glowColor = dragState?.isValid ? 'rgba(16, 185, 129, 0.25)' : 'rgba(249, 93, 46, 0.25)';
     const strokeGlow = dragState?.isValid ? 'rgba(16, 185, 129, 0.6)' : 'rgba(249, 93, 46, 0.6)';
 

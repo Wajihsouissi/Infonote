@@ -1,0 +1,125 @@
+/* `@` picker — ai-Plan.md §5.3. Same floating-menu language as the canvas
+   slash menu and context menu: raised surface, strong hairline, surface radius,
+   elev-2. It opens UPWARD out of the composer, so it is anchored bottom-left by
+   the caller rather than positioning itself. */
+
+.picker {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: var(--menu-pad);
+    background: var(--menu-bg);
+    border: 1px solid var(--menu-border);
+    border-radius: var(--menu-radius);
+    box-shadow: var(--menu-shadow);
+}
+
+.heading {
+    padding: 7px 9px 4px;
+    font-size: 0.61rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 7px 9px;
+    border: none;
+    border-radius: var(--menu-item-radius);
+    background: transparent;
+    color: var(--text-soft);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.rowActive {
+    background: var(--menu-item-active);
+}
+
+.icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    border-radius: var(--r-xs);
+    background: var(--hover-wash);
+    color: var(--text-soft);
+}
+
+.rowActive .icon {
+    color: var(--accent-ink);
+}
+
+.body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.detail {
+    font-size: 0.65rem;
+    color: var(--text-faint);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.key {
+    flex-shrink: 0;
+    padding: 2px 5px;
+    border-radius: var(--r-xs);
+    background: var(--hover-wash);
+    font-size: 0.62rem;
+    font-weight: 600;
+    color: var(--text-faint);
+}
+
+.on {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--r-xs);
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+}
+
+.empty {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 10px;
+    font-size: 0.73rem;
+    color: var(--text-faint);
+}
+
+/* Restates the rule at the moment the user is exercising it. Cheap, and it is
+   the one promise the whole scope model exists to make. */
+.footnote {
+    margin-top: 4px;
+    padding: 7px 9px 4px;
+    border-top: 1px solid var(--menu-divider);
+    font-size: 0.64rem;
+    line-height: 1.4;
+    color: var(--text-faint);
+}

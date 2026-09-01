@@ -23,8 +23,12 @@ function relativeTime(ms: number): string {
  * default, so a persistent sidebar would leave neither list nor transcript
  * readable. Opening history is a brief detour — pick a chat, come back.
  */
-export function AIChatHistory({ onClose }: {
+export function AIChatHistory({ onClose, variant = 'overlay', closeOnOpen = true }: {
     onClose: () => void;
+    /** The fullscreen workspace reuses this list as a persistent rail. */
+    variant?: 'overlay' | 'rail';
+    /** A persistent rail should stay available after choosing a chat. */
+    closeOnOpen?: boolean;
 }) {
     const chats = useStore((s) => s.aiChats);
     const loading = useStore((s) => s.aiChatsLoading);
@@ -39,7 +43,7 @@ export function AIChatHistory({ onClose }: {
     }, [refreshAIChats]);
 
     return (
-        <div className={styles.overlay}>
+        <div className={`${styles.overlay} ${variant === 'rail' ? styles.rail : ''}`}>
             <div className={styles.head}>
                 <span className={styles.title}>Chat history</span>
                 <button className={styles.closeBtn} onClick={onClose} title="Back to this chat">
@@ -61,7 +65,7 @@ export function AIChatHistory({ onClose }: {
                                 className={`${styles.open} ${chat.id === currentId ? styles.openCurrent : ''}`}
                                 onClick={() => {
                                     void openAIChat(chat.id);
-                                    onClose();
+                                    if (closeOnOpen) onClose();
                                 }}
                                 title={chat.title}
                             >

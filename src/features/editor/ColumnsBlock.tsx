@@ -23,6 +23,19 @@ const makeColumn = (): ColumnData => ({
     content: [{ id: uuidv4(), type: 'text', content: '' }],
 });
 
+function legacyColumnContent(column: unknown): Block[] {
+    if (!column || typeof column !== 'object') return [];
+    const value = column as { content?: unknown; blocks?: unknown };
+    const nested = Array.isArray(value.content) ? value.content : Array.isArray(value.blocks) ? value.blocks : [];
+    return nested.filter((block): block is Block => Boolean(
+        block &&
+        typeof block === 'object' &&
+        typeof (block as Block).id === 'string' &&
+        typeof (block as Block).type === 'string' &&
+        typeof (block as Block).content === 'string',
+    ));
+}
+
 export const ColumnsBlock = ({
     block,
     onUpdate,
@@ -32,7 +45,11 @@ export const ColumnsBlock = ({
     promoteBlockHandles,
     disableMediaControls
 }: ColumnsBlockProps) => {
-    const columns = block.metadata?.columns || []; // Array of { id: string, content: Block[] }
+    const columns = (block.metadata?.columns || []).map((column, index): ColumnData => ({
+        ...column,
+        id: column.id || `${block.id}-legacy-column-${index}`,
+        content: legacyColumnContent(column),
+    }));
     const columnCount = columns.length;
     // Allow up to 20 columns in a single row without forced wrapping
     const gridColumnCount = columnCount;

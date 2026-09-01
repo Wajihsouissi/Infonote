@@ -354,7 +354,8 @@ export async function activateWorkspace(
         );
         state.setCloudDirty(false);
         state.setCloudError(null);
-        state.setCloudLastSaved(new Date().toLocaleTimeString());
+        // Activating a workspace reads the canvas down; nothing was written.
+        state.setCloudLastLoaded(new Date().toLocaleTimeString());
 
         return {
             ok: true,

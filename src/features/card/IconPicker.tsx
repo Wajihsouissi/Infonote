@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } fro
 import { createPortal } from 'react-dom';
 import { Search, Upload, X, Link, type LucideIcon } from '../../components/icons';
 import styles from './IconPicker.module.css';
+import { Tabs, type TabItem } from '../../components/ui/Tabs';
 
 // Deferred: the emoji dataset is large; only load it when the Emojis tab opens.
 const EmojiPickerPanel = lazy(() => import('./EmojiPickerPanel'));
@@ -87,14 +88,22 @@ const colorSwatches = [
     { name: 'Red', value: 'var(--t-red)' },
     { name: 'Pink', value: 'var(--t-pink)' },
     { name: 'Purple', value: 'var(--t-purple)' },
-    { name: 'Blue', value: 'var(--t-blue)' },
+    { name: 'Charcoal', value: 'var(--t-charcoal)' },
     { name: 'Green', value: 'var(--t-green)' },
     { name: 'Yellow', value: 'var(--t-yellow)' },
 ];
 
+type IconPickerTab = 'icons' | 'emojis' | 'custom';
+
+const ICON_PICKER_TABS: TabItem<IconPickerTab>[] = [
+    { id: 'icons', label: 'Icons' },
+    { id: 'emojis', label: 'Emojis' },
+    { id: 'custom', label: 'Custom' },
+];
+
 export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconPickerProps) {
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeTab, setActiveTab] = useState<'icons' | 'emojis' | 'custom'>('icons');
+    const [activeTab, setActiveTab] = useState<IconPickerTab>('icons');
     
     const isCustomCurrent = currentIcon && (
         currentIcon.startsWith('data:image/') || 
@@ -299,26 +308,13 @@ export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconP
         <div className={`${styles.overlay} ${isAbsolute ? styles.overlayAbsolute : ''}`} onClick={handleSaveAndClose}>
             <div className={`${styles.modal} ${isAbsolute ? styles.modalAbsolute : ''}`} onClick={(e) => e.stopPropagation()}>
                 <div className={styles.header}>
-                    <div className={styles.tabs}>
-                        <button 
-                            className={`${styles.tabBtn} ${activeTab === 'icons' ? styles.tabActive : ''}`}
-                            onClick={() => setActiveTab('icons')}
-                        >
-                            Icons
-                        </button>
-                        <button 
-                            className={`${styles.tabBtn} ${activeTab === 'emojis' ? styles.tabActive : ''}`}
-                            onClick={() => setActiveTab('emojis')}
-                        >
-                            Emojis
-                        </button>
-                        <button 
-                            className={`${styles.tabBtn} ${activeTab === 'custom' ? styles.tabActive : ''}`}
-                            onClick={() => setActiveTab('custom')}
-                        >
-                            Custom
-                        </button>
-                    </div>
+                    <Tabs
+                        items={ICON_PICKER_TABS}
+                        value={activeTab}
+                        onChange={setActiveTab}
+                        radius="md"
+                        aria-label="Icon source"
+                    />
                     <button className={`${styles.closeBtn} icon-hover`} onClick={handleSaveAndClose} aria-label="Close icon picker">
                         <X size={18} />
                     </button>

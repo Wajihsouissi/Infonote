@@ -3,6 +3,14 @@ import { createPortal } from 'react-dom';
 import { Trash2, Copy, Type, Palette, ArrowRight, Heading1, Heading2, Heading3, CheckSquare, Quote, List, ListOrdered, Code, Link, ChevronDown } from '../../components/icons';
 import styles from './BlockEditor.module.css';
 import type { BlockType } from './types';
+import { Tabs, type TabItem } from '../../components/ui/Tabs';
+
+type ColorTab = 'text' | 'background';
+
+const COLOR_TABS: TabItem<ColorTab>[] = [
+    { id: 'text', label: 'Text' },
+    { id: 'background', label: 'Background' },
+];
 
 type BlockMenuActionValue = BlockType | { type: 'text' | 'background'; value: string } | number;
 
@@ -36,7 +44,7 @@ const COLORS = [
     { label: 'Orange', value: '#d9730d' },
     { label: 'Yellow', value: '#cb912f' },
     { label: 'Green', value: '#448361' },
-    { label: 'Blue', value: '#337ea9' },
+    { label: 'Coral', value: '#ff5040' },
     { label: 'Purple', value: '#9065b0' },
     { label: 'Pink', value: '#c14c8a' },
     { label: 'Red', value: '#d44c47' },
@@ -45,7 +53,7 @@ const COLORS = [
 export function BlockMenu({ x, y, currentType, onClose, onAction }: BlockMenuProps) {
     const menuRef = useRef<HTMLDivElement>(null);
     const [activeSubMenu, setActiveSubMenu] = useState<'turnInto' | 'color' | null>(null);
-    const [colorTab, setColorTab] = useState<'text' | 'background'>('text');
+    const [colorTab, setColorTab] = useState<ColorTab>('text');
     const [positionedCoords, setPositionedCoords] = useState<{ x: number; y: number } | null>(null);
 
     useLayoutEffect(() => {
@@ -147,19 +155,23 @@ export function BlockMenu({ x, y, currentType, onClose, onAction }: BlockMenuPro
 
                 {activeSubMenu === 'color' && (
                     <>
-                        <div className={styles.tabContainer}>
-                            <button
-                                className={`${styles.tabButton} ${colorTab === 'text' ? styles.active : ''}`}
-                                onClick={(e) => { e.stopPropagation(); setColorTab('text'); }}
-                            >
-                                Text
-                            </button>
-                            <button
-                                className={`${styles.tabButton} ${colorTab === 'background' ? styles.active : ''}`}
-                                onClick={(e) => { e.stopPropagation(); setColorTab('background'); }}
-                            >
-                                Background
-                            </button>
+                        {/* The menu closes on any click that reaches it, so the
+                            strip is wrapped in its own stopPropagation rather
+                            than each tab carrying one. */}
+                        <div
+                            className={styles.tabContainer}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <Tabs
+                                items={COLOR_TABS}
+                                value={colorTab}
+                                onChange={setColorTab}
+                                size="sm"
+                                color="accent"
+                                radius="control"
+                                fullWidth
+                                aria-label="Colour target"
+                            />
                         </div>
                         <div className={styles.menuHeader} style={{ marginTop: 0 }}>{colorTab === 'text' ? 'Text Color' : 'Background'}</div>
                         {COLORS.map(item => (

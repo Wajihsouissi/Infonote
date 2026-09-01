@@ -1,5 +1,9 @@
+/* ============================================================
+   Table of Contents Panel — Design System "Charcoal & Signal"
+   Shared Panel & Inset Container Architecture with Resizability
+   ============================================================ */
+
 .panel {
-    width: 310px;
     height: 100%;
     background: var(--panel-bg);
     display: flex;
@@ -14,7 +18,6 @@
 }
 
 .panelOpen {
-    width: 310px;
     opacity: 1;
     transform: translateX(0);
 }
@@ -27,17 +30,72 @@
     box-shadow: none;
 }
 
-/* Sticky Header */
-/* Sits on the panel's chrome — no surface, no divider; the inset body is the
-   edge. 24px aligns the title with the content inside the body, and the height
-   is set so header + inset equals the top bar, putting the body's top edge on
-   the same line as the canvas frame's. */
-/* No title/icon left anymore, so headerActions is the only child — keep it
-   pinned right rather than letting space-between drop it to the start. */
+/* Resize Handle on the left edge */
+.resizeHandle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    cursor: col-resize;
+    z-index: 100;
+    touch-action: none;
+}
+
+.resizeGrip {
+    width: 3px;
+    height: 120px;
+    border-radius: 999px;
+    background: var(--text-soft);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.resizeHandle:hover .resizeGrip,
+.resizeHandle:active .resizeGrip {
+    opacity: 1;
+}
+
+.resizeTooltip {
+    position: absolute;
+    right: calc(100% + 6px);
+    top: 50%;
+    transform: translateY(-50%) translateX(4px) scale(0.92);
+    padding: 5px 10px;
+    background: rgba(20, 20, 23, 0.95);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm, 8px);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1), transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 101;
+}
+
+.resizeHandle:hover .resizeTooltip {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0) scale(1);
+    transition-delay: 0.35s;
+}
+
+.resizeHandle:active .resizeTooltip {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0) scale(1);
+    transition-delay: 0s;
+}
+
+/* Header — sits on panel chrome matching app topbar */
 .header {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
     height: calc(var(--topbar-h) - var(--panel-inset));
     box-sizing: border-box;
     padding: 0 24px;
@@ -48,9 +106,89 @@
     flex-shrink: 0;
 }
 
-/* The panel's inset surface — same radius as the canvas frame. It also becomes
-   the containing block for the scroll indicators, which are absolutely
-   positioned and were previously measured against the whole panel. */
+/* User / Workspace Chip */
+.userChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--bg-rail);
+    border: 1px solid var(--line);
+    color: var(--text-main);
+    padding: 4px 9px 4px 6px;
+    border-radius: var(--radius-pill, 999px);
+    font-size: 0.775rem;
+    font-weight: 550;
+    cursor: pointer;
+    user-select: none;
+    transition: all var(--transition-fast);
+    max-width: 190px;
+}
+
+.userChip:hover {
+    background: var(--hover-wash);
+    border-color: var(--line-strong);
+}
+
+.avatarContainer {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--on-accent, #ffffff);
+    font-size: 0.65rem;
+    font-weight: 600;
+}
+
+.avatarImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.userNameText {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+}
+
+.userChipChevron {
+    color: var(--text-faint);
+    flex-shrink: 0;
+}
+
+.headerActions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.headerIconBtn {
+    background: transparent;
+    border: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border-radius: var(--radius-sm, 6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.headerIconBtn:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+/* Inset Body Surface — carries the canvas frame radius and panel inset */
 .panelBody {
     flex: 1;
     min-height: 0;
@@ -61,471 +199,82 @@
     margin: var(--panel-inset);
     background: var(--panel-body-bg);
     border-radius: var(--panel-radius);
-}
-
-.closeBtn {
-    background: transparent;
-    border: none;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    width: 26px;
-    height: 26px;
-    padding: 0;
-    border-radius: var(--radius-sm);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all var(--transition-fast);
-}
-
-/* hover handled by the shared .icon-hover affordance */
-
-/* Scrollable Outline Container */
-.scrollContent {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    scrollbar-width: thin;
-    scrollbar-color: var(--line-strong) transparent;
-}
-
-.emptyState {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 20px;
-    color: var(--color-text-muted);
-    font-size: 0.8rem;
-    text-align: center;
-    gap: 12px;
-    opacity: 0.7;
-    height: 100%;
-}
-
-.emptyIcon {
-    opacity: 0.5;
-}
-
-/* TOC Outline Tree Items */
-.tree {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.itemWrapper {
-    display: flex;
-    flex-direction: column;
-}
-
-.itemRow {
-    display: flex;
-    align-items: center;
-    padding: 6px 8px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    font-size: 0.8rem;
-    color: var(--color-text-muted);
-    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    user-select: none;
-    gap: 6px;
-}
-
-.itemRow:hover {
-    background: var(--bg-rail);
-    color: var(--color-text-main);
-    padding-left: 10px;
-    /* Micro-scale shift hover */
-}
-
-/* Depth Guide Lines - notion-style hierarchy lines */
-.itemRow::before {
-    content: '';
-    position: absolute;
-    left: var(--indent-line-left);
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: var(--line);
-    opacity: 0.5;
-    pointer-events: none;
-    display: var(--indent-line-display, block);
-}
-
-/* Indent Spacing classes */
-.indent-0 {
-    padding-left: 8px;
-}
-
-.indent-1 {
-    padding-left: 24px;
-}
-
-.indent-2 {
-    padding-left: 40px;
-}
-
-.indent-3 {
-    padding-left: 56px;
-}
-
-.indent-4 {
-    padding-left: 72px;
-}
-
-.indent-5 {
-    padding-left: 88px;
-}
-
-/* Active Section Accent Styling */
-.itemActive {
-    color: var(--color-primary) !important;
-    font-weight: 550;
-    background: var(--color-primary-glow) !important;
-}
-
-.itemActive::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 6px;
-    bottom: 6px;
-    width: 3px;
-    background: var(--color-primary);
-    border-radius: 2px;
-    box-shadow: none;
-}
-
-/* Icon Styles */
-.collapseIcon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-text-muted);
-    opacity: 0.6;
-    padding: 2px;
-    border-radius: 4px;
-    transition: transform 0.2s ease, background 0.15s ease;
-    cursor: pointer;
-    margin-right: -2px;
-    z-index: 5;
-}
-
-.collapseIcon:hover {
-    background: var(--ui-hover);
-    color: var(--color-text-main);
-}
-
-.collapsed {
-    transform: rotate(-90deg);
-}
-
-.expanded {
-    transform: rotate(0deg);
-}
-
-.itemIcon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    width: 16px;
-    height: 16px;
-    opacity: 0.7;
-}
-
-.itemLabel {
-    flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: 1.4;
-}
-
-/* Typographical hierarchy style modifiers */
-.heading1 {
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: var(--color-text-main);
-}
-
-.heading2 {
-    font-weight: 550;
-    font-size: 0.82rem;
-}
-
-.heading3 {
-    font-size: 0.8rem;
-}
-
-.page {
-    font-weight: 500;
-    color: var(--color-secondary);
-}
-
-.todo {
-    font-family: monospace;
-}
-
-/* Custom Checkbox styled for TOC items */
-.checkbox {
-    width: 12px;
-    height: 12px;
-    border: 1px solid var(--color-text-muted);
-    border-radius: var(--radius-xs);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 2px;
-}
-
-.checkboxChecked {
-    border-color: var(--color-primary);
-    background: var(--color-primary);
-}
-
-.checkboxChecked::after {
-    content: '✓';
-    color: var(--on-accent);
-    font-size: 8px;
-    font-weight: bold;
-}
-
-/* Sub-items container with sliding height animations */
-.childrenContainer {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
-}
-
-.childrenContainerCollapsed {
-    max-height: 0 !important;
-    opacity: 0;
-    pointer-events: none;
-}
-
-/* Scroll Indicators at top/bottom of content */
-.scrollIndicator {
-    position: absolute;
-    left: 0;
-    right: 0;
-    height: 16px;
-    pointer-events: none;
-    z-index: 5;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-}
-
-.scrollIndicatorTop {
-    /* Measured from the top of the body now, not the panel. */
-    top: 0;
-    background: linear-gradient(to bottom, var(--panel-body-bg), transparent);
-}
-
-.scrollIndicatorBottom {
-    bottom: 0;
-    background: linear-gradient(to top, var(--panel-body-bg), transparent);
-}
-
-/* Row Controls (Hover Rearrange Up/Down & Navigate) */
-.rowControls {
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    margin-left: auto;
-    /* Push to the absolute right of the row */
-    opacity: 0;
-    /* Hidden by default */
-    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    pointer-events: auto;
-}
-
-.itemRow:hover .rowControls {
-    opacity: 1;
-    /* Visible on row hover */
-}
-
-.rearrangeBtn,
-.navigateBtn {
-    background: transparent;
-    border: none;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    padding: 3px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.rearrangeBtn:hover {
-    background: var(--bg-rail);
-    color: var(--color-secondary) !important;
-    transform: scale(1.08);
-}
-
-.navigateBtn:hover {
-    background: var(--bg-rail);
-    color: var(--color-primary) !important;
-    transform: translateX(2px) scale(1.08);
-}
-
-/* Card Icon in Outline List */
-.cardIcon {
-    color: var(--color-primary);
-    flex-shrink: 0;
-    opacity: 0.75;
-    transition: opacity 0.2s ease;
-}
-
-.itemActive .cardIcon {
-    opacity: 1;
-}
-
-/* Header Actions Controls */
-.headerActions {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.actionIconBtn {
-    background: transparent;
-    border: none;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    padding: 4px;
-    border-radius: var(--radius-sm);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-}
-
-.actionIconBtn:hover {
-    background: var(--bg-rail);
-    color: var(--color-primary);
-}
-
-/* Modern Sleek Icon Sliding Track */
-.switcherTrack {
-    display: inline-flex;
-    position: relative;
-    background: var(--hover-wash);
     border: 1px solid var(--line);
-    border-radius: var(--radius-md);
-    padding: 2px;
+}
+
+/* Action Row */
+.actionRow {
+    padding: 12px 16px 8px 16px;
+    display: flex;
     align-items: center;
-    user-select: none;
-    cursor: pointer;
-    overflow: hidden;
-    height: 26px;
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    justify-content: space-between;
+    flex-shrink: 0;
 }
 
-.switcherTrack:hover {
-    border-color: rgba(var(--accent-rgb), 0.4);
-    box-shadow: none;
-}
-
-/* Sliding active background bubble */
-.switcherSlider {
-    position: absolute;
-    top: 2px;
-    bottom: 2px;
-    width: 22px;
-    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.12) 0%, rgba(var(--accent-rgb), 0.12) 100%);
-    border: 1px solid rgba(var(--accent-rgb), 0.25);
-    border-radius: var(--radius-sm);
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s ease;
-    z-index: 1;
-    pointer-events: none;
-}
-
-/* Sliding offsets precisely aligned to 22px option buttons */
-.sliderLeft {
-    transform: translateX(0);
-}
-
-.sliderRight {
-    transform: translateX(24px);
-    /* Moves exactly by button width (22px) + gap/padding (2px) */
-}
-
-/* Individual options */
-.switcherOption {
-    position: relative;
-    z-index: 2;
+.addNewBtn {
     background: transparent;
     border: none;
-    color: var(--color-text-muted);
+    color: var(--accent);
+    font-size: 0.8125rem;
+    font-weight: 600;
     cursor: pointer;
-    width: 23px;
-    height: 22px;
-    border-radius: var(--radius-sm);
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    outline: none;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    padding: 0;
+    gap: 6px;
+    padding: 4px 6px;
+    border-radius: var(--radius-sm, 6px);
+    user-select: none;
+    transition: transform var(--transition-fast), opacity var(--transition-fast);
 }
 
-.switcherOptionActive {
-    color: var(--accent-ink) !important;
-    filter: drop-shadow(0 0 4px rgba(var(--accent-rgb), 0.4));
+.addNewBtn:hover {
+    background: var(--accent-dim);
+    opacity: 0.95;
+    transform: translateX(1px);
 }
 
-.switcherOption:hover:not(.switcherOptionActive) {
-    color: var(--color-text-main);
+.itemCountTotal {
+    font-size: 0.725rem;
+    color: var(--text-faint);
+    font-weight: 500;
 }
 
-.headerDivider {
-    width: 1px;
-    height: 14px;
-    background: var(--line);
-    margin: 0 4px;
-}
-
-/* Modern Glassmorphic Search Bar */
+/* Search Bar Container */
 .searchContainer {
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--line);
-    background: var(--bg-inset);
+    padding: 0 16px 10px 16px;
+    position: relative;
     display: flex;
     align-items: center;
-    position: relative;
-    z-index: 10;
+}
+
+.searchIcon {
+    position: absolute;
+    left: 26px;
+    color: var(--text-faint);
+    pointer-events: none;
 }
 
 .searchInput {
     width: 100%;
-    background: var(--hover-wash);
+    padding: 7px 28px 7px 30px;
+    font-size: 0.775rem;
+    border-radius: var(--r-control, 8px);
     border: 1px solid var(--line);
-    border-radius: var(--radius-md);
-    padding: 6px 32px 6px 12px;
-    font-size: 0.78rem;
-    color: var(--color-text-main);
+    background: var(--bg-rail);
+    color: var(--text-main);
     outline: none;
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: border-color var(--transition-fast), background var(--transition-fast);
     font-family: inherit;
 }
 
 .searchInput::placeholder {
-    color: var(--color-text-muted);
-    opacity: 0.6;
+    color: var(--text-faint);
 }
 
 .searchInput:focus {
-    background: var(--hover-wash);
-    border-color: var(--color-primary);
-    box-shadow: none;
+    border-color: var(--accent);
+    background: var(--bg-card);
+    box-shadow: 0 0 0 2px var(--accent-dim);
 }
 
 .clearSearchBtn {
@@ -533,99 +282,400 @@
     right: 24px;
     background: transparent;
     border: none;
-    color: var(--color-text-muted);
+    color: var(--text-faint);
     cursor: pointer;
-    padding: 2px;
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0.7;
-    transition: opacity 0.2s ease;
+    padding: 2px;
+    border-radius: 4px;
 }
 
 .clearSearchBtn:hover {
-    opacity: 1;
-    color: var(--color-text-main);
+    color: var(--text-main);
 }
 
-/* Premium Heading Badge Styling */
-.headingBadge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.65rem;
-    font-weight: 700;
-    width: 20px;
-    height: 14px;
-    background: var(--hover-wash);
-    border: 1px solid var(--line-strong);
-    border-radius: 4px;
-    flex-shrink: 0;
-    letter-spacing: -0.05em;
-    user-select: none;
-}
-
-/* Item Icon Container */
-.itemIconContainer {
+/* Scrollable Outline Tree Container */
+.treeScrollArea {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 10px 14px 10px;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    width: 20px;
-    height: 20px;
+    flex-direction: column;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
 }
 
-/* Completed Todo list items */
-.todoItemCompleted .itemLabel {
-    text-decoration: line-through;
-    color: var(--color-text-muted) !important;
+.treeScrollArea::-webkit-scrollbar {
+    width: 4px;
+}
+
+.treeScrollArea::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: 4px;
+}
+
+/* Empty State */
+.emptyState {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 16px;
+    color: var(--text-faint);
+    font-size: 0.8rem;
+    text-align: center;
+    gap: 12px;
+    height: 100%;
+}
+
+.emptyStateIcon {
+    color: var(--text-faint);
     opacity: 0.5;
 }
 
-/* Checklist Progress Bar container */
-.progressContainer {
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--line);
-    background: rgba(var(--ok-rgb), 0.02);
+/* Tree Nodes */
+.treeWrapper {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    z-index: 10;
+    position: relative;
 }
 
-.progressHeader {
+.nodeItemWrapper {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+/* Hierarchy Connector Lines */
+.branchElbow {
+    position: absolute;
+    top: 0;
+    width: 10px;
+    height: 15px;
+    border-bottom: 1px solid var(--line);
+    border-left: 1px solid var(--line);
+    border-bottom-left-radius: 6px;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.verticalGuideLine {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--line);
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+/* Node Item Row */
+.nodeRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border-radius: var(--radius-sm, 7px);
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    transition: background var(--transition-fast), color var(--transition-fast);
+    min-height: 28px;
+    box-sizing: border-box;
+}
+
+.nodeRow:hover {
+    background: var(--hover-wash);
+}
+
+/* Active Row (Selected / Focused) */
+.nodeRowActive {
+    background: var(--active-wash) !important;
+}
+
+.expandBtn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: transform var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.expandBtn:hover {
+    color: var(--text-main);
+}
+
+.expandBtnCollapsed {
+    transform: rotate(-90deg);
+}
+
+.expandBtnExpanded {
+    transform: rotate(0deg);
+}
+
+/* Node Icon Variants */
+.nodeIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--text-soft);
+}
+
+.iconFolder {
+    color: var(--accent);
+    opacity: 0.9;
+}
+
+.iconFile {
+    color: var(--text-soft);
+}
+
+.iconBlock {
+    color: var(--text-faint);
+}
+
+.headingBadge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 1px 3px;
+    border-radius: 3px;
+    background: var(--hover-wash);
+    color: var(--accent);
+    border: 1px solid var(--line);
+    font-family: var(--font-mono, monospace);
+}
+
+.bulletDot {
+    font-size: 1.15rem;
+    line-height: 1;
+    color: var(--accent);
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+}
+
+.numberBadge {
+    font-size: 0.675rem;
+    font-weight: 700;
+    color: var(--text-faint);
+    min-width: 14px;
+    text-align: center;
+    font-family: var(--font-mono, monospace);
+}
+
+.todoIconWrapper {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.todoChecked {
+    color: var(--ok, #5ac875);
+    cursor: pointer;
+    transition: transform var(--transition-fast);
+}
+
+.todoChecked:hover {
+    transform: scale(1.15);
+}
+
+.todoUnchecked {
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: transform var(--transition-fast), color var(--transition-fast);
+}
+
+.todoUnchecked:hover {
+    color: var(--text-main);
+    transform: scale(1.15);
+}
+
+.todoCompletedText {
+    text-decoration: line-through;
+    opacity: 0.65;
+}
+
+.nodeLabel {
+    font-size: 0.8125rem;
+    font-weight: 450;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+.nodeLabelActive {
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.lockIcon {
+    color: var(--text-faint);
+    display: inline-flex;
+    align-items: center;
+    margin-left: 2px;
+    flex-shrink: 0;
+}
+
+/* Right-aligned Meta (Count badge or Favorite Star) */
+.rightMeta {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.countText {
+    font-size: 0.725rem;
+    color: var(--text-faint);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+}
+
+.starBadge {
+    color: var(--accent);
+    fill: var(--accent);
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Hover Quick Actions (+ and ···) */
+.hoverActions {
+    display: none;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+}
+
+.nodeRow:hover .hoverActions {
+    display: flex;
+}
+
+.nodeRow:hover .rightMeta {
+    display: none;
+}
+
+.quickActionBtn {
+    background: transparent;
+    border: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: var(--radius-xs, 4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.quickActionBtn:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+/* Context Menu Dropdown */
+.contextMenu {
+    position: fixed;
+    z-index: 1000;
+    background: var(--bg-raised, var(--bg-card));
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-control, 8px);
+    box-shadow: var(--elev-3);
+    padding: 4px;
+    min-width: 145px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    animation: menuFadeIn var(--transition-fast) ease-out;
+}
+
+@keyframes menuFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.contextMenuItem {
+    background: transparent;
+    border: none;
+    padding: 6px 9px;
+    border-radius: var(--radius-xs, 4px);
+    color: var(--text-main);
+    font-size: 0.775rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    text-align: left;
+    transition: background var(--transition-fast);
+    font-family: inherit;
+}
+
+.contextMenuItem:hover {
+    background: var(--hover-wash);
+}
+
+.contextMenuItemDanger {
+    color: var(--danger, #f5430b) !important;
+}
+
+.contextMenuItemDanger:hover {
+    background: rgba(245, 67, 11, 0.12) !important;
+}
+
+/* Footer Section */
+.cardFooter {
+    padding: 10px 16px;
+    border-top: 1px solid var(--line);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 0.72rem;
-    font-weight: 550;
-    color: var(--color-text-muted);
+    flex-shrink: 0;
+    background: inherit;
 }
 
-.progressLabel {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    color: var(--ok);
-}
-
-.progressStats {
-    font-family: monospace;
+.browseAllBtn {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font-size: 0.8125rem;
     font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    border-radius: var(--radius-sm, 6px);
+    user-select: none;
+    transition: all var(--transition-fast);
 }
 
-.progressBarBg {
-    width: 100%;
-    height: 5px;
-    background: var(--hover-wash);
-    border-radius: var(--radius-xs);
-    overflow: hidden;
-}
-
-.progressBarFill {
-    height: 100%;
-    background: var(--ok);
-    border-radius: var(--radius-xs);
-    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: none;
+.browseAllBtn:hover {
+    background: var(--accent-dim);
+    transform: translateY(-1px);
 }

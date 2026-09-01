@@ -4,37 +4,52 @@ import type { AIMessage } from './aiTypes';
 const HISTORY_TURNS = 8;
 const REPLY_EXCERPT_CHARS = 900;
 
+/** One prior turn, in the shape the gateway's messages array wants. */
+export interface AIHistoryTurn {
+    role: 'user' | 'assistant';
+    content: string;
+}
+
 /**
- * Fold the transcript into the prompt.
+ * The transcript as real conversation turns.
  *
- * The gateway route takes a single `prompt` string rather than a messages
- * array, so multi-turn context has to be carried in the text. Without this an
- * AI turn is stateless: "plan a case study" then "expand phase 3" would send
- * only the second sentence, and the answer would be about nothing. Planning is
- * iterative by nature, so the transcript is the feature.
+ * This used to fold the whole history into one `prompt` string, because the
+ * route accepted nothing else (ai-Plan.md §2.3 A2). That cost two things: the
+ * prompt prefix changed on every turn, so prompt caching never hit, and the
+ * boundary between "the user said" and "you said" was a `User:` / `Assistant:`
+ * label inside one blob rather than a structural fact the model could rely on.
+ * Planning is iterative by nature — "expand phase 3" only resolves against a
+ * real previous turn — so the transcript is the feature.
+ *
+ * Assistant replies are still excerpted: a long answer carried in full would
+ * dominate the window within a few turns, and the opening is where the shape of
+ * an answer lives.
  */
-export function buildConversationPrompt(messages: AIMessage[], question: string, excludeMessageId?: string): string {
-    // Drop the turn currently streaming (it is the one we are asking for).
-    const prior = messages
+export function buildConversationHistory(messages: AIMessage[], excludeMessageId?: string): AIHistoryTurn[] {
+    return messages
         .filter((m) => m.id !== excludeMessageId)
-        .filter((m) => m.role === 'user' || (m.role === 'assistant' && m.status !== 'streaming' && m.text.trim()))
-        .slice(-HISTORY_TURNS * 2);
-
-    if (prior.length === 0) return question;
-
-    const transcript = prior
-        .map((m) => {
-            if (m.role === 'user') return `User: ${m.text}`;
-            const text = m.text.length > REPLY_EXCERPT_CHARS ? `${m.text.slice(0, REPLY_EXCERPT_CHARS)}…` : m.text;
-            return `Assistant: ${text}`;
-        })
-        .join('\n\n');
-
-    return `[CONVERSATION SO FAR]
-${transcript}
-
-[CURRENT QUESTION]
-${question}
-
-Answer the current question. Build on the conversation above instead of repeating it — when the user says "that", "it", or "phase 3", they mean something you already wrote.`;
+        .filter((m): m is Extract<AIMessage, { role: 'user' | 'assistant' | 'form' }> =>
+            m.role === 'user'
+            || (m.role === 'assistant' && m.status !== 'streaming' && m.text.trim().length > 0)
+            || (m.role === 'form' && m.status === 'answered'))
+        .slice(-HISTORY_TURNS * 2)
+        .map((m) => ({
+            role: m.role === 'assistant' ? 'assistant' : 'user',
+            content: m.role === 'user'
+                ? m.text
+                : m.role === 'assistant'
+                    ? m.text.length > REPLY_EXCERPT_CHARS ? `${m.text.slice(0, REPLY_EXCERPT_CHARS)}…` : m.text
+                    : [
+                        '[ASK ME ANSWERS]',
+                        ...m.questions.map((question) => {
+                            const selected = (m.answers?.[question.id] ?? [])
+                                .map((id) => question.kind === 'text' ? id : question.options?.find((option) => option.id === id)?.label ?? id)
+                                .filter(Boolean)
+                                .join(', ');
+                            const custom = m.customAnswers?.[question.id]?.trim();
+                            return selected || custom ? `- ${question.prompt}: ${[selected, custom].filter(Boolean).join('; ')}` : '';
+                        }).filter(Boolean),
+                        m.additionalInfo?.trim() ? `- Additional information: ${m.additionalInfo.trim()}` : '',
+                    ].filter(Boolean).join('\n'),
+        }));
 }

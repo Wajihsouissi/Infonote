@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Outfit', system-ui, sans-serif; }
+    a { color: #ff5040; } a:hover { color: #ff7a6d; }
+  </style>
+</helmet>
+
+<div style="width: 720px; height: 560px; background: #121212; color: #ffffff; display: flex; flex-direction: column; overflow: hidden">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(255,255,255,0.03)">
+    <span style="font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #a3a3a3">Direction C — Headline</span>
+    <span style="font-size: 10px; font-weight: 600; letter-spacing: 0.08em; color: #a3a3a3">MOST COMPACT</span>
+  </div>
+
+  <!-- Title, icon and description on ONE line: the description continues the
+       title after a divider instead of owning a block of its own. -->
+  <div style="display: flex; align-items: center; gap: 12px; padding: 18px 24px 0; min-width: 0">
+    <div style="width: 34px; height: 34px; background: #1a1a1a; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg>
+    </div>
+    <div style="flex: none; font-size: 21px; font-weight: 700; line-height: 1.2; letter-spacing: -0.01em; color: #ffffff">Ghost Mode</div>
+    <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.18); flex: none"></div>
+    <div style="flex: 1; min-width: 0; font-size: 13px; line-height: 1.4; color: #a3a3a3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Prevent AI hallucinations and unwanted responses by introducing a review step.</div>
+  </div>
+
+  <!-- One headline fact, promoted. Whatever most needs attention right now —
+       overdue beats due-today beats status — earns the only filled pill on the
+       card; everything else is a quiet monochrome run behind a divider. -->
+  <div style="display: flex; align-items: center; gap: 10px; padding: 14px 24px 14px; min-width: 0">
+
+    <div style="display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 13px; border-radius: 999px; background: #f5430b; color: #ffffff; font-size: 13px; font-weight: 600; flex: none">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>Due today · 13:00
+    </div>
+
+    <div style="width: 1px; height: 18px; background: rgba(255,255,255,0.14); flex: none"></div>
+
+    <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-width: 0; color: #a3a3a3; font-size: 12.5px; font-weight: 500">
+      <span style="display: inline-flex; align-items: center; gap: 6px">
+        <span style="width: 7px; height: 7px; border-radius: 50%; background: #ffc31f"></span>In Progress
+      </span>
+      <span style="display: inline-flex; align-items: center; gap: 6px">
+        <svg width="13" height="13" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="rgba(163,163,163,0.32)" stroke-width="3"></circle><circle cx="11" cy="11" r="8" stroke="#5ac875" stroke-width="3" stroke-linecap="round" stroke-dasharray="50.3" stroke-dashoffset="30.2" transform="rotate(-90 11 11)"></circle></svg>2 of 5
+      </span>
+      <span style="display: inline-flex; align-items: center; gap: 6px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>High
+      </span>
+      <span style="display: inline-flex; align-items: center; gap: 6px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>Wajih
+      </span>
+      <span style="display: inline-flex; align-items: center; gap: 6px">
+        <span style="color: #6f6f6f">#</span>ai
+        <span style="color: #6f6f6f">#</span>safety
+      </span>
+      <span style="display: inline-flex; align-items: center; gap: 5px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"></path><path d="M15 7h2a5 5 0 1 1 0 10h-2"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg>example.com
+      </span>
+    </div>
+  </div>
+
+  <div style="flex: 1; min-height: 0; padding: 0 24px; display: flex; flex-direction: column; gap: 10px; overflow: hidden">
+    <div style="font-size: 19px; font-weight: 600; color: #ffffff">Objective</div>
+    <div style="font-size: 14.4px; line-height: 1.55; color: #e6e6e6">Prevent AI hallucinations by introducing a review step before any mutation is applied to the canvas.</div>
+    <div style="display: flex; align-items: center; gap: 9px; font-size: 14px; color: #e6e6e6">
+      <span style="width: 15px; height: 15px; border-radius: 4px; background: #5ac875; display: flex; align-items: center; justify-content: center; flex: none">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#121212" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      </span>Create a Ghost Mode toggle
+    </div>
+    <div style="display: flex; align-items: center; gap: 9px; font-size: 14px; color: #e6e6e6">
+      <span style="width: 15px; height: 15px; border-radius: 4px; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.28); flex: none"></span>Add an Accept / Reject bar
+    </div>
+    <div style="display: flex; align-items: center; gap: 9px; font-size: 14px; color: #e6e6e6">
+      <span style="width: 15px; height: 15px; border-radius: 4px; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.28); flex: none"></span>Integrate AI mutations with the history stack
+    </div>
+    <div style="display: flex; align-items: center; gap: 9px; font-size: 14px; color: #e6e6e6">
+      <span style="width: 15px; height: 15px; border-radius: 4px; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.28); flex: none"></span>Write the migration note
+    </div>
+    <div style="display: flex; align-items: center; gap: 9px; font-size: 14px; color: #e6e6e6">
+      <span style="width: 15px; height: 15px; border-radius: 4px; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.28); flex: none"></span>Ship behind the feature flag
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 18px; padding: 9px 24px; background: rgba(255,255,255,0.03); font-size: 11px; color: #a3a3a3; letter-spacing: 0.02em">
+    <span>cover <b style="color:#5ac875; font-weight:600">0</b></span>
+    <span>header <b style="color:#5ac875; font-weight:600">34</b></span>
+    <span>chips <b style="color:#5ac875; font-weight:600">44</b></span>
+    <span style="margin-left: auto">chrome before the body <b style="color:#5ac875; font-weight:600">78px</b> · saves 102</span>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

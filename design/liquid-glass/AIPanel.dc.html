@@ -1,0 +1,208 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #ff5040; text-decoration: none; }
+    a:hover { color: #f365c0; }
+
+    .ink { font-family: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif; color: #ffffff; }
+
+    .lg {
+      position: relative; isolation: isolate;
+      background: linear-gradient(177deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.028) 46%, rgba(255,255,255,0.062) 100%);
+      backdrop-filter: blur(22px) saturate(200%) brightness(1.07);
+      -webkit-backdrop-filter: blur(22px) saturate(200%) brightness(1.07);
+      box-shadow:
+        inset 0 1.2px 0 rgba(255,255,255,0.44),
+        inset 1px 0 0 rgba(255,255,255,0.15),
+        inset -1px 0 0 rgba(255,255,255,0.09),
+        inset 0 -1.2px 0 rgba(255,255,255,0.20),
+        inset 0 0 26px rgba(255,255,255,0.045),
+        0 1px 0 rgba(0,0,0,0.6),
+        0 22px 54px rgba(0,0,0,0.58);
+      corner-shape: superellipse(2);
+    }
+    .lg::before {
+      content: ''; position: absolute; inset: 0; border-radius: inherit; corner-shape: inherit;
+      pointer-events: none; z-index: 1;
+      background:
+        radial-gradient(125% 60% at 14% -14%, rgba(255,255,255,0.28), rgba(255,255,255,0) 58%),
+        radial-gradient(95% 45% at 86% 114%, rgba(255,255,255,0.12), rgba(255,255,255,0) 62%);
+    }
+    .lg::after {
+      content: ''; position: absolute; inset: 0; border-radius: inherit; corner-shape: inherit;
+      padding: 1.2px; pointer-events: none; z-index: 2;
+      background: linear-gradient(158deg,
+        rgba(255,80,64,0.62) 0%, rgba(255,255,255,0.30) 14%, rgba(255,255,255,0.04) 38%,
+        rgba(255,255,255,0.04) 64%, rgba(255,255,255,0.22) 86%, rgba(243,101,192,0.58) 100%);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      mask-composite: exclude;
+    }
+    .refract {
+      position: absolute; inset: 0; border-radius: inherit; corner-shape: inherit;
+      pointer-events: none; z-index: 0;
+      backdrop-filter: url(#lens-p); -webkit-backdrop-filter: url(#lens-p);
+    }
+    .refract.sm { backdrop-filter: url(#lens-ps); -webkit-backdrop-filter: url(#lens-ps); }
+    .lg > .content { position: relative; z-index: 3; }
+
+    .ctl {
+      width: 30px; height: 30px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 15px; corner-shape: superellipse(2);
+      color: #a3a3a3;
+    }
+    .ctl svg { width: 16px; height: 16px; }
+    .card {
+      background: #121212; border-radius: 32px; corner-shape: superellipse(2);
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.28), 0 1px 3px rgba(0,0,0,0.35);
+    }
+    .ln { height: 7px; border-radius: 4px; background: rgba(255,255,255,0.13); }
+    .step { display: flex; align-items: flex-start; gap: 9px; font-size: 12px; line-height: 1.45; }
+    .chip { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 11px; font-weight: 500; }
+  </style>
+</helmet>
+
+<div class="ink" style="width: 800px; height: 900px; position: relative; background: #121212; overflow: hidden">
+
+  <!-- desk -->
+  <div style="position: absolute; inset: 12px; border-radius: 40px; corner-shape: superellipse(2); overflow: hidden; background: #0d0d0d">
+    <div style="position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.18) 1px, transparent 1px); background-size: 24px 24px"></div>
+    <div style="position: absolute; inset: 0; background: radial-gradient(560px 420px at 30% 74%, rgba(255,80,64,0.15), transparent 70%), radial-gradient(440px 360px at 74% 18%, rgba(243,101,192,0.12), transparent 72%)"></div>
+
+    <!-- canvas content the panel is laid over, so the left rim has something
+         to bend: two cards deliberately running under the panel edge -->
+    <div class="card" style="position: absolute; left: 56px; top: 150px; width: 300px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <div style="width: 28px; height: 28px; border-radius: 9px; corner-shape: superellipse(2); background: rgba(243,101,192,0.16); display: flex; align-items: center; justify-content: center; color: #f365c0">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"></path><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"></path></svg>
+        </div>
+        <div style="font-size: 14px; font-weight: 600">Passiv &amp; Passiversatzformen</div>
+      </div>
+      <div style="background: #090909; border-radius: 14px; corner-shape: superellipse(2); padding: 12px; display: flex; flex-direction: column; gap: 7px">
+        <div class="ln" style="width: 96%"></div>
+        <div class="ln" style="width: 78%"></div>
+        <div class="ln" style="width: 88%"></div>
+      </div>
+    </div>
+
+    <div class="card" style="position: absolute; left: 210px; top: 470px; width: 320px; padding: 16px; display: flex; flex-direction: column; gap: 11px">
+      <div style="font-size: 14px; font-weight: 600">Sprechen: Redemittel</div>
+      <div style="display: flex; flex-direction: column; gap: 7px">
+        <div class="ln" style="width: 100%"></div>
+        <div class="ln" style="width: 66%"></div>
+      </div>
+      <div style="display: flex; gap: 6px"><span class="chip" style="background: rgba(255,80,64,0.16); color: #ff5040">Teil 1–3</span></div>
+    </div>
+  </div>
+
+  <!-- ============ the AI panel, floating ============ -->
+  <div class="lg" style="position: absolute; right: 24px; top: 24px; bottom: 24px; width: 380px; border-radius: 40px; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px">
+    <div class="refract"></div>
+
+    <div class="content" style="display: flex; flex-direction: column; gap: 10px; height: 100%; min-height: 0">
+
+      <!-- header -->
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 0 10px">
+        <div style="display: flex; align-items: center; gap: 9px">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#ff5040" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 13.9 8.6 19 10.5l-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z"></path><path d="M18.5 16.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"></path></svg>
+          <span style="font-size: 15px; font-weight: 600; letter-spacing: -0.01em">AI</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1px">
+          <div class="ctl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><path d="M12 7.5V12l3 1.8"></path></svg></div>
+          <div class="ctl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7"></path></svg></div>
+          <div class="ctl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5.5v13M5.5 12h13"></path></svg></div>
+          <div class="ctl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6.5 6.5 11 11M17.5 6.5l-11 11"></path></svg></div>
+        </div>
+      </div>
+
+      <!-- mode -->
+      <div style="display: flex; gap: 3px; padding: 3px; margin: 0 6px; border-radius: 16px; corner-shape: superellipse(2); background: rgba(0,0,0,0.34); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08)">
+        <div style="flex: 1; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 14px; corner-shape: superellipse(2); font-size: 12.5px; font-weight: 600; background: rgba(255,255,255,0.14); color: #fff">Create</div>
+        <div style="flex: 1; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 14px; corner-shape: superellipse(2); font-size: 12.5px; color: #a3a3a3">Ask</div>
+      </div>
+
+      <!-- selected-node strip -->
+      <div style="display: flex; align-items: center; gap: 7px; margin: 0 6px; padding: 7px 10px; border-radius: 14px; corner-shape: superellipse(2); background: rgba(255,80,64,0.12); box-shadow: inset 0 0 0 1px rgba(255,80,64,0.26)">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#ff5040" stroke-width="1.9" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="3.5"></rect></svg>
+        <span style="font-size: 11.5px; color: #e6e6e6">2 cards in context</span>
+        <span style="font-size: 11.5px; color: #a3a3a3; margin-left: auto">Clear</span>
+      </div>
+
+      <!-- transcript: the one surface that goes back to ink -->
+      <div style="flex: 1; min-height: 0; margin: 0 2px; padding: 14px; border-radius: 32px; corner-shape: superellipse(2); background: #090909; display: flex; flex-direction: column; gap: 14px; overflow: hidden">
+
+        <div style="align-self: flex-end; max-width: 84%; padding: 10px 13px; border-radius: 18px 18px 6px 18px; corner-shape: superellipse(2); background: rgba(255,255,255,0.08); font-size: 12.5px; line-height: 1.5; color: #ffffff">Bau mir aus diesen zwei Karten einen Wiederholungsplan für die nächsten zwei Wochen.</div>
+
+        <div style="display: flex; flex-direction: column; gap: 9px">
+          <div class="step"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#5ac875" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 2px"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg><span style="color: #a3a3a3">Read 2 cards · 1 340 tokens</span></div>
+          <div class="step"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#5ac875" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 2px"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg><span style="color: #a3a3a3">Planned 6 sessions</span></div>
+          <div class="step"><span style="width: 14px; height: 14px; flex: none; margin-top: 2px; border-radius: 50%; border: 2px solid rgba(255,80,64,0.3); border-top-color: #ff5040; display: block"></span><span style="color: #ffffff">Writing card 3 of 6…</span></div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <div style="padding: 11px 13px; border-radius: 16px; corner-shape: superellipse(2); background: #1a1a1a; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10); display: flex; align-items: center; gap: 10px">
+            <div style="width: 22px; height: 22px; border-radius: 7px; corner-shape: superellipse(2); background: rgba(195,255,51,0.16); display: flex; align-items: center; justify-content: center; color: #c3ff33; flex: none"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 4h8M8 20h8M9 4v16M15 4v16"></path></svg></div>
+            <div style="font-size: 12.5px; font-weight: 500">Woche 1 — Konjunktiv II</div>
+          </div>
+          <div style="padding: 11px 13px; border-radius: 16px; corner-shape: superellipse(2); background: #1a1a1a; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10); display: flex; align-items: center; gap: 10px">
+            <div style="width: 22px; height: 22px; border-radius: 7px; corner-shape: superellipse(2); background: rgba(243,101,192,0.16); display: flex; align-items: center; justify-content: center; color: #f365c0; flex: none"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 4h8M8 20h8M9 4v16M15 4v16"></path></svg></div>
+            <div style="font-size: 12.5px; font-weight: 500">Woche 1 — Passiversatzformen</div>
+          </div>
+          <div style="padding: 11px 13px; border-radius: 16px; corner-shape: superellipse(2); background: #1a1a1a; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); display: flex; align-items: center; gap: 10px; opacity: 0.45">
+            <div style="width: 22px; height: 22px; border-radius: 7px; corner-shape: superellipse(2); background: rgba(255,255,255,0.08); flex: none"></div>
+            <div style="height: 8px; width: 130px; border-radius: 4px; background: rgba(255,255,255,0.14)"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- effort dial -->
+      <div style="display: flex; gap: 3px; padding: 3px; margin: 0 6px; border-radius: 16px; corner-shape: superellipse(2); background: rgba(0,0,0,0.34); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08)">
+        <div style="flex: 1; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 13px; corner-shape: superellipse(2); font-size: 12px; color: #a3a3a3">Fast</div>
+        <div style="flex: 1; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 13px; corner-shape: superellipse(2); font-size: 12px; font-weight: 600; background: rgba(255,80,64,0.22); color: #ff5040">Efficient</div>
+        <div style="flex: 1; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 13px; corner-shape: superellipse(2); font-size: 12px; color: #a3a3a3">Smart</div>
+      </div>
+      <div style="font-size: 11px; color: #a3a3a3; margin: -4px 12px 0; line-height: 1.4">Efficient · a scannable page per card — usually a few seconds</div>
+
+      <!-- composer -->
+      <div style="margin: 0 2px 2px; padding: 12px 13px; border-radius: 28px; corner-shape: superellipse(2); background: #000000; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); display: flex; flex-direction: column; gap: 11px">
+        <div style="font-size: 13px; color: #a3a3a3; line-height: 1.4">Describe what to build…  @ for context, / for commands</div>
+        <div style="display: flex; align-items: center; gap: 7px">
+          <span class="chip" style="background: rgba(255,255,255,0.08); color: #e6e6e6">Gemini 2.5 Flash</span>
+          <div class="ctl" style="width: 28px; height: 28px"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 12.5 12 9l3.5 3.5"></path><path d="M12 9v9"></path><rect x="3.5" y="3.5" width="17" height="17" rx="5"></rect></svg></div>
+          <div style="margin-left: auto; width: 34px; height: 34px; border-radius: 14px; corner-shape: superellipse(2); background: #ff5040; color: #000; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(255,80,64,0.42)">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6"></path><path d="m6.5 11.5 5.5-5.5 5.5 5.5"></path></svg>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <svg width="0" height="0" style="position: absolute; pointer-events: none" aria-hidden="true">
+    <filter id="lens-p" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feImage preserveAspectRatio="none" result="map" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='380' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='x' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='rgb(255,0,0)'/%3E%3Cstop offset='0.13' stop-color='rgb(128,0,0)'/%3E%3Cstop offset='0.87' stop-color='rgb(128,0,0)'/%3E%3Cstop offset='1' stop-color='rgb(0,0,0)'/%3E%3C/linearGradient%3E%3ClinearGradient id='y' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='rgb(0,0,255)'/%3E%3Cstop offset='0.06' stop-color='rgb(0,0,128)'/%3E%3Cstop offset='0.94' stop-color='rgb(0,0,128)'/%3E%3Cstop offset='1' stop-color='rgb(0,0,0)'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='160' height='380' fill='url(%23x)'/%3E%3Crect width='160' height='380' fill='url(%23y)' style='mix-blend-mode:screen'/%3E%3C/svg%3E"></feImage>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="30" xChannelSelector="R" yChannelSelector="B"></feDisplacementMap>
+    </filter>
+    <filter id="lens-ps" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feImage preserveAspectRatio="none" result="map" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='120' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='x' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='rgb(255,0,0)'/%3E%3Cstop offset='0.2' stop-color='rgb(128,0,0)'/%3E%3Cstop offset='0.8' stop-color='rgb(128,0,0)'/%3E%3Cstop offset='1' stop-color='rgb(0,0,0)'/%3E%3C/linearGradient%3E%3ClinearGradient id='y' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='rgb(0,0,255)'/%3E%3Cstop offset='0.34' stop-color='rgb(0,0,128)'/%3E%3Cstop offset='0.66' stop-color='rgb(0,0,128)'/%3E%3Cstop offset='1' stop-color='rgb(0,0,0)'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='300' height='120' fill='url(%23x)'/%3E%3Crect width='300' height='120' fill='url(%23y)' style='mix-blend-mode:screen'/%3E%3C/svg%3E"></feImage>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="14" xChannelSelector="R" yChannelSelector="B"></feDisplacementMap>
+    </filter>
+  </svg>
+
+</div>
+</x-dc>
+</body>
+</html>

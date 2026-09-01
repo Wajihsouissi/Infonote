@@ -1,45 +1,26 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Block } from './types';
-import { resolveMediaTypeFromFile, resolveMediaTypeFromUrl } from './mediaTypes';
+import { resolveMediaTypeFromUrl } from './mediaTypes';
+import { ingestFiles } from '../../services/assets';
 import { matchMarkerShortcut } from './markdownShortcuts';
+import { HIGHLIGHT_PATTERN, DEFAULT_HIGHLIGHT_HUE } from './inlineFormat';
 
-// 1. Handle Files (Images/Videos) - ASYNC
+/**
+ * 1. Handle pasted files — any kind, resolved from MIME/extension.
+ *
+ * Goes through the asset store like every other upload route. It used to
+ * `readAsDataURL` straight into the block, which is how a pasted 200 MB video
+ * could land in the document without ever meeting the size limit.
+ */
 export const parseFiles = async (files: FileList): Promise<Block[]> => {
-    const blocks: Block[] = [];
-    if (files && files.length > 0) {
-        const filePromises = Array.from(files).map(file => {
-            return new Promise<Block | null>((resolve) => {
-                // Allow all files — the kind is resolved from the MIME/extension.
-                const type = resolveMediaTypeFromFile(file);
-
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    if (event.target?.result) {
-                        resolve({
-                            id: uuidv4(),
-                            type,
-                            content: event.target.result as string,
-                            metadata: {
-                                name: file.name,
-                                size: file.size,
-                                type: file.type
-                            }
-                        });
-                    } else {
-                        resolve(null);
-                    }
-                };
-                reader.onerror = () => resolve(null);
-                reader.readAsDataURL(file);
-            });
-        });
-
-        const fileBlocks = await Promise.all(filePromises);
-        fileBlocks.forEach(b => {
-            if (b) blocks.push(b);
-        });
-    }
-    return blocks;
+    if (!files?.length) return [];
+    const { files: stored } = await ingestFiles(files);
+    return stored.map((f) => ({
+        id: uuidv4(),
+        type: f.type,
+        content: f.ref,
+        metadata: f.metadata,
+    }));
 };
 
 /**
@@ -168,6 +149,12 @@ export function renderContentWithLinks(content: string): string {
     // 1) Escape everything up front (XSS-safe baseline).
     let html = escapeHtml(content);
 
+    // Recover a streamed label such as `**Solution:*` before regular emphasis
+    // parsing. This is a model truncation shape, not a user-authored literal,
+    // and without repair the marker remains visible in an otherwise formatted
+    // editor block.
+    html = html.replace(/^(\s*)\*{1,2}([^\s*:\n][^*:\n]{0,78}:)\*(?!\*)\s*/, '$1<strong>$2</strong> ');
+
     // 2) Protect inline code spans so their contents aren't treated as
     //    bold/italic/links. Stash them and restore at the very end.
     const codeStash: string[] = [];
@@ -194,9 +181,25 @@ export function renderContentWithLinks(content: string): string {
         `<a data-page-id="${escapeHtml(id)}" contenteditable="false" class="editor-page-chip">${title}</a>`
     );
 
+    // 2.55) Node citations: [Title](chnk://node/<id>) -> an atomic chip that
+    //       flies the canvas to the card the AI leaned on. Same mechanism as the
+    //       page chip above rather than a second one, so it serialises, copies
+    //       and survives a round trip like every other inline chip already does.
+    //       See features/ai/aiCitations.ts.
+    html = html.replace(/\[([^\]]+)\]\(chnk:\/\/node\/([A-Za-z0-9_-]+)\)/g, (_m, title: string, id: string) =>
+        `<a data-cite-node="${escapeHtml(id)}" contenteditable="false" class="editor-cite-chip">${title}</a>`
+    );
+
+    // 2.6) Highlights: ==hue|text== (or a bare ==text==) -> <mark>. Before links
+    //      and emphasis so markers *inside* a highlight still convert, and the
+    //      hue comes from a fixed alternation so it can't inject an attribute.
+    html = html.replace(HIGHLIGHT_PATTERN, (_m, hue: string | undefined, text: string) =>
+        `<mark class="editor-mark" data-hue="${hue || DEFAULT_HIGHLIGHT_HUE}">${text}</mark>`
+    );
+
     // 3) Links: [label](url) and bare URLs (operating on the escaped string).
     //    Groups: 1=label, 2=markdownUrl, 3=rawUrl.
-    const linkPattern = /\[([^\]]+)\]\(([^\s()<>]+)\)|((?:https?:\/\/|www\.)[^\s()<>]+(?:\([\w\d]+\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))/gi;
+    const linkPattern = /\[([^\]]+)\]\(([^\s()<>]+)\)|((?:https?:\/\/|www\.)[^\s()<>]+(?:\([\w\d]+\)|[^\s`!()[\]{};:'".,<>?«»“”‘’]))/gi;
     html = html.replace(linkPattern, (match, label: string, markdownUrl: string, rawUrl: string) => {
         const url = label ? markdownUrl : rawUrl;
         // The URL was escaped, so &→&amp;. Decode for validation/href value.
@@ -333,7 +336,7 @@ function parseExactLinkLine(trimmedLine: string): ExtractedLink | null {
     }
     
     // Check 2: Exact Raw URL: http://... or www....
-    const rawMatch = cleanLine.match(/^((?:https?:\/\/|www\.)[^\s()<>]+(?:\([\w\d]+\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))$/i);
+    const rawMatch = cleanLine.match(/^((?:https?:\/\/|www\.)[^\s()<>]+(?:\([\w\d]+\)|[^\s`!()[\]{};:'".,<>?«»“”‘’]))$/i);
     if (rawMatch) {
         return {
             url: rawMatch[1]
@@ -347,6 +350,67 @@ function parseExactLinkLine(trimmedLine: string): ExtractedLink | null {
  * Parse plain text content, with Markdown detection for ChatGPT-style output.
  * Handles headings, lists, code fences, tables, blockquotes, dividers, etc.
  */
+/**
+ * One cell of a GFM delimiter row — `---`, `:---`, `---:`, `:---:`. Em and en
+ * dashes are accepted because a model that has been writing prose often keeps
+ * typing them inside the table.
+ */
+const isTableDelimiterCell = (cell: string) => /^:?[-–—]+:?$/.test(cell.trim());
+
+/** Cells of one table line. Outer pipes are optional, as GFM allows. */
+export function splitTableCells(line: string): string[] {
+    return line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim());
+}
+
+/** True for a line that is nothing but a delimiter row. */
+const isTableDelimiterLine = (line: string) => {
+    const cells = splitTableCells(line);
+    return cells.length > 0 && cells.every(isTableDelimiterCell);
+};
+
+/**
+ * Make a parsed table rectangular, and undo the two shapes models get wrong.
+ *
+ * A delimiter row is structure, not data, so it never survives as a row. The
+ * one that bites is a delimiter row with the first data row glued onto it —
+ * `| :--- | :--- | :--- || **Position 0** | … |`, one line where there should
+ * be two. Split naively that is seven cells against a three-column header, so
+ * the table renders three `:---` cells, a stray empty one, and four columns the
+ * header never covers. That is exactly what a generated table looked like.
+ *
+ * Ragged rows are levelled to the widest row rather than clipped to the header:
+ * clipping is what GFM says, but this also runs over tables already saved in
+ * someone's notes, and quietly dropping their last column would be worse than
+ * showing an empty header cell above it.
+ */
+export function normalizeTableRows(rows: string[][]): string[][] {
+    const repaired: string[][] = [];
+
+    for (const row of rows) {
+        if (row.length === 0) continue;
+        if (row.every(isTableDelimiterCell)) continue;
+
+        let cells = row;
+        const headerWidth = repaired[0]?.length ?? 0;
+        if (
+            headerWidth > 0
+            && cells.length > headerWidth
+            && cells.slice(0, headerWidth).every(isTableDelimiterCell)
+        ) {
+            cells = cells.slice(headerWidth);
+            // The `||` seam between the two glued rows leaves one empty cell.
+            if (cells[0] === '') cells = cells.slice(1);
+        }
+        if (cells.length > 0) repaired.push(cells);
+    }
+
+    if (repaired.length === 0) return repaired;
+    const width = Math.max(...repaired.map((row) => row.length));
+    return repaired.map((row) => (
+        row.length === width ? row : Array.from({ length: width }, (_, index) => row[index] ?? '')
+    ));
+}
+
 export function parsePlainText(text: string): Block[] {
     // Keep inline markdown markers (**bold**, *italic*, `code`, ~~strike~~) intact —
     // renderContentWithLinks turns them into styled HTML at render time. Stripping
@@ -394,29 +458,30 @@ export function parsePlainText(text: string): Block[] {
             continue;
         }
 
-        // --- Markdown Table (lines starting with |) ---
-        if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
-            const tableRows: string[][] = [];
+        // --- Markdown Table ---
+        /* Outer pipes are optional in GFM and models drop them often enough to
+           matter, but a lone sentence containing " | " must not become a table.
+           A bare header only counts when the very next line is a delimiter row
+           of the same width \u2014 the pair GFM itself requires. */
+        const pipedTable = trimmed.startsWith('|') && trimmed.endsWith('|');
+        const bareTable = !pipedTable
+            && trimmed.includes('|')
+            && lines[i + 1] != null
+            && isTableDelimiterLine(lines[i + 1])
+            && splitTableCells(lines[i + 1]).length === splitTableCells(trimmed).length;
+
+        if (pipedTable || bareTable) {
+            const rawRows: string[][] = [];
             while (i < lines.length) {
                 const tline = lines[i].trim();
-                if (!tline.startsWith('|')) break;
-
-                // Skip separator rows like |---|---|
-                if (/^\|[\s\-:|\u2014]+\|$/.test(tline)) {
-                    i++;
-                    continue;
-                }
-
-                // Parse cells
-                const cells = tline
-                    .replace(/^\|/, '')
-                    .replace(/\|$/, '')
-                    .split('|')
-                    .map(c => c.trim());
-                tableRows.push(cells);
+                const isRow = pipedTable ? tline.startsWith('|') : tline.includes('|');
+                if (!isRow) break;
+                rawRows.push(splitTableCells(tline));
                 i++;
             }
 
+            // Delimiter rows, glued rows and ragged widths are all settled here.
+            const tableRows = normalizeTableRows(rawRows);
             if (tableRows.length > 0) {
                 blocks.push({
                     id: uuidv4(),
@@ -437,11 +502,28 @@ export function parsePlainText(text: string): Block[] {
            pasting "- " made a bullet. */
         const marker = matchMarkerShortcut(trimmed, 'paste');
         if (marker) {
+            const previousBlock = blocks.at(-1);
+            const sourceListNumber = marker.rule.type === 'numbered'
+                ? Number.parseInt(trimmed.match(/^(\d+)\./)?.[1] || '1', 10)
+                : undefined;
+            // Markdown permits every item to be written as `1.`.  Preserve the
+            // declared starting value, then turn each consecutive numbered
+            // item into an actual sequence. The value travels with an AI-made
+            // card when a create action splits the list across the canvas.
+            const listNumber = marker.rule.type === 'numbered'
+                ? previousBlock?.type === 'numbered'
+                    ? (typeof previousBlock.metadata?.listNumber === 'number' ? previousBlock.metadata.listNumber + 1 : 2)
+                    : sourceListNumber
+                : undefined;
+            const metadata = {
+                ...marker.metadata,
+                ...(typeof listNumber === 'number' ? { listNumber } : {}),
+            };
             blocks.push({
                 id: uuidv4(),
                 type: marker.rule.type,
                 content: marker.rest,
-                ...(marker.metadata?.checked ? { metadata: { checked: true } } : {})
+                ...(Object.keys(metadata).length > 0 ? { metadata } : {})
             });
             i++;
             continue;
@@ -468,6 +550,81 @@ export function parsePlainText(text: string): Block[] {
     }
 
     return blocks;
+}
+
+/**
+ * Canvas AI writes Markdown with a different intent than ordinary pasted text:
+ * an indented `>` is commonly a proposed expandable thought, not a quotation.
+ * Convert those compatible AI conventions into the editor's native block
+ * markers before using the same trusted parser as paste and typing. This keeps
+ * todos, bullets, headings, tables and code consistent everywhere else.
+ */
+export function parseAIContent(text: string): Block[] {
+    const lines = text.replace(/^\uFEFF/, '').split(/\r\n|\r|\n/);
+    const normalized: string[] = [];
+
+    for (let index = 0; index < lines.length; index += 1) {
+        let line = lines[index];
+        const next = lines[index + 1];
+
+        // Setext headings are still common in model output, especially when a
+        // response was shaped from a document rather than written as Markdown.
+        // Consume the underline here so the general parser never mistakes it
+        // for a divider.
+        if (
+            line.trim()
+            && next != null
+            && /^\s*(=+|-+)\s*$/.test(next)
+            && !/^\s*(?:[-*•+]\s|\d+[.)]\s|#{1,6}\s)/.test(line)
+        ) {
+            normalized.push(`${next.trim().startsWith('=') ? '#' : '##'} ${line.trim()}`);
+            index += 1;
+            continue;
+        }
+
+        // Models frequently omit the required space after ATX markers. Without
+        // this, `##1. Start here` becomes literal text instead of a heading.
+        const atxHeading = line.match(/^(\s*)(#{1,6})(?!#)\s*(\S.*)$/);
+        if (atxHeading) {
+            // The editor has three native heading levels; deeper Markdown
+            // levels retain their hierarchy as the closest supported level.
+            const marker = atxHeading[2].slice(0, 3);
+            line = `${atxHeading[1]}${marker} ${atxHeading[3]}`;
+        }
+
+        const toggle = line.match(/^(\s*)>\s+(.+)$/);
+        if (toggle) {
+            normalized.push(`${toggle[1]}>> ${toggle[2]}`);
+            continue;
+        }
+
+        // The same missing-space repair for common list, task and quote forms.
+        // Keep negative numbers and ordinary hyphenated words untouched by
+        // requiring a letter-like start after a compact bullet marker.
+        const compactTask = line.match(/^(\s*)(?:[-*•+]\s*)?\[([ xX]?)\](\S.*)$/);
+        if (compactTask) line = `${compactTask[1]}[${compactTask[2]}] ${compactTask[3]}`;
+
+        const ordered = line.match(/^(\s*)(\d+)[.)]\s*(\S.*)$/);
+        if (ordered) line = `${ordered[1]}${ordered[2]}. ${ordered[3]}`;
+
+        const bullet = line.match(/^(\s*)([-*+•])\s*(?=[A-Za-zÀ-ÖØ-öø-ÿ])(\S.*)$/);
+        if (bullet) line = `${bullet[1]}${bullet[2] === '+' ? '-' : bullet[2]} ${bullet[3]}`;
+
+        const compactQuote = line.match(/^(\s*)>(?!>)(\S.*)$/);
+        if (compactQuote) line = `${compactQuote[1]}> ${compactQuote[2]}`;
+
+        // A standalone bold phrase is almost always a model's substitute for
+        // a missing heading marker. Keep bold phrases inside body text intact.
+        const boldHeading = line.match(/^\s*(?:\*\*|__)([^*_\n].*?)(?:\*\*|__)\s*$/);
+        if (boldHeading) {
+            normalized.push(`## ${boldHeading[1].trim()}`);
+            continue;
+        }
+
+        normalized.push(line);
+    }
+
+    return parsePlainText(normalized.join('\n'));
 }
 
 /**
@@ -684,6 +841,10 @@ function processNodes(nodes: ChildNode[], blocks: Block[]) {
  */
 function processListItems(listEl: HTMLElement, blocks: Block[], listType: 'bullet' | 'numbered', indent: number) {
     const children = Array.from(listEl.children);
+    const listStart = listType === 'numbered'
+        ? Math.max(1, Number.parseInt(listEl.getAttribute('start') || '1', 10) || 1)
+        : undefined;
+    let listOffset = 0;
     for (const child of children) {
         if (child.tagName.toLowerCase() !== 'li') continue;
 
@@ -751,8 +912,10 @@ function processListItems(listEl: HTMLElement, blocks: Block[], listType: 'bulle
             id: uuidv4(),
             type: listType,
             content: textContent.trim(),
-            indent
+            indent,
+            ...(listStart !== undefined ? { metadata: { listNumber: listStart + listOffset } } : {})
         });
+        listOffset++;
 
         // Process nested lists with increased indent
         for (const nestedList of nestedLists) {

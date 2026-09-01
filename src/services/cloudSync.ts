@@ -32,6 +32,24 @@ export type CloudLoadResult =
     | { ok: false; error: string };
 
 /**
+ * Stages a canvas load actually passes through. These are real checkpoints in
+ * `loadCanvasFromCloud` — nothing here is driven by a timer, so a progress bar
+ * bound to them tracks the request instead of pretending to.
+ */
+export type CloudLoadStage = 'authorizing' | 'fetching' | 'building' | 'ready';
+
+export interface CloudLoadProgress {
+    stage: CloudLoadStage;
+    /** 0..1, monotonic — never regresses, even across a `withRetry` attempt. */
+    value: number;
+    /** Populated from the `building` stage onward. */
+    nodeCount?: number;
+    edgeCount?: number;
+}
+
+export type CloudLoadProgressFn = (progress: CloudLoadProgress) => void;
+
+/**
  * Module-level mutex to prevent concurrent saves from racing.
  * When one save is in progress, subsequent calls wait for it to finish
  * before starting their own operation — this eliminates the 409 conflict
@@ -60,6 +78,21 @@ export interface CloudSnapshotMetadata {
 
 export type CloudMetadataResult =
     | { ok: true; metadata: CloudSnapshotMetadata }
+    | { ok: false; error: string };
+
+export type CloudVersionKind = 'manual' | 'daily';
+
+export interface CloudVersionSummary {
+    id: string;
+    kind: CloudVersionKind;
+    label: string | null;
+    nodeCount: number;
+    edgeCount: number;
+    createdAt: string;
+}
+
+export type CloudVersionsResult =
+    | { ok: true; versions: CloudVersionSummary[] }
     | { ok: false; error: string };
 
 interface CanvasNodeRow {
@@ -442,25 +475,179 @@ async function _saveCanvasToCloudImpl(
 /**
  * Fetch the entire canvas for the active user and return it ready for
  * `loadGraph(nodes, edges)`.
+ *
+ * `onProgress` is optional and reports the real checkpoints below: the session
+ * check clearing, each of the two table reads landing, and the row-to-node
+ * mapping finishing. Callers can bind a determinate progress bar straight to
+ * it — the value only moves when the request does.
  */
-export async function loadCanvasFromCloud(userId: string | null, workspaceId: string | null): Promise<CloudLoadResult> {
+export async function loadCanvasFromCloud(
+    userId: string | null,
+    workspaceId: string | null,
+    onProgress?: CloudLoadProgressFn,
+): Promise<CloudLoadResult> {
+    // Monotonic reporter: `withRetry` may run the fetch block more than once,
+    // and a bar that slides backwards reads as a bug rather than a retry.
+    let reported = 0;
+    const emit = (stage: CloudLoadStage, value: number, counts?: { nodeCount: number; edgeCount: number }) => {
+        if (!onProgress) return;
+        reported = Math.max(reported, value);
+        onProgress({ stage, value: reported, ...counts });
+    };
+
     try {
+        emit('authorizing', 0.04);
         const { userId: uid, workspaceId: wid } = await ensureReady(userId, workspaceId);
+        emit('fetching', 0.22);
 
         const [nodesRes, edgesRes] = await withRetry(async () => {
-            const [nRes, eRes] = await Promise.all([
-                supabase.from('canvas_nodes').select('*').eq('user_id', uid).eq('workspace_id', wid),
-                supabase.from('canvas_edges').select('*').eq('user_id', uid).eq('workspace_id', wid),
-            ]);
+            // Each query is wrapped so it is *executed once* and settles into a
+            // real promise — Postgrest builders are one-shot thenables, so
+            // attaching a progress handler directly to one would re-issue it.
+            const nodesRequest = (async () =>
+                supabase.from('canvas_nodes').select('*').eq('user_id', uid).eq('workspace_id', wid))();
+            const edgesRequest = (async () =>
+                supabase.from('canvas_edges').select('*').eq('user_id', uid).eq('workspace_id', wid))();
+
+            // Nodes are the bulk of the payload, so their arrival is worth more
+            // of the bar than the edges'.
+            void nodesRequest.then(() => emit('fetching', 0.68), () => {});
+            void edgesRequest.then(() => emit('fetching', 0.8), () => {});
+
+            const [nRes, eRes] = await Promise.all([nodesRequest, edgesRequest]);
             if (nRes.error) throw nRes.error;
             if (eRes.error) throw eRes.error;
             return [nRes, eRes] as const;
         });
 
-        const nodes = ((nodesRes.data as CanvasNodeRow[] | null) ?? []).map(rowToNode);
-        const edges = ((edgesRes.data as CanvasEdgeRow[] | null) ?? []).map(rowToEdge);
+        const nodeRows = (nodesRes.data as CanvasNodeRow[] | null) ?? [];
+        const edgeRows = (edgesRes.data as CanvasEdgeRow[] | null) ?? [];
+        emit('building', 0.86, { nodeCount: nodeRows.length, edgeCount: edgeRows.length });
+
+        const nodes = nodeRows.map(rowToNode);
+        const edges = edgeRows.map(rowToEdge);
+        emit('ready', 1, { nodeCount: nodes.length, edgeCount: edges.length });
 
         return { ok: true, nodes, edges };
+    } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+}
+
+/** Keep the existing restore path usable while a newly deployed client waits
+ * for its companion database migration to be applied. */
+function isVersionsSchemaUnavailable(err: unknown): boolean {
+    const candidate = err as { code?: unknown; message?: unknown };
+    const code = typeof candidate?.code === 'string' ? candidate.code : '';
+    const message = typeof candidate?.message === 'string' ? candidate.message : String(err);
+    return (
+        (code === '42P01' || code === 'PGRST205' || /does not exist|schema cache/i.test(message))
+        && /canvas_versions/i.test(message)
+    );
+}
+
+/**
+ * Save a restorable point-in-time copy of the complete canvas. Manual saves
+ * become milestones; automatic sync creates at most one safety copy per day.
+ */
+export async function createCloudVersion(
+    userId: string | null,
+    workspaceId: string | null,
+    nodes: AppNode[],
+    edges: Edge[],
+    kind: CloudVersionKind,
+    label?: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+    try {
+        const { workspaceId: wid, actorUserId } = await ensureReady(userId, workspaceId);
+        const dailyKey = kind === 'daily' ? new Date().toISOString().slice(0, 10) : null;
+        const version = {
+            workspace_id: wid,
+            created_by: actorUserId,
+            kind,
+            label: label ?? (kind === 'manual' ? 'Saved version' : 'Daily safety copy'),
+            daily_key: dailyKey,
+            nodes,
+            edges,
+            node_count: nodes.length,
+            edge_count: edges.length,
+        };
+
+        const request = kind === 'daily'
+            ? supabase
+                .from('canvas_versions')
+                .upsert(version, {
+                    onConflict: 'workspace_id,kind,daily_key',
+                    ignoreDuplicates: true,
+                })
+            : supabase.from('canvas_versions').insert(version);
+        const { error } = await request;
+        if (error) throw error;
+
+        // The RPC owns retention, so clients never need broad delete access.
+        void supabase.rpc('prune_canvas_versions', { p_workspace_id: wid });
+        return { ok: true };
+    } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+}
+
+/** Fetch the latest available restore points without downloading their bodies. */
+export async function fetchCloudVersions(
+    userId: string | null,
+    workspaceId: string | null,
+): Promise<CloudVersionsResult> {
+    try {
+        const { workspaceId: wid } = await ensureReady(userId, workspaceId);
+        const { data, error } = await supabase
+            .from('canvas_versions')
+            .select('id, kind, label, node_count, edge_count, created_at')
+            .eq('workspace_id', wid)
+            .order('created_at', { ascending: false })
+            .limit(34);
+        if (error) throw error;
+
+        const versions = ((data ?? []) as Array<{
+            id: string;
+            kind: CloudVersionKind;
+            label: string | null;
+            node_count: number;
+            edge_count: number;
+            created_at: string;
+        }>).map((version) => ({
+            id: version.id,
+            kind: version.kind,
+            label: version.label,
+            nodeCount: version.node_count,
+            edgeCount: version.edge_count,
+            createdAt: version.created_at,
+        }));
+        return { ok: true, versions };
+    } catch (err) {
+        if (isVersionsSchemaUnavailable(err)) return { ok: true, versions: [] };
+        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+}
+
+/** Download a chosen historical version, ready to send to `loadGraph`. */
+export async function loadCloudVersion(
+    userId: string | null,
+    workspaceId: string | null,
+    versionId: string,
+): Promise<CloudLoadResult> {
+    try {
+        const { workspaceId: wid } = await ensureReady(userId, workspaceId);
+        const { data, error } = await supabase
+            .from('canvas_versions')
+            .select('nodes, edges')
+            .eq('workspace_id', wid)
+            .eq('id', versionId)
+            .maybeSingle();
+        if (error) throw error;
+        if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.edges)) {
+            throw new Error('This version is unavailable or incomplete.');
+        }
+        return { ok: true, nodes: data.nodes as AppNode[], edges: data.edges as Edge[] };
     } catch (err) {
         return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }

@@ -1,0 +1,98 @@
+.workbench {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line));
+    border-radius: var(--r-md);
+    background: color-mix(in srgb, var(--bg-raised) 88%, var(--accent-dim));
+}
+
+.heading {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 9px;
+}
+
+.mark {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--r-control);
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+}
+
+.heading h3 {
+    margin: 1px 0 3px;
+    color: var(--text-main);
+    font-size: 0.78rem;
+    line-height: 1.2;
+}
+
+.heading p {
+    margin: 0;
+    color: var(--text-faint);
+    font-size: 0.69rem;
+    line-height: 1.35;
+}
+
+.dismiss {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    margin: -3px -3px 0 0;
+    border: 0;
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--text-faint);
+    cursor: pointer;
+}
+
+.dismiss:hover,
+.dismiss:focus-visible { background: var(--hover-wash); color: var(--text-main); outline: none; }
+
+.clusterList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+}
+
+.cluster {
+    min-width: 0;
+    padding: 7px 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-control);
+    background: color-mix(in srgb, var(--bg-card) 78%, transparent);
+}
+
+.cluster strong,
+.cluster span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cluster strong { color: var(--text-soft); font-size: 0.69rem; font-weight: 650; }
+.cluster span { margin-top: 2px; color: var(--text-faint); font-size: 0.62rem; }
+
+.actions { display: flex; align-items: center; gap: 7px; }
+.primary,
+.secondary,
+.quiet {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 30px;
+    border-radius: var(--r-control);
+    font: inherit;
+    font-size: 0.69rem;
+    font-weight: 650;
+    cursor: pointer;
+}
+.primary { padding: 0 10px; border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent); }
+.primary:hover { filter: brightness(1.06); }
+.secondary { padding: 0 10px; border: 1px solid var(--line-strong); background: transparent; color: var(--text-main); }
+.secondary:hover { background: var(--hover-wash); }
+.quiet { padding: 0 4px; border: 0; background: transparent; color: var(--text-faint); }
+.quiet:hover { color: var(--text-main); }
+
+@media (max-width: 420px) { .clusterList { grid-template-columns: 1fr; } }

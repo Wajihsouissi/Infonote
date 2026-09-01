@@ -1,17 +1,62 @@
 import { type AppNode, getNodeBlocks, getNodeLabel } from '../types';
 import type { Block, BlockMetadata } from '../features/editor/types';
 
+export type OutlineIconVariant = 
+    | 'folder' 
+    | 'file' 
+    | 'block' 
+    | 'h1' 
+    | 'h2' 
+    | 'h3' 
+    | 'bullet'
+    | 'numbered'
+    | 'todo' 
+    | 'callout' 
+    | 'quote' 
+    | 'code' 
+    | 'toggle' 
+    | 'table'
+    | 'image'
+    | 'link'
+    | 'ai';
+
 export interface OutlineItem {
     id: string;
-    type: 'heading1' | 'heading2' | 'heading3' | 'toggle' | 'page' | 'todo' | 'callout' | 'quote' | 'code';
+    type: string;
     label: string;
-    targetId: string; // The DOM element ID to scroll to
+    targetId: string; // The DOM element ID or node ID to scroll to
     children: OutlineItem[];
     indent: number;
-    headingLevel: number; // 1 for H1, 2 for H2, 3 for H3, 4 for pages/toggles/others
-    nodeId?: string; // If it's a page block or sub-note
+    headingLevel: number; // 1 for H1/Cards, 2 for H2, 3 for H3, 4 for others
+    nodeId?: string; // Owner or target node ID
     checked?: boolean; // For checklist items
+    listIndex?: number; // For numbered lists
     metadata?: BlockMetadata; // Raw block metadata
+    isFolder?: boolean;
+    childCount?: number;
+    isLocked?: boolean;
+    isFavorite?: boolean;
+    iconVariant: OutlineIconVariant;
+    nodeType?: string;
+}
+
+/**
+ * Strips HTML tags, Markdown symbols (bold, italic, code, quotes, headers),
+ * and leading markers from text for clean outline presentation.
+ */
+export function cleanBlockContent(raw: string | undefined): string {
+    if (!raw) return '';
+    return raw
+        .replace(/<[^>]*>?/gm, '') // Strip HTML tags
+        .replace(/[*_~`#]/g, '')   // Strip markdown markers like **, *, _, ~~, `, #
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [text](url) -> text
+        .replace(/^\s*[-*+•]\s+/, '') // Strip leading bullet markers
+        .replace(/^\s*\d+\.\s+/, '') // Strip leading number prefixes like "1. "
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .trim();
 }
 
 /**
@@ -27,68 +72,57 @@ function sortNodesVisually(nodes: AppNode[]): AppNode[] {
 }
 
 /**
- * Builds the unified flat blocks list for a given parent node ID.
- * If nodeId is null (Home page), gathers all root canvas nodes.
+ * Determines an icon variant for blocks inside a node.
  */
-function getUnifiedBlocksForNode(nodeId: string | null, allNodes: AppNode[]): Block[] {
-    const parent = nodeId ? allNodes.find(n => n.id === nodeId) : null;
-
-    // 1. Get child nodes belonging to this parent context
-    const childNodes = allNodes.filter(n => {
-        if (nodeId === null) {
-            return n.parentId === undefined || n.parentId === null;
-        }
-        return n.parentId === nodeId;
-    });
-
-    // Only process supported visual nodes
-    const validChildren = childNodes.filter(n =>
-        ['fused-note', 'block', 'note'].includes(n.type)
-    );
-
-    // 2. Sort child nodes visually
-    const sortedChildren = sortNodesVisually(validChildren);
-
-    // 3. Reconstruct content blocks sequentially
-    const unifiedBlocks: Block[] = [];
-    const existingContent: Block[] = (parent && getNodeBlocks(parent.data)) || [];
-
-    sortedChildren.forEach(child => {
-        if (child.type === 'fused-note' || child.type === 'block') {
-            const content = getNodeBlocks(child.data);
-            if (content) {
-                content.forEach((b) => {
-                    unifiedBlocks.push(b);
-                });
-            }
-        } else if (child.type === 'note') {
-            const existingBlock = existingContent.find((b) => b.metadata?.nodeId === child.id);
-            unifiedBlocks.push({
-                id: existingBlock?.id || child.id,
-                type: 'page',
-                content: getNodeLabel(child.data) || 'Untitled',
-                metadata: {
-                    nodeId: child.id
-                }
-            });
-        }
-    });
-
-    return unifiedBlocks;
+function determineBlockIconVariant(blockType: string): OutlineIconVariant {
+    switch (blockType) {
+        case 'heading1':
+            return 'h1';
+        case 'heading2':
+            return 'h2';
+        case 'heading3':
+            return 'h3';
+        case 'bullet':
+            return 'bullet';
+        case 'numbered':
+            return 'numbered';
+        case 'todo':
+            return 'todo';
+        case 'callout':
+            return 'callout';
+        case 'quote':
+            return 'quote';
+        case 'code':
+            return 'code';
+        case 'toggle':
+            return 'toggle';
+        case 'table':
+            return 'table';
+        case 'image':
+        case 'video':
+        case 'media':
+            return 'image';
+        case 'link':
+            return 'link';
+        case 'ai':
+            return 'ai';
+        default:
+            return 'block';
+    }
 }
 
 /**
- * Parses a flat list of blocks into a tree of outline items.
- * Handles toggle nesting using block indents.
- * Handles page nesting recursively.
+ * Parses blocks inside a single card/note into outline items.
  */
-function parseBlocksToOutline(
+function parseBlocksInsideNode(
     blocks: Block[],
+    ownerNodeId: string,
     allNodes: AppNode[],
-    level = 0
+    baseLevel = 1
 ): OutlineItem[] {
     const items: OutlineItem[] = [];
     let i = 0;
+    let sequentialListIndex = 1;
 
     while (i < blocks.length) {
         const block = blocks[i];
@@ -96,11 +130,19 @@ function parseBlocksToOutline(
         const isToggle = block.type === 'toggle';
         const isPage = block.type === 'page';
         const isTodo = block.type === 'todo';
+        const isBullet = block.type === 'bullet';
+        const isNumbered = block.type === 'numbered';
         const isCallout = block.type === 'callout';
         const isQuote = block.type === 'quote';
         const isCode = block.type === 'code';
 
-        const isSupported = isHeading || isToggle || isPage || isTodo || isCallout || isQuote || isCode;
+        if (isNumbered) {
+            sequentialListIndex++;
+        } else {
+            sequentialListIndex = 1;
+        }
+
+        const isSupported = isHeading || isToggle || isPage || isTodo || isBullet || isNumbered || isCallout || isQuote || isCode || block.content?.trim();
 
         if (isSupported) {
             let headingLevel = 4;
@@ -110,7 +152,7 @@ function parseBlocksToOutline(
 
             let children: OutlineItem[] = [];
 
-            // 1. Indentation children (Toggles)
+            // 1. Indented children for toggles
             if (isToggle) {
                 const toggleIndent = block.indent || 0;
                 const toggleChildrenBlocks: Block[] = [];
@@ -120,40 +162,101 @@ function parseBlocksToOutline(
                     j++;
                 }
                 if (toggleChildrenBlocks.length > 0) {
-                    children = parseBlocksToOutline(toggleChildrenBlocks, allNodes, level + 1);
+                    children = parseBlocksInsideNode(toggleChildrenBlocks, ownerNodeId, allNodes, baseLevel + 1);
                 }
-                // Skip the parsed indented children in main loop
                 i = j - 1;
             }
 
-            // 2. Recursive page children (Nested notes)
+            // 2. Recursive page children (sub-notes)
             if (isPage && block.metadata?.nodeId) {
-                const targetNodeId = block.metadata.nodeId;
-                const subNode = allNodes.find(n => n.id === targetNodeId);
-                if (subNode && subNode.type === 'note') {
-                    // Recursively build children for the sub-note
-                    children = buildTOCTree(targetNodeId, allNodes, level + 1);
+                const subId = block.metadata.nodeId;
+                const subNode = allNodes.find(n => n.id === subId);
+                if (subNode) {
+                    const subBlocks = getNodeBlocks(subNode.data) || [];
+                    const directChildNodes = allNodes.filter(n => n.parentId === subId);
+                    const subItems = parseBlocksInsideNode(subBlocks, subId, allNodes, baseLevel + 1);
+                    const childNodeItems = directChildNodes.map(cn => buildNodeItem(cn, allNodes, baseLevel + 1));
+                    children = [...subItems, ...childNodeItems];
                 }
             }
 
+            const rawContent = block.content || (block.type === 'page' ? 'Untitled Page' : '');
+            const cleanLabel = cleanBlockContent(rawContent) || (block.type === 'page' ? 'Untitled Page' : (block.type.charAt(0).toUpperCase() + block.type.slice(1)));
+
             items.push({
                 id: block.id,
-                // Guarded by `isSupported` above, so block.type is one of OutlineItem's types.
-                type: block.type as OutlineItem['type'],
-                label: block.content || (block.type === 'page' ? 'Untitled Page' : ''),
+                type: block.type,
+                label: cleanLabel,
                 targetId: block.type === 'page' ? (block.metadata?.nodeId || block.id) : `block-${block.id}`,
                 children,
                 indent: block.indent || 0,
                 headingLevel,
-                nodeId: block.metadata?.nodeId,
+                nodeId: block.metadata?.nodeId || ownerNodeId,
                 checked: block.metadata?.checked || false,
-                metadata: block.metadata
+                listIndex: isNumbered ? (sequentialListIndex - 1) : undefined,
+                metadata: block.metadata,
+                isFolder: isPage || children.length > 0,
+                childCount: children.length > 0 ? children.length : undefined,
+                iconVariant: isPage ? 'folder' : determineBlockIconVariant(block.type)
             });
         }
         i++;
     }
 
-    return items;
+    return nestHeadingHierarchy(items);
+}
+
+/**
+ * Builds an outline item for a top-level or child AppNode.
+ */
+function buildNodeItem(node: AppNode, allNodes: AppNode[], level = 0): OutlineItem {
+    const rawLabel = getNodeLabel(node.data) || (node.data as any)?.title || (node.type === 'fused-note' ? 'Fused File' : 'Untitled');
+    const cleanLabel = cleanBlockContent(typeof rawLabel === 'string' ? rawLabel : '') || (node.type === 'fused-note' ? 'Fused File' : 'Untitled');
+    
+    // Child nodes in canvas tree
+    const childNodes = allNodes.filter(n => n.parentId === node.id);
+    const sortedChildNodes = sortNodesVisually(childNodes);
+    const childNodeItems = sortedChildNodes.map(child => buildNodeItem(child, allNodes, level + 1));
+
+    // Internal blocks inside node
+    const contentBlocks = getNodeBlocks(node.data) || [];
+    const blockItems = parseBlocksInsideNode(contentBlocks, node.id, allNodes, level + 1);
+
+    const children = [...childNodeItems, ...blockItems];
+    const totalChildCount = (childNodes.length > 0 ? childNodes.length : 0) + (blockItems.length > 0 ? blockItems.length : 0);
+
+    // Specific user rule:
+    // Card (node.type === 'note') -> Folder icon
+    // Fused node (node.type === 'fused-note') -> File icon
+    // Block -> Block icon
+    let iconVariant: OutlineIconVariant = 'folder';
+    if (node.type === 'fused-note') {
+        iconVariant = 'file';
+    } else if (node.type === 'block') {
+        iconVariant = 'block';
+    } else if (node.type === 'note') {
+        iconVariant = 'folder';
+    }
+
+    const isLocked = !!(node.data as any)?.isLocked || !!(node.data as any)?.locked;
+    const isFavorite = !!(node.data as any)?.isPinned || (node.data as any)?.priority === 'urgent';
+
+    return {
+        id: node.id,
+        type: node.type as OutlineItem['type'],
+        label: cleanLabel,
+        targetId: node.id,
+        children,
+        indent: level,
+        headingLevel: 1,
+        nodeId: node.id,
+        isFolder: children.length > 0,
+        childCount: totalChildCount > 0 ? totalChildCount : undefined,
+        isLocked,
+        isFavorite,
+        iconVariant,
+        nodeType: node.type
+    };
 }
 
 /**
@@ -164,7 +267,6 @@ function nestHeadingHierarchy(items: OutlineItem[]): OutlineItem[] {
     const stack: OutlineItem[] = [];
 
     items.forEach(item => {
-        // Deeply nest children first
         if (item.children && item.children.length > 0) {
             item.children = nestHeadingHierarchy(item.children);
         }
@@ -198,10 +300,28 @@ function nestHeadingHierarchy(items: OutlineItem[]): OutlineItem[] {
 }
 
 /**
- * Builds the complete outline tree for a page/node.
+ * Builds the complete outline tree for a page/node or whole current canvas context.
  */
 export function buildTOCTree(nodeId: string | null, allNodes: AppNode[], level = 0): OutlineItem[] {
-    const blocks = getUnifiedBlocksForNode(nodeId, allNodes);
-    const flatOutline = parseBlocksToOutline(blocks, allNodes, level);
-    return nestHeadingHierarchy(flatOutline);
+    // If drilled down inside a specific parent card context
+    if (nodeId) {
+        const parentNode = allNodes.find(n => n.id === nodeId);
+        const childNodes = allNodes.filter(n => n.parentId === nodeId);
+        const sortedChildNodes = sortNodesVisually(childNodes);
+        const childItems = sortedChildNodes.map(child => buildNodeItem(child, allNodes, level));
+
+        const contentBlocks = parentNode ? (getNodeBlocks(parentNode.data) || []) : [];
+        const blockItems = parentNode ? parseBlocksInsideNode(contentBlocks, parentNode.id, allNodes, level) : [];
+
+        return [...childItems, ...blockItems];
+    }
+
+    // Root context: gather all top-level nodes on canvas (parentId is null or undefined)
+    const rootNodes = allNodes.filter(n => !n.parentId);
+    const validRootNodes = rootNodes.filter(n => 
+        ['note', 'fused-note', 'block', 'kanban'].includes(n.type)
+    );
+
+    const sortedRoots = sortNodesVisually(validRootNodes);
+    return sortedRoots.map(node => buildNodeItem(node, allNodes, level));
 }

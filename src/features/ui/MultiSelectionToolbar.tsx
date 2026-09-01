@@ -3,7 +3,7 @@ import { useReactFlow } from '@xyflow/react';
 import {
     Trash2, Copy, Palette, Layers, X, ArrowUpRight, ArrowRight, GitBranch,
     Grid3x3, CircleDot, ArrowRightLeft, Columns2, Rows2, Network, Sparkles,
-    Search, Eye, Scissors,
+    Eye, Scissors,
     Square, RectangleHorizontal, StickyNote, PanelTop, Folder
 } from '../../components/icons';
 import { useStore } from '../../store/useStore';
@@ -12,15 +12,19 @@ import styles from './MultiSelectionToolbar.module.css';
 import type { AppNode } from '../../types';
 
 interface MultiSelectionToolbarProps {
-    onOpenAI?: () => void;
-    onOpenSearch?: () => void;
+    isActive?: boolean;
 }
 
-export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelectionToolbarProps) {
+const getSelectedIds = () => Array.from(useStore.getState().selectedCanvasNodeIds);
+
+export function MultiSelectionToolbar({ isActive = true }: MultiSelectionToolbarProps) {
     const { screenToFlowPosition } = useReactFlow();
-    const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
+    const selectedCount = useStore(s => s.selectedCanvasNodeIds.size);
+    const selectedNodeId = useStore(s => s.selectedCanvasNodeIds.size === 1
+        ? s.selectedCanvasNodeIds.values().next().value ?? null
+        : null);
     const clearCanvasSelection = useStore(s => s.clearCanvasSelection);
-    const bulkDeleteNodes = useStore(s => s.bulkDeleteNodes);
+    const requestNodeDeletion = useStore(s => s.requestNodeDeletion);
     const bulkDuplicateNodes = useStore(s => s.bulkDuplicateNodes);
     const bulkApplyColor = useStore(s => s.bulkApplyColor);
     const fuseNodes = useStore(s => s.fuseNodes);
@@ -39,15 +43,27 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
     const viewsPopoverRef = useRef<HTMLDivElement>(null);
     const arrangeNodes = useStore(s => s.arrangeNodes);
 
-    const selectedCount = selectedCanvasNodeIds.size;
-
     const clearSelectionFully = useCallback(() => {
         clearCanvasSelection();
-        setNodes(nds => nds.map(n => n.selected ? { ...n, selected: false } : n));
-    }, [clearCanvasSelection, setNodes]);
+    }, [clearCanvasSelection]);
+
+    useEffect(() => {
+        if (isActive) return;
+        // The toolbar is being unmounted/hidden by its parent. Defer the local
+        // cleanup one frame so React never has to synchronously re-render this
+        // component while processing that parent visibility change.
+        const frame = requestAnimationFrame(() => {
+            setShowColorPicker(false);
+            setShowLayoutPopover(false);
+            setShowViewsPopover(false);
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [isActive]);
 
     // Close on Escape or click away
     useEffect(() => {
+        if (!isActive) return;
+
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
                 clearSelectionFully();
@@ -77,7 +93,7 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
             document.removeEventListener('keydown', handleKeyDown);
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [clearSelectionFully]);
+    }, [clearSelectionFully, isActive]);
 
     // Close color picker when clicking outside
     useEffect(() => {
@@ -123,53 +139,56 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
 
     // Get bulk action handlers from store
     const handleBulkDelete = useCallback(() => {
-        console.log('[MultiSelectionToolbar] Delete clicked, selected:', Array.from(selectedCanvasNodeIds));
-        bulkDeleteNodes(Array.from(selectedCanvasNodeIds), true);
-        clearSelectionFully();
-    }, [selectedCanvasNodeIds, bulkDeleteNodes, clearSelectionFully]);
+        const selectedIds = getSelectedIds();
+        requestNodeDeletion(selectedIds);
+    }, [requestNodeDeletion]);
 
     const handleBulkDuplicate = useCallback(() => {
-        console.log('[MultiSelectionToolbar] Duplicate clicked, selected:', Array.from(selectedCanvasNodeIds));
-        bulkDuplicateNodes(Array.from(selectedCanvasNodeIds));
+        const selectedIds = getSelectedIds();
+        console.log('[MultiSelectionToolbar] Duplicate clicked, selected:', selectedIds);
+        bulkDuplicateNodes(selectedIds);
         clearSelectionFully();
-    }, [selectedCanvasNodeIds, clearSelectionFully, bulkDuplicateNodes]);
+    }, [clearSelectionFully, bulkDuplicateNodes]);
 
     const handleBulkColor = useCallback((color: string) => {
-        console.log('[MultiSelectionToolbar] Color clicked, color:', color, 'selected:', Array.from(selectedCanvasNodeIds));
-        bulkApplyColor(Array.from(selectedCanvasNodeIds), color);
+        const selectedIds = getSelectedIds();
+        console.log('[MultiSelectionToolbar] Color clicked, color:', color, 'selected:', selectedIds);
+        bulkApplyColor(selectedIds, color);
         setShowColorPicker(false);
-    }, [selectedCanvasNodeIds, bulkApplyColor]);
+    }, [bulkApplyColor]);
 
     const handleFuseNodes = useCallback(() => {
-        console.log('[MultiSelectionToolbar] Fuse clicked, selected:', Array.from(selectedCanvasNodeIds));
-        fuseNodes(Array.from(selectedCanvasNodeIds));
+        const selectedIds = getSelectedIds();
+        console.log('[MultiSelectionToolbar] Fuse clicked, selected:', selectedIds);
+        fuseNodes(selectedIds);
         clearSelectionFully();
-    }, [selectedCanvasNodeIds, clearSelectionFully, fuseNodes]);
+    }, [clearSelectionFully, fuseNodes]);
 
     const handleRelease = useCallback(() => {
-        const selectedId = Array.from(selectedCanvasNodeIds)[0];
+        const selectedId = getSelectedIds()[0];
         if (!selectedId) return;
         const centerX = window.innerWidth / 2;
         const centerY = window.innerHeight / 2;
         const flowCenter = screenToFlowPosition({ x: centerX, y: centerY });
-        releaseNodeContentToBlocks(selectedId, flowCenter);
+        releaseNodeContentToBlocks(selectedId, flowCenter, true);
         clearSelectionFully();
-    }, [selectedCanvasNodeIds, releaseNodeContentToBlocks, clearSelectionFully, screenToFlowPosition]);
+    }, [releaseNodeContentToBlocks, clearSelectionFully, screenToFlowPosition]);
 
     const handleSelectConnected = useCallback(() => {
-        const selectedId = Array.from(selectedCanvasNodeIds)[0];
+        const selectedId = getSelectedIds()[0];
         if (!selectedId) return;
         selectConnectedCanvasNodes(selectedId);
-    }, [selectedCanvasNodeIds, selectConnectedCanvasNodes]);
+    }, [selectConnectedCanvasNodes]);
 
     const handleArrange = useCallback((mode: 'grid' | 'circle' | 'flow' | 'horizontal-row' | 'vertical-column' | 'mindmap-horizontal' | 'mindmap-vertical' | 'related-clusters') => {
-        arrangeNodes(Array.from(selectedCanvasNodeIds), mode);
+        arrangeNodes(getSelectedIds(), mode);
         setShowLayoutPopover(false);
-    }, [selectedCanvasNodeIds, arrangeNodes]);
+    }, [arrangeNodes]);
 
     const handleSetViewMode = useCallback((mode: string) => {
+        const selectedIds = useStore.getState().selectedCanvasNodeIds;
         setNodes(nodes => nodes.map(n => {
-            if (selectedCanvasNodeIds.has(n.id) && n.type === 'note') {
+            if (selectedIds.has(n.id) && n.type === 'note') {
                 let w = n.style?.width; let h = n.style?.height;
                 if (mode === 'icon') { w = 96; h = 96; }
                 // Folders stand on the canvas with no panel around them, so they
@@ -187,7 +206,7 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
             return n;
         }));
         setShowViewsPopover(false);
-    }, [selectedCanvasNodeIds, setNodes]);
+    }, [setNodes]);
 
     const layoutOptions: { mode: typeof handleArrange extends (mode: infer M) => void ? M : never; label: string; desc: string; icon: React.ReactNode }[] = [
         { mode: 'related-clusters', label: 'Smart', desc: 'Group related cards into tidy clusters', icon: <Sparkles size={18} /> },
@@ -207,16 +226,20 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
        flips between Ink and Paper. */
     const colors = [
         { name: 'Default', value: 'transparent', displayValue: 'transparent' },
-        { name: 'Rose', value: 'var(--a-rose)', displayValue: 'var(--a-rose)' },
+        /* Names say what the swatch actually is. Three of these read "Orange",
+           "Pale Orange" and "Deep Orange" while pointing at teal, azure and
+           indigo — labels left over from a palette this list no longer uses, so
+           picking "Orange" handed you a cyan card. */
+        { name: 'Coral red', value: 'var(--a-rose)', displayValue: 'var(--a-rose)' },
         { name: 'Amber', value: 'var(--a-amber)', displayValue: 'var(--a-amber)' },
-        { name: 'Citrine', value: 'var(--a-citrine)', displayValue: 'var(--a-citrine)' },
+        { name: 'Yellow amber', value: 'var(--a-citrine)', displayValue: 'var(--a-citrine)' },
         { name: 'Olive', value: 'var(--a-olive)', displayValue: 'var(--a-olive)' },
         { name: 'Jade', value: 'var(--a-jade)', displayValue: 'var(--a-jade)' },
         { name: 'Teal', value: 'var(--a-teal)', displayValue: 'var(--a-teal)' },
         { name: 'Azure', value: 'var(--a-azure)', displayValue: 'var(--a-azure)' },
         { name: 'Indigo', value: 'var(--a-indigo)', displayValue: 'var(--a-indigo)' },
-        { name: 'Violet', value: 'var(--a-violet)', displayValue: 'var(--a-violet)' },
-        { name: 'Magenta', value: 'var(--a-magenta)', displayValue: 'var(--a-magenta)' },
+        { name: 'Purple', value: 'var(--a-violet)', displayValue: 'var(--a-violet)' },
+        { name: 'Red pink', value: 'var(--a-magenta)', displayValue: 'var(--a-magenta)' },
     ];
 
     return (
@@ -247,25 +270,6 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
                     </div>
 
                     <div className={styles.actions}>
-                        {(onOpenAI || onOpenSearch) && (
-                            <div className={styles.actionGroup} aria-label="AI actions">
-                                {onOpenAI && (
-                                    <Tooltip label="Ask AI" desc="Use AI to edit/modify selected cards">
-                                        <button className={`${styles.actionBtn} ${styles.aiBtn}`} onClick={onOpenAI}>
-                                            <Sparkles size={16} />
-                                        </button>
-                                    </Tooltip>
-                                )}
-                                {onOpenSearch && (
-                                    <Tooltip label="AI Search" desc="Search your cards and notes">
-                                        <button className={`${styles.actionBtn} ${styles.searchBtn}`} onClick={onOpenSearch}>
-                                            <Search size={16} />
-                                        </button>
-                                    </Tooltip>
-                                )}
-                            </div>
-                        )}
-
                         <div className={styles.actionGroup} aria-label="Appearance actions">
                             <div className={styles.layoutTrigger} ref={viewsPopoverRef}>
                                 <Tooltip label="View Mode" desc="Change card view mode">
@@ -311,9 +315,9 @@ export function MultiSelectionToolbar({ onOpenAI, onOpenSearch }: MultiSelection
                         </div>
 
                         <div className={styles.actionGroup} aria-label="Content actions">
-                            {selectedCount === 1 && Array.from(selectedCanvasNodeIds)[0] && (
+                            {selectedCount === 1 && selectedNodeId && (
                                 <Tooltip label="Chunk it" desc="Split card content into multiple pieces">
-                                    <button className={styles.actionBtn} onClick={() => setChunkItNodeId(Array.from(selectedCanvasNodeIds)[0])}>
+                                    <button className={styles.actionBtn} onClick={() => setChunkItNodeId(selectedNodeId)}>
                                         <Scissors size={16} />
                                     </button>
                                 </Tooltip>

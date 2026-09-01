@@ -1,0 +1,192 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Outfit', system-ui, sans-serif;
+      background: #000000;
+      color: #ffffff;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #ff5040; text-decoration: none; }
+    a:hover { color: #ffa9e2; }
+    * { box-sizing: border-box; }
+
+    .taskRow { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 6px 8px;
+               border-radius: 8px; }
+    .taskRow .box { flex: none; display: grid; place-items: center; width: 15px; height: 15px;
+                    border-radius: 4px; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.28);
+                    color: transparent; }
+    .taskRow .text { flex: 1 1 auto; min-width: 0; font-size: 13.1px; line-height: 1.4;
+                     color: #ffffff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .taskRow.done .box { background: #5ac875; box-shadow: none; color: #000000; }
+    .taskRow.done .text { color: #a3a3a3; text-decoration: line-through;
+                          text-decoration-color: rgba(255,255,255,0.28); }
+    .taskRow.hover { background: rgba(255,255,255,0.08); }
+    .taskRow.sub { margin-left: 18px; }
+    .taskRow.sub .text { font-size: 12.5px; color: #e6e6e6; }
+
+    .chip { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px;
+            border-radius: 999px; font-size: 11.2px; font-weight: 500; line-height: 1.5;
+            white-space: nowrap; background: rgba(163,163,163,0.13); color: #a3a3a3;
+            font-variant-numeric: tabular-nums; }
+    .chip.late { background: rgba(245,67,11,0.13); color: #f5430b; }
+    .chip.today { background: rgba(255,80,64,0.13); color: #ff5040; }
+
+    .act { display: grid; place-items: center; flex: none; width: 22px; height: 22px;
+           border-radius: 4px; color: #a3a3a3; }
+
+    .groupHead { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 4px 8px 6px; }
+    .tile { flex: none; display: grid; place-items: center; width: 24px; height: 24px;
+            border-radius: 12px; }
+    .groupName { flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 600;
+                 letter-spacing: -0.006em; color: #ffffff; overflow: hidden;
+                 text-overflow: ellipsis; white-space: nowrap; }
+    .lane { flex: none; padding: 2px 9px; border-radius: 999px; font-size: 11.2px;
+            font-weight: 500; }
+  </style>
+</helmet>
+
+<div style="padding: 20px; background: #000000">
+
+  <!-- The day sheet: what "+N tasks" and the day number open. Modelled on the
+       fullscreen note rail — same inset ground, same section headers. -->
+  <div style="display: flex; flex-direction: column; width: 520px; height: 800px; background: #090909; border-radius: 32px; padding: 14px; gap: 12px">
+
+    <!-- --------------------------------------------------------- day head -->
+    <div style="display: flex; align-items: center; gap: 12px; flex: none; padding: 2px 4px 0">
+      <div style="display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto">
+        <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #ff5040">Today</span>
+        <h1 style="margin: 0; font-size: 19px; font-weight: 600; letter-spacing: -0.012em; color: #ffffff; white-space: nowrap">Saturday 29 August</h1>
+      </div>
+      <span style="display: grid; place-items: center; width: 28px; height: 28px; background: #1a1a1a; border-radius: 8px; color: #a3a3a3"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"></path></svg></span>
+      <span style="display: grid; place-items: center; width: 28px; height: 28px; background: #1a1a1a; border-radius: 8px; color: #a3a3a3"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"></path></svg></span>
+      <span style="display: grid; place-items: center; width: 28px; height: 28px; background: #1a1a1a; border-radius: 8px; color: #a3a3a3"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"></path></svg></span>
+    </div>
+
+    <!-- The day's own progress. Same meter as CardTasks.module.css, day-wide. -->
+    <div style="display: flex; align-items: center; gap: 10px; flex: none; padding: 0 8px 2px">
+      <span style="position: relative; flex: 1 1 auto; height: 4px; min-width: 0; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden">
+        <span style="display: block; width: 25%; height: 100%; border-radius: 999px; background: #ff5040"></span>
+      </span>
+      <span style="flex: none; font-size: 11px; font-weight: 600; color: #a3a3a3; font-variant-numeric: tabular-nums">1 of 4 done</span>
+    </div>
+
+    <!-- ------------------------------------------------------------- body -->
+    <div style="display: flex; flex-direction: column; gap: 4px; flex: 1 1 auto; min-height: 0; background: #1a1a1a; border-radius: 12px; padding: 10px 6px; overflow: hidden">
+
+      <!-- ============================================ card group: Kanban -->
+      <div style="display: flex; flex-direction: column; min-width: 0">
+        <div class="groupHead">
+          <span class="tile" style="background: color-mix(in srgb, #5ac875 15%, transparent); color: #5ac875"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M9 4v16M15 4v16"></path></svg></span>
+          <span class="groupName">Kanban calendar</span>
+          <span class="lane" style="background: color-mix(in srgb, #5ac875 12%, transparent); color: #5ac875">In Review</span>
+          <span style="flex: none; font-size: 11.2px; font-weight: 600; color: #a3a3a3; font-variant-numeric: tabular-nums">1/5</span>
+        </div>
+
+        <div class="taskRow done">
+          <span class="box"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"></path></svg></span>
+          <span class="text">Day-cell drop target</span>
+        </div>
+
+        <div class="taskRow">
+          <span class="box"></span>
+          <span class="text">Granularity switch — Cards / Tasks / Both</span>
+          <span class="chip today">Due today</span>
+        </div>
+
+        <!-- a task with a description reads two lines; that is what the overlay
+             entry in data.tasks is for -->
+        <div class="taskRow hover" style="align-items: flex-start">
+          <span class="box" style="margin-top: 2px; box-shadow: inset 0 0 0 1.5px #5ac875; background: color-mix(in srgb, #5ac875 18%, transparent)"></span>
+          <span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+            <span style="font-size: 13.1px; line-height: 1.4; color: #ffffff">Task chips on the month grid</span>
+            <span style="font-size: 12px; line-height: 1.45; color: #a3a3a3">Spine in the card's hue, no fill — a day of tasks must not become a wall of colour.</span>
+          </span>
+          <span class="act"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg></span>
+          <span class="act"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="12" cy="19" r="1.4"></circle></svg></span>
+        </div>
+
+        <div class="taskRow sub">
+          <span class="box"></span>
+          <span class="text">Overdue and done states</span>
+        </div>
+
+        <div class="taskRow">
+          <span class="box"></span>
+          <span class="text">Green the calendar spec</span>
+          <span class="chip">4 Sep</span>
+        </div>
+
+        <!-- composer, straight from CardTasks.module.css -->
+        <div style="display: flex; align-items: center; gap: 7px; margin: 4px 8px 0; padding: 5px 8px; border-radius: 8px; background: #090909">
+          <span style="flex: none; color: #a3a3a3"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></span>
+          <span style="flex: 1 1 auto; font-size: 13.1px; color: #a3a3a3">Add a task to this card, due today</span>
+        </div>
+      </div>
+
+      <div style="flex: none; height: 1px; margin: 8px 8px; background: rgba(255,255,255,0.10)"></div>
+
+      <!-- ============================================== card group: E2E -->
+      <div style="display: flex; flex-direction: column; min-width: 0">
+        <div class="groupHead">
+          <span class="tile" style="background: color-mix(in srgb, #f365c0 15%, transparent); color: #f365c0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 6-6"></path><rect x="3" y="4" width="18" height="16" rx="2"></rect></svg></span>
+          <span class="groupName">E2E Playwright suite</span>
+          <span class="lane" style="background: color-mix(in srgb, #ff5040 12%, transparent); color: #ff5040">In Progress</span>
+          <span style="flex: none; font-size: 11.2px; font-weight: 600; color: #a3a3a3; font-variant-numeric: tabular-nums">4/9</span>
+        </div>
+
+        <div class="taskRow">
+          <span class="box"></span>
+          <span class="text">Assert store oracle for task moves</span>
+          <span class="chip today">Due today</span>
+        </div>
+      </div>
+
+      <div style="flex: none; height: 1px; margin: 8px 8px; background: rgba(255,255,255,0.10)"></div>
+
+      <!-- ==================================================== carried over -->
+      <div style="display: flex; flex-direction: column; min-width: 0">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 4px 8px 6px; min-width: 0">
+          <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #f5430b">Overdue</span>
+          <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: rgba(245,67,11,0.15); font-size: 11px; font-weight: 600; color: #f5430b">2</span>
+        </div>
+
+        <div class="taskRow">
+          <span class="box" style="box-shadow: inset 0 0 0 1.5px #f5430b"></span>
+          <span class="text" style="color: #f5430b">Solar icon attribution</span>
+          <span class="chip late">12 days</span>
+        </div>
+        <div class="taskRow">
+          <span class="box" style="box-shadow: inset 0 0 0 1.5px #f5430b"></span>
+          <span class="text" style="color: #f5430b">Card date parse tests</span>
+          <span class="chip late">4 days</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ----------------------------------------------------------- footer -->
+    <!-- One action, because there is one thing you want at the end of a day. -->
+    <div style="display: flex; align-items: center; gap: 8px; flex: none; padding: 0 4px">
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 14px; background: #1a1a1a; border-radius: 999px; color: #a3a3a3; font-size: 12px; font-weight: 500">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 108-8"></path><path d="M4 5v4h4"></path></svg>
+        Roll 5 unfinished to tomorrow
+      </span>
+      <span style="margin-left: auto; font-size: 11.5px; color: #a3a3a3">2 cards · 9 tasks</span>
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

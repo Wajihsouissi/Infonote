@@ -34,6 +34,13 @@ import {
 import type { LucideIcon } from '../../components/icons';
 import styles from './LandingPage.module.css';
 import { originFromEvent } from '../../utils/themeTransition';
+import { Button } from '../../components/ui/Button';
+import { Tabs, type TabItem } from '../../components/ui/Tabs';
+
+const THEME_TABS: TabItem<'dark' | 'light'>[] = [
+  { id: 'dark', label: 'Ink', icon: <Moon size={13} /> },
+  { id: 'light', label: 'Paper', icon: <Sun size={13} /> },
+];
 
 const FEEDBACK_MAILTO =
   'mailto:wajih.souissi.ws@gmail.com?subject=chnk%20it%20beta%20%E2%80%94%20feedback';
@@ -318,22 +325,20 @@ export const LandingPage: React.FC = () => {
               )}
             </button>
           ) : (
-            <div className={styles.themeRow} role="group" aria-label="Theme">
-              <button
-                className={`${styles.themeBtn} ${theme === 'dark' ? styles.themeBtnActive : ''}`}
-                onClick={(e) => theme !== 'dark' && toggleTheme(originFromEvent(e))}
-              >
-                <Moon size={13} />
-                <span>Ink</span>
-              </button>
-              <button
-                className={`${styles.themeBtn} ${theme === 'light' ? styles.themeBtnActive : ''}`}
-                onClick={(e) => theme !== 'light' && toggleTheme(originFromEvent(e))}
-              >
-                <Sun size={13} />
-                <span>Paper</span>
-              </button>
-            </div>
+            <Tabs
+              className={styles.themeRow}
+              items={THEME_TABS}
+              value={theme === 'dark' ? 'dark' : 'light'}
+              /* `toggleTheme` flips, so re-picking the active theme must be
+                 inert rather than a second toggle back. */
+              onChange={(next, trigger) => {
+                if (next !== theme) toggleTheme(originFromEvent(trigger));
+              }}
+              radius="md"
+              fullWidth
+              semantics="radio"
+              aria-label="Theme"
+            />
           )}
           <button
             className={styles.navItem}
@@ -451,13 +456,13 @@ export const LandingPage: React.FC = () => {
               </>
             ) : (
               <>
-                <button className={styles.authGhost} onClick={() => setCurrentView('login')}>
+                <Button variant="ghost" size="sm" className={styles.authGhost} onClick={() => setCurrentView('login')}>
                   <LogIn size={14} />
                   <span>Log in</span>
-                </button>
-                <button className={styles.authSolid} onClick={() => setCurrentView('signup')}>
+                </Button>
+                <Button variant="primary" size="sm" className={styles.authSolid} onClick={() => setCurrentView('signup')}>
                   Create account
-                </button>
+                </Button>
               </>
             )}
           </div>
@@ -485,10 +490,10 @@ export const LandingPage: React.FC = () => {
                 quietly behind it. Pick up where you left off, or pull a clean sheet.
               </p>
               <div className={styles.mastActions}>
-                <button className={styles.btnPrimary} onClick={openCanvas}>
+                <Button variant="primary" className={styles.btnPrimary} onClick={openCanvas}>
                   <span>Open your canvas</span>
                   <ArrowRight size={15} />
-                </button>
+                </Button>
                 <a className={styles.btnGhost} href={FEEDBACK_MAILTO}>
                   <PenLine size={14} />
                   <span>Send feedback</span>

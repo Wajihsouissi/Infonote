@@ -12,6 +12,8 @@ export interface SidePeekProps {
     width?: number | string;
     buttonRef?: React.RefObject<HTMLButtonElement | null>;
     hideHeader?: boolean;
+    /** On phone-sized viewports the panel becomes a full-screen sheet. */
+    fullscreenOnNarrow?: boolean;
 }
 
 export function SidePeek({ 
@@ -23,7 +25,8 @@ export function SidePeek({
     children, 
     width = 320,
     buttonRef,
-    hideHeader = false
+    hideHeader = false,
+    fullscreenOnNarrow = false,
 }: SidePeekProps) {
     const panelRef = useRef<HTMLDivElement>(null);
     const [currentWidth, setCurrentWidth] = useState<string | number>(width);
@@ -118,6 +121,7 @@ export function SidePeek({
                 ${styles.panel} 
                 ${showPanel ? styles.panelOpen : styles.panelClosed}
                 ${side === 'left' ? styles.sideLeft : styles.sideRight}
+                ${fullscreenOnNarrow ? styles.fullscreenNarrow : ''}
             `}
             style={{ 
                 width: showPanel ? currentWidth : 0,

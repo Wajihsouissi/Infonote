@@ -5,20 +5,21 @@ import styles from './NoteCard.module.css';
 import { BlockEditor } from '../editor/BlockEditor';
 import { IconPicker } from './IconPicker';
 import { defaultIconName, CardIcon } from './iconMap';
+import { AIProvenanceMark } from '../ai/AIProvenanceMark';
 import type { NoteNode } from '../../types';
 import type { Block } from '../editor/types';
 import { endBlockDrag } from '../editor/blockDragLock';
 import { useStore } from '../../store/useStore';
 import { CoverPicker } from './CoverPicker';
-import { NoteBody } from './NoteBody';
-import { useCanvasDetail } from '../canvas/hooks/useCanvasDetail';
 
 // Extracted components and hooks
-import { useNoteMetadata, useLazyRender, useScheduledMount } from './hooks';
+import { useNoteMetadata } from './hooks';
 import { NoteCoverSection } from './NoteCoverSection';
 import { NoteMetadataSection } from './NoteMetadataSection';
 import { NoteFooterStats } from './NoteFooterStats';
 import { NotePropertiesPanel } from './properties/NotePropertiesPanel';
+import { CardMetaBar } from './meta/CardMetaBar';
+import { FEATURES } from '../../config/featureFlags';
 
 interface NoteExpandedContentProps {
     id: string;
@@ -32,13 +33,6 @@ interface NoteExpandedContentProps {
     flatCorners?: boolean; // Remove border radius
     readOnly?: boolean;
     hideBlockHandles?: boolean;
-    /**
-     * Opt in to swapping the editor for a static preview when the canvas is
-     * zoomed out (see useCanvasDetail). Only the card sitting on the canvas
-     * wants this — a card opened in a panel or fullscreen must stay editable
-     * regardless of what the canvas behind it is doing.
-     */
-    zoomAwareBody?: boolean;
 }
 
 export function NoteExpandedContent({
@@ -53,7 +47,6 @@ export function NoteExpandedContent({
     flatCorners,
     readOnly,
     hideBlockHandles,
-    zoomAwareBody
 }: NoteExpandedContentProps) {
     // Use data state (persistent) or fallback to false
     const showMetadata = data?.showMetadata ?? false;
@@ -63,30 +56,7 @@ export function NoteExpandedContent({
     }, [id, onUpdate]);
 
 
-    /* Two gates decide whether the live editor is worth building:
-       isNearViewport = the card is at or near the viewport, isDetailed = the
-       canvas is zoomed in far enough for the body to be legible. Below either
-       one the card shows a static text preview, so the cost of a canvas tracks
-       how many cards are actually readable on screen rather than how many
-       exist. */
-    const { isNearViewport, containerRef } = useLazyRender();
-    const detailTier = useCanvasDetail(nodeId ?? id);
     const blocks = useMemo(() => (Array.isArray(data.content) ? data.content : []), [data.content]);
-
-    /* A card the user has selected has to become editable even if the canvas is
-       zoomed below the legibility threshold — otherwise selecting a card at low
-       zoom hands back a wireframe you cannot type into. */
-    const isInteractive = !hideBlockHandles;
-
-    const wantsLiveEditor = isNearViewport && (detailTier === 'full' || !zoomAwareBody || isInteractive);
-    /* Every gate can flip for a whole screenful of cards at once — a pan, a zoom
-       crossing the threshold, or a select-all flipping every card interactive —
-       so the rising edge is paced across frames. Answering `true` directly here
-       instead would mount a screenful of block editors in one commit, which is
-       the multi-second freeze the scheduler exists to prevent. */
-    const showLiveEditor = useScheduledMount(wantsLiveEditor);
-    /* Wanted but not built yet — the wireframe animates to show it is coming. */
-    const isEditorPending = wantsLiveEditor && !showLiveEditor;
 
     // Metadata editing hook
     const {
@@ -186,21 +156,6 @@ export function NoteExpandedContent({
         onUpdate(id, { content: blocks });
     }, [id, onUpdate]);
 
-    /* Passed to NoteBody rather than inlined at the call site: an inline arrow
-       would be a new prop on every render and defeat NoteBody's memo, which
-       matters here because this is the hot path on a busy canvas. */
-    const renderEditor = useCallback(() => (
-        <BlockEditor
-            initialContent={blocks}
-            readOnly={readOnly || false}
-            minimal={false}
-            onUpdate={handleContentUpdate}
-            nodeId={nodeId}
-            selectionIslandPortalId={selectionIslandPortalId}
-            hideBlockHandles={hideBlockHandles}
-        />
-    ), [blocks, readOnly, handleContentUpdate, nodeId, selectionIslandPortalId, hideBlockHandles]);
-
     // Early return AFTER all hooks — a conditional return above any hook
     // makes React throw "Rendered more hooks than during the previous render".
     if (!data) {
@@ -210,13 +165,19 @@ export function NoteExpandedContent({
     return (
         <div
             className={styles.expandedView}
-            ref={containerRef}
             data-accented={data.color ? '' : undefined}
             style={{
                 ...(flatCorners ? { borderRadius: 0 } : {}),
                 ...(data.color ? { '--node-accent': data.color } as React.CSSProperties : {})
             }}
         >
+            {/* Same ambient wash as the collapsed card — see .coverAmbient. */}
+            {data.coverImage && (
+                <div className={styles.coverAmbientClip} aria-hidden="true">
+                    <img className={styles.coverAmbient} src={data.coverImage} alt="" draggable={false} />
+                </div>
+            )}
+
             {showMetadata ? (
                 <div style={{ borderTopLeftRadius: flatCorners ? 0 : '12px', borderTopRightRadius: flatCorners ? 0 : '12px', flexShrink: 0 }}>
 
@@ -253,13 +214,24 @@ export function NoteExpandedContent({
                         }}
                         showIcon={data.showIcon}
                         onToggleShowIcon={() => onUpdate(id, { showIcon: !data.showIcon })}
+                        compact={FEATURES.compactCardMeta}
                     />
 
-                    {/* NEW: Properties Panel */}
-                    <NotePropertiesPanel
-                        data={data}
-                        onUpdate={(updates) => onUpdate(id, updates)}
-                    />
+                    {/* Metadata: one wrapping chip bar, or the original stacked
+                        property rows. Both are wired; FEATURES.compactCardMeta
+                        picks, so reverting is a flag rather than a revert. */}
+                    {FEATURES.compactCardMeta ? (
+                        <CardMetaBar
+                            nodeId={id}
+                            data={data}
+                            onUpdate={(updates) => onUpdate(id, updates)}
+                        />
+                    ) : (
+                        <NotePropertiesPanel
+                            data={data}
+                            onUpdate={(updates) => onUpdate(id, updates)}
+                        />
+                    )}
                 </div>
             ) : (
                 /* Minimal Header (When Hidden) */
@@ -300,6 +272,14 @@ export function NoteExpandedContent({
                             className={`${styles.minimalTitleInput} nodrag`}
                             placeholder="Untitled"
                         />
+                        {/* Sits beside the title rather than in the window
+                            controls: it describes the CARD, not the frame
+                            around it (ai-Plan.md §5.4). */}
+                        {data.aiProvenance && (
+                            <span className="nodrag" onMouseDown={(e) => e.stopPropagation()}>
+                                <AIProvenanceMark provenance={data.aiProvenance} />
+                            </span>
+                        )}
                     </div>
 
                     {/* Normal icon window controls */}
@@ -365,11 +345,14 @@ export function NoteExpandedContent({
                     e.dataTransfer.dropEffect = 'copy';
                 }}
             >
-                <NoteBody
-                    blocks={blocks}
-                    showLiveEditor={showLiveEditor}
-                    isEditorPending={isEditorPending}
-                    renderEditor={renderEditor}
+                <BlockEditor
+                    initialContent={blocks}
+                    readOnly={readOnly || false}
+                    minimal={false}
+                    onUpdate={handleContentUpdate}
+                    nodeId={nodeId}
+                    selectionIslandPortalId={selectionIslandPortalId}
+                    hideBlockHandles={hideBlockHandles}
                 />
             </div>
 

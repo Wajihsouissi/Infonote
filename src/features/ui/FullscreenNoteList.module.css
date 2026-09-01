@@ -432,7 +432,7 @@
    so the two views read as one signal. Focus (below) is intensity, not hue, so
    a pane never seems to change identity just because the reader tabbed to it. */
 .paneLeft {
-    --pane-hue: var(--t-blue);
+    --pane-hue: var(--t-charcoal);
 }
 
 /* --danger rather than --t-red: t-red's hue sits close enough to the app's own

@@ -53,6 +53,30 @@
     background: var(--menu-item-active);
 }
 
+.menuButton {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+}
+
+.menuButton:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.menuButton:disabled {
+    color: var(--text-faint);
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.menuButton:disabled:hover,
+.menuButton:disabled:active {
+    background: transparent;
+}
+
 .itemContent {
     display: flex;
     align-items: center;

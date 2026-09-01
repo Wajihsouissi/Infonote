@@ -1,20 +1,27 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
-import { Bold, Italic, Underline, Strikethrough, Code, Link, FileText, Check, X, Unlink } from '../../components/icons';
+import { Bold, Italic, Underline, Strikethrough, Code, Link, FileText, Check, X, Unlink, Palette } from '../../components/icons';
 import styles from './BlockEditor.module.css';
-import type { InlineFormat } from './inlineFormat';
+import { HIGHLIGHT_HUES, type InlineFormat, type HighlightHue } from './inlineFormat';
 
 interface FloatingToolbarProps {
     selectionRect: DOMRect;
     onFormat: (format: string, value?: string) => void;
     /** Marks currently wrapping the selection, for highlighting buttons. */
     activeFormats?: Set<InlineFormat>;
+    /** The highlight hue under the selection, if it already has one. */
+    activeHighlight?: HighlightHue | null;
     /** Pre-filled URL if the selection is inside an existing link */
     initialLinkUrl?: string | null;
     /** Controlled: whether the link input is showing (also opened by Ctrl+K). */
     linkOpen?: boolean;
     onLinkOpenChange?: (open: boolean) => void;
+    /** Controlled for the same reason as linkOpen — see the note on the parent's
+     *  mount condition: the toolbar is unmounted the moment the DOM selection
+     *  collapses, so a row that must outlive that has to be the parent's state. */
+    colorOpen?: boolean;
+    onColorOpenChange?: (open: boolean) => void;
 }
 
 type ToolbarButton = {
@@ -31,7 +38,7 @@ const BUTTONS: ToolbarButton[] = [
     { format: 'code', icon: Code, title: 'Code (Ctrl+E)' },
 ];
 
-export function FloatingToolbar({ selectionRect, onFormat, activeFormats, initialLinkUrl, linkOpen, onLinkOpenChange }: FloatingToolbarProps) {
+export function FloatingToolbar({ selectionRect, onFormat, activeFormats, activeHighlight, initialLinkUrl, linkOpen, onLinkOpenChange, colorOpen, onColorOpenChange }: FloatingToolbarProps) {
     const [position, setPosition] = useState({ top: 0, left: 0 });
     const ref = useRef<HTMLDivElement>(null);
     const [url, setUrl] = useState('');
@@ -52,7 +59,7 @@ export function FloatingToolbar({ selectionRect, onFormat, activeFormats, initia
         if (top < 10) top = selectionRect.bottom + 10;
 
         setPosition({ top, left });
-    }, [selectionRect, linkOpen]);
+    }, [selectionRect, linkOpen, colorOpen]);
 
     // Focus the URL field when the link popover opens.
     useEffect(() => {
@@ -62,17 +69,18 @@ export function FloatingToolbar({ selectionRect, onFormat, activeFormats, initia
         }
     }, [linkOpen, initialLinkUrl]);
 
-    // Close the link popover if the user clicks outside the toolbar
+    // Close whichever row is open if the user clicks outside the toolbar
     useEffect(() => {
-        if (!linkOpen) return;
+        if (!linkOpen && !colorOpen) return;
         const handleClickOutside = (e: MouseEvent) => {
             if (ref.current && !ref.current.contains(e.target as Node)) {
                 onLinkOpenChange?.(false);
+                onColorOpenChange?.(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside, { capture: true });
         return () => document.removeEventListener('mousedown', handleClickOutside, { capture: true });
-    }, [linkOpen, onLinkOpenChange]);
+    }, [linkOpen, colorOpen, onLinkOpenChange, onColorOpenChange]);
 
     // Keep the editable's selection alive on click. React's onMouseDown
     // preventDefault does NOT reliably stop the native focus-shift for portaled
@@ -158,6 +166,53 @@ export function FloatingToolbar({ selectionRect, onFormat, activeFormats, initia
                         <X size={16} />
                     </button>
                 </div>
+            ) : colorOpen ? (
+                // Highlight palette — the ten hues of the design system, the same
+                // set a lane or a tag picks from, so a colour means one thing
+                // everywhere. Clicking the active hue again lifts the highlight.
+                <div className={styles.toolbarSwatchRow} role="listbox" aria-label="Highlight colour">
+                    {HIGHLIGHT_HUES.map((hue) => {
+                        const isActive = activeHighlight === hue;
+                        return (
+                            <button
+                                key={hue}
+                                type="button"
+                                role="option"
+                                aria-selected={isActive}
+                                aria-label={`Highlight ${hue}`}
+                                title={hue}
+                                data-swatch={hue}
+                                className={styles.toolbarSwatch}
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    onFormat('highlight', isActive ? undefined : hue);
+                                    onColorOpenChange?.(false);
+                                }}
+                            />
+                        );
+                    })}
+                    <div className={styles.toolbarDivider} />
+                    <button
+                        className={styles.toolbarBtn}
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onFormat('highlight');
+                            onColorOpenChange?.(false);
+                        }}
+                        title="Remove highlight"
+                    >
+                        <Unlink size={16} />
+                    </button>
+                    <button
+                        className={styles.toolbarBtn}
+                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onColorOpenChange?.(false); }}
+                        title="Cancel"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
             ) : (
                 <>
                     {BUTTONS.map(({ format, icon: Icon, title }) => {
@@ -174,6 +229,14 @@ export function FloatingToolbar({ selectionRect, onFormat, activeFormats, initia
                             </button>
                         );
                     })}
+                    <button
+                        className={`${styles.toolbarBtn} ${activeHighlight ? styles.toolbarBtnActive : ''}`}
+                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onColorOpenChange?.(true); }}
+                        title="Highlight (Ctrl+Shift+H)"
+                        aria-pressed={!!activeHighlight}
+                    >
+                        <Palette size={16} />
+                    </button>
                     <div className={styles.toolbarDivider} />
                     <button
                         className={styles.toolbarBtn}

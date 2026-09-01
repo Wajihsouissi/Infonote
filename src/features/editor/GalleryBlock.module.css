@@ -723,53 +723,9 @@
     transform: translate(-50%, calc(-100% - 8px)) scale(1);
 }
 
-/* ------------------------------------------------------ segmented control */
-
-/* The three layouts are one choice, not three switches, and as three
-   identical loose buttons they read as the latter — nothing said only one of
-   them could be on. Sitting them in a recessed track, touching, with the
-   active one raised, makes the exclusivity visible before anything is
-   clicked. */
-.segmented {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    padding: 2px;
-    border-radius: var(--r-control);
-    background: var(--hover-wash);
-}
-
-.segBtn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 26px;
-    padding: 0;
-    border: none;
-    border-radius: calc(var(--r-control) - 2px);
-    background: transparent;
-    color: var(--text-faint);
-    cursor: pointer;
-    transition: background var(--transition-fast), color var(--transition-fast);
-}
-
-.segBtn:hover {
-    color: var(--text-main);
-}
-
-/* Raised out of the track — a filled wash alone was not enough separation
-   against the track's own fill. */
-.segActive {
-    background: var(--bg-raised);
-    color: var(--text-main);
-    box-shadow: var(--elev-1);
-}
-
-.segBtn:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
-}
+/* The layout picker is the shared Tabs component (icon-only, radio
+   semantics). The recessed track and raised active tile it used to define
+   here are now that component's `solid` variant. */
 
 .panelBtn {
     display: flex;

@@ -12,7 +12,7 @@ import styles from './SelectedNodeStrip.module.css';
  *
  * Selection already fed the model — `buildCanvasContext` emits a
  * "[SELECTED CARDS — the user is pointing at these]" section — but nothing on
- * screen said *which* cards, beyond a "3 cards selected" count in the composer.
+ * screen said *which* cards.
  * On a busy canvas that is unverifiable: you cannot tell whether the thing you
  * clicked is the thing the AI is looking at. Each tile names one card, and
  * clicking it flies the canvas there so you can check.
@@ -35,38 +35,67 @@ function ThumbFace({ node }: { node: AppNode }) {
 /**
  * Subscribes to `nodes` itself rather than taking them as a prop. The panel
  * derives its own selection from a one-off `getState()` read, which is fine for
- * a "3 cards selected" count but would leave a tile showing a stale title or
+ * a simple selection indicator but would leave a tile showing a stale title or
  * icon after the card is renamed. Keeping the subscription down here means a
  * canvas edit re-renders this strip only, not the whole panel and its
  * transcript.
  */
-export function SelectedNodeStrip({ selectedIds }: { selectedIds: Set<string> }) {
+export function SelectedNodeStrip({
+    selectedIds,
+    variant = 'composer',
+}: {
+    selectedIds: ReadonlySet<string> | readonly string[];
+    variant?: 'composer' | 'bubble';
+}) {
     const allNodes = useStore((s) => s.nodes);
-    const toggleCanvasNodeSelection = useStore((s) => s.toggleCanvasNodeSelection);
-    const clearCanvasSelection = useStore((s) => s.clearCanvasSelection);
+    const setSelectedCanvasNodeIds = useStore((s) => s.setSelectedCanvasNodeIds);
+    const selectedIdSet = useMemo(
+        () => selectedIds instanceof Set ? selectedIds : new Set(selectedIds),
+        [selectedIds],
+    );
 
     const nodes = useMemo(
-        () => allNodes.filter((n: AppNode) => selectedIds.has(n.id)),
-        [allNodes, selectedIds]
+        () => allNodes.filter((n: AppNode) => selectedIdSet.has(n.id)),
+        [allNodes, selectedIdSet]
     );
 
     if (nodes.length === 0) return null;
 
+    const visibleNodes = nodes.slice(0, 3);
+    const hiddenCount = Math.max(0, nodes.length - visibleNodes.length);
+
     return (
-        <div className={styles.strip}>
-            <div className={styles.tiles}>
-                {nodes.map((node) => {
+        <div
+            className={`${styles.strip} ${variant === 'bubble' ? styles.bubbleStrip : ''}`}
+            aria-label={`${nodes.length} selected card${nodes.length === 1 ? '' : 's'} used as AI context`}
+            data-depth={visibleNodes.length}
+            data-has-overflow={hiddenCount > 0 || undefined}
+        >
+            <div
+                className={styles.stack}
+                data-depth={visibleNodes.length}
+                data-has-overflow={hiddenCount > 0 || undefined}
+            >
+                {hiddenCount > 0 && (
+                    <span className={styles.ghostCard} aria-hidden="true">
+                        <span>+{hiddenCount}</span>
+                    </span>
+                )}
+                {visibleNodes.map((node, index) => {
                     const title = nodeTitle(node);
                     return (
-                        <div key={node.id} className={styles.tileWrap}>
+                        <div
+                            key={node.id}
+                            className={styles.stackCard}
+                            style={{
+                                '--stack-index': index,
+                                '--stack-rotate': `${index * (variant === 'bubble' ? 4 : -4)}deg`,
+                                '--stack-anchor-lift': `${index * -8}px`,
+                            } as React.CSSProperties}
+                        >
                             <button
                                 type="button"
-                                className={styles.tile}
-                                /* No per-card accent border here — the tile is
-                                   deliberately grayscale (a neutral reference
-                                   chip, not a place for the card's own color to
-                                   show through), and a colored border would
-                                   have fought that on every card that has one. */
+                                className={styles.cardButton}
                                 /* CanvasBoard listens for this and setCenter()s
                                    on the node — the same channel the editor uses
                                    when it spawns a card off-screen. Reused
@@ -74,37 +103,42 @@ export function SelectedNodeStrip({ selectedIds }: { selectedIds: Set<string> })
                                 onClick={() => window.dispatchEvent(
                                     new CustomEvent('panToNode', { detail: { id: node.id } })
                                 )}
-                                /* The tile is 34px, so the name lives in the
-                                   tooltip rather than under it — a caption that
-                                   narrow truncates to nothing useful. */
                                 title={`${title} — click to show it on the canvas`}
                             >
-                                <ThumbFace node={node} />
+                                <span className={styles.cardThumb}><ThumbFace node={node} /></span>
+                                <span className={styles.cardCopy}>
+                                    <strong>{title}</strong>
+                                    <small>{index === 0 ? 'Included in this AI request' : 'Selected context'}</small>
+                                </span>
                             </button>
 
-                            <button
-                                type="button"
-                                className={styles.drop}
-                                onClick={() => toggleCanvasNodeSelection(node.id)}
-                                title={`Stop using “${title}”`}
-                            >
-                                <X size={9} />
-                            </button>
+                            {variant === 'composer' && (
+                                <button
+                                    type="button"
+                                    className={styles.drop}
+                                    onPointerDown={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        const nextSelection = new Set(useStore.getState().selectedCanvasNodeIds);
+                                        nextSelection.delete(node.id);
+                                        setSelectedCanvasNodeIds(nextSelection);
+                                    }}
+                                    onClick={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        const nextSelection = new Set(useStore.getState().selectedCanvasNodeIds);
+                                        nextSelection.delete(node.id);
+                                        setSelectedCanvasNodeIds(nextSelection);
+                                    }}
+                                    title={`Stop using “${title}”`}
+                                >
+                                    <X size={9} />
+                                </button>
+                            )}
                         </div>
                     );
                 })}
             </div>
-
-            {nodes.length > 1 && (
-                <button
-                    type="button"
-                    className={styles.clearAll}
-                    onClick={clearCanvasSelection}
-                    title="Stop using all of these"
-                >
-                    Clear
-                </button>
-            )}
         </div>
     );
 }

@@ -3,6 +3,7 @@ import type { Edge } from '@xyflow/react';
 import type { AppNode } from '../types';
 import type { Block } from '../features/editor/types';
 import { BASE_UNIT, snapToGridValue, MIN_EXPANDED_SIZE } from '../config/layout';
+import { FILE_CLOSED_SIZE, FILE_OPEN_SIZE } from '../features/file/fileView';
 
 /**
  * blockNodeStyle
@@ -65,10 +66,16 @@ export const getBlockNodeStyle = (
 
     // Widened: legacy saves may carry retired types like 'numberedListItem'.
     switch (block.type as string) {
+        // A file lands as its closed card — the folder card's square. An empty
+        // file block is still just the media picker, so it keeps the media
+        // footprint until something is actually in it.
+        case 'file':
+            return block.content?.trim()
+                ? { ...(block.metadata?.fileView === 'expandedfile' ? FILE_OPEN_SIZE : FILE_CLOSED_SIZE) }
+                : { ...profile.image };
         case 'media':
         case 'image':
         case 'video':
-        case 'file':
             return { ...profile.image };
         // A board released onto the canvas needs room for its bento columns —
         // at the media footprint it would come out as a single stack of thumbs.
@@ -114,11 +121,17 @@ export const createBlockNode = (
 export interface RadialCluster {
     nodes: AppNode[];
     edges: Edge[];
+    /** Exact footprint, used to pack several released sections safely. */
+    bounds: { minX: number; minY: number; maxX: number; maxY: number };
     radius: number;
 }
 
-/** Arrange `outerBlocks` in a ring around `centerNode`, connecting each to the
- *  center. Uses the release sizing profile (its only caller). */
+/**
+ * Arrange released blocks as an outward branch from their first block. This
+ * keeps the release operation on the current canvas, but reserves a real lane
+ * for every card instead of estimating a ring from card widths. Large text,
+ * media, and code cards therefore cannot collide with their siblings.
+ */
 export const buildRadialCluster = (
     centerNode: AppNode,
     outerBlocks: Block[],
@@ -128,24 +141,37 @@ export const buildRadialCluster = (
     const { parentId, parentIdForEdge } = opts;
     const clusterNodes: AppNode[] = [centerNode];
     const clusterEdges: Edge[] = [];
+    const centerWidth = typeof centerNode.style?.width === 'number' ? centerNode.style.width : 220;
+    const centerHeight = typeof centerNode.style?.height === 'number' ? centerNode.style.height : 80;
 
-    if (outerBlocks.length === 0) return { nodes: clusterNodes, edges: clusterEdges, radius: 0 };
+    if (outerBlocks.length === 0) {
+        return {
+            nodes: clusterNodes,
+            edges: clusterEdges,
+            bounds: {
+                minX: centerPos.x,
+                minY: centerPos.y,
+                maxX: centerPos.x + centerWidth,
+                maxY: centerPos.y + centerHeight,
+            },
+            radius: Math.max(centerWidth, centerHeight) / 2,
+        };
+    }
 
     const outerStyles = outerBlocks.map(b => getBlockNodeStyle(b, RELEASE_SIZE_PROFILE, false));
-    const maxOuterWidth = Math.max(...outerStyles.map(s => s.width));
-    const minRadius = BASE_UNIT * 4;
-    const estimatedRadius = outerBlocks.length <= 1
-        ? minRadius
-        : (maxOuterWidth * 1.5) / (2 * Math.sin(Math.PI / outerBlocks.length));
-    const r = snapToGridValue(Math.max(minRadius, estimatedRadius));
-    const angleStep = (2 * Math.PI) / outerBlocks.length;
-    const angleOffset = -Math.PI / 2;
+    const branchGap = BASE_UNIT * 2;
+    const siblingGap = BASE_UNIT;
+    const totalOuterHeight = outerStyles.reduce((total, style) => total + style.height, 0)
+        + siblingGap * (outerStyles.length - 1);
+    const outerX = snapToGridValue(centerPos.x + centerWidth + branchGap);
+    let outerY = centerPos.y + centerHeight / 2 - totalOuterHeight / 2;
 
     outerBlocks.forEach((block, idx) => {
-        const angle = angleOffset + angleStep * idx;
-        const x = snapToGridValue(centerPos.x + r * Math.cos(angle));
-        const y = snapToGridValue(centerPos.y + r * Math.sin(angle));
-        const node = createBlockNode(block, { x, y }, outerStyles[idx], parentId);
+        const style = outerStyles[idx];
+        const node = createBlockNode(block, {
+            x: outerX,
+            y: snapToGridValue(outerY),
+        }, style, parentId);
         clusterNodes.push(node);
         clusterEdges.push({
             id: uuidv4(),
@@ -154,7 +180,19 @@ export const buildRadialCluster = (
             type: 'centered',
             data: { parentId: parentIdForEdge },
         } as Edge);
+        outerY += style.height + siblingGap;
     });
 
-    return { nodes: clusterNodes, edges: clusterEdges, radius: r + maxOuterWidth / 2 };
+    const minY = Math.min(centerPos.y, ...clusterNodes.slice(1).map((node) => node.position.y));
+    const maxY = Math.max(
+        centerPos.y + centerHeight,
+        ...clusterNodes.slice(1).map((node, index) => node.position.y + outerStyles[index].height),
+    );
+    const maxX = Math.max(centerPos.x + centerWidth, outerX + Math.max(...outerStyles.map((style) => style.width)));
+    return {
+        nodes: clusterNodes,
+        edges: clusterEdges,
+        bounds: { minX: centerPos.x, minY, maxX, maxY },
+        radius: Math.max(maxX - centerPos.x, maxY - minY) / 2,
+    };
 };

@@ -60,6 +60,49 @@ const LIST_TYPES = new Set([
 
 type Category = 'heading' | 'standalone' | 'list' | 'divider' | 'text';
 
+/**
+ * Empty editor placeholders and divider rules help people compose a card, but
+ * they do not carry an idea of their own. Never turn either into a card on a
+ * nested canvas. Rich blocks whose content lives in metadata are retained.
+ */
+export function isCanvasHydratableBlock(block: Block): boolean {
+    if (block.type === 'divider') return false;
+
+    const hasText = (value: unknown): boolean =>
+        typeof value === 'string' && value.trim().replace(/[\n\u200B\u00A0\u200C\uFEFF]/g, '').length > 0;
+
+    if (hasText(block.content)) return true;
+
+    const metadata = block.metadata;
+    if (!metadata) return false;
+
+    const asBlocks = (value: unknown): Block[] => Array.isArray(value)
+        ? value.filter((item): item is Block => Boolean(
+            item &&
+            typeof item === 'object' &&
+            typeof (item as Block).id === 'string' &&
+            typeof (item as Block).type === 'string' &&
+            typeof (item as Block).content === 'string',
+        ))
+        : [];
+
+    if (block.type === 'page' && typeof metadata.nodeId === 'string') return true;
+    if (block.type === 'table' && metadata.rows?.some((row) => row.some(hasText))) return true;
+    if (block.type === 'gallery' && asBlocks(metadata.items).some(isCanvasHydratableBlock)) return true;
+    if (block.type === 'columns' && Array.isArray(metadata.columns)) {
+        return metadata.columns.some((column) => {
+            const legacyColumn = column as unknown as { content?: unknown; blocks?: unknown };
+            const children = asBlocks(legacyColumn.content).length > 0
+                ? asBlocks(legacyColumn.content)
+                : asBlocks(legacyColumn.blocks);
+            return children.some(isCanvasHydratableBlock);
+        });
+    }
+
+    const nested = metadata.blocks ?? metadata.content;
+    return asBlocks(nested).some(isCanvasHydratableBlock);
+}
+
 /** Minimal block shape the text/relatedness analysis needs. Canonical Blocks
  *  and legacy loose shapes (label-only stand-ins, retired list types) both fit. */
 export type AnalyzableBlock = {
@@ -269,6 +312,13 @@ export function planHydration(orderedBlocks: Block[]): HydrationPlan {
     };
 
     for (const block of orderedBlocks) {
+        if (!isCanvasHydratableBlock(block)) {
+            // Treat invisible composition scaffolding as a boundary so text on
+            // either side never gets fused merely because the separator is hidden.
+            current = null;
+            continue;
+        }
+
         const cat = categorize(block);
 
         if (cat === 'divider') {
@@ -513,6 +563,22 @@ function buildRelatednessForest(items: ScoredItem[]): RelatednessForest {
     }
 
     return { edges: treeEdges, parent };
+}
+
+/**
+ * Group arbitrary canvas nodes by the words in their content without imposing
+ * document-heading semantics. Unlike `computeSmartHierarchy`, an isolated
+ * heading does not pull unrelated cards into its group, which makes this the
+ * safer primitive for organizing a mixed canvas.
+ */
+export function computeRelatednessHierarchy(
+    items: { id: string; blocks: AnalyzableBlock[] }[]
+): RelatednessForest {
+    return buildRelatednessForest(items.map((item) => ({
+        id: item.id,
+        tf: chunkTermFreq(item.blocks),
+        level: nodeHeadingLevel(item.blocks),
+    })));
 }
 
 /** Term-frequency vector for a chunk built from all of its blocks' text. */
@@ -802,6 +868,380 @@ export function layoutChunks<T extends LayoutInput>(
         });
         curX += cb.w + CLUSTER_GAP;
         if (cb.h > rowH) rowH = cb.h;
+    }
+
+    return positions;
+}
+
+export interface DocumentTreeLayout {
+    /** Positions for every content-bearing chapter and section. */
+    positions: Map<string, { x: number; y: number }>;
+    /** Top-level chapters, in document order. */
+    rootIds: string[];
+}
+
+/**
+ * Lay a note out as a document tree. Main sections form the first row and
+ * every subsection grows beneath its parent, mirroring the source note rather
+ * than inventing a central title card. Each subtree reserves its full bounds
+ * before placement, so cards of very different sizes never overlap.
+ */
+export function layoutDocumentTree<T extends LayoutInput>(
+    nodes: T[],
+    sizeOf: (node: T) => ChunkSize,
+    opts: { gridStep: number; maxRootRowWidth?: number },
+): DocumentTreeLayout {
+    const positions = new Map<string, { x: number; y: number }>();
+    if (nodes.length === 0) return { positions, rootIds: [] };
+
+    const byId = new Map(nodes.map((node) => [node.id, node]));
+    const childrenById = new Map<string, T[]>();
+    nodes.forEach((node) => childrenById.set(node.id, []));
+    const roots: T[] = [];
+    nodes.forEach((node) => {
+        if (node.sourceId && childrenById.has(node.sourceId)) {
+            childrenById.get(node.sourceId)!.push(node);
+        } else {
+            roots.push(node);
+        }
+    });
+
+    const snap = (value: number) => Math.round(value / opts.gridStep) * opts.gridStep;
+    const siblingGap = opts.gridStep * 1.5;
+    // A full two-grid-unit gutter keeps the branches readable at a glance and
+    // gives connector lines room to leave and enter their cards cleanly.
+    const levelGap = opts.gridStep * 2;
+    const rootGap = opts.gridStep * 3;
+    // Keep sibling chapters on one aligned top row when a desktop viewport can
+    // comfortably show them together. A narrower caller can opt into a tighter
+    // cap and let wider trees wrap to a separate row.
+    const maxRootRowWidth = opts.maxRootRowWidth ?? opts.gridStep * 44;
+
+    interface TreeBox {
+        width: number;
+        height: number;
+        /** Positions are relative to the top-left of this tree's reserved box. */
+        local: Map<string, { x: number; y: number }>;
+    }
+
+    const buildTree = (id: string, ancestry = new Set<string>()): TreeBox => {
+        const node = byId.get(id);
+        if (!node) return { width: 0, height: 0, local: new Map() };
+        const size = sizeOf(node);
+        if (ancestry.has(id)) {
+            return { width: size.width, height: size.height, local: new Map([[id, { x: 0, y: 0 }]]) };
+        }
+
+        const nextAncestry = new Set(ancestry);
+        nextAncestry.add(id);
+        const children = (childrenById.get(id) ?? [])
+            .map((child) => buildTree(child.id, nextAncestry))
+            .filter((box) => box.width > 0 && box.height > 0);
+
+        if (children.length === 0) {
+            return { width: size.width, height: size.height, local: new Map([[id, { x: 0, y: 0 }]]) };
+        }
+
+        const childrenWidth = children.reduce((total, box) => total + box.width, 0)
+            + siblingGap * (children.length - 1);
+        const width = Math.max(size.width, childrenWidth);
+        const tallestChild = Math.max(...children.map((box) => box.height));
+        const local = new Map<string, { x: number; y: number }>();
+        local.set(id, { x: (width - size.width) / 2, y: 0 });
+
+        let childX = (width - childrenWidth) / 2;
+        children.forEach((box) => {
+            box.local.forEach((position, childId) => {
+                local.set(childId, {
+                    x: childX + position.x,
+                    y: size.height + levelGap + position.y,
+                });
+            });
+            childX += box.width + siblingGap;
+        });
+
+        return {
+            width,
+            height: size.height + levelGap + tallestChild,
+            local,
+        };
+    };
+
+    const boxes = roots.map((root) => ({ root, box: buildTree(root.id) }));
+    const rows: Array<typeof boxes> = [];
+    let row: typeof boxes = [];
+    let rowWidth = 0;
+    boxes.forEach((entry) => {
+        const nextWidth = row.length === 0 ? entry.box.width : rowWidth + rootGap + entry.box.width;
+        if (row.length > 0 && nextWidth > maxRootRowWidth) {
+            rows.push(row);
+            row = [];
+            rowWidth = 0;
+        }
+        rowWidth = row.length === 0 ? entry.box.width : rowWidth + rootGap + entry.box.width;
+        row.push(entry);
+    });
+    if (row.length > 0) rows.push(row);
+
+    let rowY = 0;
+    rows.forEach((entries) => {
+        const width = entries.reduce((total, entry) => total + entry.box.width, 0)
+            + rootGap * (entries.length - 1);
+        const height = Math.max(...entries.map((entry) => entry.box.height));
+        let rowX = -width / 2;
+        entries.forEach(({ box }) => {
+            box.local.forEach((position, id) => {
+                positions.set(id, { x: snap(rowX + position.x), y: snap(rowY + position.y) });
+            });
+            rowX += box.width + rootGap;
+        });
+        rowY += height + rootGap;
+    });
+
+    return { positions, rootIds: roots.map((root) => root.id) };
+}
+
+/** Minimal input required by the canvas-wide bento organizer. */
+export interface BentoLayoutInput {
+    id: string;
+}
+
+/**
+ * Lay out a mixed canvas as one broad bento composition.
+ *
+ * - Explicit connector components are treated as mind maps and retain a clear
+ *   left-to-right root → branch reading direction.
+ * - Unconnected nodes are clustered by semantic relatedness and tiled in
+ *   compact, mostly-horizontal grids.
+ * - The resulting component boxes are packed into several columns rather than
+ *   a tall vertical list.
+ *
+ * This function only calculates positions; it never creates or rewrites edges.
+ */
+export function layoutCanvasBento<T extends BentoLayoutInput>(
+    nodes: T[],
+    semanticEdges: RelatedEdge[],
+    connectorEdges: RelatedEdge[],
+    sizeOf: (node: T) => ChunkSize,
+    opts: LayoutOptions,
+): Map<string, { x: number; y: number }> {
+    const { originX, originY, gridStep } = opts;
+    const snap = (value: number) => Math.round(value / gridStep) * gridStep;
+    // Card positions still snap to the 56px canvas grid, but using that entire
+    // unit as whitespace makes a bento feel scattered. A compact sub-grid keeps
+    // tiles and mind-map levels visually joined; separate groups get twice it.
+    const DENSE_GAP = Math.max(16, Math.round(gridStep / 4));
+    const INNER_GAP = DENSE_GAP;
+    const BRANCH_GAP = DENSE_GAP;
+    const GROUP_GAP = DENSE_GAP * 2;
+    const positions = new Map<string, { x: number; y: number }>();
+    if (nodes.length === 0) return positions;
+
+    const ordered = [...nodes].sort((a, b) => a.id.localeCompare(b.id));
+    const byId = new Map(ordered.map((node) => [node.id, node]));
+    const validConnectorEdges = connectorEdges.filter((edge) =>
+        edge.source !== edge.target && byId.has(edge.source) && byId.has(edge.target)
+    );
+
+    const createUnionFind = (ids: string[]) => {
+        const parent = new Map(ids.map((id) => [id, id]));
+        const find = (id: string): string => {
+            let root = id;
+            while (parent.get(root) !== root) root = parent.get(root)!;
+            let current = id;
+            while (parent.get(current) !== root) {
+                const next = parent.get(current)!;
+                parent.set(current, root);
+                current = next;
+            }
+            return root;
+        };
+        const union = (a: string, b: string) => {
+            const rootA = find(a);
+            const rootB = find(b);
+            if (rootA !== rootB) parent.set(rootA, rootB);
+        };
+        return { find, union };
+    };
+
+    // First reserve every real connected component as a mind map. Semantic
+    // similarity can influence the remaining cards but must not blur a graph's
+    // intentional topology.
+    const connectorUnion = createUnionFind(ordered.map((node) => node.id));
+    validConnectorEdges.forEach((edge) => connectorUnion.union(edge.source, edge.target));
+    const connectorMembers = new Map<string, string[]>();
+    ordered.forEach((node) => {
+        const root = connectorUnion.find(node.id);
+        const members = connectorMembers.get(root) ?? [];
+        members.push(node.id);
+        connectorMembers.set(root, members);
+    });
+    const mindMapComponents = [...connectorMembers.values()]
+        .filter((members) => members.length > 1)
+        .sort((a, b) => a[0].localeCompare(b[0]));
+    const mindMapNodeIds = new Set(mindMapComponents.flat());
+
+    // Related but unconnected cards form the other bento regions.
+    const looseIds = ordered.filter((node) => !mindMapNodeIds.has(node.id)).map((node) => node.id);
+    const looseIdSet = new Set(looseIds);
+    const semanticUnion = createUnionFind(looseIds);
+    semanticEdges.forEach((edge) => {
+        if (looseIdSet.has(edge.source) && looseIdSet.has(edge.target)) {
+            semanticUnion.union(edge.source, edge.target);
+        }
+    });
+    const semanticMembers = new Map<string, string[]>();
+    looseIds.forEach((id) => {
+        const root = semanticUnion.find(id);
+        const members = semanticMembers.get(root) ?? [];
+        members.push(id);
+        semanticMembers.set(root, members);
+    });
+
+    interface ComponentBox {
+        ids: string[];
+        width: number;
+        height: number;
+        local: Map<string, { x: number; y: number }>;
+    }
+
+    const makeMindMapBox = (ids: string[]): ComponentBox => {
+        const idSet = new Set(ids);
+        const edges = validConnectorEdges.filter((edge) => idSet.has(edge.source) && idSet.has(edge.target));
+        const outgoing = new Map(ids.map((id) => [id, [] as string[]]));
+        const adjacency = new Map(ids.map((id) => [id, [] as string[]]));
+        const indegree = new Map(ids.map((id) => [id, 0]));
+        edges.forEach((edge) => {
+            outgoing.get(edge.source)!.push(edge.target);
+            adjacency.get(edge.source)!.push(edge.target);
+            adjacency.get(edge.target)!.push(edge.source);
+            indegree.set(edge.target, (indegree.get(edge.target) ?? 0) + 1);
+        });
+        outgoing.forEach((targets) => targets.sort((a, b) => a.localeCompare(b)));
+        adjacency.forEach((neighbors) => neighbors.sort((a, b) => a.localeCompare(b)));
+
+        const rootCandidates = ids.filter((id) => (indegree.get(id) ?? 0) === 0);
+        const candidates = rootCandidates.length > 0 ? rootCandidates : ids;
+        const rootId = [...candidates].sort((a, b) => {
+            const degreeDiff = (adjacency.get(b)?.length ?? 0) - (adjacency.get(a)?.length ?? 0);
+            return degreeDiff || a.localeCompare(b);
+        })[0];
+
+        const depth = new Map<string, number>([[rootId, 0]]);
+        const queue = [rootId];
+        const traversalOrder = [rootId];
+        while (queue.length > 0) {
+            const current = queue.shift()!;
+            const directedFirst = [
+                ...(outgoing.get(current) ?? []),
+                ...(adjacency.get(current) ?? []).filter((id) => !(outgoing.get(current) ?? []).includes(id)),
+            ];
+            directedFirst.forEach((next) => {
+                if (depth.has(next)) return;
+                depth.set(next, (depth.get(current) ?? 0) + 1);
+                queue.push(next);
+                traversalOrder.push(next);
+            });
+        }
+
+        const levels = new Map<number, string[]>();
+        // BFS order keeps each parent's children together inside the next
+        // column, reducing connector crossings compared with a global id sort.
+        traversalOrder.forEach((id) => {
+            const level = depth.get(id) ?? 0;
+            const members = levels.get(level) ?? [];
+            members.push(id);
+            levels.set(level, members);
+        });
+        const maxDepth = Math.max(...levels.keys());
+        const columnWidths: number[] = [];
+        const columnHeights: number[] = [];
+        for (let level = 0; level <= maxDepth; level++) {
+            const members = levels.get(level) ?? [];
+            columnWidths[level] = Math.max(...members.map((id) => sizeOf(byId.get(id)!).width));
+            columnHeights[level] = members.reduce(
+                (sum, id) => sum + sizeOf(byId.get(id)!).height,
+                Math.max(0, members.length - 1) * INNER_GAP,
+            );
+        }
+        const height = Math.max(...columnHeights);
+        const local = new Map<string, { x: number; y: number }>();
+        let x = 0;
+        for (let level = 0; level <= maxDepth; level++) {
+            const members = levels.get(level) ?? [];
+            let y = (height - columnHeights[level]) / 2;
+            members.forEach((id) => {
+                const size = sizeOf(byId.get(id)!);
+                local.set(id, { x, y });
+                y += size.height + INNER_GAP;
+            });
+            x += columnWidths[level] + BRANCH_GAP;
+        }
+        return {
+            ids,
+            width: x - BRANCH_GAP,
+            height,
+            local,
+        };
+    };
+
+    const makeSemanticBox = (ids: string[]): ComponentBox => {
+        const columns = Math.min(4, Math.max(1, Math.ceil(Math.sqrt(ids.length * 1.35))));
+        const rows = Math.ceil(ids.length / columns);
+        const columnWidths = Array.from({ length: columns }, () => 0);
+        const rowHeights = Array.from({ length: rows }, () => 0);
+        ids.forEach((id, index) => {
+            const size = sizeOf(byId.get(id)!);
+            const column = index % columns;
+            const row = Math.floor(index / columns);
+            columnWidths[column] = Math.max(columnWidths[column], size.width);
+            rowHeights[row] = Math.max(rowHeights[row], size.height);
+        });
+        const columnX: number[] = [];
+        const rowY: number[] = [];
+        columnWidths.forEach((width, index) => {
+            columnX[index] = index === 0 ? 0 : columnX[index - 1] + columnWidths[index - 1] + INNER_GAP;
+        });
+        rowHeights.forEach((height, index) => {
+            rowY[index] = index === 0 ? 0 : rowY[index - 1] + rowHeights[index - 1] + INNER_GAP;
+        });
+        const local = new Map<string, { x: number; y: number }>();
+        ids.forEach((id, index) => local.set(id, {
+            x: columnX[index % columns],
+            y: rowY[Math.floor(index / columns)],
+        }));
+        return {
+            ids,
+            width: columnWidths.reduce((sum, width) => sum + width, 0) + Math.max(0, columns - 1) * INNER_GAP,
+            height: rowHeights.reduce((sum, height) => sum + height, 0) + Math.max(0, rows - 1) * INNER_GAP,
+            local,
+        };
+    };
+
+    const boxes = [
+        ...mindMapComponents.map(makeMindMapBox),
+        ...[...semanticMembers.values()]
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(makeSemanticBox),
+    ];
+    const columnCount = Math.min(4, Math.max(1, Math.ceil(Math.sqrt(boxes.length * 1.5))));
+    let cursorY = originY;
+    for (let start = 0; start < boxes.length; start += columnCount) {
+        const row = boxes.slice(start, start + columnCount);
+        const rowHeight = Math.max(...row.map((box) => box.height));
+        let cursorX = originX;
+        row.forEach((box) => {
+            const verticalOffset = (rowHeight - box.height) / 2;
+            box.ids.forEach((id) => {
+                const local = box.local.get(id)!;
+                positions.set(id, {
+                    x: snap(cursorX + local.x),
+                    y: snap(cursorY + verticalOffset + local.y),
+                });
+            });
+            cursorX += box.width + GROUP_GAP;
+        });
+        cursorY += rowHeight + GROUP_GAP;
     }
 
     return positions;

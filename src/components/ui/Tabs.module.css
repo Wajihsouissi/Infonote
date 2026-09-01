@@ -1,0 +1,260 @@
+/* Tabs — the shared segmented control / tab strip.
+   Every value here resolves to a design-system token, so a strip inherits
+   Paper & Ink and follows the theme without a second set of colors. The
+   variant/color/size/radius dials are data attributes on the root rather
+   than stacked classes: one selector reads like the thing it describes. */
+
+.root {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    /* The cursor is absolutely positioned inside each tab. Isolating the
+       strip keeps its z-index local, so a tab strip inside a toolbar or a
+       modal cannot punch through whatever is stacked above it. */
+    isolation: isolate;
+}
+
+.fullWidth {
+    display: flex;
+    width: 100%;
+}
+
+.fullWidth .tab {
+    flex: 1;
+    justify-content: center;
+}
+
+.tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--text-faint);
+    font-family: inherit;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    cursor: pointer;
+    /* Not `all`: the cursor owns position and size, and letting the tab
+       transition those too would fight the layout animation. */
+    transition: color var(--transition-fast);
+}
+
+.tab:hover:not(:disabled):not([data-selected]) {
+    color: var(--text-soft);
+}
+
+.tab:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.tab:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.tab[data-selected] {
+    color: var(--text-main);
+}
+
+/* The travelling pill. A single element positioned at the strip's origin and
+   moved by an animated transform, so it sits behind whichever tab is selected
+   — which is why `.content` is lifted to z-index 1. Its width/height/x/y are
+   written inline by the component from the selected tab's measurements. */
+.cursor {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.content {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.label {
+    min-width: 0;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.4em;
+    padding: 0 0.4em;
+    border-radius: var(--radius-pill);
+    background: var(--hover-wash);
+    font-size: 0.85em;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- size ---------- */
+
+.root[data-size='sm'] { padding: 2px; gap: 0; }
+.root[data-size='sm'] .tab { padding: 4px 9px; font-size: 0.6875rem; }
+.root[data-size='sm'] .content { gap: 5px; }
+
+.root[data-size='md'] { padding: 3px; }
+.root[data-size='md'] .tab { padding: 7px 14px; font-size: 0.8125rem; }
+
+.root[data-size='lg'] { padding: 4px; }
+.root[data-size='lg'] .tab { padding: 9px 18px; font-size: 0.9375rem; }
+
+/* ---------- icon-only ----------
+   A glyph has no baseline to pad against, so these are square boxes sized
+   from the type scale rather than the text paddings above. */
+
+.root[data-icon-only] .tab { padding: 0; }
+.root[data-icon-only][data-size='sm'] .tab { width: 24px; height: 22px; }
+.root[data-icon-only][data-size='md'] .tab { width: 28px; height: 26px; }
+.root[data-icon-only][data-size='lg'] .tab { width: 34px; height: 32px; }
+
+/* ---------- radius ----------
+   The cursor sits one step tighter than the well so the two curves stay
+   concentric across the 3-4px of padding between them. */
+
+.root[data-radius='full'],
+.root[data-radius='full'] .tab,
+.root[data-radius='full'] .cursor { border-radius: var(--radius-pill); }
+
+.root[data-radius='md'] { border-radius: var(--r-md); }
+.root[data-radius='md'] .tab,
+.root[data-radius='md'] .cursor { border-radius: var(--r-control); }
+
+.root[data-radius='control'] { border-radius: var(--r-control); }
+.root[data-radius='control'] .tab,
+.root[data-radius='control'] .cursor { border-radius: var(--r-xs); }
+
+/* ---------- variant: solid ----------
+   An inset well with a raised cursor. The default, and the shape the app's
+   existing segmented controls were all reaching for. */
+
+.root[data-variant='solid'] {
+    background: var(--hover-wash);
+}
+
+.root[data-variant='solid'] .cursor {
+    background: var(--bg-raised);
+    box-shadow: var(--elev-1);
+}
+
+/* ---------- variant: bordered ----------
+   Same geometry, outlined rather than filled — for a strip on a surface that
+   is already washed, where a second wash would read as a stack of greys. */
+
+.root[data-variant='bordered'] {
+    background: transparent;
+    border: 1px solid var(--line-strong);
+}
+
+.root[data-variant='bordered'] .cursor {
+    background: var(--hover-wash);
+}
+
+/* ---------- variant: light ----------
+   No well at all: the cursor is the only chrome. For strips that sit on
+   their own card and do not need a container to be legible. */
+
+.root[data-variant='light'] {
+    background: transparent;
+}
+
+.root[data-variant='light'] .cursor {
+    background: var(--hover-wash);
+}
+
+/* ---------- variant: underlined ----------
+   A bar under the label rather than a pill around it — page-level tabs,
+   where a row of filled pills would outweigh the content below them. */
+
+.root[data-variant='underlined'] {
+    padding: 0;
+    gap: 4px;
+    background: transparent;
+    box-shadow: inset 0 -1px 0 var(--line);
+}
+
+.root[data-variant='underlined'] .tab {
+    padding-block: 10px;
+    border-radius: 0;
+}
+
+/* The cursor still tracks the whole tab box — the visible bar is drawn at its
+   bottom edge. Keeping one geometry for every variant means the measuring
+   code has no variant branches in it. */
+.root[data-variant='underlined'] .cursor {
+    background: transparent;
+    box-shadow: none;
+}
+
+.root[data-variant='underlined'] .cursor::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    border-radius: var(--radius-pill);
+    background: var(--text-main);
+}
+
+/* ---------- color ----------
+   `neutral` is the default and is already covered above. These two only
+   restate the cursor fill and the selected label. */
+
+.root[data-color='accent'] .cursor {
+    background: var(--accent-dim);
+    box-shadow: none;
+}
+
+.root[data-color='accent'] .tab[data-selected] {
+    color: var(--accent-ink);
+}
+
+.root[data-color='accent'][data-variant='underlined'] .cursor {
+    background: transparent;
+}
+
+.root[data-color='accent'][data-variant='underlined'] .cursor::after {
+    background: var(--accent);
+}
+
+.root[data-color='primary'] .cursor {
+    background: var(--accent);
+    box-shadow: none;
+}
+
+.root[data-color='primary'] .tab[data-selected] {
+    /* On the filled accent the label rides on the accent itself, so it takes
+       the fixed on-accent ink rather than a theme-dependent text token. */
+    color: #fff;
+}
+
+.root[data-color='primary'] .tab[data-selected] .badge {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+/* An underlined strip has no filled cursor for the label to sit on, so the
+   selected label keeps the accent ink rather than the on-accent white. */
+.root[data-color='primary'][data-variant='underlined'] .cursor {
+    background: transparent;
+}
+
+.root[data-color='primary'][data-variant='underlined'] .cursor::after {
+    background: var(--accent);
+}
+
+.root[data-color='primary'][data-variant='underlined'] .tab[data-selected] {
+    color: var(--accent-ink);
+}

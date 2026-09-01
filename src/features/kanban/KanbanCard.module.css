@@ -19,7 +19,7 @@
    cannot. */
 
 .card {
-    --card-tint: var(--t-blue);
+    --card-tint: var(--t-charcoal);
     --card-pad: 16px;
 
     /* The card's spacing system, so every gap in this file is one of two values
@@ -351,9 +351,13 @@
 }
 
 .check {
+    --check-depth: 0;
+
     display: flex;
     align-items: flex-start;
     gap: 8px;
+    /* A subtask steps in under its task, matching the indent the body shows. */
+    margin-left: calc(var(--check-depth) * 14px);
     font-size: 0.8125rem;
     line-height: 1.45;
     color: var(--text-soft);
@@ -404,6 +408,46 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* A task's own deadline.
+   ---------------------------------------------------------------------------
+   The same four states and the same tones as the card's `.due` chip, one step
+   smaller and without its pill fill except where it has to interrupt. A card
+   whose five tasks each wore a filled chip would be five competing signals; the
+   colour alone carries "when", and only overdue earns a background.
+
+   `later` is deliberately the quietest thing on the card: a date three weeks out
+   is context, not news. */
+.checkWhen {
+    flex: none;
+    margin-left: auto;
+    padding: 1px 7px;
+    border-radius: var(--radius-pill);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    line-height: 1.5;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-faint);
+}
+
+.checkWhen[data-state='overdue'] {
+    background: color-mix(in srgb, var(--danger) 13%, transparent);
+    color: var(--danger);
+    font-weight: 600;
+}
+
+.checkWhen[data-state='today'] {
+    color: var(--accent-ink);
+    font-weight: 600;
+}
+
+.checkWhen[data-state='soon'] {
+    color: var(--warn);
+}
+
+/* A struck-through row's date is not drawn at all — see ChecklistRow.due — so
+   there is no done state to write here. */
 
 .more {
     padding-left: 21px;

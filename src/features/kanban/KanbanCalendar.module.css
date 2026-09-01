@@ -1,0 +1,1231 @@
+/* The board's calendar view.
+
+   Structure is carried by tone, not by line. There is not a single border or
+   hairline ring in here: a surface is told apart from the one under it by
+   sitting a step up the charcoal ramp, and every state — today, hovered,
+   drop-target — is a wash rather than an outline. That is the whole visual
+   system, and it is two levels deep:
+
+       ground   var(--bg-base)   the calendar panel, and anything recessed
+       raised   var(--bg-card)   day cells, the tray, mini-months
+
+   Those two specifically, and not the fuller ramp, because they are the only
+   adjacent pair that separates in BOTH themes. In Ink the ramp is
+   #000 / #090909 / #121212 / #1a1a1a / #242424 and any neighbouring pair would
+   do, but in Paper `--bg-rail`, `--bg-card` and `--bg-raised` are all #ffffff —
+   so a borderless design built on rail-vs-card would simply vanish on paper.
+   base→card is #f8f7f5→#ffffff there, which is a real step. Anything added to
+   this file has to clear that same bar: check it in both themes, or use these
+   two tokens.
+
+   Colour still comes from the same ten lane hues (design-system.css §7), so a
+   card keeps its column's colour when you switch views — but as a flat wash
+   now, with no edge.
+
+   The calendar is a fixed four-lane width whatever the board's lane count is.
+   `.board` is `width: max-content` and mirrors its rendered size onto the
+   canvas node for culling, so a grid that sized itself to its contents would
+   make that mirror chase itself. See kanbanTypes.KANBAN_CALENDAR_WIDTH. */
+
+.calendar {
+    /* Both inherited from `.board` — one place to change the board's module. */
+    --cal-w: calc(4 * var(--lane-w) + 3 * var(--lane-gap));
+    /* Three chips deep. Still a fixed constant, and still six rows always, so
+       the node's mirrored height stays stable — see `.monthCells`. */
+    --cal-cell-h: 104px;
+    --cal-gap: 4px;
+    --cal-pad: 6px;
+    /* Matches the fullscreen note rail, which this tray is modelled on. */
+    --tray-w: 288px;
+
+    display: flex;
+    flex-direction: column;
+    width: var(--cal-w);
+    min-height: var(--lane-min-h);
+    box-sizing: border-box;
+    background: var(--bg-base);
+    border-radius: var(--r-panel);
+    padding: 14px;
+    gap: 12px;
+    transition: background var(--transition-fast);
+}
+
+/* Tasks need two more rows than cards do, and the cell is a fixed height by
+   design, so the height is a function of what the calendar is drawing. It is
+   still one constant per mode rather than a cell that sizes to its contents:
+   the node mirrors this box onto the canvas for culling, and a grid that
+   tracked its own contents would make that mirror chase itself. */
+.calendar[data-granularity='tasks'],
+.calendar[data-granularity='both'] {
+    --cal-cell-h: 132px;
+}
+
+/* A card held over the calendar from the canvas. The lane equivalent lives in
+   KanbanNode.module.css; this is the same signal for the same gesture, said
+   with a wash rather than the ring it used to draw. */
+.calendar[data-over] {
+    background: color-mix(in srgb, var(--accent) 10%, var(--bg-base));
+}
+
+/* ------------------------------------------------------------------ header */
+
+.calHead {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: none;
+}
+
+.nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: none;
+}
+
+/* Header controls are raised fills on the panel's ground — the step up the ramp
+   is what makes them read as pressable, so none of them carries a border.
+
+   Hover has to say something in both themes, and background alone cannot: Paper
+   has `--bg-raised` and `--bg-card` at the same white. So hover moves the
+   background (which Ink sees) *and* the label colour (which both see). */
+.navBtn,
+.todayBtn,
+.addHere {
+    background: var(--bg-card);
+    border: none;
+    color: var(--text-soft);
+    cursor: pointer;
+    font-family: inherit;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.navBtn:hover,
+.todayBtn:hover,
+.addHere:hover {
+    background: var(--bg-raised);
+    color: var(--accent-ink);
+}
+
+.navBtn:focus-visible,
+.todayBtn:focus-visible,
+.addHere:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.navBtn {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: var(--r-control);
+}
+
+.todayBtn {
+    height: 28px;
+    padding: 0 13px;
+    border-radius: var(--radius-pill);
+    font-size: 0.71875rem;
+    font-weight: 500;
+}
+
+.calTitle {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.calTools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+}
+
+.readOnlyNote {
+    font-size: 0.6875rem;
+    color: var(--text-faint);
+    white-space: nowrap;
+}
+
+.addHere {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 28px;
+    padding: 0 13px;
+    border-radius: var(--radius-pill);
+    font-size: 0.71875rem;
+    font-weight: 500;
+}
+
+/* -------------------------------------------------------------------- body */
+
+.calBody {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* ------------------------------------------------------------- month grid */
+
+.monthGrid {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: var(--cal-gap);
+}
+
+.weekdayRow {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--cal-gap);
+    flex: none;
+}
+
+.weekdayCell {
+    padding: 2px 6px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+/* Six rows, always — never five. The node's stored size is a mirror of this
+   box, so a grid that changed height on the months that happen to fit in five
+   rows would fire a store write and a cull recompute on a third of all month
+   transitions, for no visible gain. */
+.monthCells {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-rows: repeat(6, var(--cal-cell-h));
+    gap: var(--cal-gap);
+    flex: none;
+}
+
+/* Week and Day are the hour grid now — see KanbanTimeGrid.module.css. */
+
+/* -------------------------------------------------------------- day cells */
+
+/* A day is a raised tile on the panel's ground — one step up the ramp, no ring.
+   The gap between cells is what draws the grid, so the lines are the absence of
+   tile rather than strokes on top of one. */
+.day {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: var(--cal-pad);
+    background: var(--bg-card);
+    border-radius: var(--r-md);
+    transition: background var(--transition-fast);
+}
+
+.day[data-variant='month'] {
+    overflow: hidden;
+}
+
+.day[data-variant='week'] {
+    min-height: 100%;
+}
+
+/* Days from the month either side sink back into the ground: no tile at all,
+   which says "not this month" more plainly than a dimmed one did. Still
+   droppable — dropping on "Mar 1" from the February grid means March 1, which
+   is what the user was aiming at. */
+.day[data-outside] {
+    background: transparent;
+}
+
+/* Today is a tinted tile, not an outlined one. */
+.day[data-today] {
+    background: color-mix(in srgb, var(--accent) 14%, var(--bg-card));
+}
+
+.day[data-over],
+.day[data-outside][data-over] {
+    background: color-mix(in srgb, var(--accent) 26%, var(--bg-card));
+}
+
+.dayHead {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: none;
+    margin-bottom: 4px;
+}
+
+.dayNum {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-soft);
+    font-variant-numeric: tabular-nums;
+}
+
+.day[data-today] .dayNum {
+    color: var(--accent-ink);
+}
+
+.dayNumBig {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums;
+}
+
+.day[data-today] .dayNumBig {
+    color: var(--accent-ink);
+}
+
+/* The day's own task roll-up, drawn only on days that hold tasks. Sits beside
+   the number rather than under it: it is a fact about the date, not a fourth
+   chip competing with the three below. */
+.dayTasks {
+    display: inline-flex;
+    align-items: center;
+    height: 14px;
+    padding: 0 5px;
+    border-radius: var(--radius-pill);
+    background: var(--hover-wash);
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: var(--text-soft);
+    font-variant-numeric: tabular-nums;
+}
+
+.dayTasks[data-complete] {
+    color: var(--ok);
+}
+
+.dayTasks[data-late] {
+    background: color-mix(in srgb, var(--danger) 15%, transparent);
+    color: var(--danger);
+}
+
+.dayAdd {
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    margin-left: auto;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-xs);
+    color: var(--text-faint);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+
+.day:hover .dayAdd,
+.dayAdd:focus-visible {
+    opacity: 1;
+}
+
+.dayAdd:hover {
+    background: var(--hover-wash);
+    color: var(--accent-ink);
+}
+
+.dayBody {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.dayMore {
+    align-self: flex-start;
+    margin-top: 1px;
+    padding: 1px 5px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-xs);
+    font-family: inherit;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.dayMore:hover {
+    background: var(--hover-wash);
+    color: var(--accent-ink);
+}
+
+/* ------------------------------------------------------------------ chips */
+
+/* A flat wash of the lane's hue, with no edge. The tile underneath is what the
+   chip is read against, so an outline was drawing a boundary that the colour
+   change already draws.
+
+   Neutral resolves to `--hover-wash`, a genuinely colourless overlay, and not to
+   `--active-wash` as it once did — that token is an accent tint, so every
+   uncoloured card came out pink. */
+.chip {
+    --tone: var(--text-soft);
+    --tone-wash: var(--hover-wash);
+
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    min-height: 19px;
+    padding: 2px 7px;
+    background: var(--tone-wash);
+    border-radius: var(--radius-xs);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--tone);
+    cursor: grab;
+    user-select: none;
+    transition: background var(--transition-fast);
+}
+
+.chip:hover {
+    background: color-mix(in srgb, var(--tone) 18%, transparent);
+}
+
+.chip[data-static] {
+    cursor: default;
+}
+
+.chip[data-ghost] {
+    opacity: 0.35;
+}
+
+.chip[data-overlay] {
+    cursor: grabbing;
+    box-shadow: var(--elev-3);
+    /* Out of the scaled canvas and into client space, so it needs a real width
+       rather than the cell's. */
+    min-width: 180px;
+}
+
+/* Span segments.
+
+   Each cell draws its own piece and the radii do the joining: flat where the
+   bar continues, rounded where it starts and ends. Deliberately NOT an
+   absolutely-positioned overlay measured against the grid — that needs layout
+   reads, re-measures on every canvas zoom, fights the node's resize mirror, and
+   is the usual reason a bar ends up one cell off. */
+.chip[data-seg='start'] {
+    border-radius: var(--radius-xs) 0 0 var(--radius-xs);
+}
+
+.chip[data-seg='mid'] {
+    border-radius: 0;
+}
+
+.chip[data-seg='end'] {
+    border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+}
+
+/* An unlabelled continuation is a stripe, not a row of empty box. */
+.chip[data-seg='mid']:not([data-labelled]),
+.chip[data-seg='end']:not([data-labelled]) {
+    min-height: 14px;
+    padding: 0;
+}
+
+.chipLabel {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: var(--text-main);
+}
+
+.chipPriority {
+    flex: none;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--text-faint);
+}
+
+.chipPriority[data-priority='urgent'] { background: var(--danger); }
+.chipPriority[data-priority='high']   { background: var(--warn); }
+.chipPriority[data-priority='medium'] { background: var(--secondary); }
+.chipPriority[data-priority='low']    { background: var(--t-green); }
+
+.chipWarn {
+    flex: none;
+    color: var(--warn);
+}
+
+/* One line per hue, and the only place a tone becomes a colour on this view —
+   the same three shades the lanes pull, from design-system.css §7.
+
+   Card chips and task chips share these rules deliberately: a task takes the
+   hue of the card that owns it, and the two reading it from one place is what
+   guarantees they can never drift apart. What differs is how each SPENDS the
+   hue — the card fills with `--tone-wash`, the task draws a spine in `--tone`
+   — which is decided in each chip's own rules, not here. */
+.chip[data-tone='rose'],    .taskChip[data-tone='rose']    { --tone: var(--a-rose);    --tone-wash: var(--a-rose-wash); }
+.chip[data-tone='amber'],   .taskChip[data-tone='amber']   { --tone: var(--a-amber);   --tone-wash: var(--a-amber-wash); }
+.chip[data-tone='citrine'], .taskChip[data-tone='citrine'] { --tone: var(--a-citrine); --tone-wash: var(--a-citrine-wash); }
+.chip[data-tone='olive'],   .taskChip[data-tone='olive']   { --tone: var(--a-olive);   --tone-wash: var(--a-olive-wash); }
+.chip[data-tone='jade'],    .taskChip[data-tone='jade']    { --tone: var(--a-jade);    --tone-wash: var(--a-jade-wash); }
+.chip[data-tone='teal'],    .taskChip[data-tone='teal']    { --tone: var(--a-teal);    --tone-wash: var(--a-teal-wash); }
+.chip[data-tone='azure'],   .taskChip[data-tone='azure']   { --tone: var(--a-azure);   --tone-wash: var(--a-azure-wash); }
+.chip[data-tone='indigo'],  .taskChip[data-tone='indigo']  { --tone: var(--a-indigo);  --tone-wash: var(--a-indigo-wash); }
+.chip[data-tone='violet'],  .taskChip[data-tone='violet']  { --tone: var(--a-violet);  --tone-wash: var(--a-violet-wash); }
+.chip[data-tone='magenta'], .taskChip[data-tone='magenta'] { --tone: var(--a-magenta); --tone-wash: var(--a-magenta-wash); }
+
+/* ------------------------------------------------------------- task chips */
+
+/* Cards fill, tasks mark.
+   ---------------------------------------------------------------------------
+   A card chip is a flat wash of its lane's hue, and a task cannot use the same
+   device: five tasks on one day would fill the tile edge to edge and the hue
+   would stop telling you anything. So a task keeps the colour but spends it on
+   a 2px spine — the same signal `.trayRow[data-accented]` already draws for an
+   accented card — and carries a real tick box instead of a fill.
+
+   That leaves exactly one fill in the task vocabulary, the overdue wash, which
+   is then the only thing in a cell that can shout.
+
+   The tick is `--ok` green and not `--accent`, even though CardTasks.module.css
+   ticks in accent. On this surface accent is one hue away from `--danger`, and
+   red cannot mean both "done" and "late" in the same cell. */
+.taskChip {
+    --tone: var(--text-faint);
+
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    min-height: 18px;
+    padding: 1px 6px 1px 0;
+    border-radius: var(--radius-xs);
+    cursor: grab;
+    user-select: none;
+    transition: background var(--transition-fast);
+}
+
+.taskChip:hover {
+    background: var(--hover-wash);
+}
+
+.taskChip[data-static] {
+    cursor: default;
+}
+
+.taskChip[data-ghost] {
+    opacity: 0.35;
+}
+
+.taskChip[data-overlay] {
+    cursor: grabbing;
+    background: var(--bg-card);
+    box-shadow: var(--elev-3);
+    padding-right: 10px;
+    /* Out of the scaled canvas and into client space — see the card chip. */
+    min-width: 180px;
+}
+
+/* Subtasks step in by their depth, exactly as they do on the board card and in
+   the task list. The indent is a margin so the row's hover wash moves with it. */
+.taskChip[data-depth='1'] { margin-left: 14px; }
+.taskChip[data-depth='2'] { margin-left: 28px; }
+.taskChip[data-depth='3'] { margin-left: 42px; }
+.taskChip[data-depth='4'] { margin-left: 56px; }
+
+.taskSpine {
+    flex: none;
+    width: 2px;
+    align-self: stretch;
+    border-radius: var(--radius-pill);
+    background: var(--tone);
+}
+
+/* A subtask's spine is quieter than its parent's — the indent says where it
+   sits, the spine says how loudly. */
+.taskChip:not([data-depth='0']) .taskSpine {
+    opacity: 0.45;
+}
+
+.taskBox {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 12px;
+    height: 12px;
+    padding: 0;
+    background: transparent;
+    border: 1.5px solid var(--line-heavy);
+    border-radius: var(--radius-xs);
+    color: transparent;
+    /* Always tickable, like the board card's checklist: reading a calendar and
+       ticking something off it are the same gesture. */
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.taskBox:hover {
+    border-color: var(--ok);
+    background: color-mix(in srgb, var(--ok) 18%, transparent);
+}
+
+.taskBox:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.taskChip[data-done] .taskBox {
+    background: var(--ok);
+    border-color: var(--ok);
+    color: var(--bg-inset);
+}
+
+.taskChip[data-done] .taskSpine {
+    opacity: 0.5;
+}
+
+.taskLabel {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--text-soft);
+}
+
+.taskChip[data-done] .taskLabel {
+    color: var(--text-faint);
+    text-decoration: line-through;
+    text-decoration-color: var(--line-heavy);
+}
+
+/* The one task state that adds a fill, because it is the one that has to
+   interrupt you. Never drawn on a task that is already done. */
+.taskChip[data-late] {
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
+.taskChip[data-late] .taskSpine,
+.taskChip[data-late] .taskBox {
+    background: transparent;
+    border-color: var(--danger);
+}
+
+.taskChip[data-late] .taskSpine {
+    background: var(--danger);
+}
+
+.taskChip[data-late] .taskLabel {
+    color: var(--danger);
+}
+
+.taskWarn {
+    flex: none;
+    margin-left: auto;
+    color: var(--danger);
+}
+
+/* ------------------------------------------------------------------- tray */
+
+/* The tray reads as the fullscreen note rail (FullscreenNoteList.module.css),
+   because it is the same kind of thing: a list of cards you are choosing
+   between. Same inset ground, same uppercase header with a count pill, same
+   artwork-plus-title rows, same fold to a strip of icons. Deliberately NOT the
+   calendar's own chip: every row here is one lane's colour, so tinting them all
+   produces a wall of colour that distinguishes nothing. */
+.tray {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 var(--tray-w);
+    width: var(--tray-w);
+    min-width: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    background: var(--bg-card);
+    border-radius: var(--r-md);
+    transition: box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+/* Collapsed it is still a drop target: somewhere to put a card you want off
+   the calendar has to stay reachable once you have folded the list away. */
+.trayRail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 0 0 52px;
+    width: 52px;
+    min-width: 0;
+    padding: 8px 0;
+    gap: 6px;
+    box-sizing: border-box;
+    overflow: hidden;
+    background: var(--bg-card);
+    border-radius: var(--r-md);
+    transition: box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.tray[data-over],
+.trayRail[data-over] {
+    background: color-mix(in srgb, var(--accent) 22%, var(--bg-card));
+}
+
+.trayHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex: none;
+    padding: 12px 10px 8px 14px;
+}
+
+.trayTitle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.trayCount {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: var(--radius-pill);
+    background: var(--hover-wash);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--text-soft);
+}
+
+.trayCountRail {
+    flex: none;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+}
+
+.trayToggle {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    flex: none;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--r-control);
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.trayToggle:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.trayBody {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: 0;
+    flex: 1 1 auto;
+    padding: 0 8px 12px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+}
+
+.trayBody::-webkit-scrollbar {
+    width: 4px;
+}
+
+.trayBody::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.trayBody::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: var(--radius-xs);
+}
+
+/* One row per card: the folder art it already wears on the canvas, then its
+   title and, when it has one, its description. */
+.trayRow {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    padding: 8px 10px;
+    border-radius: var(--r-md);
+    background: transparent;
+    text-align: left;
+    cursor: grab;
+    transition: background var(--transition-fast);
+}
+
+.trayRow:hover {
+    background: var(--hover-wash);
+}
+
+.trayRow:active {
+    cursor: grabbing;
+}
+
+.trayRow[data-static] {
+    cursor: default;
+}
+
+.trayRow[data-ghost] {
+    opacity: 0.4;
+}
+
+/* A card that carries its own colour wears it as a spine, the same signal and
+   the same variable the note rail uses. */
+.trayRow[data-accented]::before {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: var(--radius-pill);
+    background: var(--node-accent);
+}
+
+.trayArt {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.trayText {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.trayLabel {
+    font-size: 0.86rem;
+    font-weight: 550;
+    line-height: 1.35;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.trayDesc {
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: var(--text-faint);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.trayWarn {
+    flex: none;
+    color: var(--warn);
+}
+
+.trayEmpty,
+.trayNote {
+    margin: 10px 8px 0;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--text-faint);
+}
+
+.trayNote {
+    margin-top: 14px;
+}
+
+/* ------------------------------------------------- tray: the tasks section */
+
+/* The two sections are told apart by a step DOWN the ramp — a 4px band of the
+   panel's own ground showing through the raised tray — rather than by a rule.
+   Same reason nothing else in this file draws one: at fractional canvas zoom a
+   1px border measures 0.6px and vanishes, and a gap cannot. */
+.traySplit {
+    flex: none;
+    height: 4px;
+    /* Full-bleed out of `.trayBody`'s 8px inset — a band that stopped short of
+       the tray's edges would read as a divider rule, which is the thing it is
+       deliberately not. */
+    margin: 12px -8px 0;
+    background: var(--bg-base);
+}
+
+/* The second section's header. The first one is the tray's own `.trayHead`,
+   which sits outside the scroller; this one scrolls with the list because the
+   two sections share one scroller — two would mean two scrollbars in 288px. */
+.trayTasksHead {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 12px 2px 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+/* One card's undated tasks. The header is the only place the spine colour on
+   each row is explained, so it is never dropped even for a single task. */
+.trayGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+/* Groups sit further apart than the rows inside them do, which is the whole
+   job of the grouping — one gap says "same card", the other says "next card". */
+.trayGroup + .trayGroup {
+    margin-top: 8px;
+}
+
+.trayOwner {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 2px 10px 3px;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--text-faint);
+    text-align: left;
+    cursor: pointer;
+    border-radius: var(--radius-xs);
+    transition: color var(--transition-fast);
+}
+
+.trayOwner:hover {
+    color: var(--accent-ink);
+}
+
+.trayOwnerDot {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--tone, var(--text-faint));
+}
+
+.trayOwnerName {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.trayOwnerCount {
+    margin-left: auto;
+    flex: none;
+    font-variant-numeric: tabular-nums;
+}
+
+/* A task row here is the task LIST's row, not the calendar chip's: the tray is
+   288px wide and reads as a list of things to pick up, so it borrows
+   CardTasks.module.css's proportions — 13px box, 0.78rem text — rather than the
+   11px the month cell is forced into. */
+.trayTaskRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 5px 10px;
+    border-radius: var(--r-control);
+    cursor: grab;
+    transition: background var(--transition-fast);
+}
+
+.trayTaskRow:hover {
+    background: var(--hover-wash);
+}
+
+.trayTaskRow[data-static] {
+    cursor: default;
+}
+
+.trayTaskRow[data-ghost] {
+    opacity: 0.4;
+}
+
+.trayTaskRow[data-depth='1'] { padding-left: 24px; }
+.trayTaskRow[data-depth='2'] { padding-left: 38px; }
+.trayTaskRow[data-depth='3'] { padding-left: 52px; }
+.trayTaskRow[data-depth='4'] { padding-left: 66px; }
+
+.trayTaskBox {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 13px;
+    height: 13px;
+    padding: 0;
+    background: transparent;
+    border: 1.5px solid var(--line-heavy);
+    border-radius: var(--radius-xs);
+    color: transparent;
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.trayTaskBox:hover {
+    border-color: var(--ok);
+    background: color-mix(in srgb, var(--ok) 18%, transparent);
+}
+
+.trayTaskBox:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.trayTaskRow[data-done] .trayTaskBox {
+    background: var(--ok);
+    border-color: var(--ok);
+    color: var(--bg-inset);
+}
+
+.trayTaskText {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.78rem;
+    color: var(--text-soft);
+}
+
+.trayTaskRow[data-done] .trayTaskText {
+    color: var(--text-faint);
+    text-decoration: line-through;
+    text-decoration-color: var(--line-heavy);
+}
+
+/* The folded strip: the same list, narrowed to its icons. */
+.trayRailList {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* The strip is 52px wide — a visible scrollbar would eat a quarter of it. */
+    scrollbar-width: none;
+}
+
+.trayRailList::-webkit-scrollbar {
+    width: 0;
+}
+
+.trayRailItem {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.trayRailItem:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+/* -------------------------------------------------------------- year grid */
+
+.yearGrid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    flex: 1 1 auto;
+    min-width: 0;
+    align-content: start;
+}
+
+.miniMonth {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 8px;
+    background: var(--bg-card);
+    border-radius: var(--r-md);
+}
+
+.miniMonthName {
+    margin: 0 0 6px;
+    padding: 2px 4px;
+    align-self: flex-start;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-xs);
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.miniMonthName:hover {
+    background: var(--hover-wash);
+    color: var(--accent-ink);
+}
+
+.miniWeekdays,
+.miniDays {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 2px;
+}
+
+.miniWeekdays {
+    margin-bottom: 3px;
+}
+
+.miniWeekdays span {
+    text-align: center;
+    font-size: 0.5625rem;
+    font-weight: 600;
+    color: var(--text-faint);
+}
+
+.miniPad {
+    aspect-ratio: 1;
+}
+
+/* Fixed density steps, not normalised against the busiest day of the year: a
+   normalised scale changes what a shade means whenever the data changes, so
+   last March would appear to quieten because next week got busy. */
+.miniDay {
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 0.5625rem;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.miniDay[data-density='1'] { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.miniDay[data-density='2'] { background: color-mix(in srgb, var(--accent) 45%, transparent); }
+.miniDay[data-density='3'] {
+    background: color-mix(in srgb, var(--accent) 70%, transparent);
+    color: var(--text-main);
+}
+
+.miniDay[data-today] {
+    background: color-mix(in srgb, var(--accent) 30%, var(--bg-card));
+    color: var(--accent-ink);
+    font-weight: 700;
+}
+
+.miniDay:hover {
+    background: var(--hover-wash);
+    color: var(--accent-ink);
+}
+
+/* ------------------------------------------------------------- fullscreen */
+
+/* The modal is a reading surface, not a miniature canvas: fill the pane and let
+   the long axis scroll inside the grid rather than growing the node. Mirrors
+   the `.fullscreenView` branch in KanbanNode.module.css. */
+.fullscreenView {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    min-height: 0;
+}
+
+.fullscreenView .calBody {
+    overflow: hidden;
+}
+
+/* The month and year grids scroll inside the pane; the hour grid brings its
+   own scroller (KanbanTimeGrid.module.css) and needs nothing here. */
+.fullscreenView .monthGrid,
+.fullscreenView .yearGrid {
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+}
+
+.fullscreenView .monthCells {
+    grid-template-rows: repeat(6, minmax(var(--cal-cell-h), 1fr));
+}
+
+.fullscreenView .monthGrid::-webkit-scrollbar,
+.fullscreenView .yearGrid::-webkit-scrollbar {
+    width: 4px;
+}
+
+.fullscreenView .monthGrid::-webkit-scrollbar-track,
+.fullscreenView .yearGrid::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.fullscreenView .monthGrid::-webkit-scrollbar-thumb,
+.fullscreenView .yearGrid::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border-radius: var(--radius-xs);
+}

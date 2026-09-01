@@ -9,7 +9,7 @@ import {
     tierForZoom,
     NEAR_BAND,
 } from './useCanvasDetail';
-import { publishTiers } from './lodStore';
+import { isStreaming, publishTiers } from './lodStore';
 
 const DEBUG = import.meta.env.DEV;
 
@@ -21,7 +21,22 @@ type Viewport = { x: number; y: number; zoom: number };
 
 const RECULL_MOVE_PX = 260;
 const MIN_RECULL_INTERVAL_MS = 120;
-const CULL_BAND = 3.2;
+const STREAMING_RECULL_MOVE_PX = 520;
+const STREAMING_RECULL_INTERVAL_MS = 240;
+/* At the 30% overview limit one screen already covers a large part of the
+   board. Keeping the old 3.2-screen safety margin there could mount dozens of
+   extra cards and their edges beyond what the user can see. Restore the roomy
+   margin progressively while zooming in, where it prevents cards popping in
+   during a normal pan. */
+const OVERVIEW_ZOOM = 0.3;
+const DETAIL_ZOOM = 1;
+const OVERVIEW_CULL_BAND = 0.6;
+const DETAIL_CULL_BAND = 3.2;
+
+function cullBandForZoom(zoom: number) {
+    const progress = Math.min(1, Math.max(0, (zoom - OVERVIEW_ZOOM) / (DETAIL_ZOOM - OVERVIEW_ZOOM)));
+    return OVERVIEW_CULL_BAND + (DETAIL_CULL_BAND - OVERVIEW_CULL_BAND) * progress;
+}
 
 const nodeW = (n: AppNode) => (typeof n.style?.width === 'number' ? n.style.width : 432);
 const nodeH = (n: AppNode) => (typeof n.style?.height === 'number' ? n.style.height : 432);
@@ -89,6 +104,7 @@ export function useCanvasViewport({ currentParentId }: UseCanvasViewportOptions)
         };
         const bandW = (vw / zoom);
         const bandH = (vh / zoom);
+        const cullBand = cullBandForZoom(zoom);
 
         const bandOf = (n: AppNode): number => {
             const w = typeof n.style?.width === 'number' ? n.style.width : 432;
@@ -108,7 +124,7 @@ export function useCanvasViewport({ currentParentId }: UseCanvasViewportOptions)
         const culledNodes = rootNodes.filter(n => {
             const isSelected = selectedCanvasNodeIds.has(n.id);
             const band = bandOf(n);
-            if (!isSelected && band > CULL_BAND) return false;
+            if (!isSelected && band > cullBand) return false;
 
             const byDistance: DetailTier = band <= NEAR_BAND ? 'full' : 'preview';
             tiers.set(n.id, isSelected ? zoomCeiling : minTier(byDistance, zoomCeiling));
@@ -220,19 +236,22 @@ export function useCanvasViewport({ currentParentId }: UseCanvasViewportOptions)
         });
     }, [recalc, patchPositions]);
 
-    const handleViewportChange = useCallback(() => {
+    const handleViewportChange = useCallback((force = false) => {
         const now = Date.now();
-        if (now - lastViewportUpdate.current < MIN_RECULL_INTERVAL_MS) return;
+        const streaming = isStreaming();
+        const minInterval = streaming ? STREAMING_RECULL_INTERVAL_MS : MIN_RECULL_INTERVAL_MS;
+        if (!force && now - lastViewportUpdate.current < minInterval) return;
 
         const next = getViewport();
         const last = lastCullViewport.current;
+        const moveThreshold = streaming ? STREAMING_RECULL_MOVE_PX : RECULL_MOVE_PX;
         const movedFar =
-            Math.abs(next.x - last.x) > RECULL_MOVE_PX ||
-            Math.abs(next.y - last.y) > RECULL_MOVE_PX;
+            Math.abs(next.x - last.x) > moveThreshold ||
+            Math.abs(next.y - last.y) > moveThreshold;
         
         const zoomChanged = Math.abs(next.zoom - last.zoom) > last.zoom * 0.02;
 
-        if (!movedFar && !zoomChanged) return;
+        if (!force && !movedFar && !zoomChanged) return;
 
         lastViewportUpdate.current = now;
         lastCullViewport.current = next;
@@ -241,6 +260,10 @@ export function useCanvasViewport({ currentParentId }: UseCanvasViewportOptions)
         // Only trigger state updates if the culling actually changes the visible set
         recalc(next, false);
     }, [getViewport, recalc]);
+
+    const flushViewportChange = useCallback(() => {
+        handleViewportChange(true);
+    }, [handleViewportChange]);
 
     useEffect(() => {
         const sync = () => {
@@ -259,5 +282,6 @@ export function useCanvasViewport({ currentParentId }: UseCanvasViewportOptions)
         visibleNodes,
         viewport: viewportRef.current,
         handleViewportChange,
+        flushViewportChange,
     };
 }

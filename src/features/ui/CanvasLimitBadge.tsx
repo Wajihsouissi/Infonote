@@ -18,14 +18,13 @@ const NODE_COUNT_VISIBLE_FROM = MAX_NODES_PER_CANVAS - 10;
 export const CanvasLimitBadge: React.FC = () => {
     const currentView = useStore((s) => s.currentView);
     const isAuthenticated = useStore((s) => s.auth.isAuthenticated);
-    const nodes = useStore((s) => s.nodes);
     const currentParentId = useStore((s) => s.currentParentId);
+    const nodesHere = useStore((s) => countNodesOnCanvas(s.nodes, currentParentId ?? null));
+    const cards = useStore((s) => isAuthenticated ? 0 : countCards(s.nodes));
 
     if (currentView !== 'canvas') return null;
 
-    const nodesHere = countNodesOnCanvas(nodes, currentParentId ?? null);
     const showNodeCount = nodesHere >= NODE_COUNT_VISIBLE_FROM;
-    const cards = isAuthenticated ? 0 : countCards(nodes);
 
     if (isAuthenticated && !showNodeCount) return null;
 

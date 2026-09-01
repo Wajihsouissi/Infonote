@@ -44,7 +44,7 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
                         </div>
                         <div>
                             <h2 style={title}>Cloud Storage</h2>
-                            <p style={subtitle}>Manage your cloud sync and backups</p>
+                            <p style={subtitle}>Keep your work synced and restore it with confidence.</p>
                         </div>
                     </div>
                     <button type="button" onClick={onClose} style={closeBtn} aria-label="Close">
@@ -57,9 +57,9 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
                             <div style={cardIconWrapperSave}>
                                 <CloudUpload size={32} />
                             </div>
-                            <h3 style={cardTitle}>Save to Cloud</h3>
+                            <h3 style={cardTitle}>Save version</h3>
                             <p style={cardDesc}>
-                                Push your current canvas up to the cloud.
+                                Sync now and keep this exact canvas as a restore point.
                             </p>
                         </button>
                         
@@ -67,9 +67,9 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
                             <div style={cardIconWrapperLoad}>
                                 <CloudDownload size={32} />
                             </div>
-                            <h3 style={cardTitle}>Reload Saved Data</h3>
+                            <h3 style={cardTitle}>Restore a version</h3>
                             <p style={cardDesc}>
-                                Browse and load your remote cloud snapshots.
+                                Choose the current cloud copy or a past milestone.
                             </p>
                         </button>
 
@@ -153,7 +153,7 @@ const subtitle: React.CSSProperties = {
 const iconBadge: React.CSSProperties = {
     width: 38,
     height: 38,
-    background: 'linear-gradient(135deg, var(--accent), var(--secondary))',
+    background: 'var(--accent)',
     borderRadius: 'var(--radius-md)',
     display: 'inline-flex',
     alignItems: 'center',

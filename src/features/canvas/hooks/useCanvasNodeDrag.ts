@@ -39,8 +39,8 @@ const DRILL_GRID_COLS = 4;
  * for the duration of a drag (global CSS), which is what lets the lane beneath
  * it answer instead.
  */
-const laneUnderCursor = (clientX: number, clientY: number): { boardId: string; value: string } | null => {
-    for (const el of document.elementsFromPoint(clientX, clientY)) {
+const laneUnderCursor = (elementsUnderCursor: Element[]): { boardId: string; value: string } | null => {
+    for (const el of elementsUnderCursor) {
         const lane = (el as HTMLElement).getAttribute?.('data-kanban-lane');
         const boardId = (el as HTMLElement).getAttribute?.('data-kanban-board');
         if (lane !== null && lane !== undefined && boardId) {
@@ -61,7 +61,6 @@ interface UseCanvasNodeDragOptions {
     setNodes: SetNodesFn;
     updateNodeData: (id: string, data: Record<string, unknown>) => void;
     syncParentContent: (parentId: string) => void;
-    selectedCanvasNodeIds: Set<string>;
 }
 
 /**
@@ -74,7 +73,6 @@ export function useCanvasNodeDrag({
     setNodes,
     updateNodeData,
     syncParentContent,
-    selectedCanvasNodeIds,
 }: UseCanvasNodeDragOptions) {
     const { screenToFlowPosition, getIntersectingNodes, getNode, getViewport } = useReactFlow<AppNode>();
 
@@ -85,6 +83,7 @@ export function useCanvasNodeDrag({
     // Last lane highlighted, so the store is written on entering a lane rather
     // than on every throttled frame spent inside one.
     const hoveredLaneRef = useRef<{ boardId: string; value: string } | null>(null);
+    const hasKanbanTargetsRef = useRef(false);
     // The complete fusion/nesting decision for the current drag, reused on drop.
     const pendingDropRef = useRef<PendingDrop | null>(null);
     // Whether the dragged node is currently hidden (swapped for the cursor chip). True only
@@ -128,6 +127,7 @@ export function useCanvasNodeDrag({
     const onNodeDragStart = useCallback((_event: React.MouseEvent, node: AppNode) => {
         // Multi-drag = the grabbed node is part of a selection of 2+. React Flow's own
         // getDragItems uses node.selected to decide who moves; we mirror that exactly.
+        const selectedCanvasNodeIds = useStore.getState().selectedCanvasNodeIds;
         const isMultiDrag = selectedCanvasNodeIds.size > 1 && selectedCanvasNodeIds.has(node.id);
 
         /* A node drag is a gesture like a pan, and the same rule applies: no
@@ -144,6 +144,10 @@ export function useCanvasNodeDrag({
         activeDropTargetRef.current = null;
         pendingDropRef.current = null;
         isSourceHiddenRef.current = false;
+        hasKanbanTargetsRef.current = canJoinBoard(node) && useStore.getState().nodes.some(candidate =>
+            candidate.type === 'kanban' &&
+            (candidate.parentId ?? null) === (currentParentId ?? null),
+        );
         clearDropIndicators();
 
         // Two distinct body classes so single-drag and multi-drag can style independently:
@@ -151,34 +155,38 @@ export function useCanvasNodeDrag({
         //   chnk-it-multi-drag     — only during multi-drag; targets every selected card
         document.body.classList.add('chnk-it-node-dragging');
         if (isMultiDrag) document.body.classList.add('chnk-it-multi-drag');
-    }, [setInteractionState, clearDropIndicators, selectedCanvasNodeIds]);
+    }, [setInteractionState, clearDropIndicators, currentParentId]);
 
     const onNodeDrag = useCallback((event: React.MouseEvent, node: AppNode) => {
         // Multi-drag is pure repositioning — no fusion, no nesting, no kanban targeting.
         // Short-circuit before any hit-testing so the group glides cleanly under the cursor.
+        const selectedCanvasNodeIds = useStore.getState().selectedCanvasNodeIds;
         if (selectedCanvasNodeIds.size > 1 && selectedCanvasNodeIds.has(node.id)) {
             return;
         }
 
-        // Throttle for smoother grid response (approx 30fps)
+        // Drop-target discovery is visual feedback, not the movement path.
+        // Sampling it at 20fps keeps highlights responsive without making the
+        // cursor wait for hit-testing on high-polling-rate pointer devices.
         const now = Date.now();
-        if (now - lastDragCheck.current < 32) {
+        if (now - lastDragCheck.current < 50) {
             return;
         }
         lastDragCheck.current = now;
 
         const { zoom } = getViewport();
-        // Constant 16px screen-space hover checking size, scaled to flow space
         const checkSize = Math.max(2, 16 / zoom);
-
         const mousePos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-        const mouseRect = { 
-            x: mousePos.x - checkSize / 2, 
-            y: mousePos.y - checkSize / 2, 
-            width: checkSize, 
-            height: checkSize 
+        const mouseRect = {
+            x: mousePos.x - checkSize / 2,
+            y: mousePos.y - checkSize / 2,
+            width: checkSize,
+            height: checkSize,
         };
         const intersections = getIntersectingNodes(mouseRect);
+        const elementsUnderCursor = hasKanbanTargetsRef.current
+            ? document.elementsFromPoint(event.clientX, event.clientY)
+            : [];
 
         /* Priority 1: a board lane. Anything with content can be planned — a
            note joins as itself, a block or a fused note becomes a card carrying
@@ -186,11 +194,12 @@ export function useCanvasNodeDrag({
            under the cursor, because something released over a board is being
            scheduled, not merged into the thing behind it. */
         const kanbanHit = canJoinBoard(node)
-            ? laneUnderCursor(event.clientX, event.clientY)
+            ? laneUnderCursor(elementsUnderCursor)
             : null;
 
-        const targetOther = kanbanHit ? undefined : intersections.find(n =>
-            n.id !== node.id && (n.type === 'note' || n.type === 'fused-note' || n.type === 'block')
+        const targetOther = kanbanHit ? undefined : intersections.find(candidate =>
+            candidate.id !== node.id &&
+            (candidate.type === 'note' || candidate.type === 'fused-note' || candidate.type === 'block')
         );
 
         let newDropTarget: { id: string; type: 'fusion' | 'nesting' | 'gallery' | 'kanban' } | null = null;
@@ -234,8 +243,16 @@ export function useCanvasNodeDrag({
                 // Which of the target's blocks would we insert next to? The dragged node is
                 // pointer-events:none during drag (global CSS), so elementsFromPoint returns the
                 // TARGET's blocks rather than the dragged node's overlay.
-                const elementsUnderCursor = document.elementsFromPoint(event.clientX, event.clientY);
-                const blockElement = elementsUnderCursor.find(el => el.id && el.id.startsWith('block-')) as HTMLElement | undefined;
+                const targetElement = document.querySelector<HTMLElement>(
+                    `.react-flow__node[data-id="${CSS.escape(newDropTarget.id)}"]`,
+                );
+                const blockElement = targetElement
+                    ? Array.from(targetElement.querySelectorAll<HTMLElement>('[id^="block-"]')).find(element => {
+                        const rect = element.getBoundingClientRect();
+                        return event.clientX >= rect.left && event.clientX <= rect.right &&
+                            event.clientY >= rect.top && event.clientY <= rect.bottom;
+                    })
+                    : undefined;
 
                 let insertBlockId: string | null = null;
                 let insertPosition: 'top' | 'bottom' = 'bottom';
@@ -285,10 +302,11 @@ export function useCanvasNodeDrag({
         // Swap the node for the cursor chip while over a fusion/nesting target.
         // Multi-drag never reaches here — it short-circuits at the top of this callback.
         setSourceHidden(node.id, !!newDropTarget);
-    }, [getIntersectingNodes, setInteractionState, screenToFlowPosition, getViewport, setDropLine, setSourceHidden, selectedCanvasNodeIds]);
+    }, [getIntersectingNodes, setInteractionState, screenToFlowPosition, getViewport, setDropLine, setSourceHidden]);
 
     const onNodeDragStop = useCallback((event: React.MouseEvent, node: AppNode) => {
         const pending = pendingDropRef.current;
+        const selectedCanvasNodeIds = useStore.getState().selectedCanvasNodeIds;
         const isMultiDrag = selectedCanvasNodeIds.size > 1 && selectedCanvasNodeIds.has(node.id);
 
         // Clear interaction states + every drop indicator (single, centralized cleanup)
@@ -302,6 +320,7 @@ export function useCanvasNodeDrag({
         hoveredLaneRef.current = null;
         pendingDropRef.current = null;
         isSourceHiddenRef.current = false;
+        hasKanbanTargetsRef.current = false;
         clearDropIndicators();
         document.body.classList.remove('chnk-it-node-dragging');
         document.body.classList.remove('chnk-it-multi-drag');
@@ -476,7 +495,7 @@ export function useCanvasNodeDrag({
             syncParentContent(currentParentId);
         }
     }, [getIntersectingNodes, setNodes, updateNodeData, getNode, currentParentId,
-        syncParentContent, screenToFlowPosition, setInteractionState, selectedCanvasNodeIds, getViewport, clearDropIndicators]);
+        syncParentContent, screenToFlowPosition, setInteractionState, getViewport, clearDropIndicators]);
 
     return {
         onNodeDragStart,

@@ -1,0 +1,179 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #0b0b0b; font-family: 'Outfit', system-ui, sans-serif; }
+    a { color: #ff5040; } a:hover { color: #ff6a5c; }
+
+    .sheet {
+      --bg-base:#090909; --bg-card:#1a1a1a; --bg-raised:#242424;
+      --line:rgba(255,255,255,.10); --line-strong:rgba(255,255,255,.18);
+      --tx:#fff; --ts:#e6e6e6; --tf:#a3a3a3;
+      --acc:#ff5040; --acc-dim:rgba(255,80,64,.16);
+      width:440px; padding:22px 0 26px; color:var(--tx);
+      display:flex; flex-direction:column; gap:8px;
+      -webkit-font-smoothing:antialiased;
+    }
+    .cap { padding:0 14px; font-size:.63rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--tf); }
+    .cap span { color:rgba(255,255,255,.30); font-weight:600; letter-spacing:.02em; text-transform:none; font-size:.68rem; }
+    .grp { margin:0 0 14px; padding:12px 12px 12px; background:var(--bg-base); border-radius:22px; }
+
+    /* context bar */
+    .ctx { display:flex; align-items:flex-start; gap:7px; margin-bottom:6px; padding:8px 11px; border:1px dashed var(--line-strong); border-radius:14px; background:rgba(255,255,255,.02); }
+    .ctxL { font-size:.64rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--tf); padding-top:3px; flex-shrink:0; }
+    .ctxC { flex:1; display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+    .cchip { display:inline-flex; align-items:center; gap:5px; padding:3px 6px 3px 8px; border-radius:7px; background:var(--acc-dim); color:var(--acc); font-size:.68rem; font-weight:600; }
+    .cchip b { font-weight:400; opacity:.7; }
+    .cchip.n { background:rgba(255,255,255,.07); color:var(--ts); }
+    .add { padding:3px 8px; border-radius:7px; border:1px dashed var(--line-strong); color:var(--tf); font-size:.68rem; font-weight:600; }
+    .none { font-size:.71rem; color:var(--tf); padding-top:2px; }
+    .none b { color:var(--ts); font-weight:600; }
+
+    /* composer */
+    .comp { padding:10px 12px; background:var(--bg-card); border:1px solid var(--line); border-radius:18px; display:flex; flex-direction:column; gap:9px; }
+    .comp.focus { border-color:rgba(255,80,64,.45); }
+    .ph { font-size:.82rem; color:var(--tf); }
+    .typed { font-size:.82rem; color:var(--tx); }
+    .typed em { font-style:normal; background:var(--acc-dim); color:var(--acc); border-radius:4px; padding:0 3px; font-weight:600; }
+    .caret { display:inline-block; width:1.5px; height:14px; background:var(--acc); vertical-align:-2px; }
+    .row { display:flex; align-items:center; gap:6px; }
+    .seg { display:flex; padding:2px; border-radius:9px; background:rgba(255,255,255,.05); }
+    .sg { padding:4px 11px; border-radius:7px; font-size:.72rem; font-weight:600; color:var(--tf); }
+    .sg.on { background:var(--acc); color:#000; }
+    .send { width:30px; height:30px; border-radius:8px; background:var(--acc); display:flex; align-items:center; justify-content:center; margin-left:auto; }
+
+    /* shape row */
+    .shapes { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; padding:0 2px; }
+    .sh { display:inline-flex; align-items:center; gap:5px; height:26px; padding:0 9px; border:1px solid var(--line); border-radius:8px; color:var(--tf); font-size:.69rem; font-weight:600; }
+    .sh.on { border-color:rgba(255,80,64,.4); background:var(--acc-dim); color:var(--acc); }
+
+    /* toolbar */
+    .tools { display:flex; align-items:center; gap:5px; margin-top:6px; padding:0 2px; flex-wrap:wrap; }
+    .tg { display:inline-flex; align-items:center; gap:5px; height:26px; padding:0 9px; border:1px solid var(--line); border-radius:8px; color:var(--tf); font-size:.69rem; font-weight:600; }
+    .tg.on { border-color:rgba(255,80,64,.4); background:var(--acc-dim); color:var(--acc); }
+    .effWrap { margin-left:auto; display:flex; align-items:center; gap:6px; }
+    .effSeg { display:flex; padding:2px; border-radius:8px; background:rgba(255,255,255,.05); }
+    .es { padding:3px 8px; border-radius:6px; font-size:.67rem; font-weight:600; color:var(--tf); }
+    .es.on { background:rgba(255,255,255,.14); color:var(--tx); }
+    .effHint { font-size:.66rem; color:var(--tf); padding:0 2px 0 0; }
+
+    /* mention picker */
+    .pick { margin-top:6px; border:1px solid var(--line-strong); border-radius:14px; background:var(--bg-raised); overflow:hidden; box-shadow:0 6px 16px rgba(0,0,0,.40), 0 12px 28px rgba(0,0,0,.35); }
+    .pkH { padding:8px 11px 6px; font-size:.62rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--tf); }
+    .pk { display:flex; align-items:center; gap:9px; padding:7px 11px; }
+    .pk.on { background:rgba(255,80,64,.12); }
+    .pkI { width:22px; height:22px; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:rgba(255,255,255,.06); }
+    .pkB { flex:1; min-width:0; }
+    .pkT { font-size:.75rem; font-weight:600; color:var(--ts); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pkT b { color:var(--acc); font-weight:700; }
+    .pkS { font-size:.65rem; color:var(--tf); }
+    .pkK { font-size:.62rem; color:var(--tf); font-weight:600; padding:2px 5px; border-radius:4px; background:rgba(255,255,255,.06); flex-shrink:0; }
+    .pkDiv { height:1px; background:var(--line); margin:4px 0; }
+  </style>
+</helmet>
+
+<div class="sheet">
+
+  <div class="cap">1 · Nothing attached <span>— the honest empty state</span></div>
+  <div class="grp">
+    <div class="ctx">
+      <div class="ctxL">Sees</div>
+      <div class="ctxC">
+        <span class="none"><b>Nothing yet</b> — answering from general knowledge.</span>
+        <span class="add">+ Add canvas, cards or web</span>
+      </div>
+    </div>
+    <div class="comp">
+      <div class="ph">Ask anything, or @ a card…</div>
+      <div class="row">
+        <div class="seg"><span class="sg on">Create</span><span class="sg">Ask</span></div>
+        <div class="send"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cap">2 · Scope attached <span>— every source visible and removable</span></div>
+  <div class="grp">
+    <div class="ctx">
+      <div class="ctxL">Sees</div>
+      <div class="ctxC">
+        <span class="cchip">Selection <b>3 cards</b> <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".6"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+        <span class="cchip">@Canvas <b>31 cards · ~9k</b> <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".6"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+        <span class="cchip n">Web <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".6"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+        <span class="add">+ Add</span>
+      </div>
+    </div>
+    <div class="comp focus">
+      <div class="typed">Plan the beta launch and check what we’re missing<span class="caret"></span></div>
+      <div class="row">
+        <div class="seg"><span class="sg on">Create</span><span class="sg">Ask</span></div>
+        <div class="send"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+      </div>
+    </div>
+
+    <div class="shapes">
+      <span class="sh on"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/></svg>Auto</span>
+      <span class="sh"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="3" width="16" height="18" rx="2.4" opacity=".5"/><rect x="4" y="3" width="3.4" height="18" rx="1.6"/></svg>Cards</span>
+      <span class="sh"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="5" height="16" rx="1.6"/><rect x="9.5" y="4" width="5" height="16" rx="1.6" opacity=".5"/><rect x="16" y="4" width="5" height="16" rx="1.6" opacity=".5"/></svg>Board</span>
+      <span class="sh"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2.4"/><circle cx="12" cy="12" r="2.4" opacity=".5"/><circle cx="19" cy="12" r="2.4" opacity=".5"/></svg>Timeline</span>
+      <span class="sh"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="12" r="2.4"/><circle cx="17" cy="7" r="2.4" opacity=".5"/><circle cx="17" cy="17" r="2.4" opacity=".5"/></svg>Mind map</span>
+      <span class="sh"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="3" width="16" height="18" rx="2.4" opacity=".5"/><rect x="8" y="8" width="8" height="1.7" rx=".85"/><rect x="8" y="12" width="6" height="1.7" rx=".85"/></svg>Document</span>
+    </div>
+
+    <div class="tools">
+      <span class="tg"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M20 12l-7.6 7.6a4.5 4.5 0 1 1-6.4-6.4l7.7-7.7a3 3 0 1 1 4.2 4.2l-7.6 7.7a1.5 1.5 0 1 1-2.1-2.1l7-7"/></svg>Attach</span>
+      <span class="tg on"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.4 2.4 14.6 0 17M12 3.5c-2.4 2.4-2.4 14.6 0 17"/></svg>Web on</span>
+      <div class="effWrap">
+        <div class="effSeg"><span class="es">Fast</span><span class="es">Efficient</span><span class="es on">Smart</span></div>
+      </div>
+    </div>
+    <div class="tools" style="margin-top:4px">
+      <span class="effHint" style="margin-left:auto">Smart · 4–9 artifacts, 12+ blocks each, verified</span>
+    </div>
+  </div>
+
+  <div class="cap">3 · Typing “@” <span>— the only way the canvas gets read</span></div>
+  <div class="grp">
+    <div class="comp focus">
+      <div class="typed">Compare this against <em>@pri</em><span class="caret"></span></div>
+    </div>
+    <div class="pick">
+      <div class="pkH">Whole surfaces</div>
+      <div class="pk">
+        <span class="pkI"><svg width="13" height="13" viewBox="0 0 24 24" fill="#ff5040"><rect x="3" y="4" width="8" height="7" rx="1.6"/><rect x="13" y="4" width="8" height="11" rx="1.6" opacity=".45"/><rect x="3" y="13" width="8" height="7" rx="1.6" opacity=".45"/></svg></span>
+        <div class="pkB"><div class="pkT">@Canvas</div><div class="pkS">Beta workspace · 31 cards · ranked, not dumped</div></div>
+      </div>
+      <div class="pk">
+        <span class="pkI"><svg width="13" height="13" viewBox="0 0 24 24" fill="#5ac875"><rect x="4" y="4" width="16" height="16" rx="3" opacity=".45"/><path d="M8 12.5l2.6 2.6L16 9.5" stroke="#5ac875" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <div class="pkB"><div class="pkT">@Selection</div><div class="pkS">3 cards selected right now</div></div>
+      </div>
+      <div class="pkDiv"></div>
+      <div class="pkH">Cards matching “pri”</div>
+      <div class="pk on">
+        <span class="pkI"><svg width="13" height="13" viewBox="0 0 24 24" fill="#ff5040"><rect x="4" y="3" width="16" height="18" rx="2.4" opacity=".5"/><rect x="4" y="3" width="3.4" height="18" rx="1.6"/></svg></span>
+        <div class="pkB"><div class="pkT"><b>Pri</b>cing model v3</div><div class="pkS">Card · edited 2 days ago</div></div>
+        <span class="pkK">↵</span>
+      </div>
+      <div class="pk">
+        <span class="pkI"><svg width="13" height="13" viewBox="0 0 24 24" fill="#5ac875"><rect x="4" y="3" width="16" height="18" rx="2.4" opacity=".5"/><rect x="4" y="3" width="3.4" height="18" rx="1.6"/></svg></span>
+        <div class="pkB"><div class="pkT"><b>Pri</b>cing page rewrite</div><div class="pkS">Card · created by AI today</div></div>
+      </div>
+      <div class="pk">
+        <span class="pkI"><svg width="13" height="13" viewBox="0 0 24 24" fill="#ffc31f"><rect x="3" y="4" width="5" height="16" rx="1.6"/><rect x="9.5" y="4" width="5" height="16" rx="1.6" opacity=".5"/><rect x="16" y="4" width="5" height="16" rx="1.6" opacity=".5"/></svg></span>
+        <div class="pkB"><div class="pkT">Q4 <b>pri</b>orities</div><div class="pkS">Board · 4 lanes · 19 cards</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

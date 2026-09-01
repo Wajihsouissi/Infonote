@@ -1,7 +1,6 @@
 import { memo, useEffect, useState, type ReactNode } from 'react';
 import type { Block } from '../editor/types';
 import { NoteBodyPreview } from './NoteBodyPreview';
-import { SkeletonLoader } from './SkeletonLoader';
 import styles from './NoteBody.module.css';
 
 /** Keep in step with --lod-fade in NoteBody.module.css. */
@@ -53,9 +52,9 @@ export const NoteBody = memo(function NoteBody({
            frame can animate its opacity, and the outgoing one has to stay until
            the fade ends. Deriving it during render instead would mean both
            layers were always mounted, which is exactly the cost this whole
-           mechanism exists to avoid. */
+        mechanism exists to avoid. */
         if (showLiveEditor) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- the incoming editor must be present before its fade can begin.
             setEditorMounted(true);
             // Hold the preview over the freshly mounted editor while it fades.
             raf = requestAnimationFrame(() => setLiveOnTop(true));
@@ -75,6 +74,7 @@ export const NoteBody = memo(function NoteBody({
     }, [showLiveEditor]);
 
     const cx = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(' ');
+    const preview = <NoteBodyPreview content={blocks} loading={isEditorPending} />;
 
     return (
         <div className={styles.body}>
@@ -95,15 +95,18 @@ export const NoteBody = memo(function NoteBody({
                 <div
                     className={cx(
                         styles.layer,
+                        styles.passiveLayer,
                         !liveOnTop && styles.visible,
                         showLiveEditor && styles.overlay,
                     )}
                 >
-                    {blocks.length > 0
-                        ? <NoteBodyPreview content={blocks} loading={isEditorPending} />
-                        : <SkeletonLoader />}
+                    {/* An empty note is ready for input, not loading. The
+                        static preview already supplies its own calm empty
+                        state, so never substitute a loading skeleton here. */}
+                    {preview}
                 </div>
             )}
+
         </div>
     );
 });

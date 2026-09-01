@@ -2,9 +2,6 @@ import { memo, useCallback, useRef, useState, useEffect } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
 import { StickyNote } from '../../components/icons';
 import { BlockEditor } from '../editor/BlockEditor';
-import { useCanvasDetail } from '../canvas/hooks/useCanvasDetail';
-import { useScheduledMount } from './hooks/useScheduledMount';
-import { BlockLodBody } from '../block/BlockLodBody';
 
 import { useStore } from '../../store/useStore';
 import { getNodeById } from '../../store/nodeIndex';
@@ -22,15 +19,11 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<FusedNoteNo
     const isConnecting = connection.inProgress;
     const updateNodeData = useStore(s => s.updateNodeData);
     const updateNode = useStore(s => s.updateNode);
-    const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
+    const isMultiSelected = useStore(s => s.selectedCanvasNodeIds.size > 1 && s.selectedCanvasNodeIds.has(id));
     const isLinkingMode = useStore(s => s.isLinkingMode);
     const setIsLinkingMode = useStore(s => s.setIsLinkingMode);
     const linkSelectedNodes = useStore(s => s.linkSelectedNodes);
     const clearCanvasSelection = useStore(s => s.clearCanvasSelection);
-    const setNodesStore = useStore(s => s.setNodes);
-    const detailTier = useCanvasDetail(id);
-    const theme = useStore(s => s.theme);
-    const showEditor = useScheduledMount(detailTier === 'full');
 
     // Narrow selectors — only re-render when THIS node's status changes
     const isDragging = useStore(s => s.interactionState.draggedNodeId === id && !s.interactionState.isMultiDragging);
@@ -42,21 +35,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<FusedNoteNo
     const [isHoveredLinking, setIsHoveredLinking] = useState(false);
     const lastFusedTimeRef = useRef(data.lastFusedAt || 0);
 
-    const [isInteractive, setIsInteractive] = useState(selected);
-    const interactionTimerRef = useRef<number | null>(null);
-
-    useEffect(() => {
-        if (selected) {
-            interactionTimerRef.current = window.setTimeout(() => setIsInteractive(true), 300);
-        } else {
-            if (interactionTimerRef.current) clearTimeout(interactionTimerRef.current);
-            setIsInteractive(false);
-        }
-        return () => {
-            if (interactionTimerRef.current) clearTimeout(interactionTimerRef.current);
-        };
-    }, [selected]);
-
+    const isInteractive = selected;
     useEffect(() => {
         if (data.lastFusedAt && data.lastFusedAt > lastFusedTimeRef.current) {
             setIsFusing(true);
@@ -71,8 +50,6 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<FusedNoteNo
     const contentRef = useRef<HTMLDivElement>(null);
     const nodeRef = useRef<HTMLDivElement>(null);
     const activeResize = useRef(false);
-
-    const isMultiSelected = selectedCanvasNodeIds.has(id) && selectedCanvasNodeIds.size > 1;
 
     // Get the node's style from the store to check if it has been manually resized
     const nodeStyle = useStore(s => getNodeById(s.nodes, id)?.style);
@@ -323,10 +300,9 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<FusedNoteNo
                         console.log("[FusedNoteNode Overlay Click] Clicked ID:", id);
                         e.stopPropagation();
                         e.preventDefault();
-                        linkSelectedNodes(id, Array.from(selectedCanvasNodeIds));
+                        linkSelectedNodes(id, Array.from(useStore.getState().selectedCanvasNodeIds));
                         setIsLinkingMode(false);
                         clearCanvasSelection();
-                        setNodesStore(nds => nds.map(n => n.selected ? { ...n, selected: false } : n));
                     }}
                     onPointerDown={(e) => {
                         console.log("[FusedNoteNode Overlay PointerDown] ID:", id);
@@ -351,7 +327,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<FusedNoteNo
                 />
             )}
 
-            {showEditor && (
+            {isInteractive && (
                 <button
                     className={`${styles.convertBtn} nodrag`}
                     onClick={handleConvertToCard}
@@ -360,6 +336,12 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<FusedNoteNo
                 >
                     <StickyNote size={16} />
                 </button>
+            )}
+
+            {data.mapRole === 'chapter' && (
+                <div className={styles.chapterMeta} aria-label={`Chapter with ${data.content.length} blocks`}>
+                    {data.content.length} {data.content.length === 1 ? 'block' : 'blocks'}
+                </div>
             )}
 
             <div 
@@ -380,20 +362,16 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<FusedNoteNo
                 }}
                 style={contentStyle}
             >
-                {showEditor ? (
-                    <BlockEditor
-                        initialContent={data.content}
-                        readOnly={false}
-                        minimal={false}
-                        onUpdate={handleContentUpdate}
-                        nodeId={id}
-                        hideBlockHandles={!isInteractive}
-                        disableMediaControls={true}
-                        selectionIslandPortalId={`selection-island-${id}`}
-                    />
-                ) : (
-                    <BlockLodBody blocks={data.content} />
-                )}
+                <BlockEditor
+                    initialContent={data.content}
+                    readOnly={false}
+                    minimal={false}
+                    onUpdate={handleContentUpdate}
+                    nodeId={id}
+                    hideBlockHandles={!isInteractive}
+                    disableMediaControls={true}
+                    selectionIslandPortalId={`selection-island-${id}`}
+                />
             </div>
 
             {/* Selection Island Container - positioned outside card */}
@@ -402,7 +380,7 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<FusedNoteNo
             </div>
 
             {/* Resize Handle */}
-            {showEditor && (
+            {isInteractive && (
                 <div
                     className={`${styles.modernResizeHandle} nodrag`}
                     onMouseDown={(e) => {

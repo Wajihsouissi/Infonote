@@ -7,10 +7,9 @@
  * transcript "the feature", and it was the one part of the app that kept
  * nothing.
  *
- * Its own database rather than a new store inside `chnk-it-local`: adding a
- * store there means bumping that DB's version, and a half-applied upgrade
- * would put the canvas recovery net at risk to ship a chat list. These are
- * independent concerns and they fail independently.
+ * Its own database rather than a new store inside the canvas data database:
+ * adding a store there would couple chat schema upgrades to graph storage.
+ * These are independent concerns and they fail independently.
  */
 import type { AIMessage } from '../../features/ai/aiTypes';
 
@@ -28,6 +27,10 @@ export interface AIChatSession {
     messages: AIMessage[];
     createdAt: number;
     updatedAt: number;
+    /** Canvas/board this conversation belongs to. `null` is the root canvas. */
+    boardId?: string | null;
+    /** Null only for pre-cloud local chats. New sessions are account-scoped. */
+    ownerId?: string | null;
 }
 
 /** What the history list renders. Excludes `messages` so opening the list
@@ -55,7 +58,9 @@ function openDb(): Promise<IDBDatabase> {
 
 /** First line of the opening question, clipped to something list-sized. */
 export function deriveChatTitle(messages: AIMessage[]): string {
-    const first = messages.find((m) => m.role === 'user' && m.text.trim());
+    // The narrowing predicate matters: the union now includes 'form' messages,
+    // which carry questions rather than text.
+    const first = messages.find((m): m is Extract<AIMessage, { role: 'user' }> => m.role === 'user' && m.text.trim().length > 0);
     if (!first) return 'New chat';
     const line = first.text.trim().split('\n')[0].trim();
     return line.length > 60 ? `${line.slice(0, 57)}…` : line;
@@ -66,8 +71,7 @@ export async function saveChat(session: AIChatSession): Promise<void> {
     try {
         await new Promise<void>((resolve, reject) => {
             const tx = db.transaction(STORE_NAME, 'readwrite');
-            /* JSON round-trip for the same reason LocalSnapshotStore does it:
-               detach from the live store so serialization can't observe a
+            /* JSON round-trip detaches from the live store so serialization can't observe a
                concurrent mutation, and drop anything structured-clone would
                reject. */
             tx.objectStore(STORE_NAME).put(JSON.parse(JSON.stringify(session)) as AIChatSession);
@@ -81,7 +85,7 @@ export async function saveChat(session: AIChatSession): Promise<void> {
 }
 
 /** Summaries, newest first. */
-export async function listChats(): Promise<AIChatSummary[]> {
+export async function listChats(boardId?: string | null): Promise<AIChatSummary[]> {
     const db = await openDb();
     try {
         const all = await new Promise<AIChatSession[]>((resolve, reject) => {
@@ -92,7 +96,7 @@ export async function listChats(): Promise<AIChatSummary[]> {
         });
 
         return all
-            .filter((c) => c && Array.isArray(c.messages))
+            .filter((c) => c && Array.isArray(c.messages) && (boardId === undefined || (c.boardId ?? null) === boardId))
             .sort((a, b) => b.updatedAt - a.updatedAt)
             .map(({ messages, ...meta }) => ({ ...meta, messageCount: messages.length }));
     } finally {

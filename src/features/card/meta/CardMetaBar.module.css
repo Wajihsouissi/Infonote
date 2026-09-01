@@ -1,0 +1,358 @@
+/* The card's metadata as a wrapping row of chips.
+
+   Replaces seven stacked rows that cost 303px of a 542px card to show seven
+   words. A chip is the width of its own value; the row wraps; nothing is
+   hidden. Same borderless language the calendar uses — surfaces are steps on
+   the charcoal ramp, states are washes, and the only rings here are the ones a
+   control needs to read as pressable.
+
+   Tones come from the project palette (design-system.css §7) so a status chip
+   here is the colour that status is everywhere else in the app. */
+
+.bar {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 4px 24px 14px;
+    font-family: var(--font-sans);
+}
+
+/* Two runs that never trade places. The label column is a fixed width so the
+   chips start on one vertical line — that alignment is what lets the eye jump
+   straight to a row instead of scanning for it. */
+.run {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+}
+
+.runLabel {
+    flex: none;
+    width: 40px;
+    padding-top: 7px;
+    font-size: 0.59rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    opacity: 0.75;
+}
+
+.runChips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+/* ------------------------------------------------------------------ chips */
+
+.chip {
+    --tone: var(--text-soft);
+    --tone-wash: var(--hover-wash);
+
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 100%;
+    min-width: 0;
+    height: 26px;
+    padding: 0 10px;
+    background: var(--tone-wash);
+    border: none;
+    border-radius: var(--radius-pill);
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--tone);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.chip:hover {
+    background: color-mix(in srgb, var(--tone) 22%, transparent);
+}
+
+.chip:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* The "+" chip is an invitation rather than a value, so it reads as an outline
+   waiting to be filled instead of a filled thing. */
+.add {
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--line-strong);
+    color: var(--text-faint);
+}
+
+.add:hover {
+    background: var(--hover-wash);
+    color: var(--accent-ink);
+}
+
+.dot {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--tone);
+}
+
+.clip {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* A progress chip carries its own bar — the number alone makes you read it,
+   the bar makes you see it. */
+.mini {
+    flex: none;
+    width: 26px;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--text-faint) 30%, transparent);
+    overflow: hidden;
+}
+
+.miniFill {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+}
+
+/* Tones, from the shared palette. One line per hue, and the only place a tone
+   becomes a colour on this bar. */
+.chip[data-tone='neutral'] { --tone: var(--text-soft);  --tone-wash: var(--hover-wash); }
+.chip[data-tone='tag']     { --tone: var(--text-faint); --tone-wash: var(--active-wash); }
+.chip[data-tone='amber']   { --tone: var(--a-amber);    --tone-wash: var(--a-amber-wash); }
+.chip[data-tone='azure']   { --tone: var(--a-azure);    --tone-wash: var(--a-azure-wash); }
+.chip[data-tone='jade']    { --tone: var(--a-jade);     --tone-wash: var(--a-jade-wash); }
+.chip[data-tone='citrine'] { --tone: var(--a-citrine);  --tone-wash: var(--a-citrine-wash); }
+.chip[data-tone='danger']  { --tone: var(--danger);     --tone-wash: color-mix(in srgb, var(--danger) 15%, transparent); }
+.chip[data-tone='warn']    { --tone: var(--warn);       --tone-wash: color-mix(in srgb, var(--warn) 16%, transparent); }
+.chip[data-tone='accent']  { --tone: var(--accent-ink); --tone-wash: var(--active-wash); }
+.chip[data-tone='magenta'] { --tone: var(--a-magenta); --tone-wash: color-mix(in srgb, var(--a-magenta) 16%, transparent); }
+
+/* Quiet: carries the value without carrying a hue. The icon keeps a tint so
+   high still reads warmer than low, but the chip does not compete with status. */
+.chip[data-tone='quiet']      { --tone: var(--text-soft); --tone-wash: var(--hover-wash); }
+.chip[data-tone='quiet-warn'] { --tone: var(--text-soft); --tone-wash: var(--hover-wash); }
+.chip[data-tone='quiet-warn'] .flag { color: var(--warn); }
+.chip[data-tone='quiet'] .flag      { color: var(--text-faint); }
+
+/* Reference, not status: no fill at all. */
+.chip[data-tone='bare'] {
+    --tone: var(--text-faint);
+    background: transparent;
+    padding: 0 6px;
+}
+
+.chip[data-tone='bare']:hover {
+    background: var(--hover-wash);
+}
+
+/* --------------------------------------------------------------- popover */
+
+/* Portalled to the body and positioned from the chip's client rect — see
+   MetaPopover for why anchoring inside the card cannot work. */
+.popover {
+    position: fixed;
+    z-index: 4000;
+    min-width: 208px;
+    max-width: min(320px, calc(100vw - 20px));
+    padding: 12px;
+    background: var(--bg-card);
+    border-radius: var(--r-md);
+    box-shadow: var(--elev-3);
+    font-family: var(--font-sans);
+}
+
+.popoverTitle {
+    margin: 0 0 10px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.options {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.option {
+    --tone: var(--text-soft);
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 9px;
+    background: transparent;
+    border: none;
+    border-radius: var(--r-control);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-main);
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.option:hover {
+    background: var(--hover-wash);
+}
+
+.option[aria-pressed='true'] {
+    background: var(--active-wash);
+    color: var(--accent-ink);
+}
+
+.option .dot { background: var(--tone); }
+.option[data-tone='amber']   { --tone: var(--a-amber); }
+.option[data-tone='azure']   { --tone: var(--a-azure); }
+.option[data-tone='jade']    { --tone: var(--a-jade); }
+.option[data-tone='citrine'] { --tone: var(--a-citrine); }
+.option[data-tone='danger']  { --tone: var(--danger); }
+.option[data-tone='warn']    { --tone: var(--warn); }
+.option[data-tone='neutral'] { --tone: var(--text-faint); }
+
+.clear {
+    margin-top: 8px;
+    padding: 6px 9px;
+    background: transparent;
+    border: none;
+    border-radius: var(--r-control);
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-faint);
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.clear:hover {
+    background: var(--hover-wash);
+    color: var(--danger);
+}
+
+.input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    background: var(--bg-base);
+    border: none;
+    border-radius: var(--r-control);
+    outline: none;
+    font-family: inherit;
+    font-size: 0.85rem;
+    color: var(--text-main);
+    transition: background var(--transition-fast);
+}
+
+.input:focus {
+    background: color-mix(in srgb, var(--accent) 8%, var(--bg-base));
+}
+
+.input::placeholder {
+    color: var(--text-faint);
+}
+
+.progressRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.progressRow input[type='range'] {
+    flex: 1 1 auto;
+    min-width: 0;
+    accent-color: var(--accent);
+}
+
+.progressValue {
+    flex: none;
+    min-width: 34px;
+    text-align: right;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-soft);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Two pickers in one popover, for a span shown as a single chip. */
+.stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.stackField {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.stackLabel {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+/* "from" in front of a lone start date. Small and quiet — it is there to stop
+   the chip reading as an end date, not to be a label. */
+.glyph {
+    flex: none;
+    font-size: 0.9em;
+    font-weight: 400;
+    color: var(--text-faint);
+}
+
+/* Tags read as one run inside a single chip rather than one chip each — five
+   tags used to be five objects competing with status for attention. */
+.tagRun {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+}
+
+.tagItem {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    white-space: nowrap;
+}
+
+.hash {
+    color: var(--text-faint);
+    opacity: 0.65;
+}
+
+.flag {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* The percentage half of the completion editor, under the task shortcut. */
+.progressField {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+}

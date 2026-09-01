@@ -1,0 +1,85 @@
+.button {
+  --corner-smooth: superellipse(2);
+  corner-shape: var(--corner-smooth);
+
+  min-height: var(--btn-height-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: var(--btn-pad);
+  border: 1px solid transparent;
+  border-radius: var(--btn-radius);
+  color: var(--text-main);
+  font: inherit;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.button:hover:not(:disabled) { transform: translateY(-1px); }
+.button:active:not(:disabled) { transform: translateY(0) scale(0.98); }
+.button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.button:disabled { opacity: 0.48; cursor: not-allowed; }
+
+.primary { background: var(--btn-primary-bg); color: var(--btn-primary-fg); }
+.primary:hover:not(:disabled) { background: var(--btn-primary-bg-hover); }
+
+.secondary {
+  background: var(--btn-secondary-bg);
+  border-color: var(--btn-secondary-border);
+  color: var(--btn-secondary-fg);
+}
+.secondary:hover:not(:disabled) { background: var(--btn-secondary-hover); border-color: var(--line-heavy); }
+
+.ghost { background: transparent; color: var(--btn-ghost-fg); }
+.ghost:hover:not(:disabled) { background: var(--btn-ghost-hover); color: var(--text-main); }
+
+.danger { background: var(--btn-danger-bg); color: var(--btn-danger-fg); }
+
+.sm { min-height: var(--btn-height-sm); padding: 7px 11px; font-size: 0.8125rem; }
+.md { min-height: var(--btn-height-md); }
+.lg { min-height: var(--btn-height-lg); padding-inline: 20px; font-size: 1rem; }
+.fullWidth { width: 100%; }
+.label { min-width: 0; }
+
+.iconButton {
+  width: var(--btn-icon-md);
+  min-width: var(--btn-icon-md);
+  height: var(--btn-icon-md);
+  min-height: var(--btn-icon-md);
+  padding: 0;
+}
+.iconButton.sm { width: var(--btn-icon-sm); min-width: var(--btn-icon-sm); height: var(--btn-icon-sm); min-height: var(--btn-icon-sm); }
+.iconButton.lg { width: var(--btn-icon-lg); min-width: var(--btn-icon-lg); height: var(--btn-icon-lg); min-height: var(--btn-icon-lg); }
+
+/* Radius comes from the orb itself (design-system.css §7) — this class always
+   rides along with .special-primary-btn, and two !important radii that disagree
+   would leave the shape decided by stylesheet order. */
+.floatingActionButton { --corner-smooth: superellipse(2); corner-shape: var(--corner-smooth); border-radius: var(--orb-radius, var(--r-lg)) !important; }
+
+.spinner {
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: buttonSpin 0.75s linear infinite;
+}
+
+@keyframes buttonSpin { to { transform: rotate(1turn); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .button,
+  .button:hover:not(:disabled),
+  .button:active:not(:disabled) { transform: none; }
+  .spinner { animation: none; }
+}

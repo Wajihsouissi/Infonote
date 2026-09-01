@@ -1,0 +1,599 @@
+/* Card tasks: the progress meter, the list, the detail view and the modal.
+
+   Same borderless language as the calendar — structure comes from steps in the
+   charcoal ramp, states are washes. `--bg-base` is the recessed ground,
+   `--bg-card` the raised surface; those two are used rather than the fuller
+   ramp because they are the only adjacent pair that separates in both Ink and
+   Paper (in Paper `--bg-rail`, `--bg-card` and `--bg-raised` are all white). */
+
+/* ---------------------------------------------------------- progress meter */
+
+.meter {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    padding: 3px 5px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.meter:hover {
+    background: var(--hover-wash);
+}
+
+.meterTrack {
+    position: relative;
+    flex: 1 1 auto;
+    height: 4px;
+    min-width: 0;
+    border-radius: var(--radius-pill);
+    background: var(--hover-wash);
+    overflow: hidden;
+}
+
+.meterFill {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    transition: width var(--transition-fast);
+}
+
+.meter[data-complete] .meterFill {
+    background: var(--t-green, var(--accent));
+}
+
+.meterValue {
+    flex: none;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+}
+
+.meter[data-complete] .meterValue {
+    color: var(--t-green, var(--accent-ink));
+}
+
+/* The calendar chip has no room for a bar, so the count carries it alone. */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex: none;
+    padding: 1px 5px;
+    background: var(--hover-wash);
+    border: none;
+    border-radius: var(--radius-xs);
+    font-family: inherit;
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: var(--text-soft);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.badge:hover {
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+    color: var(--accent-ink);
+}
+
+.badge[data-complete] {
+    color: var(--t-green, var(--accent-ink));
+}
+
+/* ------------------------------------------------------------------- list */
+
+.taskList {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.taskRows {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    min-width: 0;
+}
+
+.taskRow {
+    --task-depth: 0;
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 5px 6px;
+    /* Subtasks step in by their depth. The indent is a margin so the row's own
+       hover wash moves with it instead of stretching back to the edge. */
+    margin-left: calc(var(--task-depth) * 18px);
+    border-radius: var(--r-control);
+    transition: background var(--transition-fast);
+}
+
+.taskRow:hover {
+    background: var(--hover-wash);
+}
+
+/* A subtask is quieter than the task it belongs to — the indent says where it
+   sits, the weight says what it is. */
+.taskRow[data-sub] .taskText {
+    font-size: 0.78rem;
+    color: var(--text-soft);
+}
+
+.taskBox {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-xs);
+    box-shadow: inset 0 0 0 1.5px var(--line-heavy);
+    cursor: pointer;
+    transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.taskBox:hover {
+    box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+/* The one ring in this file, and it earns it: a checkbox is read as an empty
+   box, and a filled square at 15px is a different object. */
+.taskRow[data-done] .taskBox,
+.taskBox[data-done] {
+    background: var(--accent);
+    box-shadow: none;
+}
+
+.taskRow[data-done] .taskBox::after,
+.taskBox[data-done]::after {
+    content: '';
+    width: 7px;
+    height: 4px;
+    margin-top: -2px;
+    border-left: 2px solid var(--bg-base);
+    border-bottom: 2px solid var(--bg-base);
+    transform: rotate(-45deg);
+}
+
+.taskText {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+    text-align: left;
+    font-family: inherit;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    color: var(--text-main);
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.taskRow[data-done] .taskText {
+    color: var(--text-faint);
+    text-decoration: line-through;
+}
+
+.taskUntitled {
+    color: var(--text-faint);
+    font-style: italic;
+}
+
+.taskEdit {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 2px 6px;
+    background: var(--bg-card);
+    border: none;
+    border-radius: var(--radius-xs);
+    outline: none;
+    font-family: inherit;
+    font-size: 0.82rem;
+    color: var(--text-main);
+}
+
+.taskMarks {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex: none;
+    font-size: 0.7rem;
+    color: var(--text-faint);
+    line-height: 1;
+}
+
+.taskMark {
+    opacity: 0.75;
+}
+
+.taskAction {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-xs);
+    color: var(--text-faint);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+
+.taskRow:hover .taskAction,
+.taskAction:focus-visible {
+    opacity: 1;
+}
+
+.taskAction:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.taskDelete:hover {
+    color: var(--danger);
+}
+
+.taskEmpty {
+    margin: 6px 2px;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--text-faint);
+}
+
+.composer {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 6px;
+    border-radius: var(--r-control);
+    background: var(--bg-base);
+    transition: background var(--transition-fast);
+}
+
+.composer:focus-within {
+    background: color-mix(in srgb, var(--accent) 8%, var(--bg-base));
+}
+
+.composerIcon {
+    flex: none;
+    color: var(--text-faint);
+}
+
+.composerInput {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 2px 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 0.82rem;
+    color: var(--text-main);
+}
+
+.composerInput::placeholder {
+    color: var(--text-faint);
+}
+
+/* The metadata panel's column is narrower than the modal's. */
+.taskList[data-dense] .taskRow {
+    padding: 3px 5px;
+    gap: 7px;
+}
+
+.taskList[data-dense] .taskText {
+    font-size: 0.78rem;
+}
+
+/* ------------------------------------------------------------------ modal */
+
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(3px);
+}
+
+.modal {
+    display: flex;
+    flex-direction: column;
+    width: min(560px, 100%);
+    max-height: min(720px, 88vh);
+    background: var(--bg-card);
+    border-radius: var(--r-panel);
+    box-shadow: var(--elev-3);
+    overflow: hidden;
+    font-family: var(--font-sans);
+}
+
+.modalHead {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex: none;
+    padding: 20px 20px 14px 24px;
+}
+
+.modalTitles {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.modalTitle {
+    margin: 0;
+    font-size: 1.0625rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.modalCount {
+    font-size: 0.75rem;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+}
+
+.closeBtn {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--r-control);
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.closeBtn:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.modalBody {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 20px 20px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+}
+
+.modalBody::-webkit-scrollbar {
+    width: 5px;
+}
+
+.modalBody::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: var(--radius-xs);
+}
+
+/* ----------------------------------------------------------- task detail */
+
+.detail {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.detailHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.backBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px 4px 6px;
+    background: var(--bg-base);
+    border: none;
+    border-radius: var(--radius-pill);
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-soft);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.backBtn:hover {
+    background: var(--hover-wash);
+    color: var(--accent-ink);
+}
+
+.detailOrigin {
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    background: var(--hover-wash);
+    font-size: 0.6875rem;
+    color: var(--text-faint);
+}
+
+.detailTitleRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.detailBox {
+    width: 18px;
+    height: 18px;
+}
+
+.detailTitle {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 4px 8px;
+    background: transparent;
+    border: none;
+    border-radius: var(--r-control);
+    outline: none;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-main);
+    transition: background var(--transition-fast);
+}
+
+.detailTitle:hover,
+.detailTitle:focus {
+    background: var(--bg-base);
+}
+
+.detailGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.detailField {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.detailLabel {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.detailCount {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+}
+
+.detailNote {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 11px;
+    background: var(--bg-base);
+    border: none;
+    border-radius: var(--r-control);
+    outline: none;
+    resize: vertical;
+    font-family: inherit;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: var(--text-main);
+    transition: background var(--transition-fast);
+}
+
+.detailNote:focus {
+    background: color-mix(in srgb, var(--accent) 7%, var(--bg-base));
+}
+
+.detailNote::placeholder {
+    color: var(--text-faint);
+}
+
+.detailImage {
+    position: relative;
+    border-radius: var(--r-control);
+    overflow: hidden;
+    background: var(--bg-base);
+}
+
+.detailImage img {
+    display: block;
+    width: 100%;
+    max-height: 240px;
+    object-fit: cover;
+}
+
+.imageRemove {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.55);
+    border: none;
+    border-radius: var(--r-control);
+    color: #fff;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.imageRemove:hover {
+    background: rgba(0, 0, 0, 0.75);
+}
+
+.imageDrop {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 18px;
+    background: var(--bg-base);
+    border: none;
+    border-radius: var(--r-control);
+    font-family: inherit;
+    font-size: 0.8rem;
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.imageDrop:hover {
+    background: color-mix(in srgb, var(--accent) 10%, var(--bg-base));
+    color: var(--accent-ink);
+}
+
+.detailError {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--danger);
+}

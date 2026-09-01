@@ -1,0 +1,232 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #121212; font-family: 'Outfit', system-ui, sans-serif; }
+    a { color: #ff5040; } a:hover { color: #ff6a5c; }
+
+    .p {
+      --bg-rail:#121212; --bg-base:#090909; --bg-card:#1a1a1a; --bg-raised:#242424;
+      --line:rgba(255,255,255,.10); --line-strong:rgba(255,255,255,.18);
+      --hover:rgba(255,255,255,.08); --active:rgba(255,80,64,.16);
+      --tx:#fff; --ts:#e6e6e6; --tf:#a3a3a3;
+      --acc:#ff5040; --acc-dim:rgba(255,80,64,.16); --ok:#5ac875;
+      width:440px; background:var(--bg-rail); color:var(--tx);
+      display:flex; flex-direction:column; min-height:1180px;
+      -webkit-font-smoothing:antialiased;
+    }
+    .hd { height:44px; display:flex; align-items:center; justify-content:space-between; padding:0 16px 0 24px; flex-shrink:0; }
+    .hdT { display:flex; align-items:center; gap:8px; font-size:.82rem; font-weight:600; letter-spacing:.01em; }
+    .hdA { display:flex; align-items:center; gap:2px; }
+    .ib { width:26px; height:26px; border-radius:7px; display:flex; align-items:center; justify-content:center; color:var(--ts); }
+    .body { flex:1; min-height:0; margin:12px; background:var(--bg-base); border-radius:40px; display:flex; flex-direction:column; overflow:hidden; }
+    .scroll { flex:1; min-height:0; padding:22px 16px 10px; display:flex; flex-direction:column; gap:14px; }
+
+    .turn { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+    .scope { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:4px; }
+    .sc { display:inline-flex; align-items:center; gap:5px; padding:3px 8px; border-radius:999px; background:var(--acc-dim); color:var(--acc); font-size:.66rem; font-weight:600; }
+    .sc.n { background:rgba(255,255,255,.07); color:var(--ts); }
+    .ub { background:var(--active); border-radius:14px 14px 4px 14px; padding:9px 13px; font-size:.82rem; line-height:1.5; max-width:90%; }
+
+    /* collapsed trace summary */
+    .tsum { display:flex; align-items:center; gap:9px; padding:7px 11px; border:1px solid var(--line); border-radius:10px; background:rgba(255,255,255,.025); }
+    .tsumL { flex:1; min-width:0; font-size:.73rem; color:var(--ts); font-weight:500; }
+    .tsumL i { font-style:normal; color:var(--tf); font-weight:400; }
+    .tsumT { font-size:.68rem; color:var(--tf); font-variant-numeric:tabular-nums; }
+
+    /* answer prose */
+    .ans { font-size:.82rem; line-height:1.62; color:var(--ts); }
+    .ans strong { color:var(--tx); font-weight:600; }
+    .cit { display:inline-flex; align-items:center; justify-content:center; min-width:15px; height:15px; padding:0 4px; margin:0 1px; border-radius:4px; background:rgba(255,255,255,.10); color:var(--tf); font-size:.6rem; font-weight:700; vertical-align:1px; }
+    .ncit { display:inline-flex; align-items:center; gap:4px; padding:1px 6px 1px 4px; margin:0 1px; border-radius:5px; background:var(--acc-dim); color:var(--acc); font-size:.7rem; font-weight:600; vertical-align:baseline; }
+
+    /* created artifacts */
+    .secH { display:flex; align-items:center; gap:8px; font-size:.68rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--tf); }
+    .secH::after { content:''; flex:1; height:1px; background:var(--line); }
+    .made { display:flex; flex-direction:column; gap:6px; }
+    .art { display:flex; gap:10px; padding:9px 10px; border:1px solid var(--line); border-radius:12px; background:var(--bg-card); }
+    .artIc { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .artB { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+    .artT { font-size:.78rem; font-weight:600; color:var(--tx); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .artM { font-size:.68rem; color:var(--tf); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .pill { display:inline-flex; align-items:center; gap:4px; padding:1px 6px; border-radius:5px; background:rgba(255,255,255,.06); color:var(--ts); font-size:.64rem; font-weight:600; }
+    .pill.ok { background:rgba(90,200,117,.14); color:var(--ok); }
+    .pill.warn { background:rgba(255,195,31,.14); color:#ffc31f; }
+    .artA { display:flex; align-items:center; gap:2px; flex-shrink:0; }
+    .aBtn { width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:var(--tf); }
+
+    /* sources */
+    .srcs { display:flex; flex-wrap:wrap; gap:4px; }
+    .src { display:inline-flex; align-items:center; gap:5px; padding:3px 8px 3px 6px; border:1px solid var(--line); border-radius:999px; background:rgba(255,255,255,.03); font-size:.68rem; color:var(--ts); }
+    .src em { font-style:normal; color:var(--tf); font-size:.62rem; font-weight:700; }
+
+    /* turn actions */
+    .tacts { display:flex; align-items:center; gap:4px; padding-top:2px; }
+    .ta { display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 10px; border:1px solid var(--line); border-radius:8px; color:var(--ts); font-size:.71rem; font-weight:600; }
+    .ta.g { border-color:transparent; color:var(--tf); padding:0 7px; }
+    .spacer { flex:1; }
+
+    /* composer */
+    .ctx { display:flex; align-items:flex-start; gap:7px; margin:0 12px 6px; padding:8px 11px; border:1px dashed var(--line-strong); border-radius:14px; background:rgba(255,255,255,.02); }
+    .ctxL { font-size:.64rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--tf); padding-top:3px; flex-shrink:0; }
+    .ctxC { flex:1; display:flex; flex-wrap:wrap; gap:4px; }
+    .cchip { display:inline-flex; align-items:center; gap:5px; padding:3px 5px 3px 7px; border-radius:7px; background:var(--acc-dim); color:var(--acc); font-size:.68rem; font-weight:600; }
+    .cchip b { font-weight:400; opacity:.75; }
+    .cchip .x { opacity:.55; }
+    .cchip.n { background:rgba(255,255,255,.07); color:var(--ts); }
+    .add { padding:3px 8px; border-radius:7px; border:1px dashed var(--line-strong); color:var(--tf); font-size:.68rem; font-weight:600; }
+
+    .comp { flex-shrink:0; margin:0 12px 6px; padding:10px 12px; background:var(--bg-card); border:1px solid var(--line); border-radius:18px; display:flex; flex-direction:column; gap:9px; }
+    .ph { font-size:.82rem; color:var(--tf); }
+    .row { display:flex; align-items:center; gap:6px; }
+    .seg { display:flex; padding:2px; border-radius:9px; background:rgba(255,255,255,.05); }
+    .sg { padding:4px 11px; border-radius:7px; font-size:.72rem; font-weight:600; color:var(--tf); }
+    .sg.on { background:var(--acc); color:#000; }
+    .send { width:30px; height:30px; border-radius:8px; background:var(--acc); display:flex; align-items:center; justify-content:center; margin-left:auto; }
+
+    .tools { flex-shrink:0; margin:0 12px 12px; display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+    .tg { display:inline-flex; align-items:center; gap:5px; height:26px; padding:0 9px; border:1px solid var(--line); border-radius:8px; color:var(--tf); font-size:.69rem; font-weight:600; }
+    .tg.on { border-color:rgba(255,80,64,.4); background:var(--acc-dim); color:var(--acc); }
+    .eff { margin-left:auto; display:inline-flex; align-items:center; gap:6px; height:26px; padding:0 9px; border-radius:8px; color:var(--ts); font-size:.69rem; font-weight:600; }
+    .eff span { color:var(--tf); font-weight:400; }
+  </style>
+</helmet>
+
+<div class="p">
+  <div class="hd">
+    <div class="hdT">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" fill="#ff5040"/><path d="M18.5 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z" fill="#ff5040" opacity=".45"/></svg>
+      Beta launch plan
+    </div>
+    <div class="hdA">
+      <div class="ib"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 8v4l2.5 1.5"/><circle cx="12" cy="12" r="8.2"/></svg></div>
+      <div class="ib"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+      <div class="ib"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="scroll">
+
+      <div class="turn">
+        <div class="scope">
+          <span class="sc"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="8" height="7" rx="1.6"/><rect x="13" y="4" width="8" height="11" rx="1.6" opacity=".45"/><rect x="3" y="13" width="8" height="7" rx="1.6" opacity=".45"/></svg>@Canvas · Beta workspace</span>
+          <span class="sc n"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.4 2.4 14.6 0 17M12 3.5c-2.4 2.4-2.4 14.6 0 17"/></svg>Web</span>
+        </div>
+        <div class="ub">Plan the beta launch using what’s on this canvas, and check what we’re missing.</div>
+      </div>
+
+      <div class="tsum">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5ac875" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>
+        <div class="tsumL">6 steps <i>· read 6 of 31 cards · 4 searches · 4 artifacts</i></div>
+        <div class="tsumT">24.1s</div>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a3a3a3" stroke-width="2" stroke-linecap="round"><path d="M7 10l5 5 5-5"/></svg>
+      </div>
+
+      <div class="ans">
+        Your canvas already settles positioning and the scope cut, so the plan below builds on those rather than restating them. The board is the spine; the timeline dates it against your 6 October target from <span class="ncit"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="3" width="16" height="18" rx="2.4" opacity=".5"/><rect x="4" y="3" width="3.4" height="18" rx="1.6"/></svg>Beta scope cut</span>. Two gaps are worth your attention: there is <strong>no owner on pricing</strong>, and nothing on the canvas covers support load during the beta — a two-week beta at your waitlist size typically generates 40–60 tickets<span class="cit">1</span><span class="cit">3</span>.
+      </div>
+
+      <div class="secH">Added to the canvas</div>
+      <div class="made">
+
+        <div class="art">
+          <div class="artIc" style="background:rgba(255,80,64,.14)"><svg width="16" height="16" viewBox="0 0 24 24" fill="#ff5040"><rect x="3" y="4" width="5" height="16" rx="1.6"/><rect x="9.5" y="4" width="5" height="16" rx="1.6" opacity=".5"/><rect x="16" y="4" width="5" height="16" rx="1.6" opacity=".5"/></svg></div>
+          <div class="artB">
+            <div class="artT">Beta launch</div>
+            <div class="artM">Board · 5 lanes · 14 cards <span class="pill ok">grounded on 4 cards</span></div>
+          </div>
+          <div class="artA">
+            <div class="aBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3" stroke-linecap="round"/></svg></div>
+          </div>
+        </div>
+
+        <div class="art">
+          <div class="artIc" style="background:rgba(243,101,192,.14)"><svg width="16" height="16" viewBox="0 0 24 24" fill="#f365c0"><circle cx="5" cy="12" r="2.6"/><circle cx="12" cy="12" r="2.6" opacity=".5"/><circle cx="19" cy="12" r="2.6" opacity=".5"/><rect x="6.6" y="11.3" width="4" height="1.5" rx=".7" opacity=".5"/><rect x="13.6" y="11.3" width="4" height="1.5" rx=".7" opacity=".5"/></svg></div>
+          <div class="artB">
+            <div class="artT">6 weeks to beta</div>
+            <div class="artM">Timeline · 6 milestones · dated to 6 Oct</div>
+          </div>
+          <div class="artA">
+            <div class="aBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3" stroke-linecap="round"/></svg></div>
+          </div>
+        </div>
+
+        <div class="art">
+          <div class="artIc" style="background:rgba(90,200,117,.14)"><svg width="16" height="16" viewBox="0 0 24 24" fill="#5ac875"><rect x="4" y="3" width="16" height="18" rx="2.4" opacity=".5"/><rect x="4" y="3" width="3.4" height="18" rx="1.6"/><rect x="9" y="8" width="8" height="1.7" rx=".85"/><rect x="9" y="12" width="6" height="1.7" rx=".85"/></svg></div>
+          <div class="artB">
+            <div class="artT">Pricing page rewrite</div>
+            <div class="artM">Card · 18 blocks · table, checklist <span class="pill">Smart target 12+</span></div>
+          </div>
+          <div class="artA">
+            <div class="aBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3" stroke-linecap="round"/></svg></div>
+          </div>
+        </div>
+
+        <div class="art" style="border-color:rgba(255,195,31,.35)">
+          <div class="artIc" style="background:rgba(255,195,31,.14)"><svg width="16" height="16" viewBox="0 0 24 24" fill="#ffc31f"><path d="M12 3l9.5 17H2.5L12 3z" opacity=".45"/><rect x="11" y="9.5" width="2" height="5.5" rx="1"/><circle cx="12" cy="17.2" r="1.15"/></svg></div>
+          <div class="artB">
+            <div class="artT">What’s missing from this canvas</div>
+            <div class="artM">Card · 11 blocks <span class="pill warn">gap analysis</span></div>
+          </div>
+          <div class="artA">
+            <div class="aBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3" stroke-linecap="round"/></svg></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="secH">Built from</div>
+      <div class="srcs">
+        <span class="src"><svg width="11" height="11" viewBox="0 0 24 24" fill="#ff5040"><rect x="4" y="3" width="16" height="18" rx="2.4" opacity=".5"/><rect x="4" y="3" width="3.4" height="18" rx="1.6"/></svg>Pricing model v3</span>
+        <span class="src"><svg width="11" height="11" viewBox="0 0 24 24" fill="#5ac875"><rect x="4" y="3" width="16" height="18" rx="2.4" opacity=".5"/><rect x="4" y="3" width="3.4" height="18" rx="1.6"/></svg>Beta scope cut</span>
+        <span class="src"><em>1</em>stripe.com</span>
+        <span class="src"><em>3</em>firstround.com</span>
+        <span class="src">+3</span>
+      </div>
+
+      <div class="tacts">
+        <div class="ta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/></svg>Locate all 4</div>
+        <div class="ta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 9h11a5 5 0 0 1 0 10h-4M4 9l4-4M4 9l4 4"/></svg>Undo turn</div>
+        <div class="spacer"></div>
+        <div class="ta g"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="12" height="12" rx="2.2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></div>
+        <div class="ta g"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 11a8 8 0 1 0-2.3 6.3M20 5v6h-6"/></svg></div>
+      </div>
+
+    </div>
+
+    <div class="ctx">
+      <div class="ctxL">Sees</div>
+      <div class="ctxC">
+        <span class="cchip">@Canvas <b>31 cards</b> <span class="x">✕</span></span>
+        <span class="cchip n">Web <span class="x">✕</span></span>
+        <span class="add">+ Add</span>
+      </div>
+    </div>
+
+    <div class="comp">
+      <div class="ph">Ask a follow-up, or @ a card…</div>
+      <div class="row">
+        <div class="seg"><span class="sg on">Create</span><span class="sg">Ask</span></div>
+        <div class="send"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+      </div>
+    </div>
+
+    <div class="tools">
+      <div class="tg"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M20 12l-7.6 7.6a4.5 4.5 0 1 1-6.4-6.4l7.7-7.7a3 3 0 1 1 4.2 4.2l-7.6 7.7a1.5 1.5 0 1 1-2.1-2.1l7-7"/></svg>Attach</div>
+      <div class="tg on"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.4 2.4 14.6 0 17M12 3.5c-2.4 2.4-2.4 14.6 0 17"/></svg>Web on</div>
+      <div class="eff">Smart <span>· 4–9 artifacts, deep bodies</span></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

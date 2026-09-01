@@ -2,6 +2,17 @@ import type { StateCreator } from 'zustand';
 import type { AppState, UISlice, AppView } from '../types';
 import { runThemeTransition } from '../../utils/themeTransition';
 
+const syncNodeSelection = (nodes: AppState['nodes'], selectedIds: Set<string>) => {
+    let changed = false;
+    const nextNodes = nodes.map(node => {
+        const shouldBeSelected = selectedIds.has(node.id);
+        if (Boolean(node.selected) === shouldBeSelected) return node;
+        changed = true;
+        return { ...node, selected: shouldBeSelected };
+    });
+    return changed ? nextNodes : nodes;
+};
+
 export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get) => ({
     activeIconMenuId: null,
     lastCreatedCanvasNodeId: null,
@@ -44,12 +55,13 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
         }, origin);
     },
 
-    setSelectedCanvasNodeIds: (ids) => set({
+    setSelectedCanvasNodeIds: (ids) => set((state) => ({
+        nodes: syncNodeSelection(state.nodes, ids),
         selectedCanvasNodeIds: ids,
-        selectedEdgeId: ids.size > 0 ? null : get().selectedEdgeId,
-        selectedEdgeIds: ids.size > 0 ? new Set<string>() : get().selectedEdgeIds,
-        isLinkingMode: ids.size < 2 ? false : get().isLinkingMode
-    }),
+        selectedEdgeId: ids.size > 0 ? null : state.selectedEdgeId,
+        selectedEdgeIds: ids.size > 0 ? new Set<string>() : state.selectedEdgeIds,
+        isLinkingMode: ids.size < 2 ? false : state.isLinkingMode
+    })),
 
     toggleCanvasNodeSelection: (id) => set((state) => {
         const newSelection = new Set(state.selectedCanvasNodeIds);
@@ -59,6 +71,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
             newSelection.add(id);
         }
         return {
+            nodes: syncNodeSelection(state.nodes, newSelection),
             selectedCanvasNodeIds: newSelection,
             selectedEdgeId: null,
             selectedEdgeIds: new Set<string>(),
@@ -66,11 +79,15 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
         };
     }),
 
-    clearCanvasSelection: () => set({
-        selectedCanvasNodeIds: new Set<string>(),
-        selectedEdgeId: null,
-        selectedEdgeIds: new Set<string>(),
-        isLinkingMode: false
+    clearCanvasSelection: () => set((state) => {
+        const emptySelection = new Set<string>();
+        return {
+            nodes: syncNodeSelection(state.nodes, emptySelection),
+            selectedCanvasNodeIds: emptySelection,
+            selectedEdgeId: null,
+            selectedEdgeIds: new Set<string>(),
+            isLinkingMode: false
+        };
     }),
 
     selectConnectedCanvasNodes: (nodeId: string) => {
@@ -113,36 +130,36 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
             });
         }
 
+        const updatedNodes = syncNodeSelection(nodes, selected);
         set({
+            nodes: updatedNodes,
             selectedCanvasNodeIds: selected,
             selectedEdgeId: null,
             selectedEdgeIds: new Set<string>(),
             isLinkingMode: selected.size < 2 ? false : get().isLinkingMode
         });
-
-        // Use direct set() instead of setNodes() to avoid triggering setCloudDirty
-        // for selection-only changes (a UI concern, not a data change).
-        const updatedNodes = get().nodes.map(n => {
-            if (!visibleNodeIds.has(n.id)) return n;
-            const shouldBeSelected = selected.has(n.id);
-            if (n.selected === shouldBeSelected) return n;
-            return { ...n, selected: shouldBeSelected };
-        });
-        set({ nodes: updatedNodes });
     },
 
     setLastCreatedCanvasNodeId: (id: string | null) => set({ lastCreatedCanvasNodeId: id }),
 
-    setSelectedEdgeId: (id: string | null) => set({
-        selectedEdgeId: id,
-        selectedEdgeIds: id ? new Set([id]) : new Set<string>(),
-        selectedCanvasNodeIds: id ? new Set<string>() : get().selectedCanvasNodeIds
+    setSelectedEdgeId: (id: string | null) => set((state) => {
+        const selectedNodeIds = id ? new Set<string>() : state.selectedCanvasNodeIds;
+        return {
+            nodes: id ? syncNodeSelection(state.nodes, selectedNodeIds) : state.nodes,
+            selectedEdgeId: id,
+            selectedEdgeIds: id ? new Set([id]) : new Set<string>(),
+            selectedCanvasNodeIds: selectedNodeIds
+        };
     }),
 
-    setSelectedEdgeIds: (ids: Set<string>) => set({
-        selectedEdgeIds: ids,
-        selectedEdgeId: ids.size > 0 ? Array.from(ids)[0] : null,
-        selectedCanvasNodeIds: ids.size > 0 ? new Set<string>() : get().selectedCanvasNodeIds
+    setSelectedEdgeIds: (ids: Set<string>) => set((state) => {
+        const selectedNodeIds = ids.size > 0 ? new Set<string>() : state.selectedCanvasNodeIds;
+        return {
+            nodes: ids.size > 0 ? syncNodeSelection(state.nodes, selectedNodeIds) : state.nodes,
+            selectedEdgeIds: ids,
+            selectedEdgeId: ids.size > 0 ? Array.from(ids)[0] : null,
+            selectedCanvasNodeIds: selectedNodeIds
+        };
     }),
 
     toggleCanvasEdgeSelection: (id: string) => set((state) => {
@@ -153,6 +170,9 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
             newSelection.add(id);
         }
         return {
+            nodes: newSelection.size > 0
+                ? syncNodeSelection(state.nodes, new Set<string>())
+                : state.nodes,
             selectedEdgeIds: newSelection,
             selectedEdgeId: newSelection.size > 0 ? Array.from(newSelection)[0] : null,
             selectedCanvasNodeIds: newSelection.size > 0 ? new Set<string>() : state.selectedCanvasNodeIds

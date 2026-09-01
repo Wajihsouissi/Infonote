@@ -3,8 +3,9 @@ import { createPortal } from 'react-dom';
 import {
     Type,
     ClipboardPaste, Camera, Trash2, Crosshair, ChevronRight,
-    LayoutGrid, Columns2, Copy, Scissors,
+    LayoutGrid, Columns2, Copy, Scissors, Video,
 } from '../../components/icons';
+import { FEATURES } from '../../config/featureFlags';
 import { useReactFlow } from '@xyflow/react';
 import html2canvas from 'html2canvas';
 import { useStore } from '../../store/useStore';
@@ -13,6 +14,7 @@ import { MENU_ITEMS } from '../editor/menuConstants';
 import { decodePayload, payloadBlocks } from '../clipboard/clipboardPayload';
 import { createGalleryMetadata, GALLERY_NODE_WIDTH } from '../editor/galleryTypes';
 import styles from './CanvasContextMenu.module.css';
+import { createYouTubeStudyData, parseYouTubeUrl } from '../youtube';
 
 interface ContextMenuProps {
     x: number;
@@ -31,15 +33,14 @@ const CATEGORIES = [
 
 export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
     const [activeSubmenu, setActiveSubmenu] = useState<'add-block' | 'select' | null>(null);
-    const [showClearConfirm, setShowClearConfirm] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
     const nodes = useStore(s => s.nodes);
     const addNode = useStore(s => s.addNode);
-    const bulkDeleteNodes = useStore(s => s.bulkDeleteNodes);
-    const clearCanvasSelection = useStore(s => s.clearCanvasSelection);
+    const requestNodeDeletion = useStore(s => s.requestNodeDeletion);
     const setSelectedCanvasNodeIds = useStore(s => s.setSelectedCanvasNodeIds);
     const pasteClipboardNodes = useStore(s => s.pasteClipboardNodes);
+    const organizeCanvas = useStore(s => s.organizeCanvas);
     const onNodesChange = useStore(s => s.onNodesChange);
     const currentParentId = useStore(s => s.currentParentId);
     const { screenToFlowPosition } = useReactFlow();
@@ -59,14 +60,13 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
     useEffect(() => {
         const handleKey = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
-                if (showClearConfirm) { setShowClearConfirm(false); return; }
                 if (activeSubmenu) { setActiveSubmenu(null); return; }
                 onClose();
             }
         };
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
-    }, [onClose, activeSubmenu, showClearConfirm]);
+    }, [onClose, activeSubmenu]);
 
     const handleAddBlock = useCallback((type: string, meta?: BlockMetadata) => {
         const newId = () => crypto.randomUUID?.() || Math.random().toString(36);
@@ -98,11 +98,21 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
        instead of being two separate implementations that can drift apart. */
     const selectedCanvasNodeIds = useStore(s => s.selectedCanvasNodeIds);
     const hasSelection = selectedCanvasNodeIds.size > 0;
+    const activeNodeCount = nodes.filter(
+        node => (node.parentId ?? null) === (currentParentId ?? null)
+    ).length;
+    const canOrganize = activeNodeCount > 1;
 
     const handleCopySelection = useCallback(() => {
         document.execCommand('copy');
         onClose();
     }, [onClose]);
+
+    const handleAddYouTube = useCallback(() => {
+        const flowPos = screenToFlowPosition({ x, y });
+        addNode('youtube', flowPos, createYouTubeStudyData(), { width: 360, height: 304 }, currentParentId || undefined);
+        onClose();
+    }, [addNode, currentParentId, onClose, screenToFlowPosition, x, y]);
 
     const handleCutSelection = useCallback(() => {
         document.execCommand('cut');
@@ -144,6 +154,12 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
             }
 
             if (!text) return;
+            const youtube = FEATURES.youtubeStudy ? parseYouTubeUrl(text) : null;
+            if (youtube) {
+                addNode('youtube', flowPos, createYouTubeStudyData(youtube.canonicalUrl), { width: 360, height: 304 }, currentParentId || undefined);
+                onClose();
+                return;
+            }
             addNode('block', flowPos, {
                 content: [{ id: crypto.randomUUID?.() || Math.random().toString(36), type: 'text', content: text }],
                 isStandaloneBlock: true,
@@ -178,14 +194,36 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
         onClose();
     }, [onClose]);
 
+    const handleOrganizeCanvas = useCallback(() => {
+        if (!canOrganize) return;
+
+        const flowElement = document.querySelector<HTMLElement>('.react-flow');
+        flowElement?.classList.add('is-organizing');
+        onClose();
+
+        // Let the transition class reach the DOM before applying the new
+        // positions, otherwise the browser sees only the final transform.
+        requestAnimationFrame(() => {
+            const count = organizeCanvas();
+            if (count > 1) {
+                window.dispatchEvent(new CustomEvent('chnk-it:canvas-organized', {
+                    detail: {
+                        count,
+                        historyDepth: useStore.temporal.getState().pastStates.length,
+                    },
+                }));
+            }
+            window.setTimeout(() => flowElement?.classList.remove('is-organizing'), 320);
+        });
+    }, [canOrganize, onClose, organizeCanvas]);
+
     const handleClearCanvas = useCallback(() => {
         const targetIds = nodes.filter(n => (n.parentId || null) === (currentParentId || null)).map(n => n.id);
         if (targetIds.length > 0) {
-            bulkDeleteNodes(targetIds);
-            clearCanvasSelection();
+            requestNodeDeletion(targetIds);
         }
         onClose();
-    }, [nodes, bulkDeleteNodes, clearCanvasSelection, onClose, currentParentId]);
+    }, [nodes, requestNodeDeletion, onClose, currentParentId]);
 
     const selectByType = useCallback((type?: string) => {
         const parentCtx = currentParentId || null;
@@ -221,6 +259,12 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
                         <ChevronRight size={14} className={styles.chevron} />
                     </div>
 
+                    {FEATURES.youtubeStudy && (
+                        <div className={styles.menuItem} onMouseEnter={() => setActiveSubmenu(null)} onClick={handleAddYouTube}>
+                            <span className={styles.itemContent}><Video size={16} /><span>YouTube video</span></span>
+                        </div>
+                    )}
+
                     {hasSelection && (
                         <>
                             <div className={styles.menuItem} onMouseEnter={() => setActiveSubmenu(null)} onClick={handleCopySelection}>
@@ -241,25 +285,26 @@ export function CanvasContextMenu({ x, y, onClose }: ContextMenuProps) {
                         <ChevronRight size={14} className={styles.chevron} />
                     </div>
 
+                    <button
+                        type="button"
+                        className={`${styles.menuItem} ${styles.menuButton}`}
+                        onMouseEnter={() => setActiveSubmenu(null)}
+                        onClick={handleOrganizeCanvas}
+                        disabled={!canOrganize}
+                        title={canOrganize ? 'Group related nodes and align the canvas' : 'Add at least two nodes to organize'}
+                    >
+                        <span className={styles.itemContent}><LayoutGrid size={16} /><span>Organize canvas</span></span>
+                    </button>
+
                     <div className={styles.divider} />
 
                     <div className={styles.menuItem} onMouseEnter={() => setActiveSubmenu(null)} onClick={handleScreenshot}>
                         <span className={styles.itemContent}><Camera size={16} /><span>Screenshot canvas</span></span>
                     </div>
 
-                    {!showClearConfirm ? (
-                        <div className={`${styles.menuItem} ${styles.dangerItem}`} onMouseEnter={() => setActiveSubmenu(null)} onClick={() => setShowClearConfirm(true)}>
-                            <span className={styles.itemContent}><Trash2 size={16} /><span>Clear canvas</span></span>
-                        </div>
-                    ) : (
-                        <div className={styles.confirmItem} onMouseEnter={() => setActiveSubmenu(null)}>
-                            <span className={styles.confirmText}>Clear all nodes?</span>
-                            <div className={styles.confirmActions}>
-                                <button className={styles.confirmBtn} onClick={handleClearCanvas}>Yes</button>
-                                <button className={styles.confirmBtn} onClick={() => setShowClearConfirm(false)}>No</button>
-                            </div>
-                        </div>
-                    )}
+                    <div className={`${styles.menuItem} ${styles.dangerItem}`} onMouseEnter={() => setActiveSubmenu(null)} onClick={handleClearCanvas}>
+                        <span className={styles.itemContent}><Trash2 size={16} /><span>Clear canvas</span></span>
+                    </div>
                 </div>
 
                 {activeSubmenu === 'add-block' && (

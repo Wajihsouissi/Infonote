@@ -1,0 +1,49 @@
+/* Placeholder shown while an asset's bytes are read out of IndexedDB (or
+   pulled from cloud storage the first time). It takes the same className and
+   style as the media it stands in for, so nothing reflows when the real thing
+   arrives. */
+.pending {
+    display: block;
+    position: relative;
+    overflow: hidden;
+    background: var(--hover-wash);
+    border-radius: var(--media-radius);
+}
+
+.pending::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+        90deg,
+        transparent,
+        var(--active-wash),
+        transparent
+    );
+    animation: assetShimmer 1.5s infinite;
+}
+
+@keyframes assetShimmer {
+    100% { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pending::after { animation: none; }
+}
+
+/* The reference resolved to nothing — the bytes are not on this device and
+   could not be fetched. Says so rather than showing a broken-image glyph. */
+.missing {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 56px;
+    padding: 12px;
+    background: var(--hover-wash);
+    border: 1px dashed var(--line);
+    border-radius: var(--media-radius);
+    color: var(--text-faint);
+    font-size: 0.8125rem;
+    text-align: center;
+}

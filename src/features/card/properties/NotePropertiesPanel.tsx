@@ -6,7 +6,8 @@ import { UrlProperty } from './UrlProperty';
 import { PriorityProperty } from './PriorityProperty';
 import { AssigneeProperty } from './AssigneeProperty';
 import { ProgressProperty } from './ProgressProperty';
-import { SubtaskProperty } from './SubtaskProperty';
+import { TaskList } from '../tasks/TaskList';
+import { cardTasks } from '../cardTasks';
 import { AddPropertyMenu, getPropertyIcon } from './AddPropertyMenu';
 import styles from './Properties.module.css';
 
@@ -21,10 +22,11 @@ export function NotePropertiesPanel({ data, onUpdate }: NotePropertiesPanelProps
     const allProperties = [
         { key: 'status', label: 'Status' },
         { key: 'priority', label: 'Priority' },
+        { key: 'startDate', label: 'Start Date' },
         { key: 'dueDate', label: 'Due Date' },
         { key: 'assignee', label: 'Assignee' },
         { key: 'progress', label: 'Progress' },
-        { key: 'subtasks', label: 'Subtasks' },
+        { key: 'tasks', label: 'Tasks' },
         { key: 'url', label: 'URL' },
     ] as const;
 
@@ -37,6 +39,11 @@ export function NotePropertiesPanel({ data, onUpdate }: NotePropertiesPanelProps
     // we set it to a default non-null value (or empty string) so it persists.
 
     const isVisible = (key: string) => {
+        /* Tasks are the one property that can exist without its own field being
+           set: a checklist typed into the body IS a task list, and hiding the
+           section until someone happened to add a metadata task would leave the
+           panel disagreeing with the card. */
+        if (key === 'tasks') return cardTasks(data).length > 0 || Array.isArray(data.tasks);
         const val = data[key as keyof NoteData];
         return val !== undefined && val !== null;
     };
@@ -47,7 +54,7 @@ export function NotePropertiesPanel({ data, onUpdate }: NotePropertiesPanelProps
         if (key === 'status') defaultVal = 'todo';
         if (key === 'priority') defaultVal = 'medium';
         if (key === 'progress') defaultVal = 0;
-        if (key === 'subtasks') defaultVal = [];
+        if (key === 'tasks') defaultVal = [];
 
         onUpdate({ [key]: defaultVal } as Partial<NoteData>);
     };
@@ -86,6 +93,17 @@ export function NotePropertiesPanel({ data, onUpdate }: NotePropertiesPanelProps
                 />
             )}
 
+            {/* Start then due, in the order the pair reads — and both, so an
+                event on the hour grid can be given its two ends from here. */}
+            {isVisible('startDate') && (
+                <DateProperty
+                    label="Start Date"
+                    value={data.startDate}
+                    onChange={(v) => handleChange('startDate', v)}
+                    onHide={() => handleHide('startDate')}
+                />
+            )}
+
             {isVisible('dueDate') && (
                 <DateProperty
                     value={data.dueDate}
@@ -110,11 +128,11 @@ export function NotePropertiesPanel({ data, onUpdate }: NotePropertiesPanelProps
                 />
             )}
 
-            {isVisible('subtasks') && (
-                <SubtaskProperty
-                    subtasks={data.subtasks || []}
-                    onChange={(v) => handleChange('subtasks', v)}
-                />
+            {/* The same list the metadata panel and the task modal show, so a
+                checklist typed into the body appears here too and the three
+                surfaces cannot disagree about what a task is. */}
+            {isVisible('tasks') && (
+                <TaskList data={data} onPatch={onUpdate} dense />
             )}
 
             {isVisible('url') && (

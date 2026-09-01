@@ -170,7 +170,7 @@ export function FlowStateIllustration() {
                       width: '20px', 
                       height: '20px', 
                       borderRadius: '50%', 
-                      background: 'var(--t-blue)', 
+                      background: 'var(--t-charcoal)',
                       display: 'flex', 
                       alignItems: 'center', 
                       justifyContent: 'center', 

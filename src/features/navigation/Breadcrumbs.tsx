@@ -19,12 +19,16 @@ export function Breadcrumbs() {
                             className={`${styles.crumb} ${isLast ? styles.active : ''}`}
                             onClick={() => !isLast && navigateToNode(crumb.id)}
                             disabled={isLast}
+                            aria-label={index === 0 ? 'Canvas home' : crumb.label}
                         >
                             {index === 0 ? (
-                                <Home size={14} />
+                                <>
+                                    <Home size={14} />
+                                    <span className={styles.rootLabel}>Canvas</span>
+                                </>
                             ) : (
                                 <>
-                                    <span>{crumb.label}</span>
+                                    <span className={styles.label}>{crumb.label}</span>
                                     <span className={styles.levelBadge}>{index + 1}</span>
                                 </>
                             )}

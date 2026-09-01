@@ -6,6 +6,8 @@ import styles from './BlockLodBody.module.css';
 interface BlockLodBodyProps {
     /** Blocks to represent. */
     blocks: Block[];
+    /** Match the editor mode and content inset of the hosting canvas node. */
+    surface?: 'canvas' | 'single' | 'fused';
 }
 
 /**
@@ -16,12 +18,20 @@ interface BlockLodBodyProps {
  * writes the node's measured style back into the store. At the default
  * zoomed-out "first LOD" a whole workspace is visible at once, so culling has
  * nothing to remove and the *per-card* cost decides whether navigation stays
- * at 60fps. Below full detail the node draws a wireframe of its real blocks.
+ * at 60fps. Inactive nodes use a small semantic preview instead of a raster
+ * capture, so navigation never triggers background screenshot work.
  */
-export const BlockLodBody = memo(function BlockLodBody({ blocks }: BlockLodBodyProps) {
+export const BlockLodBody = memo(function BlockLodBody({
+    blocks,
+    surface = 'canvas',
+}: BlockLodBodyProps) {
     return (
-        <div className={styles.previewWrap}>
-            <NoteBodyPreview content={blocks} scaleMode="canvas" />
+        <div className={`${styles.previewWrap} ${styles[surface]}`} data-block-lod-surface={surface}>
+            <NoteBodyPreview
+                content={blocks}
+                scaleMode={surface === 'fused' ? 'card' : 'canvas'}
+                nodeSurface={surface === 'single' ? 'single' : undefined}
+            />
         </div>
     );
 });

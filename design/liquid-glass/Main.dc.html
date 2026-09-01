@@ -1,0 +1,366 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #ff5040; text-decoration: none; }
+    a:hover { color: #f365c0; }
+
+    /* ---- Charcoal & Signal tokens, lifted from src/styles/design-system.css ---- */
+    .ink {
+      --shell-bg: #121212;
+      --bg-inset: #000000;
+      --bg-base: #090909;
+      --bg-rail: #121212;
+      --bg-card: #1a1a1a;
+      --bg-raised: #242424;
+      --canvas-bg: #0d0d0d;
+      --dot: rgba(255, 255, 255, 0.18);
+      --text-main: #ffffff;
+      --text-soft: #e6e6e6;
+      --text-faint: #a3a3a3;
+      --line: rgba(255, 255, 255, 0.10);
+      --line-strong: rgba(255, 255, 255, 0.18);
+      --line-heavy: rgba(255, 255, 255, 0.28);
+      --action: #ff5040;
+      --highlight: #f365c0;
+      --citrine: #c3ff33;
+      --ok: #5ac875;
+      --font-sans: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      font-family: var(--font-sans);
+      color: var(--text-main);
+    }
+
+    /* ---- The liquid layer ----
+       Four stacked effects, in the order light meets them:
+         1  .lg::before  specular  — where the light source sits on the bezel
+         2  .lg .refract refraction — a displacement map bends the desk at the rim
+         3  .lg          body      — backdrop blur + saturation, the frosted core
+         4  .lg::after   rim       — 1px chromatic edge in coral -> pink
+       Every one of them degrades on its own: no displacement support leaves a
+       frosted panel with a lit bezel, which is still the material. */
+    .lg {
+      position: relative;
+      isolation: isolate;
+      background:
+        linear-gradient(177deg,
+          rgba(255, 255, 255, 0.11) 0%,
+          rgba(255, 255, 255, 0.028) 46%,
+          rgba(255, 255, 255, 0.062) 100%);
+      backdrop-filter: blur(20px) saturate(200%) brightness(1.07);
+      -webkit-backdrop-filter: blur(20px) saturate(200%) brightness(1.07);
+      box-shadow:
+        inset 0 1.2px 0 rgba(255, 255, 255, 0.44),
+        inset 1px 0 0 rgba(255, 255, 255, 0.15),
+        inset -1px 0 0 rgba(255, 255, 255, 0.09),
+        inset 0 -1.2px 0 rgba(255, 255, 255, 0.20),
+        inset 0 0 26px rgba(255, 255, 255, 0.045),
+        0 1px 0 rgba(0, 0, 0, 0.6),
+        0 16px 38px rgba(0, 0, 0, 0.5);
+      corner-shape: superellipse(2);
+    }
+
+    /* Specular — a light source above and to the left, plus its weaker bounce
+       returning off the bottom-right of the bezel. */
+    .lg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      corner-shape: inherit;
+      pointer-events: none;
+      z-index: 1;
+      background:
+        radial-gradient(125% 90% at 14% -30%, rgba(255, 255, 255, 0.30), rgba(255, 255, 255, 0) 58%),
+        radial-gradient(95% 70% at 86% 130%, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0) 62%);
+    }
+
+    /* Rim dispersion. Real glass splits light at the edge; a rainbow would be
+       somebody else's brand, so the split runs between the two colours this
+       app already owns — Hot Coral into the pink highlight. */
+    .lg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      corner-shape: inherit;
+      padding: 1.2px;
+      pointer-events: none;
+      z-index: 2;
+      background: linear-gradient(133deg,
+        rgba(255, 80, 64, 0.62) 0%,
+        rgba(255, 255, 255, 0.30) 16%,
+        rgba(255, 255, 255, 0.04) 40%,
+        rgba(255, 255, 255, 0.04) 62%,
+        rgba(255, 255, 255, 0.22) 84%,
+        rgba(243, 101, 192, 0.58) 100%);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      mask-composite: exclude;
+    }
+
+    /* Refraction. Not a blur with a white overlay: an SVG displacement map
+       samples the backdrop off-centre at the bezel, so the desk grid visibly
+       bends as it passes under an edge. Chromium only — elsewhere this layer
+       is inert and the frosted core carries the panel. */
+    .refract {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      corner-shape: inherit;
+      pointer-events: none;
+      z-index: 0;
+      backdrop-filter: url(#lens-lg);
+      -webkit-backdrop-filter: url(#lens-lg);
+    }
+    .refract.sm { backdrop-filter: url(#lens-sm); -webkit-backdrop-filter: url(#lens-sm); }
+
+    .lg > .content { position: relative; z-index: 3; }
+
+    /* Chrome controls sitting inside a glass cluster */
+    .ctl {
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 16px; corner-shape: superellipse(2);
+      color: var(--text-soft);
+    }
+    .ctl.on { background: rgba(255, 255, 255, 0.12); color: var(--text-main); }
+    .ctl svg { width: 17px; height: 17px; }
+
+    /* Note card — deliberately NOT glass. See Material.dc.html. */
+    .card {
+      background: var(--bg-rail);
+      border-radius: 32px;
+      corner-shape: superellipse(2);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.28),
+        0 1px 3px rgba(0, 0, 0, 0.35),
+        0 1px 2px rgba(0, 0, 0, 0.25);
+      color: var(--text-main);
+    }
+    .card.sel {
+      box-shadow:
+        0 0 0 2px #ff5040,
+        0 6px 16px rgba(0, 0, 0, 0.40),
+        0 12px 28px rgba(0, 0, 0, 0.35);
+    }
+    .chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      height: 22px; padding: 0 9px;
+      border-radius: 999px;
+      font-size: 11px; font-weight: 500; letter-spacing: 0.01em;
+    }
+    .ln { height: 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.13); }
+  </style>
+</helmet>
+
+<div class="ink" style="width: 1440px; height: 900px; position: relative; background: #121212; overflow: hidden">
+
+  <!-- ============ the desk ============
+       The canvas frame now runs full-bleed under the chrome. That is the one
+       structural change the material demands: glass laid over an opaque
+       #121212 bar refracts nothing, so the bar has to float on the desk. -->
+  <div style="position: absolute; inset: 12px; border-radius: 40px; corner-shape: superellipse(2); overflow: hidden; background: #0d0d0d">
+
+    <!-- dot grid -->
+    <div style="position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.18) 1px, transparent 1px); background-size: 24px 24px; background-position: -1px -1px"></div>
+
+    <!-- a slow coral/pink wash so the glass has colour to refract, at the
+         opacity the design system allows highlights on chrome -->
+    <div style="position: absolute; inset: 0; background: radial-gradient(680px 460px at 22% 78%, rgba(255,80,64,0.13), transparent 70%), radial-gradient(560px 420px at 84% 22%, rgba(243,101,192,0.10), transparent 72%)"></div>
+
+    <!-- edges -->
+    <svg style="position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible" fill="none">
+      <path d="M 430 372 C 500 372, 500 250, 566 250" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"></path>
+      <path d="M 430 400 C 510 400, 500 500, 566 500" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"></path>
+      <path d="M 430 430 C 520 430, 540 690, 610 690" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"></path>
+      <path d="M 890 250 C 950 250, 960 330, 1010 330" stroke="#ff5040" stroke-width="2"></path>
+    </svg>
+
+    <!-- ---------- hub card (expanded) ---------- -->
+    <div class="card" style="position: absolute; left: 96px; top: 196px; width: 334px; padding: 18px; display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <div style="width: 30px; height: 30px; border-radius: 10px; corner-shape: superellipse(2); background: rgba(255,80,64,0.16); display: flex; align-items: center; justify-content: center; color: #ff5040">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4.5"></circle><circle cx="12" cy="12" r="1"></circle></svg>
+        </div>
+        <div style="font-size: 15px; font-weight: 600; letter-spacing: -0.01em">Deutsch B2 — Lernzentrale</div>
+      </div>
+      <div style="background: #090909; border-radius: 16px; corner-shape: superellipse(2); padding: 14px; display: flex; flex-direction: column; gap: 11px">
+        <div style="font-size: 12.5px; line-height: 1.55; color: #a3a3a3">Grammatik links, Wortschatz in der Mitte, Fertigkeiten rechts.</div>
+        <div style="display: flex; gap: 9px; align-items: flex-start; padding: 11px; border-radius: 12px; corner-shape: superellipse(2); background: rgba(255,80,64,0.10)">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#ff5040" stroke-width="1.8" stroke-linecap="round" style="flex: none; margin-top: 1px"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="3.5"></circle></svg>
+          <div style="font-size: 12px; line-height: 1.5; color: #e6e6e6">Ziel: Goethe-Zertifikat B2 — alle vier Module in einem Durchgang.</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 7px">
+          <div class="ln" style="width: 100%"></div>
+          <div class="ln" style="width: 86%"></div>
+          <div class="ln" style="width: 62%"></div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap">
+        <span class="chip" style="background: rgba(255,80,64,0.16); color: #ff5040">Hub</span>
+        <span class="chip" style="background: rgba(255,255,255,0.07); color: #a3a3a3">14 Karten</span>
+        <span class="chip" style="background: rgba(90,200,117,0.16); color: #5ac875">Aktiv</span>
+      </div>
+    </div>
+
+    <!-- ---------- grammar card (selected) ---------- -->
+    <div class="card sel" style="position: absolute; left: 566px; top: 196px; width: 324px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <div style="width: 28px; height: 28px; border-radius: 9px; corner-shape: superellipse(2); background: rgba(243,101,192,0.16); display: flex; align-items: center; justify-content: center; color: #f365c0">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"></path><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"></path></svg>
+        </div>
+        <div style="font-size: 14px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3">Konjunktiv II — Höflichkeit,<br>Irrealität, Wunsch</div>
+      </div>
+      <div style="background: #090909; border-radius: 14px; corner-shape: superellipse(2); padding: 12px; display: flex; flex-direction: column; gap: 8px">
+        <div style="font-size: 12px; line-height: 1.5; color: #e6e6e6">wäre · hätte · könnte · würde + Infinitiv</div>
+        <div class="ln" style="width: 92%"></div>
+        <div class="ln" style="width: 70%"></div>
+      </div>
+      <div style="display: flex; gap: 6px">
+        <span class="chip" style="background: rgba(243,101,192,0.16); color: #f365c0">Grammatik</span>
+        <span class="chip" style="background: rgba(195,255,51,0.14); color: #c3ff33">Wiederholen</span>
+      </div>
+    </div>
+
+    <!-- ---------- vocabulary card (medium) ---------- -->
+    <div class="card" style="position: absolute; left: 566px; top: 446px; width: 280px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; align-items: center; gap: 9px">
+        <div style="width: 26px; height: 26px; border-radius: 9px; corner-shape: superellipse(2); background: rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; color: #a3a3a3">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"></path></svg>
+        </div>
+        <div style="font-size: 13.5px; font-weight: 600">Wortschatz: Arbeit &amp; Beruf</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <div class="ln" style="width: 100%"></div>
+        <div class="ln" style="width: 74%"></div>
+      </div>
+      <div style="display: flex; gap: 6px; align-items: center">
+        <span class="chip" style="background: rgba(255,255,255,0.07); color: #a3a3a3">48 Begriffe</span>
+      </div>
+    </div>
+
+    <!-- ---------- error log (title only) ---------- -->
+    <div class="card" style="position: absolute; left: 610px; top: 654px; width: 236px; padding: 12px 14px; display: flex; align-items: center; gap: 10px">
+      <div style="width: 24px; height: 24px; border-radius: 8px; corner-shape: superellipse(2); background: rgba(245,67,11,0.18); display: flex; align-items: center; justify-content: center; color: #f5430b">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 4.5 21 19.5H3z"></path><path d="M12 10v4"></path><path d="M12 17h.01"></path></svg>
+      </div>
+      <div style="font-size: 13px; font-weight: 500">Fehlerlogbuch</div>
+    </div>
+
+    <!-- ---------- folder card ---------- -->
+    <div class="card" style="position: absolute; left: 1010px; top: 268px; width: 254px; padding: 14px; display: flex; flex-direction: column; gap: 11px">
+      <div style="height: 92px; border-radius: 14px; corner-shape: superellipse(2); background: linear-gradient(145deg, rgba(243,101,192,0.30), rgba(255,80,64,0.16)); position: relative; overflow: hidden">
+        <div style="position: absolute; left: 14px; bottom: 12px; width: 34px; height: 34px; border-radius: 11px; corner-shape: superellipse(2); background: rgba(0,0,0,0.42); display: flex; align-items: center; justify-content: center; color: #fff">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2.5h8.5A1.5 1.5 0 0 1 21 10v7.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"></path></svg>
+        </div>
+      </div>
+      <div style="font-size: 13.5px; font-weight: 600">Modellsatz-Training</div>
+      <div style="font-size: 11.5px; color: #a3a3a3">4 Karten · zuletzt heute</div>
+    </div>
+
+    <!-- ---------- contextual toolbar over the selection: GLASS over content ---------- -->
+    <div class="lg" style="position: absolute; left: 566px; top: 402px; height: 44px; padding: 5px; border-radius: 999px; display: flex; align-items: center; gap: 2px">
+      <div class="refract sm"></div>
+      <div class="content" style="display: flex; align-items: center; gap: 2px">
+        <div class="ctl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15.5V19a1 1 0 0 0 1 1h3.5L19 9.5 14.5 5z"></path><path d="M13 6.5 17.5 11"></path></svg></div>
+        <div class="ctl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v8M8 12h8"></path></svg></div>
+        <div class="ctl" style="color: #ff5040"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 14.4 9.3l5.6.4-4.3 3.8 1.4 5.6L12 16l-5.1 3.1 1.4-5.6L4 9.7l5.6-.4z"></path></svg></div>
+        <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.16); margin: 0 4px"></div>
+        <div class="ctl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="12" r="1.4"></circle><circle cx="12" cy="12" r="1.4"></circle><circle cx="17" cy="12" r="1.4"></circle></svg></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ floating chrome ============ -->
+
+  <!-- top bar: left clusters -->
+  <div style="position: absolute; left: 32px; top: 28px; display: flex; align-items: center; gap: 8px">
+    <div class="lg" style="height: 40px; padding: 3px; border-radius: 16px; display: flex; align-items: center; gap: 2px">
+      <div class="refract sm"></div>
+      <div class="content" style="display: flex; align-items: center; gap: 2px">
+        <div class="ctl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4v-5h-6v5H5a1 1 0 0 1-1-1z"></path></svg></div>
+        <div class="ctl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7 4 11l4 4"></path><path d="M4 11h9a6 6 0 0 1 0 12h-1"></path></svg></div>
+        <div class="ctl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7l4 4-4 4"></path><path d="M20 11h-9a6 6 0 0 0 0 12h1"></path></svg></div>
+      </div>
+    </div>
+    <div class="lg" style="height: 40px; padding: 3px 12px; border-radius: 16px; display: flex; align-items: center; gap: 7px">
+      <div class="refract sm"></div>
+      <div class="content" style="display: flex; align-items: center; gap: 7px; font-size: 13px">
+        <span style="color: #a3a3a3">Home</span>
+        <span style="color: rgba(255,255,255,0.28)">/</span>
+        <span style="color: #a3a3a3">Deutsch B2</span>
+        <span style="color: rgba(255,255,255,0.28)">/</span>
+        <span style="color: #ffffff; font-weight: 500">Grammatik</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- top bar: right clusters -->
+  <div style="position: absolute; right: 32px; top: 28px; display: flex; align-items: center; gap: 8px">
+    <div class="lg" style="height: 40px; padding: 3px 12px 3px 10px; border-radius: 16px; display: flex; align-items: center; gap: 7px">
+      <div class="refract sm"></div>
+      <div class="content" style="display: flex; align-items: center; gap: 7px">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#5ac875" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 18h10.2a3.8 3.8 0 0 0 .6-7.55A5.5 5.5 0 0 0 6.6 9.6 4.2 4.2 0 0 0 6.5 18z"></path><path d="M9.8 13.6 11.4 15l3-3.2"></path></svg>
+        <span style="font-size: 12.5px; color: #e6e6e6; font-weight: 500">Saved</span>
+      </div>
+    </div>
+    <div class="lg" style="height: 40px; padding: 3px; border-radius: 16px; display: flex; align-items: center; gap: 2px">
+      <div class="refract sm"></div>
+      <div class="content" style="display: flex; align-items: center; gap: 2px">
+        <div class="ctl on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"></path></svg></div>
+        <div class="ctl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg></div>
+        <div class="ctl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 3.5v2.2M12 18.3v2.2M20.5 12h-2.2M5.7 12H3.5M18 6l-1.6 1.6M7.6 16.4 6 18M18 18l-1.6-1.6M7.6 7.6 6 6"></path></svg></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- bottom rail + AI dock -->
+  <div style="position: absolute; left: 0; right: 0; bottom: 36px; display: flex; justify-content: center; align-items: center; gap: 12px">
+    <div class="lg" style="height: 60px; padding: 6px; border-radius: 999px; display: flex; align-items: center; gap: 4px">
+      <div class="refract"></div>
+      <div class="content" style="display: flex; align-items: center; gap: 4px">
+        <div class="ctl" style="width: 48px; height: 48px; border-radius: 20px"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg></div>
+        <div style="width: 48px; height: 48px; border-radius: 20px; corner-shape: superellipse(2); background: #ff5040; color: #000; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(255,80,64,0.45)">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+        </div>
+        <div class="ctl" style="width: 48px; height: 48px; border-radius: 20px"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"></rect><path d="M3.5 9.5h17M9 9.5v10"></path></svg></div>
+        <div class="ctl" style="width: 48px; height: 48px; border-radius: 20px"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.8 20 8l-8 4.2L4 8z"></path><path d="m4 12 8 4.2L20 12"></path><path d="m4 16 8 4.2L20 16"></path></svg></div>
+        <div class="ctl" style="width: 48px; height: 48px; border-radius: 20px"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M7 12h10M10 18h4"></path></svg></div>
+      </div>
+    </div>
+    <div class="lg" style="width: 60px; height: 60px; border-radius: 999px; display: flex; align-items: center; justify-content: center">
+      <div class="refract"></div>
+      <div class="content" style="display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 20px; corner-shape: superellipse(2); background: linear-gradient(145deg, rgba(255,80,64,0.28), rgba(243,101,192,0.28)); color: #fff">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 13.9 8.6 19 10.5l-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z"></path><path d="M18.5 16.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"></path></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- displacement maps: R encodes horizontal offset, B vertical; mid-grey is
+       no displacement, so only the bezel bands actually bend anything -->
+  <svg width="0" height="0" style="position: absolute; pointer-events: none" aria-hidden="true">
+    <filter id="lens-lg" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feImage preserveAspectRatio="none" result="map" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='120' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='x' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='rgb(255,0,0)'/%3E%3Cstop offset='0.14' stop-color='rgb(128,0,0)'/%3E%3Cstop offset='0.86' stop-color='rgb(128,0,0)'/%3E%3Cstop offset='1' stop-color='rgb(0,0,0)'/%3E%3C/linearGradient%3E%3ClinearGradient id='y' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='rgb(0,0,255)'/%3E%3Cstop offset='0.3' stop-color='rgb(0,0,128)'/%3E%3Cstop offset='0.7' stop-color='rgb(0,0,128)'/%3E%3Cstop offset='1' stop-color='rgb(0,0,0)'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='300' height='120' fill='url(%23x)'/%3E%3Crect width='300' height='120' fill='url(%23y)' style='mix-blend-mode:screen'/%3E%3C/svg%3E"></feImage>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="26" xChannelSelector="R" yChannelSelector="B"></feDisplacementMap>
+    </filter>
+    <filter id="lens-sm" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feImage preserveAspectRatio="none" result="map" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='120' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='x' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='rgb(255,0,0)'/%3E%3Cstop offset='0.2' stop-color='rgb(128,0,0)'/%3E%3Cstop offset='0.8' stop-color='rgb(128,0,0)'/%3E%3Cstop offset='1' stop-color='rgb(0,0,0)'/%3E%3C/linearGradient%3E%3ClinearGradient id='y' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='rgb(0,0,255)'/%3E%3Cstop offset='0.34' stop-color='rgb(0,0,128)'/%3E%3Cstop offset='0.66' stop-color='rgb(0,0,128)'/%3E%3Cstop offset='1' stop-color='rgb(0,0,0)'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='300' height='120' fill='url(%23x)'/%3E%3Crect width='300' height='120' fill='url(%23y)' style='mix-blend-mode:screen'/%3E%3C/svg%3E"></feImage>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="14" xChannelSelector="R" yChannelSelector="B"></feDisplacementMap>
+    </filter>
+  </svg>
+
+</div>
+</x-dc>
+</body>
+</html>

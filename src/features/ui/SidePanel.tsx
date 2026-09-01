@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../../store/useStore';
-import { BlockEditor } from '../editor/BlockEditor';
-import { NoteExpandedContent } from '../card/NoteExpandedContent';
+import { getNodeById } from '../../store/nodeIndex';
 import { SidePeek } from './SidePeek';
-import { getNodeBlocks } from '../../types';
+import { resolvePeekContent } from './peekContent';
 
 interface SidePanelProps {
     nodeId: string | null;
@@ -13,24 +12,40 @@ interface SidePanelProps {
 
 export function SidePanel({ nodeId, side, onClose }: SidePanelProps) {
     // Atomic Selectors
-    const nodes = useStore(s => s.nodes);
     const updateNodeData = useStore(s => s.updateNodeData);
 
     const [cachedNodeId, setCachedNodeId] = useState<string | null>(nodeId);
+    const returnFocusRef = useRef<HTMLElement | null>(null);
+    const wasOpenRef = useRef(false);
 
     // Keep the last valid nodeId around so we can animate out smoothly
     useEffect(() => {
         if (nodeId) {
+            // The last node intentionally stays rendered for SidePeek's exit
+            // animation; this state is an animation snapshot of the prop.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setCachedNodeId(nodeId);
         }
     }, [nodeId]);
 
-    const activeNode = nodes.find(n => n.id === (nodeId || cachedNodeId));
+    useEffect(() => {
+        if (nodeId && !wasOpenRef.current) {
+            returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        } else if (!nodeId && wasOpenRef.current) {
+            const target = returnFocusRef.current;
+            window.requestAnimationFrame(() => target?.focus({ preventScroll: true }));
+            returnFocusRef.current = null;
+        }
+        wasOpenRef.current = Boolean(nodeId);
+    }, [nodeId]);
+
+    const activeNodeId = nodeId || cachedNodeId;
+    const activeNode = useStore(s => getNodeById(s.nodes, activeNodeId ?? undefined));
 
     // If we have nothing to render at all, return early
     if (!activeNode) return null;
 
-    const currentId = nodeId || cachedNodeId;
+    const currentId = activeNodeId;
 
     return (
         <SidePeek
@@ -39,6 +54,7 @@ export function SidePanel({ nodeId, side, onClose }: SidePanelProps) {
             side={side}
             width="40vw"
             hideHeader={true}
+            fullscreenOnNarrow={activeNode.type === 'youtube'}
         >
             <div style={{ 
                 height: '100%', 
@@ -46,26 +62,14 @@ export function SidePanel({ nodeId, side, onClose }: SidePanelProps) {
                 overflow: 'hidden',
                 backgroundColor: 'var(--modal-bg)'
             }}>
-                {activeNode.type === 'note' ? (
-                    <NoteExpandedContent
-                        id={currentId!}
-                        nodeId={currentId!}
-                        data={activeNode.data}
-                        onUpdate={updateNodeData}
-                        onClose={onClose}
-                        flatCorners={true}
-                    />
-                ) : (
-                    <div style={{ height: '100%', padding: '20px', overflowY: 'auto' }}>
-                        <BlockEditor
-                            key={currentId!}
-                            nodeId={currentId!}
-                            initialContent={getNodeBlocks(activeNode.data)}
-                            onUpdate={(blocks) => updateNodeData(currentId!, { content: blocks })}
-                            autoFocus={true}
-                        />
-                    </div>
-                )}
+                {resolvePeekContent({
+                    node: activeNode,
+                    nodeId: currentId!,
+                    onUpdate: updateNodeData,
+                    onClose,
+                    flatCorners: true,
+                    editorStyle: { height: '100%', padding: '20px', overflowY: 'auto' },
+                })}
             </div>
         </SidePeek>
     );

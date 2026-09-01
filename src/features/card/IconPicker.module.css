@@ -143,40 +143,6 @@
     flex-shrink: 0; /* Never shrink the header */
 }
 
-/* Tabs */
-.tabs {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--bg-inset);
-    padding: 4px;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--line);
-}
-
-.tabBtn {
-    background: transparent !important;
-    border: none !important;
-    color: var(--color-text-muted);
-    font-size: 0.82rem;
-    font-weight: 500;
-    padding: 6px 12px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition: all 0.2s;
-    outline: none;
-}
-
-.tabBtn:hover {
-    color: var(--color-text-main);
-}
-
-.tabActive {
-    background: var(--active-wash) !important;
-    color: var(--color-text-main);
-    box-shadow: none;
-}
-
 .closeBtn {
     background: transparent !important;
     border: none !important;

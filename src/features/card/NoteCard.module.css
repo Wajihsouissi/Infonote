@@ -1,21 +1,19 @@
 .card {
     border-radius: var(--r-panel);
-    background: var(--bg-rail);
+    background: var(--node-bg);
+    /* Both for the cover-ambient layer below: `relative` gives it something to
+       size against, `isolate` makes the card its own stacking context so that
+       layer's z-index: -1 lands between the card's background and its content
+       instead of behind the card entirely. Verified not to move the connection
+       handle, which was already anchored to a box of these dimensions. */
+    position: relative;
+    isolation: isolate;
 
-    /* How much of the accent each surface takes when a card is recoloured.
-       Equal on purpose. The two surfaces are already separated by their own
-       grounds — the card sits on --bg-rail, the editor well on the darker
-       --bg-base — so mixing the same amount of hue into each adds the colour
-       without touching the structure: the well stays the recess it is on an
-       uncoloured card.
-
-       Tinting the well harder was the obvious first move and it is wrong. At 22%
-       against the darker base it came out *lighter* than the card and the recess
-       inverted — the well read as raised. Worse, whether it inverts depends on
-       the hue's own lightness, so a palette of ten would have had some cards
-       right and some wrong. Equal mixes hold on every hue and in both themes. */
-    --tint-card: 14%;
-    --tint-well: 14%;
+    /* Recolouring used to mix the hue INTO this surface (14%, then 22%). Both
+       were tinted greys: mixing into grey keeps only a fraction of the hue's
+       chroma, so a coral card came out brown. The recoloured surfaces are now
+       built as colours instead — see `--node-tint-*` in design-system.css and
+       the [data-accented] rules below. The mix percentages are gone with it. */
 
     /* Paper & Ink node: a hairline ring and (optional) contact shadow — a
        quiet paper slip on the desk. Regular cards carry NO accent line;
@@ -32,6 +30,54 @@
     flex-direction: column;
 }
 
+/* ---- cover ambient ----
+   The cover image again, scaled past the edges and blurred until it is a field
+   of colour rather than a picture, laid under the card so the FRAME picks up
+   the image's light. The note well paints over it — the writing surface stays
+   flat and legible, and only the border of the card carries the colour.
+
+   Clipped by its own wrapper rather than `overflow: hidden` on the card: the
+   connection handle sits at top: -7px, outside the card box, and clipping the
+   card would cut it off. */
+.coverAmbientClip {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+.coverAmbient {
+    --cover-ambient-scale: 1.7;
+    --cover-ambient-blur: 56px;
+    --cover-ambient-opacity: 0.30;
+
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(var(--cover-ambient-scale));
+    filter: blur(var(--cover-ambient-blur)) saturate(1.3);
+    opacity: var(--cover-ambient-opacity);
+    /* Strongest at the top, where the real cover sits, and fading out down the
+       card so the ambient never competes with the text below it. */
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 40%, rgba(0, 0, 0, 0.34) 76%, rgba(0, 0, 0, 0.08) 100%);
+    mask-image: linear-gradient(180deg, #000 0%, #000 40%, rgba(0, 0, 0, 0.34) 76%, rgba(0, 0, 0, 0.08) 100%);
+}
+
+/* Paper takes less of it: a blurred image over white washes out to a pale
+   smear at Ink's strength, and the page should still read as paper. */
+:global([data-theme='light']) .coverAmbient {
+    --cover-ambient-opacity: 0.21;
+    filter: blur(var(--cover-ambient-blur)) saturate(1.15);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .coverAmbient { transition: none; }
+}
+
 /* A recoloured card. The flag is a data attribute rather than a test on the
    inline style text: `--node-accent` is set through the style object, and
    matching it with [style*=…] would be a string search over a value React is
@@ -39,7 +85,21 @@
    exactly as it was. Mixing against the card's own ground rather than replacing
    it means the hue reads on both Ink and Paper without a second rule. */
 .card[data-accented] {
-    background: color-mix(in srgb, var(--node-accent) var(--tint-card), var(--bg-rail));
+    background: oklch(from var(--node-accent) var(--node-tint-l) var(--node-tint-c) h);
+    /* A wash can only ever be a tinted grey — mixing any hue into a dark card
+       costs it most of its chroma, so the surface alone will never read "coral"
+       or "yellow". The ring is where the hue gets to be itself at something
+       near full strength: one hairline, no new element, and it leaves the fused
+       document node's left binding as that node's own signature. */
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--node-accent) 62%, transparent),
+        var(--node-shadow-rest);
+}
+
+.card[data-accented]:hover {
+    box-shadow:
+        0 0 0 1.5px color-mix(in srgb, var(--node-accent) 78%, transparent),
+        var(--node-shadow-hover);
 }
 
 /* The editor well takes the deeper shade of the same hue, so the page you type
@@ -47,7 +107,7 @@
    well at the medium size, so it follows the same rule. */
 .card[data-accented] .noteArea,
 .card[data-accented] .mediumDescContainer {
-    background: color-mix(in srgb, var(--node-accent) var(--tint-well), var(--bg-base));
+    background: oklch(from var(--node-accent) var(--node-well-tint-l) var(--node-well-tint-c) h);
 }
 
 .card:hover {
@@ -652,18 +712,14 @@
     overflow: hidden;
     border-radius: var(--r-panel);
     contain: layout paint style;
-    /* Expanded cards are also used in Center Peek, side panels and fullscreen,
-       where there is no `.card` ancestor to supply this surface tint. */
-    --tint-card: 14%;
-    --tint-well: 14%;
 }
 
 .expandedView[data-accented] {
-    background: color-mix(in srgb, var(--node-accent) var(--tint-card), var(--bg-rail));
+    background: oklch(from var(--node-accent) var(--node-tint-l) var(--node-tint-c) h);
 }
 
 .expandedView[data-accented] .noteArea {
-    background: color-mix(in srgb, var(--node-accent) var(--tint-well), var(--bg-base));
+    background: oklch(from var(--node-accent) var(--node-well-tint-l) var(--node-well-tint-c) h);
 }
 
 /* Restored Cover Image Styles */
@@ -967,7 +1023,7 @@
     contain: layout paint style;
 
     /* Inner card styling */
-    background: var(--bg-inset);
+    background: var(--node-well-bg);
     border: none !important;
     box-shadow: none !important;
     outline: none !important;
@@ -1241,7 +1297,7 @@
     min-width: 0;
 
     /* Visual Separation - use dynamic override or default */
-    background: var(--bg-base);
+    background: var(--node-well-bg);
     border-radius: var(--r-lg);
     /* Allow glass to show through (Dark) or Solid (Light) */
     border-top: none;
@@ -1500,6 +1556,14 @@
     pointer-events: auto;
 }
 
+/* The card menu is a real keyboard control, not a hover-only affordance. A
+   tab into one of its buttons must reveal the menu before the user acts. */
+.card:focus-within .hoverMenu {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
 .menuBtn {
     background: transparent;
     border: none;
@@ -1518,6 +1582,42 @@
     background: var(--hover-wash);
     color: var(--text-main);
     transform: scale(1.1);
+}
+
+/* A coarse pointer has no hover. Show a single, generously-sized open action
+   after the card is selected; showing the whole desktop action strip on every
+   card would cover the canvas and make dragging unreliable. */
+@media (hover: none), (pointer: coarse) {
+    .card.selected .hoverMenu {
+        top: 8px;
+        right: 8px;
+        left: auto;
+        margin: 0;
+        height: auto;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+        transform: none;
+        opacity: 1;
+        pointer-events: auto;
+        transform-origin: top right;
+    }
+
+    .card.selected .hoverMenu > :not(:last-child) {
+        display: none;
+    }
+
+    .card.selected .hoverMenu > :last-child {
+        width: 44px !important;
+        min-width: 44px !important;
+        height: 44px !important;
+        min-height: 44px !important;
+    }
+
+    .hoverMenu::after {
+        display: none;
+    }
 }
 
 /* Custom Resize Handle */
@@ -2188,4 +2288,171 @@
     height: 120px;
     margin-top: 12px;
     border-radius: var(--radius-md);
+}
+
+/* ── Compact header (FEATURES.compactCardMeta) ───────────────────────────
+   The roomy header stacks: a 65px icon tile with a settings pill beneath it,
+   a 24px title beside them, then a padded description block. That is 77px of
+   chrome before the note starts. Here the icon sits ON the title line and the
+   description is one clamped line under it — the same three pieces, ~44px.
+   The cover section above is untouched. */
+.compactMetadata {
+    gap: 4px;
+    padding-bottom: 4px;
+}
+
+.compactHeader {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 0 24px;
+    margin-top: -20px;
+    /* Still overlaps the cover, just by less than the tall header did. */
+}
+
+.compactIconButton {
+    width: 40px;
+    height: 40px;
+    background: var(--bg-card);
+    border: none;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+    padding: 0;
+    color: var(--text-main);
+    transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), background-color 0.2s ease;
+    z-index: 2;
+}
+
+.compactIconButton svg {
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.18));
+}
+
+.compactTitleInput {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    padding: 3px 7px;
+    color: var(--text-main);
+    font-size: 1.3rem;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    outline: none;
+    border-radius: var(--radius-sm);
+    cursor: text;
+    transition: background-color 0.2s ease;
+}
+
+.compactTitleInput:hover {
+    background: var(--hover-wash);
+}
+
+.compactTitleInput:focus {
+    background: var(--active-wash);
+}
+
+.compactTitleInput::placeholder {
+    color: var(--text-soft);
+    opacity: 0.4;
+}
+
+/* The old "Shown / Hidden" pill said which state it was in with a word and
+   held a permanent slot. As an icon on the title line it costs 26px and only
+   shows up when you are already looking at the header. */
+.compactIconToggle {
+    flex: none;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-faint);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.compactHeader:hover .compactIconToggle,
+.compactIconToggle:focus-visible,
+.compactIconToggle[aria-pressed='true'] {
+    opacity: 1;
+}
+
+.compactIconToggle:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.compactIconToggle[aria-pressed='true'] {
+    color: var(--text-soft);
+}
+
+.compactDescEdit {
+    margin: 0 24px;
+    width: calc(100% - 48px);
+    background: transparent;
+    border: none;
+    padding: 0 7px;
+    color: var(--text-soft);
+    font-family: inherit;
+    font-size: 0.82rem;
+    line-height: 20px;
+    resize: none;
+    overflow: hidden;
+    outline: none;
+    border-radius: var(--radius-sm);
+    cursor: text;
+    transition: background-color 0.2s ease;
+}
+
+.compactDescEdit:hover {
+    background: var(--hover-wash);
+}
+
+.compactDescEdit:focus {
+    background: var(--active-wash);
+    color: var(--text-main);
+}
+
+.compactDescEdit::placeholder {
+    color: var(--text-soft);
+    opacity: 0.4;
+}
+
+.youtubeSourceChip {
+    position: absolute;
+    z-index: 32;
+    top: 10px;
+    left: 10px;
+    min-height: 27px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 8px;
+    color: #fff;
+    background: #d94e3c;
+    border: 1px solid rgba(255, 255, 255, .22);
+    border-radius: 999px;
+    box-shadow: 0 3px 10px rgba(41, 25, 20, .2);
+    font: inherit;
+    font-size: 10px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+
+.youtubeSourceChip:hover,
+.youtubeSourceChip:focus-visible {
+    background: #c84232;
+    outline: 2px solid color-mix(in srgb, #e85d4a 40%, transparent);
+    outline-offset: 2px;
 }

@@ -3,12 +3,11 @@ import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react'
 import { useStore } from '../../store/useStore';
 import { getNodeById } from '../../store/nodeIndex';
 import styles from './FullscreenModal.module.css';
-import { NoteExpandedContent } from '../card/NoteExpandedContent';
-import { BlockEditor } from '../editor/BlockEditor';
 import { ArrowRightLeft } from '../../components/icons';
-import { getNodeBlocks, type AppNode } from '../../types';
+import { type AppNode } from '../../types';
 import { FullscreenNoteList } from './FullscreenNoteList';
-import { KanbanNodeComponent } from '../kanban/KanbanNode';
+import { resolvePeekContent } from './peekContent';
+import { isFileNode } from '../file';
 
 /**
  * Which half of a split the next pick from the rail lands in. The store keeps
@@ -33,7 +32,6 @@ export function FullscreenModal({
     const fullscreenId = useStore(s => s.fullscreenId);
     const setFullscreenId = useStore(s => s.setFullscreenId);
     const updateNodeData = useStore(s => s.updateNodeData);
-    const nodes = useStore(s => s.nodes);
     // Only subscribe to the specific node we need, not the entire array
     const activeNode = useStore(s => getNodeById(s.nodes, fullscreenId ?? undefined));
     const navigateToNode = useStore(s => s.navigateToNode);
@@ -131,8 +129,12 @@ export function FullscreenModal({
             }
 
             const parentId = activeNode?.parentId ?? null;
-            const siblings = nodes
-                .filter((node) => node.type === 'note' && (node.parentId ?? null) === parentId && node.id !== fullscreenId)
+            // The same set the rail lists — cards and files — so the split
+            // shortcut can reach anything the reader can see beside it.
+            const siblings = useStore.getState().nodes
+                .filter((node) => (node.type === 'note' || isFileNode(node))
+                    && (node.parentId ?? null) === parentId
+                    && node.id !== fullscreenId)
                 .sort((a, b) => (a.position.y - b.position.y) || (a.position.x - b.position.x));
             if (!siblings[0]) return;
             setSecondaryId(siblings[0].id);
@@ -140,7 +142,7 @@ export function FullscreenModal({
         };
         document.addEventListener('keydown', onKeyDown);
         return () => document.removeEventListener('keydown', onKeyDown);
-    }, [activeNode?.parentId, fullscreenId, isSplit, nodes]);
+    }, [activeNode?.parentId, fullscreenId, isSplit]);
 
     const handleClose = () => {
         setFullscreenId(null);
@@ -198,38 +200,27 @@ export function FullscreenModal({
         >
             {node.type === 'kanban' ? (
                 <div className={styles.boardFullscreenCanvas}>
-                    <KanbanNodeComponent
-                        key={id}
-                        id={id}
-                        data={node.data}
-                        selected={false}
-                        fullscreenView
-                    />
+                    {resolvePeekContent({
+                        node,
+                        nodeId: id,
+                        onUpdate: updateNodeData,
+                        onClose: onPaneClose,
+                        allowBoard: true,
+                    })}
                 </div>
-            ) : node.type === 'note' ? (
-                <NoteExpandedContent
-                    key={id}
-                    id={id}
-                    nodeId={id}
-                    data={node.data}
-                    onUpdate={updateNodeData}
-                    onClose={onPaneClose}
-                    flatCorners={true}
-                    onNavigate={() => {
+            ) : (
+                resolvePeekContent({
+                    node,
+                    nodeId: id,
+                    onUpdate: updateNodeData,
+                    onClose: onPaneClose,
+                    flatCorners: true,
+                    onNavigate: () => {
                         handleClose();
                         navigateToNode(id);
-                    }}
-                />
-            ) : (
-                <div className={styles.editorContainer}>
-                    <BlockEditor
-                        key={id}
-                        nodeId={id}
-                        initialContent={getNodeBlocks(node.data)}
-                        onUpdate={(blocks) => updateNodeData(id, { content: blocks })}
-                        autoFocus={true}
-                    />
-                </div>
+                    },
+                    editorClassName: styles.editorContainer,
+                })
             )}
         </div>
     );

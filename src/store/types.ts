@@ -8,6 +8,7 @@ import type { AppNode } from '../types';
 import type { LimitViolation } from './nodeLimits';
 import type { AIAssistantMessage, AIContextType, AIIntent, AIMessage, AIMode, AIStep } from '../features/ai/aiTypes';
 import type { AIEffort } from '../config/aiEffort';
+import type { CloudLoadProgress } from '../services/cloudSync';
 
 export interface Breadcrumb {
     id: string | null;
@@ -17,12 +18,27 @@ export interface Breadcrumb {
 export interface NodeSlice {
     nodes: AppNode[];
     edges: Edge[];
+    /** A destructive branch action waiting for an explicit user decision. */
+    pendingNodeDeletion: {
+        nodeIds: string[];
+        selectedCount: number;
+        nestedCount: number;
+        totalCount: number;
+    } | null;
+    /** In-memory, one-click recovery for the most recent confirmed deletion. */
+    lastNodeDeletion: {
+        beforeNodes: AppNode[];
+        beforeEdges: Edge[];
+        afterNodes: AppNode[];
+        afterEdges: Edge[];
+        message: string;
+    } | null;
     onNodesChange: (changes: NodeChange[]) => void;
     setNodes: (nodes: AppNode[] | ((nodes: AppNode[]) => AppNode[])) => void;
     onEdgesChange: (changes: EdgeChange[]) => void;
     onConnect: (connection: Connection) => void;
     onReconnect: (oldEdge: Edge, newConnection: Connection) => void;
-    addNode: (type: 'note' | 'block' | 'fused-note' | 'kanban', position: { x: number; y: number }, initialData?: Record<string, unknown>, style?: React.CSSProperties, parentId?: string, customId?: string) => void;
+    addNode: (type: 'note' | 'block' | 'fused-note' | 'kanban' | 'youtube', position: { x: number; y: number }, initialData?: Record<string, unknown>, style?: React.CSSProperties, parentId?: string, customId?: string) => void;
     updateNodeData: (id: string, data: Record<string, unknown>) => void;
     updateNode: (id: string, updates: Partial<AppNode>) => void;
     splitNode: (nodeId: string, splitBlockId: string, currentBlocks?: unknown[], skipConfirm?: boolean) => void;
@@ -31,18 +47,41 @@ export interface NodeSlice {
     createPageFromText: (text: string, position?: { x: number; y: number }) => string;
     savePageContent: (parentId: string, content: unknown[], transientNodeIds: string[]) => void;
     syncParentContent: (parentId: string) => void;
+    requestNodeDeletion: (nodeIds: string[]) => void;
+    cancelNodeDeletion: () => void;
+    confirmNodeDeletion: () => void;
+    undoLastNodeDeletion: () => void;
+    dismissLastNodeDeletion: () => void;
     bulkDeleteNodes: (nodeIds: string[], skipConfirm?: boolean) => void;
     bulkDuplicateNodes: (nodeIds: string[]) => void;
     pasteClipboardNodes: (payload: import('../features/clipboard/clipboardPayload').NodesPayload, origin: { x: number; y: number }) => string[];
     bulkApplyColor: (nodeIds: string[], color: string) => void;
     fuseNodes: (nodeIds: string[], skipConfirm?: boolean) => void;
     hydrateCanvasFromContent: (nodeId: string) => void;
+    /** Converts a saved centre-topic map into the current top-to-bottom document tree. */
+    migrateTopicMapToDocumentTree: (nodeId: string) => boolean;
     linkSelectedNodes: (mainNodeId: string, targetNodeIds: string[]) => void;
     updateEdge: (id: string, updates: Partial<Edge>) => void;
     deleteEdge: (id: string) => void;
     duplicateEdge: (id: string) => void;
     bringEdgeToFront: (id: string) => void;
     arrangeNodes: (nodeIds: string[], mode: 'grid' | 'circle' | 'flow' | 'horizontal-row' | 'vertical-column' | 'mindmap-horizontal' | 'mindmap-vertical' | 'related-clusters') => void;
+    /** Compact and align every node on the active canvas; returns the number moved. */
+    organizeCanvas: () => number;
+    /** Apply a reviewed AI canvas arrangement. This never changes card content. */
+    applyCanvasOrganization: (operation: {
+        positions: Record<string, { x: number; y: number }>;
+        removeEdgeIds: string[];
+        connections: Array<{ source: string; target: string; label?: string }>;
+    }) => {
+        positions: Record<string, { x: number; y: number }>;
+        edges: Edge[];
+    };
+    /** Restore the exact positions and connectors captured before an AI arrangement. */
+    restoreCanvasOrganization: (snapshot: {
+        positions: Record<string, { x: number; y: number }>;
+        edges: Edge[];
+    }) => void;
     applyRemoteNodeUpdate: (id: string, updates: Partial<AppNode>) => void;
     applyRemoteEdgeUpdate: (id: string, updates: Partial<Edge>) => void;
 }
@@ -56,8 +95,17 @@ export interface NavigationSlice {
     rightSidePanelId: string | null;
     leftSidePanelId: string | null;
     centerPanelId: string | null;
+    /**
+     * The card whose task list is open, if any.
+     *
+     * Deliberately independent of the panel ids above, which close one another:
+     * this opens *over* whatever you were looking at — a board, a calendar —
+     * and closing it must put you back there rather than on a bare canvas.
+     */
+    tasksCardId: string | null;
     navigateToNode: (nodeId: string | null) => void;
     setFullscreenId: (id: string | null) => void;
+    setTasksCardId: (id: string | null) => void;
     setSidePanelId: (id: string | null) => void; // Deprecated, aliases to setRightSidePanelId
     setRightSidePanelId: (id: string | null) => void;
     setLeftSidePanelId: (id: string | null) => void;
@@ -75,8 +123,11 @@ export interface StorageSlice {
         
         // Dynamic Save States:
         localLastSaved: string | null;
+        /** Set ONLY by a real write to the cloud — never by a load. */
         cloudLastSaved: string | null;
         cloudLastSaveTimeMs?: number | null;
+        /** Set ONLY by a successful read from the cloud — never by a save. */
+        cloudLastLoaded: string | null;
         isLocalDirty: boolean;
         isCloudDirty: boolean;
         localError: string | null;
@@ -86,8 +137,15 @@ export interface StorageSlice {
         backupNodes: AppNode[];
         backupEdges: Edge[];
 
-        // True only during the very first automatic cloud load on app open
-        isInitialCloudLoading: boolean;
+        /* Single source of truth for "a cloud load is happening right now".
+           Both the loader UI and the cloud status icon read this, so they can
+           never disagree about whether data is still arriving.
+             blocking   — first open of an empty canvas; the shell is frozen.
+             background — any later refresh; the canvas stays interactive. */
+        cloudLoad: {
+            phase: 'idle' | 'blocking' | 'background';
+            progress: CloudLoadProgress | null;
+        };
 
         // Delta Tracking
         dirtyNodeIds: Set<string>;
@@ -103,11 +161,15 @@ export interface StorageSlice {
     // Setters for Dynamic States:
     setLocalLastSaved: (date: string | null) => void;
     setCloudLastSaved: (date: string | null) => void;
+    setCloudLastLoaded: (date: string | null) => void;
     setLocalDirty: (dirty: boolean) => void;
     setCloudDirty: (dirty: boolean) => void;
     setLocalError: (err: string | null) => void;
     setCloudError: (err: string | null) => void;
-    setInitialCloudLoading: (loading: boolean) => void;
+    setCloudLoad: (
+        phase: 'idle' | 'blocking' | 'background',
+        progress?: CloudLoadProgress | null,
+    ) => void;
 
     /** Delta Tracking */
     markNodesDirty: (ids: string[]) => void;
@@ -208,6 +270,12 @@ export interface UISlice {
 
 export interface AISlice {
     isAIPanelOpen: boolean;
+    /** Visual treatment only. The live chat remains one instance in all modes. */
+    aiPresentation: 'side' | 'center' | 'fullscreen';
+    setAIPresentation: (presentation: 'side' | 'center' | 'fullscreen') => void;
+    /** Fullscreen only: whether its reusable history rail is expanded. */
+    aiHistoryRailOpen: boolean;
+    setAIHistoryRailOpen: (isOpen: boolean) => void;
     aiMode: AIMode;
     /** Image generation is a variant of Create, not a third mode. */
     aiImageMode: boolean;
@@ -234,6 +302,23 @@ export interface AISlice {
     aiSelectedContexts: AIContextType[];
     toggleAIContext: (type: AIContextType) => void;
     clearAIContexts: () => void;
+    /**
+     * Canvas sources the user attached with `@` for the next turn (ai-Plan.md §5.3).
+     *
+     * Holds only explicit attachments — cards, a canvas level, or a subtree.
+     * A visual selection does not grant context access; attach it through
+     * `@Selection` first. AIPanel clears this after each sent turn.
+     */
+    aiScope: import('../features/ai/aiScope').AIScopeSource[];
+    addAIScopeSource: (source: import('../features/ai/aiScope').AIScopeSource) => void;
+    removeAIScopeSource: (key: string) => void;
+    clearAIScope: () => void;
+    /** Mark a clarifying form answered or skipped, in place (ai-Plan.md §5.2). */
+    settleAIForm: (
+        id: string,
+        status: 'answered' | 'skipped',
+        answers?: Record<string, string[]>,
+    ) => void;
     appendAIMessage: (message: AIMessage) => void;
     /** Opens an assistant turn and returns its id for the streaming updates. */
     startAITurn: (intent: AIIntent) => string;
@@ -246,7 +331,8 @@ export interface AISlice {
     aiChats: import('../services/storage/AIChatStore').AIChatSummary[];
     aiChatsLoading: boolean;
     refreshAIChats: () => Promise<void>;
-    persistAIChat: () => Promise<void>;
+    /** Save against the workspace; a board id is retained only for legacy callers. */
+    persistAIChat: (boardId?: string | null) => Promise<void>;
     openAIChat: (id: string) => Promise<void>;
     duplicateAIChat: (id: string) => Promise<void>;
     regenerateAIChat: (id: string) => Promise<string | null>;

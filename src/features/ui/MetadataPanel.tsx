@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Image as ImageIcon } from '../../components/icons';
 import { useStore } from '../../store/useStore';
+import { getNodeById } from '../../store/nodeIndex';
 import { IconPicker } from '../card/IconPicker';
 import { defaultIconName, CardIcon } from '../card/iconMap';
 import { ChipInput } from './ChipInput';
@@ -9,6 +10,9 @@ import { CustomDatePicker } from './CustomDatePicker';
 import type { NoteData } from '../../types';
 import styles from './MetadataPanel.module.css';
 import { SidePeek } from './SidePeek';
+import { TaskList } from '../card/tasks/TaskList';
+import { TaskDetail } from '../card/tasks/TaskDetail';
+import { taskProgress } from '../card/cardTasks';
 
 interface MetadataPanelProps {
     nodeId: string | null | undefined;
@@ -19,14 +23,14 @@ interface MetadataPanelProps {
 
 export function MetadataPanel({ nodeId, isOpen, onClose, buttonRef }: MetadataPanelProps) {
     // Atomic Selectors
-    const nodes = useStore(s => s.nodes);
     const updateNodeData = useStore(s => s.updateNodeData);
 
-    const node = nodeId ? nodes.find(n => n.id === nodeId) : null;
+    const node = useStore(s => getNodeById(s.nodes, nodeId ?? undefined));
 
     // Local state for editing
     const [isEditing, setIsEditing] = useState(false);
     const [showIconPicker, setShowIconPicker] = useState(false);
+    const [openTaskId, setOpenTaskId] = useState<string | null>(null);
 
     // Initialize editedData safely with ALL fields
     const [editedData, setEditedData] = useState<NoteData>({
@@ -81,6 +85,8 @@ export function MetadataPanel({ nodeId, isOpen, onClose, buttonRef }: MetadataPa
             updateNodeData(nodeId, updates);
         }
     };
+
+    const taskCount = taskProgress(node.data);
 
     const handleIconSelect = (newIcon: string) => {
         handleImmediateUpdate({ icon: newIcon });
@@ -217,9 +223,49 @@ export function MetadataPanel({ nodeId, isOpen, onClose, buttonRef }: MetadataPa
                         value={editedData.dueDate || ''}
                         onChange={(val) => handleImmediateUpdate({ dueDate: val })}
                         placeholder="Set due date"
+                        withTime
                     />
                 </div>
+
+                {/* Tasks.
+
+                    Checklist lines typed into the note body show up here as
+                    tasks, indented ones as their subtasks — see
+                    features/card/cardTasks.ts. A task added here is the card's
+                    own and is not written into the body until you ask for it
+                    with the row's "add to note" action. */}
+                {node.type === 'note' && (
+                    <div className={styles.fieldGroup}>
+                        <label>
+                            Tasks
+                            {taskCount.total > 0 && (
+                                <span className={styles.fieldCount}>
+                                    {taskCount.done}/{taskCount.total}
+                                </span>
+                            )}
+                        </label>
+                        <TaskList
+                            data={node.data}
+                            onPatch={(patch) => nodeId && updateNodeData(nodeId, patch as Record<string, unknown>)}
+                            onOpenTask={setOpenTaskId}
+                            dense
+                        />
+                    </div>
+                )}
             </div>
+
+            {/* One task, opened over the panel — the panel column is too narrow
+                for dates, a description and an image side by side. */}
+            {node.type === 'note' && openTaskId && (
+                <div className={styles.taskOverlay} role="dialog" aria-label="Task details">
+                    <TaskDetail
+                        data={node.data}
+                        onPatch={(patch) => nodeId && updateNodeData(nodeId, patch as Record<string, unknown>)}
+                        taskId={openTaskId}
+                        onBack={() => setOpenTaskId(null)}
+                    />
+                </div>
+            )}
 
             {/* Icon Picker Modal */}
             {showIconPicker && (

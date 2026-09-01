@@ -78,6 +78,17 @@ export type BlockMetadata = {
      * `cover` already does on its own.
      */
     focal?: { x: number; y: number };
+    /**
+     * File block: whether it is showing as a closed card or as the live
+     * document. Kept on the block, not the node, so the state survives the
+     * block moving between a card's content and the canvas.
+     */
+    fileView?: 'file' | 'expandedfile';
+    /** File block: an `asset:` reference to a rendered picture of page one. */
+    poster?: string;
+    /** File block: ISO time the file was added. A block node has no `createdAt`
+     *  of its own, and the fullscreen rail groups by date. */
+    addedAt?: string;
     // Link block / bookmark preview
     title?: string;
     description?: string;
@@ -92,6 +103,13 @@ export type BlockMetadata = {
     isCollapsed?: boolean;
     dueDate?: string;
     toggleHeaderLevel?: number;
+    /**
+     * The visible ordinal for a numbered-list item created from imported or AI
+     * content. This lets a list remain numbered when its items are split into
+     * individual canvas cards, where sibling-based rendering has no list run
+     * to inspect.
+     */
+    listNumber?: number;
     // Callout / color
     icon?: string;
     backgroundColor?: string;

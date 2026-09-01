@@ -260,3 +260,32 @@
 .panel .titleInput {
     font-family: 'Outfit', sans-serif !important;
 }
+
+/* Tasks -------------------------------------------------------------------
+   The count sits in the section label rather than beside the list, so the
+   heading answers "how much is left" without the list having to be read. */
+.fieldCount {
+    margin-left: 8px;
+    padding: 1px 6px;
+    border-radius: var(--radius-pill);
+    background: var(--hover-wash);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--text-soft);
+    font-variant-numeric: tabular-nums;
+}
+
+/* One task, opened over the panel. The panel column cannot hold two dates, a
+   description and an image side by side, so the detail view takes the whole
+   surface and the back button returns to the list. */
+.taskOverlay {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    overflow-y: auto;
+    padding: 20px;
+    background: var(--bg-rail);
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+}

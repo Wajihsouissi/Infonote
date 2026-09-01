@@ -14,7 +14,11 @@ export const ANON_MAX_NESTING_DEPTH = 3;
 export type LimitViolation =
     | { kind: 'canvas-full'; limit: number }
     | { kind: 'anon-card-limit'; limit: number }
-    | { kind: 'anon-depth-limit'; limit: number };
+    | { kind: 'anon-depth-limit'; limit: number }
+    /* A file that could not be stored — too large for the asset store, or the
+       browser is out of room. `reason` is already written for the user by
+       services/assets/ingest, so it is shown as-is. */
+    | { kind: 'file-rejected'; reason: string };
 
 interface LimitCheckNode {
     id: string;

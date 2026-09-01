@@ -10,7 +10,6 @@ export function useCanvasStoreSelectors() {
     const edges = useStore(useCallback(s => s.edges, []));
     const currentParentId = useStore(useCallback(s => s.currentParentId, []));
     const interactionState = useStore(useCallback(s => s.interactionState, []));
-    const selectedCanvasNodeIds = useStore(useCallback(s => s.selectedCanvasNodeIds, []));
     const lastCreatedCanvasNodeId = useStore(useCallback(s => s.lastCreatedCanvasNodeId, []));
     const rightSidePanelId = useStore(useCallback(s => s.rightSidePanelId, []));
     const leftSidePanelId = useStore(useCallback(s => s.leftSidePanelId, []));
@@ -39,7 +38,6 @@ export function useCanvasStoreSelectors() {
         edges,
         currentParentId,
         interactionState,
-        selectedCanvasNodeIds,
         lastCreatedCanvasNodeId,
         rightSidePanelId,
         leftSidePanelId,

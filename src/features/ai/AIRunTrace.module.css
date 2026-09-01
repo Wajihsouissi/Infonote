@@ -1,0 +1,348 @@
+/* Run trace — ai-Plan.md §5.1. Same visual language as the panel's other
+   inset surfaces: hairline borders, control-radius corners, and the accent used
+   only for state, never for chrome. */
+
+.trace {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* A ghost row, not a filled bar.
+   This is a disclosure control for process detail, not a piece of content — a
+   bordered, filled slab gave it the same visual weight as the answer it sits
+   above. Modern chat UIs render this state as quiet text that reveals its
+   surface only on hover, which is what this does. */
+.toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 5px 8px;
+    background: transparent;
+    border: none;
+    color: var(--text-faint);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.toggle:hover {
+    background: var(--hover-wash);
+    color: var(--text-soft);
+}
+
+/* With no completed or queued stages there is nothing to disclose. The
+   shimmer itself is the live indicator, so the row deliberately has no
+   duplicate spinner or affordance. */
+.toggle:disabled {
+    cursor: default;
+}
+
+.toggle:disabled:hover {
+    background: transparent;
+    color: var(--text-faint);
+}
+
+.toggleSignal {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 13px;
+    flex-shrink: 0;
+    color: inherit;
+    opacity: 0.75;
+}
+
+.toggleLabel {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.73rem;
+    font-weight: 500;
+    color: inherit;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The label shimmers while work is in flight — the one motion cue that reads as
+   "thinking" without a spinner shouting for attention. Text-clipped gradient
+   rather than an opacity pulse, which at this size just looks like a flicker. */
+.toggleRunning .toggleLabel {
+    background: linear-gradient(
+        90deg,
+        var(--text-faint) 0%,
+        var(--text-main) 18%,
+        var(--text-faint) 36%,
+        var(--text-faint) 100%
+    );
+    background-size: 250% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: aiTraceShimmer 2.4s linear infinite;
+}
+
+@keyframes aiTraceShimmer {
+    from { background-position: 100% 0; }
+    to { background-position: -150% 0; }
+}
+
+/* A shimmer is decoration; without it the label must still be legible. */
+@media (prefers-reduced-motion: reduce) {
+    .toggleRunning .toggleLabel {
+        animation: none;
+        background: none;
+        color: var(--text-soft);
+    }
+}
+
+.toggleReceipt {
+    font-size: 0.68rem;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+
+.chevron {
+    color: var(--text-faint);
+    flex-shrink: 0;
+    transition: transform var(--transition-fast);
+}
+
+.chevronOpen {
+    transform: rotate(180deg);
+}
+
+/* ---- the events themselves ---- */
+
+.events {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 11px;
+    border-left: 1px solid var(--line-strong);
+}
+
+.events[hidden] {
+    display: none;
+}
+
+.event {
+    display: flex;
+    gap: 9px;
+    padding: 5px 0;
+}
+
+.eventIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 17px;
+    flex-shrink: 0;
+    color: var(--text-soft);
+    opacity: 0.8;
+}
+
+.eventBody {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.eventTop {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.eventLabel {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.76rem;
+    line-height: 1.4;
+    font-weight: 500;
+    color: var(--text-soft);
+}
+
+.eventLabelError {
+    composes: eventLabel;
+    color: var(--danger);
+}
+
+.eventTime {
+    font-size: 0.66rem;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+
+.iconDone {
+    color: var(--ok);
+}
+
+.iconError {
+    color: var(--danger);
+}
+
+/* ---- details ---- */
+
+/* The searches, verbatim. Monospaced because these are literal strings sent to
+   a search engine, not prose the model wrote — the distinction matters when
+   you are checking whether it looked up the right thing. */
+.queries {
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--hover-wash);
+    overflow: hidden;
+}
+
+.query {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 9px;
+    font-family: var(--font-mono);
+    font-size: 0.69rem;
+    line-height: 1.35;
+    color: var(--text-soft);
+    letter-spacing: -0.01em;
+}
+
+.query + .query {
+    border-top: 1px solid var(--line);
+}
+
+.query svg {
+    flex-shrink: 0;
+    color: var(--text-faint);
+}
+
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 100%;
+    padding: 3px 8px 3px 6px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--text-soft);
+    font-family: inherit;
+    font-size: 0.68rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.chip:hover {
+    background: var(--active-wash);
+    border-color: rgba(var(--accent-rgb), 0.4);
+    color: var(--accent-ink);
+}
+
+.chip span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chip svg {
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.chipMore {
+    padding: 3px 7px;
+    font-size: 0.68rem;
+    color: var(--text-faint);
+}
+
+.planChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-xs);
+    background: var(--hover-wash);
+    font-size: 0.68rem;
+    color: var(--text-soft);
+}
+
+.planChip i {
+    font-style: normal;
+    color: var(--text-faint);
+}
+
+/* The model's own reason for the shape it chose. Italic and quiet: this is the
+   AI explaining itself, not the app asserting something. */
+.why {
+    margin: 0;
+    padding-left: 9px;
+    border-left: 2px solid var(--line-strong);
+    font-size: 0.72rem;
+    line-height: 1.5;
+    font-style: italic;
+    color: var(--text-faint);
+}
+
+.note {
+    margin: 0;
+    font-size: 0.7rem;
+    line-height: 1.45;
+    color: var(--text-faint);
+}
+
+.progress {
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--hover-wash);
+    overflow: hidden;
+}
+
+.progressFill {
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    transition: width var(--transition-smooth);
+}
+
+.spin {
+    animation: aiTraceSpin 0.9s linear infinite;
+    color: var(--accent-ink);
+}
+
+@keyframes aiTraceSpin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .spin { animation-duration: 2.4s; }
+    .progressFill { transition: none; }
+}
+
+/* ---- queued work ----
+   Announced but not started. Dimmed rather than hidden: seeing what is still
+   coming is what makes the trace a plan instead of a log, and it is what lets
+   someone stop a run early because the shape is wrong. */
+.eventQueued .eventLabel {
+    color: var(--text-faint);
+    font-weight: 400;
+}
+
+.queuedDot {
+    width: 9px;
+    height: 9px;
+    border-radius: var(--radius-pill);
+    border: 1.5px solid var(--line-heavy);
+}

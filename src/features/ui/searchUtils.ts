@@ -134,8 +134,14 @@ function extractBlocksText(blocks: Block[], results: string[]) {
             // 2. Columns pattern
             if (Array.isArray(block.metadata.columns)) {
                 block.metadata.columns.forEach((col) => {
-                    if (Array.isArray(col.content)) {
-                        extractBlocksText(col.content, results);
+                    const legacyColumn = col as unknown as { content?: unknown; blocks?: unknown };
+                    const content = Array.isArray(legacyColumn.content)
+                        ? legacyColumn.content
+                        : Array.isArray(legacyColumn.blocks)
+                            ? legacyColumn.blocks
+                            : [];
+                    if (content.length > 0) {
+                        extractBlocksText(content as Block[], results);
                     }
                 });
             }

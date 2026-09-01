@@ -17,7 +17,9 @@
 | Marketing page (desktop + mobile) | #39 |
 
 **Explicitly OUT of beta v1** (feature-flagged OFF in `src/config/featureFlags.ts` — code stays in the tree, re-enable by flipping the flag after QA):
-real-time multi-user collaboration (G32–35), Notion import (F31), AI image generation (D22), marketplace, kanban/views (E24–26), and the PDF viewer block. All default OFF; re-enable a feature by flipping its flag (or `VITE_FEATURE_<NAME>=true` for local dev only) once its QA pass is clean.
+real-time multi-user collaboration (G32–35), Notion import (F31), AI image generation (D22), and marketplace. All default OFF; re-enable a feature by flipping its flag (or `VITE_FEATURE_<NAME>=true` for local dev only) once its QA pass is clean.
+
+Two former entries have since come back IN: kanban/views (E24–26), rebuilt and flipped on 2026-08-10, and the PDF viewer block, which was deferred because it cost a 462 kB `react-pdf` vendor chunk. That dependency is gone — files now render through the browser's own viewers from a blob URL, at no bundle cost — so the `pdfBlock` flag has been replaced by `files` (default ON), covering upload, storage and viewing for every filetype rather than PDFs alone. See `src/services/assets/` and `src/features/file/`.
 
 ---
 
