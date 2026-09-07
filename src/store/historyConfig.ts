@@ -11,7 +11,7 @@ const VOLATILE_NODE_FIELDS = new Set(['selected', 'measured', 'dragging', 'resiz
 const VOLATILE_EDGE_FIELDS = new Set(['selected']);
 
 /** True when two nodes are identical apart from volatile UI-only fields. */
-function nodesEquivalent(a: AppNode, b: AppNode): boolean {
+export function nodesEquivalent(a: AppNode, b: AppNode): boolean {
     if (a === b) return true;
 
     for (const key in a) {
@@ -33,7 +33,8 @@ function nodesEquivalent(a: AppNode, b: AppNode): boolean {
     return true;
 }
 
-function edgesEquivalent(a: Edge, b: Edge): boolean {
+/** True when two edges are identical apart from volatile UI-only fields. */
+export function edgesEquivalent(a: Edge, b: Edge): boolean {
     if (a === b) return true;
     for (const key in a) {
         if (VOLATILE_EDGE_FIELDS.has(key)) continue;

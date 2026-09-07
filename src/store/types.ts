@@ -130,7 +130,10 @@ export interface StorageSlice {
         cloudLastLoaded: string | null;
         isLocalDirty: boolean;
         isCloudDirty: boolean;
+        /** True while the app is checking the revision or writing changes. */
+        isCloudSyncing: boolean;
         localError: string | null;
+        folderError: string | null;
         cloudError: string | null;
 
         // Backup — saved before loadGraph overwrites current state
@@ -164,7 +167,9 @@ export interface StorageSlice {
     setCloudLastLoaded: (date: string | null) => void;
     setLocalDirty: (dirty: boolean) => void;
     setCloudDirty: (dirty: boolean) => void;
+    setCloudSyncing: (syncing: boolean) => void;
     setLocalError: (err: string | null) => void;
+    setFolderError: (err: string | null) => void;
     setCloudError: (err: string | null) => void;
     setCloudLoad: (
         phase: 'idle' | 'blocking' | 'background',
@@ -176,6 +181,12 @@ export interface StorageSlice {
     markEdgesDirty: (ids: string[]) => void;
     markNodesDeleted: (ids: string[]) => void;
     markEdgesDeleted: (ids: string[]) => void;
+    replaceSyncTracking: (tracking: {
+        dirtyNodeIds: Iterable<string>;
+        dirtyEdgeIds: Iterable<string>;
+        deletedNodeIds: Iterable<string>;
+        deletedEdgeIds: Iterable<string>;
+    }) => void;
     clearSyncTracking: (syncedNodes: Set<string>, syncedEdges: Set<string>, deletedNodes: Set<string>, deletedEdges: Set<string>) => void;
 
     /** Restore the snapshot taken before the last loadGraph call. */

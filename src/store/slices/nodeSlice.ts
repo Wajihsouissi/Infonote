@@ -587,7 +587,9 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 nodes: state.nodes.map((node) =>
                     node.id === id ? { ...node, ...updates } as AppNode : node
                 ),
+                storage: { ...state.storage, isRestoringGraph: true },
             }));
+            set((state) => ({ storage: { ...state.storage, isRestoringGraph: false } }));
         });
         // DO NOT setCloudDirty(true) to avoid infinite sync loops
     },
@@ -598,7 +600,9 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                 edges: state.edges.map((edge) =>
                     edge.id === id ? { ...edge, ...updates } as Edge : edge
                 ),
+                storage: { ...state.storage, isRestoringGraph: true },
             }));
+            set((state) => ({ storage: { ...state.storage, isRestoringGraph: false } }));
         });
         // DO NOT setCloudDirty(true)
     },

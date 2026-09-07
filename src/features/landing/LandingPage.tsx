@@ -159,10 +159,7 @@ export const LandingPage: React.FC = () => {
   // Log a site visit row for admin analytics (deduped per browser session).
   useSiteTelemetry();
 
-  const activeWorkspaceId =
-    typeof window !== 'undefined'
-      ? localStorage.getItem('chnk it.activeWorkspaceId') || undefined
-      : undefined;
+  const activeWorkspaceId = auth.activeWorkspaceId || undefined;
 
   const { recentNotes } = useRecentlyViewed(activeWorkspaceId);
   const { search, results, isSearching } = useGlobalSearch(activeWorkspaceId);

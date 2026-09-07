@@ -1,3 +1,49 @@
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    position: relative;
+}
+
+.saveError {
+    position: fixed;
+    inset-block-start: 64px;
+    inset-inline-end: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: max-content;
+    max-width: min(300px, 80vw);
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--bg-rail);
+    color: var(--text-main);
+    font-size: 14px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.controls .saveError button {
+    width: auto;
+    height: auto;
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding-inline: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+    color: var(--text-main);
+    font: inherit;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.controls .saveError button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
 .iconBtn {
     background: transparent;
     border: 1px solid transparent;
@@ -13,6 +59,50 @@
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     color: var(--color-text-muted);
+}
+
+.cloudStatusWrap {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.cloudStatusButton {
+    width: auto !important;
+    min-width: 32px;
+    max-width: 180px;
+    padding: 0 10px 0 7px !important;
+    gap: 6px;
+    border-radius: var(--btn-radius);
+    font: inherit;
+    white-space: nowrap;
+}
+
+.cloudStatusIcon {
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+
+.cloudStatusText {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: currentColor;
+    font-size: 0.75rem;
+    font-weight: 680;
+    letter-spacing: 0.01em;
+}
+
+.visuallyHidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .iconBtn:hover {
@@ -83,6 +173,33 @@
 }
 .saving svg {
     color: var(--color-primary) !important;
+}
+
+@media (max-width: 760px) {
+    .cloudStatusButton {
+        width: 32px !important;
+        padding: 0 !important;
+        gap: 0;
+    }
+
+    .cloudStatusText {
+        display: none;
+    }
+}
+
+@media (max-width: 520px) {
+    .localButton,
+    .controls > button:not(.cloudStatusButton) {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .notSynced,
+    .error,
+    .saving {
+        animation: none;
+    }
 }
 
 @keyframes pulse {

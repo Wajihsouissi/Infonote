@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { useReactFlow } from '@xyflow/react';
+import { useReactFlow, useStoreApi } from '@xyflow/react';
 import type { AppNode } from '../../../types';
 import { useStore } from '../../../store/useStore';
 import { getNodeById } from '../../../store/nodeIndex';
@@ -68,6 +68,8 @@ function estimateFitViewport(nodes: AppNode[], padding = 0.1): Viewport {
 
 export function useCanvasViewport({ currentParentId }: UseCanvasViewportOptions) {
     const { getViewport } = useReactFlow();
+    /** React Flow's own measurement of the canvas element. */
+    const rfStore = useStoreApi();
     
     const lastViewportUpdate = useRef(0);
     const lastCullViewport = useRef<Viewport>({ x: 0, y: 0, zoom: 1 });
@@ -93,8 +95,22 @@ export function useCanvasViewport({ currentParentId }: UseCanvasViewportOptions)
 
     const recalc = useCallback((viewport: Viewport, forceUpdate: boolean) => {
         const zoom = viewport.zoom || 1;
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
+
+        /* Measure the CANVAS, not the window.
+
+           `viewport.x/y` are relative to the React Flow container, so pairing
+           them with the window's dimensions describes a rectangle that is not
+           the one on screen. It happens to be over-generous in a plain desktop
+           layout — the canvas is inset by the header, so the window is bigger —
+           and that hid the error. It inverts wherever the canvas is TALLER than
+           the reported window: a mobile browser whose `innerHeight` excludes
+           the URL bar, or a zoomed page. There the cull rect stops short of the
+           canvas and cards along the bottom edge are dropped while plainly
+           visible. React Flow already measures its own container; use that, and
+           fall back to the window only before the first measurement lands. */
+        const measured = rfStore.getState();
+        const vw = measured.width || window.innerWidth;
+        const vh = measured.height || window.innerHeight;
 
         const view = {
             minX: -viewport.x / zoom,
@@ -187,7 +203,7 @@ export function useCanvasViewport({ currentParentId }: UseCanvasViewportOptions)
             }
             return changed ? result : prev;
         });
-    }, [getRootNodes]);
+    }, [getRootNodes, rfStore]);
 
     /**
      * Drag-frame fast path: copy the moved nodes' positions onto the cards
@@ -211,6 +227,18 @@ export function useCanvasViewport({ currentParentId }: UseCanvasViewportOptions)
 
     // Subscribe to store changes to recalculate when nodes or selection changes
     useEffect(() => {
+        /* The graph can be fully hydrated BEFORE this canvas mounts.
+           Workspace loading moved out of CanvasBoard and up to the app-level
+           sync coordinator, so on a refresh the nodes are usually already in
+           the store by the time this subscription is installed — and a
+           subscription only ever hears about the NEXT change. `visibleNodes`
+           starts empty, so nothing ever populated it: the canvas came back
+           from a reload completely blank, with the cards present in the store
+           and squarely inside the viewport, until the user happened to pan and
+           trigger a cull. Take the first pass unconditionally, against the
+           live viewport rather than the ref, which nothing has updated yet. */
+        recalc(getViewport(), true);
+
         return useStore.subscribe((state, prevState) => {
             if (state.nodes === prevState.nodes && state.selectedCanvasNodeIds === prevState.selectedCanvasNodeIds && state.interactionState.draggedNodeId === prevState.interactionState.draggedNodeId) {
                 return;
@@ -231,10 +259,13 @@ export function useCanvasViewport({ currentParentId }: UseCanvasViewportOptions)
                 return;
             }
 
-            // Drag just ended — force the pass that syncs the final positions.
-            recalc(viewportRef.current, wasDragging);
+            /* Drag just ended — force the pass that syncs the final positions.
+               Read the viewport live: `viewportRef` is only refreshed by
+               viewport events, so on a canvas the user has not panned yet it
+               still holds the estimate made before any nodes existed. */
+            recalc(getViewport(), wasDragging);
         });
-    }, [recalc, patchPositions]);
+    }, [recalc, patchPositions, getViewport]);
 
     const handleViewportChange = useCallback((force = false) => {
         const now = Date.now();
@@ -275,7 +306,28 @@ export function useCanvasViewport({ currentParentId }: UseCanvasViewportOptions)
         };
         const raf = requestAnimationFrame(sync);
         const timer = window.setTimeout(sync, 600);
-        return () => { cancelAnimationFrame(raf); window.clearTimeout(timer); };
+
+        /* The culling band is derived from `window.innerWidth/innerHeight`, but
+           nothing re-derived it when that changed — the only triggers were a
+           pan, a zoom, or a store change. So the band stayed frozen at whatever
+           the window measured when the canvas mounted: widen the window and the
+           cards that should have come into view stayed culled until the user
+           happened to pan, and a canvas that mounted while the window reported
+           no size (a background or non-composited render) culled everything and
+           stayed blank with the cards sitting in the store, in view. */
+        let resizeRaf = 0;
+        const onResize = () => {
+            cancelAnimationFrame(resizeRaf);
+            resizeRaf = requestAnimationFrame(() => recalc(getViewport(), true));
+        };
+        window.addEventListener('resize', onResize);
+
+        return () => {
+            cancelAnimationFrame(raf);
+            cancelAnimationFrame(resizeRaf);
+            window.clearTimeout(timer);
+            window.removeEventListener('resize', onResize);
+        };
     }, [getViewport, currentParentId, recalc]);
 
     return {

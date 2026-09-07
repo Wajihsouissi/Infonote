@@ -28,6 +28,10 @@ import {
 } from '../../services/cloudSync';
 import { useStore } from '../../store/useStore';
 import { History } from '../../components/icons';
+import {
+    resolveLocalWorkspaceKey,
+    saveRestoreBackup,
+} from '../../services/storage/LocalWorkspaceStore';
 
 type Status =
     | { kind: 'idle' }
@@ -131,21 +135,28 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
     }, [open, onClose]);
 
     const handleRestore = useCallback(async () => {
-        // Backup current canvas so the user can undo via the existing
-        // "Restore Backup" button in CloudSyncControls.
+        const before = useStore.getState();
+        const backupKey = resolveLocalWorkspaceKey(workspaceId);
+        // A restore never starts until its pre-restore copy is durably committed
+        // to IndexedDB. localStorage only carries a tiny discovery marker.
         try {
-            const current = useStore.getState();
             const backup = {
-                nodes: current.nodes,
-                edges: current.edges,
+                key: backupKey,
+                nodes: before.nodes,
+                edges: before.edges,
                 timestamp: Date.now(),
             };
+            await saveRestoreBackup(backup);
             localStorage.setItem(
                 'chnk-it-cloud-reload-backup',
-                JSON.stringify(backup),
+                JSON.stringify({ key: backup.key, timestamp: backup.timestamp }),
             );
-        } catch {
-            // best-effort
+        } catch (error) {
+            setStatus({
+                kind: 'error',
+                message: `Could not create a safe local backup: ${error instanceof Error ? error.message : String(error)}`,
+            });
+            return;
         }
 
         setStatus({ kind: 'loading' });
@@ -196,14 +207,32 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
                 return true;
             });
 
-            if (validNodes.length === 0) {
+            if (res.nodes.length > 0 && validNodes.length === 0) {
                 setStatus({
                     kind: 'error',
                     message: 'No valid saved data found.',
                 });
                 return;
             }
+            const state = useStore.getState();
             loadGraph(validNodes, validEdges);
+            if (selectedVersionId === 'current') {
+                state.replaceSyncTracking({
+                    dirtyNodeIds: [], dirtyEdgeIds: [], deletedNodeIds: [], deletedEdgeIds: [],
+                });
+                state.setCloudLastLoaded(new Date().toLocaleTimeString());
+                state.setCloudDirty(false);
+            } else {
+                const restoredNodeIds = new Set(validNodes.map((node) => node.id));
+                const restoredEdgeIds = new Set(validEdges.map((edge) => edge.id));
+                state.replaceSyncTracking({
+                    dirtyNodeIds: validNodes.map((node) => node.id),
+                    dirtyEdgeIds: validEdges.map((edge) => edge.id),
+                    deletedNodeIds: before.nodes.filter((node) => !restoredNodeIds.has(node.id)).map((node) => node.id),
+                    deletedEdgeIds: before.edges.filter((edge) => !restoredEdgeIds.has(edge.id)).map((edge) => edge.id),
+                });
+                state.setCloudDirty(true);
+            }
             onLoaded?.({ nodes: validNodes.length, edges: validEdges.length });
             setStatus({ kind: 'idle' });
             onClose();
@@ -270,7 +299,7 @@ export const CloudLoadModal: React.FC<CloudLoadModalProps> = ({
                         <>
                             <div style={restoreNotice}>
                                 <History size={16} aria-hidden="true" />
-                                <span>Restore only changes this device. You can undo it with the local backup.</span>
+                                <span>The restore is saved on this device first. If cloud sync is on, the restored version is then mirrored to your workspace.</span>
                             </div>
 
                             <h3 style={listHeader}>Current cloud copy</h3>

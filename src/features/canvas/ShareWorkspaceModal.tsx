@@ -24,7 +24,7 @@ import {
     type WorkspaceMember,
     type WorkspaceSummary,
 } from '../../services/collaboration';
-import { saveCanvasToCloud } from '../../services/cloudSync';
+import { requestWorkspaceSync } from '../../services/syncController';
 
 type Status =
     | { kind: 'idle' }
@@ -154,13 +154,7 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
         setInviteProvider(null);
         setCopiedInviteLink(false);
 
-        const state = useStore.getState();
-        const syncResult = await saveCanvasToCloud(
-            auth.userId,
-            auth.activeWorkspaceId,
-            state.nodes,
-            state.edges,
-        );
+        const syncResult = await requestWorkspaceSync({ forceFull: true });
         if (!syncResult.ok) {
             setStatus({
                 kind: 'error',
@@ -168,10 +162,6 @@ export const ShareWorkspaceModal: React.FC<ShareWorkspaceModalProps> = ({ open, 
             });
             return;
         }
-        state.setCloudDirty(false);
-        state.setCloudError(null);
-        state.setCloudLastSaved(new Date().toLocaleTimeString());
-
         const result = await inviteWorkspaceMember(auth.activeWorkspaceId, email, 'editor');
         if (!result.ok) {
             setStatus({ kind: 'error', message: result.error });

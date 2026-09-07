@@ -11,6 +11,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../../services/supabase/client';
+import { invalidateCloudPreflight } from '../../services/cloudSync';
 import { useStore } from '../../store/useStore';
 import { AuthContext } from './AuthContext';
 
@@ -219,6 +220,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: sub } = supabase.auth.onAuthStateChange(
             (_event: AuthChangeEvent, session: Session | null) => {
                 const nextUser = session?.user ?? null;
+                // The cloud preflight caches a resolved identity for a short
+                // window; any auth event is the one thing that can invalidate
+                // it early, so drop it before the new session is published.
+                invalidateCloudPreflight();
                 setUser(nextUser);
                 // fire-and-forget; pushToStore handles its own errors via try/catch
                 void pushToStore(nextUser);

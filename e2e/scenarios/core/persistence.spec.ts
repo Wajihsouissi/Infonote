@@ -1,15 +1,52 @@
 import { test, expect } from '../../support/fixtures';
-import { addNote, deleteNode, focusEditor, openCanvas, reload, typeBlock, clickEmptyCanvas, nodeById } from '../../support/canvas';
-import { cards, nodeByLabel, nodeText, waitForCanvasState } from '../../support/canvasState';
+import { addNote, deleteNode, focusEditor, openCanvas, reload, clickEmptyCanvas, nodeById } from '../../support/canvas';
+import { cards, nodeByLabel, nodeText, seedCanvasState, waitForCanvasState } from '../../support/canvasState';
+
+async function readAnonymousLocalNodeIds(page: import('@playwright/test').Page): Promise<string[]> {
+    return page.evaluate(async () => {
+        const path = '/src/services/storage/LocalWorkspaceStore.ts';
+        const record = await (await import(path)).loadLocalWorkspace('anonymous');
+        return record?.nodes.map((node: { id: string }) => node.id) ?? [];
+    });
+}
 
 /**
  * QA scenarios A1 / A3 — "can I trust this app?".
  *
- * Saving is explicit: anonymous work remains available for the active session,
- * while a folder or signed-in workspace provides persistence across reloads.
+ * Every workspace is local-first: anonymous work persists on this device,
+ * while an optional signed-in cloud mirror makes it portable.
  */
 
 test.describe('core: persistence (A)', () => {
+    test('A0 opening a clean canvas does not create a cloud delta', async ({ page }) => {
+        await openCanvas(page);
+
+        await expect.poll(async () => page.evaluate(() => {
+            const store = (window as unknown as {
+                __appStore?: {
+                    getState: () => {
+                        storage: {
+                            dirtyNodeIds: Set<string>;
+                            dirtyEdgeIds: Set<string>;
+                            deletedNodeIds: Set<string>;
+                            deletedEdgeIds: Set<string>;
+                        };
+                    };
+                };
+            }).__appStore;
+            const storage = store?.getState().storage;
+            return storage ? [
+                storage.dirtyNodeIds.size,
+                storage.dirtyEdgeIds.size,
+                storage.deletedNodeIds.size,
+                storage.deletedEdgeIds.size,
+            ] : null;
+        }), {
+            message: 'React Flow measurement and selection state to stay out of the cloud delta',
+            timeout: 10_000,
+        }).toEqual([0, 0, 0, 0]);
+    });
+
     test('A1 anonymous work remains intact during an active session', async ({ page }) => {
         await openCanvas(page);
 
@@ -53,19 +90,31 @@ test.describe('core: persistence (A)', () => {
         expect(after.nodes.some((n) => n.id === victim.id)).toBe(false);
     });
 
-    test('A3 unsaved anonymous work is not restored by a hidden local snapshot', async ({ page }) => {
+    test('A3 anonymous work is restored from the local-first workspace', async ({ page }) => {
         await openCanvas(page);
-        const node = await addNote(page, 'Crash test');
-        await focusEditor(page, node);
-
-        await typeBlock(page, 'First line survives');
-        await page.keyboard.type('Second line typed right before the tab dies');
-
-        await clickEmptyCanvas(page);
+        await seedCanvasState(page, [{
+            id: 'local-persistence-probe',
+            type: 'note',
+            position: { x: 120, y: 120 },
+            style: { width: 432, height: 432 },
+            data: {
+                label: 'Crash test',
+                content: [{ id: 'probe-block', type: 'text', content: 'First line survives' }],
+                viewMode: 'expanded',
+            },
+        }]);
         await waitForCanvasState(page, (state) => !!nodeByLabel(state, 'Crash test'), 'the unsaved card');
+        await expect.poll(async () => (
+            await readAnonymousLocalNodeIds(page)
+        ).includes('local-persistence-probe'), {
+            message: 'the local IndexedDB commit',
+            timeout: 10_000,
+        }).toBe(true);
         await reload(page);
-        const reloaded = await waitForCanvasState(page, (state) => state.nodes.length > 0, 'the reloaded canvas');
-        expect(nodeByLabel(reloaded, 'Crash test')).toBeUndefined();
+        expect(await readAnonymousLocalNodeIds(page)).toContain('local-persistence-probe');
+        const reloaded = await waitForCanvasState(page, (state) => !!nodeByLabel(state, 'Crash test'), 'the restored local canvas');
+        expect(nodeByLabel(reloaded, 'Crash test')).toBeDefined();
+        expect(nodeText(nodeByLabel(reloaded, 'Crash test')!)).toContain('First line survives');
     });
 
     test('A-limit anonymous card quota blocks creation and explains itself', async ({ page }) => {

@@ -30,3 +30,8 @@ export {
     ingestFiles,
 } from './ingest';
 export { AssetImage, AssetVideo } from './AssetMedia';
+export {
+    type AssetUploadResult,
+    uploadReferencedAssets,
+    configureAssetRemoteFetch,
+} from './assetSync';

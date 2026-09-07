@@ -1,26 +1,21 @@
 /**
- * StorageChoiceModal — first-login storage decision (see BETA_SCOPE.md).
+ * StorageChoiceModal — first-device storage decision.
  *
- * Shown once per user per device after signing in, with NO pre-selected
- * option: the user must actively pick how their work is saved.
+ * Shown once on first app launch, with NO pre-selected option. Local saving is
+ * always enabled; the choice only decides whether this device also syncs.
  *
- *   local  — this device only (IndexedDB always; folder optional)
- *   cloud  — auto-sync to the workspace
- *   both   — local-first: device write first, cloud syncs in background
- *
- * The choice is stored per user (chnk-it-storage-mode-<userId>) and drives
- * the per-workspace autosync flag that StorageControls reads. Changeable
- * later from the storage menu. Kept as a clean enum so cloud can be gated
- * behind a paid plan post-beta.
+ *   local — this device only (IndexedDB always; folder optional)
+ *   sync  — IndexedDB first, then background cloud sync
  */
-import React, { useEffect, useState } from 'react';
-import { HardDrive, Cloud, RefreshCw, Check } from '../../components/icons';
+import React, { useState } from 'react';
+import { HardDrive, Cloud, Check } from '../../components/icons';
 import styles from './StorageChoiceModal.module.css';
 import { useStore } from '../../store/useStore';
-
-export type StorageMode = 'local' | 'cloud' | 'both';
-
-export const storageModeKey = (userId: string) => `chnk-it-storage-mode-${userId}`;
+import {
+    readStorageMode,
+    writeStorageMode,
+    type StorageMode,
+} from '../../services/storage/storagePreference';
 
 const OPTIONS: Array<{
     mode: StorageMode;
@@ -32,50 +27,53 @@ const OPTIONS: Array<{
         mode: 'local',
         icon: <HardDrive size={20} />,
         title: 'Local',
-        body: 'Saves on this device. You can also connect a folder from the storage menu (Chromium browsers).',
+        body: 'Saves automatically in this browser and keeps working offline. A folder backup remains optional.',
     },
     {
-        mode: 'cloud',
+        mode: 'sync',
         icon: <Cloud size={20} />,
-        title: 'Cloud',
-        body: 'Auto-syncs to your workspace, so your notes follow you across devices.',
-    },
-    {
-        mode: 'both',
-        icon: <RefreshCw size={20} />,
-        title: 'Local + cloud sync',
-        body: 'Local-first: saves on this device instantly, then syncs to the cloud in the background.',
+        title: 'This device + cloud',
+        body: 'Saves on this device first, then syncs quietly so your workspace follows you across devices.',
     },
 ];
+
+/**
+ * Views where this question has a meaning. It used to render over every route,
+ * so someone reading the marketing page was stopped by a modal asking how their
+ * workspace should save before they had seen a workspace — and the canvas, when
+ * it was the route underneath, painted fully behind the backdrop and swallowed
+ * every click, looking ready while nothing responded.
+ */
+const STORAGE_RELEVANT_VIEWS = new Set(['canvas', 'landing']);
 
 export const StorageChoiceModal: React.FC = () => {
     const userId = useStore((s) => s.auth.userId);
     const isAuthLoading = useStore((s) => s.auth.isAuthLoading);
     const showWelcomeModal = useStore((s) => s.showWelcomeModal);
+    const currentView = useStore((s) => s.currentView);
+    const setCurrentView = useStore((s) => s.setCurrentView);
     const [chosen, setChosen] = useState<StorageMode | null>(null);
     const [done, setDone] = useState(false);
 
-    // A different account signing in during the same session gets a fresh ask.
-    useEffect(() => {
-        setChosen(null);
-        setDone(false);
-    }, [userId]);
-
-    if (done || !userId || isAuthLoading || showWelcomeModal) return null;
-    if (localStorage.getItem(storageModeKey(userId))) return null;
+    if (done || isAuthLoading || showWelcomeModal) return null;
+    if (!STORAGE_RELEVANT_VIEWS.has(currentView)) return null;
+    if (readStorageMode(userId)) return null;
 
     const confirm = (mode: StorageMode) => {
-        // Read auth fresh — never trust a render-time closure for the write.
-        const state = useStore.getState();
-        const uid = state.auth.userId;
-        if (!uid) return;
         setChosen(mode);
-        localStorage.setItem(storageModeKey(uid), mode);
-        // Cloud participation is what the autosync flag controls: on for
-        // cloud/both, off for local-only.
-        const autosyncKey = `chnk-it-cloud-autosync-${state.auth.activeWorkspaceId || 'default'}`;
-        localStorage.setItem(autosyncKey, mode === 'local' ? 'false' : 'true');
-        window.dispatchEvent(new CustomEvent('chnk-it-storage-mode-changed'));
+        // Never let a persistence failure strand the user behind this dialog:
+        // the choice is recorded in memory regardless, and the modal closes on
+        // its own state either way.
+        try {
+            writeStorageMode(mode);
+            if (mode === 'sync' && !useStore.getState().auth.isAuthenticated) {
+                // Remember the choice now; after authentication the root
+                // coordinator resumes it without asking a second time.
+                setCurrentView('login');
+            }
+        } catch (error) {
+            console.warn('[StorageChoice] Could not persist the storage choice', error);
+        }
         // Brief confirmation beat, then unmount deterministically.
         window.setTimeout(() => setDone(true), 450);
     };
@@ -85,7 +83,7 @@ export const StorageChoiceModal: React.FC = () => {
             <div className={styles.card}>
                 <h2 className={styles.title}>How do you want to save?</h2>
                 <p className={styles.subtitle}>
-                    Pick one to continue — you can change it anytime from the storage menu.
+                    Your work always saves locally first. Choose whether this device should also sync to the cloud.
                 </p>
                 <div className={styles.options}>
                     {OPTIONS.map((opt) => (

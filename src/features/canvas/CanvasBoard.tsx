@@ -35,7 +35,7 @@ import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { StorageControls } from '../ui/StorageControls';
 import { KeyboardShortcutsPanel } from '../ui/KeyboardShortcutsPanel';
 import { AIPanel } from '../ai/AIPanel';
-import { SlidersHorizontal, ListCollapse, Keyboard, Plus } from '../../components/icons';
+import { SlidersHorizontal, ListCollapse, Keyboard } from '../../components/icons';
 import { DuotoneIcon } from '../../components/ui/DuotoneIcon';
 import { HomeButton } from '../ui/HomeButton';
 import { HistoryControls } from '../ui/HistoryControls';
@@ -65,16 +65,8 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { parseFiles, parseTextOrHtml } from '../editor/pasteUtils';
 import { endBlockDrag } from '../editor/blockDragLock';
-import { loadCanvasFromCloud, type CloudLoadProgress } from '../../services/cloudSync';
-import {
-    forgetWorkspace,
-    hasHydrated,
-    loadWorkspaceOnce,
-    unsubscribeWorkspaceProgress,
-} from './workspaceHydration';
 import { WorkspaceLoadOverlay, WorkspaceSyncPill } from './WorkspaceLoadOverlay';
 import { useDelayedFlag } from './useDelayedFlag';
-import { isSupabaseConfigured, supabase } from '../../services/supabase/client';
 import { isCanvasHydratableBlock } from '../../store/contentHydration';
 
 // Hooks
@@ -286,16 +278,9 @@ export function CanvasBoard() {
        the top bar reads the same field, so the loader and the icon cannot
        disagree about whether data is still arriving.
          blocking   — first open of an empty canvas; the shell is frozen.
-         background — any later refresh; the canvas stays interactive. */
+         background — the server revision changed; the canvas stays interactive. */
     const cloudLoad = useStore(s => s.storage.cloudLoad);
-    const setCloudLoad = useStore(s => s.setCloudLoad);
-    const authUserId = useStore(s => s.auth.userId);
     const activeWorkspaceId = useStore(s => s.auth.activeWorkspaceId);
-    const isAuthenticated = useStore(s => s.auth.isAuthenticated);
-    const loadGraph = useStore(s => s.loadGraph);
-    const setCloudLastLoaded = useStore(s => s.setCloudLastLoaded);
-    const setCloudDirty = useStore(s => s.setCloudDirty);
-    const setCloudError = useStore(s => s.setCloudError);
 
     // Realtime Sync Hook
     const { presenceData, updateCursor, broadcastNodeChange, currentUserId } = useRealtimeSync(currentParentId);
@@ -1525,210 +1510,8 @@ export function CanvasBoard() {
         document.addEventListener('keydown', handleNestedCanvasKeys, true);
         return () => document.removeEventListener('keydown', handleNestedCanvasKeys, true);
     }, [currentParentId, isCanvasObscured, navigateToNode, requestNodeDeletion]);
-    const showFirstCardOffer = Boolean(
-        currentParentId
-        && activeParentNode?.type === 'note'
-        && visibleNodes.length === 0
-        && !(getNodeBlocks(activeParentNode.data) ?? []).some(isCanvasHydratableBlock),
-    );
-    const createFirstNestedCard = useCallback(() => {
-        if (!currentParentId) return;
-        const nodeId = uuidv4();
-        addNode(
-            'note',
-            { x: 0, y: 0 },
-            { label: 'New card' },
-            { width: 432, height: 320 },
-            currentParentId,
-            nodeId,
-        );
-        setSelectedCanvasNodeIds(new Set([nodeId]));
-        setLastCreatedCanvasNodeId(nodeId);
-    }, [addNode, currentParentId, setLastCreatedCanvasNodeId, setSelectedCanvasNodeIds]);
-
-    useEffect(() => {
-        if (!isSupabaseConfigured || !isAuthenticated || !authUserId || !activeWorkspaceId) {
-            setCloudLoad('idle');
-            return;
-        }
-        const loadKey = `${authUserId}:${activeWorkspaceId}`;
-
-        /* Two conditions have to hold before we are allowed to freeze the app:
-           this must be the workspace's first load of the session, AND there
-           must be nothing on the canvas yet. A canvas with live session edits
-           stays usable while a background refresh is in flight. */
-        const firstOpen = !hasHydrated(loadKey);
-        const canvasIsEmpty = useStore.getState().nodes.length === 0;
-        const blocking = firstOpen && canvasIsEmpty;
-
-        let cancelled = false;
-        const phase = blocking ? 'blocking' : 'background';
-        const handleProgress = (progress: CloudLoadProgress) => {
-            if (!cancelled) setCloudLoad(phase, progress);
-        };
-
-        setCloudLoad(phase, { stage: 'authorizing', value: 0 });
-
-        void (async () => {
-            try {
-                setCloudError(null);
-                /* `loadWorkspaceOnce` de-duplicates concurrent calls for this
-                   key, which is what makes Strict Mode's teardown-and-rerun
-                   safe: the second run joins the first run's request (and its
-                   progress stream) instead of firing a second one. */
-                const result = await loadWorkspaceOnce(
-                    loadKey,
-                    (onProgress) => loadCanvasFromCloud(authUserId, activeWorkspaceId, onProgress),
-                    handleProgress,
-                );
-                if (cancelled) return;
-                if (result.ok) {
-                    const state = useStore.getState();
-                    if (result.nodes.length === 0 && state.nodes.length > 0) {
-                        // Empty cloud must never wipe existing local work — e.g. a
-                        // user who started a new session before signing in. Keep the
-                        // live canvas and mark everything dirty so auto-sync pushes
-                        // it up to the empty cloud instead.
-                        state.markNodesDirty(state.nodes.map(n => n.id));
-                        state.markEdgesDirty(state.edges.map(e => e.id));
-                        setCloudDirty(true);
-                        return;
-                    }
-                    /* A *repeat* load runs against a canvas the user has been
-                       editing, so it must yield to unsaved local changes rather
-                       than swapping the graph out from under them. A first open
-                       keeps the original semantics — cloud is the source of
-                       truth for the session's initial state. */
-                    if (!firstOpen && state.storage.isCloudDirty) return;
-                    loadGraph(result.nodes, result.edges);
-                    setCloudLastLoaded(new Date().toLocaleTimeString());
-                    setCloudDirty(false);
-                    setCloudError(null);
-                } else {
-                    // Let a retry earn the full-fidelity loader again.
-                    forgetWorkspace(loadKey);
-                    setCloudError(result.error);
-                }
-            } finally {
-                /* Same commit as the loadGraph/status updates above: React
-                   batches this continuation, so the icon and the loader flip
-                   together rather than one lagging the other. */
-                if (!cancelled) setCloudLoad('idle');
-            }
-        })();
-
-        return () => {
-            cancelled = true;
-            unsubscribeWorkspaceProgress(loadKey, handleProgress);
-        };
-    }, [authUserId, activeWorkspaceId, isAuthenticated, loadGraph, setCloudLastLoaded, setCloudDirty, setCloudError, setCloudLoad]);
-
-    useEffect(() => {
-        if (!isSupabaseConfigured || !supabase || !isAuthenticated || !authUserId || !activeWorkspaceId) return;
-
-        let cancelled = false;
-        let reloadTimer: number | null = null;
-
-        const reloadSharedCanvas = () => {
-            if (reloadTimer) window.clearTimeout(reloadTimer);
-            reloadTimer = window.setTimeout(async () => {
-                if (cancelled) return;
-
-                const state = useStore.getState();
-
-                // 1. If we have unsaved local changes, do NOT overwrite them!
-                if (state.storage.isCloudDirty) return;
-
-                // 2. If the user is actively typing, do NOT reload (prevents typing deletion)
-                const activeEl = document.activeElement as HTMLElement | null;
-                const isTyping = activeEl && (
-                    activeEl.tagName === 'INPUT' ||
-                    activeEl.tagName === 'TEXTAREA' ||
-                    activeEl.isContentEditable ||
-                    !!activeEl.closest('[contenteditable]') ||
-                    !!activeEl.closest('[class*="BlockEditor"]') ||
-                    !!activeEl.closest('[class*="editor"]')
-                );
-                if (isTyping) return;
-
-                // 3. If the user is actively dragging, do NOT reload (prevents snapping back)
-                const isDragging = document.body.classList.contains('chnk-it-node-dragging') || 
-                                   document.body.classList.contains('chnk-it-block-dragging');
-                if (isDragging) return;
-
-                // 4. If we just saved to the cloud within the last 5 seconds, ignore this event 
-                // as it's almost certainly our own save bouncing back from Supabase.
-                const lastSaveMs = state.storage.cloudLastSaveTimeMs;
-                if (lastSaveMs && Date.now() - lastSaveMs < 5000) return;
-
-                /* A collaborator's edit rearranges cards under the user's
-                   cursor. The pill is what tells them why — it never blocks,
-                   and it clears the moment the refetch lands. Routed through
-                   the same store field as the initial load so the cloud icon
-                   spins for this too. */
-                setCloudLoad('background', { stage: 'fetching', value: 0.3 });
-                try {
-                    const result = await loadCanvasFromCloud(
-                        authUserId,
-                        activeWorkspaceId,
-                        (progress) => { if (!cancelled) setCloudLoad('background', progress); },
-                    );
-                    if (cancelled) return;
-                    if (result.ok) {
-                        // Local is clean here (checked above), so a non-empty local
-                        // canvas should match the cloud. An empty result against
-                        // non-empty local is almost certainly a transient glitch —
-                        // skip rather than wipe the canvas.
-                        if (result.nodes.length === 0 && useStore.getState().nodes.length > 0) return;
-                        loadGraph(result.nodes, result.edges);
-                        setCloudLastLoaded(new Date().toLocaleTimeString());
-                        setCloudDirty(false);
-                        setCloudError(null);
-                    } else {
-                        setCloudError(result.error);
-                    }
-                } finally {
-                    if (!cancelled) setCloudLoad('idle');
-                }
-            }, 650);
-        };
-
-        const channel = supabase
-            .channel(`workspace-canvas-${activeWorkspaceId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'canvas_nodes',
-                    filter: `workspace_id=eq.${activeWorkspaceId}`,
-                },
-                reloadSharedCanvas,
-            )
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'canvas_edges',
-                    filter: `workspace_id=eq.${activeWorkspaceId}`,
-                },
-                reloadSharedCanvas,
-            )
-            .subscribe();
-
-        return () => {
-            cancelled = true;
-            if (reloadTimer) window.clearTimeout(reloadTimer);
-            // An in-flight refetch is abandoned here, so its `finally` will not
-            // clear the pill — drop it now rather than leaving one pinned.
-            setCloudLoad('idle');
-            void supabase.removeChannel(channel);
-        };
-    }, [authUserId, activeWorkspaceId, isAuthenticated, loadGraph, setCloudLastLoaded, setCloudDirty, setCloudError, setCloudLoad]);
-
     // Recently viewed tracking
-    const { trackNoteView } = useRecentlyViewed(activeWorkspaceId || undefined);
+    const { trackNoteView } = useRecentlyViewed(activeWorkspaceId || undefined, { trackOnly: true });
 
     useEffect(() => {
         if (!activeWorkspaceId) return; // workspace not yet provisioned
@@ -1794,7 +1577,7 @@ export function CanvasBoard() {
     return (
         <>
         {/* The shell is frozen only while the blocking overlay is actually on
-            screen — a background refresh leaves the canvas fully usable. */}
+            screen — a background cloud update leaves the canvas fully usable. */}
         <div className={styles.container} inert={showBlockingLoader || undefined} aria-busy={showBlockingLoader}>
             {/* Shell = top bar + framed canvas. It's a separate wrapper because
                 the side panels below are in-flow siblings of .container and
@@ -2036,21 +1819,6 @@ export function CanvasBoard() {
                     }}
                 >
                     <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color="var(--dot)" />
-                    {showFirstCardOffer && (
-                        <Panel position="top-center" className={styles.emptyStatePanel}>
-                            <section className={styles.emptyState} aria-labelledby="first-card-canvas-title">
-                                <p className={styles.emptyEyebrow}>Nested canvas</p>
-                                <h2 id="first-card-canvas-title">Ready for its first idea</h2>
-                                <p>
-                                    Anything you add here belongs inside this card. You can always return to the parent canvas with Alt and Up Arrow.
-                                </p>
-                                <button type="button" className={styles.emptyStateAction} onClick={createFirstNestedCard}>
-                                    <Plus size={17} aria-hidden="true" />
-                                    Add a card
-                                </button>
-                            </section>
-                        </Panel>
-                    )}
                     {FEATURES.collaboration && <LiveCursors presenceData={presenceData} currentUserId={currentUserId} />}
                     <CanvasSlashMenuM />
                     <DragChipM />

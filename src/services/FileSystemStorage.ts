@@ -2,6 +2,7 @@ import type { AppNode } from '../types';
 import type { Edge } from '@xyflow/react';
 import LZString from 'lz-string';
 import { perfMonitor } from '../utils/performance';
+import { loadFolderAssets, saveFolderAssets } from './assets/folderAssets';
 
 const NODES_FILE = 'nodes.json';
 const EDGES_FILE = 'edges.json';
@@ -9,7 +10,28 @@ const BACKUP_NODES_FILE = 'nodes.backup.json';
 const BACKUP_EDGES_FILE = 'edges.backup.json';
 const TEMP_NODES_FILE = 'nodes.tmp.json';
 const TEMP_EDGES_FILE = 'edges.tmp.json';
-const USE_COMPRESSION = true;
+
+/**
+ * Writes are plain JSON.
+ *
+ * `LZString.compressToUTF16` is a pure-JS loop that runs synchronously on the
+ * main thread, and it does not scale: measured on a real 1411-card workspace
+ * (10.6 MB of JSON) it took 3,580ms for ONE pass, against 21ms to serialise the
+ * same data. `_doSave` ran it three times per save — backup rewrite plus both
+ * temp files — which is essentially the whole of the ~17s saves that made the
+ * app unusable, main thread blocked throughout.
+ *
+ * Reads still accept the old format (see `readJsonFile`), so folders written by
+ * earlier versions keep loading and quietly become plain JSON on their next
+ * save. The files are named `.json` and now actually contain JSON — inspectable
+ * and salvageable by hand, which the compressed UTF16 payload never was.
+ *
+ * If the on-disk size ever justifies compression again, it belongs in a worker
+ * or on native `CompressionStream`, never in a synchronous main-thread loop.
+ */
+const COMPRESS_ON_WRITE = false;
+/** Old folders still hold LZString payloads; reads must keep decoding them. */
+const DECOMPRESS_LEGACY_READS = true;
 
 declare global {
     interface Window {
@@ -37,7 +59,12 @@ export class FileSystemStorage {
     private readonly KEY = 'project-dir';
 
     private _isSaving = false;
-    private _saveQueue: (() => Promise<void>)[] = [];
+    /** The single coalesced follow-up save: latest graph wins. */
+    private _pendingSave: {
+        nodes: AppNode[];
+        edges: Edge[];
+        options?: { skipFolderSync?: boolean };
+    } | null = null;
     private _pendingResolvers: { resolve: () => void; reject: (e: unknown) => void }[] = [];
 
     constructor() {
@@ -67,6 +94,7 @@ export class FileSystemStorage {
         request.onerror = () => {
             console.error('[Storage] Failed to initialize IndexedDB');
         };
+        request.onsuccess = () => request.result.close();
     }
 
     private async saveHandleToIndexedDB(handle: FileSystemDirectoryHandle): Promise<void> {
@@ -79,10 +107,11 @@ export class FileSystemStorage {
                     const store = tx.objectStore(this.STORE_NAME);
                     store.put(handle, this.KEY);
                     tx.oncomplete = () => {
+                        db.close();
                         // Handle saved
                         resolve();
                     };
-                    tx.onerror = () => reject(new Error('Failed to save handle to IndexedDB'));
+                    tx.onerror = () => { db.close(); reject(new Error('Failed to save handle to IndexedDB')); };
                 } catch (err) {
                     reject(err);
                 }
@@ -100,6 +129,7 @@ export class FileSystemStorage {
                     const tx = db.transaction(this.STORE_NAME, 'readonly');
                     const store = tx.objectStore(this.STORE_NAME);
                     const getReq = store.get(this.KEY);
+                    tx.oncomplete = tx.onabort = () => db.close();
                     getReq.onsuccess = () => resolve(getReq.result || null);
                     getReq.onerror = () => resolve(null);
                 } catch (err) {
@@ -121,10 +151,11 @@ export class FileSystemStorage {
                     const store = tx.objectStore(this.STORE_NAME);
                     store.delete(this.KEY);
                     tx.oncomplete = () => {
+                        db.close();
                         // Handle cleared
                         resolve();
                     };
-                    tx.onerror = () => resolve();
+                    tx.onerror = () => { db.close(); resolve(); };
                 } catch (err) {
                     console.warn('[Storage] Failed to clear stored handle:', err);
                     resolve();
@@ -137,10 +168,12 @@ export class FileSystemStorage {
     async selectDirectory(): Promise<boolean> {
         try {
             console.log('[Storage] Opening directory picker...');
-            this.directoryHandle = await window.showDirectoryPicker({
+            const selected = await window.showDirectoryPicker({
                 mode: 'readwrite',
                 id: 'chnk-it-data',
             });
+            await this.waitForSaves();
+            this.directoryHandle = selected;
             await this.saveHandleToIndexedDB(this.directoryHandle);
             console.log('[Storage] Directory selected:', this.directoryHandle.name);
             return true;
@@ -204,30 +237,33 @@ export class FileSystemStorage {
         }
     }
 
-    disconnect(): void {
+    private async waitForSaves(): Promise<void> {
+        while (this._isSaving) await new Promise(resolve => setTimeout(resolve, 50));
+    }
+
+    async disconnect(): Promise<void> {
+        await this.waitForSaves();
         this.directoryHandle = null;
         console.log('[Storage] Disconnected');
     }
 
     async saveData(nodes: AppNode[], edges: Edge[], options?: { skipFolderSync?: boolean }): Promise<void> {
         if (!this.directoryHandle) {
-            console.warn('[Storage] Cannot save - not connected');
-            return;
+            throw new Error('The folder is disconnected. Reconnect it to save a folder copy.');
         }
 
+        /* Everything that arrives during an in-flight save collapses into ONE
+           follow-up carrying the newest graph.
+
+           This used to push a separate closure per call, each capturing its own
+           snapshot, so N edits during a slow save queued N full saves — the
+           first N-1 of them writing data already superseded. At the save times
+           this backend was reaching, a handful of edits meant minutes of solid
+           writing, and the last write was the only one that mattered. */
         if (this._isSaving) {
             return new Promise((resolve, reject) => {
                 this._pendingResolvers.push({ resolve, reject });
-                this._saveQueue.push(async () => {
-                    const resolvers = [...this._pendingResolvers];
-                    this._pendingResolvers = [];
-                    try {
-                        await this._doSave(nodes, edges, options);
-                        resolvers.forEach(r => r.resolve());
-                    } catch (e) {
-                        resolvers.forEach(r => r.reject(e));
-                    }
-                });
+                this._pendingSave = { nodes, edges, options };
             });
         }
 
@@ -235,14 +271,16 @@ export class FileSystemStorage {
     }
 
     private async _doSave(nodes: AppNode[], edges: Edge[], _options?: { skipFolderSync?: boolean }): Promise<void> {
-        if (!this.directoryHandle) return;
+        if (!this.directoryHandle) throw new Error('The folder disconnected before the queued save could finish.');
 
         perfMonitor.startTimer('storage.save', { nodeCount: nodes.length });
         this._isSaving = true;
         const startTime = Date.now();
+        let replacingFiles = false;
         // Saving...
 
         try {
+            await saveFolderAssets(this.directoryHandle, nodes);
             // 1. Create backup
             await this.createBackup();
 
@@ -252,16 +290,27 @@ export class FileSystemStorage {
                 this.writeJsonFile(TEMP_EDGES_FILE, edges)
             ]);
 
-            // 3. Verify temp files
+            /* 3. Verify the temp files landed.
+               This used to read both back, decode them and JSON.parse the whole
+               graph purely to see whether it threw, discarding the result — a
+               second full decode per save. What it actually needs to establish
+               is that the bytes reached the disk, so ask for the size. */
             try {
-                await this.readJsonFile<AppNode[]>(TEMP_NODES_FILE);
-                await this.readJsonFile<Edge[]>(TEMP_EDGES_FILE);
-            } catch {
-                console.error('[Storage] Temp file verification failed');
+                const [nodesSize, edgesSize] = await Promise.all([
+                    this.fileSize(TEMP_NODES_FILE),
+                    this.fileSize(TEMP_EDGES_FILE),
+                ]);
+                if (nodesSize === 0 || (nodes.length > 0 && nodesSize < 2)) {
+                    throw new Error('nodes temp file is empty');
+                }
+                if (edgesSize === 0) throw new Error('edges temp file is empty');
+            } catch (verifyError) {
+                console.error('[Storage] Temp file verification failed', verifyError);
                 throw new Error('Save verification failed');
             }
 
             // 4. Atomic replace
+            replacingFiles = true;
             await this.atomicReplace(TEMP_NODES_FILE, NODES_FILE);
             await this.atomicReplace(TEMP_EDGES_FILE, EDGES_FILE);
 
@@ -280,9 +329,14 @@ export class FileSystemStorage {
             console.error('[Storage] Save failed:', error);
             perfMonitor.endTimer('storage.save', { success: false, error: error instanceof Error ? error.message : String(error) });
 
-            await this.restoreFromBackup().catch(restoreErr =>
-                console.error('[Storage] Backup restore failed:', restoreErr)
-            );
+            // A failure while writing attachments or temp files has not
+            // touched the saved graph. Restoring an older backup here would
+            // itself discard the latest successful save.
+            if (replacingFiles) {
+                await this.restoreFromBackup().catch(restoreErr =>
+                    console.error('[Storage] Backup restore failed:', restoreErr)
+                );
+            }
 
             // Check for invalid handle
             if (error instanceof Error && (
@@ -294,9 +348,18 @@ export class FileSystemStorage {
             throw error;
         } finally {
             this._isSaving = false;
-            if (this._saveQueue.length > 0) {
-                const nextSave = this._saveQueue.shift();
-                if (nextSave) nextSave();
+
+            const pending = this._pendingSave;
+            this._pendingSave = null;
+            if (pending) {
+                const resolvers = this._pendingResolvers;
+                this._pendingResolvers = [];
+                // Not awaited: this save's own caller is already settled, and
+                // the follow-up settles everyone who waited behind it.
+                void this._doSave(pending.nodes, pending.edges, pending.options).then(
+                    () => resolvers.forEach((r) => r.resolve()),
+                    (error) => resolvers.forEach((r) => r.reject(error)),
+                );
             }
         }
     }
@@ -341,6 +404,7 @@ export class FileSystemStorage {
             }
 
             // Data loaded
+            await loadFolderAssets(this.directoryHandle, nodes);
             perfMonitor.endTimer('storage.load', { success: true, nodeCount: nodes.length });
             return { nodes, edges };
         } catch (error) {
@@ -351,24 +415,28 @@ export class FileSystemStorage {
             if (error instanceof Error && (error.name === 'NotFoundError' || error.name === 'NotAllowedError')) {
                 this.directoryHandle = null;
             }
-            return null;
+            throw error;
         }
     }
 
     private async createBackup(): Promise<void> {
         if (!this.directoryHandle) return;
 
+        /* A byte-for-byte copy. This used to decode the previous file and
+           re-encode it, which on a large workspace meant a full parse plus a
+           full compress just to duplicate bytes already sitting on disk. The
+           backup does not care what the format is — only that it can be put
+           back — so copy it raw and leave whatever encoding it had intact. */
         try {
             if (await this.fileExists(NODES_FILE)) {
-                const nodesData = await this.readJsonFile<AppNode[]>(NODES_FILE);
-                await this.writeJsonFile(BACKUP_NODES_FILE, nodesData);
+                await this.writeRawFile(BACKUP_NODES_FILE, await this.readRawFile(NODES_FILE));
             }
             if (await this.fileExists(EDGES_FILE)) {
-                const edgesData = await this.readJsonFile<Edge[]>(EDGES_FILE);
-                await this.writeJsonFile(BACKUP_EDGES_FILE, edgesData);
+                await this.writeRawFile(BACKUP_EDGES_FILE, await this.readRawFile(EDGES_FILE));
             }
         } catch (error) {
             console.warn('[Storage] Backup creation failed:', error);
+            throw error;
         }
     }
 
@@ -380,10 +448,10 @@ export class FileSystemStorage {
             const backupEdgesExist = await this.fileExists(BACKUP_EDGES_FILE);
 
             if (backupNodesExist && backupEdgesExist) {
-                const nodesData = await this.readJsonFile<AppNode[]>(BACKUP_NODES_FILE);
-                const edgesData = await this.readJsonFile<Edge[]>(BACKUP_EDGES_FILE);
-                await this.writeJsonFile(NODES_FILE, nodesData);
-                await this.writeJsonFile(EDGES_FILE, edgesData);
+                // Raw, to match createBackup: put back exactly the bytes that
+                // were known good, whatever encoding they were written in.
+                await this.writeRawFile(NODES_FILE, await this.readRawFile(BACKUP_NODES_FILE));
+                await this.writeRawFile(EDGES_FILE, await this.readRawFile(BACKUP_EDGES_FILE));
                 console.log('[Storage] Restored from backup');
             }
         } catch (error) {
@@ -402,6 +470,13 @@ export class FileSystemStorage {
             console.error('[Storage] Atomic replace failed:', error);
             throw error;
         }
+    }
+
+    /** Bytes on disk, without reading or decoding the contents. */
+    private async fileSize(filename: string): Promise<number> {
+        if (!this.directoryHandle) throw new Error('Not connected');
+        const fileHandle = await this.directoryHandle.getFileHandle(filename, { create: false });
+        return (await fileHandle.getFile()).size;
     }
 
     private async fileExists(filename: string): Promise<boolean> {
@@ -446,10 +521,8 @@ export class FileSystemStorage {
 
         const jsonStr = JSON.stringify(data);
 
-        if (USE_COMPRESSION && jsonStr.length > 10000) {
-            const compressed = LZString.compressToUTF16(jsonStr);
-            // Compressed
-            await writable.write(compressed);
+        if (COMPRESS_ON_WRITE && jsonStr.length > 10000) {
+            await writable.write(LZString.compressToUTF16(jsonStr));
         } else {
             await writable.write(jsonStr);
         }
@@ -466,7 +539,7 @@ export class FileSystemStorage {
             const text = await file.text();
 
             // Try decompress
-            if (USE_COMPRESSION && text.length > 0 && !text.startsWith('{') && !text.startsWith('[')) {
+            if (DECOMPRESS_LEGACY_READS && text.length > 0 && !text.startsWith('{') && !text.startsWith('[')) {
                 try {
                     const decompressed = LZString.decompressFromUTF16(text);
                     if (decompressed) {

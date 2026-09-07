@@ -9,6 +9,7 @@ import { fileSystemBackend } from './storage/FileSystemBackend';
 import type { GraphBackend, BackendKind } from './storage/types';
 import { shallow } from 'zustand/shallow';
 import { useStore } from '../store/useStore';
+import { historyEquality } from '../store/historyConfig';
 import type { AppState } from '../store/types';
 import type { AppNode } from '../types';
 import type { Edge } from '@xyflow/react';
@@ -59,8 +60,6 @@ export function initStorageManager(
             nodes: state.nodes,
             edges: state.edges,
             isConnected: state.storage.isConnected,
-            setLocalDirty: state.setLocalDirty,
-            setCloudDirty: state.setCloudDirty
         }),
         (curr, prev) => {
             const nodesChanged = curr.nodes !== prev.nodes;
@@ -73,12 +72,29 @@ export function initStorageManager(
                    charged to the frame. The drop is a nodes change too, so
                    nothing is lost by waiting for it. */
                 if (useStore.getState().interactionState.draggedNodeId) return;
+                if (isRestoring) return;
 
-                // Mark both states as unsynced/dirty
-                if (curr.setLocalDirty) curr.setLocalDirty(true);
-                if (curr.setCloudDirty) curr.setCloudDirty(true);
+                /* React Flow replaces the nodes array whenever it measures,
+                   selects or resizes — none of which is a document edit. A
+                   reference check counts them all, so merely opening the canvas
+                   latched the app "unsaved": this marked it dirty, the sync
+                   coordinator correctly saw no real change and never ran a save
+                   to clear it, and the flag stayed set for the session. The
+                   indicator then read "Saving to this device…" over a saved
+                   workspace and every tab close raised a "Leave site?" prompt.
+                   Judge a real change the same way the coordinator does. */
+                if (historyEquality(
+                    { nodes: prev.nodes, edges: prev.edges },
+                    { nodes: curr.nodes, edges: curr.edges },
+                )) return;
 
-                if (!curr.isConnected || isRestoring) return;
+                /* Durability state belongs to the sync coordinator, which sets
+                   it when it schedules a write and clears it when the write
+                   lands. Setting it here — from a manager that only mirrors an
+                   optional folder — meant two owners for one flag and no
+                   agreement on when it was satisfied. */
+
+                if (!curr.isConnected) return;
 
                 if (saveTimeout) {
                     clearTimeout(saveTimeout);
@@ -122,15 +138,14 @@ async function autoReconnect(): Promise<void> {
             isRestoring = true;
             storeCallbacks.loadGraph(data.nodes, data.edges);
             isRestoring = false;
-            if (state.setLocalLastSaved) state.setLocalLastSaved(timeStr);
-            if (state.setLocalDirty) state.setLocalDirty(false);
-            if (state.setLocalError) state.setLocalError(null);
+            if (state.setLastSaved) state.setLastSaved(timeStr);
+            if (state.setFolderError) state.setFolderError(null);
         }
         storeCallbacks.setStorageStatus(true, activeBackend.displayName ?? 'Local Folder');
     } catch (err) {
         console.warn('[StorageManager] Auto-reconnect failed:', err);
         const state = useStore.getState();
-        if (state.setLocalError) state.setLocalError(
+        if (state.setFolderError) state.setFolderError(
             err instanceof Error ? err.message : 'Failed to reconnect to local storage'
         );
     }
@@ -150,15 +165,14 @@ async function performSave(): Promise<void> {
         const timeStr = new Date().toLocaleTimeString();
         storeCallbacks.setLastSaved(timeStr);
         
-        // Update new dynamic states
-        const state = useStore.getState();
-        if (state.setLocalLastSaved) state.setLocalLastSaved(timeStr);
-        if (state.setLocalDirty) state.setLocalDirty(false);
-        if (state.setLocalError) state.setLocalError(null);
+        // Update the optional folder mirror status
+        useStore.getState().setFolderError(null);
+        // The folder mirror must not acknowledge an IndexedDB write that is
+        // still pending (or clear its error). Its timestamp is lastSaved.
     } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         const state = useStore.getState();
-        if (state.setLocalError) state.setLocalError(errorMsg);
+        if (state.setFolderError) state.setFolderError(errorMsg);
 
         // If the backend dropped its connection, surface that to the UI.
         if (!activeBackend.isConnected) {
@@ -217,9 +231,8 @@ export async function connectBackend(
             await backend.save({ nodes: currentState.nodes, edges: currentState.edges });
             const timeStr = new Date().toLocaleTimeString();
             
-            if (state.setLocalLastSaved) state.setLocalLastSaved(timeStr);
-            if (state.setLocalDirty) state.setLocalDirty(false);
-            if (state.setLocalError) state.setLocalError(null);
+            if (state.setLastSaved) state.setLastSaved(timeStr);
+            if (state.setFolderError) state.setFolderError(null);
             ctx.setStorageStatus(true, backend.displayName ?? 'Local Folder');
             return { success: true };
         }
@@ -227,22 +240,16 @@ export async function connectBackend(
         const data = await backend.load();
         const timeStr = new Date().toLocaleTimeString();
 
-        if (data && data.nodes.length > 0) {
+        if (data) {
             isRestoring = true;
             ctx.loadGraph(data.nodes, data.edges);
             isRestoring = false;
-            if (state.setLocalLastSaved) state.setLocalLastSaved(timeStr);
-            if (state.setLocalDirty) state.setLocalDirty(false);
-            if (state.setLocalError) state.setLocalError(null);
+            if (state.setLastSaved) state.setLastSaved(timeStr);
+            if (state.setFolderError) state.setFolderError(null);
         } else {
-            // Folder is empty — start fresh by clearing the canvas
-            const currentState = ctx.getState();
-            if (currentState.nodes.length > 0) {
-                ctx.loadGraph([], []);
-            }
-            if (state.setLocalLastSaved) state.setLocalLastSaved(null);
-            if (state.setLocalDirty) state.setLocalDirty(false);
-            if (state.setLocalError) state.setLocalError(null);
+            // Picking an empty or unreadable folder is not an instruction to
+            // erase the current document.
+            return { success: false, error: 'No saved workspace was found in this folder. Your current canvas was kept.' };
         }
 
         ctx.setStorageStatus(true, backend.displayName ?? 'Local Folder');
@@ -257,14 +264,16 @@ export async function connectBackend(
 export async function disconnectBackend(
     setStorageStatus: (connected: boolean, dirName: string | null) => void
 ): Promise<void> {
+    if (saveTimeout) window.clearTimeout(saveTimeout);
+    saveTimeout = null;
+    setStorageStatus(false, null);
     try { await activeBackend.disconnect(); } catch { /* ignore */ }
     activeBackend = fileSystemBackend;
     setStorageStatus(false, null);
 
     const state = useStore.getState();
-    if (state.setLocalLastSaved) state.setLocalLastSaved(null);
-    if (state.setLocalDirty) state.setLocalDirty(false);
-    if (state.setLocalError) state.setLocalError(null);
+    if (state.setLastSaved) state.setLastSaved(null);
+    if (state.setFolderError) state.setFolderError(null);
 }
 
 export function getActiveBackendKind(): BackendKind {

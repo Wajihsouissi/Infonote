@@ -38,26 +38,25 @@ Two former entries have since come back IN: kanban/views (E24–26), rebuilt and
 - **Periodic sign-in reminder:** non-blocking toast/banner. Shows after the first meaningful edit, then roughly every 10 minutes, and immediately when a quota limit is hit. Dismissible, never interrupts typing, never a blocking modal mid-work.
 - **Hitting a limit:** the create action is blocked with an inline modal — e.g. "You've reached the free limit of 3 cards. Sign in to create unlimited cards." Existing content is never deleted or locked.
 
-### On first login — storage choice modal
+### On first app launch — storage choice modal
 
-One modal, shown once (choice changeable later in storage settings). **No option is pre-selected — the user must actively choose one of three** before continuing:
+One modal, shown once per device (choice changeable later in storage settings). **No option is pre-selected** before continuing:
 
-1. **Local** — saves on this device. Browser storage always; local folder optional (folder = File System Access API, Chromium-only — hide or explain the folder part on Firefox/Safari).
-2. **Cloud** — auto-sync to Supabase (auto-sync ON is already the app default for signed-in users).
-3. **Local + sync with cloud** — local-first: every save writes locally first, then syncs to cloud in the background (debounced). The flagship posture: the app is a local-first app; cloud is the mirror.
+1. **This device** — saves to IndexedDB on this device. A local folder mirror remains optional (File System Access API, Chromium-only).
+2. **This device + cloud** — the same local-first save, plus a debounced Supabase mirror. Signed-out users are taken through sign-in after choosing it.
 
-Also on login: anonymous work migrates into the user's workspace with nothing lost (QA A2), and all quotas lift.
+On first cloud connection, anonymous/local work and an existing cloud graph merge non-destructively; neither side is silently replaced.
 
 ### Future (post-beta, do NOT build now)
 
-Cloud sync becomes part of a paid Pro tier. Keep the storage-mode preference as a clean enum (`cloud | local | both`) so gating it behind a plan check later is a one-line change.
+Cloud sync becomes part of a paid Pro tier. Keep the storage-mode preference as a clean enum (`local | sync`) so gating the mirror behind a plan check later stays isolated.
 
 ---
 
 ## Resolved decisions (2026-07-10)
 
 - Blocks are **unlimited** everywhere; the "50" is a **50-nodes-per-canvas cap for all beta users**.
-- The storage modal has **no pre-selected default** — the user actively picks Local, Cloud, or Local+cloud-sync.
+- The first-launch storage modal has **no pre-selected default** — the user actively picks This device or This device + cloud.
 - A signed-in user who logs out keeps everything visible/editable but cannot create beyond the anonymous quota.
 
 ---
@@ -65,8 +64,10 @@ Cloud sync becomes part of a paid Pro tier. Keep the storage-mode preference as 
 ## Gap analysis — exists vs. to build
 
 **Already in the codebase (verified in BETA_READINESS_REPORT / QA_TEST_RESULTS):**
-- IndexedDB snapshot autosave, debounced, universal — anonymous persistence works (QA A1 ✅)
-- Cloud sync with delta saves, auto-sync default ON for signed-in users
+- IndexedDB workspace autosave, debounced and universal, with a durable cloud outbox — anonymous persistence works (QA A1 ✅)
+- One app-level background sync coordinator: full cloud hydration once per device/workspace, then revision-only startup checks and delta saves
+- First-launch, device-scoped choice between This device and This device + cloud; settings can change it later
+- Non-destructive first cloud connection, paginated graph loads, restore backups, daily/manual versions, and workspace-scoped file mirroring
 - Local folder backend (Chromium File System Access API)
 - `beforeunload` flush + unsaved-work warning
 - AI endpoints auth-gated + rate-limited (QA ✅)
@@ -75,9 +76,7 @@ Cloud sync becomes part of a paid Pro tier. Keep the storage-mode preference as 
 1. Limit enforcement in `addNode` (single creation entry point, nodeSlice.ts): 50 nodes/canvas for everyone; 3 cards + 3 nesting levels when not signed in. Small usage indicator (e.g. "2/3 cards" anon, "48/50 nodes" near the cap)
 2. Limit-reached modals — sign-in CTA for anonymous limits; friendly "this canvas is full — nest a canvas or start another" for the 50-node cap
 3. Periodic sign-in reminder toast (cadence + dismissal state in localStorage)
-4. First-login storage choice modal (3 options, none pre-selected), persisted per user; storage settings entry to change it later
-5. "Both" mode: verify StorageManager can run local folder + cloud simultaneously with local written first; wire if not
-6. Copy pass over all new modals/toasts
+4. Copy pass over all new limit/reminder surfaces
 
 **Known bugs still open (fix before the feature work):**
 - Mobile marketing page broken at 375px (QA F-1, MAJOR)

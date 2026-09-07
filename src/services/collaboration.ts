@@ -1,6 +1,8 @@
 import { isSupabaseConfigured, supabase } from './supabase/client';
-import { loadCanvasFromCloud } from './cloudSync';
 import { useStore } from '../store/useStore';
+import { loadLocalWorkspace } from './storage/LocalWorkspaceStore';
+import { requestWorkspaceSync } from './syncController';
+import { readStorageMode } from './storage/storagePreference';
 
 export type WorkspaceRole = 'owner' | 'editor' | 'viewer';
 
@@ -328,41 +330,39 @@ export function persistActiveWorkspace(userId: string, workspaceId: string): voi
 }
 
 /**
- * Make a workspace the active canvas and load its authoritative cloud graph.
- * This is used after accepting an invite and when switching workspaces so the
- * previous workspace's local graph can never remain visible by accident.
+ * Make a workspace active. The durable local copy is shown immediately; the
+ * app-level SyncCoordinator performs the cloud revision check in the
+ * background. Canvas routes never own hydration.
  */
 export async function activateWorkspace(
     userId: string,
     workspaceId: string,
 ): Promise<Result<{ workspaceId: string; nodeCount: number; edgeCount: number }>> {
     try {
-        const result = await loadCanvasFromCloud(userId, workspaceId);
-        if (!result.ok) throw new Error(result.error);
+        // Give the previous workspace one last chance to flush. Failure is not
+        // a blocker: its durable outbox remains in IndexedDB for the next open.
+        await requestWorkspaceSync({ localOnly: readStorageMode(userId) !== 'sync' }).catch(() => undefined);
+
+        const local = await loadLocalWorkspace(`workspace:${workspaceId}`);
 
         persistActiveWorkspace(userId, workspaceId);
 
         const state = useStore.getState();
         state.setAuthWorkspace(workspaceId);
-        state.loadGraph(result.nodes, result.edges);
+        state.loadGraph(local?.nodes ?? [], local?.edges ?? []);
         state.navigateToNode(null);
-        state.clearSyncTracking(
-            new Set(state.storage.dirtyNodeIds),
-            new Set(state.storage.dirtyEdgeIds),
-            new Set(state.storage.deletedNodeIds),
-            new Set(state.storage.deletedEdgeIds),
-        );
-        state.setCloudDirty(false);
+        state.replaceSyncTracking(local ?? {
+            dirtyNodeIds: [], dirtyEdgeIds: [], deletedNodeIds: [], deletedEdgeIds: [],
+        });
         state.setCloudError(null);
-        // Activating a workspace reads the canvas down; nothing was written.
-        state.setCloudLastLoaded(new Date().toLocaleTimeString());
+        if (local?.lastSyncedAt) state.setCloudLastLoaded(new Date(local.lastSyncedAt).toLocaleTimeString());
 
         return {
             ok: true,
             data: {
                 workspaceId,
-                nodeCount: result.nodes.length,
-                edgeCount: result.edges.length,
+                nodeCount: local?.nodes.length ?? 0,
+                edgeCount: local?.edges.length ?? 0,
             },
         };
     } catch (error) {

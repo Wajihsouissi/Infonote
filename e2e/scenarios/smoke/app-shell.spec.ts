@@ -93,25 +93,40 @@ test.describe('smoke: app shell', () => {
         },
     );
 
-    test('S06 canvas state is available without a hidden local snapshot', async ({ page }) => {
+    test('S06 canvas state has a durable local-first workspace record', async ({ page }) => {
         await openCanvas(page);
+        await expect(page.getByRole('button', { name: /^Cloud sync is off/ })).toBeVisible();
         await waitForCanvasState(page, (state) => state.nodes.length > 0, 'the live canvas state');
-        const hasLegacyStore = await page.evaluate(async () => {
+        const hasWorkspaceStore = await page.evaluate(async () => {
             const databases = await (indexedDB as unknown as {
                 databases?: () => Promise<Array<{ name?: string }>>;
             }).databases?.() ?? [];
-            if (!databases.some((database) => database.name === 'chnk-it-local')) return false;
+            if (!databases.some((database) => database.name === 'infonote-local-workspaces')) return false;
             const db = await new Promise<IDBDatabase>((resolve, reject) => {
-                const request = indexedDB.open('chnk-it-local');
+                const request = indexedDB.open('infonote-local-workspaces');
                 request.onsuccess = () => resolve(request.result);
                 request.onerror = () => reject(request.error);
             });
             try {
-                return db.objectStoreNames.contains('snapshots');
+                return db.objectStoreNames.contains('workspaces');
             } finally {
                 db.close();
             }
         });
-        expect(hasLegacyStore).toBe(false);
+        expect(hasWorkspaceStore).toBe(true);
+    });
+
+    test('S08 storage mode is chosen once per device', async ({ page }) => {
+        await page.goto('/canvas');
+        const choice = page.getByRole('dialog', { name: 'How do you want to save?' });
+        await expect(choice).toBeVisible();
+        expect(await page.evaluate(() => localStorage.getItem('infonote.storage-mode.v2'))).toBeNull();
+
+        await choice.getByRole('button', { name: /^Local/ }).click();
+        await expect(choice).toBeHidden();
+        expect(await page.evaluate(() => localStorage.getItem('infonote.storage-mode.v2'))).toBe('local');
+
+        await page.reload();
+        await expect(choice).toHaveCount(0);
     });
 });

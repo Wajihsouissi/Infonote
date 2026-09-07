@@ -21,13 +21,30 @@ export const CARD_PREVIEW = '[data-canvas-card-preview="true"]';
 export async function openCanvas(page: Page): Promise<void> {
     await page.goto('/canvas');
 
+    // First launch asks once whether this device should remain local-only or
+    // also sync. Existing core tests run without credentials, so they exercise
+    // the real Local choice instead of bypassing the onboarding state.
+    const storageChoice = page.getByRole('dialog', { name: 'How do you want to save?' });
+    await expect.poll(async () => (
+        await storageChoice.isVisible().catch(() => false)
+        || await page.evaluate(() => localStorage.getItem('infonote.storage-mode.v2') !== null)
+    ), {
+        message: 'the first-launch storage decision to initialize',
+        timeout: 10_000,
+    }).toBe(true);
+    if (await storageChoice.isVisible().catch(() => false)) {
+        await storageChoice.getByRole('button', { name: /^Local/ }).click();
+        await expect(storageChoice).toBeHidden({ timeout: 5_000 });
+    }
+
     // A fresh local workspace can settle on the dashboard even when the URL is
     // already /canvas; use the product's own entry point when it is offered.
     const entry = page.getByRole('button', { name: /Open your canvas|Open Canvas/i });
     if (await entry.isVisible().catch(() => false)) await entry.click();
 
     await expect(page.locator(PANE)).toBeVisible({ timeout: 20_000 });
-    // Seed cards hydrate asynchronously; acting before that races the store.
+    // Seed cards hydrate asynchronously from the durable local workspace;
+    // acting before that races the store.
     await page.waitForTimeout(1200);
     await dismissAnonReminder(page);
 }

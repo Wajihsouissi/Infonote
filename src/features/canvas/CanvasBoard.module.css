@@ -267,84 +267,6 @@
     }
 }
 
-/* The empty state belongs to the active canvas level, rather than reading as a
-   global onboarding card. It stays above the dots but below cards and panels. */
-.emptyStatePanel {
-    top: 22% !important;
-    pointer-events: auto;
-}
-
-.emptyState {
-    width: min(392px, calc(100vw - 48px));
-    padding: 26px;
-    text-align: center;
-    color: var(--text-soft);
-    background: color-mix(in srgb, var(--bg-rail) 94%, transparent);
-    border: 1px solid var(--line);
-    border-radius: var(--r-panel);
-    box-shadow: var(--toolbar-shadow);
-}
-
-.emptyEyebrow {
-    margin: 0 0 6px;
-    color: var(--accent-ink);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-}
-
-.emptyState h2 {
-    margin: 0;
-    color: var(--text-main);
-    font-size: 1.12rem;
-    letter-spacing: -0.02em;
-}
-
-.emptyState > p:not(.emptyEyebrow) {
-    margin: 9px auto 18px;
-    max-width: 32ch;
-    font-size: 0.88rem;
-    line-height: 1.5;
-}
-
-.emptyStateAction {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0 12px;
-    border: 1px solid transparent;
-    border-radius: var(--r-control);
-    background: var(--accent);
-    color: var(--on-accent);
-    font: inherit;
-    font-size: 0.84rem;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.emptyStateAction:hover {
-    filter: brightness(1.06);
-}
-
-.emptyStateAction:focus-visible {
-    outline: 2px solid var(--accent-ink);
-    outline-offset: 3px;
-}
-
-.emptyStateAction kbd {
-    padding: 2px 5px;
-    border-radius: var(--r-xs);
-    background: rgb(0 0 0 / 0.16);
-    color: inherit;
-    font: inherit;
-    font-size: 0.7rem;
-    font-weight: 600;
-}
-
 .canvasWithSidebar {
     /* When Sidebar is active, we might want to shift the canvas or just let it resize. 
        Flexbox handles the resize automatically (flex: 1).
@@ -497,10 +419,6 @@
         padding-inline: 8px;
     }
 
-    .syncGroup {
-        display: none;
-    }
-
     .navGroup > :not(:first-child),
     .utilityGroup > :not(:first-child) {
         display: none;
@@ -522,15 +440,6 @@
     .canvasFrame {
         margin-inline: 8px;
         margin-bottom: 8px;
-    }
-
-    .emptyStatePanel {
-        top: 18% !important;
-    }
-
-    .emptyState {
-        width: min(320px, calc(100vw - 40px));
-        padding: 22px 18px;
     }
 
     /* React Flow nodes carry desktop dimensions inline. Constrain their outer

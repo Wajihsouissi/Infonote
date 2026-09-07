@@ -10,7 +10,12 @@ import { createAISlice } from './slices/aiSlice';
 import type { AppState } from './types';
 import { initStorageManager, flushPendingSave } from '../services/StorageManager';
 import { bindTemporal, type HistoryState } from './temporalControl';
-import { historyEquality, createCoalescingHandleSet } from './historyConfig';
+import {
+    historyEquality,
+    createCoalescingHandleSet,
+    nodesEquivalent,
+    edgesEquivalent,
+} from './historyConfig';
 
 // Collapse a burst of rapid mutations (a drag, a synchronous cascade of sets)
 // into one undo step. Kept below the editor's 300ms write debounce so typing
@@ -55,38 +60,42 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
     (window as unknown as { __appStore?: typeof useStore }).__appStore = useStore;
 }
 
-// Initialize storage manager ONCE at module load (outside React)
+// Initialize the optional folder mirror once at module load. Starting it
+// synchronously makes its reconnect promise available to the app-level local
+// workspace coordinator, which serializes the two startup reads.
 if (typeof window !== 'undefined') {
-    setTimeout(() => {
-        initStorageManager(
-            () => ({ nodes: useStore.getState().nodes, edges: useStore.getState().edges }),
-            useStore.subscribe,
-            (nodes, edges) => useStore.getState().loadGraph(nodes, edges),
-            {
-                onStatusChange: (connected, dirName) => {
-                    useStore.getState().setStorageStatus(connected, dirName);
-                },
-                onSaveStart: () => {
-                    useStore.getState().setIsSaving(true);
-                },
-                onSaveEnd: (time) => {
-                    useStore.getState().setIsSaving(false);
-                    useStore.getState().setLastSaved(time);
-                }
+    initStorageManager(
+        () => ({ nodes: useStore.getState().nodes, edges: useStore.getState().edges }),
+        useStore.subscribe,
+        (nodes, edges) => useStore.getState().loadGraph(nodes, edges),
+        {
+            onStatusChange: (connected, dirName) => {
+                useStore.getState().setStorageStatus(connected, dirName);
+            },
+            onSaveStart: () => {
+                useStore.getState().setIsSaving(true);
+            },
+            onSaveEnd: (time) => {
+                useStore.getState().setIsSaving(false);
+                useStore.getState().setLastSaved(time);
             }
-        );
-    }, 100);
-
-    // Warn on page unload if there are unsaved changes, and flush pending saves.
-    window.addEventListener('beforeunload', (e) => {
-        const state = useStore.getState();
-        const { isLocalDirty, isCloudDirty } = state.storage;
-
-        if (isLocalDirty || isCloudDirty) {
-            flushPendingSave();
-            e.preventDefault();
-            e.returnValue = '';
         }
+    );
+
+    /* Warn on page unload only while durability on THIS device is still
+       outstanding, and flush the pending folder save.
+
+       Cloud-pending work is deliberately not a reason to interrupt anyone. In
+       a local-first app it is already saved — it syncs on the next launch —
+       and `isCloudDirty` is never cleared at all when the device is in
+       local-only mode, which turned this into a browser "Leave site?" dialog
+       on every single close, forever, for a workspace that was fully saved. */
+    window.addEventListener('beforeunload', (e) => {
+        if (!useStore.getState().storage.isLocalDirty) return;
+
+        flushPendingSave();
+        e.preventDefault();
+        e.returnValue = '';
     });
 
     // Compute explicit deltas for cloud sync
@@ -117,21 +126,18 @@ if (typeof window !== 'undefined') {
                     const pn = prevNodesMap.get(cn.id);
                     if (!pn) {
                         dirty.push(cn.id);
-                    } else if (pn !== cn) {
-                        // Skip selection-only changes — `selected` is a UI concern
-                        // and must not mark nodes dirty for cloud sync.
-                        const { selected: _cs, ...cnRest } = cn;
-                        const { selected: _ps, ...pnRest } = pn;
-                        const isOnlySelectedChange = Object.keys(cnRest).length === Object.keys(pnRest).length &&
-                            Object.keys(cnRest).every(k => (cnRest as Record<string, unknown>)[k] === (pnRest as Record<string, unknown>)[k]);
-                        if (!isOnlySelectedChange) {
-                            dirty.push(cn.id);
-                        }
+                    } else if (pn !== cn && !nodesEquivalent(pn, cn)) {
+                        // React Flow replaces node objects when it measures,
+                        // selects, drags or resizes them. Those UI-only fields
+                        // are not document edits and must not enter the cloud
+                        // delta merely because the canvas was mounted.
+                        dirty.push(cn.id);
                     }
                 });
 
                 if (deleted.length > 0) state.markNodesDeleted(deleted);
                 if (dirty.length > 0) state.markNodesDirty(dirty);
+                if (deleted.length > 0 || dirty.length > 0) state.setCloudDirty(true);
             }
 
             if (curr.edges !== prev.edges) {
@@ -147,12 +153,24 @@ if (typeof window !== 'undefined') {
 
                 curr.edges.forEach(ce => {
                     const pe = prevEdgesMap.get(ce.id);
-                    if (!pe || pe !== ce) dirty.push(ce.id);
+                    if (!pe || (pe !== ce && !edgesEquivalent(pe, ce))) dirty.push(ce.id);
                 });
 
                 if (deleted.length > 0) state.markEdgesDeleted(deleted);
                 if (dirty.length > 0) state.markEdgesDirty(dirty);
+                if (deleted.length > 0 || dirty.length > 0) state.setCloudDirty(true);
             }
+        },
+        {
+            // Keep the pre-drag graph as the comparison base. Skipping only
+            // the listener advanced that base every frame and lost the move
+            // when the gesture ended without another nodes-array change.
+            equalityFn: (previous, current) => {
+                if (current.isRestoring) return false;
+                if (useStore.getState().interactionState.draggedNodeId) return true;
+                return previous.nodes === current.nodes && previous.edges === current.edges &&
+                    previous.isRestoring === current.isRestoring;
+            },
         }
     );
 }

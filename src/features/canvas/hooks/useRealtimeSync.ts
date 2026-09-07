@@ -1,14 +1,26 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useSyncExternalStore } from 'react';
 import { useStore } from '../../../store/useStore';
 import { realtimeSync } from '../../../services/realtimeSync';
 import type { RealtimePresenceState, RealtimeMessage } from '../../../services/realtimeSync';
 import type { AppNode } from '../../../types';
 import { FEATURES } from '../../../config/featureFlags';
+import {
+    readStorageMode,
+    subscribeStorageMode,
+} from '../../../services/storage/storagePreference';
+
+const subscribeToStorageMode = (notify: () => void): (() => void) =>
+    subscribeStorageMode(() => notify());
 
 export function useRealtimeSync(currentParentId: string | null) {
     const auth = useStore((state) => state.auth);
     const applyRemoteNodeUpdate = useStore((state) => state.applyRemoteNodeUpdate);
     const applyRemoteEdgeUpdate = useStore((state) => state.applyRemoteEdgeUpdate);
+    const storageMode = useSyncExternalStore(
+        subscribeToStorageMode,
+        () => readStorageMode(auth.userId),
+        () => null,
+    );
     
     const [presenceData, setPresenceData] = useState<Record<string, RealtimePresenceState[]>>({});
     const isInitialized = useRef(false);
@@ -22,7 +34,7 @@ export function useRealtimeSync(currentParentId: string | null) {
     }, [applyRemoteNodeUpdate, applyRemoteEdgeUpdate]);
 
     useEffect(() => {
-        if (!FEATURES.collaboration || !auth.isAuthenticated || !auth.activeWorkspaceId || !auth.userId) {
+        if (storageMode !== 'sync' || !FEATURES.collaboration || !auth.isAuthenticated || !auth.activeWorkspaceId || !auth.userId) {
             realtimeSync.destroy();
             isInitialized.current = false;
             return;
@@ -48,7 +60,7 @@ export function useRealtimeSync(currentParentId: string | null) {
             realtimeSync.updateCanvasId(currentParentId);
         }
 
-    }, [auth.activeWorkspaceId, auth.userId, auth.isAuthenticated, auth.displayName, auth.email, currentParentId, handleMessage]);
+    }, [auth.activeWorkspaceId, auth.userId, auth.isAuthenticated, auth.displayName, auth.email, currentParentId, handleMessage, storageMode]);
 
     useEffect(() => {
         return () => {

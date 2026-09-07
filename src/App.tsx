@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
-import { Loader2 } from './components/icons';
 import { WelcomeModal } from './features/auth/WelcomeModal';
 import { LimitNoticeModal } from './features/ui/LimitNoticeModal';
 import { CanvasLimitBadge } from './features/ui/CanvasLimitBadge';
@@ -13,6 +12,7 @@ import type { AppView } from './store/types';
 import { supabase, isSupabaseConfigured } from './services/supabase/client';
 import { FEATURES } from './config/featureFlags';
 import { acceptWorkspaceInvitation, activateWorkspace } from './services/collaboration';
+import { SyncCoordinator } from './features/sync/SyncCoordinator';
 
 // Top-level views are lazy so the marketing page doesn't pay for the whole
 // canvas/editor bundle (and vice versa). Vite splits each into its own chunk.
@@ -343,6 +343,9 @@ function App() {
 
   return (
     <ErrorBoundary>
+      {/* Mounted once above every route: canvases consume already-hydrated
+          workspace state and never own cloud loading themselves. */}
+      <SyncCoordinator />
       <Suspense fallback={viewLoader}>
         {renderContent()}
       </Suspense>

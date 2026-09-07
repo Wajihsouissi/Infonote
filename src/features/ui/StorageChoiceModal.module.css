@@ -6,7 +6,12 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(5, 2, 10, 0.65);
+  /* A gate, not a veil. At 0.65 the canvas behind stayed legible and kept
+     inviting clicks it could never receive, so the app read as frozen rather
+     than as waiting on an answer. */
+  background: rgba(5, 2, 10, 0.92);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 
   animation: storageFadeIn 0.2s ease-out;
 }

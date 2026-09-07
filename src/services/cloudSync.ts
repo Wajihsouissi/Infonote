@@ -23,12 +23,22 @@ import type { Edge } from '@xyflow/react';
 import type { AppNode } from '../types';
 import { supabase, isSupabaseConfigured } from './supabase/client';
 
+function cloudErrorMessage(error: unknown): string {
+    if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') return error.message;
+    return String(error);
+}
+
 export type CloudSyncResult =
     | { ok: true; counts: { nodes: number; edges: number } }
     | { ok: false; error: string };
 
 export type CloudLoadResult =
     | { ok: true; nodes: AppNode[]; edges: Edge[] }
+    | { ok: false; error: string };
+
+export type CloudRevisionResult =
+    | { ok: true; revision: string; schemaAvailable: true }
+    | { ok: true; revision: null; schemaAvailable: false }
     | { ok: false; error: string };
 
 /**
@@ -117,7 +127,30 @@ interface CanvasEdgeRow {
     data_json: Record<string, unknown>;
 }
 
-async function ensureReady(userId: string | null, workspaceId: string | null): Promise<{ userId: string; workspaceId: string; actorUserId: string }> {
+/**
+ * A resolved preflight, cached briefly.
+ *
+ * `ensureReady` costs two network round trips — `auth.getUser()` and a
+ * workspaces lookup — and one sync used to run it three times over (load, save,
+ * version), each paying for both again. Neither answer moves on that timescale:
+ * the workspace's owner is effectively static, and a session that expires
+ * mid-window is caught by RLS on the server, which is the real boundary. The
+ * client-side identity check this protects is a guard, not the enforcement.
+ *
+ * Keyed by the requested identity, so a user or workspace switch can never read
+ * another one's entry.
+ */
+const PREFLIGHT_TTL_MS = 30_000;
+let preflightCache: { key: string; at: number; value: EnsureReadyResult } | null = null;
+
+interface EnsureReadyResult { userId: string; workspaceId: string; actorUserId: string }
+
+/** Drop the cached preflight — call whenever the session or account changes. */
+export function invalidateCloudPreflight(): void {
+    preflightCache = null;
+}
+
+async function ensureReady(userId: string | null, workspaceId: string | null): Promise<EnsureReadyResult> {
     if (!isSupabaseConfigured) {
         throw new Error('Supabase is not configured (missing VITE_SUPABASE_* env).');
     }
@@ -129,6 +162,11 @@ async function ensureReady(userId: string | null, workspaceId: string | null): P
     }
     if (!workspaceId || typeof workspaceId !== 'string' || workspaceId.trim() === '') {
         throw new Error('No active workspace selected.');
+    }
+
+    const cacheKey = `${userId}:${workspaceId}`;
+    if (preflightCache && preflightCache.key === cacheKey && Date.now() - preflightCache.at < PREFLIGHT_TTL_MS) {
+        return preflightCache.value;
     }
 
     const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -149,7 +187,13 @@ async function ensureReady(userId: string | null, workspaceId: string | null): P
         throw new Error('Unauthorized workspace access blocked.');
     }
 
-    return { userId: workspace.owner_id as string, workspaceId, actorUserId: authData.user.id };
+    const resolved: EnsureReadyResult = {
+        userId: workspace.owner_id as string,
+        workspaceId,
+        actorUserId: authData.user.id,
+    };
+    preflightCache = { key: cacheKey, at: Date.now(), value: resolved };
+    return resolved;
 }
 
 /** Retry an async operation with exponential backoff. */
@@ -345,11 +389,10 @@ export async function saveCanvasToCloud(
     // Serialize saves: if a save is already in flight, wait for it first.
     // This prevents two concurrent upserts from hitting PostgreSQL with
     // overlapping (user_id, id) pairs that trigger 409 conflicts.
-    if (_saveLock) {
-        await _saveLock.catch(() => {}); // ignore errors from the prior save
-    }
-
-    const promise = _saveCanvasToCloudImpl(userId, workspaceId, nodes, edges, delta);
+    // Chain synchronously: multiple waiters on the same lock would otherwise
+    // all wake up together and start overlapping saves.
+    const promise = (_saveLock ?? Promise.resolve()).catch(() => undefined)
+        .then(() => _saveCanvasToCloudImpl(userId, workspaceId, nodes, edges, delta));
     _saveLock = promise;
 
     try {
@@ -463,7 +506,7 @@ async function _saveCanvasToCloudImpl(
 
         return { ok: true, counts: { nodes: nodeRows.length, edges: edgeRows.length } };
     } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = cloudErrorMessage(err);
         // Detect network-specific errors
         if (!navigator.onLine || message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('fetch')) {
             return { ok: false, error: 'You are offline. Changes will be saved when you reconnect.' };
@@ -500,28 +543,45 @@ export async function loadCanvasFromCloud(
         const { userId: uid, workspaceId: wid } = await ensureReady(userId, workspaceId);
         emit('fetching', 0.22);
 
-        const [nodesRes, edgesRes] = await withRetry(async () => {
-            // Each query is wrapped so it is *executed once* and settles into a
-            // real promise — Postgrest builders are one-shot thenables, so
-            // attaching a progress handler directly to one would re-issue it.
-            const nodesRequest = (async () =>
-                supabase.from('canvas_nodes').select('*').eq('user_id', uid).eq('workspace_id', wid))();
-            const edgesRequest = (async () =>
-                supabase.from('canvas_edges').select('*').eq('user_id', uid).eq('workspace_id', wid))();
-
-            // Nodes are the bulk of the payload, so their arrival is worth more
-            // of the bar than the edges'.
-            void nodesRequest.then(() => emit('fetching', 0.68), () => {});
-            void edgesRequest.then(() => emit('fetching', 0.8), () => {});
-
-            const [nRes, eRes] = await Promise.all([nodesRequest, edgesRequest]);
-            if (nRes.error) throw nRes.error;
-            if (eRes.error) throw eRes.error;
-            return [nRes, eRes] as const;
+        const PAGE_SIZE = 500;
+        const [nodeRows, edgeRows] = await withRetry(async () => {
+            const fetchNodes = async (): Promise<CanvasNodeRow[]> => {
+                const rows: CanvasNodeRow[] = [];
+                for (let from = 0; ; from += PAGE_SIZE) {
+                    const { data, error } = await supabase
+                        .from('canvas_nodes')
+                        .select('*')
+                        .eq('user_id', uid)
+                        .eq('workspace_id', wid)
+                        .order('id', { ascending: true })
+                        .range(from, from + PAGE_SIZE - 1);
+                    if (error) throw error;
+                    const page = (data as CanvasNodeRow[] | null) ?? [];
+                    rows.push(...page);
+                    emit('fetching', Math.min(0.7, 0.3 + rows.length / 5000));
+                    if (page.length < PAGE_SIZE) return rows;
+                }
+            };
+            const fetchEdges = async (): Promise<CanvasEdgeRow[]> => {
+                const rows: CanvasEdgeRow[] = [];
+                for (let from = 0; ; from += PAGE_SIZE) {
+                    const { data, error } = await supabase
+                        .from('canvas_edges')
+                        .select('*')
+                        .eq('user_id', uid)
+                        .eq('workspace_id', wid)
+                        .order('id', { ascending: true })
+                        .range(from, from + PAGE_SIZE - 1);
+                    if (error) throw error;
+                    const page = (data as CanvasEdgeRow[] | null) ?? [];
+                    rows.push(...page);
+                    if (page.length < PAGE_SIZE) return rows;
+                }
+            };
+            return Promise.all([fetchNodes(), fetchEdges()]);
         });
 
-        const nodeRows = (nodesRes.data as CanvasNodeRow[] | null) ?? [];
-        const edgeRows = (edgesRes.data as CanvasEdgeRow[] | null) ?? [];
+        emit('fetching', 0.8);
         emit('building', 0.86, { nodeCount: nodeRows.length, edgeCount: edgeRows.length });
 
         const nodes = nodeRows.map(rowToNode);
@@ -530,7 +590,43 @@ export async function loadCanvasFromCloud(
 
         return { ok: true, nodes, edges };
     } catch (err) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+        return { ok: false, error: cloudErrorMessage(err) };
+    }
+}
+
+/**
+ * Lightweight launch-time check. Once a workspace has been hydrated on this
+ * device, the app reads this single counter instead of downloading every row
+ * on every refresh. Migration 0017 owns the counter and bumps it from database
+ * triggers whenever a canvas row changes.
+ */
+export async function fetchCloudRevision(
+    userId: string | null,
+    workspaceId: string | null,
+): Promise<CloudRevisionResult> {
+    try {
+        if (!isSupabaseConfigured || !supabase) {
+            throw new Error('Supabase is not configured (missing VITE_SUPABASE_* env).');
+        }
+        if (!userId) throw new Error('User not authenticated');
+        if (!workspaceId) throw new Error('No active workspace selected.');
+
+        // This RPC performs its own authenticated membership check. Avoid the
+        // heavier auth + workspace preflight used by graph reads/writes so an
+        // already-hydrated app launch is exactly one small network request.
+        const { data, error } = await supabase.rpc('get_workspace_sync_revision', {
+            _workspace_id: workspaceId,
+        });
+        if (error) {
+            const code = typeof error.code === 'string' ? error.code : '';
+            if (code === '42883' || code === 'PGRST202' || /schema cache|function .* does not exist/i.test(error.message)) {
+                return { ok: true, revision: null, schemaAvailable: false };
+            }
+            throw error;
+        }
+        return { ok: true, revision: String(data ?? 0), schemaAvailable: true };
+    } catch (err) {
+        return { ok: false, error: cloudErrorMessage(err) };
     }
 }
 
@@ -547,6 +643,16 @@ function isVersionsSchemaUnavailable(err: unknown): boolean {
 }
 
 /**
+ * The conflict key a daily safety copy is deduplicated on. Exported so callers
+ * can decide whether today's copy already exists BEFORE uploading a full graph
+ * the database would only discard — the two must never compute the day
+ * differently, so neither computes it alone.
+ */
+export function dailyVersionKey(at = new Date()): string {
+    return at.toISOString().slice(0, 10);
+}
+
+/**
  * Save a restorable point-in-time copy of the complete canvas. Manual saves
  * become milestones; automatic sync creates at most one safety copy per day.
  */
@@ -560,7 +666,7 @@ export async function createCloudVersion(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
     try {
         const { workspaceId: wid, actorUserId } = await ensureReady(userId, workspaceId);
-        const dailyKey = kind === 'daily' ? new Date().toISOString().slice(0, 10) : null;
+        const dailyKey = kind === 'daily' ? dailyVersionKey() : null;
         const version = {
             workspace_id: wid,
             created_by: actorUserId,
@@ -585,10 +691,12 @@ export async function createCloudVersion(
         if (error) throw error;
 
         // The RPC owns retention, so clients never need broad delete access.
-        void supabase.rpc('prune_canvas_versions', { p_workspace_id: wid });
+        // Supabase builders are lazy thenables; `void rpc(...)` never sends it.
+        const { error: pruneError } = await supabase.rpc('prune_canvas_versions', { p_workspace_id: wid });
+        if (pruneError) throw pruneError;
         return { ok: true };
     } catch (err) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+        return { ok: false, error: cloudErrorMessage(err) };
     }
 }
 
@@ -625,7 +733,7 @@ export async function fetchCloudVersions(
         return { ok: true, versions };
     } catch (err) {
         if (isVersionsSchemaUnavailable(err)) return { ok: true, versions: [] };
-        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+        return { ok: false, error: cloudErrorMessage(err) };
     }
 }
 
@@ -649,7 +757,7 @@ export async function loadCloudVersion(
         }
         return { ok: true, nodes: data.nodes as AppNode[], edges: data.edges as Edge[] };
     } catch (err) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+        return { ok: false, error: cloudErrorMessage(err) };
     }
 }
 
@@ -700,7 +808,7 @@ export async function appendCanvasNodesToCloud(
 
         return { ok: true, counts: { nodes: nodeRows.length, edges: 0 } };
     } catch (err) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+        return { ok: false, error: cloudErrorMessage(err) };
     }
 }
 
@@ -802,6 +910,6 @@ export async function fetchCloudMetadata(
             },
         };
     } catch (err) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+        return { ok: false, error: cloudErrorMessage(err) };
     }
 }

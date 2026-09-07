@@ -26,7 +26,6 @@ import {
     LogOut,
     Mail,
     Moon,
-    RefreshCw,
     Sun,
     Trash2,
     UserPlus,
@@ -45,7 +44,12 @@ import {
     type WorkspaceSummary,
 } from '../../services/collaboration';
 import { connectNotion } from '../../services/notion/notionImport';
-import { storageModeKey, type StorageMode } from '../ui/StorageChoiceModal';
+import {
+    readStorageMode,
+    writeStorageMode,
+    STORAGE_MODE_CHANGED_EVENT,
+    type StorageMode,
+} from '../../services/storage/storagePreference';
 import { Tabs, type TabItem } from '../../components/ui/Tabs';
 import { ShareWorkspaceModal } from '../canvas/ShareWorkspaceModal';
 import { NotionImportModal } from '../canvas/NotionImportModal';
@@ -68,28 +72,14 @@ type SectionId = (typeof SECTIONS)[number]['id'];
 type Flash = { kind: 'ok' | 'err'; text: string } | null;
 
 const STORAGE_TABS: TabItem<StorageMode>[] = [
-    { id: 'local', label: 'Local', icon: <HardDrive size={14} /> },
-    { id: 'cloud', label: 'Cloud', icon: <Cloud size={14} /> },
-    { id: 'both', label: 'Local + cloud', icon: <RefreshCw size={14} /> },
+    { id: 'local', label: 'This device', icon: <HardDrive size={14} /> },
+    { id: 'sync', label: 'Device + cloud', icon: <Cloud size={14} /> },
 ];
 
 const THEME_TABS: TabItem<'dark' | 'light'>[] = [
     { id: 'dark', label: 'Ink', icon: <Moon size={14} /> },
     { id: 'light', label: 'Paper', icon: <Sun size={14} /> },
 ];
-
-const autosyncKey = (workspaceId: string | null) =>
-    `chnk-it-cloud-autosync-${workspaceId || 'default'}`;
-
-function readStorageMode(userId: string | null): StorageMode | null {
-    if (!userId) return null;
-    const stored = localStorage.getItem(storageModeKey(userId));
-    return stored === 'local' || stored === 'cloud' || stored === 'both' ? stored : null;
-}
-
-function readAutosync(workspaceId: string | null): boolean {
-    return localStorage.getItem(autosyncKey(workspaceId)) !== 'false';
-}
 
 function deriveInitials(name: string | null, email: string | null): string {
     const source = (name && name.trim()) || (email && email.split('@')[0]) || '';
@@ -145,25 +135,6 @@ const FlashNote: React.FC<{ flash: Flash }> = ({ flash }) =>
             <span>{flash.text}</span>
         </div>
     ) : null;
-
-const Toggle: React.FC<{
-    checked: boolean;
-    onChange: (next: boolean) => void;
-    label: string;
-    disabled?: boolean;
-}> = ({ checked, onChange, label, disabled }) => (
-    <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={label}
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className={`${styles.toggle} ${checked ? styles.toggleOn : ''}`}
-    >
-        <span className={styles.knob} />
-    </button>
-);
 
 export const ProfilePage: React.FC = () => {
     const auth = useStore((s) => s.auth);
@@ -379,7 +350,7 @@ export const ProfilePage: React.FC = () => {
             const name = workspaces.find((w) => w.id === id)?.name || 'workspace';
             setWorkspaceFlash({
                 kind: 'ok',
-                text: `Switched to ${name} — ${result.data.nodeCount} cards loaded from the cloud.`,
+                text: `Switched to ${name} — ${result.data.nodeCount} local cards ready. Cloud changes are checked in the background.`,
             });
         },
         [auth.userId, activeWorkspaceId, workspaces],
@@ -387,49 +358,31 @@ export const ProfilePage: React.FC = () => {
 
     // ─── Storage & sync ────────────────────────────────────────────────
     const [storageMode, setStorageMode] = useState<StorageMode | null>(() => readStorageMode(auth.userId));
-    const [autosync, setAutosync] = useState(() => readAutosync(auth.activeWorkspaceId));
 
-    // Both values live in localStorage keyed by user + workspace, so re-read
-    // them whenever that pair changes (workspace switch, account switch).
-    const storageScope = `${auth.userId ?? ''}|${auth.activeWorkspaceId ?? ''}`;
+    // Re-run legacy preference migration when the account changes. The new
+    // preference itself is device-scoped and does not reset per workspace.
+    const storageScope = auth.userId ?? '';
     const [storageScopeBaseline, setStorageScopeBaseline] = useState(storageScope);
     if (storageScopeBaseline !== storageScope) {
         setStorageScopeBaseline(storageScope);
         setStorageMode(readStorageMode(auth.userId));
-        setAutosync(readAutosync(auth.activeWorkspaceId));
     }
 
     // The canvas storage menu writes the same keys — stay in step with it.
     useEffect(() => {
         const onExternalChange = () => {
             setStorageMode(readStorageMode(auth.userId));
-            setAutosync(readAutosync(auth.activeWorkspaceId));
         };
-        window.addEventListener('chnk-it-storage-mode-changed', onExternalChange);
-        return () => window.removeEventListener('chnk-it-storage-mode-changed', onExternalChange);
-    }, [auth.userId, auth.activeWorkspaceId]);
+        window.addEventListener(STORAGE_MODE_CHANGED_EVENT, onExternalChange);
+        return () => window.removeEventListener(STORAGE_MODE_CHANGED_EVENT, onExternalChange);
+    }, [auth.userId]);
 
     const chooseStorageMode = useCallback(
         (mode: StorageMode) => {
-            if (!auth.userId) return;
-            localStorage.setItem(storageModeKey(auth.userId), mode);
-            const nextAutosync = mode !== 'local';
-            localStorage.setItem(autosyncKey(auth.activeWorkspaceId), nextAutosync ? 'true' : 'false');
+            writeStorageMode(mode);
             setStorageMode(mode);
-            setAutosync(nextAutosync);
-            // StorageControls listens for this and re-reads both keys.
-            window.dispatchEvent(new CustomEvent('chnk-it-storage-mode-changed'));
         },
-        [auth.userId, auth.activeWorkspaceId],
-    );
-
-    const changeAutosync = useCallback(
-        (next: boolean) => {
-            localStorage.setItem(autosyncKey(auth.activeWorkspaceId), next ? 'true' : 'false');
-            setAutosync(next);
-            window.dispatchEvent(new CustomEvent('chnk-it-storage-mode-changed'));
-        },
-        [auth.activeWorkspaceId],
+        [],
     );
 
     // ─── Integrations ──────────────────────────────────────────────────
@@ -644,7 +597,7 @@ export const ProfilePage: React.FC = () => {
 
                         <Row
                             label="Active workspace"
-                            hint="Switching loads that workspace's canvas from the cloud and replaces what's on screen."
+                            hint="Switching opens that workspace's saved device copy immediately, then checks cloud changes in the background."
                             htmlFor="settings-workspace-active"
                         >
                             <select
@@ -760,14 +713,14 @@ export const ProfilePage: React.FC = () => {
                             <span className={styles.index}>III</span>
                             <h2 className={styles.title}>Storage &amp; sync</h2>
                             <span className={styles.aside}>
-                                {storageMode ? `Mode · ${storageMode}` : 'Not chosen yet'}
+                                {storageMode === 'sync' ? 'Device + cloud' : storageMode === 'local' ? 'This device' : 'Not chosen yet'}
                             </span>
                         </div>
 
                         <Row
                             label="How your work is saved"
                             stacked
-                            hint="The same choice you made on first sign-in. Changing it here takes effect on the canvas immediately."
+                            hint="Your workspace always saves on this device first. Cloud sync is optional and runs in the background."
                         >
                             <Tabs
                                 items={STORAGE_TABS}
@@ -776,22 +729,6 @@ export const ProfilePage: React.FC = () => {
                                 color="accent"
                                 semantics="radio"
                                 aria-label="Storage mode"
-                            />
-                        </Row>
-
-                        <Row
-                            label="Auto-sync to cloud"
-                            hint={
-                                storageMode === 'local'
-                                    ? 'Off while saving is local-only.'
-                                    : 'Pushes canvas changes to your workspace in the background.'
-                            }
-                        >
-                            <Toggle
-                                checked={autosync}
-                                onChange={changeAutosync}
-                                disabled={storageMode === 'local'}
-                                label="Auto-sync to cloud"
                             />
                         </Row>
 

@@ -36,7 +36,7 @@ export class FileSystemBackend implements GraphBackend {
     }
 
     async disconnect(): Promise<void> {
-        fileSystemStorage.disconnect();
+        await fileSystemStorage.disconnect();
     }
 
     async load(): Promise<GraphData | null> {

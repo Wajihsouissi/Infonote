@@ -23,7 +23,9 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
         cloudLastLoaded: null,
         isLocalDirty: false,
         isCloudDirty: false,
+        isCloudSyncing: false,
         localError: null,
+        folderError: null,
         cloudError: null,
 
         // Backup — saved before loadGraph overwrites current state
@@ -66,11 +68,24 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
     setLocalDirty: (dirty) => set((state) => ({
         storage: { ...state.storage, isLocalDirty: dirty }
     })),
-    setCloudDirty: (dirty) => set((state) => ({
-        storage: { ...state.storage, isCloudDirty: dirty }
+    setCloudDirty: (dirty) => set((state) => {
+        const hasPending =
+            state.storage.dirtyNodeIds.size > 0 ||
+            state.storage.dirtyEdgeIds.size > 0 ||
+            state.storage.deletedNodeIds.size > 0 ||
+            state.storage.deletedEdgeIds.size > 0;
+        return {
+            storage: { ...state.storage, isCloudDirty: dirty || hasPending }
+        };
+    }),
+    setCloudSyncing: (syncing) => set((state) => ({
+        storage: { ...state.storage, isCloudSyncing: syncing }
     })),
     setLocalError: (err) => set((state) => ({
         storage: { ...state.storage, localError: err }
+    })),
+    setFolderError: (err) => set((state) => ({
+        storage: { ...state.storage, folderError: err }
     })),
     setCloudError: (err) => set((state) => ({
         storage: { ...state.storage, cloudError: err }
@@ -99,27 +114,62 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
 
     markNodesDirty: (ids) => set((state) => {
         const next = new Set(state.storage.dirtyNodeIds);
-        ids.forEach(id => next.add(id));
-        return { storage: { ...state.storage, dirtyNodeIds: next } };
+        const deleted = new Set(state.storage.deletedNodeIds);
+        const live = new Set(state.nodes.map((node) => node.id));
+        ids.forEach(id => {
+            next.add(id);
+            // An undo/resurrection cancels a deletion that has not reached the
+            // cloud yet. Without this, the save path upserts and then deletes
+            // the same id.
+            if (live.has(id)) deleted.delete(id);
+        });
+        return { storage: { ...state.storage, dirtyNodeIds: next, deletedNodeIds: deleted } };
     }),
     markEdgesDirty: (ids) => set((state) => {
         const next = new Set(state.storage.dirtyEdgeIds);
-        ids.forEach(id => next.add(id));
-        return { storage: { ...state.storage, dirtyEdgeIds: next } };
+        const deleted = new Set(state.storage.deletedEdgeIds);
+        const live = new Set(state.edges.map((edge) => edge.id));
+        ids.forEach(id => {
+            next.add(id);
+            if (live.has(id)) deleted.delete(id);
+        });
+        return { storage: { ...state.storage, dirtyEdgeIds: next, deletedEdgeIds: deleted } };
     }),
     markNodesDeleted: (ids) => set((state) => {
         const next = new Set(state.storage.deletedNodeIds);
+        const dirty = new Set(state.storage.dirtyNodeIds);
         ids.forEach(id => {
             next.add(id);
-            // If it was marked dirty, it doesn't matter anymore, it's deleted.
-            // But we don't necessarily have to remove it from dirty here, we can just handle deletes first in sync.
+            dirty.delete(id);
         });
-        return { storage: { ...state.storage, deletedNodeIds: next } };
+        return { storage: { ...state.storage, deletedNodeIds: next, dirtyNodeIds: dirty } };
     }),
     markEdgesDeleted: (ids) => set((state) => {
         const next = new Set(state.storage.deletedEdgeIds);
-        ids.forEach(id => next.add(id));
-        return { storage: { ...state.storage, deletedEdgeIds: next } };
+        const dirty = new Set(state.storage.dirtyEdgeIds);
+        ids.forEach(id => {
+            next.add(id);
+            dirty.delete(id);
+        });
+        return { storage: { ...state.storage, deletedEdgeIds: next, dirtyEdgeIds: dirty } };
+    }),
+    replaceSyncTracking: (tracking) => set((state) => {
+        const dirtyNodeIds = new Set(tracking.dirtyNodeIds);
+        const dirtyEdgeIds = new Set(tracking.dirtyEdgeIds);
+        const deletedNodeIds = new Set(tracking.deletedNodeIds);
+        const deletedEdgeIds = new Set(tracking.deletedEdgeIds);
+        return {
+            storage: {
+                ...state.storage,
+                dirtyNodeIds,
+                dirtyEdgeIds,
+                deletedNodeIds,
+                deletedEdgeIds,
+                isCloudDirty:
+                    dirtyNodeIds.size > 0 || dirtyEdgeIds.size > 0 ||
+                    deletedNodeIds.size > 0 || deletedEdgeIds.size > 0,
+            },
+        };
     }),
     clearSyncTracking: (syncedNodes, syncedEdges, deletedNodes, deletedEdges) => set((state) => {
         const nextDirtyNodes = new Set(state.storage.dirtyNodeIds);
@@ -132,6 +182,9 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
         deletedNodes.forEach(id => nextDeletedNodes.delete(id));
         deletedEdges.forEach(id => nextDeletedEdges.delete(id));
 
+        const hasPending =
+            nextDirtyNodes.size > 0 || nextDirtyEdges.size > 0 ||
+            nextDeletedNodes.size > 0 || nextDeletedEdges.size > 0;
         return {
             storage: {
                 ...state.storage,
@@ -139,6 +192,10 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
                 dirtyEdgeIds: nextDirtyEdges,
                 deletedNodeIds: nextDeletedNodes,
                 deletedEdgeIds: nextDeletedEdges,
+                // New edits may have arrived while a network save was in
+                // flight. Never clear the trigger while any uncaptured work
+                // remains.
+                isCloudDirty: hasPending,
             }
         };
     }),
@@ -172,7 +229,7 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
             if (!node.data || typeof node.data !== 'object') return null;
 
             // Sanitize Note Data
-            const newNode = { ...node };
+            const newNode = { ...node, data: { ...node.data } } as AppNode;
 
             /* A board carries no content of its own — its cards are separate
                nodes that load on their own account. What it must not load
@@ -233,7 +290,6 @@ export const createStorageSlice: StateCreator<AppState, [], [], StorageSlice> = 
         // are meaningless against the newly loaded one.
         withoutHistory(() => {
             set((state) => ({
-                isRestoringGraph: true, // Wait, it needs to be inside storage: { ... }
                 nodes: validNodes,
                 edges: validEdges,
                 storage: {
