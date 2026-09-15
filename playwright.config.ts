@@ -14,7 +14,7 @@ import { defineConfig, devices } from '@playwright/test';
  *   npx playwright test --project=core --project=advanced
  */
 
-const BASE_URL = process.env.PW_BASE_URL ?? 'http://localhost:5173';
+const BASE_URL = 'http://127.0.0.1:5187';
 
 export default defineConfig({
     testDir: './e2e/scenarios',
@@ -38,7 +38,7 @@ export default defineConfig({
 
     use: {
         baseURL: BASE_URL,
-        trace: 'on-first-retry',
+        trace: 'retain-on-failure',
         screenshot: 'only-on-failure',
         video: 'retain-on-failure',
         actionTimeout: 15_000,
@@ -46,6 +46,8 @@ export default defineConfig({
     },
 
     projects: [
+        { name: 'firefox', testMatch: /scenarios\/(smoke|core|advanced)\/.*\.spec\.ts/, use: { ...devices['Desktop Firefox'] } },
+        { name: 'webkit', testMatch: /scenarios\/(smoke|core|advanced)\/.*\.spec\.ts/, use: { ...devices['Desktop Safari'] } },
         {
             name: 'smoke',
             testMatch: /scenarios\/smoke\/.*\.spec\.ts/,
@@ -69,9 +71,9 @@ export default defineConfig({
     ],
 
     webServer: {
-        command: 'npm run dev',
+        command: 'node scripts/qa-server.mjs',
         url: BASE_URL,
-        reuseExistingServer: !process.env.CI,
+        reuseExistingServer: false,
         timeout: 120_000,
         stdout: 'ignore',
         stderr: 'pipe',

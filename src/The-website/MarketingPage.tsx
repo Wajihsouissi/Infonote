@@ -3,28 +3,7 @@ import { motion } from 'motion/react';
 import { createPortal } from 'react-dom';
 import { ReactFlow, ReactFlowProvider, Background, useNodesState, useEdgesState, addEdge, Handle, Position, type Node, type Edge, type Connection } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import {
-  Search,
-  Menu,
-  FileIcon,
-  Link2,
-  X,
-  ArrowRight,
-  Sparkles,
-  Target,
-  Zap,
-  ShieldCheck,
-  Lock,
-  HardDrive,
-  Database,
-  FileText,
-  Kanban,
-  Sun,
-  Moon,
-  MoveUp,
-  Play,
-  Calendar
-} from 'lucide-react';
+import { Search, Menu, FileIcon, Link2, X, ArrowRight, Sparkles, Target, Zap, ShieldCheck, Lock, Database, Sun, Moon, MoveUp, Play, Calendar } from 'lucide-react';
 import styles from './MarketingPage.module.css';
 // Import actual app components
 import { NoteCard } from '../features/card/NoteCard';

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useStore } from '../../../store/useStore';
 import { defaultIconName } from '../iconMap';
 import type { NoteData } from '../../../types';
@@ -46,7 +46,9 @@ export function useNoteMetadata({ id, data, onUpdate }: UseNoteMetadataOptions) 
     });
 
     // Update local state when data prop changes (e.g. from external updates)
-    useEffect(() => {
+    const [previousData, setPreviousData] = useState(data);
+    if (previousData !== data) {
+        setPreviousData(data);
         if (!isEditingMetadata && data) {
             setEditedData({
                 label: data.label || 'Untitled',
@@ -57,7 +59,7 @@ export function useNoteMetadata({ id, data, onUpdate }: UseNoteMetadataOptions) 
                 date: data.date || new Date().toISOString()
             });
         }
-    }, [data]);
+    }
 
     const handleSaveMetadata = useCallback(() => {
         onUpdate(id, editedData);

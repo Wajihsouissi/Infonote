@@ -210,7 +210,8 @@ function parseBlocksInsideNode(
  * Builds an outline item for a top-level or child AppNode.
  */
 function buildNodeItem(node: AppNode, allNodes: AppNode[], level = 0): OutlineItem {
-    const rawLabel = getNodeLabel(node.data) || (node.data as any)?.title || (node.type === 'fused-note' ? 'Fused File' : 'Untitled');
+    const metadata = node.data as { title?: string; isLocked?: boolean; locked?: boolean; isPinned?: boolean; priority?: string };
+    const rawLabel = getNodeLabel(node.data) || metadata?.title || (node.type === 'fused-note' ? 'Fused File' : 'Untitled');
     const cleanLabel = cleanBlockContent(typeof rawLabel === 'string' ? rawLabel : '') || (node.type === 'fused-note' ? 'Fused File' : 'Untitled');
     
     // Child nodes in canvas tree
@@ -238,8 +239,8 @@ function buildNodeItem(node: AppNode, allNodes: AppNode[], level = 0): OutlineIt
         iconVariant = 'folder';
     }
 
-    const isLocked = !!(node.data as any)?.isLocked || !!(node.data as any)?.locked;
-    const isFavorite = !!(node.data as any)?.isPinned || (node.data as any)?.priority === 'urgent';
+    const isLocked = !!metadata?.isLocked || !!metadata?.locked;
+    const isFavorite = !!metadata?.isPinned || metadata?.priority === 'urgent';
 
     return {
         id: node.id,

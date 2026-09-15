@@ -20,9 +20,11 @@ export function AssigneeProperty({ value, onChange, onHide }: AssigneePropertyPr
         }
     }, [isEditing]);
 
-    useEffect(() => {
+    const [previousValue, setPreviousValue] = useState(value);
+    if (previousValue !== value) {
+        setPreviousValue(value);
         setInputValue(value || '');
-    }, [value]);
+    }
 
     const handleSave = () => {
         onChange(inputValue.trim());

@@ -17,8 +17,8 @@
  * reshuffle their contents to suit themselves cannot.
  */
 
-import { memo, useCallback, useMemo, useState } from 'react';
-import { Calendar, Check } from '../../components/icons';
+import { memo, useCallback, useMemo, useState, type MouseEvent, type PointerEvent } from 'react';
+import { Calendar, Check, Flag, Plus, Tag, User, type LucideIcon } from '../../components/icons';
 import { CardIcon, defaultIconName } from '../card/iconMap';
 import { IconPicker } from '../card/IconPicker';
 import { displaySrc } from '../editor/mediaThumbnail';
@@ -28,7 +28,10 @@ import type { NoteData, NoteNode } from '../../types';
 import { diffDays, parseCardDate } from '../../utils/cardDate';
 import { cardTasks, taskProgress, toggleTask } from '../card/cardTasks';
 import { TaskProgressMeter } from '../card/tasks/TaskProgress';
-import { KanbanCardMetaEditor } from './KanbanCardMetaEditor';
+import { MetaPopover } from '../card/meta/MetaPopover';
+import { CustomDatePicker } from '../ui/CustomDatePicker';
+import { ChipInput } from '../ui/ChipInput';
+import metaStyles from '../card/meta/CardMetaBar.module.css';
 import type { KanbanGroupField } from './kanbanTypes';
 import styles from './KanbanCard.module.css';
 
@@ -37,6 +40,32 @@ const MAX_CHECKLIST_ROWS = 4;
 /** Tag chips drawn before the rest collapse into a count. A 404px card fits a
  *  fourth without the row wrapping onto a second line. */
 const MAX_TAGS = 4;
+
+/**
+ * A field the meta row can both show and set.
+ *
+ * Four, not the nine the expanded card's bar carries: a chip that this row
+ * cannot draw would be a control with nowhere to put its answer. Status,
+ * progress and the rest stay where they already are — the card's own bar and
+ * the task meter — because a board is another place to edit a card, not
+ * another set of things to edit on one.
+ */
+type MetaField = 'priority' | 'dueDate' | 'tags' | 'assignee';
+
+/**
+ * The priority menu.
+ *
+ * The tones are the chip's own, from KanbanCard.module.css — deliberately not
+ * the expanded bar's quieter set, where only urgent is coloured. On a board the
+ * chip is coloured at full strength, so the dot you pick has to be the dot you
+ * get.
+ */
+const PRIORITY_OPTIONS: { value: NonNullable<NoteData['priority']>; label: string; tone: string }[] = [
+    { value: 'urgent', label: 'Urgent', tone: 'var(--danger)' },
+    { value: 'high', label: 'High', tone: 'var(--warn)' },
+    { value: 'medium', label: 'Medium', tone: 'var(--secondary)' },
+    { value: 'low', label: 'Low', tone: 'var(--t-green)' },
+];
 
 /**
  * A checklist line as the card draws it.
@@ -172,9 +201,9 @@ export interface KanbanCardProps {
     /** True when drawn in the drag overlay rather than in a lane. */
     isOverlay?: boolean;
     /**
-     * Selected: the card becomes editable in place — title, icon and the
-     * metadata strip. Unselected it stays a view, and the lane hands its whole
-     * surface to the drag.
+     * Selected: the card becomes editable in place — title, icon, and every
+     * chip in the meta row. Unselected it stays a view, and the lane hands its
+     * whole surface to the drag.
      */
     isSelected?: boolean;
 }
@@ -185,6 +214,13 @@ export const KanbanCard = memo(({ node, groupBy, isGhost, isOverlay, isSelected 
     const setTasksCardId = useStore((s) => s.setTasksCardId);
     const preview = useMemo(() => buildPreview(data), [data]);
     const [iconPickerOpen, setIconPickerOpen] = useState(false);
+
+    /* The open editor carries the chip it belongs to, captured from the click
+       that opened it — see MetaPopover for why an element rather than a
+       position. Kept in state rather than a ref because the popover is rendered
+       from it, and reading a ref while rendering is unsound. */
+    const [open, setOpen] = useState<{ field: MetaField; anchor: HTMLElement } | null>(null);
+    const [addAnchor, setAddAnchor] = useState<HTMLElement | null>(null);
 
     /* The overlay is a picture of the card being moved, never the card itself. */
     const isEditing = !!isSelected && !isOverlay;
@@ -205,6 +241,14 @@ export const KanbanCard = memo(({ node, groupBy, isGhost, isOverlay, isSelected 
         patch(toggleTask(data, row.id));
     }, [data, patch]);
 
+    /** Open a chip's editor, or close it when it was already the open one. */
+    const toggleField = useCallback((field: MetaField, anchor: HTMLElement) => {
+        setAddAnchor(null);
+        setOpen((cur) => (cur?.field === field ? null : { field, anchor }));
+    }, []);
+
+    const closeField = useCallback(() => setOpen(null), []);
+
     const due = dueLabel(data.dueDate);
     const tags = data.tags ?? [];
     const showPriority = groupBy !== 'priority' && !!data.priority;
@@ -221,6 +265,42 @@ export const KanbanCard = memo(({ node, groupBy, isGhost, isOverlay, isSelected 
     const extraChecks = preview.checklist.length - MAX_CHECKLIST_ROWS;
     const extraTags = tags.length - MAX_TAGS;
     const hasMeta = !!due || showPriority || showAssignee || tags.length > 0;
+
+    /* A selected card with nothing set still draws the row, because the "+" is
+       the only way into a bare card and it has to live somewhere. */
+    const showMeta = hasMeta || isEditing;
+
+    /* Only the fields this card has not got. An unset field draws no chip —
+       that is what keeps a bare card bare — so the "+" menu is the whole of its
+       reachable surface. A field the lane already groups by is not offered:
+       the column header is answering that question. */
+    const addable: { field: MetaField; label: string; Icon: LucideIcon }[] = [];
+    if (!data.priority && groupBy !== 'priority') addable.push({ field: 'priority', label: 'Priority', Icon: Flag });
+    if (!data.dueDate) addable.push({ field: 'dueDate', label: 'Due date', Icon: Calendar });
+    if (tags.length === 0) addable.push({ field: 'tags', label: 'Tags', Icon: Tag });
+    if (!data.assignee && groupBy !== 'assignee') addable.push({ field: 'assignee', label: 'Assignee', Icon: User });
+
+    /**
+     * What turns a chip into its own control.
+     *
+     * The same element either way — same padding, same pill, same type — and it
+     * only answers to a click while the card is selected. That is the point of
+     * the layout: a selected card is exactly as tall as a resting one, so the
+     * lane never reflows under the selection and there is no second copy of the
+     * chips to keep in step with the first.
+     */
+    const editable = (field: MetaField, className: string) => ({
+        type: 'button' as const,
+        disabled: !isEditing,
+        /* Only while it is live: `nodrag` on a resting chip would carve a dead
+           patch out of the card's own drag surface. */
+        className: isEditing ? `${className} nodrag` : className,
+        onPointerDown: (e: PointerEvent) => e.stopPropagation(),
+        onClick: (e: MouseEvent<HTMLButtonElement>) => {
+            e.stopPropagation();
+            toggleField(field, e.currentTarget);
+        },
+    });
 
     return (
         <article
@@ -369,41 +449,191 @@ export const KanbanCard = memo(({ node, groupBy, isGhost, isOverlay, isSelected 
                     </div>
                 )}
 
-                {hasMeta && (
+                {/* The chips ARE the editor. There is no second strip below
+                    holding a copy of them — that copy was the whole problem: it
+                    said each thing twice, turned the card into a form, and made
+                    a selected card visibly taller than its neighbours. */}
+                {showMeta && (
                     <footer className={styles.meta}>
                         {showPriority && (
-                            <span className={styles.priority} data-priority={data.priority}>
+                            <button
+                                {...editable('priority', styles.priority)}
+                                data-priority={data.priority}
+                                title={`Priority: ${data.priority}`}
+                            >
                                 <span className={styles.dot} />
                                 {data.priority}
-                            </span>
+                            </button>
                         )}
 
                         {due && (
-                            <span className={styles.due} data-state={due.state}>
+                            <button
+                                {...editable('dueDate', styles.due)}
+                                data-state={due.state}
+                                title={`Due ${due.text}`}
+                            >
                                 <Calendar size={11} strokeWidth={2.5} />
                                 {due.text}
-                            </span>
+                            </button>
                         )}
 
+                        {/* Every tag chip opens the one tag editor, rather than
+                            growing an × of its own: an × would make a selected
+                            chip wider than a resting one, and ChipInput already
+                            has a remove control per tag. */}
                         {tags.slice(0, MAX_TAGS).map((tag) => (
-                            <span key={tag} className={styles.tag}>{tag}</span>
+                            <button key={tag} {...editable('tags', styles.tag)}>{tag}</button>
                         ))}
-                        {extraTags > 0 && <span className={styles.tag}>+{extraTags}</span>}
+                        {extraTags > 0 && (
+                            <button {...editable('tags', styles.tag)}>+{extraTags}</button>
+                        )}
+
+                        {isEditing && addable.length > 0 && (
+                            <button
+                                type="button"
+                                className={`${styles.addMeta} nodrag`}
+                                aria-label="Add a field"
+                                title="Add a field"
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    /* Read out of the event before the updater
+                                       runs: React nulls `currentTarget` once the
+                                       handler returns, and a functional update
+                                       is called during the next render. */
+                                    const el = e.currentTarget;
+                                    setOpen(null);
+                                    setAddAnchor((cur) => (cur ? null : el));
+                                }}
+                            >
+                                <Plus size={12} strokeWidth={2.5} />
+                            </button>
+                        )}
 
                         {showAssignee && (
-                            <span className={styles.assignee} title={data.assignee}>
+                            <button {...editable('assignee', styles.assignee)} title={data.assignee}>
                                 {initials(data.assignee!)}
-                            </span>
+                            </button>
                         )}
                     </footer>
                 )}
-
-                {/* The chips above are the reading view and stay exactly as they
-                    were; this is where they are set. Below the meta row, so the
-                    card still reads top-to-bottom and the controls are the last
-                    thing rather than an interruption in the middle. */}
-                {isEditing && <KanbanCardMetaEditor data={data} onChange={patch} />}
             </div>
+
+            {/* Portalled to the body, not anchored inside the card: a card clips
+                its own overflow and sits on a canvas at fractional zoom, so a
+                popover placed in here is cropped at the card's edge and
+                mis-scaled besides. Same reason IconPicker portals out. */}
+            {isEditing && open?.field === 'priority' && (
+                <MetaPopover anchor={open.anchor} title="Priority" onClose={closeField}>
+                    <div className={metaStyles.options}>
+                        {PRIORITY_OPTIONS.map((o) => (
+                            <button
+                                key={o.value}
+                                type="button"
+                                className={metaStyles.option}
+                                style={{ ['--tone' as string]: o.tone }}
+                                aria-pressed={data.priority === o.value}
+                                onClick={() => { patch({ priority: o.value }); closeField(); }}
+                            >
+                                <span className={metaStyles.dot} />
+                                {o.label}
+                            </button>
+                        ))}
+                        <button
+                            type="button"
+                            className={metaStyles.clear}
+                            onClick={() => { patch({ priority: undefined }); closeField(); }}
+                        >
+                            Clear
+                        </button>
+                    </div>
+                </MetaPopover>
+            )}
+
+            {isEditing && open?.field === 'dueDate' && (
+                <MetaPopover anchor={open.anchor} title="Due date" onClose={closeField}>
+                    {/* The same picker the properties panel opens, opened
+                        straight onto its calendar — a trigger inside a popover
+                        the user has already opened is a second click for one
+                        intent. */}
+                    <CustomDatePicker
+                        value={data.dueDate ?? ''}
+                        placeholder="Pick a date"
+                        withTime
+                        defaultOpen
+                        onChange={(v) => patch({ dueDate: v || undefined })}
+                    />
+                    <button
+                        type="button"
+                        className={metaStyles.clear}
+                        onClick={() => { patch({ dueDate: undefined }); closeField(); }}
+                    >
+                        Clear
+                    </button>
+                </MetaPopover>
+            )}
+
+            {isEditing && open?.field === 'tags' && (
+                <MetaPopover anchor={open.anchor} title="Tags" onClose={closeField}>
+                    <ChipInput
+                        value={tags}
+                        placeholder="Add tag…"
+                        onChange={(next) => patch({ tags: next })}
+                    />
+                </MetaPopover>
+            )}
+
+            {isEditing && open?.field === 'assignee' && (
+                <MetaPopover anchor={open.anchor} title="Assignee" onClose={closeField}>
+                    <input
+                        className={metaStyles.input}
+                        defaultValue={data.assignee ?? ''}
+                        placeholder="Who is on this?"
+                        aria-label="Assignee"
+                        autoFocus
+                        onBlur={(e) => patch({ assignee: e.target.value.trim() || undefined })}
+                        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                    />
+                </MetaPopover>
+            )}
+
+            {isEditing && addAnchor && (
+                <MetaPopover anchor={addAnchor} title="Add a field" onClose={() => setAddAnchor(null)}>
+                    <div className={metaStyles.options}>
+                        {addable.map(({ field, label, Icon }) => (
+                            <button
+                                key={field}
+                                type="button"
+                                className={metaStyles.option}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    /* Seeded so there is a chip at all: an unset
+                                       field draws nothing, and an editor has to
+                                       open onto something. A seeded empty string
+                                       still draws nothing until it holds a
+                                       value, which is what the editor is for. */
+                                    patch(
+                                        field === 'priority' ? { priority: 'medium' }
+                                            : field === 'tags' ? { tags: [] }
+                                                : field === 'dueDate' ? { dueDate: '' }
+                                                    : { assignee: '' },
+                                    );
+                                    /* Straight into the editor, anchored to the
+                                       "+" just used — adding a due date and then
+                                       hunting for the new chip to fill in would
+                                       be two steps for one intent. */
+                                    const anchor = addAnchor;
+                                    setAddAnchor(null);
+                                    setOpen({ field, anchor });
+                                }}
+                            >
+                                <Icon size={13} />
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                </MetaPopover>
+            )}
         </article>
     );
 });

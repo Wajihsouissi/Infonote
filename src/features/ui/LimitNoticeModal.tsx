@@ -1,11 +1,10 @@
 /**
- * LimitNoticeModal — shown when node creation is blocked by a beta limit
- * (see BETA_SCOPE.md): canvas full (everyone), or the anonymous card /
- * nesting quota. Anonymous limits carry a sign-in CTA; existing content
- * is never deleted or locked.
+ * LimitNoticeModal — shown when creation is blocked by the anonymous nesting
+ * safeguard or when a file cannot be stored. Existing content is never
+ * deleted or locked.
  */
 import React, { useEffect, useId, useRef } from 'react';
-import { Layers, UserPlus, ArrowRight, AlertTriangle } from '../../components/icons';
+import { UserPlus, ArrowRight, AlertTriangle } from '../../components/icons';
 import styles from './LimitNoticeModal.module.css';
 import { useStore } from '../../store/useStore';
 
@@ -80,20 +79,6 @@ export const LimitNoticeModal: React.FC = () => {
        wrong one. */
     const copyFor = (): NoticeCopy => {
         switch (notice.kind) {
-            case 'canvas-full':
-                return {
-                    icon: <Layers size={24} />,
-                    title: 'This canvas is full',
-                    body: `A canvas holds up to ${notice.limit} nodes during the beta. Open a card and nest a canvas inside it, or continue on another canvas — nothing you made is lost.`,
-                    showSignIn: false,
-                };
-            case 'anon-card-limit':
-                return {
-                    icon: <UserPlus size={24} />,
-                    title: `You've reached ${notice.limit} cards`,
-                    body: `That's the free limit without an account. Sign in to create unlimited cards — and to keep your work safe beyond this browser.`,
-                    showSignIn: true,
-                };
             case 'anon-depth-limit':
                 return {
                     icon: <UserPlus size={24} />,

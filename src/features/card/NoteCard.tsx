@@ -19,6 +19,7 @@ import { samePropsIgnoringPosition } from '../canvas/nodeMemo';
 import { PeekMenu } from '../ui/PeekMenu';
 import { FloatingActionButton } from '../../components/ui/Button';
 import { formatTimestamp, youtubeUrlAt } from '../youtube/youtubeStudy';
+import { useCanvasEditorEligibility } from '../canvas/hooks/useCanvasDetail';
 
 export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<NoteNode>) => {
     const { setNodes, getViewport } = useReactFlow();
@@ -64,7 +65,17 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
 
     // Selection is already committed after React Flow's pointer bookkeeping;
     // the old 300 ms guard only made the canvas feel unresponsive.
-    const isInteractive = selected;
+    // Part of a multi-selection stays in drag-handle mode rather than opening
+    // for editing — otherwise grabbing one selected card to move the group
+    // landed on its editable content instead of dragging anything.
+    const isInteractive = selected && !isMultiSelected;
+    /* A rich BlockEditor carries editable DOM, selection listeners, and a
+       stateful component for every block. Mounting one in every expanded card
+       turns a normal local workspace (20 cards in the free tier) into a
+       multi-second main-thread task on reload. The inactive cards retain a
+       semantic, read-only projection; the selected card is promoted through
+       the shared scheduler once React Flow has finished its own click work. */
+    const canMountLiveEditor = useCanvasEditorEligibility(id, isInteractive);
 
     const viewMode = data.viewMode || 'medium';
     // Use the raw color without converting to pastel/glow
@@ -255,6 +266,24 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
         });
     }, [data, id, updateNode]);
 
+    const handleCardDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        if (!selected || isLinkingMode) return;
+
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+
+        /* Controls keep their own double-click semantics. The editor surface
+           itself is deliberately not excluded: once a card is selected, a
+           double-click anywhere in its note body enters the nested canvas. */
+        if (target.closest('button, input, textarea, select, option, a, [role="button"], [role="link"], .mediaViewTarget')) {
+            return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+        navigateToNode(id);
+    }, [id, isLinkingMode, navigateToNode, selected]);
+
     /* The four peek actions live in PeekMenu now, so a file node offers the
        same row of controls in the same place rather than a near-miss copy. */
 
@@ -266,7 +295,7 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
         <div
             className={`
         ${styles.card} 
-        ${styles[viewMode]} 
+        ${styles[viewMode] ?? ''}
         ${selected ? styles.selected : ''}
         ${isMultiSelected ? styles.multiSelected : ''}
         ${isDragging ? styles.dragging : ''}
@@ -274,8 +303,9 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
         ${isDropTarget && dropType === 'fusion' ? styles.fusionTarget : ''}
         ${isFusing ? styles.fusing : ''}
         custom-drag-handle
-      `}
+            `}
             ref={cardRef}
+            onDoubleClick={handleCardDoubleClick}
             data-accented={displayColor ? '' : undefined}
             style={{
                 width: '100%',
@@ -287,12 +317,16 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                 ...dynamicStyles
             }}
         >
-            {/* The cover, blurred out under the whole card — see .coverAmbient.
-                Decorative only: the real cover is rendered below with its alt
-                text, so this one is hidden from assistive tech. */}
-            {data.coverImage && (
+            {/* The node's ambient colour field — see .coverAmbient. Its source is
+                whichever half of the colour picker was used: an uploaded image,
+                or the assigned hue. Deliberately NOT `data.coverImage`; having a
+                cover and being coloured are separate things. Decorative, so it
+                is hidden from assistive tech. */}
+            {(data.ambientImage || displayColor) && (
                 <div className={styles.coverAmbientClip} aria-hidden="true">
-                    <img className={styles.coverAmbient} src={data.coverImage} alt="" draggable={false} />
+                    {data.ambientImage
+                        ? <img className={styles.coverAmbient} src={data.ambientImage} alt="" draggable={false} />
+                        : <span className={styles.coverAmbientHue} />}
                 </div>
             )}
 
@@ -737,11 +771,13 @@ export const NoteCard = memo(({ id, data, selected, width, height }: NodeProps<N
                                 id={id}
                                 data={data}
                                 onUpdate={updateNodeData}
+                                showLiveEditor={canMountLiveEditor}
                                 readOnly={false}
                                 hideBlockHandles={!isInteractive}
                                 contentRef={contentRef}
                                 nodeId={id}
                                 selectionIslandPortalId={`selection-island-${id}`}
+                                renderAmbient={false}
                             />
                         )}
                     </ErrorBoundary>

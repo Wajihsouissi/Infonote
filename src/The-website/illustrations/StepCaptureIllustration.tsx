@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Clock, Hash, FileText } from 'lucide-react';
 import styles from '../MarketingPage.module.css';
-import { SceneStage, Plane, Board, NodeCard, Ghost, Line, Chip, FloatingPanel, PulseDot } from './scene-kit';
+import { SceneStage, Plane, NodeCard, Ghost, Line, Chip, FloatingPanel } from './scene-kit';
 import { SharedTitleMock, SharedVideoMock } from './mock-elements';
 
 interface StepCaptureIllustrationProps {

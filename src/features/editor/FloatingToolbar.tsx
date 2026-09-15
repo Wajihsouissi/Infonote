@@ -61,10 +61,15 @@ export function FloatingToolbar({ selectionRect, onFormat, activeFormats, active
         setPosition({ top, left });
     }, [selectionRect, linkOpen, colorOpen]);
 
+    const [previousLink, setPreviousLink] = useState({ linkOpen, initialLinkUrl });
+    if (previousLink.linkOpen !== linkOpen || previousLink.initialLinkUrl !== initialLinkUrl) {
+        setPreviousLink({ linkOpen, initialLinkUrl });
+        if (linkOpen) setUrl(initialLinkUrl || '');
+    }
+
     // Focus the URL field when the link popover opens.
     useEffect(() => {
         if (linkOpen) {
-            setUrl(initialLinkUrl || '');
             requestAnimationFrame(() => inputRef.current?.focus());
         }
     }, [linkOpen, initialLinkUrl]);

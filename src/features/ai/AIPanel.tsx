@@ -54,6 +54,7 @@ import { parseCommand } from './aiCommands';
 import { answersAsBrief, planAdditionalClarificationQuestion, planClarification } from './aiRouter';
 import { FEATURES } from '../../config/featureFlags';
 import { buildConversationHistory } from './aiPrompt';
+import { routeLabel, routeRequest, ruleRoute, type RouteDecision, type RouteInput } from './aiStrategy';
 import {
     ATTACHMENT_ACCEPT,
     MAX_ATTACHMENTS,
@@ -430,12 +431,6 @@ export function AIPanel() {
 
     /* ---------------------------------------------------------- @ mentions */
 
-    const openMention = useCallback((query: string) => {
-        setMentionQuery(query);
-        setMentionAt(null);
-        inputRef.current?.focus();
-    }, []);
-
     /**
      * Close the picker, optionally removing the `@token` that opened it.
      *
@@ -652,6 +647,69 @@ export function AIPanel() {
         window.requestAnimationFrame(() => inputRef.current?.focus());
     }, [addAIScopeSource, currentParentId, selectedCanvasNodeIds.size, setAIMode]);
 
+    /**
+     * Open the Ask Me form for `query`.
+     *
+     * Shared by `/ask` and by the router's "clarify" decision so both produce
+     * the same form. Moved out of `submit` unchanged.
+     */
+    const openClarifier = useCallback(async (query: string) => {
+        setDraft('');
+        setAskMeArmed(false);
+        setClarifier({
+            pendingQuery: query,
+            reason: '',
+            questions: [],
+            answers: {},
+            customAnswers: {},
+            additionalInfo: '',
+            status: 'loading',
+            generatingQuestionIds: [],
+        });
+        try {
+            const conversation = buildConversationHistory(useStore.getState().aiMessages)
+                .map((turn) => `${turn.role === 'assistant' ? 'AI' : 'You'}: ${turn.content}`)
+                .join('\n\n');
+            const plan = await planClarification(query, mode, {
+                model: aiModel,
+                conversation,
+                canvasContext: buildCanvasContext(resolveScope(effectiveScope, useStore.getState().nodes, selectedCanvasNodeIds)),
+            });
+            if (plan) {
+                setClarifier({
+                    pendingQuery: query,
+                    reason: plan.reason,
+                    questions: plan.questions,
+                    answers: Object.fromEntries(plan.questions.map((question) => [question.id, [...(question.defaults ?? [])]])),
+                    customAnswers: {},
+                    additionalInfo: '',
+                    status: 'ready',
+                    generatingQuestionIds: [],
+                });
+                return;
+            }
+            const fallback: AIFormQuestion = {
+                id: `q-${uuidv4()}`,
+                prompt: `What would make an answer about “${query.slice(0, 80)}” most useful to you?`,
+                kind: 'text',
+                defaults: [],
+            };
+            setClarifier({
+                pendingQuery: query,
+                reason: 'A little direction will help tailor the answer to what you need.',
+                questions: [fallback],
+                answers: { [fallback.id]: [] },
+                customAnswers: {},
+                additionalInfo: '',
+                status: 'ready',
+                generatingQuestionIds: [],
+            });
+        } finally {
+            // A successful plan or fallback replaces this loading shell.
+            setClarifier((current) => current?.status === 'loading' ? null : current);
+        }
+    }, [aiModel, effectiveScope, mode, selectedCanvasNodeIds]);
+
     const submit = useCallback(async (rawQuery?: string, options?: { brief?: string; skipClarify?: boolean; forceClarify?: boolean }) => {
         const raw = (rawQuery ?? draft).trim();
         if ((!raw && !askMeArmed) || isRunning) return;
@@ -684,63 +742,48 @@ export function AIPanel() {
         /* A clarifying form is an explicit interaction, not a surprise pause.
            `/ask` is the sole way to request it; ordinary prompts run directly. */
         if (!options?.skipClarify && !options?.brief && !imageMode && forceClarify) {
-                setDraft('');
-                setAskMeArmed(false);
-                setClarifier({
-                    pendingQuery: query,
-                    reason: '',
-                    questions: [],
-                    answers: {},
-                    customAnswers: {},
-                    additionalInfo: '',
-                    status: 'loading',
-                    generatingQuestionIds: [],
-                });
-                try {
-                    const conversation = buildConversationHistory(useStore.getState().aiMessages)
-                        .map((turn) => `${turn.role === 'assistant' ? 'AI' : 'You'}: ${turn.content}`)
-                        .join('\n\n');
-                    const plan = await planClarification(query, mode, {
-                        model: aiModel,
-                        conversation,
-                        canvasContext: buildCanvasContext(resolveScope(effectiveScope, useStore.getState().nodes, selectedCanvasNodeIds)),
-                    });
-                    if (plan) {
-                        setClarifier({
-                            pendingQuery: query,
-                            reason: plan.reason,
-                            questions: plan.questions,
-                            answers: Object.fromEntries(plan.questions.map((question) => [question.id, [...(question.defaults ?? [])]])),
-                            customAnswers: {},
-                            additionalInfo: '',
-                            status: 'ready',
-                            generatingQuestionIds: [],
-                        });
-                        return;
-                    }
-                    const fallback: AIFormQuestion = {
-                        id: `q-${uuidv4()}`,
-                        prompt: `What would make an answer about “${query.slice(0, 80)}” most useful to you?`,
-                        kind: 'text',
-                        defaults: [],
-                    };
-                    setClarifier({
-                        pendingQuery: query,
-                        reason: 'A little direction will help tailor the answer to what you need.',
-                        questions: [fallback],
-                        answers: { [fallback.id]: [] },
-                        customAnswers: {},
-                        additionalInfo: '',
-                        status: 'ready',
-                        generatingQuestionIds: [],
-                    });
-                    return;
-                } finally {
-                    // A successful plan or fallback replaces this loading shell.
-                    setClarifier((current) => current?.status === 'loading' ? null : current);
-                }
+            await openClarifier(query);
+            return;
         }
-        const intent: AIIntent = mode === 'ask' ? 'ask' : imageMode ? 'image' : selectedIds.length > 0 ? 'edit' : 'create';
+
+        /* ---- Route & decide strategy (steps 3–5 of the answer flow) ----
+           One fast flash-lite call reads the request and picks how to handle
+           it: answer directly, search the web, reason it through, ask first,
+           create, or edit the selected cards (see aiStrategy.ts). Fast effort
+           and image turns skip the call and keep the rules this panel always
+           used. The controller exists before routing so Stop cancels it too. */
+        const controller = new AbortController();
+        abortRef.current = controller;
+        const routeInput: RouteInput = {
+            query,
+            mode,
+            effort: aiEffort,
+            hasSelection: selectedIds.length > 0,
+            hasScope: effectiveScope.length > 0,
+            hasAttachments: attachments.length > 0,
+            isFollowUp: useStore.getState().aiMessages.some((message) => message.role === 'assistant'),
+            webSearchOn: webSearch,
+            allowClarify: !options?.brief && !options?.skipClarify,
+            recentConversation: buildConversationHistory(useStore.getState().aiMessages)
+                .slice(-2)
+                .map((turn) => `${turn.role === 'assistant' ? 'AI' : 'You'}: ${turn.content.slice(0, 300)}`)
+                .join('\n'),
+        };
+        let route: RouteDecision = ruleRoute(routeInput);
+        if (!imageMode) {
+            setAIRunning(true);
+            route = await routeRequest(routeInput, controller.signal);
+            // Stopped while routing: stop() already cleared the running state.
+            if (controller.signal.aborted) return;
+            if (route.strategy === 'clarify') {
+                abortRef.current = null;
+                setAIRunning(false);
+                await openClarifier(query);
+                return;
+            }
+        }
+
+        const intent: AIIntent = mode === 'ask' ? 'ask' : imageMode ? 'image' : route.strategy === 'edit' ? 'edit' : 'create';
         const turnScope = effectiveScope;
         setRunStartedAt(Date.now());
 
@@ -774,8 +817,25 @@ export function AIPanel() {
         setAttachError(null);
 
         const turnId = startAITurn(intent);
-        const controller = new AbortController();
-        abortRef.current = controller;
+        // (The abort controller was created before routing, so Stop covers it.)
+
+        /* How the request was read is the first line of the trace — the
+           answer to "why did it search the web / build a board / think
+           longer?" Only model decisions are shown: the rules are the silent
+           default and narrating them would be noise. */
+        if (route.source === 'model') {
+            const now = Date.now();
+            pushAIStep(turnId, {
+                id: uuidv4(),
+                kind: 'result',
+                text: routeLabel(route),
+                status: 'done',
+                phase: 'route',
+                startedAt: now,
+                endedAt: now,
+                ...(route.reason ? { detail: { kind: 'note' as const, text: route.reason } } : {}),
+            });
+        }
 
         // Documents are folded into the prompt; images travel as their own parts.
         /* History rides as real conversation turns now rather than being folded
@@ -897,57 +957,78 @@ ${context
              * compat endpoint. The answer therefore lands whole rather than
              * typing itself out, which is why this reports a step: without one
              * the panel would sit silent for the entire call. */
-            if (intent === 'ask' && webSearch) {
+            /* Web search runs when the user switched it on, OR when the router
+               judged the question to need current information. The second case
+               is a suggestion, not an instruction: grounding needs billing on
+               the Gemini key, so if a router-chosen search fails the turn says
+               so in the trace and answers without it rather than erroring. A
+               search the user asked for still fails loudly. */
+            let answered = false;
+            if (intent === 'ask' && (webSearch || route.strategy === 'web')) {
                 const searchStep = ctx.step('action', 'Searching the web', 'running', { phase: 'gather' });
-                const { text, citations, supports, queries } = await groundedAsk(
-                    conversationPrompt,
-                    {
-                        system,
-                        model: aiModel,
-                        maxTokens: effortMaxTokens(aiEffort),
-                        signal: controller.signal,
-                    }
-                );
-                /* The queries go in the detail, verbatim and all of them,
-                   rather than being crammed into the label three at a time.
-                   Whether it looked up the right thing is the single most
-                   useful fact about a grounded run (ai-Plan.md §5.1). */
-                ctx.settle(
-                    searchStep,
-                    'done',
-                    queries.length > 0
-                        ? `Searched the web · ${queries.length} quer${queries.length === 1 ? 'y' : 'ies'}`
-                        : 'Searched the web',
-                    {
-                        phase: 'gather',
-                        ...(queries.length > 0 ? { detail: { kind: 'queries' as const, queries } } : {}),
-                    },
-                );
-
-                if (citations.length > 0) {
-                    ctx.step('result', `Kept ${citations.length} source${citations.length === 1 ? '' : 's'}`, 'done', {
-                        phase: 'attribute',
-                        detail: {
-                            kind: 'sources',
-                            sources: citations.map((c) => ({
-                                kind: 'web' as const,
-                                url: c.url,
-                                title: c.title || c.source,
-                                host: c.source,
-                            })),
+                try {
+                    const { text, citations, supports, queries } = await groundedAsk(
+                        conversationPrompt,
+                        {
+                            system,
+                            model: aiModel,
+                            maxTokens: effortMaxTokens(aiEffort),
+                            signal: controller.signal,
+                        }
+                    );
+                    /* The queries go in the detail, verbatim and all of them,
+                       rather than being crammed into the label three at a time.
+                       Whether it looked up the right thing is the single most
+                       useful fact about a grounded run (ai-Plan.md §5.1). */
+                    ctx.settle(
+                        searchStep,
+                        'done',
+                        queries.length > 0
+                            ? `Searched the web · ${queries.length} quer${queries.length === 1 ? 'y' : 'ies'}`
+                            : 'Searched the web',
+                        {
+                            phase: 'gather',
+                            ...(queries.length > 0 ? { detail: { kind: 'queries' as const, queries } } : {}),
                         },
+                    );
+
+                    if (citations.length > 0) {
+                        ctx.step('result', `Kept ${citations.length} source${citations.length === 1 ? '' : 's'}`, 'done', {
+                            phase: 'attribute',
+                            detail: {
+                                kind: 'sources',
+                                sources: citations.map((c) => ({
+                                    kind: 'web' as const,
+                                    url: c.url,
+                                    title: c.title || c.source,
+                                    host: c.source,
+                                })),
+                            },
+                        });
+                    }
+
+                    /* Inline markers first, then the node chips, then the source
+                       list. Order matters: `insertWebCitations` works on byte
+                       offsets into the answer Gemini returned, so anything that
+                       changes the string has to happen after it. */
+                    const cited = resolveNodeCitations(insertWebCitations(text, supports), scopeRefs);
+                    updateAITurn(turnId, {
+                        status: 'done',
+                        text: `${cited}${citationsAsMarkdown(citations)}`,
+                    });
+                    answered = true;
+                } catch (error) {
+                    const stopped = controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError');
+                    if (webSearch || stopped) throw error;
+                    ctx.settle(searchStep, 'failed', 'Web search unavailable — answering without it', {
+                        phase: 'gather',
+                        detail: { kind: 'note', text: error instanceof Error ? error.message : 'Web search failed.' },
                     });
                 }
+            }
 
-                /* Inline markers first, then the node chips, then the source
-                   list. Order matters: `insertWebCitations` works on byte
-                   offsets into the answer Gemini returned, so anything that
-                   changes the string has to happen after it. */
-                const cited = resolveNodeCitations(insertWebCitations(text, supports), scopeRefs);
-                updateAITurn(turnId, {
-                    status: 'done',
-                    text: `${cited}${citationsAsMarkdown(citations)}`,
-                });
+            if (answered) {
+                // The grounded answer above is the whole turn.
             } else if (intent === 'ask') {
                 // Rich answers can carry many native blocks. Batching a burst of
                 // streamed tokens to one paint keeps the block renderer from
@@ -962,6 +1043,10 @@ ${context
                 const streamed = await streamText(conversationPrompt, {
                     system,
                     ...request,
+                    /* The router's "reason" strategy: a real reasoning budget for
+                       maths, debugging and trade-off decisions. Otherwise the
+                       effort default applies (light on Smart, off below). */
+                    ...(route.strategy === 'reason' ? { thinking: 'deep' as const } : {}),
                     signal: controller.signal,
                     onDelta: (delta) => {
                         pendingDelta += delta;
@@ -999,12 +1084,26 @@ ${context
                     durationMs: streamed.durationMs,
                 });
             } else {
+                /* Create places its (still empty) artifacts first and streams the
+                   bodies into them, so the canvas is focused the moment they land
+                   and the ids are recorded then too — Undo and Stop work mid-run
+                   instead of only after every body has been written. */
+                const createCtx: RunnerContext = {
+                    ...ctx,
+                    request: route.shapes.length > 0 ? { ...request, shapeHint: route.shapes } : request,
+                    onPlaced: (nodeIds) => {
+                        updateAITurn(turnId, { createdNodeIds: nodeIds });
+                        if (nodeIds.length > 0) focusCanvasNodes(nodeIds);
+                    },
+                };
                 const result = intent === 'image'
                     ? await runImage(query, ctx)
                     : intent === 'edit'
                         ? await runEdit(promptWithFiles, selectedIds, ctx)
-                        : await runCreate(conversationPrompt, context, ctx);
-                if (result.createdNodeIds.length > 0) focusCanvasNodes(result.createdNodeIds);
+                        : await runCreate(conversationPrompt, context, createCtx);
+                // Create already focused on placement; re-focusing now would yank
+                // the view away from wherever the user moved while it wrote.
+                if (intent !== 'create' && result.createdNodeIds.length > 0) focusCanvasNodes(result.createdNodeIds);
                 updateAITurn(turnId, {
                     status: 'done',
                     text: result.summary,
@@ -1030,7 +1129,7 @@ ${context
            no longer read directly by this callback (scope resolution owns it),
            and `runnerContext` already tracks it for placement. */
         draft, askMeArmed, isRunning, mode, imageMode, selectedCanvasNodeIds, selectedNodes,
-        attachments, aiModel, aiEffort, aiSelectedContexts, replyContext, webSearch, effectiveScope, aiScope.length, planOrganization,
+        attachments, aiModel, aiEffort, aiSelectedContexts, replyContext, webSearch, effectiveScope, aiScope.length, planOrganization, openClarifier,
         appendAIMessage, startAITurn, pushAIStep, appendAIText, updateAITurn, setAIRunning, clearAIScope, runnerContext,
     ]);
 

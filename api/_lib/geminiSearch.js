@@ -136,7 +136,12 @@ export async function groundedAnswer(prompt, { model, system, maxTokens } = {}) 
     contents: [{ role: 'user', parts: [{ text: trimmed }] }],
     tools: [{ google_search: {} }],
     ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
-    ...(maxTokens ? { generationConfig: { maxOutputTokens: maxTokens } } : {}),
+    /* Headroom on top of the answer budget: grounded models reason before they
+       write, and that reasoning is billed against maxOutputTokens, so an answer
+       sized exactly to the effort ceiling ran out mid-sentence. The level is
+       not forced lower — it varies per model, a wrong one is a 400, and a
+       search-backed answer is where some reasoning earns its cost. */
+    ...(maxTokens ? { generationConfig: { maxOutputTokens: maxTokens + 2048 } } : {}),
   };
 
   const response = await fetch(

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Upload, X, Link, type LucideIcon } from '../../components/icons';
+import { Search, Upload, X, Link } from '../../components/icons';
 import styles from './IconPicker.module.css';
 import { Tabs, type TabItem } from '../../components/ui/Tabs';
 
@@ -463,9 +463,4 @@ export function IconPicker({ currentIcon, onSelect, onClose, isAbsolute }: IconP
     }
 
     return createPortal(pickerContent, document.body);
-}
-
-export function getIconByName(iconName: string): LucideIcon {
-    const baseName = iconName ? iconName.split('::')[0] : '';
-    return solarIconComponent(baseName || defaultIconName);
 }

@@ -775,6 +775,11 @@ Resolve these here, with the date and reason, when they are decided.
 | 2026-08-30 | **P1 shipped.** W1 trace, W3 scope model, W8 labelled controls. See "P1 as built" below. |
 | 2026-08-30 | **P2 shipped.** W5 skeleton/body split, effort budgets, partial success; W9 messages array + local run metrics. See "P2 as built" below. |
 | 2026-08-30 | **P3-P5 shipped.** W4 citations + provenance; W2 clarify form; W6 verify pass + dedupe; W7 edit snapshots. See "P3-P5 as built" below. |
+| 2026-09-09 | **Truncation is now visible to the planner** (W5 reliability). See "Truncated plans" below. |
+| 2026-09-13 | **Speed and reliability pass.** Thinking off by default, per-model level negotiation, model fallback on 429/5xx, parallel item batches. See "Speed and reliability pass" below. |
+| 2026-09-13 | **Smart router + streaming Create.** Flash-lite router picks answer/web/reason/clarify/create/edit; Create places artifacts first and streams bodies into them. See "Smart router + streaming Create" below. |
+| 2026-09-13 | **Answers finish.** Deadline no longer cuts streams, stalls report `interrupted`, auto-continue past the ceiling, higher ceilings. See "Answers that stop halfway" below. |
+| 2026-09-13 | **No more raw markers in AI output.** `repairAIMarkdown`, quotes stay quotes, canvas placement parses like the panel. See "Raw `#`, `-`, `>` and `<br>` in AI output" below. |
 
 ### P1 as built (2026-08-30)
 
@@ -1642,6 +1647,112 @@ Three implementation notes, each of them a thing that would otherwise bite:
 `--cover-ambient-scale / -blur / -opacity` are on `.coverAmbient` if the
 strength wants tuning.
 
+**Then the well was let in too (same day).** The original build kept the note
+well opaque so the writing surface stayed flat; on request it now carries the
+ambient as well, so the whole card is one field of light.
+
+The well shows it by going TRANSLUCENT rather than by getting a copy of its
+own. One layer seen through the well stays continuous with the frame around it,
+where a second image scaled to the well's own box would sample different
+colours and read as two pictures instead of one light source. Every well
+background — plain, accented, collapsed and expanded, four declarations — is
+routed through a `--well-alpha` custom property, defaulting to `100%` and
+dropped to `72%` by `.card:has(.coverAmbientClip)`. Routing all four through one
+property is what keeps the accented and plain wells thinning together.
+
+The mask had to change with it: it used to fade to 0.08 at the bottom, which is
+where the well lives, so there was nothing left to show through. It now bottoms
+out at 0.46 — still top-weighted, but the lower half keeps enough light to be
+worth seeing.
+
+**Softer, more vibrant, and grained (same day).** Blur 56 → 72px and scale 1.7 →
+1.8 for a more diffuse field. Blur averages colour together, so a softer wash is
+also a greyer one; saturation is pushed 1.3 → 1.85 to pay for it. Ink opacity
+0.30 → 0.34, Paper 0.21 → 0.24 with saturation 1.5.
+
+Grain sits on `.coverAmbientClip::after` — the ambient is an `<img>`, and
+pseudo-elements do not render on replaced elements. It is an `feTurbulence` data
+URI rather than a shipped asset: no request, and `stitchTiles` makes the 160px
+tile seamless. It carries the SAME mask as the image so the grain fades with the
+light instead of lying on the card as a flat layer of dirt.
+
+It earns its place beyond taste: a blurred image is perfectly smooth, and a
+large smooth gradient on a dark surface **bands** — the 8-bit steps are visible.
+Noise breaks the bands and gives the wash a surface.
+
+Ink blends `overlay` at 0.32, Paper `multiply` at 0.17. Overlay amplifies noise
+against white far more than against charcoal, and on paper a darkening blend is
+what reads as tooth rather than as static. Strength was set by eye at 1:1 —
+0.19 was invisible, 0.55 read as static.
+
+**Crisper grain, quieter wash (same day).** The grain was four octaves at
+baseFrequency 0.8, which reads as cloud rather than as grain: stacked octaves
+add coarser layers on top of the fine one, and it is those large blobs that
+soften it. Now ONE octave at 0.92 — the tile renders 1 SVG unit to 1 CSS px, so
+that puts the speckle at roughly a pixel. Ambient opacity came down with it,
+Ink 0.34 → 0.26 and Paper 0.24 → 0.18, which also lets the grain carry more of
+the surface.
+
+Judge this one at 1:1 only. Grain is a per-pixel effect and a downscaled
+screenshot erases it — an early capture at 0.68 scale showed nothing and looked
+like the effect had failed.
+
+**Then the grain read as sand, and only on the frame (same day).** Two fixes,
+and the second is the interesting one.
+
+*Raw feTurbulence is not grain.* Three things in the filter now, each fixing a
+separate source of harshness: `saturate 0`, because turbulence is RGB noise so
+every speckle is a random COLOUR where real grain is tonal — the single biggest
+difference between grain and static; `feFuncA` pinned to 1, because turbulence
+noises the ALPHA channel too and punches random holes in the layer; and a
+`slope 0.4 / intercept 0.3` transfer, because full-range noise swings black to
+white where roughly 0.3–0.7 modulates a surface instead of fighting it. Blend
+moved from `overlay` to `soft-light` — overlay is a contrast operator and drives
+both ends hard.
+
+*The grain's mask is now the INVERSE of the image's.* It used to share it, which
+piled the most grain exactly where the colour is already strongest — the frame
+band across the top — while the well saw the same layer through a 72%-opaque
+surface and got about a quarter as much. That is precisely the report: good in
+the note area, sand on the frame. Weak at the top and full lower down, the two
+surfaces carry a similar amount of texture despite one of them being seen
+through glass.
+
+### The ambient becomes the colour feature (2026-09-02)
+
+Reframed on the user's description: the ambient field is not a property of
+having a cover, it is **a way of colouring a node**, and it has two sources.
+`data.ambientImage` is a new field beside `data.color`; `data.coverImage` no
+longer drives the ambient at all.
+
+- **A hue** → `.coverAmbientHue`, three offset radial blobs from
+  `oklch(from var(--node-accent) … calc(h ± 34))`. A flat colour blurred is
+  still a flat colour, so the blobs are what a photograph gives for free.
+- **An image** → the existing `<img>` path, reached from a "Colour from image…"
+  row under the ten swatches that opens the same `CoverPicker` modal.
+
+`bulkApplyAmbientImage` sets the image and clears the hue; `bulkApplyColor` with
+`transparent` clears both. One node carries one ambient, so the two sources have
+to be mutually exclusive or they stack.
+
+Three things the hue field does NOT inherit from the image, each of which looked
+wrong before it was changed: **scale 1**, because a photo is scaled 1.8× to
+sample its middle and hide its edges, while this gradient is authored for the
+box and scaling it just inflates the blobs until they cover everything evenly —
+the opposite of a field; **saturate 1.05**, because a photo needs saturation
+back after blurring and one pure hue does not; and **no base fill under the
+blobs**, because the card surface is already this hue at L 0.44 and a fourth
+opaque layer simply repainted it — the card came out flat bright green.
+
+**A doubled layer, caught in testing.** An expanded card renders
+`NoteExpandedContent` INSIDE `NoteCard`, and both were rendering an ambient, so
+a coloured card on canvas got two stacked fields at full strength. The content
+takes a `renderAmbient` prop, default true for standalone panel use, passed
+false by the card, which owns the frame there.
+
+Three swatch labels also stopped lying: `Orange`, `Pale Orange` and
+`Deep Orange` pointed at teal, azure and indigo.
+
 ### Paper's ten, built the other way round (2026-09-02)
 
 Paper still carried the collapsed set — four of the ten the same coral, four the
@@ -1667,3 +1778,265 @@ Paper wants.
 #c14984` — contrast 4.56–4.65 against the page, chroma 0.087–0.165. Checked as
 dots and as recoloured card surfaces (which take only the hue's H, so they were
 already correct) in the running app; Ink's ten re-read afterwards, unchanged.
+
+### Truncated plans (2026-09-09)
+
+**Symptom.** "The AI returned an incomplete canvas plan. Nothing was added to
+the canvas — try again or make the requested format more specific."
+
+**Cause.** `/api/ai/text` returned `{ text }` and nothing else. The streaming
+route has carried `finishReason` since it gained a trailer, but this one did
+not — so a completion cut off at `max_tokens` arrived as an ordinary string.
+`planArtifacts` parses that string as JSON, and a *truncated* plan failed
+validation identically to a *malformed* one. The single recovery path then
+re-sent the fragment with "repair this" under the same `PLAN_MAX_TOKENS = 1200`
+ceiling, asking the model to fit the same content into the same space. It
+truncated at the same point, and the second failure reached the user.
+
+Reproduced: a plan-shaped request at `maxTokens: 1200` came back **HTTP 200**,
+290 characters, cut mid-sentence, not valid JSON, with no signal of any kind.
+
+**Fix.**
+- `extractFinishReason` in `api/ai/text.js`, mirrored by `extractDevFinishReason`
+  in `vite.config.ts`; both routes now return `finishReason`.
+- `generateTextWithMeta` returns `{ text, finishReason, truncated }`, matching
+  the shape `streamText` already had. `generateText` wraps it and is unchanged
+  for its other callers. `truncated` matches OpenAI's `length` and Gemini's
+  `MAX_TOKENS`.
+- `PLAN_MAX_TOKENS` became `planMaxTokens(effort)` — 260 tokens per artifact
+  over a 1200 floor, so Fast stays at 1200, Efficient gets 1560, Smart 2340. A
+  nine-artifact Smart plan whose boards carry six columns and a dozen cards
+  never fit in 1200.
+- The planner's retry now branches. Truncated: ask for half as many artifacts
+  with 1.5× the room, and do NOT echo the fragment back — those tokens are part
+  of why it did not fit. Malformed: repair as before.
+- When both passes fail, the message says which. "Be more specific" is wrong
+  advice for truncation: a more specific request is usually a bigger one.
+
+**Second bug, found while testing.** A reasoning model spends the same budget
+`max_tokens` caps on its internal thinking, so a low ceiling can return zero
+visible text. Both routes reported that as "produced an empty response. Choose
+a text-capable model" — pointing at a model that is not the problem. They now
+distinguish the truncated case.
+
+**Not verified end to end.** The Gemini free-tier key hit its daily quota
+(HTTP 429) partway through, and the model was returning 503 before that. The
+finish-reason plumbing, the ceilings, and the truncation predicate were each
+verified directly; a full plan run under a real truncation was not.
+
+### Speed and reliability pass (2026-09-13)
+
+**Asked for.** Test the AI, and make it fast while keeping the content good and
+reliable.
+
+**Measured first**, against the live Gemini endpoint with the app's own prompt
+shapes (plan, body, streamed Ask):
+
+| Call | Model | Thinking | Time | Thinking tokens | Outcome |
+|---|---|---|---|---|---|
+| plan, 1560 max | 3.6-flash | default | 9.97s | 1493 | `length`, 62 visible tokens, no JSON |
+| plan, 1560 max | 3.5-flash | default | 11.0s | 1321 | `length`, broken JSON |
+| plan, 1560 max | 3.7-flash | `none` | 2.5s | 0 | valid 3-artifact plan |
+| body, 1800 max | 3.7-flash | default | 6.4s | 1146 | 388 visible tokens |
+| body, 1800 max | 3.7-flash | `low` | 2.6s | 0 | same size |
+| Ask stream | 3.5-flash | default | first token 10.1s | 2102 | cut off (`length`) |
+| Ask stream | 3.5-flash | `none` | first token 0.83s | 0 | complete |
+
+**Root causes.**
+1. Nothing sent `reasoning_effort`, so every call reasoned by default, and those
+   tokens come out of `max_tokens`. That is both why planning was slow and why
+   "The AI returned an incomplete canvas plan" kept coming back: the 2026-09-09
+   work above *detects* the truncation correctly but could not prevent it.
+2. No single level works for every model. 3.7/3.8-flash reject `minimal`;
+   3.6-flash and 3.5-flash-lite reject `none` with a bare "invalid argument";
+   3.6-flash still reasons ~900 tokens at `low`, so its "off" is `minimal`.
+3. 3.7-flash answered 503 "high demand" repeatedly, and the free-tier key allows
+   **5 requests per minute per model**. The client's one retry hit the same
+   model 500ms later, which fails the same way.
+4. Board/timeline item batches ran one after another, and a body's
+   compatibility retry re-sent the whole call on timeouts and 5xx.
+
+**Changes.**
+- `api/_lib/aiUpstream.js` (new), imported by `api/ai/text.js`,
+  `api/ai/stream.js` and both dev twins in `vite.config.ts`, so it cannot drift:
+  thinking off by default; a seeded per-model level with a walk on rejection,
+  remembered per process; fallback to the next allow-listed model on
+  408/429/5xx inside the one 40s deadline (at most 3 models; default order
+  3.7-flash → 3.5-flash-lite → 3.6-flash; `AI_GATEWAY_FALLBACK_MODELS`
+  overrides); +1024 tokens of headroom whenever the model may reason.
+  `X-AI-Model` now names the model that actually answered.
+- Client: a `thinking: 'off' | 'light'` request option (Smart Ask streams use
+  `light`), planner temperature 0.4, and the body compatibility retry only on
+  400/422.
+- Runner: item batches run two at a time and succeed per batch; per-artifact
+  concurrency Efficient 3→4, Smart 2→3.
+- `npm run check:ai-upstream`: 36 offline checks against a fake gateway.
+
+**Verified.**
+- Simulated Create turns (plan → bodies → batched items), old network behaviour
+  vs new, live. Pinned to gemini-3.5-flash: old failed after 17.1s (the plan
+  truncated twice); new placed a board + document with 9/9 card bodies in
+  10.2s. Unpinned, with 3.7-flash under load: old completed 0 of 2 turns (a 503
+  after 20s, then a 429); new completed 2 of 2 (16.4s, 14.5s), falling back to
+  flash-lite where needed.
+- A fresh dev server's routes: a plan-shaped `/api/ai/text` returned valid JSON
+  in 1.27s; `/api/ai/stream` gave its first token in 769ms with trailer `stop`.
+  Both were served by the fallback model while 3.7-flash was rate-limited.
+- A real Create turn in the panel ("plan the beta launch … as a board, plus a
+  doc on pricing"): planned in under 10s, finished within 30s (polled), placed a
+  4-lane board with 8/8 card bodies and a 20-block document using 8 block types.
+  It wrote "$X/month" rather than inventing a price.
+
+**Not fixed: the key.** 5 requests per minute per model is the real ceiling.
+One Efficient Create turn (plan + 3–5 body calls) uses most of a model's minute;
+fallback spreads a turn across three models, but beyond that users will see
+429s. A paid key is required before beta.
+
+### Raw `#`, `-`, `>` and `<br>` in AI output (2026-09-13)
+
+**Reported.** AI content showing literal markers, e.g.
+`---### Key Exam Criteria & Examiner Focus Areas`.
+
+**Not the model.** Raw Gemini output had dividers and headings on their own
+lines. Running real output and edge cases through the app's parsers found:
+1. Every `> quote` in an AI panel answer rendered as literal `>> …`.
+   `parseAIContent` rewrote `>` to `>>` for a toggle, but the paste parser has
+   no `>>` rule (it is a typed shortcut only).
+2. `<br>` inside table cells (which models use for every multi-line cell) and
+   between prose lines, `<strong>`/`<em>`, and `&gt;`/`&amp;` all showed raw.
+3. A divider or heading that lost its newline (`---### X`, `…end.### X`)
+   matched neither marker rule, since both need the whole line.
+4. Canvas placement (cards, docs, board cards, timeline steps), body
+   measuring and YouTube study used `parsePlainText` directly, so they skipped
+   even the existing repairs: `####`, `-item`, `1) step` stayed literal there.
+
+**Fix.** `repairAIMarkdown` in `pasteUtils.ts` (HTML and entities; `<br>` is
+a space in a table row and a newline elsewhere; glued dividers and headings;
+fences untouched) runs first in `parseAIContent`. The toggle rewrite is gone,
+so a quote is a quote. A `---` under a paragraph is now a divider rather than a
+setext heading, unless the line above is a short standalone title. A bold-only
+line needs a letter to become a heading, so a timeline's `**2026-09-01**` stays
+a label. `aiRunner`, `aiCompose` and `YouTubeStudio` now use `parseAIContent`.
+
+**Verified.** `npm run check:ai-markdown` (17 cases, including the reported
+line); the existing markdown, table and AI-part checks still pass. An injected
+answer in the running panel rendered the heading, divider, table, bullets,
+numbered step and quote with no literal markers.
+
+### Answers that stop halfway (2026-09-13)
+
+**Reported.** AI answers are not completed; they stop in the middle.
+
+**Measured.** The same long study-guide request, streamed straight from Gemini:
+
+| Model | Ceiling | Time | Tokens/s | Ended |
+|---|---|---|---|---|
+| 3.5-flash-lite | 3000 | 11.8s | 270 | `length`, mid-sentence |
+| 3.5-flash | 8000 | 37.8s | 216 | `length`, mid-sentence |
+| 3.6-flash | 8000 | 57.1s | 146 | `length`, mid-sentence |
+
+**Causes.**
+1. **Ceilings.** Long answers ran into `max_tokens` (Efficient Ask was 3000;
+   a canvas body 1800). The panel flagged the Ask case after the fact; a
+   canvas body was placed cut off with no signal at all.
+2. **The deadline covered the whole stream.** `AbortSignal.timeout(40s)`
+   applies to reading the body too, so a 57s answer was aborted at 40s and the
+   route ended the response *without a trailer*: no `length`, no warning, just
+   half an answer presented as complete.
+3. **Dev only: glued words.** The dev stream twin read deltas through a helper
+   that trims, deleting the space at every chunk boundary ("Manywritersmake").
+   The production route always wrote the raw delta.
+
+**Fix.**
+- `postChatCompletion` returns `release()`/`abort()`: the deadline bounds
+  *reaching* an answer. Streams release on first bytes and use a 30s stall
+  guard; a stall or dropped stream ends with trailer `interrupted`. Deadlines
+  are 55s (client 65s), and `vercel.json` gives both AI routes `maxDuration: 60`.
+- **Auto-continue.** `streamText` and the new `generateCompleteText` (used for
+  card/doc bodies and board item batches) re-ask with the partial answer as the
+  assistant turn: "continue exactly where it stopped", up to twice. Streamed
+  continuations flow into the same `onDelta`, so the answer just keeps going.
+  `truncated` now covers `length`, `MAX_TOKENS` and `interrupted`.
+- **Seams.** Non-stream replies being joined come back untrimmed
+  (`preserveWhitespace`), and `seamPrefix` restores the space a continuation
+  drops mid-sentence. After a full stop it adds nothing, since that character
+  may have been a newline.
+- **Room.** Ask ceilings went from 800/3000/8000 to 1500/6000/8000, and body
+  budgets from 700/1800/3500 to 1200/3500/6000. Grounded (web) answers get
+  +2048 tokens of `maxOutputTokens` headroom for the model's reasoning.
+
+**Verified live** through the dev routes with forced tiny ceilings: streamed
+answers (150 and 200 tokens) took 2 requests each and arrived complete (8/8
+items plus the end marker), with the streamed UI text byte-identical to the
+final text. A body at 120 tokens took 2 requests and came back complete (7/7
+bullets plus the exact closing line). No glued words after the seam fix.
+`check:ai-upstream` now also asserts a released answer is not aborted when the
+deadline passes, and that `abort()` cancels it. The 30s stall path was checked
+offline only; a real mid-stream gateway drop was not reproduced.
+
+### Smart router + streaming Create (2026-09-13)
+
+**Asked for.** The nine-step answer flow (input → context → understand →
+safety → route → execute → generate → validate → stream). The user chose to
+build step 3+5 (a model-based router) and progressive streaming output.
+
+**Before.** "Understanding" was the tab plus whether cards were selected
+(`AIPanel.tsx`). That misrouted real requests: "make a mindmap from these" with
+cards selected went to `runEdit` and rewrote the selection; current-events
+questions answered from stale knowledge unless web was toggled on; a maths
+problem got the same no-thinking pass as a definition. Create placed nothing
+until every body was written.
+
+**Router** (`src/features/ai/aiStrategy.ts`). One flash-lite call (thinking off,
+temperature 0, 160 tokens, 4s cap) picks `answer | web | reason | clarify |
+create | edit` plus shape hints. `resolveRoute` holds the choice to the mode:
+Ask never touches the canvas; an explicit web toggle wins; create with no
+selection cannot be `edit`; clarify is vetoed on Fast, follow-ups, attached
+context/selection/files, requests over 14 words, and replays of an answered
+form. Any failure falls back to `ruleRoute` (the old behaviour). Fast effort and
+image turns skip the call. Applied in `submit()` before the turn starts, with
+the abort controller created first so Stop cancels routing.
+- `reason` → `streamText` with `thinking: 'deep'`: `reasoning_effort` `medium`
+  → `low` → default, with +4096 tokens of headroom (`aiUpstream.js`).
+- `web` chosen by the router (toggle off) that fails → trace step "Web search
+  unavailable — answering without it" and a normal streamed answer. A search the
+  user switched on still fails loudly.
+- `clarify` → the same Ask Me form as `/ask` (`openClarifier`).
+- `create` → planner gets `shapeHint` as a soft preference.
+- Model decisions write a `route` trace line ("Building a timeline") with the
+  one-sentence reason as its detail.
+
+**Streaming Create** (`runCreate`). Artifacts are laid out from the plan and
+placed immediately; provenance is stamped and `ctx.onPlaced` lets the panel
+record the ids (Undo/Stop work mid-run) and focus the canvas. Bodies then stream
+into their nodes — notes, documents, and board cards / timeline steps split
+from the batch reply by heading as it arrives — through `aiCanvasStream.ts`:
+partial content is batched into one `setState` per 250ms under
+`withoutHistory`, and each finished body is one normal `commit`. Every `nodes`
+change drives local save, the cloud-sync diff and undo recording, so a write per
+token was not an option. A failed card or document is removed with
+`bulkDeleteNodes`; boards and timelines keep their titled items. Duplicate
+detection snapshots the canvas before placement. Streamed body calls send
+`X-AI-Phase: body` so they use the body rate bucket.
+
+**Verified.** `npm run check:ai-strategy` (26 cases) plus the upstream,
+markdown, table and part checks; `tsc -b` clean. Live on the dev server:
+- Router on 7 requests, 590–1065ms each, all routed as intended: F1 news →
+  `web`; train word problem → `reason`; "what is opportunity cost" → `answer`;
+  "help me with my project" → `clarify`; "make a mindmap from these cards"
+  (selection) → `create` + `mindmap`; "shorten these cards" (selection) →
+  `edit`; 6-week launch plan → `create` + `board`.
+- Create "Plan a 4-week study schedule for IB Economics Paper 1": routed
+  "Building a timeline"; all 5 nodes on the canvas at 4.1s; text growing 107 →
+  1,720 → 3,960 → 5,748 → 7,193 chars; done at 12.3s with 4/4 steps and a
+  38-block document, no empty cards, 3 undo steps for the whole turn.
+- Ask word problem → "Thinking it through step by step", complete and correct
+  (6 notebooks + 12 pens = $31). Ask "most recent F1 Grand Prix" with web off →
+  routed `web`, grounded call refused on the free-tier key, fell back and
+  answered in 3.1s.
+
+**Not verified.** Progressive paint of *Ask* text in the panel: its stream
+flushes on `requestAnimationFrame`, which does not run in the hidden preview
+pane, so polling saw the text only at completion. The Create path (timers, not
+rAF) was observed filling live. Safety (step 4), a tool loop (step 6) and
+validating Ask answers (step 8) were offered and not chosen.

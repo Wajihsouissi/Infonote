@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useReactFlow, useStoreApi } from '@xyflow/react';
 import type { AppNode } from '../../../types';
 import { useStore } from '../../../store/useStore';
@@ -11,7 +11,6 @@ import {
 } from './useCanvasDetail';
 import { isStreaming, publishTiers } from './lodStore';
 
-const DEBUG = import.meta.env.DEV;
 
 interface UseCanvasViewportOptions {
     currentParentId: string | null;
@@ -88,7 +87,9 @@ export function useCanvasViewport({ currentParentId }: UseCanvasViewportOptions)
         });
     }, []);
 
-    const viewportRef = useRef<Viewport>(estimateFitViewport(getRootNodes()));
+    const viewportRef = useRef<Viewport>(estimateFitViewport(
+        useStore.getState().nodes.filter(n => (n.parentId || null) === (currentParentId || null)),
+    ));
 
     const nodeCacheRef = useRef<Map<string, { original: AppNode, stripped: AppNode }>>(new Map());
     const [visibleNodes, setVisibleNodes] = useState<AppNode[]>([]);
@@ -332,7 +333,6 @@ export function useCanvasViewport({ currentParentId }: UseCanvasViewportOptions)
 
     return {
         visibleNodes,
-        viewport: viewportRef.current,
         handleViewportChange,
         flushViewportChange,
     };

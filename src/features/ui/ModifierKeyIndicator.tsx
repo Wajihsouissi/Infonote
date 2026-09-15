@@ -22,10 +22,20 @@ export function ModifierKeyIndicator({
     persistOnReleaseMs = 0,
 }: Props) {
     const isActive = showCtrl || showShift || showFocus || showSuccess;
-    const [render, setRender] = useState(false);
+    const [render, setRender] = useState(isActive && !suppress);
     const [visible, setVisible] = useState(false);
     const hideTimerRef = useRef<number | null>(null);
     const renderTimerRef = useRef<number | null>(null);
+    const [previousInput, setPreviousInput] = useState({ isActive, suppress });
+    if (previousInput.isActive !== isActive || previousInput.suppress !== suppress) {
+        setPreviousInput({ isActive, suppress });
+        if (suppress) {
+            setVisible(false);
+            setRender(false);
+        } else if (isActive) {
+            setRender(true);
+        }
+    }
 
     useEffect(() => {
         if (hideTimerRef.current) {
@@ -38,13 +48,10 @@ export function ModifierKeyIndicator({
         }
 
         if (suppress) {
-            setVisible(false);
-            setRender(false);
             return;
         }
 
         if (isActive) {
-            setRender(true);
             // Wait a tiny frame to allow DOM mount before applying active animation class
             renderTimerRef.current = window.setTimeout(() => {
                 setVisible(true);

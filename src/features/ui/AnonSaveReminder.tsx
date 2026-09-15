@@ -30,9 +30,14 @@ export const AnonSaveReminder: React.FC = () => {
     const setCurrentView = useStore((s) => s.setCurrentView);
     const [visible, setVisible] = useState(false);
 
+    const [previousAuth, setPreviousAuth] = useState(isAuthenticated);
+    if (previousAuth !== isAuthenticated) {
+        setPreviousAuth(isAuthenticated);
+        if (isAuthenticated) setVisible(false);
+    }
+
     useEffect(() => {
         if (isAuthenticated) {
-            setVisible(false);
             return;
         }
 

@@ -1,4 +1,8 @@
 {
+  "functions": {
+    "api/ai/text.js": { "maxDuration": 60 },
+    "api/ai/stream.js": { "maxDuration": 60 }
+  },
   "rewrites": [
     {
       "source": "/((?!api/).*)",

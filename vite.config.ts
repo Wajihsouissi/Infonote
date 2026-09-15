@@ -139,7 +139,8 @@ const DEFAULT_TEXT_MODEL_ALLOWLIST = [
   'gemini-3.5-flash',
   'gemini-3.5-flash-lite',
 ]
-const AI_GATEWAY_TIMEOUT_MS = 40_000
+// Matches GATEWAY_TIMEOUT_MS in api/ai/text.js and api/ai/stream.js.
+const AI_GATEWAY_TIMEOUT_MS = 55_000
 
 function textModelAllowlist(): string[] {
   const configured = getEnvValue('AI_GATEWAY_TEXT_MODELS')
@@ -159,28 +160,59 @@ function getServerAiModel(kind: 'text' | 'image', requested?: string): string {
   return textModelAllowlist().includes(requested.trim()) ? requested.trim() : fallback
 }
 
+/**
+ * Whether this dev server should serve /api/ai/* without a Supabase session.
+ *
+ * Off unless VITE_AI_ALLOW_ANONYMOUS=true. This plugin only ever runs under
+ * `vite dev`, so the flag cannot reach a deployed build — production keeps
+ * requireAiAccess in api/_lib/aiGuard.js unchanged, and that is the one place
+ * this bypass must never be copied to: those routes proxy a paid Gemini key.
+ *
+ * Note this is the ONE place the dev twin is allowed to diverge from its
+ * production counterpart, so the "keep the two in step" rule above does not
+ * apply to it.
+ */
+function allowAnonymousDevAi(): boolean {
+  return getEnvValue('VITE_AI_ALLOW_ANONYMOUS', 'AI_ALLOW_ANONYMOUS') === 'true'
+}
+
 async function requireDevAiAccess(req: IncomingMessage, kind: 'text' | 'image'): Promise<AiAccessResult> {
+  const anonymous = allowAnonymousDevAi()
   const token = getBearerToken(req)
-  if (!token) {
+  if (!token && !anonymous) {
     return { ok: false, status: 401, message: 'Sign in to use AI features.' }
   }
 
-  const url = getEnvValue('SUPABASE_URL', 'VITE_SUPABASE_URL')
-  const key = getEnvValue('SUPABASE_ANON_KEY', 'SUPABASE_PUBLISHABLE_KEY', 'VITE_SUPABASE_ANON_KEY', 'VITE_SUPABASE_PUBLISHABLE_KEY')
-  if (!url || !key) {
-    return { ok: false, status: 500, message: 'Supabase environment is missing SUPABASE_URL and SUPABASE_ANON_KEY.' }
-  }
+  let userId: string
+  if (anonymous) {
+    /* Skip verification outright rather than merely tolerating a missing
+       token. A token left in localStorage from before the Supabase project was
+       restricted still gets sent, and auth.getUser() fails for a STALE token
+       exactly as it does for none — so checking first would 401 the very case
+       this flag exists to unblock.
 
-  const supabase = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
-  const { data, error } = await supabase.auth.getUser(token)
-  if (error || !data?.user) {
-    return { ok: false, status: 401, message: 'Your session expired. Sign in again to use AI features.' }
+       Every anonymous caller shares one identity, which means the buckets
+       below still apply; they are the only spend ceiling left once the
+       per-user check is gone. */
+    userId = 'anonymous-dev'
+  } else {
+    const url = getEnvValue('SUPABASE_URL', 'VITE_SUPABASE_URL')
+    const key = getEnvValue('SUPABASE_ANON_KEY', 'SUPABASE_PUBLISHABLE_KEY', 'VITE_SUPABASE_ANON_KEY', 'VITE_SUPABASE_PUBLISHABLE_KEY')
+    if (!url || !key) {
+      return { ok: false, status: 500, message: 'Supabase environment is missing SUPABASE_URL and SUPABASE_ANON_KEY.' }
+    }
+
+    const supabase = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
+    const { data, error } = await supabase.auth.getUser(token)
+    if (error || !data?.user) {
+      return { ok: false, status: 401, message: 'Your session expired. Sign in again to use AI features.' }
+    }
+    userId = data.user.id
   }
 
   const now = Date.now()
-  const userId = data.user.id
 
   const hit = (bucketKey: string, limit: number): number => {
     const current = aiRateLimits.get(bucketKey)
@@ -322,7 +354,19 @@ function visibleGatewayText(value: unknown, depth = 0): string {
   return ''
 }
 
-function extractTextContent(data: unknown): string {
+/** Dev twin of extractFinishReason in api/ai/text.js — keep the two in step. */
+function extractDevFinishReason(data: unknown): string | null {
+  const root = data as {
+    choices?: { finish_reason?: unknown; finishReason?: unknown }[]
+    candidates?: { finishReason?: unknown }[]
+  } | null
+  const choice = root?.choices?.[0]
+  const reason = choice?.finish_reason ?? choice?.finishReason ?? root?.candidates?.[0]?.finishReason
+  return typeof reason === 'string' && reason ? reason : null
+}
+
+/** Keep in step with extractGatewayText in api/ai/text.js, including `preserveWhitespace`. */
+function extractTextContent(data: unknown, preserveWhitespace = false): string {
   const choice = arrayValue(data, 'choices').find(isRecord)
   const message = recordValue(choice, 'message')
   const candidates = [
@@ -335,8 +379,8 @@ function extractTextContent(data: unknown): string {
     recordValue(arrayValue(data, 'candidates').find(isRecord), 'content')?.parts,
   ]
   for (const candidate of candidates) {
-    const output = visibleGatewayText(candidate).trim()
-    if (output) return output
+    const output = visibleGatewayText(candidate)
+    if (output.trim()) return preserveWhitespace ? output : output.trim()
   }
   return ''
 }
@@ -344,7 +388,12 @@ function extractTextContent(data: unknown): string {
 function extractStreamText(data: unknown): string {
   const choice = arrayValue(data, 'choices').find(isRecord)
   const delta = recordValue(choice, 'delta')
-  return stringValue(delta, 'content')
+  /* NOT stringValue(): that trims, and a stream delta's edge whitespace is the
+     space between two words. Trimming every chunk glued the answer together at
+     each chunk boundary — "Manywritersmake", "1.Students". api/ai/stream.js
+     has always written the raw delta. */
+  const content = delta?.content
+  return typeof content === 'string' ? content : ''
 }
 
 function extractImageUrl(data: unknown): string | null {
@@ -953,6 +1002,34 @@ function getMaxTokens(body: JsonBody): number {
   return 4096
 }
 
+/**
+ * The dev twins' upstream call.
+ *
+ * Imports api/_lib/aiUpstream.js instead of copying it — the pattern
+ * handleDevGrounded already uses — so thinking control, per-model level
+ * negotiation and model fallback are one implementation for localhost and
+ * production. The import happens before any header is written, so a failure
+ * here is an ordinary 500 rather than a destroyed stream.
+ */
+async function postDevChatCompletion(body: JsonBody, prompt: string, stream: boolean) {
+  const upstream = await import('./api/_lib/aiUpstream.js')
+  const primary = getServerAiModel('text', getBodyString(body, 'model'))
+  const fallbacks = getEnvValue('AI_GATEWAY_FALLBACK_MODELS').split(',').map((m) => m.trim()).filter(Boolean)
+  return upstream.postChatCompletion({
+    baseUrl: getGatewayBaseUrl(),
+    apiKey: getGatewayKey(),
+    models: upstream.modelChain(primary, textModelAllowlist(), fallbacks),
+    payload: {
+      messages: buildChatMessages(body, prompt),
+      temperature: upstream.normalizeTemperature(body['temperature']),
+      ...(stream ? { stream: true } : {}),
+    },
+    maxTokens: getMaxTokens(body),
+    thinking: upstream.normalizeThinking(body['thinking']),
+    timeoutMs: AI_GATEWAY_TIMEOUT_MS,
+  })
+}
+
 async function handleDevText(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method !== 'POST') {
     sendError(res, 405, 'Method not allowed')
@@ -967,23 +1044,33 @@ async function handleDevText(req: IncomingMessage, res: ServerResponse): Promise
     return
   }
 
-  const model = getServerAiModel('text', getBodyString(body, 'model'))
-  const data = await callGateway('/chat/completions', {
-    model,
-    messages: buildChatMessages(body, prompt),
-    temperature: 0.7,
-    max_tokens: getMaxTokens(body),
-  })
+  const upstream = await postDevChatCompletion(body, prompt, false)
+  if (!upstream.ok) {
+    sendError(res, upstream.status, upstream.message)
+    return
+  }
+  const model = upstream.model
+  const raw = await upstream.response.text()
+  const data: unknown = raw ? JSON.parse(raw) : {}
 
-  const output = extractTextContent(data)
+  const output = extractTextContent(data, body['preserveWhitespace'] === true)
+  const finishReason = extractDevFinishReason(data)
 
   if (!output) {
-    sendError(res, 502, 'The configured AI model produced an empty response. Choose a text-capable model and try again.')
+    // Same two causes as api/ai/text.js — keep the pair in step.
+    const truncated = /^(length|max_tokens)$/i.test(String(finishReason ?? '').trim())
+    sendError(
+      res,
+      502,
+      truncated
+        ? 'The model used its whole token budget before writing an answer. Raise maxTokens or ask for less.'
+        : 'The configured AI model produced an empty response. Choose a text-capable model and try again.',
+    )
     return
   }
 
   res.setHeader('X-AI-Model', model)
-  sendJson(res, 200, { text: output })
+  sendJson(res, 200, { text: output, finishReason })
 }
 
 async function handleDevImage(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -1041,26 +1128,15 @@ async function handleDevStream(req: IncomingMessage, res: ServerResponse): Promi
     return
   }
 
-  const model = getServerAiModel('text', getBodyString(body, 'model'))
-  const gatewayRes = await fetch(`${getGatewayBaseUrl()}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${getGatewayKey()}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      messages: buildChatMessages(body, prompt),
-      temperature: 0.7,
-      max_tokens: getMaxTokens(body),
-      stream: true,
-    }),
-    signal: AbortSignal.timeout(AI_GATEWAY_TIMEOUT_MS),
-  })
-
-  if (!gatewayRes.ok || !gatewayRes.body) {
-    const text = await gatewayRes.text()
-    sendError(res, gatewayRes.status, text || 'AI Gateway stream request failed.')
+  const upstream = await postDevChatCompletion(body, prompt, true)
+  if (!upstream.ok) {
+    sendError(res, upstream.status, upstream.message)
+    return
+  }
+  const gatewayRes = upstream.response
+  const model = upstream.model
+  if (!gatewayRes.body) {
+    sendError(res, 502, 'AI Gateway stream request failed.')
     return
   }
 
@@ -1070,40 +1146,59 @@ async function handleDevStream(req: IncomingMessage, res: ServerResponse): Promi
     'X-AI-Model': model,
   })
 
+  // The answer has started; from here only a stall may end it early.
+  // Matches api/ai/stream.js, including the 30s stall guard.
+  upstream.release()
+
   const reader = gatewayRes.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
   let finishReason: string | null = null
 
-  while (true) {
-    const { value, done } = await reader.read()
-    if (done) break
+  let stallTimer: ReturnType<typeof setTimeout> | undefined
+  const armStallGuard = () => {
+    clearTimeout(stallTimer)
+    stallTimer = setTimeout(() => upstream.abort(), 30_000)
+  }
+  armStallGuard()
 
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() || ''
+  try {
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+      armStallGuard()
 
-    for (const line of lines) {
-      const trimmed = line.trim()
-      if (!trimmed.startsWith('data:')) continue
-      const payload = trimmed.slice(5).trim()
-      if (!payload || payload === '[DONE]') continue
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
 
-      // One malformed frame is worth skipping, not throwing away an answer
-      // that was streaming fine until now. Matches api/ai/stream.js.
-      let parsed: unknown
-      try {
-        parsed = JSON.parse(payload)
-      } catch {
-        continue
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed.startsWith('data:')) continue
+        const payload = trimmed.slice(5).trim()
+        if (!payload || payload === '[DONE]') continue
+
+        // One malformed frame is worth skipping, not throwing away an answer
+        // that was streaming fine until now. Matches api/ai/stream.js.
+        let parsed: unknown
+        try {
+          parsed = JSON.parse(payload)
+        } catch {
+          continue
+        }
+
+        const reason = (parsed as { choices?: Array<{ finish_reason?: unknown }> })?.choices?.[0]?.finish_reason
+        if (typeof reason === 'string' && reason) finishReason = reason
+
+        const text = extractStreamText(parsed)
+        if (text) res.write(text)
       }
-
-      const reason = (parsed as { choices?: Array<{ finish_reason?: unknown }> })?.choices?.[0]?.finish_reason
-      if (typeof reason === 'string' && reason) finishReason = reason
-
-      const text = extractStreamText(parsed)
-      if (text) res.write(text)
     }
+  } catch {
+    // Stalled or dropped mid-answer: say so, so the client can continue it.
+    finishReason = finishReason ?? 'interrupted'
+  } finally {
+    clearTimeout(stallTimer)
   }
 
   /* Terminal trailer, so the client can tell "finished" from "hit the ceiling".
@@ -1227,9 +1322,11 @@ function aiGatewayDevPlugin(): Plugin {
 }
 
 export default defineConfig(({ mode }) => {
-  loadedEnv = loadEnv(mode, process.cwd(), '')
+  loadedEnv = mode === 'qa' ? {} : loadEnv(mode, process.cwd(), '')
 
   return {
+    // QA must never inherit credentials or production URLs from local env files.
+    envDir: mode === 'qa' ? false : undefined,
     plugins: [react(), aiGatewayDevPlugin()],
     // Strip debug logging from production bundles. The tree carries ~110
     // console.log calls used while developing; without this they ship, and a

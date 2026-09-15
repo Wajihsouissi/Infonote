@@ -1,6 +1,6 @@
 import React from 'react';
 import { Lightbulb, Search, PenTool, Hammer, Megaphone } from 'lucide-react';
-import { SceneStage, Plane, Board, Wires, Wire, NodeCard, Ghost, Line, Chip } from './scene-kit';
+import { SceneStage, Plane, Wires, Wire, NodeCard, Ghost, Line, Chip } from './scene-kit';
 
 /**
  * "Mindmapping" — one idea, radiating.

@@ -23,20 +23,17 @@
     color: var(--text-main);
 }
 
-/* Accent spine as an overlay, not a border — a border-top would eat
-   --node-spine-w from the box, leaving the inner container 3px shorter than
-   the outer one. As a pseudo-element it costs zero layout, so inner === outer. */
-.blockNode::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: var(--node-spine-w, 3px);
-    background: var(--node-accent-color, transparent);
-    border-radius: var(--node-radius) var(--node-radius) 0 0;
-    pointer-events: none;
-    z-index: 1;
+/* A recoloured block. Same construction as a note card's [data-accented] —
+   fixed lightness/chroma fed the hue via --node-tint-l/-c, so a recoloured
+   block is genuinely its colour rather than a tinted grey. The hue's own
+   strength lives in the ring around the block, not in a bar across the top. */
+.blockNode[data-accented] {
+    background: oklch(from var(--node-accent-color) var(--node-tint-l) var(--node-tint-c) h);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--node-accent-color) 62%, transparent);
+}
+
+.blockNode[data-accented]:hover {
+    box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--node-accent-color) 78%, transparent);
 }
 
 .dragHandleLeft {

@@ -2,7 +2,6 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { WelcomeModal } from './features/auth/WelcomeModal';
 import { LimitNoticeModal } from './features/ui/LimitNoticeModal';
-import { CanvasLimitBadge } from './features/ui/CanvasLimitBadge';
 import { AnonSaveReminder } from './features/ui/AnonSaveReminder';
 import { StorageChoiceModal } from './features/ui/StorageChoiceModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -380,7 +379,6 @@ function App() {
         }}
       />
       <LimitNoticeModal />
-      <CanvasLimitBadge />
       <AnonSaveReminder />
       <StorageChoiceModal />
     </ErrorBoundary>

@@ -1,11 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { AppNode, BlockNode, NoteNode } from '../../types';
 import type { Edge } from '@xyflow/react';
-import {
-    BrainCircuit, Network, Library,
-    GitMerge, Layers, Calendar,
-    FileText, Map
-} from '../../components/icons';
+import { BrainCircuit, Network, Library, Layers, Calendar, FileText, Map } from '../../components/icons';
 import React from 'react';
 
 export type TemplateDefinition = {

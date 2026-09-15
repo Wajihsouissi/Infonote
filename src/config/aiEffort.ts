@@ -40,9 +40,13 @@ export const effortLabel = (id: AIEffort): string =>
  * Output ceiling per level. The server clamps anything above 8192 and the
  * routes default to 4096, so these only ever narrow or widen within that.
  */
+/* Raised on 2026-09-13 from 800/3000/8000: measured long answers ended with
+   finish_reason=length mid-sentence at 3000 on Efficient. The directives below
+   still steer length — this is room, not a target — and anything that does hit
+   the ceiling is continued automatically (see `streamText` in aiService). */
 const MAX_TOKENS: Record<AIEffort, number> = {
-    fast: 800,
-    efficient: 3000,
+    fast: 1500,
+    efficient: 6000,
     smart: 8000,
 };
 
@@ -152,20 +156,35 @@ export interface AIEffortBudget {
     verify: boolean;
 }
 
+/* Concurrency was 3/3/2, sized for a gateway that retried the same overloaded
+   model. The upstream call now falls back to another allow-listed model on
+   429/503 (api/_lib/aiUpstream.js), so a refusal no longer costs the artifact
+   and Efficient and Smart can afford one more body in flight. */
 const BUDGETS: Record<AIEffort, AIEffortBudget> = {
-    fast: { maxArtifacts: 3, minBlocks: 3, targetBlocks: 6, minBlockTypes: 2, bodyTokens: 700, concurrency: 3, verify: false },
-    efficient: { maxArtifacts: 6, minBlocks: 6, targetBlocks: 12, minBlockTypes: 3, bodyTokens: 1800, concurrency: 3, verify: false },
-    smart: { maxArtifacts: 9, minBlocks: 12, targetBlocks: 22, minBlockTypes: 4, bodyTokens: 3500, concurrency: 2, verify: true },
+    fast: { maxArtifacts: 3, minBlocks: 3, targetBlocks: 6, minBlockTypes: 2, bodyTokens: 1200, concurrency: 3, verify: false },
+    efficient: { maxArtifacts: 6, minBlocks: 6, targetBlocks: 12, minBlockTypes: 3, bodyTokens: 3500, concurrency: 4, verify: false },
+    smart: { maxArtifacts: 9, minBlocks: 12, targetBlocks: 22, minBlockTypes: 4, bodyTokens: 6000, concurrency: 3, verify: true },
 };
 
 export const effortBudget = (effort: AIEffort = DEFAULT_AI_EFFORT): AIEffortBudget => BUDGETS[effort];
 
 /**
- * The skeleton pass's own ceiling, deliberately independent of effort.
+ * The skeleton pass's own ceiling.
  *
  * A plan is titles and scaffolding whatever the effort — it is the BODIES that
- * get long. Letting Smart raise this would only give the model room to start
+ * get long, and giving the planner unlimited room only invites it to start
  * writing content into the plan, which is the single-giant-JSON failure the
- * split exists to remove.
+ * two-pass split exists to remove. So this stays far below any body budget.
+ *
+ * It is no longer a flat number, though. It was 1200 for every effort, but the
+ * planner is asked for up to `maxArtifacts` objects and a board artifact alone
+ * carries six columns plus a dozen card titles. Nine of those cannot fit in
+ * 1200 tokens, so Smart plans truncated mid-JSON — and a truncated plan failed
+ * validation indistinguishably from a malformed one. Scaling with the artifact
+ * budget keeps the ceiling tight per artifact while letting a big plan finish.
  */
-export const PLAN_MAX_TOKENS = 1200;
+const PLAN_TOKENS_PER_ARTIFACT = 260;
+const PLAN_TOKENS_FLOOR = 1200;
+
+export const planMaxTokens = (effort: AIEffort = DEFAULT_AI_EFFORT): number =>
+    Math.max(PLAN_TOKENS_FLOOR, BUDGETS[effort].maxArtifacts * PLAN_TOKENS_PER_ARTIFACT);

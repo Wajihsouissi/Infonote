@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileText, Library, ChevronRight } from 'lucide-react';
-import { SceneStage, Plane, Board, NodeCard, Line, Wires, Wire, Ghost, Chip, PulseDot, Task } from './scene-kit';
+import { SceneStage, Plane, NodeCard, Line, Wires, Wire, Ghost, Chip, PulseDot, Task } from './scene-kit';
 
 export function FlowStateIllustration() {
   return (

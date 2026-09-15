@@ -1,6 +1,6 @@
 import React from 'react';
 import { ShieldCheck, HardDrive, Lock } from 'lucide-react';
-import { SceneStage, Plane, Board, NodeCard, Ghost, Line } from './scene-kit';
+import { SceneStage, Plane, NodeCard, Ghost, Line } from './scene-kit';
 
 export function LocalStorageIllustration() {
   return (

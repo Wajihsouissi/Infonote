@@ -126,7 +126,7 @@ const MIN_CANVAS_ZOOM = 0.3;
 const PROGRAMMATIC_SELECTION_GUARD_MS = 250;
 
 const isDirectViewportGesture = (event?: MouseEvent | TouchEvent | null) => event instanceof WheelEvent
-    || event instanceof TouchEvent
+    || (typeof TouchEvent !== 'undefined' && event instanceof TouchEvent)
     || (event instanceof MouseEvent && event.buttons !== 0);
 
 const isEditableTarget = (target: EventTarget | null) => {
@@ -1410,8 +1410,15 @@ export function CanvasBoard() {
     // The first fit on entering a previously empty canvas happens before its
     // generated nodes exist. Wait for those nodes, then frame the whole map in
     // one calm movement rather than leaving its topic or chapters off-screen.
+    // Only a real pending map counts: "nothing pending" is `null`, which is
+    // also the home canvas's parent id, so comparing ids alone reframed the
+    // home canvas every time its visible card count changed.
     useEffect(() => {
-        if (pendingAutoMapFitParentId !== currentParentId || visibleNodes.length === 0) return;
+        if (
+            pendingAutoMapFitParentId === null
+            || pendingAutoMapFitParentId !== currentParentId
+            || visibleNodes.length === 0
+        ) return;
         const timer = window.setTimeout(() => {
             fitView({ duration: 420, padding: 0.24, minZoom: MIN_CANVAS_ZOOM, maxZoom: 1 });
             setPendingAutoMapFitParentId(null);
@@ -1788,6 +1795,13 @@ export function CanvasBoard() {
                     onPointerMove={handlePointerMove}
                     selectionOnDrag={true}
                     panOnDrag={true}
+                    // React Flow's default `nodrag` is also the class that
+                    // blocks a node drag. Reusing it as the no-pan class adds
+                    // `nodrag` to every draggable node wrapper, so the drag
+                    // filter rejects every pointer-down before it can start.
+                    // Keep the no-pan boundary distinct from the editor's
+                    // existing no-drag boundary.
+                    noPanClassName="nopan"
                     selectionKeyCode={isHoveringEditor ? null : "Control"}
                     multiSelectionKeyCode="Shift"
                     selectionMode={SelectionMode.Partial}
@@ -1802,11 +1816,18 @@ export function CanvasBoard() {
                     edgesFocusable={!isLinkingMode}
                     elementsSelectable={!isLinkingMode}
                     selectNodesOnDrag={false}
-                    panOnScroll={true}
+                    // Keep a wheel gesture scoped to zooming. With scroll-panning
+                    // enabled here React Flow gives it precedence over zoom, so a
+                    // normal trackpad scroll sends the camera drifting across the
+                    // board. Panning remains available by dragging the canvas.
+                    panOnScroll={false}
                     zoomOnScroll={true}
                     zoomOnPinch={true}
                     zoomOnDoubleClick={false}
-                    preventScrolling={false}
+                    // Must stay on: with it off React Flow only zooms on a
+                    // Ctrl-modified wheel (a pinch), so a mouse wheel did nothing.
+                    // Scrollable note bodies opt out in their own onWheelCapture.
+                    preventScrolling={true}
                     autoPanOnConnect={false}
                     autoPanOnNodeDrag={false}
                     connectOnClick={false}

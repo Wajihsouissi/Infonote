@@ -24,7 +24,7 @@ export function useBlockDragAndDrop({
     setBlocks,
     debouncedOnUpdate,
     selectedBlockIds,
-    pendingDropTarget,
+    pendingDropTarget: pendingDropTargetRef,
     nodeId,
     addBlock,
     editorId
@@ -385,7 +385,7 @@ export function useBlockDragAndDrop({
 
                 // Same-node move (internal reorder) — use container-tracked target if available
                 console.log("[BlockEditor.handleDrop] SAME-NODE move (internal reorder)");
-                const tracked = pendingDropTarget?.current;
+                const tracked = pendingDropTargetRef?.current;
                 if (tracked) {
                     handleMoveBlock(sourceBlockId, tracked.blockId, tracked.position, e.dataTransfer);
                 } else {
@@ -423,7 +423,7 @@ export function useBlockDragAndDrop({
         } else {
             console.log("[BlockEditor.handleDrop] No type in dataTransfer - ignoring");
         }
-    }, [blocks, addBlock, handleMoveBlock, debouncedOnUpdate, setBlocks, nodeId, removeBlocksFromSource, editorId]);
+    }, [blocks, addBlock, handleMoveBlock, debouncedOnUpdate, setBlocks, nodeId, removeBlocksFromSource, editorId, pendingDropTargetRef]);
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();

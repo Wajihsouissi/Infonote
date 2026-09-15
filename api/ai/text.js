@@ -1,6 +1,9 @@
-import { requireAiAccess, getServerModel, buildMessages, getGatewayBaseUrl, getGatewayKey, getMaxTokens } from '../_lib/aiGuard.js';
+import { requireAiAccess, getServerModel, buildMessages, getGatewayBaseUrl, getGatewayKey, getMaxTokens, textModelAllowlist, getFallbackModels } from '../_lib/aiGuard.js';
+import { modelChain, normalizeTemperature, normalizeThinking, postChatCompletion } from '../_lib/aiUpstream.js';
 
-const GATEWAY_TIMEOUT_MS = 40_000;
+/* 55s, inside the 60s maxDuration in vercel.json. Was 40s, which a 6000-token
+   body from a ~146 tokens/s model could not finish inside. */
+const GATEWAY_TIMEOUT_MS = 55_000;
 
 async function readJsonBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
@@ -50,7 +53,13 @@ function visibleText(value, depth = 0) {
   return '';
 }
 
-export function extractGatewayText(data) {
+/**
+ * `preserveWhitespace` keeps the reply's edge whitespace. Needed when the client
+ * is joining a reply to its continuation: trimming both halves deleted the space
+ * at the seam, so "economic" + " assumptions" arrived as "economicassumptions".
+ * Keep in step with extractTextContent in vite.config.ts.
+ */
+export function extractGatewayText(data, preserveWhitespace = false) {
   const choice = data?.choices?.[0];
   const candidates = [
     choice?.message?.content,
@@ -62,10 +71,29 @@ export function extractGatewayText(data) {
     data?.candidates?.[0]?.content?.parts,
   ];
   for (const candidate of candidates) {
-    const output = visibleText(candidate).trim();
-    if (output) return output;
+    const output = visibleText(candidate);
+    if (output.trim()) return preserveWhitespace ? output : output.trim();
   }
   return '';
+}
+
+/**
+ * Why the model stopped — `stop`, `length`, or whatever the gateway reports.
+ *
+ * The streaming route has carried this since it gained a trailer, but this one
+ * returned bare text, so an answer cut off at `max_tokens` was indistinguishable
+ * from a complete one. That is not a cosmetic gap: `planArtifacts` parses this
+ * response as JSON, and a truncated plan fails validation with exactly the same
+ * error as malformed model output — so the retry re-sent it under the same
+ * ceiling and truncated again, turning "the plan needed more room" into "the AI
+ * returned an incomplete canvas plan".
+ *
+ * Keep in step with the dev twin in vite.config.ts.
+ */
+export function extractFinishReason(data) {
+  const choice = data?.choices?.[0];
+  const reason = choice?.finish_reason ?? choice?.finishReason ?? data?.candidates?.[0]?.finishReason;
+  return typeof reason === 'string' && reason ? reason : null;
 }
 
 export default async function handler(req, res) {
@@ -90,43 +118,66 @@ export default async function handler(req, res) {
     }
 
     // Still server-decided: an off-list "model" falls back to the default.
-    const model = getServerModel('text', body.model);
+    const primary = getServerModel('text', body.model);
 
-    const gatewayRes = await fetch(`${getGatewayBaseUrl()}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${getGatewayKey()}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
+    /* Thinking control, per-model level negotiation and fallback to another
+       allow-listed model on 429/5xx all live in aiUpstream.js, which the dev
+       twin imports too — see that file for the measurements behind them. */
+    const upstream = await postChatCompletion({
+      baseUrl: getGatewayBaseUrl(),
+      apiKey: getGatewayKey(),
+      models: modelChain(primary, textModelAllowlist(), getFallbackModels()),
+      payload: {
         // `system` was previously dropped here while the dev twin honoured it,
         // so a system prompt worked locally and silently vanished in prod.
         messages: buildMessages({ prompt, system: body.system, images: body.images, history: body.history }),
-        temperature: 0.7,
-        // Was missing here while the dev twin honoured it, so a Smart answer
-        // came out long locally and clipped at the route default in prod.
-        max_tokens: getMaxTokens(body.maxTokens),
-      }),
-      signal: AbortSignal.timeout(GATEWAY_TIMEOUT_MS),
+        temperature: normalizeTemperature(body.temperature),
+      },
+      // Was missing here while the dev twin honoured it, so a Smart answer
+      // came out long locally and clipped at the route default in prod.
+      maxTokens: getMaxTokens(body.maxTokens),
+      thinking: normalizeThinking(body.thinking),
+      timeoutMs: GATEWAY_TIMEOUT_MS,
     });
 
-    const text = await gatewayRes.text();
-    const data = text ? JSON.parse(text) : {};
-    if (!gatewayRes.ok) {
-      sendError(res, gatewayRes.status, data?.error?.message || data?.message || text || 'AI Gateway text request failed.');
+    if (!upstream.ok) {
+      sendError(res, upstream.status, upstream.message);
       return;
     }
 
-    const output = extractGatewayText(data);
+    const model = upstream.model;
+    let text;
+    try {
+      text = await upstream.response.text();
+    } finally {
+      upstream.release();
+    }
+    const data = text ? JSON.parse(text) : {};
+
+    const output = extractGatewayText(data, body.preserveWhitespace === true);
+    const finishReason = extractFinishReason(data);
 
     if (!output) {
-      sendError(res, 502, 'The configured AI model produced an empty response. Choose a text-capable model and try again.');
+      /* An empty answer has two very different causes, and they had one
+         message between them. A reasoning model spends the SAME budget
+         `max_tokens` caps on its internal thinking, so a ceiling that is too
+         low returns zero visible text with finish_reason=length — the model is
+         perfectly text-capable, it simply had no room left to answer in.
+         Telling that caller to "choose a text-capable model" sends them to fix
+         something that is not broken. */
+      const truncated = /^(length|max_tokens)$/i.test(String(finishReason ?? '').trim());
+      sendError(
+        res,
+        502,
+        truncated
+          ? 'The model used its whole token budget before writing an answer. Raise maxTokens or ask for less.'
+          : 'The configured AI model produced an empty response. Choose a text-capable model and try again.',
+      );
       return;
     }
 
     res.setHeader('X-AI-Model', model);
-    sendJson(res, 200, { text: output });
+    sendJson(res, 200, { text: output, finishReason });
   } catch (error) {
     sendError(res, 500, error);
   }

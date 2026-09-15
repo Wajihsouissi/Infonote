@@ -13,7 +13,7 @@ import { ColumnsBlock } from './ColumnsBlock'; // Import ColumnsBlock
 export { ContainerBlock, ColumnsBlock };
 import type { Block, BlockMetadata } from './types';
 import styles from './BlockEditor.module.css';
-import { IconPicker, getIconByName } from '../card/IconPicker';
+import { IconPicker } from '../card/IconPicker';
 import { generateText, FREEFORM_SYSTEM_PROMPT } from '../../services/aiService';
 import { AssetImage, AssetVideo } from '../../services/assets';
 import { CardIcon } from '../card/iconMap';
@@ -48,7 +48,7 @@ interface BlockProps {
 // Hook to safely handle contentEditable without cursor jumps and IME breaks
 const useContentEditable = (
     content: string,
-    domRef?: React.Ref<HTMLDivElement>,
+    domRef?: (el: HTMLDivElement | null) => void,
     renderLinks = true,
     /**
      * Passing onChange in lets the hook own `onInput`, which is the only way to
@@ -73,11 +73,7 @@ const useContentEditable = (
     useLayoutEffect(() => {
         if (!domRef) return;
 
-        if (typeof domRef === 'function') {
-            domRef(internalRef.current);
-        } else {
-            (domRef as React.MutableRefObject<HTMLDivElement | null>).current = internalRef.current;
-        }
+        domRef(internalRef.current);
     }, [domRef]);
 
     // Only update DOM if content truly differs AND we are not actively typing
@@ -580,7 +576,6 @@ export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPast
 
     // Default to 'Lightbulb' if no icon is set
     const iconName = block.metadata?.icon || 'Lightbulb';
-    const Icon = getIconByName(iconName);
 
     const handleIconSelect = (newIcon: string) => {
         // Create new metadata object preserving other existing metadata
@@ -598,7 +593,7 @@ export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPast
                 style={{ backgroundColor: block.metadata?.backgroundColor || undefined }}
             >
                 <div className={styles.calloutIconWrapper}>
-                    <Icon size={20} className={styles.calloutIconSvg} />
+                    <CardIcon icon={iconName} size={20} className={styles.calloutIconSvg} />
                 </div>
                 <div
                     className={`${styles.block} ${styles.text}`}
@@ -618,7 +613,7 @@ export const CalloutBlock = memo(({ block, readOnly, onChange, onKeyDown, onPast
                 className={`${styles.calloutIconWrapper} ${!readOnly ? `${styles.clickable} icon-hover` : ''}`}
                 onClick={!readOnly ? () => setShowIconPicker(true) : undefined}
             >
-                <Icon size={20} className={styles.calloutIconSvg} />
+                <CardIcon icon={iconName} size={20} className={styles.calloutIconSvg} />
             </div>
 
             {showIconPicker && (

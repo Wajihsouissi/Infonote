@@ -16,10 +16,9 @@
     pointer-events: auto;
 }
 
-/* The rail and the AI dock are two separate surfaces standing side by side (or
-   stacked, when the rail is docked left). The row itself is only a spacer, so
-   the gap between them stays canvas — the > .railRow specificity beats the
-   blanket rule above regardless of where these land in the file. */
+/* The row the rail sits in. It is only a spacer, so the space around the rail
+   stays canvas rather than becoming a click target — the > .railRow specificity
+   beats the blanket rule above regardless of where these land in the file. */
 .railLayer > .railRow {
     display: flex;
     flex-direction: row;
@@ -42,52 +41,16 @@
     pointer-events: none;
 }
 
-/* Node selection owns the bottom command lane even if another side panel had
-   previously docked the idle controls vertically. This is a pure CSS response
-   to the isolated child, so BottomMenu itself still does not re-render. */
-.railLayer.dockLeft:has(> .contextualToolbarActive) {
-    left: 0;
-    right: 0;
-    top: auto;
-    bottom: 24px;
-    width: max-content;
-    height: auto;
-    max-width: calc(100% - 48px);
-    max-height: none;
-    margin: 0 auto;
-    flex-direction: column-reverse;
-}
-
-/* Matches the specificity of the rule above, which would otherwise pin the row
-   horizontal even when the rail is docked to the side. */
-.railLayer > .railRowVertical {
-    flex-direction: column;
-}
-
-/* Same surface as .sideRail, sized to the same 60px so the two read as one
-   instrument split in two rather than a button that fell off the bar. */
-.aiDock {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 60px;
-    min-height: 60px;
-    padding: 6px;
-    box-sizing: border-box;
-    background: var(--bg-rail);
-    border: 1px solid var(--line);
-    border-radius: var(--toolbar-radius);
-    box-shadow: var(--toolbar-shadow);
-    transition: background 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.aiDock:hover {
-    box-shadow: var(--shadow-lg);
-}
-
-/* Bottom dock — the default home. A horizontal bar centred on the bottom edge;
+/* Bottom dock — the only home. A horizontal bar centred on the bottom edge;
    column-reverse floats the flyout above it, since the rail comes first in the
-   DOM and the wide states need the room over the bar, not beside it. */
+   DOM and the wide states need the room over the bar, not beside it.
+
+   `left: 0; right: 0; margin: 0 auto` centres it in `.canvasFrame`, which is
+   the canvas MINUS whatever the in-flow side panels are taking. That is the
+   whole of the panel handling: open the AI panel and the frame narrows, so the
+   menu slides left to sit in the middle of what is left. There used to be a
+   vertical rail docked to the canvas's left edge for that case; it turned one
+   bar into two shapes to learn for no gain the centring did not already give. */
 .dockBottom {
     left: 0;
     right: 0;
@@ -98,17 +61,6 @@
     flex-direction: column-reverse;
 }
 
-/* Side dock — a vertical rail on the canvas's left edge, vertically centred,
-   with the flyout lane beside it. */
-.dockLeft {
-    left: 24px;
-    top: 0;
-    bottom: 0;
-    margin: auto 0;
-    height: max-content;
-    max-height: calc(100% - 48px);
-}
-
 .sideRail {
     width: max-content;
     background: var(--bg-rail);
@@ -117,11 +69,12 @@
     border-radius: var(--toolbar-radius);
     padding: 6px;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     gap: 12px;
     transition: background 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    min-width: 60px;
+    min-width: 0;
+    min-height: 60px;
     box-sizing: border-box;
     overflow: visible;
 }
@@ -129,34 +82,6 @@
 .sideRail:hover {
     background: var(--bg-rail);
     box-shadow: var(--shadow-lg);
-}
-
-/* Bottom-docked rail — the same surface laid on its side: icons run across, and
-   everything that hangs off it (dividers, hover menus) turns with it. */
-.railHorizontal {
-    flex-direction: row;
-    min-width: 0;
-    min-height: 60px;
-}
-
-.railHorizontal .separator {
-    width: 1px;
-    height: 20px;
-    margin: 0 4px;
-}
-
-.railHorizontal .hoverMenu {
-    left: 50%;
-    right: auto;
-    top: auto;
-    bottom: 100%;
-    margin-left: 0;
-    margin-bottom: 16px;
-    transform: translateX(-50%) translateY(10px);
-}
-
-.railHorizontal .menuVisible {
-    transform: translateX(-50%) translateY(0) !important;
 }
 
 /* Flyout — the wide states (search, Ask AI, selection toolbars) open in the
@@ -292,12 +217,12 @@
     }
 }
 
-/* Divides the rail's icon column, so it runs across rather than down. */
+/* Divides the rail's icon row, so it stands up rather than lying across. */
 .separator {
-    width: 20px;
-    height: 1px;
+    width: 1px;
+    height: 20px;
     background: var(--line);
-    margin: 4px 0;
+    margin: 0 4px;
 }
 
 /* AI Magical Mode Styles */
@@ -351,9 +276,17 @@
     opacity: 0.7;
 }
 
+/* Sized to .iconBtn, not to the 44px it wore on its own dock: inside the rail
+   it is one of the row rather than a guest in it, and a button standing 4px
+   proud of its neighbours is what made the old split look deliberate.
+   It keeps its accent tint, its orbiting sparks and its filled active state —
+   that is what still says "this one is not like the others" — but loses the
+   resting drop shadow, which only ever made sense as a chip floating on its
+   own surface. */
 .aiIconBtn {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
+    flex: none;
     border-radius: var(--bottom-menu-icon-radius) !important;
     background: radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.26), transparent 26%), rgba(var(--accent-rgb), 0.13);
     border: 1px solid rgba(var(--accent-rgb), 0.24);
@@ -365,7 +298,6 @@
     position: relative;
     isolation: isolate;
     transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.25s var(--ease-rise), box-shadow 0.25s ease;
-    box-shadow: 0 5px 16px rgba(var(--accent-rgb), 0.14);
 }
 
 .aiIconBtn::after {
@@ -682,12 +614,14 @@
 /* Hover Menu - Compact Icons Grid.
    Anchored to the RIGHT of its button: the rail hugs the left edge, so a menu
    opening above it would have nowhere to go. */
+/* Opens straight up out of its button. The rail only ever runs across the
+   bottom now, so there is one direction for these to grow in. */
 .hoverMenu {
     position: absolute;
-    left: 100%;
-    top: 50%;
-    transform: translateY(-50%) translateX(-10px);
-    margin-left: 24px;
+    left: 50%;
+    bottom: 100%;
+    margin-bottom: 16px;
+    transform: translateX(-50%) translateY(10px);
     background: var(--bg-card);
     border: 1px solid var(--line);
     box-shadow: none;
@@ -709,7 +643,7 @@
 .menuVisible {
     opacity: 1 !important;
     pointer-events: auto !important;
-    transform: translateY(-50%) translateX(0) !important;
+    transform: translateX(-50%) translateY(0) !important;
 }
 
 /* Click-away Backdrop */

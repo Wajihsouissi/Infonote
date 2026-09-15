@@ -58,9 +58,10 @@ export function BlockMenu({ x, y, currentType, onClose, onAction }: BlockMenuPro
 
     useLayoutEffect(() => {
         if (!menuRef.current) return;
-
-        const menuWidth = menuRef.current.offsetWidth || 270;
-        const menuHeight = menuRef.current.offsetHeight || 300;
+        const menu = menuRef.current;
+        const observer = new ResizeObserver(() => {
+        const menuWidth = menu.offsetWidth || 270;
+        const menuHeight = menu.offsetHeight || 300;
 
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
@@ -89,6 +90,9 @@ export function BlockMenu({ x, y, currentType, onClose, onAction }: BlockMenuPro
         finalX = Math.max(8, Math.min(finalX, viewportWidth - menuWidth - 8));
 
         setPositionedCoords({ x: finalX, y: finalY });
+        });
+        observer.observe(menu);
+        return () => observer.disconnect();
     }, [x, y]);
 
     // Close on click outside or Esc key

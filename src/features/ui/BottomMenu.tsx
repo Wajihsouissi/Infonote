@@ -12,6 +12,7 @@ import {
     CheckCircle,
     Sparkles,
     LayoutTemplate,
+    KanbanSquare,
     Square,
     RectangleHorizontal,
     File,
@@ -31,12 +32,27 @@ import { isMediaType } from '../editor/mediaTypes';
 import { createGalleryMetadata, GALLERY_NODE_WIDTH } from '../editor/galleryTypes';
 import { findNonOverlappingPosition } from '../../utils/findNonOverlappingPosition';
 import { MIN_EXPANDED_SIZE } from '../../config/layout';
+import { FEATURES } from '../../config/featureFlags';
+import {
+    KANBAN_CALENDAR_WIDTH,
+    KANBAN_DEFAULT_HEIGHT,
+    KANBAN_DEFAULT_WIDTH,
+} from '../kanban/kanbanTypes';
 import { parseSearchQuery } from './searchUtils';
 import { MultiSelectionToolbar } from './MultiSelectionToolbar';
 import { EdgeEditingToolbar } from './EdgeEditingToolbar';
 import { TEMPLATES } from '../templates/templateDefinitions';
 import { TemplatePreviewModal } from '../templates/TemplatePreviewModal';
 import { FloatingActionButton } from '../../components/ui/Button';
+
+/**
+ * Which hover menu is open, if any.
+ *
+ * Named once rather than spelled out at each of the places that used to carry
+ * the union: the state and `openMenu` each had their own copy, and a new id
+ * added to one but not the other only surfaces under `tsc -b`.
+ */
+type MenuId = 'views' | 'blocks' | 'templates' | 'addNoteModes' | 'boardViews' | null;
 
 /* Selection is intentionally isolated from BottomMenu. The menu is a large
    command surface; subscribing it to selection made every click reconcile the
@@ -64,12 +80,12 @@ export function BottomMenu() {
     const currentParentId = useStore(s => s.currentParentId);
     const updateNodeData = useStore(s => s.updateNodeData);
     const hasSelectedEdges = useStore(s => Boolean(s.selectedEdgeId) || s.selectedEdgeIds.size > 0);
-    // Which edges the side panels are eating — the menu docks against a free one.
+    /* A node side peek hides the menu outright (see hasNodeSidePeekOpen). The
+       other panels — metadata, contents, shortcuts, AI — need no signal here at
+       all: they take their width out of `.canvasFrame`, and the menu is centred
+       inside that frame, so it re-centres on its own. */
     const rightSidePanelId = useStore(s => s.rightSidePanelId);
     const leftSidePanelId = useStore(s => s.leftSidePanelId);
-    const isMetadataOpen = useStore(s => s.isMetadataOpen);
-    const isTOCOpen = useStore(s => s.isTOCOpen);
-    const isShortcutsPanelOpen = useStore(s => s.isShortcutsPanelOpen);
     const isAIPanelOpen = useStore(s => s.isAIPanelOpen);
     const openAIPanel = useStore(s => s.openAIPanel);
     const toggleAIPanel = useStore(s => s.toggleAIPanel);
@@ -79,7 +95,7 @@ export function BottomMenu() {
     const [isSearchMode, setIsSearchMode] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [showFilters, setShowFilters] = useState(false);
-    const [activeMenu, setActiveMenu] = useState<'views' | 'blocks' | 'templates' | 'addNoteModes' | null>(null);
+    const [activeMenu, setActiveMenu] = useState<MenuId>(null);
     const [hoveredTemplateId, setHoveredTemplateId] = useState<string | null>(null);
     const hoverTimeoutRef = useRef<number | null>(null);
     const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
@@ -144,7 +160,7 @@ export function BottomMenu() {
 
     // Opening a rail popover closes whatever is in the flyout lane, so only one
     // surface is ever attached to the rail.
-    const openMenu = useCallback((menu: 'views' | 'blocks' | 'templates' | 'addNoteModes' | null) => {
+    const openMenu = useCallback((menu: MenuId) => {
         if (menu) {
             setIsSearchMode(false);
             setShowFilters(false);
@@ -287,6 +303,45 @@ export function BottomMenu() {
 
         addNode('note', position, { viewMode: 'expanded' }, { width: NOTE_WIDTH, height: NOTE_HEIGHT }, currentParentId || undefined);
         panIntoViewIfNeeded(position, { width: NOTE_WIDTH, height: NOTE_HEIGHT });
+    };
+
+    /**
+     * Add a board, in one of its two views.
+     *
+     * One node type, not two: a calendar IS a board — the same cards, read by
+     * date instead of by lane — so this differs from the board only in the
+     * `viewMode` it opens on, and switching afterwards is a control on the node
+     * rather than a different thing to create. See kanbanTypes.ts.
+     *
+     * Placed and panned to on the same path as every other add in this menu, so
+     * a board never lands off-screen or on top of something.
+     */
+    const handleAddBoard = (view: 'board' | 'calendar') => {
+        const isCalendar = view === 'calendar';
+        /* The calendar is always exactly four lanes wide whatever the board's
+           lane count — see KANBAN_CALENDAR_WIDTH — so the two views seed
+           different widths and the node does not jump when you switch. */
+        const size = {
+            width: isCalendar ? KANBAN_CALENDAR_WIDTH : KANBAN_DEFAULT_WIDTH,
+            height: KANBAN_DEFAULT_HEIGHT,
+        };
+        const flowPos = screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+        const position = findNonOverlappingPosition(
+            flowPos,
+            size,
+            useStore.getState().nodes,
+            currentParentId,
+            vp(),
+        );
+
+        addNode(
+            'kanban',
+            position,
+            isCalendar ? { viewMode: 'calendar' } : undefined,
+            size,
+            currentParentId || undefined,
+        );
+        panIntoViewIfNeeded(position, size);
     };
     // Kept in a ref so the global Ctrl+N listener always calls the latest
     // closure without re-subscribing on every render.
@@ -484,15 +539,12 @@ export function BottomMenu() {
        reading edge, so it stays fully out of the way until the peek closes. */
     const hasNodeSidePeekOpen = Boolean(rightSidePanelId) || Boolean(leftSidePanelId);
 
-    // Docking. The menu sits on the bottom edge by default; a side panel costs
-    // the canvas its width rather than its height, so while one is open the menu
-    // moves to the canvas's left edge and stands up as a vertical rail. A wide
-    // state overrides that: the 520px field it opens has nowhere to go in the
-    // lane beside a rail, so the whole menu drops back to the bottom.
-    const isSidePanelOpen = Boolean(rightSidePanelId) || Boolean(leftSidePanelId)
-        || isMetadataOpen || isTOCOpen || isShortcutsPanelOpen || isAIPanelOpen;
-    const isRail = isSidePanelOpen && flyoutState === null;
-    const dockClass = isRail ? styles.dockLeft : styles.dockBottom;
+    /* Docking. The menu lives on the bottom edge, always — there is no rail
+       mode. It does not need one: this menu is mounted inside `.canvasFrame`
+       rather than the shell, and the side panels are in-flow siblings that take
+       real width off that frame, so an open panel narrows the box the menu
+       centres itself in. It stays on the bottom edge and slides to the middle
+       of whatever canvas is left, rather than standing up on its side. */
 
     if (hasNodeSidePeekOpen) return null;
 
@@ -501,27 +553,12 @@ export function BottomMenu() {
             {/* data-app-menu marks the menu as chrome, not canvas: the side
                 panels' click-away handlers skip it, so pressing a rail button
                 doesn't close the panel out from under the press. */}
-            <div className={`${styles.railLayer} ${dockClass}`} data-app-menu ref={menuRef}>
+            <div className={`${styles.railLayer} ${styles.dockBottom}`} data-app-menu ref={menuRef}>
             {!isEdgeSelectionIsland && (
-            <div className={`${styles.railRow} ${isRail ? styles.railRowVertical : ''}`}>
-            {/* The AI entry point sits on its own surface beside the rail rather
-                than inside it: everything in the rail acts on the canvas, this
-                one opens a panel. */}
-            <div className={styles.aiDock}>
-                <button
-                    className={`${styles.aiIconBtn} ${isAIPanelOpen ? styles.aiIconBtnActive : ''}`}
-                    onClick={toggleAIPanel}
-                    title="AI (Ctrl+J)"
-                    aria-label="Open AI assistant"
-                >
-                    <span className={styles.aiGlyph} aria-hidden="true">
-                        <Sparkles size={20} />
-                    </span>
-                </button>
-            </div>
+            <div className={styles.railRow}>
             <motion.div
-                className={`${styles.sideRail} ${isRail ? '' : styles.railHorizontal}`}
-                whileHover={isRail ? { x: 4 } : { y: -4 }}
+                className={styles.sideRail}
+                whileHover={{ y: -4 }}
             >
                 {/* gap has to live on the column, not on .sideRail: AnimatePresence
                     inserts a wrapper between the rail and its buttons, so the
@@ -531,7 +568,7 @@ export function BottomMenu() {
                     variants={transitionVariants}
                     initial="initial"
                     animate="animate"
-                    style={{ display: 'flex', flexDirection: isRail ? 'column' : 'row', width: isRail ? '100%' : 'auto', height: isRail ? 'auto' : '100%', justifyContent: 'center', alignItems: 'center', gap: 12 }}
+                    style={{ display: 'flex', flexDirection: 'row', width: 'auto', height: '100%', justifyContent: 'center', alignItems: 'center', gap: 12 }}
                 >
                         <button
                             className={styles.iconBtn}
@@ -621,12 +658,80 @@ export function BottomMenu() {
                             </div>
                         </div>
 
+                        {/* A board and a calendar are one node type in two views,
+                            so they are one button: the click adds the common
+                            case and the hover offers the pair — the same bargain
+                            the Add-card button already makes with its modes. */}
+                        {FEATURES.kanban && (
+                        <div
+                            className={styles.blocksWrapper}
+                            onMouseEnter={() => {
+                                hoverTimeoutRef.current = window.setTimeout(() => {
+                                    openMenu('boardViews');
+                                }, 1000);
+                            }}
+                            onMouseLeave={() => {
+                                if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+                            }}
+                        >
+                            <button
+                                className={`${styles.iconBtn} ${activeMenu === 'boardViews' ? styles.iconBtnActive : ''}`}
+                                onClick={() => {
+                                    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+                                    handleAddBoard('board');
+                                }}
+                                title="Add a board (hover for views)"
+                            >
+                                <KanbanSquare size={20} />
+                            </button>
+
+                            <div className={`${styles.hoverMenu} ${activeMenu === 'boardViews' ? styles.menuVisible : ''}`}>
+                                <div className={styles.menuHeader}>
+                                    <h3 className={styles.menuTitle}>Plan</h3>
+                                    <button
+                                        className={styles.menuCloseBtn}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveMenu(null);
+                                        }}
+                                        title="Close"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                </div>
+                                <div className={styles.menuGrid} style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                                    {[
+                                        { id: 'board', label: 'Board', desc: 'Cards in lanes by their metadata', icon: KanbanSquare },
+                                        { id: 'calendar', label: 'Calendar', desc: 'The same cards, by date', icon: Calendar },
+                                    ].map((view) => (
+                                        <div
+                                            key={view.id}
+                                            className={styles.draggableItem}
+                                            onClick={() => {
+                                                handleAddBoard(view.id as 'board' | 'calendar');
+                                                setActiveMenu(null);
+                                            }}
+                                        >
+                                            <div className={styles.itemIconWrapper}>
+                                                <view.icon size={20} />
+                                            </div>
+                                            <div className={styles.customTooltip}>
+                                                <div className={styles.tooltipLabel}>{view.label}</div>
+                                                <div className={styles.tooltipDesc}>{view.desc}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        )}
+
                         <div className={styles.blocksWrapper}>
                             <button
                                 className={`${styles.iconBtn} ${activeMenu === 'templates' ? styles.iconBtnActive : ''}`}
                                 onClick={() => openMenu(activeMenu === 'templates' ? null : 'templates')}
                                 title="Templates"
-                                style={isRail ? { marginTop: 8 } : { marginLeft: 8 }}
+                                style={{ marginLeft: 8 }}
                             >
                                 <LayoutTemplate size={20} />
                             </button>
@@ -730,6 +835,26 @@ export function BottomMenu() {
                                 </div>
                             </div>
                         </div>
+
+                        {/* AI closes the rail rather than floating beside it.
+                            It used to have a surface of its own on the grounds
+                            that everything else here acts on the canvas while
+                            this opens a panel — but that put two toolbars where
+                            the user reads one, and the distinction is carried
+                            well enough by the separator and by the button's own
+                            accent. Search sits in the rail on the same terms. */}
+                        <div className={styles.separator} />
+
+                        <button
+                            className={`${styles.aiIconBtn} ${isAIPanelOpen ? styles.aiIconBtnActive : ''}`}
+                            onClick={toggleAIPanel}
+                            title="AI (Ctrl+J)"
+                            aria-label="Open AI assistant"
+                        >
+                            <span className={styles.aiGlyph} aria-hidden="true">
+                                <Sparkles size={20} />
+                            </span>
+                        </button>
                 </motion.div>
             </motion.div>
             </div>

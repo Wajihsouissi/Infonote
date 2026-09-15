@@ -92,8 +92,13 @@ export function MetaPopover({ anchor, onClose, title, children }: MetaPopoverPro
             style={{
                 top: pos?.top ?? -9999,
                 left: pos?.left ?? -9999,
-                // Hidden until placed, or it flashes at the origin first.
-                visibility: pos ? 'visible' : 'hidden',
+                /* Invisible until placed, or it flashes at the origin first —
+                   but by opacity rather than `visibility`. A `visibility:
+                   hidden` element cannot take focus, and this panel is placed
+                   one frame AFTER it mounts, so every `autoFocus` inside it was
+                   being refused and the caret never arrived. Position is
+                   `fixed`, so the off-screen first frame scrolls nothing. */
+                opacity: pos ? 1 : 0,
             }}
             onPointerDown={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}

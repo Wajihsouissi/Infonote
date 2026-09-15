@@ -9,6 +9,12 @@
     position: relative;
     isolation: isolate;
 
+    /* How opaque the note well is. Fully opaque by default; a card with a cover
+       drops it so the ambient layer below shows THROUGH the well — see the
+       :has() rule under "cover ambient". Every well background is routed through
+       this, so the accented and plain wells thin out together. */
+    --well-alpha: 100%;
+
     /* Recolouring used to mix the hue INTO this surface (14%, then 22%). Both
        were tinted greys: mixing into grey keeps only a fraction of the hue's
        chroma, so a coral card came out brown. The recoloured surfaces are now
@@ -32,13 +38,21 @@
 
 /* ---- cover ambient ----
    The cover image again, scaled past the edges and blurred until it is a field
-   of colour rather than a picture, laid under the card so the FRAME picks up
-   the image's light. The note well paints over it — the writing surface stays
-   flat and legible, and only the border of the card carries the colour.
+   of colour rather than a picture, laid under the card so the whole card picks
+   up the image's light — frame AND writing surface.
+
+   The well shows it by going translucent rather than by getting a copy of its
+   own: one layer seen through the well is continuous with the frame around it,
+   where a second copy scaled to the well's own box would land on different
+   colours and read as two images rather than one light source.
 
    Clipped by its own wrapper rather than `overflow: hidden` on the card: the
    connection handle sits at top: -7px, outside the card box, and clipping the
    card would cut it off. */
+.card:has(.coverAmbientClip),
+.expandedView:has(.coverAmbientClip) {
+    --well-alpha: 72%;
+}
 .coverAmbientClip {
     position: absolute;
     inset: 0;
@@ -49,9 +63,13 @@
 }
 
 .coverAmbient {
-    --cover-ambient-scale: 1.7;
-    --cover-ambient-blur: 56px;
-    --cover-ambient-opacity: 0.30;
+    --cover-ambient-scale: 1.8;
+    --cover-ambient-blur: 72px;
+    --cover-ambient-opacity: 0.26;
+    /* Blur averages colour together, so a softer field is also a greyer one.
+       Saturation is pushed back up to pay for the extra blur — soft edges,
+       colour that still reads. */
+    --cover-ambient-saturate: 1.85;
 
     position: absolute;
     inset: 0;
@@ -59,19 +77,123 @@
     height: 100%;
     object-fit: cover;
     transform: scale(var(--cover-ambient-scale));
-    filter: blur(var(--cover-ambient-blur)) saturate(1.3);
+    filter: blur(var(--cover-ambient-blur)) saturate(var(--cover-ambient-saturate));
     opacity: var(--cover-ambient-opacity);
-    /* Strongest at the top, where the real cover sits, and fading out down the
-       card so the ambient never competes with the text below it. */
-    -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 40%, rgba(0, 0, 0, 0.34) 76%, rgba(0, 0, 0, 0.08) 100%);
-    mask-image: linear-gradient(180deg, #000 0%, #000 40%, rgba(0, 0, 0, 0.34) 76%, rgba(0, 0, 0, 0.08) 100%);
+    /* Still top-weighted, where the real cover sits, but it no longer fades to
+       nothing: the well takes the ambient too now, so the lower half has to
+       keep enough light to be worth showing through. Never drops below 0.46. */
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 44%, rgba(0, 0, 0, 0.66) 74%, rgba(0, 0, 0, 0.46) 100%);
+    mask-image: linear-gradient(180deg, #000 0%, #000 44%, rgba(0, 0, 0, 0.66) 74%, rgba(0, 0, 0, 0.46) 100%);
 }
 
 /* Paper takes less of it: a blurred image over white washes out to a pale
    smear at Ink's strength, and the page should still read as paper. */
-:global([data-theme='light']) .coverAmbient {
-    --cover-ambient-opacity: 0.21;
-    filter: blur(var(--cover-ambient-blur)) saturate(1.15);
+:global([data-theme='light']) .coverAmbient,
+:global([data-theme='light']) .coverAmbientHue {
+    --cover-ambient-opacity: 0.18;
+    --cover-ambient-saturate: 1.5;
+}
+
+/* The same field built from a HUE instead of a photo — the other half of the
+   colour picker. A single flat colour blurred is still a single flat colour, so
+   this is three offset blobs at different lightnesses and hue offsets: that is
+   what a photograph gives for free, and what makes the wash read as light
+   falling across the card rather than as a fill.
+
+   ±34° is deliberately narrow — far enough apart that the blobs are distinct,
+   close enough that the card still reads as ONE colour and not a rainbow. */
+.coverAmbientHue {
+    /* Three of the image's four settings do not carry over, and each one made
+       the card worse before it was changed:
+         scale 1   — a photo is scaled up to sample its middle and hide its
+                     edges. This gradient is authored for the box, so scaling it
+                     1.8× just inflates the blobs until they cover everything
+                     evenly, which is the opposite of a field.
+         saturate  — a photo needs saturation back after blurring. This source is
+                     already one pure hue and does not.
+         opacity   — it sits on a surface that is ALREADY this colour, so it
+                     needs far less than a photo laid on neutral graphite. */
+    --cover-ambient-scale: 1;
+    --cover-ambient-blur: 60px;
+    --cover-ambient-opacity: 0.5;
+    --cover-ambient-saturate: 1.05;
+
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: scale(var(--cover-ambient-scale));
+    filter: blur(var(--cover-ambient-blur)) saturate(var(--cover-ambient-saturate));
+    opacity: var(--cover-ambient-opacity);
+    /* Blobs only, NO base fill. The card surface underneath is already this
+       hue at L 0.44 — a fourth opaque layer on top just repainted it and the
+       card came out flat bright green. These sit LIGHTER than the surface so
+       they read as light falling across it rather than as more paint. */
+    background:
+        radial-gradient(circle at 24% 16%, oklch(from var(--node-accent) 0.74 0.17 h) 0%, transparent 58%),
+        radial-gradient(circle at 80% 30%, oklch(from var(--node-accent) 0.64 0.16 calc(h + 34)) 0%, transparent 56%),
+        radial-gradient(circle at 58% 88%, oklch(from var(--node-accent) 0.56 0.15 calc(h - 34)) 0%, transparent 60%);
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 44%, rgba(0, 0, 0, 0.66) 74%, rgba(0, 0, 0, 0.46) 100%);
+    mask-image: linear-gradient(180deg, #000 0%, #000 44%, rgba(0, 0, 0, 0.66) 74%, rgba(0, 0, 0, 0.46) 100%);
+}
+
+/* Film grain over the light field. A blurred image is perfectly smooth, and a
+   large smooth gradient on a dark surface bands — you can see the steps between
+   8-bit levels. Noise breaks the bands up and gives the wash a surface, which is
+   the whole reason to add it rather than a taste call.
+
+   Generated rather than shipped as an asset: an feTurbulence data URI costs no
+   request and tiles seamlessly with stitchTiles. It carries the SAME mask as the
+   image, so the grain fades with the light instead of sitting on the card as a
+   flat layer of dirt.
+
+   ONE octave at a high base frequency, not four. Stacked octaves add coarser
+   layers on top of the fine one, and those large blobs are what makes noise
+   read as cloud rather than as grain. The tile is rendered 1 SVG unit to 1 CSS
+   px, so 0.9 puts the speckle at roughly a pixel.
+
+   Three things inside the filter stop that fine noise from being harsh, and raw
+   feTurbulence has all three problems:
+
+     saturate 0        — turbulence is RGB noise, so every speckle is a random
+                         COLOUR. Real grain is tonal. Desaturating it is the
+                         single biggest difference between grain and static.
+     feFuncA constant  — turbulence noises the ALPHA channel too, which punches
+                         random holes in the layer on top of the colour noise.
+                         Pinning alpha to 1 makes the texture purely tonal.
+     slope 0.4         — full-range noise swings black to white. Compressed to
+                         roughly 0.3–0.7 it modulates the surface instead of
+                         fighting it.
+
+   Blended soft-light rather than overlay: overlay is a contrast operator and
+   drives both ends hard, which is what made the first pass read as sand. */
+.coverAmbientClip::after {
+    --cover-grain-opacity: 0.5;
+
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: var(--cover-grain-opacity);
+    mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='0.4' intercept='0.3'/%3E%3CfeFuncG type='linear' slope='0.4' intercept='0.3'/%3E%3CfeFuncB type='linear' slope='0.4' intercept='0.3'/%3E%3CfeFuncA type='linear' slope='0' intercept='1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+    background-size: 160px 160px;
+    /* The INVERSE of the image's mask, not a copy of it.
+       Sharing the image's mask piled the most grain exactly where the colour is
+       already strongest — the frame band across the top — while the well saw it
+       through a 72%-opaque surface and got roughly a quarter as much. The well
+       read well and the frame read as sand. Weak at the top, full lower down:
+       the two surfaces end up carrying a similar amount of texture despite one
+       of them being seen through glass. */
+    -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.34) 22%, rgba(0, 0, 0, 0.78) 46%, #000 62%, #000 100%);
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.34) 22%, rgba(0, 0, 0, 0.78) 46%, #000 62%, #000 100%);
+}
+
+/* Soft-light lightens as much as it darkens, and on a near-white page the
+   lightening half does nothing — so paper needs less of it, not a different
+   blend. */
+:global([data-theme='light']) .coverAmbientClip::after {
+    --cover-grain-opacity: 0.34;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -107,7 +229,7 @@
    well at the medium size, so it follows the same rule. */
 .card[data-accented] .noteArea,
 .card[data-accented] .mediumDescContainer {
-    background: oklch(from var(--node-accent) var(--node-well-tint-l) var(--node-well-tint-c) h);
+    background: color-mix(in srgb, oklch(from var(--node-accent) var(--node-well-tint-l) var(--node-well-tint-c) h) var(--well-alpha, 100%), transparent);
 }
 
 .card:hover {
@@ -465,7 +587,19 @@
     box-shadow: none;
 }
 
-/* 1.5 Title View */
+/* 1.5 Title View — one grid unit of card: an icon and a line of text.
+
+   The card-level class every other view has was missing here, so a title-view
+   card fell back to the panel geometry: `styles[viewMode]` resolved to
+   undefined and the 56px row wore the 432px page's 32px radius, which at that
+   height reads as a pill. It steps one rung down the radius ladder instead. */
+.titleview {
+    flex-direction: row;
+    align-items: center;
+    padding: 0;
+    border-radius: var(--r-surface);
+}
+
 .titleView {
     display: flex;
     flex-direction: row;
@@ -708,10 +842,30 @@
 
 /* 3. Expanded View */
 .expandedView {
-    background: transparent;
+    /* The card's own surface, carried by the view itself rather than borrowed
+       from whatever is under it. On the canvas that is the colour the `.card`
+       beneath already paints, so nothing moves; in a peek pane — side, centre
+       or fullscreen — there is no card at all, and the note used to inherit the
+       pane's raised modal ground instead. A note is the same object in all four
+       places and should be the same colour in all four.
+
+       The well that goes with it is fixed at the `var(--well-alpha, 100%)`
+       read sites rather than by declaring the variable here: `.noteArea` mixes
+       that alpha into its background and it was only ever declared on `.card`,
+       so in a pane it was unset, the mix was invalid, and the page you type on
+       came out fully transparent. A default on the reads covers the pane
+       without re-declaring the variable on an element that INHERITS 72% from a
+       card wearing a cover — which would have flattened that effect. */
+    background: var(--node-bg);
     overflow: hidden;
     border-radius: var(--r-panel);
     contain: layout paint style;
+}
+
+/* On the canvas the card underneath is the surface, and the cover ambient sits
+   between the card's background and this view — so here it stays clear. */
+.card .expandedView {
+    background: transparent;
 }
 
 .expandedView[data-accented] {
@@ -719,7 +873,7 @@
 }
 
 .expandedView[data-accented] .noteArea {
-    background: oklch(from var(--node-accent) var(--node-well-tint-l) var(--node-well-tint-c) h);
+    background: color-mix(in srgb, oklch(from var(--node-accent) var(--node-well-tint-l) var(--node-well-tint-c) h) var(--well-alpha, 100%), transparent);
 }
 
 /* Restored Cover Image Styles */
@@ -1023,7 +1177,7 @@
     contain: layout paint style;
 
     /* Inner card styling */
-    background: var(--node-well-bg);
+    background: color-mix(in srgb, var(--node-well-bg) var(--well-alpha, 100%), transparent);
     border: none !important;
     box-shadow: none !important;
     outline: none !important;
@@ -1297,7 +1451,7 @@
     min-width: 0;
 
     /* Visual Separation - use dynamic override or default */
-    background: var(--node-well-bg);
+    background: color-mix(in srgb, var(--node-well-bg) var(--well-alpha, 100%), transparent);
     border-radius: var(--r-lg);
     /* Allow glass to show through (Dark) or Solid (Light) */
     border-top: none;
@@ -2076,49 +2230,12 @@
     align-items: center;
 }
 
-/* Status Colors */
-.todo {
-    background: var(--bg-base);
-    color: var(--text-soft);
-    border: 1px solid var(--line);
-}
-
-.in-progress {
-    background: var(--accent-dim);
-    color: var(--accent-ink);
-    border: 1px solid var(--accent-wash);
-}
-
-.review {
-    background: color-mix(in srgb, var(--warn) 20%, transparent);
-    color: var(--warn);
-    border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
-}
-
-.done {
-    background: color-mix(in srgb, var(--ok) 20%, transparent);
-    color: var(--ok);
-    border: 1px solid color-mix(in srgb, var(--ok) 30%, transparent);
-}
-
-/* Priority Colors */
-.low {
-    color: var(--text-soft);
-}
-
-.medium {
-    color: var(--secondary-ink);
-}
-
-.high {
-    color: var(--danger);
-}
-
-.urgent {
-    background: color-mix(in srgb, var(--danger) 12%, transparent);
-    color: var(--danger);
-    border: 1px solid color-mix(in srgb, var(--danger) 22%, transparent);
-}
+/* The status and priority chip colours that used to sit here (.todo,
+   .in-progress, .review, .done, .low, .medium, .high, .urgent) are gone. No
+   file that imports this stylesheet ever used them — the real chips live in
+   CardMetaBar with its own module — but `.medium` is also the medium view's
+   mode class, so every medium card on the canvas was picking up the priority
+   colour and rendering its text coral. */
 
 .dueDateBadge {
     background: var(--hover-wash);

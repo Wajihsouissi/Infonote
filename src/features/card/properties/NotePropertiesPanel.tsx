@@ -8,7 +8,8 @@ import { AssigneeProperty } from './AssigneeProperty';
 import { ProgressProperty } from './ProgressProperty';
 import { TaskList } from '../tasks/TaskList';
 import { cardTasks } from '../cardTasks';
-import { AddPropertyMenu, getPropertyIcon } from './AddPropertyMenu';
+import { AddPropertyMenu } from './AddPropertyMenu';
+import { getPropertyIcon } from './propertyIcons';
 import styles from './Properties.module.css';
 
 interface NotePropertiesPanelProps {

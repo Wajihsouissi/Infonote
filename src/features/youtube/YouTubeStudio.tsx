@@ -25,7 +25,7 @@ import { FEATURES } from '../../config/featureFlags';
 import { useStore } from '../../store/useStore';
 import type { AppNodeData } from '../../types';
 import { BlockEditor } from '../editor/BlockEditor';
-import { parsePlainText } from '../editor/pasteUtils';
+import { parseAIContent } from '../editor/pasteUtils';
 import { requestYouTubeTranscript, pollYouTubeTranscript } from './youtubeTranscriptService';
 import { rewriteStudySelection, summarizeVideo } from './studyAiService';
 import {
@@ -441,7 +441,7 @@ export function YouTubeStudio({ nodeId, data, onUpdate, onClose }: Props) {
             notes: [
                 ...data.notes,
                 { id: uuidv4(), type: 'heading2', content: heading },
-                ...parsePlainText(aiPreview.text),
+                ...parseAIContent(aiPreview.text),
             ],
         });
         setAiPreview(null);
@@ -461,7 +461,7 @@ export function YouTubeStudio({ nodeId, data, onUpdate, onClose }: Props) {
             label: aiPreview.kind === 'summary'
                 ? `Video summary · ${data.video.title}`
                 : `Rewritten passage · ${data.video.title}`,
-            content: parsePlainText(aiPreview.text),
+            content: parseAIContent(aiPreview.text),
             sourceRef: {
                 kind: 'youtube',
                 sourceNodeId: nodeId,

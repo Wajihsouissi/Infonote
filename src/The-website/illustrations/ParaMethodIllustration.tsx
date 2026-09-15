@@ -1,6 +1,6 @@
 import React from 'react';
 import { Sparkles, Rocket, Layers, BookMarked, Archive, Link2 } from 'lucide-react';
-import { SceneStage, Plane, Board, Wires, Wire, NodeCard, Ghost, Line, Chip, Task, Well } from './scene-kit';
+import { SceneStage, Plane, Wires, Wire, NodeCard, Ghost, Line, Chip, Task, Well } from './scene-kit';
 
 /**
  * "Second Brain" — the P.A.R.A. method.

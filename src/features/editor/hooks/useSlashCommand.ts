@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useLayoutEffect } from 'react';
 import type { Block, BlockType, BlockMetadata } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { createGalleryMetadata, getGalleryItems, isGalleryMember } from '../galleryTypes';
@@ -25,7 +25,7 @@ export function useSlashCommand({
     const slashMenuStateRef = useRef(slashMenuState);
 
     // Sync ref
-    slashMenuStateRef.current = slashMenuState;
+    useLayoutEffect(() => { slashMenuStateRef.current = slashMenuState; }, [slashMenuState]);
 
     const convertBlock = useCallback((id: string | undefined, type: BlockType, metadata?: BlockMetadata, content?: string) => {
         const targetId = id || (slashMenuStateRef.current ? slashMenuStateRef.current.blockId : null);

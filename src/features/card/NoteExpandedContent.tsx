@@ -20,6 +20,8 @@ import { NoteFooterStats } from './NoteFooterStats';
 import { NotePropertiesPanel } from './properties/NotePropertiesPanel';
 import { CardMetaBar } from './meta/CardMetaBar';
 import { FEATURES } from '../../config/featureFlags';
+import { NoteBody } from './NoteBody';
+import { useScheduledMount } from './hooks';
 
 interface NoteExpandedContentProps {
     id: string;
@@ -33,6 +35,14 @@ interface NoteExpandedContentProps {
     flatCorners?: boolean; // Remove border radius
     readOnly?: boolean;
     hideBlockHandles?: boolean;
+    /** Canvas cards promote their editor only when the user selects them.
+     * Omit this outside the canvas (peek/fullscreen) to keep those views live. */
+    showLiveEditor?: boolean;
+    /** Off when a NoteCard already paints the ambient around this content. On
+     *  the canvas the card is the outer frame and owns it; standalone in a
+     *  panel there is no card, so this renders its own. Two layers stack, and
+     *  the doubled field was visibly twice as strong. */
+    renderAmbient?: boolean;
 }
 
 export function NoteExpandedContent({
@@ -47,6 +57,8 @@ export function NoteExpandedContent({
     flatCorners,
     readOnly,
     hideBlockHandles,
+    showLiveEditor = true,
+    renderAmbient = true,
 }: NoteExpandedContentProps) {
     // Use data state (persistent) or fallback to false
     const showMetadata = data?.showMetadata ?? false;
@@ -57,6 +69,9 @@ export function NoteExpandedContent({
 
 
     const blocks = useMemo(() => (Array.isArray(data.content) ? data.content : []), [data.content]);
+    // A promotion becomes a single, paced mount instead of competing with every
+    // other card's editor during a local workspace reload.
+    const liveEditorMounted = useScheduledMount(showLiveEditor);
 
     // Metadata editing hook
     const {
@@ -171,10 +186,12 @@ export function NoteExpandedContent({
                 ...(data.color ? { '--node-accent': data.color } as React.CSSProperties : {})
             }}
         >
-            {/* Same ambient wash as the collapsed card — see .coverAmbient. */}
-            {data.coverImage && (
+            {/* Same ambient field as the collapsed card — see .coverAmbient. */}
+            {renderAmbient && (data.ambientImage || data.color) && (
                 <div className={styles.coverAmbientClip} aria-hidden="true">
-                    <img className={styles.coverAmbient} src={data.coverImage} alt="" draggable={false} />
+                    {data.ambientImage
+                        ? <img className={styles.coverAmbient} src={data.ambientImage} alt="" draggable={false} />
+                        : <span className={styles.coverAmbientHue} />}
                 </div>
             )}
 
@@ -325,7 +342,12 @@ export function NoteExpandedContent({
             {/* Note Area */}
             <div
                 className={`${styles.noteArea} nodrag infonote-scrollable`}
-                onWheelCapture={(e) => e.stopPropagation()}
+                // Keep the wheel for the note only when it has something to
+                // scroll; otherwise (and for pinches) let the canvas zoom.
+                onWheelCapture={(e) => {
+                    const el = e.currentTarget;
+                    if (!e.ctrlKey && el.scrollHeight > el.clientHeight + 1) e.stopPropagation();
+                }}
                 onPointerDown={(e) => {
                     e.stopPropagation();
                 }}
@@ -345,14 +367,21 @@ export function NoteExpandedContent({
                     e.dataTransfer.dropEffect = 'copy';
                 }}
             >
-                <BlockEditor
-                    initialContent={blocks}
-                    readOnly={readOnly || false}
-                    minimal={false}
-                    onUpdate={handleContentUpdate}
-                    nodeId={nodeId}
-                    selectionIslandPortalId={selectionIslandPortalId}
-                    hideBlockHandles={hideBlockHandles}
+                <NoteBody
+                    blocks={blocks}
+                    showLiveEditor={liveEditorMounted}
+                    isEditorPending={showLiveEditor && !liveEditorMounted}
+                    renderEditor={() => (
+                        <BlockEditor
+                            initialContent={blocks}
+                            readOnly={readOnly || false}
+                            minimal={false}
+                            onUpdate={handleContentUpdate}
+                            nodeId={nodeId}
+                            selectionIslandPortalId={selectionIslandPortalId}
+                            hideBlockHandles={hideBlockHandles}
+                        />
+                    )}
                 />
             </div>
 

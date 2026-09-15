@@ -1,6 +1,6 @@
 import React from 'react';
 import { Share2, CheckCircle2, Link2, FileText, Image as ImageIcon } from 'lucide-react';
-import { SceneStage, Plane, Board, Wires, Wire, NodeCard, Ghost, Line, Chip, Task, Well } from './scene-kit';
+import { SceneStage, Plane, Wires, Wire, NodeCard, Ghost, Line, Chip, Task, Well } from './scene-kit';
 import { SharedTitleMock, SharedVideoMock } from './mock-elements';
 
 interface StepConnectIllustrationProps {

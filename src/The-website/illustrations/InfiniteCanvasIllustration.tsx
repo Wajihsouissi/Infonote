@@ -1,6 +1,6 @@
 import React from 'react';
 import { Image as ImageIcon, Link2, Target, FileText } from 'lucide-react';
-import { SceneStage, Plane, Board, Wires, Wire, NodeCard, Ghost, Line, Well, Cursor, Chip } from './scene-kit';
+import { SceneStage, Plane, Wires, Wire, NodeCard, Ghost, Line, Well, Cursor, Chip } from './scene-kit';
 
 /**
  * "Linear notes meet infinite canvas" — the hero split visual.

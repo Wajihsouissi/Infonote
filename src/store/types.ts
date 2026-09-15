@@ -56,6 +56,7 @@ export interface NodeSlice {
     bulkDuplicateNodes: (nodeIds: string[]) => void;
     pasteClipboardNodes: (payload: import('../features/clipboard/clipboardPayload').NodesPayload, origin: { x: number; y: number }) => string[];
     bulkApplyColor: (nodeIds: string[], color: string) => void;
+    bulkApplyAmbientImage: (nodeIds: string[], url: string) => void;
     fuseNodes: (nodeIds: string[], skipConfirm?: boolean) => void;
     hydrateCanvasFromContent: (nodeId: string) => void;
     /** Converts a saved centre-topic map into the current top-to-bottom document tree. */

@@ -143,6 +143,12 @@
   --line-strong: rgba(255, 255, 255, 0.18);
   --line-heavy: rgba(255, 255, 255, 0.28);
   --hover-wash: rgba(255, 255, 255, 0.08);
+  /* The opposite of --hover-wash: a RECESS on whatever it is laid over, for
+     inset wells (a segmented control's track, a slider groove). A wash rather
+     than a surface token so it stays a step below its own parent wherever it
+     lands — a fixed value can only be "below" one specific ground, and the one
+     that used to work stopped working when the ground moved. */
+  --inset-wash: rgba(0, 0, 0, 0.28);
   --active-wash: rgba(255, 80, 64, 0.16);
   --dot: rgba(255, 255, 255, 0.18);
 
@@ -296,6 +302,7 @@
   --line-strong: rgba(26, 22, 14, 0.18);
   --line-heavy: rgba(26, 22, 14, 0.30);
   --hover-wash: rgba(26, 22, 14, 0.05);
+  --inset-wash: rgba(26, 22, 14, 0.06);
   --active-wash: rgba(255, 80, 64, 0.13);
   --dot: rgba(26, 22, 14, 0.16);
 

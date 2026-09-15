@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Layers, Workflow, HardDrive, Share2 } from 'lucide-react';
+import { ArrowLeft, Layers, HardDrive, Share2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import styles from './MarketingPage.module.css';
 export const FeaturesPage: React.FC = () => {

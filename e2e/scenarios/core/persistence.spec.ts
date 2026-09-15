@@ -117,36 +117,19 @@ test.describe('core: persistence (A)', () => {
         expect(nodeText(nodeByLabel(reloaded, 'Crash test')!)).toContain('First line survives');
     });
 
-    test('A-limit anonymous card quota blocks creation and explains itself', async ({ page }) => {
+    test('an anonymous user can create more than 25 cards', async ({ page }) => {
         await openCanvas(page);
-        const badge = page.getByText(/\d+\/\d+ cards/);
-        await expect(badge).toBeVisible();
+        const before = cards(await waitForCanvasState(page, () => true, 'the initial canvas')).length;
 
-        // The badge is the product's own count; read the cap from it rather
-        // than hardcoding a number the code may move.
-        const [, usedRaw, capRaw] = (await badge.innerText()).match(/(\d+)\/(\d+) cards/)!;
-        const cap = Number(capRaw);
-        let used = Number(usedRaw);
-
-        // Drive right up to the cap through the real creation path.
-        while (used < cap) {
+        for (let created = 0; created < 26; created++) {
             await page.keyboard.press('Control+n');
-            await page.waitForTimeout(250);
-            used = Number((await badge.innerText()).match(/(\d+)\//)![1]);
-            if (used >= cap) break;
         }
 
-        const snapAtCap = await waitForCanvasState(page, (s) => cards(s).length >= cap, 'the card quota to fill');
-        const countAtCap = cards(snapAtCap).length;
-
-        // One more must be refused with an explanation, not silently dropped.
-        await page.keyboard.press('Control+n');
-        await page.waitForTimeout(1200);
-
-        const notice = page.getByText(/limit|sign in/i).first();
-        await expect(notice, 'no limit notice shown when the card quota was exceeded').toBeVisible();
-
-        const after = await waitForCanvasState(page, () => true, 'post-limit state');
-        expect(cards(after).length, 'a card was created past the anonymous quota').toBe(countAtCap);
+        const after = await waitForCanvasState(
+            page,
+            (state) => cards(state).length >= before + 26,
+            'the 26 cards created without signing in',
+        );
+        expect(cards(after).length).toBeGreaterThanOrEqual(before + 26);
     });
 });

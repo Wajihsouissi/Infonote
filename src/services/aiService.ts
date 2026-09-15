@@ -4,12 +4,17 @@
 // Text: OpenAI-compatible chat completions.
 // Image: OpenAI-compatible image generations.
 // ============================================================
-import { supabase, isSupabaseConfigured } from './supabase/client';
+/**
+ * The /api/ai/* routes require a signed-in Supabase user (they proxy a paid
+ * gateway), so every call carries a bearer token. See aiAuthHeader.ts for the
+ * one local-development exception.
+ */
+import { getAiAuthHeader } from './aiAuthHeader';
 import {
     effortBudget,
     effortMaxTokens,
     freeformEffortDirective,
-    PLAN_MAX_TOKENS,
+    planMaxTokens,
     type AIEffort,
 } from '../config/aiEffort';
 import { AI_CONTEXT_DEFINITIONS, type AIContextType } from '../features/ai/aiTypes';
@@ -21,23 +26,6 @@ const STREAM_TRAILER_MARK = '\u001E';
 // that is not on its own allow-list.
 const TEXT_MODEL = import.meta.env.VITE_AI_GATEWAY_TEXT_MODEL || 'gemini-3.7-flash';
 const IMAGE_MODEL = import.meta.env.VITE_AI_GATEWAY_IMAGE_MODEL || 'gemini-3.1-flash-image';
-
-/**
- * The /api/ai/* routes require a signed-in Supabase user (they proxy a paid
- * gateway). Resolve the current access token or fail fast with a friendly
- * message instead of a bare 401.
- */
-async function getAiAuthHeader(): Promise<Record<string, string>> {
-    if (!isSupabaseConfigured || !supabase) {
-        throw new Error('Sign in to use AI features.');
-    }
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-    if (!token) {
-        throw new Error('Sign in to use AI features.');
-    }
-    return { Authorization: `Bearer ${token}` };
-}
 
 /**
  * System prompt for free-form text generation (single notes, inline writing,
@@ -100,7 +88,11 @@ type ImageGenerationResponse = {
     error?: { message?: string };
 };
 
-const AI_REQUEST_TIMEOUT_MS = 45_000;
+/* Above the server's 55s deadline (api/ai/text.js), so the client never gives
+   up on an answer the server is still allowed to finish. A non-streaming body
+   only returns headers once it is fully written. For streams this is the
+   between-chunks guard, and the server's own 30s stall guard fires first. */
+const AI_REQUEST_TIMEOUT_MS = 65_000;
 const AI_RETRY_DELAY_MS = 500;
 
 class AIRequestError extends Error {
@@ -239,6 +231,29 @@ export interface AIRequestOptions {
      * back to the strictest bucket — so only the fan-out paths need to set it.
      */
     phase?: 'plan' | 'body' | 'verify';
+    /**
+     * Whether the model may reason before answering. Omitted = `'off'`.
+     *
+     * Gemini's flash models think by default, and the thinking is billed
+     * against the same `max_tokens` as the answer: measured on 2026-09-13, a
+     * plan call spent 1493 of its 1560 tokens thinking and returned broken JSON
+     * after 10s. `'light'` allows a little reasoning (with extra token headroom
+     * added server-side) and is reserved for Smart free-form answers.
+     */
+    thinking?: 'off' | 'light' | 'deep';
+    /**
+     * Planner only: the canvas shapes the router judged the best fit. A hint,
+     * not a requirement — `contexts` is what the user explicitly demanded.
+     */
+    shapeHint?: AIStructuredAction['type'][];
+    /** Sampling temperature in [0, 1]; the server defaults to 0.7. */
+    temperature?: number;
+    /**
+     * Return the reply without trimming its edges. Only for replies that get
+     * joined to another reply (continuations), where the trimmed space is the
+     * one between two words.
+     */
+    preserveWhitespace?: boolean;
 }
 
 /**
@@ -253,11 +268,31 @@ function systemWithEffort(system: string | undefined, effort: AIEffort | undefin
     return `${system}\n\n${freeformEffortDirective(effort)}`;
 }
 
-export async function generateText(prompt: string, options: string | AIRequestOptions = {}): Promise<string> {
+/** A completion plus why the model stopped. `truncated` means it ran out of room. */
+export interface AITextResult {
+    text: string;
+    finishReason: string | null;
+    truncated: boolean;
+}
+
+/**
+ * `generateText`, but reporting whether the answer actually finished.
+ *
+ * Callers that parse the output as JSON need this. Without it a response cut
+ * off at `max_tokens` arrives as an ordinary string and fails parsing exactly
+ * like malformed model output, so the only available recovery — asking the
+ * model to repair it under the same ceiling — cannot possibly work.
+ *
+ * `streamText` has returned this shape for a while; this brings the
+ * non-streaming path in line.
+ */
+export async function generateTextWithMeta(
+    prompt: string,
+    options: string | AIRequestOptions = {},
+): Promise<AITextResult> {
     // Historically the second argument was the system prompt; keep that working.
-    const { system, model, images, effort, maxTokensOverride, history, phase } = typeof options === 'string'
-        ? { system: options, model: undefined, images: undefined, effort: undefined, maxTokensOverride: undefined, history: undefined, phase: undefined }
-        : options;
+    const request: AIRequestOptions = typeof options === 'string' ? { system: options } : options;
+    const { system, model, images, effort, maxTokensOverride, history, phase, thinking, temperature, preserveWhitespace } = request;
 
     const finalSystem = systemWithEffort(system, effort);
     const maxTokens = maxTokensOverride ?? (effort ? effortMaxTokens(effort) : undefined);
@@ -268,14 +303,40 @@ export async function generateText(prompt: string, options: string | AIRequestOp
         ...(images && images.length > 0 ? { images } : {}),
         ...(maxTokens ? { maxTokens } : {}),
         ...(history && history.length > 0 ? { history } : {}),
+        // Non-streaming callers are plans, bodies, JSON edits and summaries:
+        // every one of them parses or places the text, so none may think.
+        thinking: thinking ?? 'off',
+        ...(temperature !== undefined ? { temperature } : {}),
+        ...(preserveWhitespace ? { preserveWhitespace: true } : {}),
     }, phase);
 
-    const content = (response as ChatCompletionResponse & { text?: string }).text ?? response.choices?.[0]?.message?.content;
-    if (typeof content === 'string') return content;
-    if (Array.isArray(content)) {
-        return content.map((part) => part.text || '').join('');
+    const envelope = response as ChatCompletionResponse & { text?: string; finishReason?: string | null };
+    const content = envelope.text ?? response.choices?.[0]?.message?.content;
+
+    let text: string;
+    if (typeof content === 'string') {
+        text = content;
+    } else if (Array.isArray(content)) {
+        text = content.map((part) => part.text || '').join('');
+    } else {
+        throw new Error(response.error?.message || 'AI Gateway returned no text content.');
     }
-    throw new Error(response.error?.message || 'AI Gateway returned no text content.');
+
+    const finishReason = envelope.finishReason
+        ?? (response.choices?.[0] as { finish_reason?: string } | undefined)?.finish_reason
+        ?? null;
+
+    /* Gateways spell the ceiling differently — OpenAI says `length`, Gemini's
+       compatibility layer passes `MAX_TOKENS` through. Match either. */
+    const truncated = typeof finishReason === 'string'
+        && /^(length|max_tokens)$/i.test(finishReason.trim());
+
+    return { text, finishReason, truncated };
+}
+
+export async function generateText(prompt: string, options: string | AIRequestOptions = {}): Promise<string> {
+    const { text } = await generateTextWithMeta(prompt, options);
+    return text;
 }
 
 /**
@@ -286,17 +347,26 @@ export async function generateText(prompt: string, options: string | AIRequestOp
  * immediately instead of after a long silence; `signal` lets the panel stop a
  * run mid-flight and keep whatever had already landed.
  */
-export async function streamText(
+async function streamTextOnce(
     prompt: string,
     options: AIRequestOptions & { onDelta: (delta: string) => void; signal?: AbortSignal } = { onDelta: () => {} }
 ): Promise<{ text: string; model: string | null; durationMs: number; finishReason: string | null; truncated: boolean }> {
     const startedAt = performance.now();
-    const { system, model, images, effort, maxTokensOverride, history, onDelta, signal } = options;
+    const { system, model, images, effort, maxTokensOverride, history, onDelta, signal, thinking, temperature, phase } = options;
     const finalSystem = systemWithEffort(system, effort);
+    /* Streams are read, not parsed, so Smart may reason a little. Everything
+       else streams with thinking off: with default thinking a gemini-3.5-flash
+       answer took 10.1s to its first token and was still cut off at the
+       ceiling; with it off the first token arrived in 0.8s. */
+    const streamThinking = thinking ?? (effort === 'smart' ? 'light' : 'off');
     const response = await requestAI('/api/ai/stream', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            /* Canvas bodies stream now too, and a Create turn is many of them;
+               without the phase they would all land in the strict `text`
+               bucket instead of `body` (api/_lib/aiGuard.js). */
+            ...phaseHeader(phase),
             ...(await getAiAuthHeader()),
         },
         body: JSON.stringify({
@@ -308,6 +378,8 @@ export async function streamText(
                 ? { maxTokens: maxTokensOverride ?? effortMaxTokens(effort as AIEffort) }
                 : {}),
             ...(history && history.length > 0 ? { history } : {}),
+            thinking: streamThinking,
+            ...(temperature !== undefined ? { temperature } : {}),
         }),
     }, signal);
 
@@ -416,8 +488,124 @@ export async function streamText(
          * `null` when the trailer did not arrive, means do not warn.
          */
         finishReason,
-        truncated: finishReason === 'length',
+        /* `interrupted` is the server saying the stream stalled or dropped
+           mid-answer — as unfinished as hitting the ceiling, and just as worth
+           continuing. Gemini may also spell the ceiling `MAX_TOKENS`. */
+        truncated: typeof finishReason === 'string' && /^(length|max_tokens|interrupted)$/i.test(finishReason),
     };
+}
+
+/** Times one answer may be picked up again after hitting its ceiling or being cut off. */
+const MAX_CONTINUATIONS = 2;
+
+const CONTINUE_PROMPT = 'Your previous answer was cut off. Continue EXACTLY where it stopped — mid-sentence, mid-list or mid-table if that is where it ended. Do not repeat anything already written, do not restate the question, and add no preamble or commentary.';
+
+/** Prior turns plus the partial answer, so a continuation sees exactly what it is extending. */
+function continuationHistory(
+    history: AIRequestOptions['history'],
+    prompt: string,
+    partial: string,
+): NonNullable<AIRequestOptions['history']> {
+    return [
+        ...(history ?? []),
+        { role: 'user', content: prompt },
+        { role: 'assistant', content: partial },
+    ];
+}
+
+/**
+ * Streams an answer and FINISHES it.
+ *
+ * Long answers used to stop mid-sentence: at the token ceiling, or when the
+ * server's deadline aborted a stream that was still flowing. Both now arrive
+ * with a reason (`length`, `interrupted`), and instead of presenting the
+ * fragment this asks the model to continue from where it stopped, streaming the
+ * rest into the same `onDelta` so the reader just sees the answer keep going.
+ * Bounded at MAX_CONTINUATIONS; if the answer is still unfinished after that,
+ * `truncated` stays true and the panel says so.
+ */
+/**
+ * The space a continuation drops at its seam.
+ *
+ * A reply cut at the ceiling usually stops after a whole word, and the model
+ * starts its continuation — a fresh assistant message — without the leading
+ * space, so "command" + "term" arrived as "commandterm". Only a mid-sentence
+ * seam gets one (a letter, digit or comma before; a lowercase letter or digit
+ * after): after a full stop the dropped character is as likely a newline, and
+ * guessing a space there would merge two list items into one line.
+ */
+function seamPrefix(before: string, after: string): string {
+    return /[\p{L}\d,]$/u.test(before) && /^[\p{Ll}\d]/u.test(after) ? ' ' : '';
+}
+
+export async function streamText(
+    prompt: string,
+    options: AIRequestOptions & { onDelta: (delta: string) => void; signal?: AbortSignal } = { onDelta: () => {} }
+): ReturnType<typeof streamTextOnce> {
+    const startedAt = performance.now();
+    let result = await streamTextOnce(prompt, options);
+    let text = result.text;
+
+    for (let round = 0; round < MAX_CONTINUATIONS && result.truncated && !options.signal?.aborted; round += 1) {
+        const before = text;
+        let seamSent = false;
+        try {
+            result = await streamTextOnce(CONTINUE_PROMPT, {
+                ...options,
+                history: continuationHistory(options.history, prompt, before),
+                // The seam's space has to go out with the first streamed chunk.
+                onDelta: (delta) => {
+                    if (!seamSent && delta) {
+                        seamSent = true;
+                        options.onDelta(seamPrefix(before, delta) + delta);
+                        return;
+                    }
+                    options.onDelta(delta);
+                },
+            });
+        } catch (error) {
+            if (options.signal?.aborted) throw error;
+            break; // keep what arrived; `truncated` still tells the caller
+        }
+        text += seamPrefix(before, result.text) + result.text;
+    }
+
+    return { ...result, text, durationMs: Math.round(performance.now() - startedAt) };
+}
+
+/**
+ * `generateTextWithMeta`, continued until the answer actually ends.
+ *
+ * For writing that is placed rather than parsed — card and document bodies,
+ * board item batches. A body cut off at its ceiling used to land on the canvas
+ * mid-sentence, because nothing checked why the model stopped. JSON callers
+ * must not use this: a plan that ran out of room is re-planned smaller instead
+ * (see `planArtifacts`), never glued together from two replies.
+ */
+export async function generateCompleteText(
+    prompt: string,
+    options: AIRequestOptions = {},
+): Promise<AITextResult> {
+    /* Untrimmed on every call: the space at a seam belongs to one half or the
+       other, and trimming both deleted it ("economic" + "assumptions"). The
+       joined answer is trimmed once, at the end. */
+    const request: AIRequestOptions = { ...options, preserveWhitespace: true };
+    let result = await generateTextWithMeta(prompt, request);
+    let text = result.text;
+
+    for (let round = 0; round < MAX_CONTINUATIONS && result.truncated; round += 1) {
+        try {
+            result = await generateTextWithMeta(CONTINUE_PROMPT, {
+                ...request,
+                history: continuationHistory(options.history, prompt, text.trimEnd()),
+            });
+        } catch {
+            break;
+        }
+        text += seamPrefix(text, result.text) + result.text;
+    }
+
+    return { ...result, text: text.trim() };
 }
 
 export async function generateImage(prompt: string): Promise<string> {
@@ -540,8 +728,15 @@ const ACTION_TYPES = new Set<AIStructuredAction['type']>(['note', 'fused-note', 
 
 /** A recoverable failure: never turn malformed model JSON into a surprise card. */
 export class AIOutputValidationError extends Error {
-    constructor(detail = 'The AI returned an incomplete canvas plan.') {
-        super(`${detail} Nothing was added to the canvas — try again or make the requested format more specific.`);
+    constructor(
+        detail = 'The AI returned an incomplete canvas plan.',
+        /* Advice is a parameter because the two causes need opposite fixes.
+           Malformed output wants a more specific request; output that ran out
+           of room wants a SMALLER one, and telling that user to be more
+           specific sends them toward a bigger prompt that truncates harder. */
+        advice = 'try again or make the requested format more specific',
+    ) {
+        super(`${detail} Nothing was added to the canvas — ${advice}.`);
         this.name = 'AIOutputValidationError';
     }
 }
@@ -699,7 +894,7 @@ ${SHAPE_GUIDE}
 Emit at most ${budget.maxArtifacts} artifacts. Fewer, well-chosen artifacts beat
 many thin ones. If one artifact answers the request, emit one.
 
-${requestedTypes.length > 0 ? `The user explicitly selected these output types: [${requestedTypes.join(', ')}]. You MUST include at least one artifact of each.\n` : ''}
+${requestedTypes.length > 0 ? `The user explicitly selected these output types: [${requestedTypes.join(', ')}]. You MUST include at least one artifact of each.\n` : ''}${requestedTypes.length === 0 && options.shapeHint && options.shapeHint.length > 0 ? `This request most likely fits: [${options.shapeHint.join(', ')}]. Prefer these shapes unless the request clearly needs something else.\n` : ''}
 ${context ? `[CANVAS CONTEXT]\n${context}\n` : ''}
 Respond ONLY with a valid JSON array. No markdown, no code fences, no prose.
 Each object:
@@ -731,16 +926,53 @@ Example:
        is a planning decision. The body passes deliberately get no history: they
        write one artifact against one brief, and prior turns would be cost
        without signal. */
-    const planOptions: AIRequestOptions = { model: options.model, images: options.images, history: options.history, phase: 'plan' };
+    /* Lower temperature because this reply is parsed, not read: variety in a
+       plan buys nothing and every stray token is a chance to break the JSON. */
+    const planOptions: AIRequestOptions = { model: options.model, images: options.images, history: options.history, phase: 'plan', temperature: 0.4 };
 
-    let responseText = await generateText(fullPrompt, { ...planOptions, maxTokensOverride: PLAN_MAX_TOKENS });
+    const planCeiling = planMaxTokens(options.effort);
+    const first = await generateTextWithMeta(fullPrompt, { ...planOptions, maxTokensOverride: planCeiling });
+
     let actions: AIStructuredAction[];
     try {
-        actions = parseValidatedStructuredActions(responseText, requestedTypes, false);
-    } catch {
-        const retryPrompt = `${fullPrompt}\n\n<assistant>\n${responseText}\n</assistant>\n\n<user>\nRepair this response. Return ONLY a valid JSON array satisfying every required field, with connected mindmaps and every board card in a declared column. Still no body content.\n</user>`;
-        responseText = await generateText(retryPrompt, { ...planOptions, maxTokensOverride: PLAN_MAX_TOKENS });
-        actions = parseValidatedStructuredActions(responseText, requestedTypes, false);
+        actions = parseValidatedStructuredActions(first.text, requestedTypes, false);
+    } catch (error) {
+        /* Two different failures used to share one recovery. A plan that ran
+           out of room is not malformed — it is unfinished — and re-sending the
+           fragment with "repair this" under the SAME ceiling asks the model to
+           fit the identical content into the identical space, so it truncates
+           at the same point and the user gets a validation error either way.
+
+           So the retry now depends on which failure happened. Truncated: ask
+           for a deliberately smaller plan with more room to express it, and do
+           not echo the fragment back — those wasted tokens are part of why it
+           did not fit. Malformed: repair as before, which is the case that
+           recovery was always right for. */
+        const retryPrompt = first.truncated
+            ? `${fullPrompt}\n\n<user>\nThat plan did not fit. Emit AT MOST ${Math.max(1, Math.ceil(budget.maxArtifacts / 2))} artifacts, keep every "brief" to one short sentence, and cap boards at 4 columns and 8 cards. Return ONLY a valid JSON array.\n</user>`
+            : `${fullPrompt}\n\n<assistant>\n${first.text}\n</assistant>\n\n<user>\nRepair this response. Return ONLY a valid JSON array satisfying every required field, with connected mindmaps and every board card in a declared column. Still no body content.\n</user>`;
+
+        const retry = await generateTextWithMeta(retryPrompt, {
+            ...planOptions,
+            // A truncated first pass earned more room, not the same amount again.
+            maxTokensOverride: first.truncated ? Math.round(planCeiling * 1.5) : planCeiling,
+        });
+
+        try {
+            actions = parseValidatedStructuredActions(retry.text, requestedTypes, false);
+        } catch {
+            /* Say which failure this was. "Incomplete plan — be more specific"
+               is actively misleading advice when the cause was the model
+               running out of room: a more specific request is usually a BIGGER
+               one, which truncates harder. */
+            if (first.truncated || retry.truncated) {
+                throw new AIOutputValidationError(
+                    'The AI ran out of room before finishing the canvas plan.',
+                    'try again, ask for fewer artifacts, or lower the effort',
+                );
+            }
+            throw error instanceof AIOutputValidationError ? error : new AIOutputValidationError();
+        }
     }
 
     const trimmed = actions.slice(0, budget.maxArtifacts) as AIArtifactPlan[];
@@ -761,10 +993,17 @@ Example:
  * writing pass. Retry non-auth, non-rate-limit failures with the same contract
  * at the top of the prompt so those providers can still produce the body.
  */
+/** Body-writing options: pass `onText` to receive the text as it streams. */
+export type AIBodyOptions = AIRequestOptions & {
+    /** Called with the FULL body so far, each time more of it arrives. */
+    onText?: (markdown: string) => void;
+    signal?: AbortSignal;
+};
+
 async function generateBodyText(
     prompt: string,
     system: string,
-    options: AIRequestOptions,
+    options: AIBodyOptions,
     maxTokensOverride: number,
 ): Promise<string> {
     const request = {
@@ -772,16 +1011,41 @@ async function generateBodyText(
         maxTokensOverride,
         phase: 'body' as const,
     };
+    const { onText, signal } = options;
 
+    /* Continued past the ceiling rather than cut: a body is placed as written,
+       so a truncated one used to land on the canvas mid-sentence. When the
+       runner is showing the body in its card as it arrives, the same answer is
+       streamed instead — continuation included — so the card fills in live. */
     try {
-        return await generateText(prompt, { ...request, system });
+        if (onText) {
+            let streamed = '';
+            const result = await streamText(prompt, {
+                ...request,
+                system,
+                thinking: 'off',
+                signal,
+                onDelta: (delta) => {
+                    streamed += delta;
+                    // Hide an opening ``` wrapper while it streams; the final
+                    // body is unwrapped by the caller either way.
+                    onText(streamed.replace(/^\s*```(?:markdown|md)?[ \t]*\n/, ''));
+                },
+            });
+            return result.text;
+        }
+        return (await generateCompleteText(prompt, { ...request, system })).text;
     } catch (error) {
         const status = typeof error === 'object' && error !== null
             ? (error as { status?: unknown }).status
             : undefined;
-        // Retrying cannot repair a missing session, forbidden model, or a
-        // deliberate rate limit — it would only spend another request.
-        if (status === 401 || status === 403 || status === 429) throw error;
+        /* Only a REJECTED request is worth re-shaping. This used to retry
+           everything except auth and rate limits, so a timeout (408) or an
+           overloaded model (5xx) — which requestAI had already retried, and
+           the server had already tried other models for — sent the whole body
+           again, up to another 45s, for a failure a folded system prompt
+           cannot fix. */
+        if (status !== 400 && status !== 422) throw error;
 
         return generateText(
             `[WRITING INSTRUCTIONS]\n${system}\n\n[REQUEST]\n${prompt}`,
@@ -811,7 +1075,7 @@ export async function composeArtifactBody(
         /** Names the deficit when this is a re-ask after a thin first body. */
         deficit?: string;
     },
-    options: AIRequestOptions = {},
+    options: AIBodyOptions = {},
 ): Promise<string> {
     const budget = effortBudget(options.effort);
     const isItem = Boolean(request.itemTitle);
@@ -950,7 +1214,7 @@ export async function composeItemBodies(
         context?: string;
         items: string[];
     },
-    options: AIRequestOptions = {},
+    options: AIBodyOptions = {},
 ): Promise<string> {
     const budget = effortBudget(options.effort);
     const perItem = Math.max(2, Math.round(budget.targetBlocks / 3));

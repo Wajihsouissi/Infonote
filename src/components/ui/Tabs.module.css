@@ -140,8 +140,14 @@
    An inset well with a raised cursor. The default, and the shape the app's
    existing segmented controls were all reaching for. */
 
+/* The track has to be a RECESS, and --hover-wash is a highlight: on Ink it
+   lightened the track to about #2a2a2a on a #1a1a1a card, which is lighter
+   than the --bg-raised cursor at #242424. The pill was reading as sunken and
+   the well as raised — the whole control inside out. --inset-wash darkens
+   whatever it is laid over, so the cursor is above its track on any surface
+   and in both themes. */
 .root[data-variant='solid'] {
-    background: var(--hover-wash);
+    background: var(--inset-wash);
 }
 
 .root[data-variant='solid'] .cursor {
@@ -237,8 +243,10 @@
 
 .root[data-color='primary'] .tab[data-selected] {
     /* On the filled accent the label rides on the accent itself, so it takes
-       the fixed on-accent ink rather than a theme-dependent text token. */
-    color: #fff;
+       the on-accent ink rather than a text token. That ink is BLACK in this
+       system, not white — the hardcoded #fff here was the one control
+       disagreeing with every other accent-filled button in the app. */
+    color: var(--on-accent);
 }
 
 .root[data-color='primary'] .tab[data-selected] .badge {

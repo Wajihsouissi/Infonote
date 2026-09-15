@@ -283,6 +283,40 @@
     margin-bottom: 12px;
 }
 
+/* The image half of the colour picker. A full-width row under the swatches
+   rather than an eleventh swatch: it opens a modal instead of applying a value,
+   so it should not look like something you can click through quickly. */
+.colorImageBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--text-soft);
+    font: inherit;
+    font-size: 0.74rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.colorImageBtn:hover,
+.colorImageBtn:focus-visible {
+    border-color: var(--line-strong);
+    background: var(--hover-wash);
+    color: var(--text-main);
+    outline: none;
+}
+
+.colorImageBtn svg {
+    flex-shrink: 0;
+    color: var(--accent-ink);
+}
+
 .colorOption {
     position: relative;
     width: 32px;

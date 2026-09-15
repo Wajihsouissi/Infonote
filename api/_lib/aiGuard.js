@@ -155,7 +155,7 @@ const DEFAULT_TEXT_MODEL_ALLOWLIST = [
   'gemini-3.5-flash-lite',
 ];
 
-function textModelAllowlist() {
+export function textModelAllowlist() {
   const configured = getEnv('AI_GATEWAY_TEXT_MODELS');
   const list = configured
     ? configured.split(',').map((m) => stripWrappingQuotes(m.trim())).filter(Boolean)
@@ -163,6 +163,18 @@ function textModelAllowlist() {
   // The workspace default is always selectable, whatever the list says.
   const fallback = getEnv('AI_GATEWAY_TEXT_MODEL', 'VITE_AI_GATEWAY_TEXT_MODEL');
   return fallback && !list.includes(fallback) ? [...list, fallback] : list;
+}
+
+/**
+ * Models to fall back to when the chosen one is overloaded or rate-limited,
+ * in order. Empty means aiUpstream.js's measured default order. Either way the
+ * allow-list above still filters it (see `modelChain`).
+ */
+export function getFallbackModels() {
+  return getEnv('AI_GATEWAY_FALLBACK_MODELS')
+    .split(',')
+    .map((m) => stripWrappingQuotes(m.trim()))
+    .filter(Boolean);
 }
 
 /**

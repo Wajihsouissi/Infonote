@@ -61,7 +61,7 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
     // State
     const [collapsedItems, setCollapsedItems] = useState<Set<string>>(new Set());
     const [activeItemId, setActiveItemId] = useState<string | null>(null);
-    const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
+    const [, setHoveredItemId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: OutlineItem } | null>(null);
 
@@ -638,7 +638,7 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
                         onClick={() => {
                             if (contextMenu.item.nodeId) {
                                 const targetNode = nodes.find(n => n.id === contextMenu.item.nodeId);
-                                const isCurrentPinned = (targetNode?.data as any)?.isPinned;
+                                const isCurrentPinned = (targetNode?.data as { isPinned?: boolean } | undefined)?.isPinned;
                                 updateNodeData(contextMenu.item.nodeId, { isPinned: !isCurrentPinned });
                             }
                             setContextMenu(null);
@@ -653,7 +653,7 @@ export function TableOfContentsPanel({ isOpen, onClose, buttonRef }: TableOfCont
                         onClick={() => {
                             if (contextMenu.item.nodeId) {
                                 const targetNode = nodes.find(n => n.id === contextMenu.item.nodeId);
-                                const isLocked = (targetNode?.data as any)?.isLocked;
+                                const isLocked = (targetNode?.data as { isLocked?: boolean } | undefined)?.isLocked;
                                 updateNodeData(contextMenu.item.nodeId, { isLocked: !isLocked });
                             }
                             setContextMenu(null);

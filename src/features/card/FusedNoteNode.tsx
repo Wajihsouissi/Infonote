@@ -33,19 +33,22 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<FusedNoteNo
     // Track fusion event for animation
     const [isFusing, setIsFusing] = useState(false);
     const [isHoveredLinking, setIsHoveredLinking] = useState(false);
-    const lastFusedTimeRef = useRef(data.lastFusedAt || 0);
+    const [lastFusedTime, setLastFusedTime] = useState(data.lastFusedAt || 0);
+    if ((data.lastFusedAt || 0) !== lastFusedTime) {
+        setLastFusedTime(data.lastFusedAt || 0);
+        setIsFusing(Boolean(data.lastFusedAt && data.lastFusedAt > lastFusedTime));
+    }
 
-    const isInteractive = selected;
+    // Part of a multi-selection stays in drag-handle mode rather than opening
+    // for editing — otherwise grabbing one selected node to move the group
+    // landed on its editable content instead of dragging anything.
+    const isInteractive = selected && !isMultiSelected;
     useEffect(() => {
-        if (data.lastFusedAt && data.lastFusedAt > lastFusedTimeRef.current) {
-            setIsFusing(true);
+        if (isFusing) {
             const timer = setTimeout(() => setIsFusing(false), 500);
-            lastFusedTimeRef.current = data.lastFusedAt;
             return () => clearTimeout(timer);
         }
-        // Sync ref if data is older or same (e.g. init)
-        if (data.lastFusedAt) lastFusedTimeRef.current = data.lastFusedAt;
-    }, [data.lastFusedAt]);
+    }, [data.lastFusedAt, isFusing]);
 
     const contentRef = useRef<HTMLDivElement>(null);
     const nodeRef = useRef<HTMLDivElement>(null);
@@ -348,7 +351,12 @@ export const FusedNoteNode = memo(({ id, data, selected }: NodeProps<FusedNoteNo
                 className={`${styles.content} nodrag`} 
                 data-scrollable="true"
                 ref={contentRef}
-                onWheelCapture={(e) => e.stopPropagation()}
+                // Keep the wheel for the note only when it has something to
+                // scroll; otherwise (and for pinches) let the canvas zoom.
+                onWheelCapture={(e) => {
+                    const el = e.currentTarget;
+                    if (!e.ctrlKey && el.scrollHeight > el.clientHeight + 1) e.stopPropagation();
+                }}
                 onPointerDown={(e) => {
                     e.stopPropagation();
                 }}

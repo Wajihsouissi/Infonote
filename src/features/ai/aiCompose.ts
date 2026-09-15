@@ -11,7 +11,7 @@
 
 import { composeArtifactBody, type AIRequestOptions, type AIStructuredAction } from '../../services/aiService';
 import { effortBudget } from '../../config/aiEffort';
-import { parsePlainText } from '../editor/pasteUtils';
+import { parseAIContent } from '../editor/pasteUtils';
 import { normalizeAIText } from './aiResultUtils';
 import type { Block } from '../editor/types';
 
@@ -36,7 +36,7 @@ export interface BodyResult {
 }
 
 /**
- * Count what `parsePlainText` will actually make of this markdown.
+ * Count what `parseAIContent` will actually make of this markdown.
  *
  * Counting the parser's output rather than the raw text is the whole point:
  * asking the model for "12 blocks" is meaningless unless the thing measured is
@@ -45,7 +45,7 @@ export interface BodyResult {
  * and this is what notices.
  */
 export function measureBody(markdown: string): { blocks: number; types: number } {
-    const parsed: Block[] = parsePlainText(markdown);
+    const parsed: Block[] = parseAIContent(markdown);
     const meaningful = parsed.filter((block) => {
         if (block.type === 'divider') return true;
         return typeof block.content === 'string' ? block.content.trim().length > 0 : true;
@@ -66,7 +66,11 @@ export function measureBody(markdown: string): { blocks: number; types: number }
  */
 export async function composeBody(
     request: BodyRequest,
-    options: AIRequestOptions & { signal?: AbortSignal } = {},
+    options: AIRequestOptions & {
+        signal?: AbortSignal;
+        /** Called with the full text so far while the FIRST attempt streams. */
+        onText?: (markdown: string) => void;
+    } = {},
 ): Promise<BodyResult> {
     const budget = effortBudget(options.effort);
     const isItem = Boolean(request.itemTitle);
@@ -76,6 +80,11 @@ export async function composeBody(
     /* Repair emphasis the model glued to neighbouring words before anything
        measures or stores it, so the canvas card and the panel agree. */
     const markdown = normalizeAIText(await composeArtifactBody(request, options));
+    /* A thin first body is re-asked below WITHOUT streaming: the retry could
+       come back worse, and the richer of the two is chosen only once both
+       exist, so replaying the second one into the card could show text that
+       is then thrown away. */
+    const quietOptions = { ...options, onText: undefined };
     if (options.signal?.aborted) throw new DOMException('Stopped', 'AbortError');
 
     const first = measureBody(markdown);
@@ -91,7 +100,7 @@ export async function composeBody(
         flat ? `It needs at least ${minTypes} different block types — add a table, a checklist, headings or a quote where they genuinely help.` : '',
     ].filter(Boolean).join(' ');
 
-    const second = normalizeAIText(await composeArtifactBody({ ...request, deficit }, options));
+    const second = normalizeAIText(await composeArtifactBody({ ...request, deficit }, quietOptions));
     if (options.signal?.aborted) throw new DOMException('Stopped', 'AbortError');
 
     const retry = measureBody(second);
@@ -112,6 +121,13 @@ export async function composeBody(
 
 /** How many item bodies to ask for in one call. */
 export const ITEM_BATCH_SIZE = 5;
+
+/**
+ * Item batches of ONE board or timeline allowed in flight together. Nested
+ * inside the per-artifact concurrency, so kept small: the product of the two is
+ * what reaches the gateway at once.
+ */
+export const ITEM_BATCH_CONCURRENCY = 2;
 
 /**
  * Split a heading-delimited batch reply back into `title -> body`.

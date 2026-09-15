@@ -100,7 +100,8 @@ export function useBlockSelection({ editorRef, blocks, blocksRef, blockRefs }: S
                 if (isOutside) {
                     window.getSelection()?.removeAllRanges();
                     if (editorRef.current) {
-                        editorRef.current.focus();
+                        // A tall editor would otherwise be scrolled to its top.
+                        editorRef.current.focus({ preventScroll: true });
                     }
 
                     const computedStyle = editorRef.current ? getComputedStyle(editorRef.current) : null;
@@ -218,8 +219,8 @@ export function useBlockSelection({ editorRef, blocks, blocksRef, blockRefs }: S
     }, [editorRef]); // Removed selectedBlockIds.size - use ref instead
 
     // Throttled selection change handler for floating toolbar
-    const throttledSelectionChange = useMemo(
-        () => throttle(() => {
+    useEffect(() => {
+        const throttledSelectionChange = throttle(() => {
             const selection = window.getSelection();
             if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
                 if (selectionRectRef.current !== null) {
@@ -247,15 +248,10 @@ export function useBlockSelection({ editorRef, blocks, blocksRef, blockRefs }: S
                 selectionRectRef.current = null;
                 setSelectionRect(null);
             }
-        }, 100), // Throttle to 10 updates/second max
-        [editorRef]
-    );
-
-    // Selection Monitor for Floating Toolbar - now throttled
-    useEffect(() => {
+        }, 100);
         document.addEventListener('selectionchange', throttledSelectionChange);
         return () => document.removeEventListener('selectionchange', throttledSelectionChange);
-    }, [throttledSelectionChange]);
+    }, [editorRef]);
 
     const handleSelectionMouseDown = useCallback((e: React.MouseEvent, id: string) => {
         if (e.shiftKey && selectedBlockIdsRef.current.size > 0) {

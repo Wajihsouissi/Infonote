@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileText, GitBranch, Link2 } from 'lucide-react';
-import { SceneStage, Plane, Board, Wires, Wire, NodeCard, Ghost, Line, Chip } from './scene-kit';
+import { SceneStage, Plane, Wires, Wire, NodeCard, Ghost, Line, Chip } from './scene-kit';
 
 /**
  * "Zettelkasten" — atomic notes, interconnected.

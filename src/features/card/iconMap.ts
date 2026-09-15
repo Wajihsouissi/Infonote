@@ -86,3 +86,8 @@ function SolarCardIcon({ icon, size = 20, className, style }: CardIconProps) {
         style: { color: colour, ...style },
     });
 }
+
+export function getIconByName(iconName: string): ReturnType<typeof solarIconComponent> {
+    const baseName = iconName ? iconName.split('::')[0] : '';
+    return solarIconComponent(baseName || defaultIconName);
+}

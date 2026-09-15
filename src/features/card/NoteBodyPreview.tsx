@@ -8,7 +8,7 @@
  */
 import { createElement, memo, type CSSProperties } from 'react';
 import { ChevronRight, Copy, ExternalLink, FileText, ImageOff, Play, Tv } from '../../components/icons';
-import { getIconByName } from '../card/IconPicker';
+import { getIconByName } from '../card/iconMap';
 import { normalizeTableRows, renderContentWithLinks } from '../editor/pasteUtils';
 import type { Block, BlockMetadata } from '../editor/types';
 import editorStyles from '../editor/BlockEditor.module.css';

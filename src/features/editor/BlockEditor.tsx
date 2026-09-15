@@ -456,7 +456,28 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
 
     // Listen for drag completion events — restore focus after native HTML5 drag blurs it
     const dragClearedRef = useRef(false);
+    /* Focus restored after a drag is bookkeeping, not navigation: the block it
+       lands on must not pull the note's scroll position towards itself. */
+    const suppressFocusScrollRef = useRef(false);
     useEffect(() => {
+        /* Restore into a block the person can already see. Picking the
+           document's first block put the caret off-screen and scrolled the note
+           back to the top after every drag. */
+        const firstVisibleBlockId = (ids: string[]) => {
+            for (const blockId of ids) {
+                const el = blockRefs.current[blockId];
+                if (!el?.isConnected) continue;
+                const container = el.closest('[class*="custom-scrollbar"]')
+                    || el.closest('[class*="noteArea"]')
+                    || el.closest('[style*="overflow-y"]');
+                if (!container) return blockId;
+                const c = container.getBoundingClientRect();
+                const r = el.getBoundingClientRect();
+                if (r.bottom > c.top && r.top < c.bottom) return blockId;
+            }
+            return ids[0];
+        };
+
         const tryFocusEditor = () => {
             // Guard: if this editor's node no longer exists or has no content, do NOT
             // attempt to restore focus — the node was likely the drag source and was
@@ -470,14 +491,15 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                     return false;
                 }
                 caretPositionRef.current = 'end';
-                setFocusId(freshBlocks[0].id);
+                suppressFocusScrollRef.current = true;
+                setFocusId(firstVisibleBlockId((freshBlocks as { id: string }[]).map(b => b.id)));
                 return true;
             }
             // No nodeId (standalone editor not linked to a canvas node): use local blocks
-            const firstBlock = blocksRef.current[0];
-            if (firstBlock) {
+            if (blocksRef.current.length > 0) {
                 caretPositionRef.current = 'end';
-                setFocusId(firstBlock.id);
+                suppressFocusScrollRef.current = true;
+                setFocusId(firstVisibleBlockId(blocksRef.current.map(b => b.id)));
                 return true;
             }
             return false;
@@ -629,18 +651,30 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
             || el.closest('[style*="overflow-y"]')
             || el.parentElement;
 
-        if (scrollContainer && scrollContainer !== document.body) {
+        const skipScroll = suppressFocusScrollRef.current;
+        suppressFocusScrollRef.current = false;
+
+        if (skipScroll) {
+            // Focus restored after a drag: leave the note where the person put it.
+        } else if (scrollContainer && scrollContainer !== document.body) {
             const containerRect = scrollContainer.getBoundingClientRect();
             const elRect = el.getBoundingClientRect();
-            
+            // Rects are screen pixels, scaled by the canvas zoom; scrollTop is in
+            // the container's own pixels. Convert before mixing them, or any zoom
+            // other than 1 scrolls to the wrong place — often all the way up.
+            const box = scrollContainer as HTMLElement;
+            const scale = box.offsetHeight ? containerRect.height / box.offsetHeight : 1;
+
             // Check if element is out of view vertically
             if (elRect.bottom > containerRect.bottom || elRect.top < containerRect.top) {
                 // Scroll the container to center the element
-                const scrollTarget = scrollContainer.scrollTop + (elRect.top - containerRect.top) - (containerRect.height / 2) + (elRect.height / 2);
-                scrollContainer.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+                const scrollTarget = box.scrollTop
+                    + ((elRect.top - containerRect.top) - (containerRect.height / 2) + (elRect.height / 2)) / scale;
+                box.scrollTo({ top: scrollTarget, behavior: 'smooth' });
             }
-        } else {
-            // Safari/older browser fallback, use nearest to avoid large canvas jumps
+        } else if (!el.closest('.react-flow__node')) {
+            // Outside the canvas, retain the document-editor fallback. Inside a
+            // React Flow node it can bubble to the board and move the camera.
             try {
                 el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             } catch {
@@ -1393,7 +1427,6 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                                 const el = document.getElementById('block-' + newId)?.querySelector('[contenteditable="true"]');
                                 if (el instanceof HTMLElement) {
                                     el.focus({ preventScroll: true });
-                                    window.dispatchEvent(new CustomEvent('panToNode', { detail: { id: newNodeId } }));
                                 }
                             }, 50);
                             return;
@@ -1526,7 +1559,6 @@ export const BlockEditor = memo(function BlockEditor({ initialContent, onUpdate,
                         const el = document.getElementById('block-' + newBlockId)?.querySelector('[contenteditable="true"]');
                         if (el instanceof HTMLElement) {
                             el.focus({ preventScroll: true });
-                            window.dispatchEvent(new CustomEvent('panToNode', { detail: { id: newNodeId } }));
                             try {
                                 const selection = window.getSelection();
                                 const range = document.createRange();

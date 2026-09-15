@@ -64,6 +64,10 @@ export type NoteData = {
     assignee?: string;
     url?: string;
     color?: string;
+    /** Image that paints this node’s ambient colour field. Independent of
+     *  `coverImage`: the ambient is a way of colouring a node, chosen from the
+     *  colour picker alongside the ten hues, not a property of having a cover. */
+    ambientImage?: string;
 
     progress?: number; // 0-100 completion percentage
     /**
@@ -128,6 +132,10 @@ export type BlockNodeData = BoardPlanningFields & {
     isStandaloneBlock?: boolean; // Flag to indicate standalone canvas block (not part of parent content)
     lastFusedAt?: number;
     color?: string;
+    /** Image that paints this node’s ambient colour field. Independent of
+     *  `coverImage`: the ambient is a way of colouring a node, chosen from the
+     *  colour picker alongside the ten hues, not a property of having a cover. */
+    ambientImage?: string;
     // Transient: AI generation placeholder skeleton
     isAISkeleton?: boolean;
     label?: string;
@@ -149,6 +157,10 @@ export type FusedNoteNodeData = BoardPlanningFields & {
     // Animation Triggers
     lastFusedAt?: number;
     color?: string;
+    /** Image that paints this node’s ambient colour field. Independent of
+     *  `coverImage`: the ambient is a way of colouring a node, chosen from the
+     *  colour picker alongside the ten hues, not a property of having a cover. */
+    ambientImage?: string;
 };
 
 export type FusedNoteNode = Node<FusedNoteNodeData, 'fused-note'> & { parentId?: string | null };

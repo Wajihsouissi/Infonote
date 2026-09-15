@@ -25,18 +25,18 @@ Two former entries have since come back IN: kanban/views (E24–26), rebuilt and
 
 ## Save model (freemium, local-first)
 
-### Limits (confirmed 2026-07-10)
+### Limits (temporary beta configuration)
 
-- **Everyone (signed in or not): max 50 nodes per canvas** — a product/performance guard for beta. Blocking-with-message on create, NEVER trim on load (audit item #11 lesson: a canvas loaded with >50 existing nodes renders fully; only new creation is blocked there).
+- **Cards and nodes: unlimited for everyone, including anonymous users.** The former 25-card anonymous quota and 50-nodes-per-canvas cap are temporarily disabled.
 - **Blocks inside the editor: unlimited for everyone.** No block quota anywhere.
-- **Anonymous only: max 3 cards total · canvas nesting max 3 levels deep.** Signing in lifts these two.
+- **Anonymous only: canvas nesting max 3 levels deep.** Signing in lifts this safeguard.
 
 ### Anonymous — no login required
 
-- Full core experience within the limits above.
+- Full core experience without card or node quotas.
 - Work already persists in this browser via the IndexedDB snapshot (survives refresh/crash). It does NOT follow the user across devices or survive clearing browser data — the reminder copy must say this honestly: *"Your work only lives in this browser. Sign in to keep it safe."* (not "your work isn't saved", which is false and undermines trust).
 - **Periodic sign-in reminder:** non-blocking toast/banner. Shows after the first meaningful edit, then roughly every 10 minutes, and immediately when a quota limit is hit. Dismissible, never interrupts typing, never a blocking modal mid-work.
-- **Hitting a limit:** the create action is blocked with an inline modal — e.g. "You've reached the free limit of 3 cards. Sign in to create unlimited cards." Existing content is never deleted or locked.
+- **Hitting a limit:** only the anonymous nesting safeguard can block creation; existing content is never deleted or locked.
 
 ### On first app launch — storage choice modal
 
@@ -55,9 +55,9 @@ Cloud sync becomes part of a paid Pro tier. Keep the storage-mode preference as 
 
 ## Resolved decisions (2026-07-10)
 
-- Blocks are **unlimited** everywhere; the "50" is a **50-nodes-per-canvas cap for all beta users**.
+- Blocks, cards and nodes are **unlimited** for the current beta configuration.
 - The first-launch storage modal has **no pre-selected default** — the user actively picks This device or This device + cloud.
-- A signed-in user who logs out keeps everything visible/editable but cannot create beyond the anonymous quota.
+- A signed-in user who logs out keeps everything visible/editable; anonymous nesting still cannot exceed three levels.
 
 ---
 
@@ -73,8 +73,8 @@ Cloud sync becomes part of a paid Pro tier. Keep the storage-mode preference as 
 - AI endpoints auth-gated + rate-limited (QA ✅)
 
 **To build (the last feature work before freeze):**
-1. Limit enforcement in `addNode` (single creation entry point, nodeSlice.ts): 50 nodes/canvas for everyone; 3 cards + 3 nesting levels when not signed in. Small usage indicator (e.g. "2/3 cards" anon, "48/50 nodes" near the cap)
-2. Limit-reached modals — sign-in CTA for anonymous limits; friendly "this canvas is full — nest a canvas or start another" for the 50-node cap
+1. Limit enforcement in `addNode` (single creation entry point, nodeSlice.ts): anonymous nesting is limited to 3 levels; card and node quotas are disabled.
+2. Limit-reached modal — sign-in CTA for anonymous nesting only
 3. Periodic sign-in reminder toast (cadence + dismissal state in localStorage)
 4. Copy pass over all new limit/reminder surfaces
 

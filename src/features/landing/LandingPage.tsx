@@ -84,7 +84,7 @@ const ON_THE_BENCH = [
 ];
 
 const HOUSE_RULES = [
-  '50 nodes per canvas — keeps the beta fast',
+  'Unlimited cards and canvas nodes during beta',
   'Blocks inside cards are unlimited',
   'Cloud sync is free for the whole beta',
   'Rough edges expected — tell us about them',

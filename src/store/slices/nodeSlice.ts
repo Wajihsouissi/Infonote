@@ -1341,7 +1341,13 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
                         ...n,
                         data: {
                             ...n.data,
-                            color: color === 'transparent' ? undefined : color
+                            color: color === 'transparent' ? undefined : color,
+                            /* Clearing the colour clears the image with it. They
+                               are two ways of choosing the same thing — the
+                               node's ambient — so "no colour" has to mean no
+                               ambient, or the swatch would appear to do nothing
+                               on a node coloured by image. */
+                            ...(color === 'transparent' ? { ambientImage: undefined } : {}),
                         }
                     } as AppNode;
                 }
@@ -1351,6 +1357,22 @@ export const createNodeSlice: StateCreator<AppState, [], [], NodeSlice> = (set, 
         get().setCloudDirty?.(true);
 
         if (DEBUG) console.log("[bulkApplyColor] Completed");
+    },
+
+    /**
+     * The other half of the colour picker: an image the node is coloured BY.
+     * Sets the image and drops the hue, since a node carries one ambient and
+     * the two sources would otherwise stack.
+     */
+    bulkApplyAmbientImage: (nodeIds: string[], url: string) => {
+        set((state) => ({
+            nodes: state.nodes.map(n => (
+                nodeIds.includes(n.id)
+                    ? { ...n, data: { ...n.data, ambientImage: url || undefined, color: undefined } } as AppNode
+                    : n
+            ))
+        }));
+        get().setCloudDirty?.(true);
     },
 
     fuseNodes: (nodeIds: string[], skipConfirm?: boolean) => {

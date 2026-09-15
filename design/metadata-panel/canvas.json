@@ -1,0 +1,48 @@
+{
+  "artboards": [
+    {
+      "file": "Current.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 620,
+      "h": 1180,
+      "title": "Today"
+    },
+    {
+      "file": "Main.dc.html",
+      "x": 740,
+      "y": 0,
+      "w": 620,
+      "h": 1180,
+      "title": "A · Property sheet"
+    },
+    {
+      "file": "OptionB.dc.html",
+      "x": 1480,
+      "y": 0,
+      "w": 620,
+      "h": 1180,
+      "title": "B · Segmented"
+    },
+    {
+      "file": "OptionC.dc.html",
+      "x": 2220,
+      "y": 0,
+      "w": 620,
+      "h": 1180,
+      "title": "C · Summary first"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "brief",
+      "x": 0,
+      "y": 1280,
+      "w": 620,
+      "text": "Three directions for the Properties panel, each pushing a different axis.\n\nA — density. The label moves beside the value, so the whole card fits on one screen.\nB — segmentation. Three short tabs instead of one long column, using the Tabs control the app already has.\nC — progressive disclosure. Chips for the values you scan; controls open only when you edit.\n\n\"Today\" on the left is the current panel at the same scale, for comparison. All four use the real Ink tokens."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

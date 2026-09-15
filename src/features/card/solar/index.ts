@@ -1,4 +1,5 @@
-import { useSyncExternalStore } from 'react';
+import { LazySolarIcon } from './LazySolarIcon';
+import { createElement, useSyncExternalStore } from 'react';
 import type { LucideIcon, LucideProps } from '../../../components/icons';
 import { makeIcon } from '../../../components/icons/createIcon';
 import { SOLAR_CORE } from './solarCore';
@@ -114,19 +115,13 @@ export function useSolarBody(stored: string): { name: string; body: string | nul
  * distinct icons are pending — nothing for the reconciler to churn through
  * when a batch of them resolve together.
  */
-function LazySolarIcon({ name, ...props }: LucideProps & { name: string }) {
-    const resolved = useSolarBody(name);
-    if (!resolved.body) return null;
-    const Resolved = componentFor(resolved.name, resolved.body);
-    return <Resolved {...props} />;
-}
 
 const lazyIconCache = new Map<string, LucideIcon>();
 
 function lazyIconFor(name: string): LucideIcon {
     let icon = lazyIconCache.get(name);
     if (!icon) {
-        icon = ((props: LucideProps) => <LazySolarIcon name={name} {...props} />) as unknown as LucideIcon;
+        icon = ((props: LucideProps) => createElement(LazySolarIcon, { name, ...props })) as unknown as LucideIcon;
         (icon as unknown as { displayName: string }).displayName = `Solar(${name})`;
         lazyIconCache.set(name, icon);
     }

@@ -1,4 +1,4 @@
-import { memo, useState, useLayoutEffect, useCallback, useRef, useMemo, useEffect } from 'react';
+import { memo, useState, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import { Handle, Position, type NodeProps, useReactFlow, useConnection } from '@xyflow/react';
 import { StickyNote, Copy, Check, Loader2, Maximize2, ChevronsDownUp } from '../../components/icons';
 import { BlockEditor } from '../editor/BlockEditor';
@@ -9,7 +9,8 @@ import { getNodeById } from '../../store/nodeIndex';
 import type { AppNode, NoteNode } from '../../types';
 import type { Block } from '../editor/types';
 import styles from './BlockNode.module.css';
-import { MIN_EXPANDED_SIZE, ICON_SIZE, MAX_HEIGHT } from '../../config/layout';
+import { MIN_EXPANDED_SIZE, ICON_SIZE, MAX_HEIGHT, MAX_WIDTH, MEDIUM_SIZE, BASE_UNIT, getStrictSize } from '../../config/layout';
+import { HIGHLIGHT_PATTERN } from '../editor/inlineFormat';
 import { isMediaType } from '../editor/mediaTypes';
 import { isGalleryType, GALLERY_NODE_WIDTH, GALLERY_MIN_ROW } from '../editor/galleryTypes';
 import {
@@ -42,6 +43,29 @@ const STANDARD_BLOCK_NODE_TYPES = new Set([
     'text', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered',
     'todo', 'callout', 'code', 'quote', 'link', 'toggle',
 ]);
+
+/* Blocks whose whole content is a line of prose. Converting one of these to a
+   card has an obvious title — the line itself — so it becomes a title-view
+   card. A todo (its tick would be lost), code (its formatting is the point), a
+   link, and a toggle (it has children) all keep the block as card content. */
+const TITLE_BLOCK_TYPES = new Set([
+    'text', 'heading1', 'heading2', 'heading3', 'bullet', 'numbered', 'quote', 'callout',
+]);
+
+/** Markdown is the storage format; a card title wants the words only. */
+function titleFromBlock(raw: string): string {
+    return raw
+        .replace(HIGHLIGHT_PATTERN, '$2')
+        .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+        .replace(/\*\*(.+?)\*\*/g, '$1')
+        .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '$1')
+        .replace(/\+\+(.+?)\+\+/g, '$1')
+        .replace(/~~(.+?)~~/g, '$1')
+        .replace(/`(.+?)`/g, '$1')
+        .replace(/^#{1,6}\s*/, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
 
 /** Whether this content uses the compact standalone-block shell. */
 function usesStandardBlockShell(blocks: Block[]) {
@@ -125,7 +149,10 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
     // Selection must be usable on the frame it is painted. The previous 300ms
     // timer made standalone blocks feel slower than cards and compounded the
     // contextual-toolbar swap cost.
-    const isInteractive = selected;
+    // Part of a multi-selection stays in drag-handle mode rather than opening
+    // for editing — otherwise grabbing one selected block to move the group
+    // landed on its editable content instead of dragging anything.
+    const isInteractive = selected && !isMultiSelected;
 
     /** Where a press on an empty media node started, to tell a click from a drag. */
     const mediaPressRef = useRef<{ x: number; y: number } | null>(null);
@@ -342,11 +369,32 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
         updateNodeData(id, { content: isStandardBlock && !isToggleRoot ? blocks.slice(0, 1) : blocks });
     }, [id, isStandardBlock, isToggleRoot, updateNodeData]);
 
+    const nodeRef = useRef<HTMLDivElement>(null);
+
     const handleConvertToCard = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
         const { nodes, setNodes } = useStore.getState();
         const thisNode = nodes.find(n => n.id === id);
         if (!thisNode) return;
+
+        /* A line of prose already carries its own title: the line. So a text
+           block becomes a TITLE-VIEW card whose title is that text, rather than
+           an expanded page repeating the same words in an otherwise empty body.
+           Everything else (media, tables, code, files…) still converts to the
+           expanded card that holds the block. */
+        const titleText = singleBlock && TITLE_BLOCK_TYPES.has(singleBlock.type)
+            ? titleFromBlock(singleBlock.content || '')
+            : '';
+        const asTitleCard = titleText.length > 0;
+
+        /* Title view is one grid unit tall. Its width keeps the block's own
+           measured width (snapped to the grid, floored at the stock 208px title
+           card) so the card lands where the text was instead of jumping size. */
+        const measuredWidth = nodeRef.current?.offsetWidth ?? MEDIUM_SIZE;
+        const width = asTitleCard
+            ? Math.min(MAX_WIDTH, Math.max(MEDIUM_SIZE, getStrictSize(measuredWidth)))
+            : MIN_EXPANDED_SIZE;
+        const height = asTitleCard ? BASE_UNIT : MIN_EXPANDED_SIZE;
 
         setNodes((currentNodes) => currentNodes.map(n => {
             if (n.id === id) {
@@ -354,24 +402,26 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
                     ...n,
                     type: 'note',
                     data: {
-                        label: data.label || 'Untitled Card',
-                        viewMode: 'expanded',
-                        content: colorBlocks,
+                        label: asTitleCard ? titleText : (data.label || 'Untitled Card'),
+                        viewMode: asTitleCard ? 'titleview' : 'expanded',
+                        // The words moved into the title — keeping the block as
+                        // content too would show the same line twice the moment
+                        // the card is opened or expanded.
+                        content: asTitleCard ? [] : colorBlocks,
                         description: '',
                         date: new Date().toISOString(),
                         color: data.color,
                         tags: [],
                         showMetadata: false
                     },
-                    style: { ...n.style, width: 432, height: 432 }
+                    style: { ...n.style, width, height }
                 } as AppNode;
             }
             return n;
         }));
-    }, [id, data.label, data.color, colorBlocks]);
+    }, [id, data.label, data.color, colorBlocks, singleBlock]);
 
     const activeResize = useRef(false);
-    const nodeRef = useRef<HTMLDivElement>(null);
 
     /* Node handle on a hand-sized table: the node is shrink-wrapped to the
        columns, so there is no node width to drag — instead the drag scales
@@ -585,6 +635,7 @@ export const BlockNode = memo(({ id, data, selected }: NodeProps<NoteNode>) => {
             `}
             data-user-sized={isUserSized ? 'true' : undefined}
             data-user-tall={isUserTall ? 'true' : undefined}
+            data-accented={accentColor && !isSingleColor ? '' : undefined}
             style={{
                 backgroundColor: ((isSingleMedia && !isMediaEmpty) || isLinkCard || isSingleGallery) ? 'transparent' : (isSingleColor ? singleColorValue : undefined),
                 ...dynamicStyles

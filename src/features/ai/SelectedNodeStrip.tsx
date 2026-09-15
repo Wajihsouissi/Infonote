@@ -96,10 +96,9 @@ export function SelectedNodeStrip({
                             <button
                                 type="button"
                                 className={styles.cardButton}
-                                /* CanvasBoard listens for this and setCenter()s
-                                   on the node — the same channel the editor uses
-                                   when it spawns a card off-screen. Reused
-                                   rather than wiring a second focus path. */
+                                /* This is an explicit "show on canvas" action:
+                                   CanvasBoard listens and centers the selected
+                                   card only after the person asks for it. */
                                 onClick={() => window.dispatchEvent(
                                     new CustomEvent('panToNode', { detail: { id: node.id } })
                                 )}

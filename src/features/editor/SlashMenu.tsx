@@ -75,11 +75,11 @@ export function SlashMenu({ anchorRect, filter, onSelect, onClose, nodeColor, th
     }, [displayColor, theme]);
 
     // Sync filter prop if it changes
-    useEffect(() => {
-        if (filter) {
-            setSearchQuery(filter);
-        }
-    }, [filter]);
+    const [previousFilter, setPreviousFilter] = useState(filter);
+    if (previousFilter !== filter) {
+        setPreviousFilter(filter);
+        setSearchQuery(filter || '');
+    }
 
     // Focus input and move cursor to the end
     useEffect(() => {
@@ -108,9 +108,11 @@ export function SlashMenu({ anchorRect, filter, onSelect, onClose, nodeColor, th
         );
     }, [searchQuery]);
 
-    useEffect(() => {
+    const [previousQuery, setPreviousQuery] = useState(searchQuery);
+    if (previousQuery !== searchQuery) {
+        setPreviousQuery(searchQuery);
         setSelectedIndex(0);
-    }, [filteredItems]);
+    }
 
     // Scroll selected item into view
     useEffect(() => {

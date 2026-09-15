@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { Block, BlockType, BlockMetadata } from '../types';
 
 /** Payload for handleBlockMenuAction, keyed to the action being performed. */
@@ -553,8 +553,31 @@ export function useBlockCommands({
         });
     }, [selectedBlockIds, setBlocks, debouncedOnUpdate]);
 
+    /* A drag (selecting blocks or text) that ends over the editor's own
+       background still delivers a click there. Measure the pointer gesture so
+       that click is not taken as "click empty space → add a block", which
+       appended a block and scrolled the note down to it. */
+    const pointerGestureRef = useRef<{ down: { x: number; y: number } | null; travelled: boolean }>({ down: null, travelled: false });
+    useEffect(() => {
+        const onDown = (e: PointerEvent) => {
+            pointerGestureRef.current = { down: { x: e.clientX, y: e.clientY }, travelled: false };
+        };
+        const onUp = (e: PointerEvent) => {
+            const { down } = pointerGestureRef.current;
+            if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) {
+                pointerGestureRef.current.travelled = true;
+            }
+        };
+        document.addEventListener('pointerdown', onDown, true);
+        document.addEventListener('pointerup', onUp, true);
+        return () => {
+            document.removeEventListener('pointerdown', onDown, true);
+            document.removeEventListener('pointerup', onUp, true);
+        };
+    }, []);
+
     const handleEditorClick = useCallback((e: React.MouseEvent, wasDragging: boolean) => {
-        if (wasDragging) return;
+        if (wasDragging || pointerGestureRef.current.travelled) return;
 
         if (e.target === editorRef.current) {
             e.preventDefault();

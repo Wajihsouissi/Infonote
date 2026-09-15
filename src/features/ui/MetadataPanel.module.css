@@ -246,6 +246,42 @@
     margin: 2px 0;
 }
 
+/* The section strip. Sits under the card's identity (cover, icon, title),
+   which belongs to all three groups rather than to any one of them. */
+.tabs {
+    margin: 2px 0 2px;
+}
+
+/* What is set on the tabs you are not looking at. Quiet by construction — it
+   is a report, and the tab it names is where you change any of it. */
+.summaryStrip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+}
+
+.summaryChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 24px;
+    padding: 0 9px;
+    border-radius: var(--radius-pill);
+    background: var(--hover-wash);
+    color: var(--text-faint);
+    font-size: 0.7rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.summaryChip svg {
+    flex-shrink: 0;
+    opacity: 0.85;
+}
+
 /* Panel-wide descendants overrides for professional Inter/system typography */
 .panel :global(input),
 .panel :global(select),

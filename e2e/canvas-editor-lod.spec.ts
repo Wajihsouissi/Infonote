@@ -157,6 +157,17 @@ test('standalone canvas blocks remain live and never use snapshots', async ({ pa
   await expect(standalone.locator('[data-chnk-it-block-editor]')).toHaveCount(1);
   await expect(standalone.locator('[data-canvas-card-preview="true"]')).toHaveCount(0);
 
+  // Enter creates the next standalone canvas block, but writing must not also
+  // recenter the board. The viewport is a direct guard against an accidental
+  // `panToNode` dispatch in the editor's focus hand-off.
+  const editor = standalone.locator('[contenteditable="true"]').first();
+  await editor.fill('Keep the camera still');
+  const viewport = page.locator('.react-flow__viewport');
+  const viewportBeforeEnter = await viewport.getAttribute('style');
+  await editor.press('Enter');
+  await page.waitForTimeout(550);
+  await expect(viewport).toHaveAttribute('style', viewportBeforeEnter ?? '');
+
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down({ button: 'middle' });
   await page.mouse.move(box.x + box.width / 2 - 60, box.y + box.height / 2 - 40, { steps: 8 });

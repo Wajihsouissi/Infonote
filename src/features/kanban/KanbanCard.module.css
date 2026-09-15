@@ -507,6 +507,12 @@
     padding-left: var(--gutter);
 }
 
+/* Each chip is a button, always — disabled while the card is only being read,
+   live once it is selected. One element rather than two means the reading view
+   and the editing view cannot drift apart by a pixel: same padding, same pill,
+   same type, so a selected card is exactly as tall as a resting one and the
+   lane never reflows under the selection. A disabled button takes no clicks,
+   which is what leaves the whole resting card to the drag. */
 .priority,
 .due,
 .tag {
@@ -514,11 +520,32 @@
     align-items: center;
     gap: 5px;
     padding: 3px 9px;
+    border: none;
     border-radius: var(--radius-pill);
+    font-family: inherit;
     font-size: 0.75rem;
     font-weight: 500;
     line-height: 1.5;
     white-space: nowrap;
+    transition: box-shadow var(--transition-fast);
+}
+
+/* The only difference a live chip shows at rest: the pointer. The ring waits
+   for the hover, so a selected card is not a row of outlined boxes. */
+.priority:not(:disabled),
+.due:not(:disabled),
+.tag:not(:disabled),
+.assignee:not(:disabled) {
+    cursor: pointer;
+}
+
+.priority:not(:disabled):hover,
+.due:not(:disabled):hover,
+.tag:not(:disabled):hover,
+.assignee:not(:disabled):hover {
+    /* Drawn inside the chip's own edge, in its own colour: an outer ring would
+       change the space a chip occupies and push its neighbours along. */
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 45%, transparent);
 }
 
 .priority {
@@ -562,41 +589,34 @@
     color: var(--text-soft);
 }
 
-/* ---------------------------------------------------------- meta editor */
+/* ------------------------------------------------------------ add a field
 
-/* Set off from the reading view by a rule, because unlike the rest of the card
-   this is chrome rather than content — it is where the chips above are set. It
-   runs the full width of the card rather than sitting in the text gutter, which
-   is what marks it as a different kind of thing. */
-.metaEditor {
-    display: flex;
-    flex-direction: column;
-    gap: var(--group);
-    margin-top: var(--row);
-    padding-top: var(--group);
-    border-top: 1px solid var(--line-strong);
-    cursor: default;
-}
+   The one control the reading view does not already have, so it is the one
+   thing that appears when a card is selected. Sized to the chips exactly —
+   3px padding either side of an 18px line is 24px — because a taller "+" would
+   set the row's height and undo the point of the whole layout.
 
-.metaEditorRow {
-    display: flex;
-    gap: var(--row);
-}
-
-.metaEditorField {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-    flex: 1 1 0;
-}
-
-.metaEditorLabel {
-    font-size: 0.6875rem;
-    font-weight: 500;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
+   An outline rather than a fill: it is an invitation, not a value, and a filled
+   chip here would read as a property the card already has. */
+.addMeta {
+    flex: none;
+    display: grid;
+    place-items: center;
+    height: 24px;
+    padding: 0 8px;
+    border: none;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--line-strong);
     color: var(--text-faint);
+    font-family: inherit;
+    cursor: pointer;
+    transition: box-shadow var(--transition-fast), color var(--transition-fast);
+}
+
+.addMeta:hover {
+    box-shadow: inset 0 0 0 1px var(--line-heavy);
+    color: var(--accent-ink);
 }
 
 .assignee {
@@ -606,10 +626,14 @@
     width: 22px;
     height: 22px;
     margin-left: auto;
+    padding: 0;
+    border: none;
     border-radius: 50%;
     background: color-mix(in srgb, var(--secondary) 22%, transparent);
     color: var(--secondary-ink);
+    font-family: inherit;
     font-size: 0.625rem;
     font-weight: 700;
     letter-spacing: 0.02em;
+    transition: box-shadow var(--transition-fast);
 }

@@ -4,12 +4,13 @@ import {
     Trash2, Copy, Palette, Layers, X, ArrowUpRight, ArrowRight, GitBranch,
     Grid3x3, CircleDot, ArrowRightLeft, Columns2, Rows2, Network, Sparkles,
     Eye, Scissors,
-    Square, RectangleHorizontal, StickyNote, PanelTop, Folder
+    Square, RectangleHorizontal, StickyNote, PanelTop, Folder, Image as ImageIcon
 } from '../../components/icons';
 import { useStore } from '../../store/useStore';
 import { Tooltip } from './Tooltip';
 import styles from './MultiSelectionToolbar.module.css';
 import type { AppNode } from '../../types';
+import { CoverPicker } from '../card/CoverPicker';
 
 interface MultiSelectionToolbarProps {
     isActive?: boolean;
@@ -27,6 +28,7 @@ export function MultiSelectionToolbar({ isActive = true }: MultiSelectionToolbar
     const requestNodeDeletion = useStore(s => s.requestNodeDeletion);
     const bulkDuplicateNodes = useStore(s => s.bulkDuplicateNodes);
     const bulkApplyColor = useStore(s => s.bulkApplyColor);
+    const bulkApplyAmbientImage = useStore(s => s.bulkApplyAmbientImage);
     const fuseNodes = useStore(s => s.fuseNodes);
     const releaseNodeContentToBlocks = useStore(s => s.releaseNodeContentToBlocks);
     const selectConnectedCanvasNodes = useStore(s => s.selectConnectedCanvasNodes);
@@ -36,6 +38,7 @@ export function MultiSelectionToolbar({ isActive = true }: MultiSelectionToolbar
     const setChunkItNodeId = useStore(s => s.setChunkItNodeId);
     
     const [showColorPicker, setShowColorPicker] = useState(false);
+    const [showAmbientPicker, setShowAmbientPicker] = useState(false);
     const [showLayoutPopover, setShowLayoutPopover] = useState(false);
     const [showViewsPopover, setShowViewsPopover] = useState(false);
     const colorPickerRef = useRef<HTMLDivElement>(null);
@@ -309,6 +312,18 @@ export function MultiSelectionToolbar({ isActive = true }: MultiSelectionToolbar
                                                 </button>
                                             ))}
                                         </div>
+                                        {/* The other way to colour a node: an image, blurred
+                                            into the same ambient field a hue produces. Sits in
+                                            the colour picker because that is what it is — a
+                                            colour choice — not a cover. */}
+                                        <button
+                                            type="button"
+                                            className={styles.colorImageBtn}
+                                            onClick={() => setShowAmbientPicker(true)}
+                                        >
+                                            <ImageIcon size={13} />
+                                            <span>Colour from image…</span>
+                                        </button>
                                     </div>
                                 )}
                             </div>
@@ -421,6 +436,21 @@ export function MultiSelectionToolbar({ isActive = true }: MultiSelectionToolbar
                         </button>
                     </Tooltip>
                 </>
+            )}
+
+            {/* The same modal the cover uses — an image is an image, and this
+                one just gets applied as the node's ambient rather than pinned
+                to the top of the card. */}
+            {showAmbientPicker && (
+                <CoverPicker
+                    currentCover=""
+                    onSelect={(url) => {
+                        bulkApplyAmbientImage(getSelectedIds(), url);
+                        setShowAmbientPicker(false);
+                        setShowColorPicker(false);
+                    }}
+                    onClose={() => setShowAmbientPicker(false)}
+                />
             )}
         </div>
     );

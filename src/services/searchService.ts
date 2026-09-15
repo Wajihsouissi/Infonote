@@ -6,7 +6,7 @@
 // Requires billing on the Google AI Studio key: grounded calls return a quota
 // error on the free tier even while ordinary AI calls on the same key succeed.
 // ============================================================
-import { supabase, isSupabaseConfigured } from './supabase/client';
+import { getAiAuthHeader } from './aiAuthHeader';
 import type { GroundingSpan } from '../features/ai/aiCitations';
 
 export interface GroundingCitation {
@@ -31,13 +31,7 @@ export interface GroundedAnswer {
 }
 
 /** Same gate as the other AI routes. */
-async function authHeader(): Promise<Record<string, string>> {
-    if (!isSupabaseConfigured || !supabase) throw new Error('Sign in to use AI features.');
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-    if (!token) throw new Error('Sign in to use AI features.');
-    return { Authorization: `Bearer ${token}` };
-}
+const authHeader = getAiAuthHeader;
 
 export async function groundedAsk(
     prompt: string,

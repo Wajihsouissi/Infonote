@@ -39,6 +39,15 @@ export const test = base.extend<{
     allowConsoleErrors: boolean;
     consoleErrors: string[];
 }>({
+    context: async ({ context }, provide) => {
+        await context.route('**/*', route => {
+            const url = new URL(route.request().url());
+            if (url.origin === 'http://127.0.0.1:5187' || !/^https?:$/.test(url.protocol)) return route.continue();
+            // Individual mockCloud/page routes take precedence over this guard.
+            return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+        });
+        await provide(context);
+    },
     allowConsoleErrors: [false, { option: true }],
 
     consoleErrors: [

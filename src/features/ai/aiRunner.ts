@@ -6,7 +6,7 @@ import type { AIProvenance, AppNode } from '../../types';
 import { getNodeBlocks } from '../../types';
 import { findNonOverlappingPosition } from '../../utils/findNonOverlappingPosition';
 import { GRID_GAP, MEDIUM_SIZE, snapToGridValue } from '../../config/layout';
-import { parsePlainText } from '../editor/pasteUtils';
+import { parseAIContent } from '../editor/pasteUtils';
 import {
     composeItemBodies,
     extractJsonFromString,
@@ -19,9 +19,11 @@ import {
     type AIRequestOptions,
     type AIStructuredAction,
 } from '../../services/aiService';
-import { composeBody, mapWithConcurrency, splitItemBodies, ITEM_BATCH_SIZE } from './aiCompose';
+import { composeBody, mapWithConcurrency, splitItemBodies, ITEM_BATCH_CONCURRENCY, ITEM_BATCH_SIZE } from './aiCompose';
 import { recordAIRun } from './aiTelemetry';
 import { normalizeAIText } from './aiResultUtils';
+import { createCanvasStreamWriter } from './aiCanvasStream';
+import type { Block } from '../editor/types';
 import { effortBudget, structuredEffortDirective } from '../../config/aiEffort';
 import { nodeTitle } from './canvasContext';
 import type { AIPhase, AITraceDetail } from './aiTypes';
@@ -104,6 +106,12 @@ export interface RunnerContext {
      * any opinion about how the revert is offered.
      */
     edits?: AIEditSnapshot[];
+    /**
+     * Called as soon as a run has placed its (still empty) artifacts, before
+     * any body is written — so the panel can focus the canvas on them and the
+     * user watches the content stream in, instead of seeing it all at the end.
+     */
+    onPlaced?: (nodeIds: string[]) => void;
 }
 
 /** One card as it was before an AI edit overwrote it. */
@@ -244,7 +252,7 @@ Respond ONLY with a valid JSON object. No markdown, no code fences, no commentar
             const update: Record<string, unknown> = {};
 
             if (newContent) {
-                const blocks = parsePlainText(newContent);
+                const blocks = parseAIContent(newContent);
                 update.content = blocks.length > 0 ? blocks : [{ id: uuidv4(), type: 'text', content: newContent }];
             }
             if (node.type === 'note') {
@@ -643,7 +651,15 @@ function sizeFor(action: AIStructuredAction, mindmapLayout: RunnerContext['mindm
  * nothing else. The cards stay real notes, editable and searchable, and pulling
  * one off the board later leaves it intact.
  */
-function placeBoard(action: AIStructuredAction, position: { x: number; y: number }, ctx: RunnerContext): { ids: string[]; label: string } {
+/** What placement created, with each titled item's node so its body can stream in. */
+interface PlacedArtifact {
+    ids: string[];
+    label: string;
+    /** Board cards / timeline steps, in item order. Absent for single-node artifacts. */
+    items?: { title: string; nodeId: string }[];
+}
+
+function placeBoard(action: AIStructuredAction, position: { x: number; y: number }, ctx: RunnerContext): PlacedArtifact {
     const { addNode } = useStore.getState();
     const boardId = uuidv4();
 
@@ -677,6 +693,7 @@ function placeBoard(action: AIStructuredAction, position: { x: number; y: number
 
     const laneValues = new Set(data.columns.map((c) => c.value));
     const cardIds: string[] = [];
+    const items: { title: string; nodeId: string }[] = [];
     const step = MEDIUM_SIZE + GRID_GAP;
 
     (action.cards ?? []).forEach((card, index) => {
@@ -686,7 +703,7 @@ function placeBoard(action: AIStructuredAction, position: { x: number; y: number
         // A value no lane carries would strand the card in the unsorted lane, so
         // only honour one the board actually has.
         const laneValue = laneValues.has(requested) ? requested : '';
-        const blocks = parsePlainText(card.content || '');
+        const blocks = parseAIContent(card.content || '');
 
         addNode(
             'note',
@@ -708,7 +725,10 @@ function placeBoard(action: AIStructuredAction, position: { x: number; y: number
             boardId,
             cardId
         );
-        if (useStore.getState().nodes.some((n) => n.id === cardId)) cardIds.push(cardId);
+        if (useStore.getState().nodes.some((n) => n.id === cardId)) {
+            cardIds.push(cardId);
+            items.push({ title: card.title, nodeId: cardId });
+        }
     });
 
     if (cardIds.length > 0) {
@@ -718,6 +738,7 @@ function placeBoard(action: AIStructuredAction, position: { x: number; y: number
     return {
         ids: [boardId, ...cardIds],
         label: `Board “${action.title}” (${data.columns.length} lanes, ${cardIds.length} cards)`,
+        items,
     };
 }
 
@@ -729,12 +750,13 @@ function placeBoard(action: AIStructuredAction, position: { x: number; y: number
  * canvas already has: a row of cards and the directed edges between them. That
  * keeps every step a real, editable note instead of a cell in a widget.
  */
-function placeTimeline(action: AIStructuredAction, position: { x: number; y: number }, ctx: RunnerContext): { ids: string[]; label: string } {
+function placeTimeline(action: AIStructuredAction, position: { x: number; y: number }, ctx: RunnerContext): PlacedArtifact {
     const { addNode } = useStore.getState();
     const milestones = (action.milestones ?? []).filter((m) => m?.title);
     if (milestones.length === 0) return { ids: [], label: '' };
 
     const ids: string[] = [];
+    const items: { title: string; nodeId: string }[] = [];
     const edges: Edge[] = [];
 
     milestones.forEach((milestone, index) => {
@@ -745,7 +767,7 @@ function placeTimeline(action: AIStructuredAction, position: { x: number; y: num
         const body = milestone.date
             ? `**${milestone.date}**\n\n${milestone.content || ''}`.trim()
             : (milestone.content || '');
-        const blocks = parsePlainText(body);
+        const blocks = parseAIContent(body);
         addNode(
             'note',
             { x: position.x + index * (MILESTONE_SIZE.width + TIMELINE_GAP), y: position.y },
@@ -785,13 +807,14 @@ function placeTimeline(action: AIStructuredAction, position: { x: number; y: num
             });
         }
         ids.push(id);
+        items.push({ title: milestone.title, nodeId: id });
     });
 
     if (edges.length > 0) {
         useStore.setState((prev: AppState) => ({ edges: [...prev.edges, ...edges] }));
     }
 
-    return { ids, label: `Timeline “${action.title}” (${ids.length} steps)` };
+    return { ids, label: `Timeline “${action.title}” (${ids.length} steps)`, items };
 }
 
 /** Does this rectangle touch anything already on the current canvas level? */
@@ -834,7 +857,7 @@ function findBlockOrigin(blockW: number, blockH: number, ctx: RunnerContext): { 
 }
 
 /** Place one structured action at `position`. Returns the ids it created. */
-function placeAction(action: AIStructuredAction, position: { x: number; y: number }, ctx: RunnerContext): { ids: string[]; label: string } {
+function placeAction(action: AIStructuredAction, position: { x: number; y: number }, ctx: RunnerContext): PlacedArtifact {
     if (action.type === 'board') return placeBoard(action, position, ctx);
     if (action.type === 'timeline') return placeTimeline(action, position, ctx);
 
@@ -843,7 +866,7 @@ function placeAction(action: AIStructuredAction, position: { x: number; y: numbe
 
     if (action.type === 'note') {
         const id = uuidv4();
-        const blocks = parsePlainText(action.content || '');
+        const blocks = parseAIContent(action.content || '');
         addNode(
             'note',
             position,
@@ -866,7 +889,7 @@ function placeAction(action: AIStructuredAction, position: { x: number; y: numbe
     if (action.type === 'fused-note') {
         const id = uuidv4();
         const markdown = `# ${action.title}\n\n${action.content || ''}`;
-        const blocks = parsePlainText(markdown);
+        const blocks = parseAIContent(markdown);
         addNode(
             'fused-note',
             position,
@@ -974,7 +997,12 @@ export async function runCreate(query: string, context: string, ctx: RunnerConte
         },
     );
 
-    /* ---- Pass 2: write the bodies, one artifact at a time ----
+    /* ---- Pass 2: place everything, then write into what was placed ----
+       Bodies used to be written first and placed at the very end, so a turn
+       was a long silence followed by every card at once. The plan already
+       fixes each artifact's shape and size, so the artifacts land the moment
+       it is known and each body streams into its own card as it is written —
+       the canvas fills in live, and Stop keeps whatever has arrived.
        Bounded concurrency rather than Promise.all: the gateway rate-limits per
        user, and nine bodies in flight on a Smart turn is the reliable way to
        have three of them refused. */
@@ -1001,145 +1029,6 @@ export async function runCreate(query: string, context: string, ctx: RunnerConte
             },
         ));
     });
-    const placeStepId = ctx.step(
-        'action',
-        `Placing ${artifacts.length} item${artifacts.length === 1 ? '' : 's'} on the canvas`,
-        'queued',
-        { phase: 'place' },
-    );
-
-    await mapWithConcurrency(artifacts, budget.concurrency, async (artifact, index) => {
-        assertLive(ctx.signal);
-        // Mindmaps are labels all the way down; there is no body to write.
-        if (artifact.type === 'mindmap') return;
-
-        const label = `Writing ${SHAPE_LABEL[artifact.type].toLowerCase()} “${artifact.title}”`;
-        // Light the line that was already announced, rather than adding a new one.
-        const stepId = stepFor.get(artifact) ?? ctx.step('action', label, 'running', { phase: 'compose' });
-        /* What this artifact is going to be, stated while it is being written
-           rather than only after. "5 lanes · 14 cards" is knowable from the
-           plan the moment writing starts, and it is the line that makes the
-           wait informative instead of merely narrated. */
-        const shapeOf = (a: AIArtifactPlan): string => {
-            if (a.type === 'board') {
-                const lanes = a.columns?.length ?? 0;
-                const cards = a.cards?.length ?? 0;
-                return [lanes ? `${lanes} lanes` : '', cards ? `${cards} cards` : ''].filter(Boolean).join(' · ');
-            }
-            if (a.type === 'timeline') {
-                const n = a.milestones?.length ?? 0;
-                return n ? `${n} milestone${n === 1 ? '' : 's'}` : '';
-            }
-            if (a.type === 'mindmap') {
-                const n = a.nodes?.length ?? 0;
-                return n ? `${n} nodes` : '';
-            }
-            return `aiming for ${budget.targetBlocks} blocks`;
-        };
-        const grounded = ctx.provenance?.sources?.filter((s) => s.kind === 'node').length ?? 0;
-        const shapeNote = [shapeOf(artifact), grounded ? `grounded on ${grounded} of your cards` : '']
-            .filter(Boolean).join(' · ');
-
-        ctx.settle(stepId, 'running', label, {
-            phase: 'compose',
-            detail: { kind: 'artifact', shape: SHAPE_LABEL[artifact.type], title: artifact.title, index: index + 1, total: bodyWork.length, note: shapeNote || undefined },
-        });
-
-        const shared = {
-            shape: artifact.type,
-            title: artifact.title,
-            brief: artifact.brief,
-            userRequest: query,
-            context,
-        };
-
-        try {
-            if (artifact.type === 'note' || artifact.type === 'fused-note') {
-                const body = await composeBody(shared, { ...ctx.request, signal: ctx.signal });
-                artifact.content = body.markdown;
-                if (body.thin) thin += 1;
-                if (body.repaired) metrics.repaired += 1;
-                metrics.blocks.push(body.blocks);
-                ctx.settle(stepId, 'done', `${label} — ${body.blocks} blocks${body.thin ? ', came back thin' : ''}`, {
-                    phase: 'compose',
-                });
-                return;
-            }
-
-            /* Board cards and timeline steps: batched, because one call each
-               would mean fourteen round trips for a fourteen-card board. */
-            const items: { title: string; set: (body: string) => void }[] =
-                artifact.type === 'board'
-                    ? (artifact.cards ?? []).map((card) => ({ title: card.title, set: (b: string) => { card.content = b; } }))
-                    : (artifact.milestones ?? []).map((m) => ({ title: m.title, set: (b: string) => { m.content = b; } }));
-
-            let written = 0;
-            for (let start = 0; start < items.length; start += ITEM_BATCH_SIZE) {
-                assertLive(ctx.signal);
-                const batch = items.slice(start, start + ITEM_BATCH_SIZE);
-                const markdown = await composeItemBodies(
-                    { ...shared, items: batch.map((i) => i.title) },
-                    ctx.request,
-                );
-                const bodies = splitItemBodies(normalizeAIText(markdown), batch.map((i) => i.title));
-                batch.forEach((item) => {
-                    const body = bodies.get(item.title);
-                    if (body) { item.set(body); written += 1; }
-                });
-            }
-
-            /* An item with no body is placed with its title. Degraded, still
-               usable, and the count says so rather than the turn failing. */
-            const missing = items.length - written;
-            metrics.unwrittenItems += missing;
-            ctx.settle(
-                stepId,
-                'done',
-                `${label} — ${written} of ${items.length} item${items.length === 1 ? '' : 's'} written${missing > 0 ? `, ${missing} left as titles` : ''}`,
-                { phase: 'compose' },
-            );
-        } catch (err) {
-            if (err instanceof DOMException && err.name === 'AbortError') throw err;
-
-            /* A board or timeline has a complete, valid structure before this
-               enrichment pass starts: its lanes/milestones and item titles all
-               came from the plan. Losing that useful scaffold because a
-               best-effort prose request timed out or was rate-limited turned a
-               recoverable body failure into the all-or-nothing error shown to
-               the user. Place the titled structure, make the limitation
-               explicit, and leave each item editable for them to flesh out. */
-            if (artifact.type === 'board' || artifact.type === 'timeline') {
-                const itemCount = artifact.type === 'board'
-                    ? artifact.cards?.length ?? 0
-                    : artifact.milestones?.length ?? 0;
-                outlined.push({ title: artifact.title, itemCount });
-                metrics.unwrittenItems += itemCount;
-                ctx.settle(
-                    stepId,
-                    'done',
-                    `${label} — details unavailable; adding ${itemCount} titled ${artifact.type === 'board' ? 'card' : 'milestone'}${itemCount === 1 ? '' : 's'}`,
-                    {
-                        phase: 'compose',
-                        detail: {
-                            kind: 'note',
-                            text: 'The structure is ready to place. Its item descriptions can be filled in on the canvas.',
-                        },
-                    },
-                );
-                return;
-            }
-
-            failed.push(artifact.title);
-            ctx.settle(stepId, 'failed', `Couldn’t write “${artifact.title}” — skipped`, { phase: 'compose' });
-        }
-    });
-
-    assertLive(ctx.signal);
-
-    /* An artifact whose body failed is dropped rather than placed empty: a card
-       with a title and nothing in it is worse than no card. */
-    const placeable = artifacts.filter((a) => !failed.includes(a.title));
-
     /* Say when something already exists rather than quietly making a second one
        (ai-Plan.md §5.6). Duplicates are the failure mode of a canvas assistant
        that cannot see what it has already done: ask twice, get two "Pricing
@@ -1147,36 +1036,33 @@ export async function runCreate(query: string, context: string, ctx: RunnerConte
        It reports rather than skips — the user asked for this, and the AI is not
        entitled to decide their card is close enough. Naming it is the honest
        middle: they can undo the turn or merge, both cheap; a silently skipped
-       artifact is neither visible nor recoverable. */
+       artifact is neither visible nor recoverable.
+       Snapshotted BEFORE placement: once this turn's own cards land they would
+       match themselves. */
     const existingTitles = new Map(
         useStore.getState().nodes
             .filter((n) => (n.parentId ?? null) === ctx.currentParentId)
             .map((n) => [nodeTitle(n).trim().toLowerCase(), nodeTitle(n)]),
     );
-    const duplicates = placeable
-        .map((a) => existingTitles.get(a.title.trim().toLowerCase()))
-        .filter((title): title is string => Boolean(title));
-    if (placeable.length === 0) {
-        return {
-            createdNodeIds: [],
-            summary: 'Every part of that came back unusable, so nothing was added. Try again, or lower the effort — shorter pieces come back cleanly more often.',
-        };
-    }
 
-    ctx.settle(
-        placeStepId,
+    const placeStepId = ctx.step(
+        'action',
+        `Placing ${artifacts.length} item${artifacts.length === 1 ? '' : 's'} on the canvas`,
         'running',
-        `Placing ${placeable.length} item${placeable.length === 1 ? '' : 's'} on the canvas`,
         { phase: 'place' },
     );
 
     const created: string[] = [];
     let blocked = 0;
+    /* What landed, per artifact — including each board card's and timeline
+       step's node, which is where that item's body will stream. */
+    const placed = new Map<AIArtifactPlan, PlacedArtifact>();
 
     // Measure the block first so it can be placed as one unit, then fill it in
-    // reading order — card 1 top-left, card 6 bottom-right.
-    const rows: { items: AIStructuredAction[]; width: number; height: number; full: boolean }[] = [];
-    placeable.forEach((action) => {
+    // reading order — card 1 top-left, card 6 bottom-right. Sizes come from the
+    // plan (lane, milestone and node counts), so nothing here needs a body.
+    const rows: { items: AIArtifactPlan[]; width: number; height: number; full: boolean }[] = [];
+    artifacts.forEach((action) => {
         const size = sizeFor(action, ctx.mindmapLayout);
         const wide = size.width >= FULL_ROW_WIDTH;
         const row = rows[rows.length - 1];
@@ -1194,7 +1080,7 @@ export async function runCreate(query: string, context: string, ctx: RunnerConte
     const blockOrigin = findBlockOrigin(blockW, blockH, ctx);
 
     let cursorY = blockOrigin.y;
-    const positioned: { action: AIStructuredAction; position: { x: number; y: number } }[] = [];
+    const positioned: { action: AIArtifactPlan; position: { x: number; y: number } }[] = [];
     rows.forEach((row) => {
         let cursorX = blockOrigin.x;
         row.items.forEach((action) => {
@@ -1205,19 +1091,20 @@ export async function runCreate(query: string, context: string, ctx: RunnerConte
     });
 
     positioned.forEach(({ action, position }) => {
-        const { ids, label } = placeAction(action, position, ctx);
+        const result = placeAction(action, position, ctx);
         // addNode refuses silently once the canvas hits its beta node ceiling,
         // so confirm the node actually landed rather than reporting a success
         // the user can't see anywhere.
         const live = new Set(useStore.getState().nodes.map((n) => n.id));
-        const landed = ids.filter((id) => live.has(id));
+        const landed = result.ids.filter((id) => live.has(id));
         created.push(...landed);
 
-        if (landed.length === 0 && ids.length > 0) {
+        if (landed.length === 0 && result.ids.length > 0) {
             blocked += 1;
-            ctx.step('error', `Couldn't add ${label} — the canvas is at its card limit`, undefined, { phase: 'place' });
-        } else if (label) {
-            ctx.step('result', `Added ${label}`, undefined, {
+            ctx.step('error', `Couldn't add ${result.label} — the canvas is at its card limit`, undefined, { phase: 'place' });
+        } else if (result.label) {
+            placed.set(action, result);
+            ctx.step('result', `Added ${result.label}`, undefined, {
                 phase: 'place',
                 // The ids let the trace line offer the cards as click-to-locate
                 // chips, so "what exactly did it just put on my canvas" is
@@ -1236,7 +1123,231 @@ export async function runCreate(query: string, context: string, ctx: RunnerConte
         { phase: 'place', ...(created.length > 0 ? { detail: { kind: 'cards' as const, nodeIds: created } } : {}) },
     );
 
+    if (created.length === 0) {
+        return {
+            createdNodeIds: [],
+            summary: blocked > 0
+                ? 'Nothing could be added — this canvas has hit its card limit. Delete a few cards or open a sub-canvas and try again.'
+                : 'Nothing landed on the canvas — try rephrasing the request.',
+        };
+    }
+
     stampProvenance(created, ctx.provenance);
+    // The panel focuses the canvas here, so the bodies are watched arriving.
+    ctx.onPlaced?.([...created]);
+
+    const writer = createCanvasStreamWriter();
+
+    /* A card or document whose body failed is taken back off the canvas: a
+       card with a title and nothing in it is worse than no card. */
+    const removeFromCanvas = (ids: string[]) => {
+        useStore.getState().bulkDeleteNodes(ids, true);
+        for (const id of ids) {
+            const at = created.indexOf(id);
+            if (at !== -1) created.splice(at, 1);
+        }
+        ctx.onPlaced?.([...created]);
+    };
+
+    /* The final write for a body. An empty parse still leaves the text visible
+       rather than blanking the card. */
+    const finalBlocks = (markdown: string): Block[] => {
+        const blocks = parseAIContent(markdown);
+        return blocks.length > 0 ? blocks : [{ id: uuidv4(), type: 'text', content: markdown }];
+    };
+
+    try {
+        await mapWithConcurrency(artifacts, budget.concurrency, async (artifact, index) => {
+            assertLive(ctx.signal);
+            // Mindmaps are labels all the way down; there is no body to write.
+            if (artifact.type === 'mindmap') return;
+            // Refused at the card limit: already reported, nothing to write into.
+            const target = placed.get(artifact);
+            if (!target) return;
+
+            const label = `Writing ${SHAPE_LABEL[artifact.type].toLowerCase()} “${artifact.title}”`;
+            // Light the line that was already announced, rather than adding a new one.
+            const stepId = stepFor.get(artifact) ?? ctx.step('action', label, 'running', { phase: 'compose' });
+            /* What this artifact is going to be, stated while it is being written
+               rather than only after. "5 lanes · 14 cards" is knowable from the
+               plan the moment writing starts, and it is the line that makes the
+               wait informative instead of merely narrated. */
+            const shapeOf = (a: AIArtifactPlan): string => {
+                if (a.type === 'board') {
+                    const lanes = a.columns?.length ?? 0;
+                    const cards = a.cards?.length ?? 0;
+                    return [lanes ? `${lanes} lanes` : '', cards ? `${cards} cards` : ''].filter(Boolean).join(' · ');
+                }
+                if (a.type === 'timeline') {
+                    const n = a.milestones?.length ?? 0;
+                    return n ? `${n} milestone${n === 1 ? '' : 's'}` : '';
+                }
+                return `aiming for ${budget.targetBlocks} blocks`;
+            };
+            const grounded = ctx.provenance?.sources?.filter((s) => s.kind === 'node').length ?? 0;
+            const shapeNote = [shapeOf(artifact), grounded ? `grounded on ${grounded} of your cards` : '']
+                .filter(Boolean).join(' · ');
+
+            ctx.settle(stepId, 'running', label, {
+                phase: 'compose',
+                detail: { kind: 'artifact', shape: SHAPE_LABEL[artifact.type], title: artifact.title, index: index + 1, total: bodyWork.length, note: shapeNote || undefined },
+            });
+
+            const shared = {
+                shape: artifact.type,
+                title: artifact.title,
+                brief: artifact.brief,
+                userRequest: query,
+                context,
+            };
+
+            try {
+                if (artifact.type === 'note' || artifact.type === 'fused-note') {
+                    const nodeId = target.ids[0];
+                    // A document carries its title as its first heading, as placeAction built it.
+                    const asMarkdown = (body: string) => (artifact.type === 'fused-note' ? `# ${artifact.title}\n\n${body}` : body);
+                    const body = await composeBody(shared, {
+                        ...ctx.request,
+                        signal: ctx.signal,
+                        onText: (partial) => writer.write(nodeId, parseAIContent(asMarkdown(normalizeAIText(partial)))),
+                    });
+                    artifact.content = body.markdown;
+                    writer.commit(nodeId, finalBlocks(asMarkdown(body.markdown)));
+                    if (body.thin) thin += 1;
+                    if (body.repaired) metrics.repaired += 1;
+                    metrics.blocks.push(body.blocks);
+                    ctx.settle(stepId, 'done', `${label} — ${body.blocks} blocks${body.thin ? ', came back thin' : ''}`, {
+                        phase: 'compose',
+                    });
+                    return;
+                }
+
+                /* Board cards and timeline steps: batched, because one call each
+                   would mean fourteen round trips for a fourteen-card board. */
+                const items: { title: string; set: (body: string) => void }[] =
+                    artifact.type === 'board'
+                        ? (artifact.cards ?? []).map((card) => ({ title: card.title, set: (b: string) => { card.content = b; } }))
+                        : (artifact.milestones ?? []).map((m) => ({ title: m.title, set: (b: string) => { m.content = b; } }));
+
+                const itemNodes = new Map((target.items ?? []).map((item) => [item.title, item.nodeId]));
+                // A timeline step leads with its date, exactly as placeTimeline wrote it.
+                const itemMarkdown = (title: string, body: string) => {
+                    const date = artifact.type === 'timeline'
+                        ? artifact.milestones?.find((m) => m.title === title)?.date
+                        : undefined;
+                    return date ? `**${date}**\n\n${body}` : body;
+                };
+
+                const batches: (typeof items)[] = [];
+                for (let start = 0; start < items.length; start += ITEM_BATCH_SIZE) {
+                    batches.push(items.slice(start, start + ITEM_BATCH_SIZE));
+                }
+
+                /* Batches run side by side, not one after another. A 14-card board
+                   is three batches, and awaiting them in sequence made its wait the
+                   SUM of three long generations while the rest of the plan sat
+                   idle. Settled rather than all-or-nothing, too: one batch that
+                   times out now costs its own five cards their bodies, instead of
+                   stripping the other nine back to titles. */
+                let written = 0;
+                const settled = await mapWithConcurrency(batches, ITEM_BATCH_CONCURRENCY, async (batch) => {
+                    assertLive(ctx.signal);
+                    const titles = batch.map((i) => i.title);
+                    const markdown = await composeItemBodies(
+                        { ...shared, items: titles },
+                        {
+                            ...ctx.request,
+                            signal: ctx.signal,
+                            /* The batch reply is split by heading as it arrives, so
+                               each card fills in as its own section is written. */
+                            onText: (partial) => {
+                                splitItemBodies(normalizeAIText(partial), titles).forEach((body, title) => {
+                                    const nodeId = itemNodes.get(title);
+                                    if (nodeId) writer.write(nodeId, parseAIContent(itemMarkdown(title, body)));
+                                });
+                            },
+                        },
+                    );
+                    const bodies = splitItemBodies(normalizeAIText(markdown), titles);
+                    batch.forEach((item) => {
+                        const body = bodies.get(item.title);
+                        if (!body) return;
+                        item.set(body);
+                        written += 1;
+                        const nodeId = itemNodes.get(item.title);
+                        if (nodeId) writer.commit(nodeId, finalBlocks(itemMarkdown(item.title, body)));
+                    });
+                });
+
+                const rejected = settled.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+                const abort = rejected.find((r) => r.reason instanceof DOMException && r.reason.name === 'AbortError');
+                if (abort) throw abort.reason;
+                // Nothing written at all is the old failure; let the outline path below report it.
+                if (written === 0 && rejected.length > 0) throw rejected[0].reason;
+
+                /* An item with no body keeps its title. Degraded, still usable,
+                   and the count says so rather than the turn failing. */
+                const missing = items.length - written;
+                metrics.unwrittenItems += missing;
+                ctx.settle(
+                    stepId,
+                    'done',
+                    `${label} — ${written} of ${items.length} item${items.length === 1 ? '' : 's'} written${missing > 0 ? `, ${missing} left as titles` : ''}`,
+                    { phase: 'compose' },
+                );
+            } catch (err) {
+                if (err instanceof DOMException && err.name === 'AbortError') throw err;
+
+                /* A board or timeline has a complete, valid structure before this
+                   enrichment pass starts: its lanes/milestones and item titles all
+                   came from the plan, and they are already on the canvas. Losing
+                   that useful scaffold because a best-effort prose request timed
+                   out or was rate-limited would turn a recoverable body failure
+                   into an all-or-nothing error. Keep the titled structure, make
+                   the limitation explicit, and leave each item editable. */
+                if (artifact.type === 'board' || artifact.type === 'timeline') {
+                    const itemCount = artifact.type === 'board'
+                        ? artifact.cards?.length ?? 0
+                        : artifact.milestones?.length ?? 0;
+                    outlined.push({ title: artifact.title, itemCount });
+                    metrics.unwrittenItems += itemCount;
+                    ctx.settle(
+                        stepId,
+                        'done',
+                        `${label} — details unavailable; kept ${itemCount} titled ${artifact.type === 'board' ? 'card' : 'milestone'}${itemCount === 1 ? '' : 's'}`,
+                        {
+                            phase: 'compose',
+                            detail: {
+                                kind: 'note',
+                                text: 'The structure is on the canvas. Its item descriptions can be filled in there.',
+                            },
+                        },
+                    );
+                    return;
+                }
+
+                failed.push(artifact.title);
+                removeFromCanvas(target.ids);
+                ctx.settle(stepId, 'failed', `Couldn’t write “${artifact.title}” — removed it from the canvas`, { phase: 'compose' });
+            }
+        });
+    } finally {
+        // Whatever streamed before a stop or a failure stays visible.
+        writer.flush();
+    }
+
+    assertLive(ctx.signal);
+
+    const placeable = artifacts.filter((a) => placed.has(a) && !failed.includes(a.title));
+    const duplicates = placeable
+        .map((a) => existingTitles.get(a.title.trim().toLowerCase()))
+        .filter((title): title is string => Boolean(title));
+    if (created.length === 0) {
+        return {
+            createdNodeIds: [],
+            summary: 'Every part of that came back unusable, so nothing was added. Try again, or lower the effort — shorter pieces come back cleanly more often.',
+        };
+    }
 
     /* Check the work before the user acts on it (ai-Plan.md §5.6). Runs AFTER
        placement, not before: the cards are already useful, and holding them
@@ -1349,7 +1460,7 @@ export function addAnswerToCanvas(title: string, markdown: string, ctx: RunnerCo
     const { addNode, nodes } = useStore.getState();
     const id = uuidv4();
     const position = findNonOverlappingPosition(ctx.origin, NOTE_SIZE, nodes, ctx.currentParentId, ctx.viewport());
-    const blocks = parsePlainText(markdown);
+    const blocks = parseAIContent(markdown);
     addNode(
         'note',
         position,

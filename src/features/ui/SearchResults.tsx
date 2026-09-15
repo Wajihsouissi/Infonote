@@ -82,16 +82,20 @@ export const SearchResults = memo(function SearchResults({ query, onClose }: Sea
     const debounceTimerRef = useRef<number | null>(null);
     const resultsRef = useRef<HTMLDivElement>(null);
 
-    const worker = useMemo(() => new Worker(new URL('./search.worker.ts', import.meta.url), { type: 'module' }), []);
+    const [previousSearch, setPreviousSearch] = useState({ query, nodes });
+    if (previousSearch.query !== query || previousSearch.nodes !== nodes) {
+        setPreviousSearch({ query, nodes });
+        setIsSearching(Boolean(query.trim()));
+        if (!query.trim()) setResults([]);
+    }
 
     useEffect(() => {
         if (!query.trim()) {
-            setResults([]);
-            setIsSearching(false);
             return;
         }
-
-        setIsSearching(true);
+        // Own the worker in the effect: closing search or changing its input
+        // terminates pending work and prevents stale responses from winning.
+        const worker = new Worker(new URL('./search.worker.ts', import.meta.url), { type: 'module' });
 
         if (debounceTimerRef.current) {
             clearTimeout(debounceTimerRef.current);
@@ -110,11 +114,12 @@ export const SearchResults = memo(function SearchResults({ query, onClose }: Sea
         worker.addEventListener('message', handleMessage);
         return () => {
             worker.removeEventListener('message', handleMessage);
+            worker.terminate();
             if (debounceTimerRef.current) {
                 clearTimeout(debounceTimerRef.current);
             }
         };
-    }, [query, nodes, worker]);
+    }, [query, nodes]);
 
     const handleSelect = useCallback((nodeId: string) => {
         setFullscreenId(null);

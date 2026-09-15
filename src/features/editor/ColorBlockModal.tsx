@@ -135,7 +135,7 @@ interface ColorBlockModalProps {
 export function ColorBlockModal({ color, originalColor, metadata, displayName: initialName, onChange, onClose }: ColorBlockModalProps) {
     const [currentColor, setCurrentColor] = useState(color);
     // Lock the original color at the time the modal first opened
-    const lockedOriginal = useRef(originalColor || color);
+    const [lockedOriginal] = useState(originalColor || color);
     const [copiedKey, setCopiedKey] = useState<'hex' | 'rgba' | 'hsl' | null>(null);
     const [inputMode, setInputMode] = useState<'hex' | 'rgb' | 'hsl'>('hex');
     const [name, setName] = useState(metadata?.name || initialName || getNearestColorName(color));
@@ -229,12 +229,12 @@ export function ColorBlockModal({ color, originalColor, metadata, displayName: i
                         <div style={{ flex: 1 }}>
                             <div style={{ fontSize: '0.68rem', color: 'var(--color-text-muted, #888)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Original</div>
                             <div
-                                title={lockedOriginal.current}
+                                title={lockedOriginal}
                                 style={{
                                     width: '100%',
                                     height: 36,
                                     borderRadius: 8,
-                                    backgroundColor: lockedOriginal.current,
+                                    backgroundColor: lockedOriginal,
                                     border: '1.5px solid rgba(255,255,255,0.15)',
                                     boxShadow: '0 2px 6px rgba(0,0,0,0.18)',
                                 }}
