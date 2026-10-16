@@ -33,11 +33,14 @@ node_portable/
 .env*
 
 # Playwright
-/test-results/
-/playwright-report/
-/blob-report/
+test-results/
+playwright-report/
+blob-report/
 /playwright/.cache/
 /clipboard-report/
 .pnpm-store/
 .impeccable/
 vite.config.ts.timestamp-*
+
+# Local scratch files and report intermediates
+/tmp/

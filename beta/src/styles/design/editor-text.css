@@ -1,0 +1,112 @@
+/* ============================================================
+   Editor Inline Links (Text Mode)
+   ============================================================ */
+
+.editor-inline-link {
+  cursor: text;
+  position: relative;
+  transition: color var(--transition-fast);
+  /* !important overrides the muted colour baked inline into content
+       saved before links moved onto the accent. */
+  color: var(--accent-ink) !important;
+}
+
+.editor-inline-link:hover {
+  color: var(--accent) !important;
+}
+
+.editor-inline-link::after {
+  content: " ↗";
+  font-size: 0.85em;
+  opacity: 0.6;
+  text-decoration: none;
+  display: inline-block;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.editor-inline-link:hover::after {
+  opacity: 1;
+  transform: translate(1px, -1px);
+}
+
+body.mod-key-held .editor-inline-link {
+  cursor: pointer;
+}
+
+/* ============================================================
+   AI citation chips — ai-Plan.md §5.4
+   ------------------------------------------------------------
+   Two kinds, deliberately drawn differently, because they are different
+   promises. A NODE chip points at the user's own card and is worn in the
+   accent, like everything else that means "your content"; clicking it flies
+   the canvas there. A WEB marker is a superscript number pointing off the
+   canvas entirely, so it stays neutral and quiet — it is a footnote, not a
+   destination the reader is being pushed toward.
+   ============================================================ */
+
+.editor-cite-chip {
+  display: inline;
+  cursor: pointer;
+  padding: 0.06em 0.4em 0.06em 0.3em;
+  margin: 0 0.08em;
+  border-radius: var(--r-xs);
+  background: var(--accent-dim);
+  color: var(--accent-ink);
+  font-size: 0.92em;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: background var(--transition-fast);
+}
+
+.editor-cite-chip::before {
+  /* A target, echoing the "locate on canvas" affordance the trace uses for the
+     same job, so the two read as the same gesture. */
+  content: "◎ ";
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+/* Hovering a chip previews its card and clicking goes there, so the hover state
+   has to read as "there is more here" rather than as a passive highlight. */
+.editor-cite-chip:hover {
+  background: var(--accent-wash);
+  box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.45);
+}
+
+/* ============================================================
+   Editor Highlights (Text Mode)
+   ============================================================ */
+
+/* The ten hues of §7 again — a highlight, a lane and a tag pick their colour
+   from one palette, so a yellow marker in a note is the same yellow as the
+   column it came from. Mixed stronger than a surface wash: a highlight sits
+   under the ink of the line, not behind a panel, so it has to survive text on
+   top of it while still leaving that text readable in both themes. */
+
+:root {
+  --a-mark-mix: 32%;
+}
+
+.editor-mark {
+  background: color-mix(in srgb, var(--mark-hue, var(--a-citrine)) var(--a-mark-mix), transparent);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0.06em 0.16em;
+  /* Wrapped highlights get the rounding on every line, not just the ends. */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.editor-mark[data-hue='rose'] { --mark-hue: var(--a-rose); }
+.editor-mark[data-hue='amber'] { --mark-hue: var(--a-amber); }
+.editor-mark[data-hue='citrine'] { --mark-hue: var(--a-citrine); }
+.editor-mark[data-hue='olive'] { --mark-hue: var(--a-olive); }
+.editor-mark[data-hue='jade'] { --mark-hue: var(--a-jade); }
+.editor-mark[data-hue='teal'] { --mark-hue: var(--a-teal); }
+.editor-mark[data-hue='azure'] { --mark-hue: var(--a-azure); }
+.editor-mark[data-hue='indigo'] { --mark-hue: var(--a-indigo); }
+.editor-mark[data-hue='violet'] { --mark-hue: var(--a-violet); }
+.editor-mark[data-hue='magenta'] { --mark-hue: var(--a-magenta); }

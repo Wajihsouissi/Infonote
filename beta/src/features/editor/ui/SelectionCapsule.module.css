@@ -1,0 +1,106 @@
+.capsule {
+    position: relative;
+    background: var(--bg-rail);
+    border: 1px solid var(--line);
+    box-shadow: none;
+    border-radius: var(--radius-pill);
+    padding: 8px 16px;
+    z-index: 100;
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Animation entry */
+    animation: capsuleFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    height: 44px;
+    min-width: 140px;
+}
+
+@keyframes capsuleFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.capsule:hover {
+    background: rgba(20, 20, 23, 0.95);
+    transform: translateY(-2px);
+    box-shadow: none;
+}
+
+.content {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    /* Gap handled by dividers/margins to control collapse */
+    white-space: nowrap;
+}
+
+.countText {
+    margin-right: 8px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    gap: 4px;
+}
+
+.capsule:hover .actions {
+    max-width: 200px;
+    opacity: 1;
+    margin-right: 8px;
+    /* Add spacing when expanded */
+}
+
+.divider {
+    width: 1px;
+    height: 16px;
+    background: rgba(255, 255, 255, 0.15);
+    margin: 0 8px;
+}
+
+.actionBtn,
+.closeBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    width: 28px;
+    height: 28px;
+}
+
+/* hover handled by the shared .icon-hover affordance */
+
+.actionBtn:active,
+.closeBtn:active {
+    transform: scale(0.95);
+}
+
+.closeBtn {
+    margin-left: 0;
+}

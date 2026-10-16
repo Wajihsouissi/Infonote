@@ -1,0 +1,349 @@
+/* ---------- 5. Canvas & UI Component layer ---------- */
+:root {
+  /* canvas desk ground — one value with the panel bodies, so the desk and the
+     panels docked beside it read as a single surface. Neutral charcoal in Ink,
+     paper in Paper; never navy. */
+  --canvas-bg: var(--bg-workspace);
+  --canvas-dot: var(--dot);
+
+  /* app shell — the chrome the canvas is inset into. The top bar carries every
+     control that used to float over the canvas as its own pill; the desk then
+     sits in a frame with an even reveal on left/right/bottom, so the
+     canvas reads as a sheet laid inside the app rather than under it. */
+  --shell-bg: var(--bg-frame);
+  --shell-inset: 12px;
+  --shell-radius: 40px;
+  --topbar-h: 56px;
+  --topbar-pad-x: 20px;
+  --topbar-gap: 8px;
+
+  /* Side panels get the same treatment as the canvas: the panel itself is
+     chrome, continuous with the shell around it, and its content sits in an
+     inset surface with the frame's radius. The whole app then reads as one
+     ground with rounded content islands floating in it. */
+  --panel-bg: var(--shell-bg);
+  --panel-body-bg: var(--bg-workspace);
+  --panel-radius: var(--shell-radius);
+  --panel-inset: var(--shell-inset);
+
+  /* node surfaces */
+  /* The Ink ladder, darkest to lightest: --bg-workspace #171717 (desk and panel
+     bodies) → --bg-frame #1e1e1e (shell, top bar, panel chrome) → --bg-node
+     #242424 (a resting card). Each step is what makes the one above it read as
+     a separate surface, so move them together. In Paper all three are white or
+     near-white and the ring does the work instead. */
+  --node-bg: var(--bg-node);
+  /* the writing surface inside a card, one step under the card itself */
+  --node-well-bg: var(--bg-node-well);
+  --node-radius: var(--r-surface);
+  --node-pad: 12px;
+  --node-spine-w: 3px;
+  /* rest / hover / selected read as a 1 → 1.5 → 2px ladder, with the colour
+     change reserved for selection. */
+  --node-ring: 0 0 0 1px var(--line-heavy);
+  --node-ring-hover: 0 0 0 1.5px var(--line-heavy);
+  --node-ring-selected: 0 0 0 2px var(--accent);
+  --node-ring-drag: 0 0 0 2px var(--accent);
+  --node-shadow-rest: var(--elev-1);
+  --node-shadow-hover: var(--elev-2);
+  --node-shadow-drag: var(--elev-3);
+  --node-title: var(--text-main);
+  --node-subtle: var(--text-soft);
+  --node-meta: var(--text-faint);
+  --node-field-hover: var(--hover-wash);
+  --node-field-active: var(--active-wash);
+
+  /* connection handles */
+  --handle-size: 14px;
+  --handle-bg: var(--bg-raised);
+  --handle-ring: 2px solid var(--accent);
+  --handle-bg-active: var(--accent);
+  --handle-halo: 0 0 0 4px var(--accent-dim);
+
+  /* canvas edges */
+  --edge: var(--line-strong);
+  --edge-selected: var(--accent);
+  --edge-w: 1.5px;
+  --edge-w-selected: 2px;
+
+  /* floating menus & popovers (context, slash, metadata) */
+  --menu-bg: var(--bg-raised);
+  --menu-border: var(--line-strong);
+  --menu-radius: var(--r-surface);
+  --menu-shadow: var(--elev-2);
+  --menu-pad: 6px;
+  --menu-item-radius: var(--r-control);
+  --menu-item-hover: var(--hover-wash);
+  --menu-item-active: var(--active-wash);
+  --menu-divider: var(--line);
+  --menu-chevron: var(--text-faint);
+
+  /* floating pill toolbars (edit bar, multi-select, edge editing) */
+  --toolbar-bg: var(--bg-rail);
+  --toolbar-border: var(--line-strong);
+  --toolbar-radius: var(--radius-pill);
+  --toolbar-shadow: var(--elev-2);
+  --toolbar-btn-hover: var(--hover-wash);
+  --toolbar-btn-active: var(--active-wash);
+
+  /* buttons */
+  --btn-radius: var(--r-surface);
+  --btn-pad: 9px 16px;
+  --btn-height-sm: 32px;
+  --btn-height-md: 40px;
+  --btn-height-lg: 48px;
+  --btn-icon-sm: 32px;
+  --btn-icon-md: 40px;
+  --btn-icon-lg: 48px;
+  --bottom-menu-icon-radius: 20px;
+  --btn-primary-bg: var(--accent);
+  --btn-primary-bg-hover: var(--accent-hover);
+  --btn-primary-fg: var(--on-accent);
+  --btn-secondary-bg: var(--bg-raised);
+  --btn-secondary-border: var(--line-strong);
+  --btn-secondary-fg: var(--text-main);
+  --btn-secondary-hover: var(--hover-wash);
+  --btn-ghost-fg: var(--text-soft);
+  --btn-ghost-hover: var(--hover-wash);
+  --btn-danger-bg: var(--danger);
+  --btn-danger-fg: var(--on-accent);
+
+  /* form controls & chips */
+  --input-bg: var(--bg-inset);
+  --input-border: var(--line);
+  --input-border-focus: var(--accent);
+  --input-radius: var(--r-control);
+  --input-pad: 9px 12px;
+  --chip-radius: var(--radius-pill);
+  --chip-bg: var(--accent-dim);
+  --chip-fg: var(--accent-ink);
+
+  /* ---- content blocks ----
+     The atomic editor blocks (text, headings, lists, todo, quote, code,
+     callout, toggle, table, media, link) — rendered both standalone on the
+     canvas and stacked inside note cards. One dial for the whole block
+     family: change it here, every block type follows. */
+
+  /* standalone block NODES on the canvas — one uniform footprint so a column
+     of mixed block types reads as an even stack. The node is the outer box;
+     its inner .content fills it edge-to-edge, and the breathing space around
+     the text lives on the inner gutter below (never on the outer box). */
+  --block-node-w: 260px;
+  --block-node-h: 56px;
+  --block-node-gutter-x: 14px;
+  --block-node-gutter-y: 8px;
+  /* the visible inner box, once the gutter is removed — every block type's
+     inner container resolves to this, so callout/quote/toggle match plain text */
+  --block-node-inner-h: calc(var(--block-node-h) - 2 * var(--block-node-gutter-y));
+  /* A block grows with its text up to --block-node-max, then wraps and grows
+     downward instead. 432px is MIN_EXPANDED_SIZE (config/layout.ts) so a fully
+     grown block lines up with an expanded note card. Dragging the resize
+     handle can push it further, to --block-node-max-user. */
+  --block-node-max: 432px;
+  --block-node-max-user: 800px;
+
+  /* rhythm & metrics */
+  --block-gap: 6px;
+  --block-pad-x: 8px;
+  --block-pad-y: 2px;
+  --block-min-h: 24px;
+  /* One ladder at a ~1.26 ratio, chosen so every step lands on a whole pixel
+     at the 16px root: 15 / 19 / 24 / 30. Fractional rem (0.95, 1.45, 1.85…)
+     rasterised soft, which compounded at non-integer canvas zoom. */
+  --block-font: 0.9375rem;
+  --block-h3: 1.1875rem;
+  --block-h2: 1.5rem;
+  --block-h1: 1.875rem;
+  --block-leading: 1.6;
+  --block-leading-heading: 1.2;
+  --block-inset: 12px;
+  /* Marker column (bullet, number, checkbox, triangle, callout icon). Fixed
+     width so every marker-bearing block lands its text on the same left edge
+     — markers used to be intrinsically sized, which produced a different
+     text inset for every block type. */
+  --block-marker-gap: 8px;
+  --block-marker-col: 24px;
+
+  /* radii — small for inline text targets, md for boxed blocks */
+  --block-radius: var(--r-control);
+  --block-radius-lg: var(--r-md);
+  /* Media is the exception, and takes the card's own corner rather than the
+     boxed-block one. A picture is not a box of text: it is a card in its own
+     right — the thing you pin to a board, drag between notes, and look at —
+     so it is cut to the same silhouette as the cards it travels between.
+     Every media surface reads from this one dial: image, video and file
+     blocks, their placeholders and selection rings, and every tile on a
+     gallery board. */
+  --media-radius: var(--r-panel);
+
+  /* structure & marks */
+  --block-rail-w: 3px;
+  --block-rail: var(--accent-ink);
+  --block-marker: var(--text-faint);
+  --block-handle: var(--text-faint);
+  --block-handle-hover: var(--accent-ink);
+
+  /* surfaces & states */
+  --block-well: var(--bg-inset);
+  --block-well-line: var(--line);
+  --block-hover: var(--hover-wash);
+  /* Softer than --accent-dim on purpose: with the ring removed (below) this
+     wash is the whole selected-state, so it needs to read as "tinted" rather
+     than "boxed" at a glance. */
+  --block-selected: color-mix(in srgb, var(--accent) 9%, transparent);
+  --block-drop-line: var(--accent);
+  --block-media-ring: 0 0 0 2px var(--accent-ink);
+
+  /* table block */
+  --table-bg: var(--bg-card);
+  --table-header-bg: var(--hover-wash);
+  --table-border: var(--line);
+  --table-border-strong: var(--line-strong);
+  --table-row-hover: var(--hover-wash);
+  --table-selected: var(--accent-dim);
+  --table-cell-focus: var(--accent-dim);
+  --table-cell-min-h: 38px;
+
+  /* link / bookmark block */
+  --link-bg: var(--accent-dim);
+  --link-border: rgba(var(--accent-rgb), 0.22);
+  --link-bg-hover: var(--accent-wash);
+  --link-border-hover: var(--accent);
+}
+
+/* ---------- 7. Accent palette — shades ----------
+
+   Ten hues (§2 for Ink, §3 for Paper), each in three shades:
+
+     --a-<hue>         the colour itself — a dot, a heading, a hairline
+     --a-<hue>-wash    a tint to lay a surface in
+     --a-<hue>-edge    a tint for that surface's border
+
+   Only the base is authored per theme; the two tints are mixed from it here,
+   once, for both. That is deliberate — it means a hue can never drift out of
+   family between light and dark, and re-tuning "how strong is a wash" is one
+   number rather than sixty. Mixing toward `transparent` rather than toward a
+   named background also lets a wash sit on whatever surface it lands on: a lane
+   on the desk, a chip on a card, a row in a table.
+
+   Alphas are low on purpose. These mark ownership — this column is mine, that
+   tag is design — and a board of ten saturated columns is a toy. The colour
+   should be the quietest thing that still answers "which one is this".         */
+
+:root {
+  --a-wash-mix: 12%;
+  --a-edge-mix: 34%;
+
+  --a-rose-wash: color-mix(in srgb, var(--a-rose) var(--a-wash-mix), transparent);
+  --a-amber-wash: color-mix(in srgb, var(--a-amber) var(--a-wash-mix), transparent);
+  --a-citrine-wash: color-mix(in srgb, var(--a-citrine) var(--a-wash-mix), transparent);
+  --a-olive-wash: color-mix(in srgb, var(--a-olive) var(--a-wash-mix), transparent);
+  --a-jade-wash: color-mix(in srgb, var(--a-jade) var(--a-wash-mix), transparent);
+  --a-teal-wash: color-mix(in srgb, var(--a-teal) var(--a-wash-mix), transparent);
+  --a-azure-wash: color-mix(in srgb, var(--a-azure) var(--a-wash-mix), transparent);
+  --a-indigo-wash: color-mix(in srgb, var(--a-indigo) var(--a-wash-mix), transparent);
+  --a-violet-wash: color-mix(in srgb, var(--a-violet) var(--a-wash-mix), transparent);
+  --a-magenta-wash: color-mix(in srgb, var(--a-magenta) var(--a-wash-mix), transparent);
+
+  --a-rose-edge: color-mix(in srgb, var(--a-rose) var(--a-edge-mix), transparent);
+  --a-amber-edge: color-mix(in srgb, var(--a-amber) var(--a-edge-mix), transparent);
+  --a-citrine-edge: color-mix(in srgb, var(--a-citrine) var(--a-edge-mix), transparent);
+  --a-olive-edge: color-mix(in srgb, var(--a-olive) var(--a-edge-mix), transparent);
+  --a-jade-edge: color-mix(in srgb, var(--a-jade) var(--a-edge-mix), transparent);
+  --a-teal-edge: color-mix(in srgb, var(--a-teal) var(--a-edge-mix), transparent);
+  --a-azure-edge: color-mix(in srgb, var(--a-azure) var(--a-edge-mix), transparent);
+  --a-indigo-edge: color-mix(in srgb, var(--a-indigo) var(--a-edge-mix), transparent);
+  --a-violet-edge: color-mix(in srgb, var(--a-violet) var(--a-edge-mix), transparent);
+  --a-magenta-edge: color-mix(in srgb, var(--a-magenta) var(--a-edge-mix), transparent);
+}
+
+/* ---------- 5b. Icon button affordance ----------
+   The one hover a plain icon-only control gets, app-wide — the same quiet
+   wash as .menuBtn (the Center Peak button): a hover tint, full-strength
+   text, a small scale. Before this, every close/action/panel icon button
+   invented its own hover (dashed rings, lifts, hardcoded rgba washes that
+   didn't survive a theme switch), so the same gesture read differently
+   depending on which panel you were in.
+
+   Carries no background of its own at rest, so it layers over whatever tile
+   or chip the host surface already draws.
+
+   Deliberately NOT applied to: buttons with a semantic hover colour (a
+   delete/close button that reddens, an active-toggle button that goes
+   accent-filled) — recolouring those on hover is the point, not a bug; the
+   floating-toolbar family (BottomMenu, CanvasBoard, MultiSelectionToolbar,
+   StorageControls) — those four already agree with each other on an
+   accent-tinted lift and are a second deliberate pattern, not an
+   inconsistency; and controls overlaid on photos/video (PDFViewer,
+   MediaLightbox, FullscreenModal) — fixed white-on-black there is
+   intentional since they sit over arbitrary media, not app chrome.        */
+.icon-hover {
+  cursor: pointer;
+  transition:
+      background-color var(--transition-fast),
+      color var(--transition-fast),
+      transform var(--transition-fast);
+}
+
+.icon-hover:hover {
+  background: var(--hover-wash);
+  color: var(--text-main);
+  transform: scale(1.1);
+}
+
+.icon-hover:active {
+  transform: scale(0.96);
+}
+
+.icon-hover:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon-hover,
+  .icon-hover:hover,
+  .icon-hover:active {
+    transform: none;
+  }
+}
+
+/* ---------- 6. corner shape (Apple squircle) ---------- */
+*,
+*::before,
+*::after {
+  corner-shape: var(--corner-smooth);
+}
+
+[class*="avatar" i],
+[class*="Avatar"],
+[class*="Dot"],
+[class*="dot" i],
+[class*="swatch" i],
+[class*="Swatch"],
+[class*="Indicator"],
+[class*="indicator" i],
+[class*="orb" i],
+[class*="Orb"],
+[class*="Ring"],
+[class*="particle" i],
+[class*="sparkle" i],
+[class*="Badge"],
+[class*="trafficLights"],
+[class*="macDot"],
+[class*="topRightHandle"],
+[class*="colorBlockHandle"],
+/* pill-shaped block chrome: floating toolbars, toggle tracks, drop bars */
+[class*="floatingToolbar" i],
+[class*="floatingControls" i],
+[class*="alignmentMenu" i],
+[class*="slider" i],
+.react-flow__handle,
+.react-flow__handle-source,
+.react-flow__handle-target {
+  --corner-smooth: round;
+}
+
+/* Breadcrumbs are NOT on the round list: the frame is a cluster like the button
+   groups beside it in the top bar, and the chips inside it read as controls, so
+   both keep the app's squircle. */

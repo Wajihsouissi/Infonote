@@ -1,0 +1,228 @@
+/* The rail's hover menu, its grid of items and their tooltips. */
+
+/* ... existing styles ... */
+
+.draggableItem:active {
+    cursor: grabbing;
+}
+/* Opens straight up out of its button. The rail only ever runs across the
+   bottom now, so there is one direction for these to grow in. */
+.hoverMenu {
+    position: absolute;
+    left: 50%;
+    bottom: 100%;
+    margin-bottom: 16px;
+    transform: translateX(-50%) translateY(10px);
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    box-shadow: none;
+    border-radius: var(--radius-xl);
+    padding: 12px;
+    width: auto;
+    max-width: 400px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    z-index: 50;
+}
+
+/* Show Menu through Class Toggling */
+.menuVisible {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: translateX(-50%) translateY(0) !important;
+}
+
+/* Menu Header Styling */
+.menuHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 6px;
+    padding: 0 4px;
+}
+
+/* Close Icon Button in Popup */
+.menuCloseBtn {
+    background: transparent;
+    border: none;
+    color: var(--text-soft);
+    cursor: pointer;
+    width: 22px;
+    height: 22px;
+    border-radius: var(--bottom-menu-icon-radius) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+/* Hover Menu - Compact Icons Grid.
+   Anchored to the RIGHT of its button: the rail hugs the left edge, so a menu
+   opening above it would have nowhere to go. */
+
+.menuCloseBtn:hover {
+    background: var(--bg-rail);
+    color: var(--text-main);
+    transform: scale(1.05);
+}
+
+.menuTitle {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-soft);
+    font-weight: 700;
+    margin: 0;
+}
+
+.menuGrid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+}
+
+.draggableItem {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: grab;
+    transition: all 0.2s;
+}
+
+.draggableItem:active {
+    cursor: grabbing;
+}
+
+/* Theme-Aware Item Icon Wrapper - Resolves Light Mode Visibility */
+.itemIconWrapper {
+    position: relative; /* anchors the rim-light ::before */
+    width: 40px;
+    height: 40px;
+    border-radius: 12px; /* Soft squircle */
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.12) 0%, rgba(var(--accent-rgb), 0) 65%);
+    border: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-soft); /* Theme-aware text/icon color */
+    box-shadow: none;
+    transition: all 0.25s cubic-bezier(0.3, 0.6, 0.3, 1);
+}
+
+/* Rim light on two opposite corners only — same masked-gradient-border
+   mechanism as .special-primary-btn's rim (design-system.css), but with far
+   softer, non-glowing parameters: no radial fill, no box-shadow glow, no
+   idle animation. Reusing the mechanism isn't reusing the FAB's treatment. */
+.itemIconWrapper::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg,
+        rgba(255, 224, 210, 0.55) 0%,
+        transparent 26%,
+        transparent 74%,
+        rgba(255, 224, 210, 0.4) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
+.draggableItem:hover {
+    z-index: 10;
+}
+
+/* High Fidelity Hover Accent States */
+.draggableItem:hover .itemIconWrapper {
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.24) 0%, rgba(var(--accent-rgb), 0) 65%);
+    border-color: var(--accent-ink);
+    color: var(--accent-ink);
+    transform: translateY(-4px) scale(1.1);
+    box-shadow: none;
+}
+
+.draggableItem:hover .itemIconWrapper::before {
+    background: linear-gradient(135deg,
+        rgba(255, 224, 210, 0.85) 0%,
+        transparent 26%,
+        transparent 74%,
+        rgba(255, 224, 210, 0.65) 100%);
+}
+
+.draggableItem:active .itemIconWrapper {
+    transform: scale(0.92);
+    background: var(--active-wash);
+}
+
+/* Keyboard Selection Highlight State */
+.draggableItemHighlighted .itemIconWrapper {
+    background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.24) 0%, rgba(var(--accent-rgb), 0) 65%) !important;
+    border-color: var(--accent-ink) !important;
+    color: var(--accent-ink) !important;
+    transform: translateY(-4px) scale(1.1) !important;
+    box-shadow: none !important;
+}
+
+.draggableItemHighlighted .itemIconWrapper::before {
+    background: linear-gradient(135deg,
+        rgba(255, 224, 210, 0.85) 0%,
+        transparent 26%,
+        transparent 74%,
+        rgba(255, 224, 210, 0.65) 100%);
+}
+
+/* Custom Tooltip */
+.customTooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(5px) scale(0.9);
+    background: var(--menu-bg);
+    border: 1px solid var(--line-strong);
+    padding: 10px 14px;
+    border-radius: 12px;
+    pointer-events: none;
+    opacity: 0;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 160px;
+    z-index: 100;
+    box-shadow: none;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.draggableItem:hover .customTooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+    transition-delay: 0.1s;
+    /* Slight delay to prevent flickering */
+}
+
+.tooltipLabel {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: white;
+    letter-spacing: 0.01em;
+}
+
+.tooltipDesc {
+    font-size: 0.7rem;
+    color: var(--text-soft);
+    line-height: 1.3;
+}

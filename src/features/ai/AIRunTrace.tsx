@@ -6,9 +6,9 @@ import {
     CornerDownLeft,
     Crosshair,
     Globe,
-    Loader2,
 } from '../../components/icons';
 import { useStore } from '../../store/useStore';
+import { AIThinkingOrb } from './AIThinkingOrb';
 import { nodeTitle } from './canvasContext';
 import type { AITraceEvent } from './aiTypes';
 import styles from './AIRunTrace.module.css';
@@ -47,7 +47,7 @@ function duration(event: AITraceEvent): string | null {
 }
 
 function EventIcon({ event }: { event: AITraceEvent }) {
-    if (event.status === 'running') return <Loader2 size={12} className={styles.spin} />;
+    if (event.status === 'running') return <AIThinkingOrb phase={event.phase} />;
     // A hollow ring for work not started: visibly different from both the
     // spinner and the tick, so the plan reads at a glance.
     if (event.status === 'queued') return <span className={styles.queuedDot} aria-hidden="true" />;
@@ -209,7 +209,9 @@ export function AIRunTrace({
                 disabled={visibleEvents.length === 0}
                 onClick={() => setOpenOverride(!open)}
             >
-                {!running && <span className={styles.toggleSignal}><Check size={12} /></span>}
+                {running
+                    ? <span className={styles.toggleOrb}><AIThinkingOrb phase={activeEvent?.phase} /></span>
+                    : <span className={styles.toggleSignal}><Check size={12} /></span>}
                 <span className={styles.toggleLabel}>{summary}</span>
                 {receipt && !running && <span className={styles.toggleReceipt}>{receipt}</span>}
                 {visibleEvents.length > 0 && <ChevronDown size={14} className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`} />}

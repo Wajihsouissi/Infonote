@@ -1,0 +1,97 @@
+/* The buttons of the board's floating control panel. */
+
+/* The layout picker is the shared Tabs component (icon-only, radio
+   semantics). The recessed track and raised active tile it used to define
+   here are now that component's `solid` variant. */
+
+.panelBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: none;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--text-soft);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.panelBtn:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.panelActive {
+    background: var(--active-wash);
+    color: var(--text-main);
+}
+
+.panelBtn:focus-visible,
+.panelAdd:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.panelDivider {
+    width: 1px;
+    height: 18px;
+    margin: 0 5px;
+    background: var(--line-strong);
+}
+
+/* Present is not an editing control — it replaces the whole screen — so it
+   does not sit in the run of icon toggles looking like one more of them. An
+   outlined button reads as "this goes somewhere" without competing with the
+   accent, which belongs to the one action that changes the board. */
+.panelPresent {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--text-soft);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
+}
+
+.panelPresent:hover {
+    background: var(--hover-wash);
+    border-color: var(--line-heavy);
+    color: var(--text-main);
+}
+
+.panelPresent:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+/* The one action, given the accent and a circle so it reads as the primary
+   thing you can do to a board: put more in it. */
+.panelAdd {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    box-shadow: var(--elev-1);
+    transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.panelAdd:hover {
+    background: var(--accent-hover);
+    transform: scale(1.06);
+}

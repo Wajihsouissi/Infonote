@@ -97,31 +97,23 @@
 }
 
 /* ---------- Running beam ----------
-   A light travelling around the rounded inset body while the AI is working, so
-   "it's thinking" reads from the shape of the chat surface itself rather than
-   only from the spinner in the transcript.
-
-   ::before spins an oversized conic gradient; the mask on the element keeps
-   only a 1.5px rim of it. The mask matters — an opaque centre layer would be
-   simpler but this sits over the transcript, so it has to punch a real hole
-   rather than paint the middle back in. Deliberately not a `from var(--angle)`
-   conic animation: that needs @property, which we don't rely on elsewhere.
-
-   .panelBody supplies the radius (inherited below) and clips the spinning
-   square with its own overflow: hidden. */
-.panelBeam {
+   `border-beam` draws on this empty layer's rim. Selector specificity has to
+   beat the library's injected `[data-beam="…"] { position: relative }`, which
+   lands later in the document. */
+.panelBody > .panelBeam {
     position: absolute;
     inset: 0;
     z-index: 3;
-    padding: 1.5px;
     border-radius: inherit;
-    overflow: hidden;
     pointer-events: none;
-    /* Ring-only: paint the border box, subtract the content box. */
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    mask-composite: exclude;
+}
+
+/* The library reads its radius off the first child. */
+.panelBeamFill {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
 }
 
 /* ---------- Running mesh ----------
@@ -250,41 +242,7 @@
 .panelSparkles i:nth-child(6) { left: 42%; top: 78%; --sparkle-color: var(--secondary-ink); --sparkle-delay: -3.3s; --sparkle-duration: 5s; }
 .panelSparkles i:nth-child(7) { left: 70%; top: 89%; --sparkle-color: var(--t-pink); --sparkle-delay: -1.7s; --sparkle-duration: 3.7s; }
 
-.panelBeam::before {
-    content: '';
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    /* Square wide enough that its inscribed circle still covers the panel's
-       corners at every angle, otherwise the sweep clips on the long sides. */
-    width: 250%;
-    aspect-ratio: 1;
-    translate: -50% -50%;
-    background: conic-gradient(
-        from 0deg,
-        transparent 0deg,
-        rgba(var(--accent-rgb), 0.92) 30deg,
-        var(--t-pink) 48deg,
-        var(--t-purple) 64deg,
-        var(--t-green) 82deg,
-        transparent 112deg,
-        transparent 194deg,
-        var(--secondary-ink) 220deg,
-        var(--accent-hover) 242deg,
-        transparent 274deg,
-        transparent 360deg
-    );
-    animation: aiBeamSpin 2.8s linear infinite;
-}
-
-/* Motion is the whole point of this effect, so with reduced motion we keep the
-   "busy" signal but hold the light still instead of removing the cue. */
 @media (prefers-reduced-motion: reduce) {
-    .panelBeam::before {
-        animation: none;
-        background: rgba(var(--accent-rgb), 0.5);
-    }
-
     .panelMesh::before,
     .panelMesh::after,
     .panelLightRails {
@@ -1021,22 +979,6 @@
     color: var(--danger);
 }
 
-.thinking {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 0.76rem;
-    color: var(--text-soft);
-}
-
-.spin {
-    animation: aiSpin 1s linear infinite;
-}
-
-@keyframes aiSpin {
-    to { transform: rotate(360deg); }
-}
-
 .errorBox {
     display: flex;
     align-items: flex-start;
@@ -1214,10 +1156,6 @@
 
 .composer:focus-within {
     border-color: rgba(var(--accent-rgb), 0.45);
-}
-
-@keyframes aiBeamSpin {
-    to { rotate: 360deg; }
 }
 
 @keyframes aiMeshRoamPrimary {
@@ -2067,22 +2005,9 @@
     gap: 9px;
 }
 
-.runPulse {
-    width: 8px;
-    height: 8px;
+.runOrb {
+    display: flex;
     flex-shrink: 0;
-    border-radius: var(--radius-pill);
-    background: var(--accent);
-    box-shadow: 0 0 0 4px var(--accent-dim);
-    animation: aiRunPulse 1.6s ease-in-out infinite;
-}
-
-@keyframes aiRunPulse {
-    50% { box-shadow: 0 0 0 7px rgba(var(--accent-rgb), 0.05); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .runPulse { animation: none; }
 }
 
 .runLabel {

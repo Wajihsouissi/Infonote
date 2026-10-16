@@ -1,0 +1,666 @@
+/* The block stack. One vertical rhythm token drives the gap between every
+   sibling block, on the canvas and inside cards alike. */
+.editor {
+    display: flex;
+    flex-direction: column;
+    gap: var(--block-gap);
+    width: 100%;
+    min-width: 50px;
+    flex-grow: 1;
+    min-height: 100%;
+    position: relative;
+    cursor: text;
+}
+
+/* Minimal mode (for chromeless blocks): No extra bottom padding */
+.minimal {
+    padding-bottom: 0 !important;
+    min-height: auto !important;
+    padding-top: 0 !important;
+    justify-content: center;
+    /* Center elements vertically in their container */
+}
+
+/* Headings used to run a tighter 1.15 leading on the canvas so they wouldn't
+   "snap to 2x height" — a workaround for the fixed 56px block node, which is
+   now auto-height. Canvas and note cards share --block-leading-heading. */
+
+.minimal .text,
+.minimal .todo,
+.minimal .listBullet,
+.minimal .listNumber {
+    line-height: var(--block-leading);
+    font-size: var(--block-font);
+}
+
+.sortableWrapper {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--block-gap);
+    cursor: pointer;
+    /* nesting depth, published by BlockItem as --block-indent */
+    padding-left: var(--block-indent, 0px);
+    min-width: 0;
+}
+
+.minimal .sortableWrapper {
+    /* Canvas blocks use the compact editor. Keep the drag affordance on the
+       content's vertical centre instead of pinning it to the first text line. */
+    align-items: center;
+}
+
+.sortableWrapper:has(.heading1) .dragHandle {
+    margin-top: 10px;
+}
+
+.sortableWrapper:has(.heading2) .dragHandle {
+    margin-top: 6px;
+}
+
+.sortableWrapper:has(.heading3) .dragHandle {
+    margin-top: 4px;
+}
+
+.sortableWrapper:has(.quoteWrapper) .dragHandle {
+    margin-top: 6px;
+    /* 4px + 2px quote padding */
+}
+
+.sortableWrapper:has(.calloutWrapper) .dragHandle {
+    /* block margin + callout inset + text offset */
+    margin-top: calc(var(--block-pad-y) + var(--block-inset) + 4px);
+}
+
+.sortableWrapper:has(.mediaWrapper) .dragHandle {
+    margin-top: 2px;
+    /* flush with top of media wrapper margin */
+}
+
+.sortableWrapper:has(.tableWrapper) .dragHandle {
+    margin-top: 10px;
+    /* 2px margin + 8px cell padding */
+}
+
+.dragHandle {
+    position: relative;
+    left: auto;
+    flex-shrink: 0;
+    width: 18px;
+    height: 20px;
+    margin-top: 4px;
+    cursor: grab;
+    color: var(--block-handle);
+    opacity: 0;
+    transform: scale(0.85);
+    transition: opacity var(--transition-fast), transform var(--transition-fast),
+        background var(--transition-fast), color var(--transition-fast);
+    border-radius: var(--r-xs);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.minimal .dragHandle {
+    margin-top: 0 !important;
+    /* The dot glyph's visual mass sits slightly above the centre of its 20px
+       box. Nudge canvas-only handles down so the visible glyph aligns with the
+       text's optical centreline. */
+    --drag-handle-center-offset: 4px;
+    transform: translateY(var(--drag-handle-center-offset)) scale(0.85);
+}
+
+/* Force visible and scale to 1 on hover of wrapper */
+.sortableWrapper:hover .dragHandle {
+    opacity: 0.65 !important;
+    transform: scale(1) !important;
+}
+
+.minimal .sortableWrapper:hover .dragHandle {
+    transform: translateY(var(--drag-handle-center-offset, 4px)) scale(1) !important;
+}
+
+/* Structured blocks carry their own marker, rail, or padded surface. Their
+   old type-specific top margins were written for top-aligned handles, so reset
+   them explicitly and centre the canvas drag handle against that whole visual
+   block instead. */
+.minimal .sortableWrapper:has(.toggleWrapper, .quoteWrapper, .calloutWrapper) .dragHandle {
+    align-self: center;
+    margin-top: 0 !important;
+    /* Structured blocks use the actual flex centre: they already have their
+       own padding and marker/rail, so the text-only optical nudge is wrong. */
+    --drag-handle-center-offset: 0px;
+    transform: translateY(var(--drag-handle-center-offset)) scale(0.85);
+}
+
+.minimal .sortableWrapper:has(.toggleWrapper, .quoteWrapper, .calloutWrapper):hover .dragHandle {
+    transform: translateY(var(--drag-handle-center-offset)) scale(1) !important;
+}
+
+/* A toggle header lives inside its own padded group, but its grip belongs to
+   the canvas gutter. Take it out of that group’s flow so it is never covered
+   by the toggle rail; the content keeps the same reserved handle column. */
+.minimal .toggleGroupContainer {
+    overflow: visible;
+}
+
+.minimal .toggleGroupContainer > .sortableWrapper:has(.toggleWrapper) {
+    position: relative;
+}
+
+.minimal .toggleGroupContainer > .sortableWrapper:has(.toggleWrapper) .dragHandle {
+    position: absolute;
+    left: calc(-1 * (var(--block-inset) + var(--block-marker-gap) + var(--block-rail-w) + 4px));
+    z-index: 1;
+}
+
+.minimal .toggleGroupContainer > .sortableWrapper:has(.toggleWrapper) .blockContent {
+    /* The grip no longer consumes a flex column. Keep only a small breathing
+       space before the disclosure marker, rather than the old full handle gap. */
+    margin-left: 8px;
+}
+
+/* Hide internal handles in minimal mode to prevent clutter with node handles */
+/* .minimal .dragHandle {
+    display: none !important;
+} */
+/* ENABLED HANDLES in minimal mode per user request */
+
+.sortableWrapper:hover {
+    border-radius: var(--r-xs);
+}
+
+/* Remove hover background when handles are hidden (e.g. FusedNoteNode), show line instead */
+.sortableWrapper.hideHandle:hover {
+    background: transparent;
+    padding-left: 2px;
+}
+
+.dragHandle:hover {
+    opacity: 1 !important;
+    color: var(--block-handle-hover);
+    background: transparent !important;
+}
+
+.dragHandle:focus-visible {
+    opacity: 1 !important;
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* Unselected text/heading/list blocks on canvas: 8px padding on both sides for breathing room */
+.minimal .sortableWrapper.hideHandle[data-block-type="text"] .blockContent,
+.minimal .sortableWrapper.hideHandle[data-block-type="heading1"] .blockContent,
+.minimal .sortableWrapper.hideHandle[data-block-type="heading2"] .blockContent,
+.minimal .sortableWrapper.hideHandle[data-block-type="heading3"] .blockContent,
+.minimal .sortableWrapper.hideHandle[data-block-type="bullet"] .blockContent,
+.minimal .sortableWrapper.hideHandle[data-block-type="numbered"] .blockContent,
+.minimal .sortableWrapper.hideHandle[data-block-type="todo"] .blockContent {
+    padding-left: var(--block-pad-x);
+    padding-right: var(--block-pad-x);
+    transition: padding var(--transition-fast);
+}
+
+/* Selected text/heading/list blocks on canvas: 0px left (handle takes space), 8px right */
+.minimal .sortableWrapper:not(.hideHandle)[data-block-type="text"] .blockContent,
+.minimal .sortableWrapper:not(.hideHandle)[data-block-type="heading1"] .blockContent,
+.minimal .sortableWrapper:not(.hideHandle)[data-block-type="heading2"] .blockContent,
+.minimal .sortableWrapper:not(.hideHandle)[data-block-type="heading3"] .blockContent,
+.minimal .sortableWrapper:not(.hideHandle)[data-block-type="bullet"] .blockContent,
+.minimal .sortableWrapper:not(.hideHandle)[data-block-type="numbered"] .blockContent,
+.minimal .sortableWrapper:not(.hideHandle)[data-block-type="todo"] .blockContent {
+    padding-left: 0;
+    padding-right: var(--block-pad-x);
+    transition: padding var(--transition-fast);
+}
+
+/* (Moved to bottom) */
+
+.blockContent {
+    flex-grow: 1;
+    min-width: 0;
+    /* Prevent overflow */
+    cursor: text;
+    /* Ensure text cursor transmits to children if they don't override */
+}
+
+.block {
+    position: relative;
+    outline: none;
+    border-radius: var(--r-xs);
+    padding: 0;
+    min-height: var(--block-min-h);
+    color: var(--text-main);
+    transition: background var(--transition-fast);
+    white-space: pre-wrap;
+    /* Preserve whitespace */
+    word-break: break-word;
+    overflow-wrap: break-word;
+    /* Ensure long words break */
+    min-width: 0;
+    /* Help with flexbox overflow */
+    max-width: 100%;
+    /* Ensure it doesn't exceed parent */
+    cursor: text;
+    /* Typesetting cursor on actual text block */
+}
+
+.block:focus {
+    background: transparent;
+    /* Removed background for cleaner look */
+}
+
+.block[data-is-empty="true"]:before {
+    content: attr(data-placeholder);
+    position: absolute;
+    color: var(--text-faint);
+    opacity: 0.7;
+    pointer-events: none;
+    transition: opacity var(--transition-fast);
+}
+
+/* Smart Placeholder: Hide empty placeholders when not focused to keep layout clean */
+.block[data-is-empty="true"]:not(:focus):before {
+    opacity: 0 !important;
+}
+
+/* Standalone blocks on the canvas (inside minimal editors) should always show their empty placeholder, even when unfocused! */
+.minimal .block[data-is-empty="true"]:not(:focus):before {
+    opacity: 0.7 !important;
+}
+
+/* Always show placeholder more prominently when the block is actively focused */
+.block[data-is-empty="true"]:focus:before {
+    opacity: 1 !important;
+}
+
+.text {
+    font-size: var(--block-font);
+    line-height: var(--block-leading);
+    min-height: var(--block-min-h);
+    padding: var(--block-pad-y) 0;
+    display: block;
+    flex-grow: 1;
+    /* Take up remaining space in flex containers like callout */
+}
+
+/* Headings share one ladder with body text — 15 / 19 / 24 / 30px at a ~1.26
+   ratio — driven by the --block-* tokens so canvas and note cards can't drift
+   apart. Sizes are authored to land on whole pixels; the old decimal rem
+   literals resolved to 19.2 / 23.2 / 29.6 and rasterised soft. */
+.heading1,
+.heading2,
+.heading3 {
+    margin-top: 0;
+    margin-bottom: 0;
+    padding: 1px 0;
+    color: var(--node-title);
+    line-height: var(--block-leading-heading);
+}
+
+.heading1 {
+    font-size: var(--block-h1);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.heading2 {
+    font-size: var(--block-h2);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+}
+
+.heading3 {
+    font-size: var(--block-h3);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.todoWrapper,
+.quoteWrapper {
+    display: flex;
+    gap: var(--block-marker-gap);
+    align-items: flex-start;
+}
+
+/* 18px circle centred in the shared 24px marker column. The browser default is
+   ~13px, which made the one genuinely interactive marker the smallest thing in
+   the block and smaller than the decorative callout icon beside it.
+
+   `appearance: none` is load-bearing, not cosmetic: a native checkbox keeps
+   its platform-drawn box and silently ignores `border-radius` until its own
+   rendering is switched off, so border-radius alone leaves it square. Once
+   native appearance is gone, the border/background/checkmark below are what
+   the browser used to draw for us, so all three are now ours to supply. */
+.todoCheckbox {
+    appearance: none;
+    -webkit-appearance: none;
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    margin-inline: calc((var(--block-marker-col) - 18px) / 2);
+    margin-top: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 50%;
+    border: 1.5px solid var(--block-handle);
+    background: transparent;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.todoCheckbox:hover {
+    border-color: var(--accent);
+}
+
+.todoCheckbox:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+/* Drawn rather than a glyph, so it stays crisp at 18px and lines up the same
+   in every font. */
+.todoCheckbox:checked::after {
+    content: '';
+    width: 4px;
+    height: 8px;
+    margin-bottom: 1px;
+    border: solid var(--on-accent);
+    border-width: 0 1.6px 1.6px 0;
+    transform: rotate(45deg);
+}
+
+.todoCheckbox:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.todo {
+    flex-grow: 1;
+    font-size: var(--block-font);
+    line-height: var(--block-leading);
+    transition: color var(--transition-fast), opacity var(--transition-fast);
+}
+
+/* --text-faint measured 4.08:1 (Ink) / 3.79:1 (Paper) against the node
+   surface, under the 4.5:1 floor — completed items were the least readable
+   text in the app. --text-soft clears AA and the strikethrough still carries
+   the state. */
+.todoChecked {
+    text-decoration: line-through;
+    color: var(--text-soft);
+}
+
+.todoDateWrapper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    color: var(--text-soft);
+    font-size: 0.75rem;
+    position: relative;
+    user-select: none;
+}
+
+.todoDateIcon {
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s, color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.todoWrapper:hover .todoDateIcon {
+    opacity: 0.6;
+    pointer-events: auto;
+}
+
+.todoWrapper:hover .todoDateIcon:hover {
+    opacity: 1;
+    color: var(--accent-ink);
+    transform: scale(1.1);
+}
+
+.todoDateDisplay {
+    background: var(--block-hover);
+    color: var(--text-faint);
+    font-family: var(--font-mono);
+    padding: 2px 6px;
+    border-radius: var(--r-xs);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.todoDateDisplay:hover {
+    background: var(--active-wash);
+    color: var(--text-soft);
+}
+
+.quoteWrapper {
+    border-left: var(--block-rail-w) solid var(--block-rail);
+    padding: var(--block-pad-y) 0 var(--block-pad-y) var(--block-inset);
+    margin: 0;
+    font-style: italic;
+    color: var(--text-soft);
+    background: var(--block-hover);
+    /* Full radius (not `0 r r 0`) so the rail curves into the top and bottom
+       edges exactly like the callout's — square left corners made it read as a
+       different component. */
+    border-radius: var(--block-radius-lg);
+}
+
+.quote {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.mediaWrapper {
+    width: 100%;
+    margin: var(--block-pad-y) 0;
+    position: relative;
+    padding: 0;
+    background: transparent !important;
+    border-radius: var(--media-radius);
+    border: none;
+}
+
+.mediaWrapper:hover {
+    background: transparent !important;
+}
+
+.mediaWrapper:hover .mediaImage {
+    /* outline handled at resizeWrapper level to avoid double stroke */
+}
+
+.mediaImage {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--media-radius);
+    display: block;
+    object-fit: contain;
+    background: transparent !important;
+    transition: outline var(--transition-fast);
+}
+
+/* "Open full screen" — rides on the media, appears on hover so it costs no layout.
+   Top-right corner keeps it clear of the bottom-right resize handle and, on video,
+   of the browser's own control bar along the bottom. */
+.mediaExpandBtn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 3;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: var(--btn-radius);
+    background: rgba(0, 0, 0, 0.55);
+    color: rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), background-color var(--transition-fast);
+}
+
+.mediaWrapper:hover .mediaExpandBtn,
+.mediaExpandBtn:focus-visible {
+    opacity: 1;
+}
+
+.mediaExpandBtn:hover {
+    background: rgba(0, 0, 0, 0.78);
+}
+
+.mediaExpandBtn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+/* Coarse pointers get no hover, so the button would be unreachable — keep it visible. */
+@media (hover: none) {
+    .mediaExpandBtn {
+        opacity: 0.85;
+    }
+}
+
+/* Lists */
+.listWrapper {
+    display: flex;
+    gap: var(--block-marker-gap);
+    align-items: flex-start;
+}
+
+/* Every marker occupies the same fixed column, so a bullet, a number, a
+   checkbox and a chevron all drop their text on one left edge. They used to be
+   intrinsically sized, which gave each block type a different text inset. */
+.listBullet {
+    flex: 0 0 var(--block-marker-col);
+    display: inline-flex;
+    justify-content: center;
+    margin-top: 4px;
+    font-size: 1.2rem;
+    line-height: 1;
+    color: var(--block-marker);
+    user-select: none;
+}
+
+.listNumber {
+    flex: 0 0 var(--block-marker-col);
+    /* right-aligned so "9." and "10." share a decimal edge */
+    text-align: right;
+    margin-top: 3px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--block-marker);
+    user-select: none;
+}
+
+.toggleWrapper {
+    display: flex;
+    align-items: center;
+    /* chevron sits one marker-gap from its label, like every other block marker */
+    gap: var(--block-marker-gap);
+    position: relative;
+    width: 100%;
+}
+
+/* Toggle disclosure control.
+   This used to be a 0x0 CSS border-triangle that ALSO contained a 24px
+   <ChevronRight> SVG — so it painted two glyphs, and the oversized SVG spilled
+   out of its zero-size parent. It is now a single real icon button: one glyph,
+   pointing right when closed and rotating down when open (the standard
+   disclosure convention, so the direction reads as "where it will open"). */
+.toggleTriangle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* shares the marker column, and the wider box doubles as a real hit target */
+    flex: 0 0 var(--block-marker-col);
+    width: var(--block-marker-col);
+    height: var(--block-marker-col);
+    padding: 0;
+    border: none;
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--block-marker);
+    cursor: pointer;
+    transition: transform var(--transition-fast), color var(--transition-fast),
+        background var(--transition-fast);
+    transform: rotate(0deg);
+}
+
+.toggleTriangle svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
+.toggleTriangle:hover {
+    color: var(--text-main);
+    background: var(--block-hover);
+}
+
+.toggleTriangle:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* open → chevron points down at the content it revealed */
+.toggleTriangle.expanded {
+    transform: rotate(90deg);
+}
+
+/* closed but holding content — accent hints there is something inside */
+.toggleTriangle.hasContent {
+    color: var(--accent-ink);
+}
+
+/* Callout */
+.calloutWrapper {
+    display: flex;
+    /* same marker gap as every other block, so the icon column matches */
+    gap: var(--block-marker-gap);
+    background: var(--block-hover);
+    padding: var(--block-inset);
+    border-radius: var(--block-radius-lg);
+    border-left: var(--block-rail-w) solid var(--block-rail);
+    margin: var(--block-pad-y) 0;
+    box-shadow: none;
+}
+
+.calloutIconWrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* shares the marker column with bullets, numbers, checkboxes and chevrons */
+    flex: 0 0 var(--block-marker-col);
+    height: var(--block-marker-col);
+    padding: 0;
+    margin: 0;
+    user-select: none;
+    color: var(--text-main);
+    border-radius: var(--r-xs);
+    transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.calloutIconWrapper.clickable {
+    cursor: pointer;
+}
+
+/* hover handled by the shared .icon-hover affordance */
+
+.calloutIconWrapper.clickable:active {
+    transform: scale(0.95);
+    background: var(--active-wash);
+}

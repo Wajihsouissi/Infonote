@@ -1,0 +1,48 @@
+{
+  "name": "chnk-it-beta",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "lint": "eslint . --max-warnings 0",
+    "knip": "knip",
+    "check": "npm run lint && npm run build && npm run knip",
+    "preview": "vite preview",
+    "measure": "node scripts/measure-canvas-load.mjs",
+    "test:e2e": "playwright test --project=smoke --project=core",
+    "test:e2e:browsers": "playwright test --project=firefox --project=webkit --project=edge --project=small-screen"
+  },
+  "dependencies": {
+    "@fontsource/outfit": "^5.2.8",
+    "@supabase/auth-js": "^2.116.0",
+    "@xyflow/react": "^12.10.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.562.0",
+    "react": "^19.2.0",
+    "react-colorful": "^5.6.1",
+    "react-dom": "^19.2.0",
+    "thinking-orbs": "^0.3.1",
+    "uuid": "^13.0.0",
+    "zundo": "^2.3.0",
+    "zustand": "^5.0.9"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@playwright/test": "1.62.1",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "knip": "^5.64.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.4",
+    "vite": "^6.4.3"
+  }
+}

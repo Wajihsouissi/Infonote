@@ -1,0 +1,41 @@
+/* The description line under a card's title. */
+
+.description,
+.readOnly {
+    width: 100%;
+    margin: 0;
+    padding: 2px 4px;
+    border: none;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--text-soft);
+    font-family: inherit;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    resize: none;
+    overflow: hidden;
+}
+
+.description:hover {
+    background: var(--hover-wash);
+}
+
+.description:focus-visible {
+    outline: none;
+    background: var(--bg-inset);
+    color: var(--text-main);
+}
+
+/* An empty description is invisible until the card is hovered or it has the
+   caret — otherwise every untouched card wears a grey placeholder line. */
+.description:placeholder-shown {
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+:global(.react-flow__node):hover .description:placeholder-shown,
+:global(.react-flow__node.is-selected) .description:placeholder-shown,
+.description:placeholder-shown:hover,
+.description:placeholder-shown:focus {
+    opacity: 1;
+}

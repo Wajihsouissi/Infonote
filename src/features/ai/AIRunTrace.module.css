@@ -55,6 +55,14 @@
     opacity: 0.75;
 }
 
+/* The orb only ships at 20px; pull it into the 13px signal footprint so the
+   label doesn't jump sideways when the run finishes and the tick replaces it. */
+.toggleOrb {
+    display: flex;
+    flex-shrink: 0;
+    margin: -4px -3.5px;
+}
+
 .toggleLabel {
     flex: 1;
     min-width: 0;
@@ -317,17 +325,7 @@
     transition: width var(--transition-smooth);
 }
 
-.spin {
-    animation: aiTraceSpin 0.9s linear infinite;
-    color: var(--accent-ink);
-}
-
-@keyframes aiTraceSpin {
-    to { transform: rotate(360deg); }
-}
-
 @media (prefers-reduced-motion: reduce) {
-    .spin { animation-duration: 2.4s; }
     .progressFill { transition: none; }
 }
 

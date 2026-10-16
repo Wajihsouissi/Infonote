@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>chnk it</title>
+  <script>
+    // Apply the saved theme before first paint so the page never flashes the
+    // wrong ground. Same key as the full app, so the choice carries over.
+    (function () {
+      try {
+        document.documentElement.setAttribute('data-theme', localStorage.getItem('chnk-it-theme') || 'dark');
+      } catch {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>

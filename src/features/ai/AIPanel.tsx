@@ -10,7 +10,6 @@ import {
     Square,
     ImagePlus,
     Check,
-    Loader2,
     AlertCircle,
     Undo2,
     Copy,
@@ -42,6 +41,8 @@ import { resolveScope, type AIScopeSource } from './aiScope';
 import { AIContextBar } from './AIContextBar';
 import { AIMentionPicker } from './AIMentionPicker';
 import { AIRunTrace } from './AIRunTrace';
+import { AIThinkingOrb } from './AIThinkingOrb';
+import { BorderBeam } from 'border-beam';
 import { AIClarifyForm } from './AIClarifyForm';
 import { AIClarifierOverlay } from './AIClarifierOverlay';
 import { AIRegenerateDialog, type AIRegenerateRequest } from './AIRegenerateDialog';
@@ -230,6 +231,7 @@ export function AIPanel() {
     const setAIHistoryRailOpen = useStore((s) => s.setAIHistoryRailOpen);
     const messages = useStore((s) => s.aiMessages);
     const isRunning = useStore((s) => s.aiIsRunning);
+    const theme = useStore((s) => s.theme);
     const selectedCanvasNodeIds = useStore((s) => s.selectedCanvasNodeIds);
     const currentParentId = useStore((s) => s.currentParentId);
     const displayName = useStore((s) => s.auth.displayName);
@@ -373,9 +375,9 @@ export function AIPanel() {
                 ? `${Math.min(finished + (running?.detail?.kind === 'artifact' ? 1 : 0), artifactSteps.length)} of ${artifactSteps.length}`
                 : null;
 
-            return { label, counter, placed: message.createdNodeIds.length };
+            return { label, counter, placed: message.createdNodeIds.length, phase: running?.phase ?? last?.phase };
         }
-        return { label: 'Working', counter: null, placed: 0 };
+        return { label: 'Working', counter: null, placed: 0, phase: undefined };
     }, [messages]);
 
     /* Canvas content is opt-in. A visual selection may still be an edit target,
@@ -1670,6 +1672,22 @@ ${context
             </div>
 
             <div className={styles.panelBody}>
+                {/* An empty overlay, never a wrapper: border-beam animates an
+                    inherited custom property every frame, and wrapping the
+                    transcript made every message restyle 60 times a second.
+                    `staticColors` drops the hue-rotate filter animation, which
+                    repainted the panel-sized glow layers every frame (~2x fps). */}
+                <BorderBeam
+                    className={styles.panelBeam}
+                    active={isRunning}
+                    theme={theme}
+                    strength={1}
+                    staticColors
+                    borderRadius={presentation === 'fullscreen' ? 0 : undefined}
+                    aria-hidden="true"
+                >
+                    <span className={styles.panelBeamFill} />
+                </BorderBeam>
                 {presentation === 'fullscreen' && (
                     historyRailOpen ? (
                         <aside className={styles.fullscreenHistoryRail} aria-label="Chat history rail">
@@ -1690,7 +1708,7 @@ ${context
                 {historyOpen && presentation !== 'fullscreen' && <AIChatHistory onClose={() => setHistoryOpen(false)} />}
 
                 {/* A slow warm mesh gives the whole chat surface an active
-                    state while the faster beam traces its boundary. */}
+                    state while the beam traces its boundary. */}
                 {isRunning && <span className={styles.panelMesh} aria-hidden="true" />}
                 {isRunning && <span className={styles.panelLightRails} aria-hidden="true" />}
                 {isRunning && (
@@ -1698,11 +1716,6 @@ ${context
                         <i /><i /><i /><i /><i /><i /><i />
                     </span>
                 )}
-
-                {/* Travelling light around the chat surface while a run is in
-                    flight. Decorative only — `aria-hidden`, since the
-                    transcript already announces the working state. */}
-                {isRunning && <span className={styles.panelBeam} aria-hidden="true" />}
 
                 <div className={styles.scrollContent} ref={scrollRef}>
                     {messages.length === 0 ? (
@@ -1896,12 +1909,6 @@ ${context
                                     </div>
                                 )}
 
-                                {message.status === 'streaming' && !message.text && message.steps.length === 0 && (
-                                    <div className={styles.thinking}>
-                                        <Loader2 size={13} className={styles.spin} /> Thinking…
-                                    </div>
-                                )}
-
                                 {message.status === 'error' && (
                                     <div className={styles.errorBox}>
                                         <AlertCircle size={13} />
@@ -2025,7 +2032,7 @@ ${context
                 {isRunning && (
                     <div className={styles.runBar}>
                         <div className={styles.runBarTop}>
-                            <span className={styles.runPulse} aria-hidden="true" />
+                            <span className={styles.runOrb}><AIThinkingOrb phase={runStatus.phase} /></span>
                             <span className={styles.runLabel}>{runStatus.label}</span>
                             {runStatus.counter && <span className={styles.runCounter}>{runStatus.counter}</span>}
                             <button

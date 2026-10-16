@@ -1,0 +1,131 @@
+.columnsWrapper {
+    width: 100%;
+    margin: var(--block-inset) 0;
+    position: relative;
+}
+
+/* Toolbar to change the number of columns */
+.columnsToolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--block-marker-gap);
+    justify-content: flex-end;
+    margin-bottom: var(--block-marker-gap);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    user-select: none;
+}
+
+.columnsWrapper:hover .columnsToolbar,
+.columnsWrapper:focus-within .columnsToolbar {
+    opacity: 1;
+}
+
+.toolbarBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: var(--r-control);
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast),
+        color var(--transition-fast);
+}
+
+.toolbarBtn:hover:not(:disabled) {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+}
+
+.toolbarBtn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.toolbarBtn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.toolbarCount {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    min-width: 64px;
+    text-align: center;
+}
+
+/* Per-column remove button (appears on hover) */
+.removeColumnBtn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--r-xs);
+    border: 1px solid var(--line);
+    background: var(--bg-rail);
+    color: var(--text-faint);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), background-color var(--transition-fast),
+        color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.column:hover .removeColumnBtn {
+    opacity: 1;
+}
+
+.removeColumnBtn:hover {
+    background: rgba(var(--danger-rgb), 0.14);
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.columnsContainer {
+    display: grid;
+    gap: var(--block-inset);
+    width: 100%;
+}
+
+/* Inside columns, keep the empty-block placeholder short and contained within the column.
+   Target the data-is-empty attribute (not the hashed .block class, which CSS modules rename). */
+.column :global([data-is-empty="true"])::before {
+    content: "Type /" !important;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.column {
+    position: relative;
+    min-width: 0;
+    /* Prevent overflow */
+    border: 1px solid var(--line);
+    border-radius: var(--block-radius-lg);
+    padding: var(--block-inset);
+    min-height: 80px;
+    background: transparent;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.column:hover {
+    border-color: var(--line-strong);
+    background: var(--block-hover);
+}
+
+.column:focus-within {
+    border-color: var(--accent);
+}

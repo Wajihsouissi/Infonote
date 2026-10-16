@@ -1,0 +1,115 @@
+/* The demo borrows the app's own framing: a canvas inset into lighter chrome. */
+
+.demo {
+  padding: 10px;
+  border-radius: var(--r-panel);
+  corner-shape: var(--corner-smooth);
+  background: var(--bg-frame);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.region {
+  position: relative;
+  height: clamp(360px, 46svh, 440px);
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(circle, var(--dot) 0.8px, transparent 0.9px) 0 0 / 24px 24px,
+    var(--bg-workspace);
+}
+
+.wires {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.wire {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* Cards are placed by transform alone, so a drag never re-flows anything. */
+.demo .card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: clamp(176px, 44%, 252px);
+  padding: 13px 16px 14px;
+  border: none;
+  background: var(--node-bg);
+  color: var(--text-main);
+  box-shadow: var(--node-ring), var(--node-shadow-rest);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.003em;
+  text-align: left;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  /* Vertical page scroll always wins on touch; a tap still selects. */
+  touch-action: pan-y;
+  /* Hidden until measured, so nothing is seen stacked in the corner first. */
+  visibility: hidden;
+  /* The lift answers the press itself, not the release. */
+  transition: box-shadow 100ms ease-out;
+}
+
+.region[data-ready] .card { visibility: visible; }
+
+.demo .card:hover { box-shadow: var(--node-ring-hover), var(--node-shadow-rest); }
+
+.demo .card[data-held] {
+  z-index: 2;
+  cursor: grabbing;
+  box-shadow: var(--node-ring-hover), var(--node-shadow-drag);
+}
+
+.demo .card[aria-pressed='true'] { box-shadow: var(--node-ring-selected), var(--node-shadow-hover); }
+
+.demo .card[aria-pressed='true'][data-held] { box-shadow: var(--node-ring-selected), var(--node-shadow-drag); }
+
+.cardId {
+  display: block;
+  margin-bottom: 7px;
+  font: 500 0.6875rem/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding: 14px 10px 6px;
+}
+
+.status {
+  flex: 1 1 240px;
+  min-height: 1.5em;
+  font-size: 0.9375rem;
+  color: var(--text-soft);
+  text-wrap: pretty;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* A comfortable target for a thumb. */
+.buttons button { min-height: 44px; }
+
+@media (max-width: 640px) {
+  .region { height: 430px; }
+  .demo .card { width: min(72%, 250px); }
+  .controls { padding-inline: 4px; }
+}

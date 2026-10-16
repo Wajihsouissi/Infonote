@@ -18,6 +18,8 @@ import { SyncCoordinator } from './features/sync/SyncCoordinator';
 const CanvasBoard = lazy(() => import('./features/canvas/CanvasBoard').then(m => ({ default: m.CanvasBoard })));
 const LandingPage = lazy(() => import('./features/landing/LandingPage').then(m => ({ default: m.LandingPage })));
 const MarketingPage = lazy(() => import('./The-website/MarketingPage').then(m => ({ default: m.MarketingPage })));
+const JourneyPage = lazy(() => import('./The-website/journey/JourneyPage').then(m => ({ default: m.JourneyPage })));
+const Website4TestPage = lazy(() => import('./The-website/website4test/Website4TestPage').then(m => ({ default: m.Website4TestPage })));
 const FeaturesPage = lazy(() => import('./The-website/FeaturesPage').then(m => ({ default: m.FeaturesPage })));
 const MarketplacePage = lazy(() => import('./features/marketplace/MarketplacePage').then(m => ({ default: m.MarketplacePage })));
 const LoginPage = lazy(() => import('./features/auth/LoginPage').then(m => ({ default: m.LoginPage })));
@@ -35,6 +37,8 @@ const INVITE_PATH_RE = /^\/invite\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89
 const VIEW_PATHS: Partial<Record<AppView, string>> = {
   landing: '/',
   marketing: '/',
+  journey: '/journey',
+  website4test: '/website4test',
   features: '/features',
   canvas: '/canvas',
   marketplace: '/marketplace',
@@ -48,6 +52,8 @@ const VIEW_PATHS: Partial<Record<AppView, string>> = {
 function viewFromPath(rawPath: string, isAuthenticated: boolean): AppView {
   const path = rawPath.replace(/\/+$/, '') || '/';
   if (path === '/') return isAuthenticated ? 'landing' : 'marketing';
+  if (path === '/journey') return 'journey';
+  if (path === '/website4test') return 'website4test';
   if (path === '/features') return 'features';
   if (path === '/wajihadmin') return 'wajihadmin';
   if (path.includes('admin')) return 'not-found';
@@ -327,6 +333,10 @@ function App() {
         );
       case 'marketing':
         return <MarketingPage />;
+      case 'journey':
+        return <JourneyPage />;
+      case 'website4test':
+        return <Website4TestPage />;
       case 'features':
         return <FeaturesPage />;
       case 'canvas':

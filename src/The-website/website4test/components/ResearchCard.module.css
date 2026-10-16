@@ -1,0 +1,154 @@
+/* Card shells for the story. Tokens only: these read as the app's own nodes. */
+
+.card {
+  position: relative;
+  background: var(--node-bg);
+  color: var(--node-title);
+  border-radius: var(--r-surface);
+  corner-shape: var(--corner-smooth);
+  box-shadow: var(--node-ring), var(--node-shadow-rest);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  letter-spacing: -0.003em;
+}
+
+.card[data-selected] {
+  box-shadow: var(--node-ring-selected), var(--node-shadow-hover);
+}
+
+.block {
+  padding: 13px 16px;
+  border-radius: var(--r-md);
+}
+
+.lead {
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.rest {
+  color: var(--text-soft);
+}
+
+.question .lead {
+  font-style: italic;
+  font-weight: 450;
+}
+
+/* The page's own mark, set just outside the card. Small text wants open
+   tracking; it is the one place the mono face appears. */
+.tag {
+  position: absolute;
+  left: 2px;
+  bottom: calc(100% + 7px);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 500 0.6875rem/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.tag::before {
+  content: '';
+  width: 10px;
+  height: 1px;
+  background: var(--line-heavy);
+}
+
+.corners i {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  background: var(--bg-workspace);
+  border: 1.5px solid var(--accent);
+  border-radius: 1px;
+}
+
+.corners i:nth-child(1) { top: -4px; left: -4px; }
+.corners i:nth-child(2) { top: -4px; right: -4px; }
+.corners i:nth-child(3) { bottom: -4px; left: -4px; }
+.corners i:nth-child(4) { bottom: -4px; right: -4px; }
+
+.photo {
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.photoArt {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 11;
+  border-radius: calc(var(--r-surface) - 6px);
+}
+
+.photoCaption {
+  padding: 8px 8px 5px;
+  font-size: 0.75rem;
+  letter-spacing: 0.01em;
+  color: var(--text-faint);
+}
+
+.file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--r-md);
+}
+
+.file > svg {
+  flex-shrink: 0;
+  color: var(--file-text);
+}
+
+.file strong {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.file small {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: var(--text-faint);
+}
+
+.note {
+  padding: 10px;
+}
+
+.noteHead {
+  padding: 4px 8px 11px;
+  font-size: 0.8125rem;
+  letter-spacing: 0.005em;
+  color: var(--text-faint);
+}
+
+.noteWell {
+  padding: 14px 16px;
+  background: var(--node-well-bg);
+  border-radius: var(--r-md);
+}
+
+.mini {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 9px 12px;
+  border-radius: var(--r-control);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  font-weight: 450;
+}
+
+.miniTag {
+  flex-shrink: 0;
+  font: 500 0.6875rem/1 var(--font-mono);
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}

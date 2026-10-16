@@ -5,6 +5,14 @@
   },
   "rewrites": [
     {
+      "source": "/website3test",
+      "destination": "/website3test/index.html"
+    },
+    {
+      "source": "/website3test/",
+      "destination": "/website3test/index.html"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

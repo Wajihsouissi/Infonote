@@ -1,0 +1,531 @@
+/* Shifting Grain/Noise Animation (Matches Sidebar) */
+@keyframes grainShift {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-2px, 2px); }
+    40% { transform: translate(2px, -2px); }
+    60% { transform: translate(-1px, -2px); }
+    80% { transform: translate(1px, 1px); }
+}
+
+/* Global full-screen overlay for cards on canvas */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--scrim);
+    display: flex;
+    align-items: flex-start; /* Align modal at the top vertically */
+    justify-content: center; /* Center modal horizontally */
+    z-index: 10000;
+    padding-top: 60px; /* Position it beautifully from the top */
+    animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Premium Sidebar Sub-Panel Absolute Overlay (Targeted specifically for the Metadata Panel) */
+.overlayAbsolute {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: var(--color-bg-base) !important;
+    z-index: 10000 !important;
+    border-radius: 0 !important;
+    display: flex !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    overflow: hidden !important; /* Constrain any vertical rendering */
+    animation: slideInLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Slide in animation matching modern inspector transitions */
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Standard centered modal box (for canvas card note click triggers) */
+.modal {
+    background: var(--bg-rail);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 20px;
+    width: 720px;
+    max-width: 90vw;
+    height: 520px;
+    max-height: 80vh; /* Scaled slightly down to prevent overflow when placed at top-center */
+    display: flex;
+    flex-direction: column;
+    box-shadow: none;
+    position: relative;
+    overflow: hidden;
+    font-family: var(--font-sans);
+    animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Premium Absolute Modal that adapts completely inside the Properties Sidebar Panel */
+.modalAbsolute {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important; /* Constrain elements perfectly */
+    box-sizing: border-box !important;
+}
+
+/* Apply gradients and grain noise overlays strictly inside absolute overlays */
+.overlayAbsolute::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 160% 40% at 50% 0%, rgba(var(--accent-rgb), 0.16) 0%, transparent 65%),
+                radial-gradient(ellipse 120% 30% at 50% 100%, rgba(var(--secondary-rgb), 0.08) 0%, transparent 65%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.overlayAbsolute::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 180px 180px;
+    animation: grainShift 0.12s steps(1) infinite;
+}
+
+.modalAbsolute > * {
+    position: relative;
+    z-index: 4;
+}
+
+/* Header styling */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    width: 100%;
+    flex-shrink: 0; /* Never shrink the header */
+}
+
+.closeBtn {
+    background: transparent !important;
+    border: none !important;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s, color 0.2s;
+    outline: none;
+    width: 24px;
+    height: 24px;
+}
+
+/* hover handled by the shared .icon-hover affordance */
+
+/* Color Swatches */
+.colorSwatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding: 0 4px;
+    flex-shrink: 0;
+}
+
+.swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition:transform 0.2s, border-color 0.2s, 0.2s;
+    padding: 0;
+    outline: none;
+}
+
+.swatch:hover {
+    transform: scale(1.15);
+}
+
+.swatchSelected {
+    border-color: var(--text-main);
+    box-shadow: none;
+    transform: scale(1.1);
+}
+
+.swatchDefault {
+    background: linear-gradient(135deg, var(--text-faint), var(--secondary), var(--accent), var(--accent-ink));
+    position: relative;
+}
+.swatchDefault::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    border: 1px solid var(--line-strong);
+}
+
+/* Search input container */
+.searchBox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-inset);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: 8px 10px;
+    margin-bottom: 14px;
+    transition: all 0.2s ease;
+    flex-shrink: 0; /* Never shrink search box */
+}
+
+.searchBox:focus-within {
+    border-color: var(--color-primary);
+    background: var(--bg-inset);
+    box-shadow: none;
+}
+
+.searchBox svg {
+    color: var(--color-text-muted);
+    opacity: 0.7;
+}
+
+.searchBox input {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    color: var(--color-text-main);
+    font-size: 0.8rem;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    font-family: var(--font-sans) !important;
+}
+
+.searchBox input::placeholder {
+    color: var(--color-text-muted);
+    opacity: 0.5;
+}
+
+/* Categories container replaces the main grid scroll */
+.categoriesContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto; /* Enable vertical scrolling here */
+    overflow-x: hidden; /* a hovered edge tooltip must never add a sideways scroll */
+    padding: 2px 10px 2px 2px;
+    flex: 1;
+    min-height: 0; /* CRITICAL for flex scroll */
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+}
+
+.categorySection {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Shown while the icon chunk is in flight, and for an empty search. */
+.iconsLoading {
+    padding: 32px 8px;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+}
+
+.categoryHeader {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    margin-left: 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--line);
+}
+
+/* Grid layout for icons inside category */
+.iconGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+    gap: 8px;
+}
+
+/* The shared tooltip keeps its layout box while hidden, and Solar's labels are
+   long enough ("Round double alt arrow right") that 1200 of them push a phantom
+   horizontal scrollbar onto the grid. Take them out of flow until hover —
+   scoped here so tooltips elsewhere keep their fade. */
+.iconGrid [data-tooltip]::before {
+    display: none;
+}
+
+.iconGrid [data-tooltip]:hover::before {
+    display: block;
+}
+
+/* Custom Tab Content */
+.customTabContent {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    flex: 1;
+    padding-top: 8px;
+}
+
+/* Big Upload Area for Custom Tab */
+.uploadAreaBig {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--hover-wash);
+    border: 2px dashed var(--line);
+    border-radius: 12px;
+    padding: 32px 20px;
+    text-align: center;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.uploadAreaBig.dragOver {
+    background: var(--color-primary-glow);
+    border-color: var(--color-primary);
+    transform: scale(1.02);
+}
+
+.uploadIconBig {
+    color: var(--color-text-muted);
+    margin-bottom: 8px;
+    transition: color 0.2s;
+}
+
+.uploadAreaBig:hover .uploadIconBig,
+.uploadAreaBig.dragOver .uploadIconBig {
+    color: var(--color-primary);
+}
+
+.uploadTextMain {
+    font-size: 0.9rem;
+    color: var(--color-text-main);
+    font-weight: 500;
+}
+
+.uploadTextSub {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    margin-bottom: 12px;
+}
+
+.uploadButtonLabel {
+    background: var(--hover-wash);
+    border: 1px solid var(--line);
+    padding: 6px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    color: var(--color-text-main);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.uploadButtonLabel:hover {
+    background: var(--active-wash);
+}
+
+/* URL Input Row */
+.urlInputRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-inset);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: 6px 10px;
+    transition: all 0.2s ease;
+}
+
+.urlInputRow:focus-within {
+    border-color: var(--color-primary);
+    box-shadow: none;
+}
+
+.urlInputRow svg {
+    color: var(--color-text-muted);
+}
+
+.urlInputRow input {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    color: var(--color-text-main);
+    font-size: 0.8rem;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+.urlInputRow input::placeholder {
+    color: var(--text-faint);
+}
+
+.urlApplyBtn {
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    padding: 4px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.urlApplyBtn:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
+
+.urlApplyBtn:disabled {
+    background: var(--active-wash);
+    color: var(--text-faint);
+    cursor: not-allowed;
+}
+
+/* Current Custom Preview Big */
+.currentCustomPreviewBig {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg-inset);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: auto;
+}
+
+.previewLabelBig {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+}
+
+.previewWrapperLargeCentered {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    overflow: hidden;
+    width: 80px;
+    height: 80px;
+    background: var(--hover-wash);
+    border: 1px solid var(--line);
+    box-shadow: none;
+}
+
+.removeCustomBtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(var(--danger-rgb), 0.1);
+    color: var(--danger);
+    border: 1px solid rgba(var(--danger-rgb), 0.2);
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.removeCustomBtn:hover {
+    background: rgba(var(--danger-rgb), 0.2);
+    border-color: rgba(var(--danger-rgb), 0.4);
+}
+
+.categoriesContainer::-webkit-scrollbar {
+    width: 4px;
+}
+
+.categoriesContainer::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.categoriesContainer::-webkit-scrollbar-thumb {
+    background: var(--active-wash);
+    border-radius: 2px;
+}
+
+.categoriesContainer::-webkit-scrollbar-thumb:hover {
+    background: var(--line-strong);
+}
+
+/* Compact and Premium Icon Selection Grid Buttons */
+.iconOption {
+    background: var(--hover-wash);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    aspect-ratio: 1;
+    outline: none;
+}
+
+.iconOption:hover {
+    background: var(--color-primary-glow);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    transform: scale(1.05);
+}
+
+.iconOption.selected {
+    background: var(--color-primary-glow);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    box-shadow: none;
+}

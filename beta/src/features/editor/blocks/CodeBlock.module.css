@@ -1,0 +1,155 @@
+/* Code blocks: header, language picker, copy button and the code itself. */
+
+/* Code Block — a flat sunken well with a hairline-separated header strip.
+   The wrapper owns the box; the header and the code area sit seamlessly
+   inside it, so there is only ever one border and one radius. */
+.codeBlockWrapper {
+    position: relative;
+    width: 100%;
+    margin: 0;
+    background: var(--block-well);
+    border: 1px solid var(--block-well-line);
+    border-radius: var(--block-radius-lg);
+    overflow: hidden;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.codeBlockWrapper:focus-within {
+    border-color: var(--accent);
+    box-shadow: var(--focus-ring);
+}
+
+.codeHeader {
+    display: flex;
+    align-items: center;
+    gap: var(--block-marker-gap);
+    padding: 5px var(--block-marker-gap) 5px var(--block-inset);
+    background: var(--hover-wash);
+    border-bottom: 1px solid var(--block-well-line);
+    user-select: none;
+}
+
+/* Language: a bare mono label that only reveals its control affordance on hover. */
+.codeLangSelect,
+.codeLangStatic {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--r-xs);
+    padding: 2px 4px;
+    max-width: 8rem;
+}
+
+.codeLangSelect {
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
+}
+
+.codeHeader:hover .codeLangSelect {
+    color: var(--text-soft);
+    border-color: var(--line);
+}
+
+.codeLangSelect:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.codeLangSelect:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.codeLangSelect option {
+    background: var(--bg-rail);
+    color: var(--text-main);
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.codeMeta {
+    flex: 1;
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--text-faint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.codeCopyBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    padding: 3px var(--block-marker-gap);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--r-xs);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), background var(--transition-fast),
+        color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.codeBlockWrapper:hover .codeCopyBtn,
+.codeCopyBtn:focus-visible,
+.codeCopyBtn[data-copied="true"] {
+    opacity: 1;
+}
+
+.codeCopyBtn svg {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+}
+
+.codeCopyBtn:hover:not(:disabled) {
+    background: var(--hover-wash);
+    border-color: var(--line);
+    color: var(--text-main);
+}
+
+.codeCopyBtn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.codeCopyBtn[data-copied="true"] {
+    color: var(--ok);
+    border-color: transparent;
+}
+
+.codeCopyBtn:disabled {
+    opacity: 0;
+    cursor: default;
+}
+
+.codeBlock {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    line-height: 1.6;
+    background: transparent;
+    color: var(--text-main);
+    padding: var(--block-inset) calc(var(--block-inset) + 4px);
+    border-radius: 0;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    overflow-x: hidden;
+    outline: none;
+    min-height: 28px;
+    border: none;
+    flex-grow: 1;
+}

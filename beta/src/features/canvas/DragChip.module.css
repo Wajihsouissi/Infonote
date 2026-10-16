@@ -1,0 +1,28 @@
+.dragChipContainer {
+    position: fixed;
+    left: 0;
+    top: 0;
+    pointer-events: none;
+    z-index: 100000;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+    transform: translate3d(-1000px, -1000px, 0) translate(-50%, -50%) scale(0.9);
+    will-change: transform;
+}
+
+.magicalBlock {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: var(--chip-color, var(--accent));
+    border: 1px solid var(--line-strong);
+    box-shadow: var(--node-shadow-hover);
+}
+
+.icon {
+    color: var(--on-accent);
+}

@@ -1,0 +1,875 @@
+/* Scene choreography.
+
+   Every moving value is a function of a beat variable running 0 → 1, written
+   on the chapter root by useResearchStoryMotion. The stylesheet's own default
+   for each beat is the finished pose, so a scene reads correctly with motion
+   reduced, or if the script never runs. Only transform, opacity and clipping
+   change — nothing here re-flows the page.
+
+   Where a rule overrides a card shell from ResearchCard.module.css it carries
+   two classes, so it wins regardless of the order the modules load in. */
+
+/* ---------- wires ---------- */
+
+.wires {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.wireAccent,
+.wireSoft,
+.wireThread {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.wireAccent { stroke: var(--accent); stroke-width: 2; }
+.wireSoft { stroke: var(--line-heavy); stroke-width: 1.5; }
+.wireThread { stroke: var(--line-heavy); stroke-width: 1.25; stroke-dasharray: 1.5 6; }
+
+/* A scrubbed wire draws along its normalized length. The opacity guard keeps
+   a round cap from showing as a dot before the line starts. */
+.net .wireAccent,
+.net .wireSoft,
+.assist .wireSoft {
+  stroke-dasharray: 1;
+  stroke-dashoffset: calc(1 - var(--draw));
+  opacity: min(1, calc(var(--draw) * 24));
+}
+
+.handle {
+  fill: var(--bg-workspace);
+  stroke: var(--accent);
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* ---------- 01 · the collection ---------- */
+
+.collection {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.22fr) minmax(0, 0.78fr);
+  column-gap: clamp(22px, 3.2vw, 48px);
+  align-items: start;
+  padding-top: 22px;
+}
+
+/* The first scroll nudges the pieces apart: adjacent, not yet connected. */
+.drift {
+  transform:
+    translate3d(calc(var(--mx, 0px) * var(--drift)), calc(var(--my, 0px) * var(--drift)), 0)
+    rotate(calc(var(--r0, 0deg) + var(--mr, 0deg) * var(--drift)));
+  will-change: transform;
+}
+
+.collectMain {
+  position: relative;
+  display: grid;
+  row-gap: 40px;
+  --mx: -12px;
+  --my: -4px;
+}
+
+.collectWell {
+  max-height: 11.8em;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(#000 60%, transparent);
+  mask-image: linear-gradient(#000 60%, transparent);
+}
+
+.collectWell p + p { margin-top: 10px; }
+
+.pick {
+  margin: -1px -3px;
+  padding: 1px 3px;
+  border-radius: 3px;
+  font-weight: 500;
+  color: var(--text-main);
+  background: linear-gradient(var(--accent-wash), var(--accent-wash)) no-repeat left center / 100% 100%;
+  animation: pick 0.42s 0.32s var(--ease-rise) both;
+}
+
+@keyframes pick {
+  from { background-size: 0% 100%; }
+}
+
+.collectChunk {
+  width: min(84%, 330px);
+  justify-self: end;
+}
+
+.collectSide {
+  display: grid;
+  row-gap: 38px;
+  padding-top: 44px;
+}
+
+.collectPhoto {
+  width: 90%;
+  justify-self: end;
+  --r0: 2deg;
+  --mx: 16px;
+  --my: -22px;
+  --mr: 1.5deg;
+}
+
+.collectQuestion {
+  --r0: -1.5deg;
+  --mx: 22px;
+  --my: 16px;
+  --mr: -1deg;
+}
+
+/* ---------- 02 · the cut ---------- */
+
+.cut {
+  position: relative;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.cutNote {
+  position: relative;
+  width: min(84%, 392px);
+  padding: 10px;
+}
+
+.cutShell,
+.cutTrace,
+.cutWell,
+.cutSelect {
+  position: absolute;
+  pointer-events: none;
+}
+
+.cutShell {
+  inset: 0;
+  border-radius: var(--r-surface);
+  background: var(--node-bg);
+  box-shadow: var(--node-ring), var(--node-shadow-rest);
+  opacity: calc(1 - var(--split));
+}
+
+/* What stays where the note was: the source, still in view. */
+.cutTrace {
+  inset: 0;
+  border: 1px dashed var(--line-heavy);
+  border-radius: var(--r-surface);
+  opacity: calc(var(--split) * 0.75);
+}
+
+.cutWell {
+  inset: 44px 10px 10px;
+  border-radius: var(--r-md);
+  background: var(--node-well-bg);
+  opacity: calc(1 - var(--split));
+}
+
+.cutSelect {
+  inset: -6px;
+  border: 1.5px solid var(--accent);
+  border-radius: calc(var(--r-surface) + 6px);
+  opacity: calc(min(1, var(--mark) * 3) * (1 - var(--split)));
+}
+
+.cutAction {
+  --shown: min(1, calc(var(--mark) * 2.5));
+  --press: clamp(0, calc(var(--mark) * 5 - 4), 1);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 22px);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border-radius: var(--r-control);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--on-accent) calc(var(--press) * 100%), var(--text-main));
+  background: color-mix(in srgb, var(--accent) calc(var(--press) * 100%), var(--bg-raised));
+  box-shadow: 0 0 0 1px var(--line-strong), var(--elev-2);
+  opacity: calc(var(--shown) * (1 - min(1, var(--split) * 3)));
+  transform: translate(-50%, calc((1 - var(--shown)) * 8px)) scale(calc(1 - 0.04 * var(--press)));
+}
+
+.cutHead {
+  position: relative;
+  height: 34px;
+  padding: 4px 8px 0;
+  font-size: 0.8125rem;
+  letter-spacing: 0.005em;
+  color: var(--text-faint);
+  opacity: calc(1 - 0.4 * var(--split));
+}
+
+.cutBody {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  padding: 4px;
+}
+
+.cutChunk {
+  position: relative;
+  padding: 11px 14px;
+  border-radius: var(--r-md);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  letter-spacing: -0.003em;
+  transform:
+    translate3d(calc(var(--dx) * var(--split)), calc(var(--dy) * var(--split)), 0)
+    rotate(calc(var(--rot) * var(--split)));
+  will-change: transform;
+}
+
+/* Its own shell, arriving as it separates. */
+.cutChunk::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--node-bg);
+  box-shadow: var(--node-ring), var(--elev-2);
+  opacity: var(--split);
+}
+
+/* The highlight that passes over each idea in turn. */
+.cutChunk::after {
+  --sweep: clamp(0, calc(var(--mark) * 3.2 - var(--i) * 0.9), 1);
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--accent-wash);
+  clip-path: inset(0 calc((1 - var(--sweep)) * 100%) 0 0 round var(--r-md));
+  opacity: calc(1 - var(--split));
+}
+
+.cutChunk:nth-child(1) { --dx: clamp(-104px, -14cqw, -8px); --dy: -4px; --rot: -1.6deg; }
+.cutChunk:nth-child(2) { --dx: clamp(8px, 14cqw, 104px); --dy: 22px; --rot: 1.1deg; }
+.cutChunk:nth-child(3) { --dx: clamp(-40px, -5cqw, -4px); --dy: 68px; --rot: -0.7deg; }
+
+.cutTag { opacity: var(--label); }
+
+/* ---------- 03 · the connection ---------- */
+
+/* The canvas eases back a little as the group forms, so the whole of it is in view. */
+.net {
+  position: relative;
+  height: 100%;
+  transform: scale(calc(1.05 - 0.05 * var(--gather)));
+}
+
+.net .wireAccent { --draw: min(1, calc(var(--wire) * 1.5)); }
+.net .wireSoft { --draw: clamp(0, calc(var(--wire) * 2.6 - 1.4), 1); }
+.net .wireThread { opacity: 0.8; }
+
+.handleFrom { transform: scale(min(1, calc(var(--wire) * 6))); }
+.handleTo { transform: scale(clamp(0, calc(var(--wire) * 6 - 3.6), 1)); }
+
+.net .netPhoto { position: absolute; left: 74%; top: 2%; width: 22%; rotate: 2deg; }
+
+.net .netC1 {
+  position: absolute;
+  left: 2%;
+  top: 25%;
+  width: 37%;
+  transform: translate3d(calc((1 - var(--gather)) * -34px), calc((1 - var(--gather)) * -22px), 0);
+}
+
+.net .netC2 {
+  position: absolute;
+  left: 60%;
+  top: 33%;
+  width: 38%;
+  transform: translate3d(calc((1 - var(--gather)) * 40px), calc((1 - var(--gather)) * 26px), 0);
+}
+
+/* The two being worked on wear the selection ring; it fades as attention
+   passes from the cards to the relation between them. */
+.netPicked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--node-ring-selected);
+  opacity: calc(min(1, var(--gather) * 2) * (1 - var(--note)));
+  pointer-events: none;
+}
+
+.net .netQ1 {
+  position: absolute;
+  left: 30%;
+  top: 73%;
+  width: 37%;
+  opacity: min(1, calc(var(--gather) * 1.6));
+  transform: translate3d(0, calc((1 - var(--gather)) * 46px), 0);
+}
+
+.net .netC3 { position: absolute; left: 1%; top: 88%; width: max-content; rotate: -1.2deg; }
+
+.net .netAngle {
+  position: absolute;
+  left: 31%;
+  top: 51%;
+  width: 36%;
+  font-size: 0.875rem;
+  color: var(--text-soft);
+  opacity: var(--note);
+  transform: translate3d(0, calc((1 - var(--note)) * 10px), 0);
+}
+
+/* ---------- 04 · the depth ---------- */
+
+.depth {
+  /* Where the card sits in the stage — and so where the aperture opens from. */
+  --il: 21%;
+  --it: 29%;
+  --ir: 21%;
+  --ib: 29%;
+  position: relative;
+  height: 100%;
+}
+
+/* The parent canvas is pushed back and dimmed while the card is open. */
+.depthOuter {
+  position: absolute;
+  inset: 0;
+  transform: scale(calc(1 - 0.05 * var(--open)));
+  opacity: calc(1 - 0.72 * var(--open));
+}
+
+.depth .depthPhoto { position: absolute; left: 2%; top: 4%; width: 20%; rotate: -2deg; }
+.depth .depthFile { position: absolute; right: 2%; bottom: 5%; width: 36%; }
+
+.depthCard {
+  position: absolute;
+  inset: var(--it) var(--ir) var(--ib) var(--il);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+}
+
+.depthCardBg {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-surface);
+  background: var(--node-bg);
+  box-shadow: var(--node-ring), var(--elev-2);
+  opacity: var(--group);
+}
+
+.depthCardHead {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  opacity: var(--group);
+}
+
+.depthCardHead strong { font-weight: 500; }
+.depthCardHead small { margin-left: auto; font-size: 0.75rem; color: var(--text-faint); }
+
+.depthPieces {
+  position: relative;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-content: center;
+}
+
+/* The four pieces start loose around the card and are gathered into it. */
+.depth .depthPiece {
+  background: var(--bg-raised);
+  transform: translate3d(calc(var(--sx) * (1 - var(--group))), calc(var(--sy) * (1 - var(--group))), 0);
+}
+
+.depthPiece:nth-child(1) { --sx: -15cqw; --sy: -110px; }
+.depthPiece:nth-child(2) { --sx: 16cqw; --sy: -86px; }
+.depthPiece:nth-child(3) { --sx: -13cqw; --sy: 108px; }
+.depthPiece:nth-child(4) { --sx: 15cqw; --sy: 92px; }
+
+/* The focus aperture. Content is laid out at full size from the start; the
+   clip grows from the card's own rectangle to the whole stage. */
+.depthInner {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(circle, var(--dot) 0.8px, transparent 0.9px) 0 0 / 24px 24px,
+    var(--bg-workspace);
+  clip-path: inset(
+    calc(var(--it) * (1 - var(--open)))
+    calc(var(--ir) * (1 - var(--open)))
+    calc(var(--ib) * (1 - var(--open)))
+    calc(var(--il) * (1 - var(--open)))
+    round calc(16px + 8px * var(--open))
+  );
+  opacity: min(1, calc(var(--open) * 6));
+}
+
+.depthRing {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.depthRing rect {
+  x: calc(var(--il) * (1 - var(--open)));
+  y: calc(var(--it) * (1 - var(--open)));
+  width: calc(100% - (var(--il) + var(--ir)) * (1 - var(--open)));
+  height: calc(100% - (var(--it) + var(--ib)) * (1 - var(--open)));
+  rx: calc(16px + 8px * var(--open));
+  fill: none;
+  stroke: var(--line-heavy);
+  stroke-width: 1;
+  opacity: min(1, calc(var(--open) * 6));
+}
+
+/* Appears once and then stays put: the way back is always in the same place. */
+.depthCrumb {
+  position: absolute;
+  left: 26px;
+  top: 22px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--text-faint);
+  opacity: clamp(0, calc(var(--open) * 3 - 1.5), 1);
+}
+
+.depthCrumb strong { font-weight: 500; color: var(--text-main); }
+
+.depth .depthNote {
+  position: absolute;
+  left: 5%;
+  top: 27%;
+  width: 56%;
+  opacity: var(--inside);
+  transform: translate3d(0, calc((1 - var(--inside)) * 14px), 0);
+}
+
+.depthList dt {
+  font: 500 0.6875rem/1 var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.depthList dd { margin-top: 7px; }
+.depthList dd + dt { margin-top: 18px; }
+
+.depthTodo {
+  display: grid;
+  grid-template-columns: 15px 1fr;
+  gap: 9px;
+}
+
+.depthTodo svg { margin-top: 3px; color: var(--text-faint); }
+
+.depthSide {
+  position: absolute;
+  left: 66%;
+  top: 31%;
+  width: 30%;
+  display: grid;
+  gap: 12px;
+}
+
+.depthSide > * {
+  --in: clamp(0, calc(var(--inside) * 2 - var(--i) * 0.35), 1);
+  opacity: var(--in);
+  transform: translate3d(calc((1 - var(--in)) * 16px), 0, 0);
+}
+
+/* ---------- 05 · the thinking partner ---------- */
+
+.assist {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(32px, 8cqw, 72px);
+}
+
+.assist .wireSoft { --draw: var(--panel); }
+
+.assistSource {
+  position: relative;
+  flex-shrink: 0;
+  width: 37%;
+}
+
+.assistSelect {
+  position: absolute;
+  inset: -6px;
+  border: 1.5px solid var(--accent);
+  border-radius: calc(var(--r-md) + 6px);
+  opacity: var(--select);
+  pointer-events: none;
+}
+
+/* The panel materializes from the note that asked for it: scale and blur
+   resolve together, anchored on the side it came from. */
+.assistPanel {
+  position: relative;
+  width: 49%;
+  padding: 16px;
+  border-radius: var(--r-lg);
+  background: var(--bg-raised);
+  box-shadow: 0 0 0 1px var(--line-strong), var(--elev-3);
+  opacity: var(--panel);
+  transform: scale(calc(0.94 + 0.06 * var(--panel)));
+  transform-origin: left center;
+  filter: blur(calc((1 - var(--panel)) * 10px));
+}
+
+.assistHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: var(--text-faint);
+}
+
+.assistHead svg { color: var(--accent); }
+
+.assistPrompt {
+  width: fit-content;
+  max-width: 90%;
+  margin: 14px 0 0 auto;
+  padding: 9px 13px;
+  border-radius: var(--r-md);
+  background: var(--hover-wash);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--text-soft);
+}
+
+.assistAnswer {
+  display: grid;
+  gap: 11px;
+  margin-top: 16px;
+  list-style: none;
+  counter-reset: answer;
+  opacity: var(--answer);
+  transform: translate3d(0, calc((1 - var(--answer)) * 10px), 0);
+}
+
+.assistAnswer li {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  counter-increment: answer;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.assistAnswer li::before {
+  content: counter(answer);
+  font: 500 0.6875rem/1.9 var(--font-mono);
+  color: var(--text-faint);
+}
+
+.assistFoot {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 0.75rem;
+  letter-spacing: 0.01em;
+  color: var(--text-faint);
+  opacity: var(--answer);
+}
+
+/* ---------- 06 · the plan ---------- */
+
+.plan {
+  position: relative;
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 0.72fr) minmax(0, 1fr) minmax(0, 1.68fr);
+  column-gap: clamp(20px, 2.6cqw, 36px);
+  align-items: start;
+  align-content: center;
+}
+
+.planZone {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.zoneLabel {
+  font: 500 0.6875rem/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.zoneLabel b { margin-left: 8px; font-weight: 500; color: var(--text-soft); }
+
+/* Research starts centre stage and steps aside to make room for what it becomes. */
+.planResearch {
+  transform:
+    translate3d(calc((50cqw - 50%) * (1 - var(--spread))), 0, 0)
+    scale(calc(1.12 - 0.12 * var(--spread)));
+}
+
+.planStack { display: grid; gap: 8px; }
+
+.planOutline {
+  opacity: var(--outline);
+  transform: translate3d(calc((1 - var(--outline)) * 28px), 0, 0);
+}
+
+.outlineParts {
+  display: grid;
+  gap: 15px;
+  list-style: none;
+}
+
+.outlineParts li {
+  --in: clamp(0, calc(var(--outline) * 3 - var(--i) * 0.8), 1);
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  opacity: var(--in);
+  transform: translate3d(0, calc((1 - var(--in)) * 8px), 0);
+}
+
+.partIndex { font: 500 0.6875rem/1.9 var(--font-mono); color: var(--text-faint); }
+.partText strong { display: block; font-weight: 500; }
+.partText span { display: block; margin-top: 1px; font-size: 0.8125rem; color: var(--text-faint); }
+.partRefs { display: flex; gap: 4px; padding-top: 3px; }
+
+.partRefs i {
+  padding: 4px 5px;
+  border-radius: 4px;
+  background: var(--hover-wash);
+  font: 500 0.625rem/1 var(--font-mono);
+  letter-spacing: 0.08em;
+  color: var(--text-soft);
+}
+
+.planBoard {
+  --in: clamp(0, calc(var(--outline) * 2.4 - 1.1), 1);
+  opacity: var(--in);
+  transform: translate3d(calc((1 - var(--in)) * 28px), 0, 0);
+}
+
+.board {
+  --task-h: 62px;
+  --task-gap: 8px;
+  --lane-gap: 10px;
+  --lane-pad: 10px;
+  --lane-head: 22px;
+  --lane-full: calc(var(--lane-pad) * 2 + var(--lane-head) + 3 * (var(--task-h) + var(--task-gap)));
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--lane-gap);
+  padding: 10px;
+  border-radius: var(--r-lg);
+  background: var(--bg-frame);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.lane {
+  display: grid;
+  align-content: start;
+  gap: var(--task-gap);
+  height: var(--lane-full);
+  padding: var(--lane-pad);
+  border-radius: var(--r-md);
+  background: var(--bg-workspace);
+}
+
+.laneHead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: var(--lane-head);
+  font-size: 0.75rem;
+  letter-spacing: 0.01em;
+  color: var(--text-faint);
+}
+
+.laneHead i { width: 6px; height: 6px; border-radius: 50%; background: var(--text-faint); }
+.lane[data-lane='progress'] .laneHead i { background: var(--a-amber); }
+.lane[data-lane='done'] .laneHead i { background: var(--a-jade); }
+
+.task {
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  height: var(--task-h);
+  padding: 0 12px;
+  border-radius: var(--r-control);
+  background: var(--node-bg);
+  box-shadow: var(--node-ring);
+  font-size: 0.875rem;
+  line-height: 1.25;
+}
+
+.taskId { font: 500 0.625rem/1 var(--font-mono); letter-spacing: 0.1em; color: var(--text-faint); }
+.taskSlot { height: var(--task-h); }
+
+/* The two that stay close the gap the moved task leaves behind. */
+.taskShift {
+  transform: translate3d(0, calc(-1 * (var(--task-h) + var(--task-gap)) * var(--move)), 0);
+}
+
+/* Laid out where it lands; offset back to the lane it came from. It lifts
+   mid-move — that lift is the gesture. */
+.taskMoving {
+  --lift: calc(4 * var(--move) * (1 - var(--move)));
+  --step-x: calc(-1 * ((100cqw - 2 * var(--lane-gap)) / 3 + var(--lane-gap)));
+  --step-y: 0px;
+  z-index: 2;
+  transform:
+    translate3d(calc(var(--step-x) * (1 - var(--move))), calc(var(--step-y) * (1 - var(--move)) - var(--lift) * 10px), 0)
+    rotate(calc(var(--lift) * 2.5deg))
+    scale(calc(1 + var(--lift) * 0.04));
+  will-change: transform;
+}
+
+.taskMoving::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--node-ring-selected), var(--elev-3);
+  opacity: min(1, calc(var(--lift) * 3));
+  pointer-events: none;
+}
+
+/* ---------- closing strip ---------- */
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(10px, 1.6vw, 22px);
+  list-style: none;
+}
+
+.frame { display: grid; gap: 12px; }
+
+.frameArt {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--r-surface);
+  background: var(--bg-frame);
+  box-shadow: 0 0 0 1px var(--line);
+  color: var(--text-faint);
+}
+
+.frameArt svg { width: 100%; height: 100%; }
+.frameArt :global(.shape) { fill: var(--node-bg); stroke: var(--line-heavy); stroke-width: 1; }
+.frameArt :global(.ink) { fill: none; stroke: var(--line-heavy); stroke-width: 1.5; stroke-linecap: round; }
+.frameArt :global(.signal) { fill: none; stroke: var(--accent); stroke-width: 1.75; stroke-linecap: round; }
+.frameArt :global(.photo) { fill: #5a4636; stroke: var(--line-heavy); stroke-width: 1; }
+
+.frameName {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: var(--text-soft);
+}
+
+.frameName b { font: 500 0.6875rem/1 var(--font-mono); letter-spacing: 0.1em; color: var(--text-faint); }
+
+/* The empty frame: the visitor's own next idea. */
+.frameOpen .frameArt {
+  background: none;
+  box-shadow: none;
+  border: 1px dashed var(--line-heavy);
+  color: var(--accent);
+}
+
+.frameOpen .frameArt svg { width: 22px; height: 22px; }
+.frameOpen .frameName { color: var(--text-main); }
+
+/* ---------- stacked layouts ---------- */
+
+@media (max-width: 1179px) {
+  .plan { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); }
+  .planResearch { display: none; }
+}
+
+@media (max-width: 1023px) {
+  /* No room to fan out sideways: the blocks open up downwards instead, and
+     the note's title gives way to their labels. */
+  .cut { height: auto; padding: 66px 0 80px; }
+  .cutHead { opacity: calc(1 - var(--split)); }
+  .cutChunk:nth-child(1) { --dx: -8px; --dy: 0px; --rot: -1.2deg; }
+  .cutChunk:nth-child(2) { --dx: 10px; --dy: 24px; --rot: 0.9deg; }
+  .cutChunk:nth-child(3) { --dx: -4px; --dy: 48px; --rot: -0.6deg; }
+
+  /* A pair of ideas and a question, at a readable size — not the desktop
+     network scaled down. The other sources move into a disclosure below. */
+  .net { height: 468px; max-width: 520px; margin-inline: auto; }
+  .net .netPhoto, .net .netC3, .netWireLeft { display: none; }
+  .net .netC1 { left: 0; top: 5%; width: 80%; }
+  .net .netC2 { left: 20%; top: 27%; width: 80%; }
+  .net .netQ1 { left: 4%; top: 51%; width: 78%; }
+  .net .netAngle { left: 14%; top: 77%; width: 86%; }
+
+  .depth { --il: 3%; --it: 5%; --ir: 3%; --ib: 61%; height: 548px; max-width: 560px; margin-inline: auto; }
+  .depth .depthPhoto, .depth .depthFile { display: none; }
+  .depthPiece:nth-child(1) { --sx: -10px; --sy: 150px; }
+  .depthPiece:nth-child(2) { --sx: 10px; --sy: 176px; }
+  .depthPiece:nth-child(3) { --sx: -10px; --sy: 210px; }
+  .depthPiece:nth-child(4) { --sx: 10px; --sy: 236px; }
+  .depthCrumb { left: 18px; top: 18px; }
+  .depth .depthNote { left: 4%; top: 12%; width: 92%; }
+  .depthSide { left: 4%; top: auto; bottom: 4%; width: 92%; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .depthSide > :last-child { grid-column: 1 / -1; }
+
+  .assist { height: auto; flex-direction: column; align-items: stretch; gap: 52px; max-width: 480px; margin-inline: auto; padding: 30px 0 8px; }
+  .assistSource, .assistPanel { width: auto; }
+  .assistPanel { transform-origin: center top; }
+
+  .plan { height: auto; grid-template-columns: minmax(0, 1fr); row-gap: 34px; max-width: 600px; margin-inline: auto; }
+}
+
+@media (max-width: 640px) {
+  .collection { grid-template-columns: minmax(0, 1fr); row-gap: 40px; }
+  .collectSide { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 18px; align-items: start; padding-top: 0; }
+  .collectPhoto { width: 100%; --mx: -6px; --my: 10px; }
+  .collectQuestion { margin-top: 18px; --mx: 6px; --my: 18px; }
+  .collectChunk { margin-right: 0; }
+
+  /* One lane under the next; the task moves down a lane instead of across. */
+  .board { grid-template-columns: minmax(0, 1fr); }
+  .lane:not(:first-child) { height: calc(var(--lane-pad) * 2 + var(--lane-head) + var(--task-h) + var(--task-gap)); }
+  .taskMoving { --step-x: 0px; --step-y: calc(-1 * (var(--lane-full) + var(--lane-gap))); }
+
+  .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .frameOpen { grid-column: 1 / -1; }
+  .frameOpen .frameArt { aspect-ratio: 5 / 1; }
+}

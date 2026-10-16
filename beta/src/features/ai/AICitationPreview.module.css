@@ -1,0 +1,112 @@
+/* Citation hover preview — ai-Plan.md §5.4.
+   Same floating-surface language as the panel's menus and the provenance
+   popover: raised ground, strong hairline, surface radius, elev-3. */
+
+.preview {
+    position: fixed;
+    z-index: 1000;
+    padding: 9px;
+    background: var(--menu-bg);
+    border: 1px solid var(--menu-border);
+    border-radius: var(--menu-radius);
+    box-shadow: var(--elev-3);
+    /* Purely informational: it must never eat a click meant for the chip
+       underneath, or hovering to read would make the source unreachable. */
+    pointer-events: none;
+    animation: aiCitePop 0.12s var(--ease-rise);
+}
+
+@keyframes aiCitePop {
+    from { opacity: 0; transform: translateY(2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .preview { animation: none; }
+}
+
+.head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 6px;
+}
+
+/* This is deliberately a miniature card, not a text tooltip. The source is
+   recognised visually before its title is read, which makes dense citations
+   feel like direct pointers into the canvas rather than footnotes. */
+.snapshot {
+    position: relative;
+    overflow: hidden;
+    padding: 10px 10px 10px 14px;
+    border: 1px solid var(--line);
+    border-radius: calc(var(--menu-radius) - 3px);
+    background: var(--bg-card);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+
+.snapshotRail {
+    position: absolute;
+    inset: 8px auto 8px 0;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--citation-accent, var(--accent));
+}
+
+.icon {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    border-radius: var(--r-xs);
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+}
+
+.title {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.body {
+    margin: 0;
+    font-size: 0.71rem;
+    line-height: 1.5;
+    color: var(--text-soft);
+    /* Four lines is enough to recognise the card without reproducing it —
+       the point is "is this the thing I think it is", not reading it here. */
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.empty {
+    margin: 0;
+    font-size: 0.71rem;
+    line-height: 1.5;
+    font-style: italic;
+    color: var(--text-faint);
+}
+
+.foot {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 7px 3px 0;
+    padding-top: 1px;
+    font-size: 0.64rem;
+    color: var(--text-faint);
+}
+
+.foot svg {
+    flex-shrink: 0;
+    opacity: 0.8;
+}

@@ -1,0 +1,121 @@
+/* ============================================================
+   Base Resets & Global Layout
+   ============================================================ */
+
+/* Theme Transition Helper */
+.theme-transitioning,
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+  transition-delay: 0s !important;
+  pointer-events: none !important;
+}
+
+.theme-transitioning .glass-panel,
+.theme-transitioning .card,
+.theme-transitioning .react-flow__pane,
+.theme-transitioning .react-flow__node,
+.theme-transitioning .react-flow__edge-path {
+  will-change: background-color, border-color, color;
+}
+
+/* Circular theme reveal (View Transitions).
+   The default root cross-fade is suppressed so the incoming theme is wiped in
+   by the clip-path circle animated from the toggle in src/utils/themeTransition.ts. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 0;
+}
+
+::view-transition-new(root) {
+  z-index: 1;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-main);
+  caret-color: var(--text-main);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  cursor: auto;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* The component primitives are the preferred API, but the application already
+   contains feature-owned native buttons. Apply the system baseline to every
+   one so migration cannot leave circular or mismatched controls behind. */
+button {
+  --corner-smooth: superellipse(2);
+  corner-shape: var(--corner-smooth);
+  font-weight: 600;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+button:not([data-button-shape='round']):not([data-button-shape='fab']) {
+  border-radius: var(--btn-radius) !important;
+}
+
+button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: var(--radius-xs);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-faint);
+}

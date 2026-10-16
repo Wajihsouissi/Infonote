@@ -1,0 +1,287 @@
+/* Color Block */
+.colorBlockWrapper {
+    position: relative;
+    border-radius: var(--block-radius-lg);
+    margin: var(--block-pad-y) 0;
+    cursor: pointer;
+    transition: transform var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.colorBlockWrapper:hover {
+    transform: translateY(-1px);
+}
+
+.resizeHandle {
+    position: absolute;
+    bottom: -16px;
+    right: -16px;
+    /* Larger hit area for easy grabbing; the visual arc stays small via the svg size below. */
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: nwse-resize;
+    z-index: 30;
+    opacity: 0;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: auto;
+    transform: rotate(180deg);
+}
+
+.resizeHandle svg {
+    width: 56%;
+    height: 56%;
+    display: block;
+}
+
+/* Show handle on hover or dragging */
+.resizeWrapper:hover .resizeHandle,
+.resizeHandle.isResizing {
+    opacity: 1;
+}
+
+.handlePath {
+    stroke-opacity: 0.9;
+    transition: transform var(--transition-smooth);
+}
+
+.resizeHandle:hover svg {
+    filter: none;
+    transform: scale(1.1) rotate(-5deg);
+}
+
+.resizeHandle:active svg {
+    filter: none;
+    transform: scale(1.2) rotate(-10deg);
+}
+
+/* Alignment Container */
+.alignmentContainer {
+    display: flex;
+    width: 100%;
+    margin-bottom: 4px;
+    position: relative;
+    z-index: 10;
+    align-items: flex-start;
+    background: transparent;
+    overflow: visible;
+}
+
+.alignmentContainer:has(.atomicMedia) {
+    margin-bottom: 0;
+}
+
+.alignmentContainer[data-alignment="left"] {
+    justify-content: flex-start;
+}
+
+/* Inline Page Chip */
+.inlinePageChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--hover-wash);
+    border: 1px solid var(--line);
+    border-radius: var(--r-xs);
+    padding: 2px var(--block-pad-x);
+    margin: 0 2px;
+    color: var(--text-main);
+    text-decoration: none;
+    font-size: 0.9em;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.inlinePageChip:hover {
+    background: var(--accent-dim);
+    border-color: rgba(var(--accent-rgb), 0.35);
+    color: var(--accent-ink);
+    text-decoration: none;
+}
+
+.alignmentContainer[data-alignment="center"] {
+    justify-content: center;
+}
+
+.alignmentContainer[data-alignment="right"] {
+    justify-content: flex-end;
+}
+
+/* Alignment Menu */
+.alignmentMenu {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+
+    background: var(--toolbar-bg);
+    border: 1px solid var(--toolbar-border);
+    border-radius: var(--radius-pill);
+    padding: 4px;
+    display: flex;
+    gap: 4px;
+    box-shadow: var(--toolbar-shadow);
+
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    pointer-events: none;
+    z-index: 30;
+}
+
+/* Show menu on hover of the wrapper */
+.alignmentContainer:hover .alignmentMenu,
+.resizeWrapper:hover .alignmentMenu {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.alignmentBtn {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--r-control);
+    padding: 4px;
+    color: var(--btn-ghost-fg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
+    width: 24px;
+    height: 24px;
+}
+
+.alignmentBtn:hover {
+    background: var(--toolbar-btn-hover);
+    color: var(--text-main);
+}
+
+.alignmentBtn.active {
+    background: var(--accent);
+    color: var(--on-accent);
+    border-color: var(--accent);
+}
+
+/* Toggle Group Container & Nested Children styling */
+/* Nested toggle children sit in a faint accent well behind a left rail —
+   the same grammar as the quote block, one step quieter. */
+.toggleGroupContainer {
+    display: flex;
+    flex-direction: column;
+    width: auto;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    /* nesting depth, published by BlockEditor as --toggle-indent */
+    margin-left: var(--toggle-indent, 0px);
+    padding: var(--block-marker-gap) var(--block-inset);
+    /* Same rail treatment as the callout: full radius so the line curves into
+       the top and bottom edges, and the full-strength --block-rail colour
+       (it was dimmed to 20% accent, which read as a different, faded system). */
+    border-radius: var(--block-radius-lg);
+    background: var(--block-hover);
+    border-left: var(--block-rail-w) solid var(--block-rail);
+    transition: background-color var(--transition-fast);
+}
+
+.toggleGroupContainer:hover {
+    background: var(--active-wash);
+}
+
+/* The indent for nested children comes from .toggleGroupContainer's rail +
+   inset alone — adding padding here as well double-counts and pushes the
+   child text past its parent label. */
+.toggleChildrenContainer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--block-gap);
+    width: 100%;
+    margin-top: var(--block-gap);
+}
+
+/* When a toggle preserves heading typography (toggle header), override heading margins
+   to keep the triangle aligned with the text */
+.toggleHeaderContent {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+/* Expand drop hit-test zone while a BLOCK is being dragged, with zero layout shift.
+   Deliberately NOT during a node drag (`chnk-it-node-dragging`): a node drag is
+   pointer-based, so blocks never receive dragover/drop from it and the zone bought
+   nothing — while `nodeDragThreshold={0}` made every press on a canvas node count as
+   a drag, so this pseudo-element appeared between pointerdown and pointerup on an
+   ordinary click. The press landed on the block, the release landed on this overlay,
+   and the browser retargeted the click to their common ancestor: no click ever
+   reached anything inside a canvas node (the media picker, most visibly). */
+:global(body.chnk-it-block-dragging) .sortableWrapper::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    bottom: -8px;
+    left: 0;
+    right: 0;
+    z-index: 1;
+    /* High enough to capture, but doesn't block text cursor when not dragging since it only exists during dragging */
+    pointer-events: auto;
+}
+
+/* (merged into the .toggleWrapper rule above — this duplicate was silently
+   re-setting align-items back to flex-start, so the chevron never centred
+   against its label.) */
+
+.toggleHint {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.75rem;
+    color: var(--text-faint);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-fast);
+    user-select: none;
+    background: transparent;
+    padding: 2px 6px;
+    border-radius: var(--r-xs);
+}
+
+.toggleWrapper:has([data-is-empty="true"]):hover .toggleHint,
+.toggleWrapper:has([data-is-empty="true"]):focus-within .toggleHint,
+.sortableWrapper:has([data-is-empty="true"]):hover>.blockContent>.toggleHint,
+.sortableWrapper:has([data-is-empty="true"]):focus-within>.blockContent>.toggleHint {
+    opacity: 1;
+}
+
+.toggleHint kbd {
+    font-family: var(--font-mono);
+    background: var(--bg-inset);
+    border: 1px solid var(--line);
+    border-radius: var(--r-xs);
+    padding: 0 4px;
+    font-size: 0.7rem;
+    color: var(--text-soft);
+}
+
+.toggleHint span {
+    opacity: 0.5;
+}
+
+/* The slash menu and the selection toolbar rise into place as they appear. */
+@keyframes popIn {
+    from { opacity: 0; transform: translateY(5px) scale(0.95); }
+    to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .slashMenu,
+    .floatingToolbar { animation: none; }
+}

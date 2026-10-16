@@ -1,0 +1,120 @@
+.container {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 0;
+    height: 34px;
+    box-sizing: border-box;
+    background: transparent;
+    gap: 2px;
+}
+
+
+
+.item {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.separator {
+    color: var(--text-faint);
+    margin: 0 3px;
+}
+
+.crumb {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-soft);
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    white-space: nowrap;
+    padding: 5px 8px;
+    /* Short breadcrumb chips need a proportionally smaller radius than a
+       full-height button; 12px preserves the same squircle character. */
+    border-radius: var(--r-md);
+    corner-shape: var(--corner-smooth);
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.crumb:hover:not(:disabled) {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.crumb.active {
+    color: var(--accent-ink);
+    cursor: default;
+    font-weight: 600;
+    background: var(--accent-dim);
+}
+
+.levelBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: var(--btn-radius);
+    corner-shape: var(--corner-smooth);
+    font-size: 8px;
+    font-weight: 500;
+    line-height: 1;
+    background: var(--hover-wash);
+    color: var(--text-faint);
+    border: 0;
+    margin-left: 1px;
+    transition: background var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
+    box-sizing: border-box;
+    padding-top: 1px;
+    /* Optical vertical centering adjustment for Outfit numbers (pushes text down) */
+}
+
+/* The old :global(.light-theme) overrides here were dead — the app stamps
+   data-theme on :root and never sets that class. Tokens handle both themes. */
+.crumb.active .levelBadge {
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+    border-color: rgba(var(--accent-rgb), 0.3);
+}
+
+.rootLabel {
+    letter-spacing: 0.01em;
+}
+
+.label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 520px) {
+    /* Keep the useful ends of a long path: home is the reliable exit, and the
+       active crumb confirms where a new nested card will be created. */
+    .item:not(:first-child):not(:last-child) {
+        display: none;
+    }
+
+    .container {
+        width: 100%;
+    }
+
+    .item:last-child,
+    .item:last-child .crumb {
+        flex: 1;
+    }
+
+    .crumb {
+        max-width: 100%;
+    }
+
+    .levelBadge {
+        flex: none;
+    }
+}

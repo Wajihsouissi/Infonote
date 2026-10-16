@@ -1343,6 +1343,10 @@ export default defineConfig(({ mode }) => {
       // without flagging these intentional bundles.
       chunkSizeWarningLimit: 700,
       rollupOptions: {
+        input: {
+          app: 'index.html',
+          research: 'website3test/index.html',
+        },
         output: {
           // Split heavy third-party libs into their own cacheable chunks so the
           // app entry / feature chunks (BottomMenu pulled the whole AI SDK stack,
@@ -1369,7 +1373,8 @@ export default defineConfig(({ mode }) => {
       watch: {
         // graphify-out is a code-navigation index rewritten by tooling hooks;
         // watching it makes every index refresh full-reload the app mid-work.
-        ignored: ['**/graphify-out/**'],
+        // beta/ is a separate app with its own dev server on 5174.
+        ignored: ['**/graphify-out/**', '**/beta/**'],
       },
     },
     preview: {

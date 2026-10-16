@@ -194,7 +194,7 @@ export interface StorageSlice {
     restoreFromBackup: () => void;
 }
 
-export type AppView = 'landing' | 'canvas' | 'marketplace' | 'login' | 'signup' | 'wajihadmin' | 'profile' | 'marketing' | 'update-password' | 'features' | 'not-found';
+export type AppView = 'landing' | 'canvas' | 'marketplace' | 'login' | 'signup' | 'wajihadmin' | 'profile' | 'marketing' | 'journey' | 'website4test' | 'update-password' | 'features' | 'not-found';
 
 export interface AuthUser {
     id: string;

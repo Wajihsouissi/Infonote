@@ -1,0 +1,429 @@
+/* --- View Modes --- */
+
+/* 1. Icon View */
+.icon {
+    padding: 8px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: var(--r-panel);
+}
+
+/* 1.2 Folder View — a folder standing on the canvas, not a card with a folder
+   drawn on it. The panel, its ring and its shadow all come off: a folder is
+   already a finished object, and a rectangle behind it reads as a second
+   container holding the first. Everything below is the cost of that decision —
+   with no surface to carry them, hover and selection have to be re-staged on the
+   folder itself. */
+.card.folder,
+.card.folder[data-accented],
+.card.folder:hover,
+.card.folder.selected,
+.card.folder.selected:hover {
+    background: none;
+    box-shadow: none;
+}
+
+.folder {
+    padding: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Lift and glow replace the panel's ring. The drop-shadow follows the folder's
+   alpha rather than its box, so the halo hugs the silhouette — a box-shadow here
+   would draw the very rectangle this view exists to remove. */
+.card.folder .folderView {
+    transition: transform 0.18s var(--ease-rise), filter 0.18s var(--ease-rise);
+    border-radius: var(--r-panel);
+}
+
+.card.folder:hover .folderView {
+    transform: translateY(-3px);
+    filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.35));
+}
+
+.card.folder.selected .folderView {
+    filter: none;
+    box-shadow: var(--node-ring-selected);
+}
+
+.card.folder.selected .folderLabel {
+    color: var(--accent-ink);
+}
+
+/* A recoloured card colours its folder. Mixed toward the faint grey rather than
+   used raw, so a saturated hue still reads as a folder and not a warning sign. */
+.card.folder[data-accented] .folderView {
+    --folder-ink: color-mix(in srgb, var(--node-accent) 65%, var(--text-faint));
+}
+
+.folderView {
+    animation: fadeIn 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    flex: 1;
+    gap: 0;
+}
+
+/* On the canvas rather than on a panel, so the label needs its own contrast:
+   full-strength ink and a hairline of ground behind it keep it readable over a
+   busy background. */
+.folderLabel {
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 1px 4px;
+    margin-top: 1px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--node-title);
+    text-align: center;
+    width: 100%;
+    outline: none;
+    transition: background 0.2s ease;
+    cursor: text;
+    text-shadow: 0 1px 2px var(--bg-base);
+}
+
+.folderLabel:hover {
+    background: var(--hover-wash);
+}
+
+.folderLabel:focus {
+    background: var(--active-wash);
+    text-shadow: none;
+}
+
+.iconView,
+.mediumView,
+.expandedView {
+    animation: fadeIn 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    flex: 1;
+}
+
+.iconView {
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.iconTextInput {
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-main);
+    text-align: center;
+    width: 100%;
+    outline: none;
+    transition: background 0.2s ease, border-color 0.2s ease;
+    cursor: text;
+}
+
+.iconTextInput:hover {
+    background: var(--hover-wash);
+}
+
+.iconTextInput:focus {
+    background: var(--active-wash);
+    box-shadow: none;
+}
+
+/* 1.5 Title View — one grid unit of card: an icon and a line of text.
+
+   The card-level class every other view has was missing here, so a title-view
+   card fell back to the panel geometry: `styles[viewMode]` resolved to
+   undefined and the 56px row wore the 432px page's 32px radius, which at that
+   height reads as a pill. It steps one rung down the radius ladder instead. */
+.titleview {
+    flex-direction: row;
+    align-items: center;
+    padding: 0;
+    border-radius: var(--r-surface);
+}
+
+.titleView {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 8px 12px;
+    width: 100%;
+    height: 100%;
+    flex: 1;
+    gap: 4px;
+    animation: fadeIn 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+.titleViewInput {
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 4px 0px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-main);
+    width: 100%;
+    outline: none;
+    transition: background 0.2s ease, border-color 0.2s ease;
+    cursor: text;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.titleViewInput:hover {
+    background: var(--hover-wash);
+}
+
+.titleViewInput:focus {
+    background: var(--active-wash);
+    box-shadow: none;
+}
+
+/* 2. Medium View */
+.medium {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    height: 100%;
+}
+
+.mediumView {
+    gap: 4px;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Header: Icon + Title Row - MATCHING minimalHeader but Compact */
+.mediumHeader {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    /* Slightly tighter than minimal (12px) */
+    padding: 2px;
+    /* Match minimalHeader bg */
+    flex-shrink: 0;
+    min-height: auto;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.mediumTitleInput {
+    background: transparent;
+    border: none;
+    padding: 2px 4px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-main);
+    width: 100%;
+    outline: none;
+    line-height: 1.2;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    border-radius: var(--radius-xs);
+    cursor: text;
+}
+
+.mediumTitleInput:hover {
+    background: var(--hover-wash);
+}
+
+.mediumTitleInput:focus {
+    background: var(--active-wash);
+    box-shadow: none;
+}
+
+.mediumDescInput {
+    background: transparent;
+    border: none;
+    border-radius: var(--r-lg);
+    padding: 12px 14px;
+    font-size: 12px;
+    font-weight: 400;
+    opacity: 0.8;
+    color: var(--text-soft);
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    outline: none;
+    resize: none;
+    font-family: inherit;
+    line-height: 1.4;
+    transition: background 0.2s ease, border-color 0.2s ease;
+    cursor: text;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+}
+
+.mediumDescInput::-webkit-scrollbar {
+    width: 4px;
+}
+
+.mediumDescInput::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.mediumDescInput::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border-radius: var(--radius-xs);
+}
+
+.mediumDescInput::-webkit-scrollbar-thumb:hover {
+    background: var(--text-soft);
+}
+
+.mediumDescInput:hover {
+    background: var(--hover-wash);
+}
+
+.mediumDescInput:focus {
+    background: var(--active-wash);
+    box-shadow: none;
+    opacity: 1;
+    color: var(--text-main);
+}
+
+.mediumDescContainer {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    width: 100%;
+    border-radius: var(--r-lg);
+    overflow: hidden;
+}
+
+/* 3. Expanded View */
+.expandedView {
+    /* The card's own surface, carried by the view itself rather than borrowed
+       from whatever is under it. On the canvas that is the colour the `.card`
+       beneath already paints, so nothing moves; in a peek pane — side, centre
+       or fullscreen — there is no card at all, and the note used to inherit the
+       pane's raised modal ground instead. A note is the same object in all four
+       places and should be the same colour in all four.
+
+       The well that goes with it is fixed at the `var(--well-alpha, 100%)`
+       read sites rather than by declaring the variable here: `.noteArea` mixes
+       that alpha into its background and it was only ever declared on `.card`,
+       so in a pane it was unset, the mix was invalid, and the page you type on
+       came out fully transparent. A default on the reads covers the pane
+       without re-declaring the variable on an element that INHERITS 72% from a
+       card wearing a cover — which would have flattened that effect. */
+    background: var(--node-bg);
+    overflow: hidden;
+    border-radius: var(--r-panel);
+    contain: layout paint style;
+}
+
+/* On the canvas the card underneath is the surface, and the cover ambient sits
+   between the card's background and this view — so here it stays clear. */
+.card .expandedView {
+    background: transparent;
+}
+
+.expandedView[data-accented] {
+    background: oklch(from var(--node-accent) var(--node-tint-l) var(--node-tint-c) h);
+}
+
+.expandedView[data-accented] .noteArea {
+    background: color-mix(in srgb, oklch(from var(--node-accent) var(--node-well-tint-l) var(--node-well-tint-c) h) var(--well-alpha, 100%), transparent);
+}
+
+/* Hover lives entirely on the shared .icon-hover affordance in
+   design-system.css. */
+
+/* ... */
+
+.noteArea {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+    position: relative;
+    contain: layout paint style;
+
+    /* Inner card styling */
+    background: color-mix(in srgb, var(--node-well-bg) var(--well-alpha, 100%), transparent);
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    border-radius: var(--radius-md);
+    margin: 0 8px 8px 8px;
+}
+
+.noteArea {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+    position: relative;
+    contain: layout paint style;
+    min-width: 0;
+
+    /* Visual Separation - use dynamic override or default */
+    background: color-mix(in srgb, var(--node-well-bg) var(--well-alpha, 100%), transparent);
+    border-radius: var(--r-lg);
+    /* Allow glass to show through (Dark) or Solid (Light) */
+    border-top: none;
+}
+
+.noteArea::-webkit-scrollbar {
+    width: 4px;
+}
+
+.noteArea::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.noteArea::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border-radius: var(--radius-xs);
+}
+
+.noteArea::-webkit-scrollbar-thumb:hover {
+    background: var(--text-soft);
+}
+
+/* 4. Chromeless View */
+.chromeless {
+    width: 100%;
+    height: 100%;
+    padding: 0 4px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 40px;
+}

@@ -2,11 +2,17 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "Vite Dev Server",
+      "name": "Full app",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 5173,
       "autoPort": true
+    },
+    {
+      "name": "Beta",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:beta"],
+      "port": 5174
     },
     {
       "name": "Vite Preview",

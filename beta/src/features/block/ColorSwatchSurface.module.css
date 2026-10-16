@@ -1,0 +1,53 @@
+/* A colour block's swatch surface. */
+
+/* ----------------------------------------------------------- colour swatch */
+
+.swatchOverlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 12px;
+    border-radius: inherit;
+    background: transparent;
+    cursor: pointer;
+}
+
+/* Solid raised chip, not glass: it must stay legible on top of an arbitrary
+   user-picked colour in both themes. */
+.swatchChip {
+    align-self: center;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-control);
+    background: var(--bg-rail);
+    color: var(--text-main);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: inherit;
+    box-shadow: var(--shadow-sm);
+    cursor: copy;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(4px);
+    transition: opacity var(--transition-fast), transform var(--transition-fast), background var(--transition-fast);
+}
+
+/* ------------------------------------------------------------ drag overlay */
+
+.swatchOverlay:hover .swatchChip,
+.swatchChip:focus-visible,
+.swatchChip[data-copied] {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+.swatchChip:hover {
+    background: var(--bg-card);
+}

@@ -1,0 +1,529 @@
+/* Link block — bookmark card, embed, and inline text-link modes.
+   Fully tokenised: no theme-specific rules, it just works in Ink and Paper.
+   (The old :global(.light-theme) overrides were dead — the app stamps
+   data-theme on :root, it never sets that class.) */
+
+.container {
+    position: relative;
+    width: 100%;
+    margin: var(--block-marker-gap) 0;
+    transition: opacity var(--transition-fast);
+    outline: none;
+}
+
+/* Bookmark Mode */
+.bookmarkCard {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    min-height: 112px;
+    max-height: 140px;
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: var(--block-radius-lg);
+    overflow: hidden;
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast),
+        transform var(--transition-fast);
+    box-shadow: none;
+    user-select: none;
+    text-decoration: none;
+}
+
+.bookmarkCard:hover {
+    transform: translateY(-1px);
+    border-color: var(--line-strong);
+    background: var(--hover-wash);
+}
+
+.bookmarkCard:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.bookmarkCard:active {
+    transform: translateY(0) scale(0.995);
+}
+
+.bookmarkInfo {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: var(--block-inset);
+    min-width: 0; /* Ensures text truncates properly */
+    justify-content: space-between;
+}
+
+.bookmarkTitle {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin: 0 0 6px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+    transition: color var(--transition-fast);
+}
+
+.bookmarkCard:hover .bookmarkTitle {
+    color: var(--accent-ink);
+}
+
+.bookmarkDesc {
+    font-size: 0.75rem;
+    color: var(--text-soft);
+    margin: 0 0 10px 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.5;
+}
+
+.bookmarkMeta {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--block-marker-gap);
+    margin-top: auto;
+}
+
+.bookmarkFavicon {
+    width: 16px;
+    height: 16px;
+    border-radius: var(--r-xs);
+    object-fit: contain;
+    background: var(--hover-wash);
+    padding: 1px;
+    flex-shrink: 0;
+}
+
+.bookmarkDomain {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    color: var(--text-faint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bookmarkImageContainer {
+    width: 200px;
+    min-width: 140px;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-left: 1px solid var(--line);
+    position: relative;
+    background: var(--bg-inset);
+}
+
+.bookmarkImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--transition-smooth);
+}
+
+.bookmarkCard:hover .bookmarkImage {
+    transform: scale(1.05);
+}
+
+@media (max-width: 480px) {
+    .bookmarkImageContainer {
+        display: none;
+    }
+}
+
+/* Skeleton Loading State */
+.skeletonCard {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    height: 116px;
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: var(--block-radius-lg);
+    overflow: hidden;
+}
+
+.skeletonInfo {
+    flex: 1;
+    padding: var(--block-inset);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.shimmer {
+    background-image: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--hover-wash) 50%,
+        transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer-anim 1.5s infinite;
+}
+
+@keyframes shimmer-anim {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeletonTitle {
+    height: 16px;
+    width: 60%;
+    border-radius: var(--r-xs);
+    background-color: var(--hover-wash);
+}
+
+.skeletonDesc {
+    height: 12px;
+    width: 85%;
+    border-radius: var(--r-xs);
+    background-color: var(--hover-wash);
+}
+
+.skeletonDesc2 {
+    height: 12px;
+    width: 45%;
+    border-radius: var(--r-xs);
+    background-color: var(--hover-wash);
+}
+
+.skeletonMeta {
+    display: flex;
+    align-items: center;
+    gap: var(--block-marker-gap);
+}
+
+.skeletonFavicon {
+    width: 16px;
+    height: 16px;
+    border-radius: var(--r-xs);
+    background-color: var(--hover-wash);
+}
+
+.skeletonDomain {
+    height: 10px;
+    width: 80px;
+    border-radius: var(--r-xs);
+    background-color: var(--hover-wash);
+}
+
+.skeletonImage {
+    width: 160px;
+    background-color: var(--bg-inset);
+}
+
+
+/* Embed Mode */
+.embedContainer {
+    width: 100%;
+    background: var(--bg-inset);
+    border: 1px solid var(--line);
+    border-radius: var(--block-radius-lg);
+    overflow: hidden;
+    position: relative;
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
+}
+
+.embedHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--block-marker-gap) var(--block-inset);
+    background: var(--hover-wash);
+    border-bottom: 1px solid var(--line);
+}
+
+.embedTitle {
+    display: flex;
+    align-items: center;
+    gap: var(--block-marker-gap);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    letter-spacing: 0.08em;
+}
+
+.embedContent {
+    position: relative;
+    width: 100%;
+    height: 0;
+    padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+}
+
+/* PDF embeds should have a different ratio */
+.pdfContent {
+    padding-bottom: 75% !important; /* 4:3 Aspect Ratio for PDFs */
+}
+
+.embedIframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: var(--bg-inset);
+}
+
+/* Fallback embed style */
+.embedFallback {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--block-inset);
+    text-align: center;
+    background: rgba(var(--danger-rgb), 0.06);
+    border: 1px dashed rgba(var(--danger-rgb), 0.28);
+    border-radius: var(--block-radius-lg);
+}
+
+.embedFallbackTitle {
+    font-weight: 600;
+    color: var(--danger);
+    font-size: 0.875rem;
+}
+
+.embedFallbackText {
+    font-size: 0.75rem;
+    color: var(--text-soft);
+    max-width: 280px;
+}
+
+
+/* Text Link Mode */
+.textLinkWrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px var(--block-marker-gap);
+    border-radius: var(--r-xs);
+    background: var(--link-bg);
+    border: 1px solid var(--link-border);
+    color: var(--accent-ink);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.textLinkWrapper:hover {
+    background: var(--link-bg-hover);
+    border-color: var(--link-border-hover);
+}
+
+.textLinkLabel {
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    padding: 0;
+    margin: 0;
+    outline: none;
+    cursor: pointer;
+    min-width: 40px;
+}
+
+.textLinkIcon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+
+/* Floating Action Menu Controls */
+.floatingControls {
+    position: absolute;
+    top: -16px;
+    right: var(--block-marker-gap);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    background: var(--toolbar-bg);
+    border: 1px solid var(--toolbar-border);
+    border-radius: var(--radius-pill);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(4px);
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+    z-index: 50;
+    box-shadow: var(--toolbar-shadow);
+}
+
+.floatingControls::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    height: 24px; /* Bridges the hover gap perfectly! */
+    background: transparent;
+    pointer-events: auto;
+}
+
+.container:hover .floatingControls {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+/* Also show controls if any dropdown/menu is active */
+.containerHasActiveMenu .floatingControls {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: translateY(0) !important;
+}
+
+.controlBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--r-control);
+    border: none;
+    background: transparent;
+    color: var(--btn-ghost-fg);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.controlBtn:hover {
+    background: var(--toolbar-btn-hover);
+    color: var(--text-main);
+}
+
+.controlBtn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.controlBtnActive {
+    color: var(--accent-ink) !important;
+    background: var(--accent-dim) !important;
+}
+
+
+/* Dropdown Menu styling */
+.dropdownMenu {
+    position: absolute;
+    top: 24px;
+    right: var(--block-marker-gap);
+    width: 160px;
+    background: var(--menu-bg);
+    border: 1px solid var(--menu-border);
+    border-radius: var(--menu-radius);
+    padding: var(--menu-pad);
+    box-shadow: var(--menu-shadow);
+    z-index: 60;
+    animation: menu-pop 0.15s var(--ease-rise);
+    transform-origin: top right;
+}
+
+@keyframes menu-pop {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.dropdownItem {
+    display: flex;
+    align-items: center;
+    gap: var(--block-marker-gap);
+    width: 100%;
+    padding: var(--block-marker-gap) 10px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-soft);
+    border: none;
+    background: transparent;
+    border-radius: var(--menu-item-radius);
+    cursor: pointer;
+    text-align: left;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.dropdownItem:hover {
+    background: var(--menu-item-hover);
+    color: var(--text-main);
+}
+
+.dropdownItemActive {
+    color: var(--accent-ink) !important;
+    background: var(--accent-dim) !important;
+}
+
+.dropdownSeparator {
+    height: 1px;
+    background: var(--menu-divider);
+    margin: 4px 0;
+}
+
+/* Empty Input State Styling */
+.inputContainer {
+    width: 100%;
+    margin: var(--block-marker-gap) 0;
+}
+
+.inputWrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: var(--block-inset);
+    background: var(--input-bg);
+    border: 1.5px dashed var(--line-strong);
+    border-radius: var(--block-radius);
+    transition: background var(--transition-fast), border-color var(--transition-fast),
+        box-shadow var(--transition-fast);
+}
+
+.inputWrapper:focus-within {
+    border-style: solid;
+    border-color: var(--input-border-focus);
+    box-shadow: var(--focus-ring);
+}
+
+.inputIcon {
+    color: var(--text-faint);
+    flex-shrink: 0;
+}
+
+.inputField {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 0.8125rem;
+    outline: none;
+}
+
+.inputField::placeholder {
+    color: var(--text-faint);
+}

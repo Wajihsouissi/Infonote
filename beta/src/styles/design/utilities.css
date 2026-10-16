@@ -1,0 +1,21 @@
+/* ============================================================
+   Utilities
+   ============================================================ */
+
+/* Loading glyphs spin with this. The full app borrowed Tailwind's class name
+   but never had Tailwind generate it, so its spinners stood still. */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin {
+    animation-duration: 2.4s;
+  }
+}

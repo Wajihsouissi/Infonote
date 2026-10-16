@@ -1,0 +1,234 @@
+/* Strict Overrides for Media Blocks placed at the end */
+.sortableWrapper[data-block-type="image"],
+.sortableWrapper[data-block-type="video"],
+.sortableWrapper[data-block-type="file"],
+.sortableWrapper[data-block-type="color"],
+.sortableWrapper[data-block-type="table"] {
+    display: block !important;
+    gap: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.sortableWrapper[data-block-type="image"] .dragHandle,
+.sortableWrapper[data-block-type="video"] .dragHandle,
+.sortableWrapper[data-block-type="file"] .dragHandle,
+.sortableWrapper[data-block-type="color"] .dragHandle,
+.sortableWrapper[data-block-type="table"] .dragHandle {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+.sortableWrapper[data-block-type="image"] .blockContent,
+.sortableWrapper[data-block-type="video"] .blockContent,
+.sortableWrapper[data-block-type="file"] .blockContent,
+.sortableWrapper[data-block-type="color"] .blockContent,
+.sortableWrapper[data-block-type="table"] .blockContent {
+    cursor: grab !important;
+}
+
+/* Selected state for media blocks — the media reset above strips border/background,
+   so show a persistent solid primary outline that hugs the media (mirrors the hover ring). */
+.sortableWrapper[data-block-type="image"].selected .resizeWrapper,
+.sortableWrapper[data-block-type="video"].selected .resizeWrapper,
+.sortableWrapper[data-block-type="file"].selected .fileWrapper {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--media-radius);
+}
+
+.sortableWrapper[data-block-type="image"]:active .blockContent,
+.sortableWrapper[data-block-type="video"]:active .blockContent,
+.sortableWrapper[data-block-type="file"]:active .blockContent,
+.sortableWrapper[data-block-type="color"]:active .blockContent,
+.sortableWrapper[data-block-type="table"]:active .blockContent {
+    cursor: grabbing !important;
+}
+
+.fileWrapper {
+    display: flex;
+    align-items: center;
+    gap: var(--block-inset);
+    padding: var(--block-pad-x);
+    background: transparent;
+    border: none;
+    border-radius: var(--media-radius);
+    margin: 0;
+    width: 100%;
+    height: 100%;
+
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    user-select: none;
+    position: relative;
+    max-width: none;
+}
+
+.fileWrapper:hover {
+    background: var(--block-hover);
+}
+
+.fileLink {
+    text-decoration: none;
+    color: var(--text-main);
+    font-weight: 600;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+}
+
+/* Wears the file kind's colour, overridden by the card's own accent when it
+   has one. See features/file/fileKinds.ts for the palette and its rationale. */
+
+.fileIconWrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    background: color-mix(in srgb, var(--file-ink, var(--file-kind, var(--text-soft))) 12%, transparent);
+    color: var(--file-ink, var(--file-kind, var(--text-soft)));
+    border-radius: var(--block-radius);
+    flex-shrink: 0;
+}
+
+.fileMeta {
+    color: var(--text-faint);
+    font-size: 0.75rem;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* The open file inside a card. It owns its own header and ground, so the block
+   only has to give it a box and the media silhouette. */
+.fileOpen {
+    width: 100%;
+    height: 100%;
+    min-height: 420px;
+    overflow: hidden;
+    border-radius: var(--media-radius);
+    box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.fileInfo {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    flex-grow: 1;
+    overflow: hidden;
+
+    min-width: 0;
+}
+
+/* Drag & Drop Visuals.
+   The block you are carrying is marked, not erased. At 0.4 a photograph read as
+   damaged rather than in flight, and the same is true of anything with weight
+   to it — a table, a callout, a code block. So the source keeps its legibility
+   and takes an accent ring instead: it is a marked origin you could still drop
+   back onto, which is information, where a ghost is just an absence.
+   Matches a board tile in flight — see GalleryBlock.module.css
+   `.tileDragging`. */
+.dragging {
+    opacity: 0.7;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--block-radius);
+}
+
+/* Muting the picture rather than the wrapper keeps the ring at full strength,
+   so the marker stays crisp while the image itself recedes behind it. */
+.dragging img,
+.dragging video {
+    filter: saturate(0.55);
+}
+
+.dropTargetTop,
+[data-external-drop-target="top"] {
+    position: relative;
+}
+
+.dropTargetTop::before,
+[data-external-drop-target="top"]::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: var(--radius-pill);
+    background: var(--block-drop-line);
+    z-index: 100;
+    pointer-events: none;
+}
+
+.dropTargetBottom,
+[data-external-drop-target="bottom"] {
+    position: relative;
+}
+
+.dropTargetBottom::after,
+[data-external-drop-target="bottom"]::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: var(--radius-pill);
+    background: var(--block-drop-line);
+    z-index: 100;
+    pointer-events: none;
+}
+
+/* Media dropped INTO media rather than beside it: the two merge into a board.
+   A line between blocks would be a lie here — nothing is being inserted — so the
+   whole block lights up as the container it is about to become. */
+.dropTargetMerge {
+    position: relative;
+}
+
+.dropTargetMerge::after {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border: 2px dashed var(--accent);
+    border-radius: var(--block-radius-lg);
+    background: var(--accent-dim);
+    z-index: 100;
+    pointer-events: none;
+}
+
+/* Resizable Media Wrappers */
+.resizeWrapper {
+    max-width: 100%;
+    height: auto;
+    position: relative;
+    background: transparent;
+    overflow: visible;
+    /* It wraps the media and carries the hover ring, so it has to be cut to the
+       same corner or the ring bows away from the picture at each corner. */
+    border-radius: var(--media-radius);
+}
+
+.resizeWrapper:hover {
+    outline: 2px solid var(--accent-ink);
+    outline-offset: 2px;
+}
+
+/* On the canvas (atomic block node), the node itself provides the hover/selected
+   ring — suppress the inner hover outline to avoid a double border. */
+.resizeWrapper.atomicMedia:hover {
+    outline: none;
+}
+
+.resizeWrapper.atomicMedia .mediaWrapper {
+    margin: 0;
+}

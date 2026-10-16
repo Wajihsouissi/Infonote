@@ -1,0 +1,199 @@
+/* ---------- 7. Special Primary Action Button ----------
+   THE ONE SANCTIONED EXCEPTION to the no-glow / no-idle-motion rules.
+
+   This is the canvas FAB — the single hero action in the app. It deliberately
+   keeps a coral accent glow, a mesh of soft light pools across its face, and
+   the slow `orbBreathe` idle animation, all of which §3.11 / §9 / §11 ban. That is intentional,
+   confirmed 2026-07-24; do NOT "fix" it in a consistency pass, and do not copy
+   this treatment onto any other control. Everything else in the app stays flat.
+
+   All of its colour still comes from tokens (--accent-rgb / --on-accent), so it
+   remains theme-aware in Ink and Paper.                                        */
+.special-primary-btn {
+  --orb-rim: 255, 255, 255;
+
+  --orb-glow-rest-a: rgba(var(--accent-rgb), 0.38);
+  --orb-glow-rest-b: rgba(var(--accent-rgb), 0.22);
+  --orb-glow-peak-a: rgba(var(--accent-rgb), 0.55);
+  --orb-glow-peak-b: rgba(var(--accent-rgb), 0.42);
+  --orb-glow-hover-a: rgba(var(--accent-rgb), 0.55);
+  --orb-glow-hover-b: rgba(var(--accent-rgb), 0.45);
+  --orb-ground: transparent;
+
+  position: relative;
+  width: 48px;
+  height: 48px;
+  --corner-smooth: superellipse(2);
+  /* Rounder than a panel: the FAB is the one control that reads as an object
+     rather than a surface. Capped at half the box so the same class on the
+     smaller orbs (the 32px "open card", the 30px AI send) stops at a full
+     squircle instead of ballooning into a circle. Held in a var so the light
+     layers over it follow the shape — three places that must never disagree. */
+  --orb-radius: min(var(--r-lg), 50%);
+  border-radius: var(--orb-radius) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  color: var(--on-accent);
+  background: radial-gradient(125% 125% at 32% 24%,
+      var(--accent-ink) 0%,
+      var(--accent) 46%,
+      var(--accent-deep) 100%);
+  box-shadow:
+    0 4px 14px var(--orb-glow-rest-a),
+    0 0 20px var(--orb-glow-rest-b),
+    0 2px 6px var(--orb-ground);
+  z-index: 10;
+  animation: orbBreathe 4.5s ease-in-out infinite;
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.4, 0.5, 1),
+    box-shadow 0.3s ease;
+}
+
+:global([data-theme='light']) .special-primary-btn,
+[data-theme='light'] .special-primary-btn {
+  --orb-glow-rest-a: rgba(var(--accent-rgb), 0.20);
+  --orb-glow-rest-b: rgba(var(--accent-rgb), 0.10);
+  --orb-glow-peak-a: rgba(var(--accent-rgb), 0.30);
+  --orb-glow-peak-b: rgba(var(--accent-rgb), 0.16);
+  --orb-glow-hover-a: rgba(var(--accent-rgb), 0.34);
+  --orb-glow-hover-b: rgba(var(--accent-rgb), 0.20);
+  --orb-ground: rgba(0, 0, 0, 0.22);
+}
+
+/* Mesh light. Four soft pools anchored at different points — a key light at the
+   top left, a cooler fill opposite it, and two low bounces — screened over the
+   coral so the orb reads as a lit OBJECT. This replaces the single hard
+   rim-light, which drew a bright outline around the edge and left the face of
+   the button flat. Blending is contained: the button carries z-index, so it is
+   its own stacking context and the screen never touches the canvas behind it. */
+.special-primary-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--orb-radius);
+  background:
+    radial-gradient(62% 58% at 26% 16%,
+      rgba(var(--orb-rim), 0.50) 0%,
+      rgba(var(--orb-rim), 0.13) 46%,
+      transparent 72%),
+    radial-gradient(48% 46% at 82% 24%,
+      rgba(var(--orb-rim), 0.26) 0%,
+      transparent 68%),
+    radial-gradient(58% 54% at 74% 92%,
+      rgba(var(--orb-rim), 0.20) 0%,
+      transparent 70%),
+    radial-gradient(54% 50% at 10% 88%,
+      rgba(var(--orb-rim), 0.10) 0%,
+      transparent 66%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.special-primary-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--orb-radius);
+  background: conic-gradient(from var(--orb-sweep, 0deg),
+      transparent 0deg,
+      rgba(var(--orb-rim), 0.5) 26deg,
+      transparent 70deg);
+  opacity: 0;
+  pointer-events: none;
+  animation: orbSweep 4s linear infinite;
+  transition: opacity 0.35s ease;
+}
+
+.special-primary-btn:hover {
+  animation: none;
+  transform: translateY(-3px) scale(1.07);
+  box-shadow:
+    0 10px 26px var(--orb-glow-hover-a),
+    0 0 34px var(--orb-glow-hover-b),
+    0 4px 10px var(--orb-ground);
+}
+
+.special-primary-btn:hover::after {
+  opacity: 0.8;
+}
+
+.special-primary-btn:active {
+  transform: translateY(-1px) scale(0.94);
+  transition-duration: 0.09s;
+}
+
+.special-primary-btn:focus-visible {
+  box-shadow:
+    0 0 0 3px var(--bg-base),
+    0 0 0 5px var(--accent),
+    0 8px 24px rgba(var(--accent-rgb), 0.5);
+}
+
+.special-primary-btn svg {
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 1px 2px rgba(var(--accent-rgb), 0.55));
+  transition: transform 0.3s cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+
+/* The glyph just grows on hover — no spin, no travel. The svg's own
+   transition (with its slight overshoot) carries it. */
+.special-primary-btn:hover svg {
+  transform: scale(1.14);
+}
+
+@keyframes orbBreathe {
+
+  0%,
+  100% {
+    box-shadow:
+      0 4px 14px var(--orb-glow-rest-a),
+      0 0 18px var(--orb-glow-rest-b),
+      0 2px 6px var(--orb-ground);
+  }
+
+  50% {
+    box-shadow:
+      0 5px 18px var(--orb-glow-peak-a),
+      0 0 30px var(--orb-glow-peak-b),
+      0 3px 8px var(--orb-ground);
+  }
+}
+
+/* The sweep turns the GRADIENT, not the box. Rotating the pseudo-element (which
+   is what this used to do) swings a square through its parent's rounded
+   silhouette, so the light visibly cut the corners on hover. Spinning the conic
+   start angle instead keeps every pixel inside the button's own shape. */
+@property --orb-sweep {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes orbSweep {
+  to {
+    --orb-sweep: 1turn;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .special-primary-btn,
+  .special-primary-btn::after {
+    animation: none;
+  }
+
+  .special-primary-btn:hover {
+    transform: none;
+  }
+
+  .special-primary-btn:hover svg {
+    transform: none;
+  }
+}

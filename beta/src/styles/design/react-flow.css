@@ -1,0 +1,368 @@
+/* ============================================================
+   React Flow Palette Bridge & Tooltips
+   ============================================================ */
+/* ── React Flow palette bridge ─────────────────────────────────────────
+   React Flow scopes its own `--xy-*-default` vars to `.react-flow` (and
+   `.react-flow.dark`), which BEATS the `:root` aliases in design-system.css —
+   a closer element always wins for custom properties. That is why the canvas
+   was painting React Flow's neutral #141414 instead of our charcoal --canvas-bg,
+   and why the UI stopped matching the canvas once the neutral ramp changed.
+
+   Every rule is `var(--xy-foo, var(--xy-foo-default))`, so setting the
+   NON-default var here takes priority without fighting specificity. */
+.react-flow {
+  --xy-background-color: var(--canvas-bg);
+  --xy-background-pattern-color: var(--canvas-dot);
+  --xy-node-background-color: var(--node-bg);
+  --xy-node-color: var(--text-main);
+  --xy-node-border: 1px solid var(--line);
+  --xy-edge-stroke: var(--edge);
+  --xy-edge-stroke-selected: var(--edge-selected);
+  --xy-handle-background-color: var(--handle-bg);
+  --xy-edge-label-background-color: var(--bg-raised);
+  --xy-edge-label-color: var(--text-main);
+
+  /* MiniMap — same bridge. React Flow resolves these into a CSS `fill`
+     property (not an SVG attribute), so tokens work and the minimap tracks
+     the live palette in both themes with no literals to keep in sync. */
+  --xy-minimap-node-background-color: var(--accent);
+  --xy-minimap-node-stroke-width: 0;
+  --xy-minimap-mask-background-color: color-mix(in srgb, var(--bg-inset) 70%, transparent);
+}
+
+.react-flow__minimap {
+  background: var(--bg-raised) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--r-md) !important;
+}
+
+/* React Flow Controls & MiniMap */
+.react-flow__controls {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-raised) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: var(--radius-xs) !important;
+  box-shadow: none !important;
+  gap: var(--radius-xs) !important;
+  margin: 15px !important;
+}
+
+.react-flow__controls-button {
+  background: var(--bg-card) !important;
+  border: none !important;
+  border-radius: var(--radius-md) !important;
+  width: 34px !important;
+  height: 34px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-main) !important;
+  transition: all var(--transition-fast) !important;
+  margin: 0 !important;
+}
+
+.react-flow__controls-button:hover {
+  background: var(--bg-raised) !important;
+  transform: scale(1.05);
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.react-flow__minimap {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--line) !important;
+  background: var(--bg-raised) !important;
+  margin: 15px 64px 15px 15px !important;
+  box-shadow: none !important;
+}
+
+/* Hide React Flow Attribution Badge */
+.react-flow__attribution {
+  display: none !important;
+}
+
+/* Global override for dragging nodes (CanvasBoard) */
+.chnk-it-node-dragging,
+.chnk-it-node-dragging .react-flow__node {
+  cursor: grabbing !important;
+}
+
+.chnk-it-node-dragging .react-flow__node {
+  transition: none !important;
+  animation: none !important;
+}
+
+.chnk-it-node-dragging .react-flow__node:not(.dragging) {
+  will-change: auto !important;
+}
+
+/* Card-to-card targeting uses React Flow's geometry, so ordinary nodes do not
+   need to participate in DOM hit-testing while another card is moving. This
+   keeps :hover, toolbars and deep editor selectors from being invalidated as
+   the pointer crosses thousands of descendants. Kanban stays interactive
+   because its lane DOM carries information geometry alone cannot provide. */
+.chnk-it-node-dragging .react-flow__node:not(.dragging):not(.react-flow__node-kanban) {
+  pointer-events: none !important;
+}
+
+/* The wrapper is what actually moves, so the layer belongs here. */
+.react-flow__node.dragging {
+  will-change: transform;
+}
+
+/* MULTI-NODE DRAG — unified group visual. */
+.chnk-it-multi-drag .react-flow__node.selected,
+.chnk-it-multi-drag .react-flow__node.is-selected {
+  z-index: 10000 !important;
+  opacity: 0.92;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  transition: opacity 0.12s ease, filter 0.12s ease;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.18));
+  cursor: grabbing !important;
+}
+
+/* Global override for resizing nodes */
+.chnk-it-resizing-active,
+.chnk-it-resizing-active * {
+  cursor: nwse-resize !important;
+  transition: none !important;
+}
+
+/* Allow handles positioned outside node boundaries to be visible */
+.react-flow__node {
+  overflow: visible !important;
+}
+
+/* Chrome that hangs outside a node — the hover menu above a card, handles — has
+   to sit above the node's neighbours, not just above its own content. Each node
+   is its own stacking context, so a menu's z-index counts for nothing against a
+   sibling card: without this the overhanging half of the menu is swallowed by
+   whatever card it reaches over. ReactFlow writes z-index inline, hence the
+   !important; the dragged node keeps its own higher layer. */
+.react-flow__node:hover:not(.dragging):not(.chnk-it-drag-source) {
+  z-index: 20 !important;
+}
+
+/* The node being dragged is hidden (a small drag chip follows the cursor instead). */
+.react-flow__node.chnk-it-drag-source {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Highlight Flash Animation for Outline/TOC Navigation */
+@keyframes chnkItHighlightFlash {
+  0% {
+    background-color: var(--accent-dim);
+    box-shadow: none;
+    transform: scale(1.015);
+  }
+
+  30% {
+    background-color: var(--accent-dim);
+    box-shadow: none;
+    transform: scale(1.015);
+  }
+
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+    transform: scale(1);
+  }
+}
+
+.chnk-it-highlight-flash {
+  animation: chnkItHighlightFlash 1.6s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  border-radius: var(--radius-sm);
+  position: relative;
+  z-index: 10;
+}
+
+/* Highlighting during active connection drag */
+.react-flow__node.connecting {
+  border-color: var(--secondary-ink) !important;
+  box-shadow: none !important;
+  transition: border-color 0.2s, 0.2s !important;
+}
+
+.react-flow__node.connecting:hover {
+  border-color: var(--accent-ink) !important;
+  box-shadow: none !important;
+}
+
+/* Source handles hidden by default — shown only on NoteCard hover */
+.topRightHandle,
+.react-flow__handle-source,
+.react-flow__handle.source {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  z-index: 3000 !important;
+  top: 8px !important;
+  right: 8px !important;
+  left: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  width: var(--handle-size) !important;
+  height: var(--handle-size) !important;
+  border-radius: 50% !important;
+  background: var(--handle-bg) !important;
+  border: var(--handle-ring) !important;
+  box-shadow: none !important;
+  transition: opacity 0.25s ease, background 0.25s ease, border-color 0.25s ease, transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+/* Fade-in the source handles when hovering over any React Flow node */
+.react-flow__node:hover .topRightHandle,
+.react-flow__node:hover .react-flow__handle-source,
+.react-flow__node:hover .react-flow__handle.source {
+  opacity: 0.8 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+/* Force-hide all top-right source handles while actively dragging a connection line */
+.react-flow__node.connecting .topRightHandle,
+.react-flow__node.connecting .react-flow__handle-source,
+.react-flow__node.connecting .react-flow__handle.source,
+.react-flow:has(.react-flow__handle-connecting) .topRightHandle,
+.react-flow:has(.react-flow__handle-connecting) .react-flow__handle-source,
+.react-flow:has(.react-flow__handle-connecting) .react-flow__handle.source,
+.react-flow__connection-connecting .topRightHandle,
+.react-flow__connection-connecting .react-flow__handle-source,
+.react-flow__connection-connecting .react-flow__handle.source,
+.react-flow__connection-drag .topRightHandle,
+.react-flow__connection-drag .react-flow__handle-source,
+.react-flow__connection-drag .react-flow__handle.source {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Hover scales and highlights the source handle dot */
+.topRightHandle:hover,
+.react-flow__handle-source:hover,
+.react-flow__handle.source:hover {
+  transform: scale(1.3) !important;
+  opacity: 1 !important;
+  background: var(--handle-bg-active) !important;
+  border: var(--handle-ring) !important;
+  box-shadow: var(--handle-halo) !important;
+}
+
+/* Temporarily raise target handles during active connection dragging */
+.react-flow__node.connecting .react-flow__handle.target,
+.react-flow__node.connecting .react-flow__handle-target {
+  z-index: 2500 !important;
+}
+
+/* Render a soft centered snap dot target inside the target handle during active dragging */
+.react-flow__node.connecting .react-flow__handle.target::before,
+.react-flow__node.connecting .react-flow__handle-target::before {
+  content: '';
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: var(--handle-size) !important;
+  height: var(--handle-size) !important;
+  background: var(--handle-bg) !important;
+  border: var(--handle-ring) !important;
+  border-radius: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  box-shadow: none !important;
+  opacity: 0.65 !important;
+  pointer-events: none !important;
+  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.25s, border-color 0.25s, opacity 0.25s !important;
+}
+
+/* Highlight the centered snap dot when hovering over a valid target node */
+.react-flow__node.connecting:hover .react-flow__handle.target::before,
+.react-flow__node.connecting:hover .react-flow__handle-target::before {
+  transform: translate(-50%, -50%) scale(1.4) !important;
+  background: var(--handle-bg-active) !important;
+  border-color: var(--accent) !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+
+/* Premium Linking Mode Styling */
+.react-flow__node.is-linking-mode {
+  cursor: pointer !important;
+  opacity: 0.4;
+  transition: opacity 0.3s, filter 0.3s !important;
+  filter: grayscale(40%);
+  pointer-events: auto !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+.react-flow__node.is-linking-mode.is-selected {
+  cursor: pointer !important;
+  opacity: 1 !important;
+  filter: none !important;
+  box-shadow: none !important;
+  border-color: var(--secondary-ink) !important;
+  pointer-events: auto !important;
+}
+
+.react-flow__node.is-linking-mode.is-selected:hover {
+  box-shadow: none !important;
+  border-color: var(--accent-ink) !important;
+}
+
+/* Disable selection box pointer events to allow clicking nodes underneath */
+.react-flow .react-flow__nodesselection,
+.react-flow .react-flow__nodesselection-rect,
+.react-flow .react-flow__selection {
+  pointer-events: none !important;
+}
+
+/* Global Custom Tooltip Styling */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-5px);
+  background: var(--bg-raised);
+  color: var(--text-main);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 100000;
+  pointer-events: none;
+  box-shadow: var(--shadow-sm);
+}
+
+[data-tooltip]:hover::before {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Variant for top placement */
+[data-tooltip-position="top"]::before {
+  top: auto;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(5px);
+}
+
+[data-tooltip-position="top"]:hover::before {
+  transform: translateX(-50%) translateY(0);
+}

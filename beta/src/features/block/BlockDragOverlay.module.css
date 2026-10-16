@@ -1,0 +1,12 @@
+/* The block being carried, drawn under the cursor. */
+
+/* Must beat every piece of block chrome, not tie with it: at 10 it drew level
+   with .alignmentContainer and lost on DOM order, so tables (and media)
+   swallowed the drag and the node couldn't be moved at all. */
+.dragOverlay {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    border-radius: inherit;
+    cursor: grab;
+}

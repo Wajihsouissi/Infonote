@@ -1,0 +1,344 @@
+.card {
+    border-radius: var(--r-panel);
+    background: var(--node-bg);
+    /* Both for the cover-ambient layer below: `relative` gives it something to
+       size against, `isolate` makes the card its own stacking context so that
+       layer's z-index: -1 lands between the card's background and its content
+       instead of behind the card entirely. Verified not to move the connection
+       handle, which was already anchored to a box of these dimensions. */
+    position: relative;
+    isolation: isolate;
+
+    /* How opaque the note well is. Fully opaque by default; a card with a cover
+       drops it so the ambient layer below shows THROUGH the well — see the
+       :has() rule under "cover ambient". Every well background is routed through
+       this, so the accented and plain wells thin out together. */
+    --well-alpha: 100%;
+
+    /* Recolouring used to mix the hue INTO this surface (14%, then 22%). Both
+       were tinted greys: mixing into grey keeps only a fraction of the hue's
+       chroma, so a coral card came out brown. The recoloured surfaces are now
+       built as colours instead — see `--node-tint-*` in design-system.css and
+       the [data-accented] rules below. The mix percentages are gone with it. */
+
+    /* Paper & Ink node: a hairline ring and (optional) contact shadow — a
+       quiet paper slip on the desk. Regular cards carry NO accent line;
+       only the fused document node wears a left binding. Elevation and
+       selection are driven by the canvas tokens in design-system.css. */
+    box-shadow:
+        var(--node-ring),
+        var(--node-shadow-rest);
+    border: none;
+    color: var(--node-title);
+    transition: box-shadow 0.2s var(--ease-rise),
+        transform 0.15s cubic-bezier(0.2, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+}
+
+/* ---- cover ambient ----
+   The cover image again, scaled past the edges and blurred until it is a field
+   of colour rather than a picture, laid under the card so the whole card picks
+   up the image's light — frame AND writing surface.
+
+   The well shows it by going translucent rather than by getting a copy of its
+   own: one layer seen through the well is continuous with the frame around it,
+   where a second copy scaled to the well's own box would land on different
+   colours and read as two images rather than one light source.
+
+   Clipped by its own wrapper rather than `overflow: hidden` on the card: the
+   connection handle sits at top: -7px, outside the card box, and clipping the
+   card would cut it off. */
+.card:has(.coverAmbientClip),
+.expandedView:has(.coverAmbientClip) {
+    --well-alpha: 72%;
+}
+.coverAmbientClip {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+/* Paper takes less of it: a blurred image over white washes out to a pale
+   smear at Ink's strength, and the page should still read as paper. */
+:global([data-theme='light']) .coverAmbientHue {
+    --cover-ambient-opacity: 0.18;
+    --cover-ambient-saturate: 1.5;
+}
+
+/* The same field built from a HUE instead of a photo — the other half of the
+   colour picker. A single flat colour blurred is still a single flat colour, so
+   this is three offset blobs at different lightnesses and hue offsets: that is
+   what a photograph gives for free, and what makes the wash read as light
+   falling across the card rather than as a fill.
+
+   ±34° is deliberately narrow — far enough apart that the blobs are distinct,
+   close enough that the card still reads as ONE colour and not a rainbow. */
+.coverAmbientHue {
+    /* Three of the image's four settings do not carry over, and each one made
+       the card worse before it was changed:
+         scale 1   — a photo is scaled up to sample its middle and hide its
+                     edges. This gradient is authored for the box, so scaling it
+                     1.8× just inflates the blobs until they cover everything
+                     evenly, which is the opposite of a field.
+         saturate  — a photo needs saturation back after blurring. This source is
+                     already one pure hue and does not.
+         opacity   — it sits on a surface that is ALREADY this colour, so it
+                     needs far less than a photo laid on neutral graphite. */
+    --cover-ambient-scale: 1;
+    --cover-ambient-blur: 60px;
+    --cover-ambient-opacity: 0.5;
+    --cover-ambient-saturate: 1.05;
+
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: scale(var(--cover-ambient-scale));
+    filter: blur(var(--cover-ambient-blur)) saturate(var(--cover-ambient-saturate));
+    opacity: var(--cover-ambient-opacity);
+    /* Blobs only, NO base fill. The card surface underneath is already this
+       hue at L 0.44 — a fourth opaque layer on top just repainted it and the
+       card came out flat bright green. These sit LIGHTER than the surface so
+       they read as light falling across it rather than as more paint. */
+    background:
+        radial-gradient(circle at 24% 16%, oklch(from var(--node-accent) 0.74 0.17 h) 0%, transparent 58%),
+        radial-gradient(circle at 80% 30%, oklch(from var(--node-accent) 0.64 0.16 calc(h + 34)) 0%, transparent 56%),
+        radial-gradient(circle at 58% 88%, oklch(from var(--node-accent) 0.56 0.15 calc(h - 34)) 0%, transparent 60%);
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 44%, rgba(0, 0, 0, 0.66) 74%, rgba(0, 0, 0, 0.46) 100%);
+    mask-image: linear-gradient(180deg, #000 0%, #000 44%, rgba(0, 0, 0, 0.66) 74%, rgba(0, 0, 0, 0.46) 100%);
+}
+
+/* Film grain over the light field. A blurred image is perfectly smooth, and a
+   large smooth gradient on a dark surface bands — you can see the steps between
+   8-bit levels. Noise breaks the bands up and gives the wash a surface, which is
+   the whole reason to add it rather than a taste call.
+
+   Generated rather than shipped as an asset: an feTurbulence data URI costs no
+   request and tiles seamlessly with stitchTiles. It carries the SAME mask as the
+   image, so the grain fades with the light instead of sitting on the card as a
+   flat layer of dirt.
+
+   ONE octave at a high base frequency, not four. Stacked octaves add coarser
+   layers on top of the fine one, and those large blobs are what makes noise
+   read as cloud rather than as grain. The tile is rendered 1 SVG unit to 1 CSS
+   px, so 0.9 puts the speckle at roughly a pixel.
+
+   Three things inside the filter stop that fine noise from being harsh, and raw
+   feTurbulence has all three problems:
+
+     saturate 0        — turbulence is RGB noise, so every speckle is a random
+                         COLOUR. Real grain is tonal. Desaturating it is the
+                         single biggest difference between grain and static.
+     feFuncA constant  — turbulence noises the ALPHA channel too, which punches
+                         random holes in the layer on top of the colour noise.
+                         Pinning alpha to 1 makes the texture purely tonal.
+     slope 0.4         — full-range noise swings black to white. Compressed to
+                         roughly 0.3–0.7 it modulates the surface instead of
+                         fighting it.
+
+   Blended soft-light rather than overlay: overlay is a contrast operator and
+   drives both ends hard, which is what made the first pass read as sand. */
+.coverAmbientClip::after {
+    --cover-grain-opacity: 0.5;
+
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: var(--cover-grain-opacity);
+    mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='0.4' intercept='0.3'/%3E%3CfeFuncG type='linear' slope='0.4' intercept='0.3'/%3E%3CfeFuncB type='linear' slope='0.4' intercept='0.3'/%3E%3CfeFuncA type='linear' slope='0' intercept='1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+    background-size: 160px 160px;
+    /* The INVERSE of the image's mask, not a copy of it.
+       Sharing the image's mask piled the most grain exactly where the colour is
+       already strongest — the frame band across the top — while the well saw it
+       through a 72%-opaque surface and got roughly a quarter as much. The well
+       read well and the frame read as sand. Weak at the top, full lower down:
+       the two surfaces end up carrying a similar amount of texture despite one
+       of them being seen through glass. */
+    -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.34) 22%, rgba(0, 0, 0, 0.78) 46%, #000 62%, #000 100%);
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.34) 22%, rgba(0, 0, 0, 0.78) 46%, #000 62%, #000 100%);
+}
+
+/* Soft-light lightens as much as it darkens, and on a near-white page the
+   lightening half does nothing — so paper needs less of it, not a different
+   blend. */
+:global([data-theme='light']) .coverAmbientClip::after {
+    --cover-grain-opacity: 0.34;
+}
+
+/* A recoloured card. The flag is a data attribute rather than a test on the
+   inline style text: `--node-accent` is set through the style object, and
+   matching it with [style*=…] would be a string search over a value React is
+   free to reformat. Without the flag none of this applies and the card is
+   exactly as it was. Mixing against the card's own ground rather than replacing
+   it means the hue reads on both Ink and Paper without a second rule. */
+.card[data-accented] {
+    background: oklch(from var(--node-accent) var(--node-tint-l) var(--node-tint-c) h);
+    /* A wash can only ever be a tinted grey — mixing any hue into a dark card
+       costs it most of its chroma, so the surface alone will never read "coral"
+       or "yellow". The ring is where the hue gets to be itself at something
+       near full strength: one hairline, no new element, and it leaves the fused
+       document node's left binding as that node's own signature. */
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--node-accent) 62%, transparent),
+        var(--node-shadow-rest);
+}
+
+.card[data-accented]:hover {
+    box-shadow:
+        0 0 0 1.5px color-mix(in srgb, var(--node-accent) 78%, transparent),
+        var(--node-shadow-hover);
+}
+
+/* The editor well takes the deeper shade of the same hue, so the page you type
+   on stays distinct from the card holding it. `.mediumDescContainer` is the same
+   well at the medium size, so it follows the same rule. */
+.card[data-accented] .noteArea,
+.card[data-accented] .mediumDescContainer {
+    background: color-mix(in srgb, oklch(from var(--node-accent) var(--node-well-tint-l) var(--node-well-tint-c) h) var(--well-alpha, 100%), transparent);
+}
+
+.card:hover {
+    box-shadow:
+        var(--node-ring-hover),
+        var(--node-shadow-hover);
+}
+
+.dragging {
+    transform: scale(0.98) rotate(1.5deg);
+    box-shadow:
+        var(--node-ring-drag),
+        var(--node-shadow-drag);
+    opacity: 0.96;
+    z-index: 10000 !important;
+    /* Only the card in flight earns a compositor layer. Declaring this at rest
+       instead promoted every card on the canvas, and a hundred always-live
+       layers cost more GPU memory and compositing time than the one transform
+       they were meant to accelerate. */
+    will-change: transform;
+}
+
+/* Nesting target = primary ring; fusion target = secondary ring. A breathing
+   outline gives clear, layout-stable feedback (no transform jitter). */
+.dropTarget {
+    border-color: var(--accent-ink);
+    outline: 2px solid var(--accent-ink);
+    outline-offset: 3px;
+    animation: targetPulse 1s ease-in-out infinite;
+}
+
+.fusionTarget {
+    border-color: var(--secondary-ink);
+    outline: 2px solid var(--secondary-ink);
+    outline-offset: 3px;
+    animation: fusionPulse 1s ease-in-out infinite;
+}
+
+.fusing {
+    animation: fusionEffect 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes targetPulse {
+
+    0%,
+    100% {
+        outline-offset: 3px;
+    }
+
+    50% {
+        outline-offset: 6px;
+    }
+}
+
+@keyframes fusionPulse {
+
+    0%,
+    100% {
+        outline-offset: 3px;
+    }
+
+    50% {
+        outline-offset: 6px;
+    }
+}
+
+@keyframes fusionEffect {
+    0% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+        filter: brightness(2) contrast(1.2);
+    }
+
+    100% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+}
+
+.card.selected,
+.card.selected:hover {
+    box-shadow:
+        var(--node-ring-selected),
+        var(--node-shadow-hover);
+}
+
+.topRightHandle {
+    width: var(--handle-size) !important;
+    height: var(--handle-size) !important;
+    background: var(--handle-bg) !important;
+    border: var(--handle-ring) !important;
+    border-radius: 50% !important;
+    position: absolute !important;
+    top: -7px !important;
+    right: -7px !important;
+    cursor: crosshair !important;
+    z-index: 100 !important;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+        background 0.2s ease, box-shadow 0.2s ease !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+.card:hover .topRightHandle {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+}
+
+.topRightHandle:hover {
+    transform: scale(1.3) !important;
+    background: var(--handle-bg-active) !important;
+    box-shadow: var(--handle-halo) !important;
+    opacity: 1 !important;
+}
+
+.multiSelected {
+    border-color: var(--accent-ink);
+    box-shadow: none;
+}
+
+.selectionIslandContainer {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    padding-top: 12px;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.selectionIslandContainer>* {
+    pointer-events: auto;
+}

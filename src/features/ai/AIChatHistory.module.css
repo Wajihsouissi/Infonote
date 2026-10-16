@@ -1,5 +1,5 @@
 /* Saved conversations, covering the transcript while open. Absolute inside
-   .panelBody (which is position: relative for the running beam), so it inherits
+   .panelBody (which is position: relative), so it inherits
    the body's rounded inset surface instead of floating over the whole panel. */
 .overlay {
     position: absolute;

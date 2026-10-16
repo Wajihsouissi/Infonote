@@ -1,0 +1,5 @@
+/* A card on the canvas. Split into the surface it draws, the five view modes and the layout inside it; the order below is the cascade order they had in one file. */
+
+@import './noteCard/surface.css';
+@import './noteCard/view-modes.css';
+@import './noteCard/layout.css';

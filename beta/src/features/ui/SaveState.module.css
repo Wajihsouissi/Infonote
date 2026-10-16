@@ -1,0 +1,31 @@
+/* The save chip in the canvas top bar. Quiet by default — it is only worth
+   reading when it says something has gone wrong. */
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: var(--radius-pill);
+    color: var(--text-faint);
+    font-size: 0.72rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.chip svg {
+    flex-shrink: 0;
+}
+
+.error {
+    background: color-mix(in srgb, var(--danger) 14%, transparent);
+    color: var(--danger);
+}
+
+/* On a narrow window the icon carries it; the title attribute still explains. */
+@media (max-width: 860px) {
+    .label {
+        display: none;
+    }
+}
