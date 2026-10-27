@@ -1,0 +1,85 @@
+/* Workspace chrome density. Document typography and canvas geometry keep
+   their own tokens; no page zoom, transforms or device-pixel calculations. */
+:root {
+  --ui-density: comfortable;
+  --ui-font-size: 0.875rem;
+  --ui-icon-size: 18px;
+  --control-height: 40px;
+  --control-height-sm: 32px;
+  --control-height-lg: 48px;
+  --disclosure-size: 24px;
+  --control-padding: 9px 16px;
+  --field-padding: 9px 12px;
+  --workspace-header-height: 56px;
+  --workspace-header-padding: 20px;
+  --workspace-inset: 12px;
+  --workspace-radius: 40px;
+  --panel-padding: 20px;
+  --panel-gap: 18px;
+  --panel-header-padding: 24px;
+  --panel-body-padding: 28px 24px;
+  --list-row-height: 48px;
+  --list-row-padding: 9px;
+  --sidebar-width: 288px;
+  --sidebar-rail-width: 52px;
+  --sidebar-art-size: 46px;
+  --dock-height: 62px;
+  --dock-padding: 6px;
+  --dock-gap: 12px;
+  --dock-button-size: 40px;
+  --dock-primary-size: 48px;
+  --dock-edge-gap: 24px;
+  --card-peek-width: min(92vw, 600px);
+}
+
+@media (min-width: 900px) and (hover: hover) and (pointer: fine) {
+  :root {
+    --ui-density: compact;
+    --ui-font-size: 0.8125rem;
+    --ui-icon-size: 16px;
+    --control-height: 32px;
+    --control-height-lg: 40px;
+    --control-padding: 6px 12px;
+    --field-padding: 6px 10px;
+    --workspace-header-height: 44px;
+    --workspace-header-padding: 12px;
+    --workspace-inset: 8px;
+    --workspace-radius: 24px;
+    --panel-padding: 12px;
+    --panel-gap: 12px;
+    --panel-header-padding: 16px;
+    --panel-body-padding: 16px;
+    --list-row-height: 40px;
+    --list-row-padding: 6px;
+    --sidebar-width: 248px;
+    --sidebar-rail-width: 44px;
+    --sidebar-art-size: 32px;
+    --dock-height: 48px;
+    --dock-padding: 3px;
+    --dock-gap: 8px;
+    --dock-button-size: 32px;
+    --dock-primary-size: 40px;
+    --dock-edge-gap: 16px;
+    --card-peek-width: clamp(320px, 30vw, 480px);
+  }
+}
+
+/* Touch capability takes priority on hybrid devices as well as phones. */
+@media (any-pointer: coarse) {
+  :root {
+    --ui-density: touch;
+    --ui-icon-size: 18px;
+    --workspace-header-height: 56px;
+    --control-height: 44px;
+    --control-height-sm: 44px;
+    --control-height-lg: 48px;
+    --disclosure-size: 44px;
+    --sidebar-rail-width: 52px;
+    --list-row-height: 48px;
+    --dock-padding: 6px;
+    --dock-gap: 12px;
+    --dock-height: 64px;
+    --dock-button-size: 44px;
+    --dock-primary-size: 48px;
+  }
+}

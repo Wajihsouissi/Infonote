@@ -1,0 +1,137 @@
+.container {
+    --breadcrumb-control-height: var(--control-height-sm);
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    max-width: 100%;
+    height: var(--breadcrumb-control-height);
+    gap: 2px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.item {
+    display: flex;
+    align-items: center;
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.item:first-child {
+    flex: none;
+}
+
+.item:last-child:not(:first-child) {
+    flex: 1 1 auto;
+}
+
+.separator {
+    flex: none;
+    color: var(--text-faint);
+    margin-inline: 2px;
+}
+
+.crumb {
+    /* Scope the global button baseline to the smaller breadcrumb shape. */
+    --btn-radius: var(--r-control);
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex: 0 1 auto;
+    gap: 4px;
+    min-width: 0;
+    max-width: 18ch;
+    height: var(--breadcrumb-control-height);
+    padding: 0 6px;
+    border: 0;
+    background: transparent;
+    color: var(--text-soft);
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.25;
+    white-space: nowrap;
+    cursor: pointer;
+    corner-shape: var(--corner-smooth);
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.crumb > svg {
+    flex: none;
+}
+
+.crumb:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.crumb:focus-visible {
+    /* Keep keyboard focus inside the floating frame, clear of the canvas edge. */
+    outline: 2px solid var(--text-soft);
+    outline-offset: -2px;
+    box-shadow: none;
+}
+
+.crumb.current {
+    flex: 1 1 auto;
+    max-width: 32ch;
+    color: var(--text-main);
+    font-weight: 600;
+    cursor: default;
+}
+
+.levelBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    min-width: 14px;
+    height: 14px;
+    padding-inline: 3px;
+    border-radius: var(--radius-xs);
+    background: var(--hover-wash);
+    color: var(--text-soft);
+    font-size: 9px;
+    font-weight: 500;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.rootLabel {
+    letter-spacing: 0.01em;
+}
+
+.label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .container {
+        --breadcrumb-control-height: 26px;
+    }
+}
+
+@media (any-pointer: coarse) {
+    .container {
+        --breadcrumb-control-height: 44px;
+    }
+}
+
+@media (max-width: 520px) {
+    /* Keep home and the current location reachable on a narrow canvas. */
+    .item:not(:first-child):not(:last-child) {
+        display: none;
+    }
+
+    .item:last-child,
+    .item:last-child .crumb {
+        flex: 1;
+    }
+
+    .crumb,
+    .crumb.current {
+        max-width: 100%;
+    }
+}

@@ -1,0 +1,62 @@
+/* The slash menu's search field and item list. */
+
+/* Scrollable items wrapper to keep search bar fixed */
+.slashMenuItemsList {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-right: 2px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+}
+
+/* Persistent Search Bar in Slash Menu */
+.slashMenuSearchWrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 2px 4px 6px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--menu-divider);
+}
+
+.slashSearchIcon {
+    position: absolute;
+    left: 12px;
+    color: var(--text-soft);
+    pointer-events: none;
+    opacity: 0.65;
+}
+
+.slashMenuInput {
+    width: 100%;
+    padding: 6px 10px 6px 26px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--input-radius);
+    outline: none;
+    color: var(--text-main);
+    font-size: 0.8rem;
+    font-family: inherit;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.slashMenuInput::placeholder {
+    color: var(--text-faint);
+}
+
+.slashMenuInput:focus {
+    border-color: var(--input-border-focus);
+    box-shadow: var(--focus-ring);
+}
+
+.slashMenuEmpty {
+    padding: 16px;
+    font-size: 0.8rem;
+    color: var(--text-soft);
+    text-align: center;
+    font-style: italic;
+}

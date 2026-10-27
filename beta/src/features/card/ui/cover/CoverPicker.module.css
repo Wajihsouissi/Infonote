@@ -1,0 +1,143 @@
+/* The cover chooser. Same shape as the icon picker — a small panel near the
+   top of the screen — because they are the same kind of decision. */
+
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 15vh;
+    background: var(--scrim);
+    animation: coverFade 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes coverFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.panel {
+    width: min(420px, calc(100vw - 32px));
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-panel);
+    background: var(--modal-bg);
+    box-shadow: var(--shadow-lg);
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.closeBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--text-soft);
+    cursor: pointer;
+}
+
+.dropZone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 28px 16px;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--r-control);
+    background: var(--bg-inset);
+    color: var(--text-soft);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+
+.dropZone:hover,
+.dragOver {
+    border-color: var(--accent);
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.dropTitle {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.dropHint {
+    font-size: 0.75rem;
+}
+
+.linkRow {
+    display: flex;
+    gap: 8px;
+}
+
+.linkInput {
+    flex: 1;
+    min-width: 0;
+    height: var(--btn-height-sm);
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-control);
+    background: var(--bg-inset);
+    color: var(--text-main);
+    font-size: 0.85rem;
+}
+
+.applyBtn {
+    height: var(--btn-height-sm);
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-control);
+    background: var(--bg-rail);
+    color: var(--text-main);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.applyBtn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.error {
+    margin: 0;
+    color: var(--danger);
+    font-size: 0.78rem;
+}
+
+.removeBtn {
+    align-self: flex-start;
+    padding: 6px 10px;
+    border: none;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--danger);
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.removeBtn:hover {
+    background: var(--hover-wash);
+}

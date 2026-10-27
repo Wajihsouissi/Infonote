@@ -1,0 +1,98 @@
+/* --- Internal Layout --- */
+
+/* Content Scrolling Overrides */
+
+/* Apple Vision Pro Style Resize Handle - Truly Curved Arc, Outside */
+.modernResizeHandle {
+    --resize-handle-start: var(--color-text-muted);
+    --resize-handle-end: var(--text-soft);
+    /* Neutral gray with enough transparency to sit softly on either theme. */
+    --resize-handle-color: rgba(142, 142, 142, 0.68);
+    position: absolute;
+    bottom: -20px;
+    /* Increased distance from card */
+    right: -20px;
+    width: 44px;
+    /* Smaller size */
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: nwse-resize !important;
+    /* Above the passive card's drag shield; this control works before selection. */
+    z-index: 1001;
+    pointer-events: auto;
+    transform: rotate(180deg);
+    /* Rotate 180 degrees */
+}
+
+.modernResizeHandle svg {
+    width: 60%;
+    height: 60%;
+    display: block;
+    pointer-events: none;
+    /* Base soft glow */
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.handlePath {
+    stroke: var(--resize-handle-color);
+    stroke-opacity: 0.9;
+    transition: stroke 0.2s ease;
+}
+
+:global(.react-flow__node):hover .modernResizeHandle,
+.modernResizeHandle:hover {
+    opacity: 1;
+}
+
+/* Hover State - Initial Glow */
+.modernResizeHandle:hover svg {
+    filter: none;
+    transform: scale(1.1) rotate(-5deg);
+}
+
+.modernResizeHandle:hover {
+    --resize-handle-start: var(--accent);
+    --resize-handle-end: var(--secondary);
+    --resize-handle-color: var(--accent);
+}
+
+/* Active/Dragging State */
+.modernResizeHandle:active svg {
+    filter: none;
+    transform: scale(1.2) rotate(-10deg);
+}
+
+/* Icon Buttons - Clickable icons */
+.iconButton {
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: background-color 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--text-main);
+}
+
+.iconButton svg {
+    stroke: currentColor;
+    color: currentColor;
+}
+
+.iconButton {
+    font-size: 2rem;
+    padding: 8px;
+}
+
+/* Placeholder styles */
+.mediumDescInput::placeholder {
+    color: var(--text-soft);
+    opacity: 0.5;
+}

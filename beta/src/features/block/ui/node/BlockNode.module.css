@@ -1,0 +1,720 @@
+.blockNode {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    margin: 0 auto;
+    background: var(--node-bg);
+    border: none;
+    border-radius: var(--node-radius);
+    padding: 0;
+    width: 100%;
+    min-width: 208px;
+    max-width: 432px;
+    height: auto;
+    min-height: 0;
+    box-sizing: border-box;
+    transition:
+        background-color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        border-color var(--transition-fast),
+        transform var(--transition-fast);
+    box-shadow: var(--node-ring);
+    color: var(--text-main);
+}
+
+/* A recoloured block. Same construction as a note card's [data-accented] —
+   fixed lightness/chroma fed the hue via --node-tint-l/-c, so a recoloured
+   block is genuinely its colour rather than a tinted grey. The hue's own
+   strength lives in the ring around the block, not in a bar across the top. */
+.blockNode[data-accented] {
+    background: oklch(from var(--node-accent-color) var(--node-tint-l) var(--node-tint-c) h);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--node-accent-color) 62%, transparent);
+}
+
+.blockNode[data-accented]:hover {
+    box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--node-accent-color) 78%, transparent);
+}
+
+.blockNode:hover {
+    box-shadow: var(--node-ring-hover);
+    transform: translateY(-1px);
+}
+
+.blockNode.selected {
+    box-shadow: var(--node-ring-selected);
+}
+
+.blockNode.selected:hover {
+    box-shadow: var(--node-ring-selected);
+}
+
+.blockNode.multiSelected {
+    box-shadow: var(--node-ring-selected);
+}
+
+.blockNode.multiSelected:hover {
+    box-shadow: var(--node-ring-selected);
+}
+
+.dragging {
+    box-shadow: var(--node-ring-drag);
+    opacity: 1;
+    z-index: 10000 !important;
+}
+
+.content {
+    width: 100%;
+    height: auto;
+    cursor: pointer;
+}
+
+.mediaBlockNode .content {
+    width: 100%;
+    height: auto;
+    min-height: unset;
+    overflow: visible;
+    background: transparent;
+}
+
+.topRightHandle {
+    width: var(--handle-size) !important;
+    height: var(--handle-size) !important;
+    background: var(--handle-bg) !important;
+    border: var(--handle-ring) !important;
+    border-radius: 50% !important;
+    position: absolute !important;
+    top: -6px !important;
+    right: -6px !important;
+    cursor: crosshair !important;
+    z-index: 100 !important;
+    transition: transform var(--transition-smooth), opacity var(--transition-fast) !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+}
+
+.blockNode:hover .topRightHandle,
+.colorBlockNode:hover .topRightHandle {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.topRightHandle:hover {
+    transform: scale(1.3) !important;
+    box-shadow: var(--handle-halo) !important;
+}
+
+.blockNode.mediaBlockNode {
+    display: block;
+    background: var(--node-bg);
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: none !important;
+    border-radius: var(--block-radius-lg);
+    padding: 0;
+    width: 100% !important;
+    min-width: 208px;
+    max-width: none;
+    height: 100% !important;
+    min-height: 100px;
+    box-sizing: border-box;
+    visibility: visible;
+    opacity: 1;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+    box-shadow: none !important;
+    overflow: visible;
+}
+
+.blockNode.mediaBlockNode:hover {
+    box-shadow: none !important;
+}
+
+/* An EMPTY media block is a drop zone, so it needs an edge: with no ring and
+   no border it measured 1.05:1 against the Paper canvas and read as a hole in
+   the page. Filled media stays ring-free on purpose (see .mediaBlockNode) —
+   a ring there double-strokes the image's own edge. */
+.blockNode.mediaPlaceholderBlock {
+    width: 208px !important;
+    min-width: 208px !important;
+    max-width: 208px !important;
+    background: var(--node-bg) !important;
+    border: none !important;
+    box-shadow: var(--node-ring) !important;
+}
+
+.blockNode.mediaBlockNode.mediaPlaceholderBlock:hover {
+    box-shadow: var(--node-ring-hover) !important;
+}
+
+.blockNode.mediaPlaceholderBlock > .content {
+    border: 1px dashed var(--line-heavy);
+    border-radius: var(--block-radius-lg);
+}
+
+.blockNode.mediaBlockNode .content {
+    /* must match .mediaBlockNode's own radius or the media corner clips square */
+    border-radius: var(--block-radius-lg);
+    overflow: hidden;
+}
+
+/* A columns node is created wide enough for its columns (550+, from
+   BottomMenu.handleBlockClick), but the base .blockNode caps every shell at
+   432 and centres it with `margin: 0 auto`. That left ~69px of dead margin on
+   each side — five times the 12px gutter between the columns themselves, in
+   the one block whose whole job is horizontal layout. */
+.blockNode:has([data-block-type="columns"]) {
+    max-width: none;
+}
+
+/* Same reason as columns: a table node is created at 450 and is resizable past
+   it, so the shared 432 cap would clip the last column off every wide table. */
+.blockNode:has([data-block-type="table"]) {
+    max-width: none;
+}
+
+/* And a board. It starts at the 432 default, but width is what decides its
+   column count — capped there, dragging it wider moved the React Flow node and
+   left the board itself frozen at three columns, so half the resize did
+   nothing. */
+.blockNode:has([data-block-type="gallery"]) {
+    max-width: none;
+}
+
+/* A board brings its own frame, so the node underneath gets out of the way
+   entirely: no rail fill, no ring, no accent spine. What's left on the canvas
+   is the pictures floating in space — which is what a moodboard is. The
+   selection ring is the one thing kept, since it's the only feedback that the
+   thing you're about to drag or resize is this board and not the canvas. */
+.blockNode.galleryNode {
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    min-width: 0;
+}
+
+.blockNode.galleryNode::before {
+    display: none;
+}
+
+.blockNode.galleryNode:hover {
+    background: transparent;
+    box-shadow: none;
+}
+
+/* No ring on the node. The node spans the title AND the frame, so a ring here
+   drew a box around the caption and put it back inside the container the moment
+   you selected. The board draws its own ring around the frame alone — see
+   `.chnk-it-board-selected` in GalleryBlock.module.css. */
+.blockNode.galleryNode.selected,
+.blockNode.galleryNode.selected:hover {
+    background: transparent;
+    box-shadow: none;
+}
+
+.blockNode.galleryNode .content {
+    overflow: visible;
+    background: transparent;
+}
+
+/* Hand-sized columns own the width (see BlockComponents' data-table-sized):
+   the node shrink-wraps them, so the selection ring lands on the table's edge
+   instead of stranding node background beside a narrowed table. */
+.blockNode:has([data-table-sized="true"]) {
+    width: max-content;
+    min-width: 0;
+}
+
+/* OUTER box — grows with its own content on both axes.
+   Width tracks the longest unwrapped line, floored at --block-node-w and
+   capped at --block-node-max; past that the text wraps and the block grows
+   downward instead.
+   Height is never fixed. It used to be pinned to --block-node-h with
+   overflow:hidden, which silently clipped everything past ~2 lines — the text
+   stayed in the data but scrolled up out of the card with no scrollbar and no
+   way to get it back. min-height keeps the uniform 56px resting footprint. */
+.blockNode.standardBlock {
+    width: max-content;
+    min-width: var(--block-node-w);
+    max-width: var(--block-node-max);
+    height: auto;
+    min-height: var(--block-node-h);
+    align-items: stretch;
+    padding: 0;
+    overflow: visible;
+}
+
+/* Colored canvas blocks are one surface, not a dark outer shell containing a
+   smaller colored card. The node paints the color all the way to its edge;
+   the existing row/container padding still gives the content breathing room. */
+.blockNode.standardBlock:has([class*="toggleGroupContainer"]),
+.blockNode.standardBlock:has([class*="quoteWrapper"]),
+.blockNode.standardBlock:has([class*="calloutWrapper"]),
+.blockNode.standardBlock:has([class*="codeBlockWrapper"]) {
+    background: var(--node-bg);
+}
+
+.blockNode.standardBlock [class*="toggleGroupContainer"],
+.blockNode.standardBlock [class*="quoteWrapper"],
+.blockNode.standardBlock [class*="calloutWrapper"],
+.blockNode.standardBlock [class*="codeBlockWrapper"] {
+    background: var(--node-bg);
+}
+
+/* The outer node ring is the code block boundary on the canvas. Keeping the
+   inner border would reveal the otherwise invisible content gutter. */
+.blockNode.standardBlock [class*="codeBlockWrapper"] {
+    border-color: transparent;
+    border-radius: inherit;
+}
+
+.blockNode.standardBlock:has([class*="toggleGroupContainer"]):hover {
+    background: var(--node-bg);
+}
+
+.blockNode.standardBlock [class*="toggleGroupContainer"]:hover {
+    background: var(--node-bg);
+}
+
+/* A hand-resized block owns its width: fill whatever React Flow stores on the
+   wrapper, released from the auto cap (the drag clamps to
+   --block-node-max-user instead). The dragged height is applied as a
+   min-height floor, never a fixed height, so content that outgrows it still
+   expands the block rather than reviving the clipping bug. */
+.blockNode.standardBlock[data-user-sized='true'] {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    min-height: var(--block-user-h, var(--block-node-h));
+}
+
+.blockNode:focus-visible,
+.colorBlockNode:focus-visible {
+    outline: none;
+    box-shadow: var(--node-ring-selected), var(--focus-ring);
+}
+
+/* INNER box — exactly equal to the outer box: full width, full height, no
+   padding of its own. The gap the user sees around the text is produced by
+   the gutter on the row below, not by insetting this container. */
+.blockNode.standardBlock > .content,
+.blockNode.standardBlock > .content > div {
+    min-height: 100%;
+}
+
+/* CanvasNodeBody adds one host div around the editor. Without a width here,
+   the flex parent shrink-wraps that host to the drag handle and padding; the
+   text area can collapse to zero and wrap one character per line. */
+.blockNode.standardBlock > .content > div {
+    width: 100%;
+    min-width: 0;
+    flex: 1;
+}
+
+.blockNode.standardBlock > .content {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    padding: 0;
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+/* The editor stack fills the inner box too, so nothing is left floating. */
+.blockNode.standardBlock [class*="editor"] {
+    min-height: 100%;
+    justify-content: center;
+}
+
+/* A taller hand-sized block reads from the top. Once the height returns to the
+   ordinary 56px resting footprint, it uses the normal centred rhythm again. */
+.blockNode.standardBlock[data-user-tall='true'] [class*="editor"] {
+    justify-content: flex-start;
+}
+
+/* BREATHING SPACE — the single gutter between the block's visible box and the
+   node edge. Scoped to the editor's DIRECT children, so blocks nested inside a
+   toggle don't collect a second gutter on top of their parent's.
+   The left side composes the gutter with the block's nesting indent
+   (--block-indent, published by BlockItem) so an indented block keeps its
+   inset instead of overwriting the gutter. */
+.blockNode.standardBlock [class*="editor"] > [class*="sortableWrapper"] {
+    width: 100%;
+    align-items: stretch;
+    padding-top: var(--block-node-gutter-y);
+    padding-bottom: var(--block-node-gutter-y);
+    padding-left: calc(var(--block-node-gutter-x) + var(--block-indent, 0px));
+    padding-right: var(--block-node-gutter-x);
+    box-sizing: border-box;
+}
+
+/* Only stretch wrappers that contain rich blocks that must fill the resized height */
+.blockNode.standardBlock [class*="editor"] > [class*="sortableWrapper"]:has([class*="calloutWrapper"]),
+.blockNode.standardBlock [class*="editor"] > [class*="sortableWrapper"]:has([class*="quoteWrapper"]),
+.blockNode.standardBlock [class*="editor"] > [class*="sortableWrapper"]:has([class*="codeBlockWrapper"]) {
+    flex-grow: 1;
+}
+
+/* A toggle's group container paints its own background + left rail, so its
+   gutter has to be a MARGIN — padding would inset the text but leave the
+   tinted box flush with the node edge, which is exactly what made toggles
+   look unlike callouts and quotes. */
+.blockNode.standardBlock [class*="editor"] > [class*="toggleGroupContainer"] {
+    margin-top: var(--block-node-gutter-y);
+    margin-bottom: var(--block-node-gutter-y);
+    margin-left: calc(var(--block-node-gutter-x) + var(--toggle-indent, 0px));
+    margin-right: var(--block-node-gutter-x);
+    width: auto;
+    /* collapsed: identical inner height to a plain text block */
+    min-height: var(--block-node-inner-h);
+    height: 100%;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    justify-content: flex-start;
+    box-sizing: border-box;
+}
+
+/* Expanded, the toggle has to grow around its children. */
+.blockNode.standardBlock:has([class*="toggleChildrenContainer"]) [class*="toggleGroupContainer"] {
+    min-height: fit-content;
+    height: 100%;
+    padding-top: var(--block-marker-gap);
+    padding-bottom: var(--block-marker-gap);
+}
+
+/* Empty "paste a URL" input and the inline text-link: the node now supplies the
+   surface, spine and gutter, so the link's own container chrome (outer margins,
+   the dashed input box) is stripped and its content sits flush in the gutter,
+   exactly like a text or callout block. (Bookmark / embed CARDS never get the
+   standardBlock class — they stay resizable and keep their own surface.) */
+.blockNode.standardBlock [class*="inputContainer"],
+.blockNode.standardBlock [class*="LinkBlock"] [class*="container"] {
+    margin: 0;
+    width: 100%;
+}
+
+.blockNode.standardBlock [class*="inputWrapper"] {
+    min-height: var(--block-node-inner-h);
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+}
+
+.blockNode.standardBlock [class*="textLinkWrapper"] {
+    margin: 0;
+}
+
+/* The callout and quote paint their own inner box; pin both to the same inner
+   height and centre their content, so all four block types present an
+   identical inner container. Their own vertical padding is dropped — it is
+   what made the callout 56px tall and the quote 28px against text's 40px. */
+.blockNode.standardBlock [class*="calloutWrapper"],
+.blockNode.standardBlock [class*="quoteWrapper"] {
+    min-height: var(--block-node-inner-h);
+    height: 100%;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    display: flex;
+    align-items: flex-start;
+    box-sizing: border-box;
+}
+
+.blockNode.standardBlock [class*="codeBlockWrapper"] {
+    min-height: var(--block-node-inner-h);
+    height: 100%;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: stretch;
+    box-sizing: border-box;
+}
+
+.blockNode.standardBlock [class*="blockContent"] {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    /* the gutter above already provides the inset — no double padding */
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.blockNode.fusionTarget,
+.colorBlockNode.fusionTarget {
+    outline: 2px solid var(--secondary);
+    outline-offset: 3px;
+    border-radius: var(--node-radius);
+    animation: blockTargetPulse 1s ease-in-out infinite;
+}
+
+/* Gallery merge. Distinct from fusion's amber on purpose — the two drops do
+   very different things to your content, so they must not look alike. The wash
+   previews the board that's about to exist. */
+.blockNode.galleryTarget,
+.colorBlockNode.galleryTarget {
+    outline: 2px dashed var(--accent);
+    outline-offset: 4px;
+    border-radius: var(--node-radius);
+    /* Not a background: a media node carries an inline transparent background so
+       its picture reads edge to edge, and that beats any class rule. A ring
+       around the outline gets the same "something is about to land here" read
+       without fighting it. */
+    box-shadow: 0 0 0 7px var(--accent-dim);
+    animation: blockTargetPulse 1s ease-in-out infinite;
+}
+
+.blockNode.dropTarget,
+.colorBlockNode.dropTarget {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: var(--node-radius);
+    animation: blockTargetPulse 1s ease-in-out infinite;
+}
+
+@keyframes blockTargetPulse {
+
+    0%,
+    100% {
+        outline-offset: 3px;
+    }
+
+    50% {
+        outline-offset: 6px;
+    }
+}
+
+.colorBlockNode {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    background: transparent;
+    border: none;
+    border-radius: var(--node-radius);
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    transition: background-color var(--transition-fast), border-radius var(--transition-fast);
+    box-shadow: none;
+    overflow: hidden;
+}
+
+.colorBlockNode:hover {
+    background: transparent;
+    border: none;
+    border-color: transparent;
+    transform: none;
+    box-shadow: none;
+}
+
+.colorBlockNode.selected {
+    border: 2px solid var(--accent);
+    background: transparent;
+    box-shadow: none;
+}
+
+.colorBlockNode.multiSelected {
+    border: 2px solid var(--accent);
+    background: transparent;
+    box-shadow: none;
+}
+
+.blockNode.mediaBlockNode.selected,
+.blockNode.mediaBlockNode.multiSelected {
+    background: var(--node-bg);
+    box-shadow: none;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--block-radius-lg);
+}
+
+.mediaBlockNode {
+    cursor: grab;
+}
+
+.mediaBlockNode:active {
+    cursor: grabbing;
+}
+
+.resizeHandle {
+    --resize-handle-start: var(--color-text-muted);
+    --resize-handle-end: var(--text-soft);
+    position: absolute;
+    bottom: -20px;
+    right: -20px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: nwse-resize;
+    z-index: 50;
+    opacity: 0;
+    transition: opacity var(--transition-smooth);
+    pointer-events: auto;
+    transform: rotate(180deg);
+}
+
+.mediaBlockNode:hover .resizeHandle,
+.blockNode:hover .resizeHandle,
+.resizeHandle:hover {
+    opacity: 1;
+}
+
+.resizeHandle svg {
+    width: 60%;
+    height: 60%;
+    display: block;
+    pointer-events: none;
+    transition: transform var(--transition-smooth);
+}
+
+.resizeHandle:hover svg {
+    transform: scale(1.1);
+}
+
+.resizeHandle:hover {
+    --resize-handle-start: var(--accent);
+    --resize-handle-end: var(--secondary);
+}
+
+.resizeHandle:active svg {
+    transform: scale(1.15);
+}
+
+.convertBtn {
+    position: absolute;
+    top: -32px;
+    right: -32px;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-rail);
+    border: 1px solid var(--line-strong);
+    box-shadow: none;
+    color: var(--text-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transform: scale(0.9) translateY(4px);
+    transition: all var(--transition-smooth);
+    z-index: 50;
+}
+
+.blockNode:hover .convertBtn,
+.colorBlockNode:hover .convertBtn {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+}
+
+.convertBtn:hover {
+    /* a wash, not a fill — so the icon takes accent *ink*, not on-accent */
+    background: var(--accent-wash);
+    border-color: var(--accent);
+    box-shadow: none;
+    transform: scale(1.05) !important;
+    color: var(--accent-ink);
+}
+
+.convertBtn:focus-visible {
+    opacity: 1;
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* ---------------------------------------------------------------------------
+   Files
+   ---------------------------------------------------------------------------
+   A closed file is the folder card's twin: no surface behind it, because the
+   artwork is already a finished object and a rectangle around it reads as a
+   second container. Hover and selection are staged on the art instead, exactly
+   as NoteCard.module.css does for `.card.folder`.
+*/
+.blockNode.fileCardNode {
+    background: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0;
+    min-width: 0;
+    min-height: 0;
+    overflow: visible;
+}
+
+/* The accent spine belongs to a card with a surface. Without one it is a stripe
+   floating above a sheet of paper. */
+.blockNode.fileCardNode::before {
+    display: none;
+}
+
+.blockNode.fileCardNode:hover {
+    background: none !important;
+    box-shadow: none !important;
+    transform: none;
+}
+
+.blockNode.fileCardNode:hover .content {
+    transform: translateY(-3px);
+    filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.22));
+}
+
+.blockNode.fileCardNode .content {
+    height: 100%;
+    transition: transform 0.18s var(--ease-rise), filter 0.18s var(--ease-rise);
+}
+
+.blockNode.fileCardNode.selected,
+.blockNode.fileCardNode.selected:hover,
+.blockNode.fileCardNode.multiSelected {
+    background: none !important;
+    box-shadow: var(--node-ring-selected) !important;
+    border-radius: var(--media-radius);
+}
+
+/* A recoloured file node pulls the sheet onto the card's accent, mixed toward
+   the kind hue rather than replacing it — the same restraint the folder card
+   shows with `--folder-ink`. */
+.blockNode.fileCardNode[style*="--node-accent-color"] .content {
+    --file-ink: color-mix(in srgb, var(--node-accent-color) 62%, var(--file-hue, var(--text-faint)));
+}
+
+/* An open file. FileViewer draws its own surface, ring and radius, so the node
+   gets out of the way entirely and just supplies the box. */
+.blockNode.fileOpenNode {
+    display: block;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0;
+    max-width: none;
+    height: 100% !important;
+    overflow: visible;
+}
+
+.blockNode.fileOpenNode::before {
+    display: none;
+}
+
+.blockNode.fileOpenNode:hover {
+    transform: none;
+}
+
+.blockNode.fileOpenNode .content {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: var(--media-radius);
+}
+
+.blockNode.fileOpenNode.selected .content,
+.blockNode.fileOpenNode.multiSelected .content {
+    box-shadow: var(--node-ring-selected);
+}

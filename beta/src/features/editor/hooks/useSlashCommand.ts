@@ -1,0 +1,163 @@
+import { useState, useCallback, useRef, useLayoutEffect } from 'react';
+import type { Block, BlockType, BlockMetadata } from '../types';
+import { v4 as uuidv4 } from 'uuid';
+import { createGalleryMetadata, getGalleryItems, isGalleryMember } from '../gallery/galleryTypes';
+import { emptyColumnsMetadata, emptyTableMetadata } from '../ui/menus/block/menuBlocks';
+import { spawnBlockNodeBelow, requestBlockFocus } from '../drag/canvasBlockSpawn';
+import { beginHistoryGesture, endHistoryGesture } from '../../../store/temporalControl';
+import { useStore } from '../../../store/useStore';
+
+interface SlashCommandProps {
+    editorRef: React.RefObject<HTMLDivElement | null>;
+    blocks: Block[];
+    blocksRef: React.MutableRefObject<Block[]>; // Added blocksRef
+    setBlocks: React.Dispatch<React.SetStateAction<Block[]>>;
+    debouncedOnUpdate: (newBlocks: Block[]) => void;
+    setFocusId: (id: string | null) => void;
+    singleBlockOnly?: boolean;
+    nodeId?: string;
+}
+
+export function useSlashCommand({
+    editorRef,
+    blocksRef,
+    setBlocks,
+    debouncedOnUpdate,
+    setFocusId,
+    singleBlockOnly,
+    nodeId,
+}: SlashCommandProps) {
+    const [slashMenuState, setSlashMenuState] = useState<{ anchorRect: DOMRect | { top: number; left: number; bottom: number }, blockId: string } | null>(null);
+    const slashMenuStateRef = useRef(slashMenuState);
+
+    // Sync ref
+    useLayoutEffect(() => { slashMenuStateRef.current = slashMenuState; }, [slashMenuState]);
+
+    const convertBlock = useCallback((id: string | undefined, type: BlockType, metadata?: BlockMetadata, content?: string) => {
+        const targetId = id || (slashMenuStateRef.current ? slashMenuStateRef.current.blockId : null);
+        if (!targetId) return;
+        const canvasDivider = type === 'divider' && singleBlockOnly && nodeId;
+
+        // A divider has no editable content, so it never registers a focusable
+        // DOM ref. Converting a block to one used to leave focus with nowhere
+        // to go — the user's next keystrokes were silently dropped. Give it a
+        // fresh empty block to type into instead, same as pressing Enter would.
+        // Decided up front (not inside the setBlocks updater below) because
+        // that updater isn't guaranteed to have run yet by the time this
+        // function returns — reading a value it assigned from here raced and
+        // silently used the divider's own id instead.
+        let trailingTextBlockId: string | null = null;
+        {
+            const current = blocksRef.current;
+            const index = current.findIndex(b => b.id === targetId);
+            const next = index !== -1 ? current[index + 1] : undefined;
+            if (next && next.type === 'text' && !next.content) {
+                trailingTextBlockId = next.id;
+            } else if (type === 'divider') {
+                trailingTextBlockId = uuidv4();
+            }
+        }
+
+        if (canvasDivider) beginHistoryGesture(useStore.getState());
+        try {
+        setBlocks(prev => {
+            const index = prev.findIndex(b => b.id === targetId);
+            if (index === -1) return prev;
+
+            const updated = [...prev];
+            const currentBlock = updated[index];
+
+            let finalContent = content;
+            if (content === '') {
+                // Parse out the text following the first slash command word
+                // e.g. "/h1 Introduction" -> matches "/h1" + spaces, captures "Introduction"
+                const match = currentBlock.content.match(/^\/[a-zA-Z0-9]*\s*(.*)/);
+                finalContent = match ? match[1] : '';
+            } else if (content === undefined) {
+                finalContent = currentBlock.content;
+            }
+
+            /* Turning a block into a gallery. A picture converts into a board of
+               one rather than being thrown away, and the board's `content` is its
+               TITLE — so a media block's content (a data URL) must never carry
+               over into it, which converting from the block menu would otherwise
+               do. Only text becomes a title. */
+            const wasGallery = currentBlock.type === 'gallery';
+            const wasMedia = isGalleryMember(currentBlock) && !wasGallery;
+            const galleryItems = wasGallery
+                ? getGalleryItems(currentBlock)
+                : (wasMedia && currentBlock.content?.trim() ? [{ ...currentBlock, id: uuidv4() }] : []);
+            const galleryTitle = wasGallery ? currentBlock.content : (wasMedia ? '' : (finalContent || ''));
+
+            updated[index] = {
+                ...currentBlock,
+                type,
+                content: type === 'gallery' ? galleryTitle : (finalContent || ''),
+                metadata: type === 'columns' ? emptyColumnsMetadata(metadata?.count || 2)
+                : type === 'gallery' ? createGalleryMetadata(galleryItems)
+                : type === 'table' && currentBlock.type !== 'table' ? emptyTableMetadata()
+                : (metadata !== undefined ? { ...currentBlock.metadata, ...metadata } : currentBlock.metadata)
+            };
+
+            // Converting a toggle to a non-toggle: outdent its nested children by one level so
+            // they don't end up orphaned (indented with no parent toggle). Mirrors convertSelectedBlocks.
+            if (currentBlock.type === 'toggle' && type !== 'toggle') {
+                const targetIndent = currentBlock.indent || 0;
+                let j = index + 1;
+                while (j < updated.length) {
+                    const childIndent = updated[j].indent || 0;
+                    if (childIndent > targetIndent) {
+                        updated[j] = { ...updated[j], indent: Math.max(0, childIndent - 1) };
+                        j++;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            if (type === 'divider' && !canvasDivider && trailingTextBlockId && !updated.some(b => b.id === trailingTextBlockId)) {
+                updated.splice(index + 1, 0, { id: trailingTextBlockId, type: 'text', content: '', indent: currentBlock.indent || 0 });
+            }
+
+            debouncedOnUpdate(updated);
+            return updated;
+        });
+
+        // Auto-split logic removed per user request for better document formatting
+        // if (['heading1', 'heading2', 'heading3', 'toggle', 'divider'].includes(type)) {
+        //     if (nodeId) {
+        //         const index = blocksRef.current.findIndex(b => b.id === targetId);
+        //         if (index > 0) {
+        //             useStore.getState().splitNode(nodeId, targetId, blocksRef.current);
+        //         }
+        //     }
+        // }
+
+        if (canvasDivider && trailingTextBlockId) {
+            spawnBlockNodeBelow(nodeId!, { id: trailingTextBlockId, type: 'text', content: '' });
+            requestBlockFocus(trailingTextBlockId);
+        } else setFocusId(trailingTextBlockId || targetId);
+        setSlashMenuState(null);
+        } finally { if (canvasDivider) endHistoryGesture(useStore.getState()); }
+    }, [debouncedOnUpdate, setBlocks, setFocusId, blocksRef, singleBlockOnly, nodeId]); // `blocks` deliberately absent: the ref is the live list
+
+    const handleSlashOpen = useCallback((id: string) => {
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0 && editorRef.current) {
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            setSlashMenuState({
+                anchorRect: { top: rect.top, left: rect.left, bottom: rect.bottom, right: rect.right },
+                blockId: id
+            });
+        }
+    }, [editorRef]);
+
+    return {
+        slashMenuState,
+        setSlashMenuState,
+        slashMenuStateRef,
+        convertBlock,
+        handleSlashOpen
+    };
+}

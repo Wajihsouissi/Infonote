@@ -1,0 +1,182 @@
+/* The landing page: a header, a claim, four things it does, and one paragraph
+   about what it does not. No animation budget spent on a page whose job is to
+   be read once and left. */
+
+.page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background:
+        radial-gradient(120% 70% at 50% -10%, rgba(var(--accent-rgb), 0.14), transparent 60%),
+        var(--bg-base);
+    color: var(--text-main);
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 24px;
+}
+
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--accent-ink);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.main {
+    flex: 1;
+    width: min(60rem, 100%);
+    margin: 0 auto;
+    padding: 32px 24px 64px;
+}
+
+.hero {
+    max-width: 38rem;
+    padding: 40px 0 48px;
+}
+
+.eyebrow {
+    display: inline-block;
+    margin: 0 0 12px;
+    padding: 3px 10px;
+    border: 1px solid rgba(var(--accent-rgb), 0.35);
+    border-radius: var(--radius-pill);
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.headline {
+    margin: 0;
+    font-size: clamp(2.1rem, 5.2vw, 3.4rem);
+    line-height: 1.07;
+    letter-spacing: -0.03em;
+}
+
+.headlineSoft {
+    color: var(--text-soft);
+}
+
+.lede {
+    margin: 18px 0 0;
+    max-width: 34rem;
+    color: var(--text-soft);
+    font-size: 1.02rem;
+    line-height: 1.6;
+}
+
+.heroActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 26px;
+}
+
+.heroNote {
+    margin: 14px 0 0;
+    max-width: 32rem;
+    color: var(--text-faint);
+    font-size: 0.8rem;
+    line-height: 1.55;
+}
+
+.features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 14px;
+    padding: 8px 0 40px;
+}
+
+.feature {
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    background: var(--bg-card);
+}
+
+.featureIcon {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    margin-bottom: 12px;
+    border-radius: var(--r-control);
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+}
+
+.featureTitle {
+    margin: 0 0 6px;
+    font-size: 0.98rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+}
+
+.featureBody {
+    margin: 0;
+    color: var(--text-soft);
+    font-size: 0.85rem;
+    line-height: 1.55;
+}
+
+.honesty {
+    max-width: 44rem;
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    background: var(--bg-inset);
+}
+
+.honestyTitle {
+    margin: 0 0 8px;
+    font-size: 0.92rem;
+    font-weight: 650;
+}
+
+.honestyBody {
+    margin: 0;
+    color: var(--text-soft);
+    font-size: 0.85rem;
+    line-height: 1.6;
+}
+
+.footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 24px;
+    border-top: 1px solid var(--line);
+    color: var(--text-faint);
+    font-size: 0.78rem;
+}
+
+.footerLink {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--text-soft);
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.footerLink:hover {
+    color: var(--accent-ink);
+}

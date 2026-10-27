@@ -1,0 +1,75 @@
+/* Folder artwork for the folder card view.
+
+   One ink drives the whole shape — `--folder-ink` — so a recoloured card tints
+   the folder by redefining a single value rather than restating every fill. The
+   default is the faint text grey, which is the same weight the icon view gives a
+   card with no colour of its own. */
+.art {
+    position: relative;
+    flex: none;
+    display: block;
+    /* Read, never set: declaring the fallback here instead of defining the
+       custom property would shadow whatever the card above set, and a recoloured
+       card sets exactly this to tint its folder. */
+    color: var(--folder-ink, var(--text-faint));
+}
+
+.svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+/* The inside panel, held back from the front flap exactly as the source artwork
+   has it, so the folder still reads as two planes when there is no thumbnail. */
+.back {
+    fill: currentColor;
+    opacity: 0.5;
+}
+
+.pocket {
+    fill: currentColor;
+}
+
+/* The icon sits on the front flap, centred on the flap rather than on the card:
+   the flap runs from just under halfway down to the bottom edge, so its middle is
+   about 70% of the way down the square. It is a lifted shade of the folder
+   ink: every folder keeps one monochrome family. On a plain flap it is mostly
+   the folder hue with a modest lift, keeping it both coloured and readable. */
+.icon {
+    position: absolute;
+    left: 50%;
+    top: 70%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: color-mix(in srgb, white 42%, var(--folder-ink, var(--text-faint)));
+    opacity: 1;
+    pointer-events: none;
+}
+
+/* A photo cover has no CSS colour token for the icon to inherit. Soft-light
+   blending lets the icon borrow the actual pixels of the flap — purple covers
+   yield a purple glyph, warm covers a warm glyph — instead of falling back to
+   neutral grey. The white source only lifts that borrowed hue. */
+.art[data-has-cover] .icon {
+    color: white;
+    opacity: 1;
+    mix-blend-mode: soft-light;
+    filter: saturate(1.35) contrast(1.2) drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.3));
+}
+
+/* A custom image icon would otherwise keep its own colours and break the
+   monochrome, so it is flattened to the same soft white. Its alpha lets the
+   folder colour show through, matching the vector icons above. */
+.icon img {
+    filter: grayscale(1) brightness(0) invert(1);
+    opacity: 0.58;
+    border-radius: 4px;
+}
+
+.art[data-has-cover] .icon img {
+    opacity: 1;
+}

@@ -1,0 +1,18 @@
+/* No layout box: node sizing and editor identity remain owned by the renderer. */
+.content {
+    display: contents;
+}
+
+/* Anchored to React Flow's positioned node, outside the inert subtree. This
+   also covers embedded documents and controls that stop event propagation. */
+.surface {
+    position: absolute;
+    inset: 0;
+    z-index: 1000;
+    cursor: grab;
+    touch-action: none;
+}
+
+.surface:active {
+    cursor: grabbing;
+}

@@ -1,0 +1,482 @@
+/* ============================================================
+   chnk it — GLOBAL DESIGN SYSTEM · "Charcoal & Signal"
+   ------------------------------------------------------------
+   The single source of truth for every color, font, radius,
+   shadow and motion value in the app. Components must consume
+   these tokens (var(--…)) — never hardcode brand colors.
+
+   Art direction: 80% pure-charcoal structure, 10% Hot Coral action, 10% highlights.
+   Dark theme is neutral charcoal; light theme uses the reference soft whites.
+   No glassmorphism, no cheap glows.
+
+   Sections:
+     1. Static tokens (typography, radius, motion)
+     2. Ink theme (dark — default)
+     3. Paper theme (light)
+     4. Legacy aliases (old variable names → new tokens)
+     5. Canvas & UI Component layer
+     6. Corner shape — Apple-style continuous curvature
+     7. Accent palette — ten user-assignable hues, three shades each
+   ============================================================ */
+
+/* ---------- 1. static tokens ---------- */
+
+:root {
+  /* type families */
+  --font-sans: 'Outfit', sans-serif;
+  --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia,
+    'Times New Roman', serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+
+  /* radius scale */
+  --radius-xs: 4px;
+  --radius-sm: 7px;
+  --radius-md: 9px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-pill: 999px;
+
+  /* squircle radius scale — "Charcoal & Signal". A six-step scale that
+     pairs with the global superellipse corner-shape:
+       xs        4px → chips, ticks, small insets
+       control   8px → buttons, inputs, menu items
+       md       12px → block nodes, secondary cards
+       surface  16px → nodes, cards, menus, popovers
+       lg       24px → large cards, sheets
+       panel    32px → modals, large floating panels */
+  --r-xs: 4px;
+  --r-control: 8px;
+  --r-md: 12px;
+  --r-surface: 16px;
+  --r-lg: 24px;
+  --r-panel: 32px;
+
+  /* corner shape — Apple-style continuous curvature. superellipse(2)
+     is the canonical "squircle". */
+  --corner-smooth: superellipse(2);
+
+  /* motion */
+  --transition-fast: 0.15s ease;
+  --transition-smooth: 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  --ease-rise: cubic-bezier(0.22, 0.9, 0.3, 1);
+
+  /* The surface transparent media is composited onto.
+     Deliberately NOT theme-aware, and deliberately mid-luminance. Uploaded art
+     with an alpha channel arrives at an unknown polarity — black line work
+     drawn for a white page, white logos drawn for a dark one — and either of
+     our own grounds erases one of them: on ink the black art disappears, on
+     paper the white art does. A neutral mid grey is the only ground both survive,
+     and holding it fixed across themes means a logo looks the same wherever it
+     is dropped instead of inverting when the theme is toggled.
+     Only ever seen through alpha; opaque media covers it completely. */
+  --media-plate: #777777;
+
+  /* Palette usage: charcoal neutrals own the interface (80%); the action
+     colour is reserved for calls to action and key states (10%); highlight
+     colours call out meaning, never form the default UI chrome (10%). */
+  --action: #ff5040;
+  --highlight: #f365c0;
+}
+
+/* ---------- 2. Ink (dark — default) ---------- */
+
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* surfaces: charcoal replacements for the supplied navy ramp. */
+  --bg-inset: #000000;
+  /* canvas ground / inset wells (deepest ink) */
+  --bg-base: #090909;
+  /* primary container ground */
+  --bg-rail: #121212;
+  /* structural rails, sidebar, resting nodes */
+  --bg-card: #1a1a1a;
+  /* note content, expanded cards */
+  --bg-raised: #242424;
+  /* modals, popovers, floating menus, toolbars */
+  /* The four rungs below are ONE ladder — "Graphite Deep" from the palette
+     study. They hold a single neutral hue and step only in lightness, so the
+     whole ground moves together: change one and change all four, or the
+     relationships that make a card read as a card stop working. */
+  --bg-workspace: #101010;
+  /* the working ground: the infinite canvas, and the body of every panel
+     docked beside it. One value, because they are read as one surface. */
+  --bg-frame: #191919;
+  /* the chrome the workspace is inset into: app shell, top bar, panel chrome.
+     Deliberately a step LIGHTER than the ground, so the desk reads as a sheet
+     laid inside the frame rather than as the frame's own surface. */
+  --bg-node: #202020;
+  /* a resting card on the canvas — the top of the ladder, and what gives a
+     node its silhouette against the desk. */
+  --bg-node-well: #171717;
+  /* the note body inset inside a card: enough under --bg-node to read as a
+     recessed writing surface and not so much that it reads as a hole cut in
+     the card. Deliberately a wider step than the ladder's even spacing would
+     give (9 under the card rather than 5) — the inset is the one place a
+     deeper cut helps — while staying 7 clear of the desk, so it never reads as
+     a hole punched through to the canvas. */
+
+  /* A RECOLOURED card is built as a colour, not as a tint.
+     Mixing a hue into the grey card can only ever produce a tinted grey — at
+     any strength the chroma that survives is a fraction of the hue's own, and
+     the warm hues grey out fastest, so a "coral" card came out brown. These
+     four numbers are fed to `oklch(from var(--node-accent) L C h)`: the card
+     keeps the hue's H and takes a FIXED lightness and chroma, so every
+     recoloured card is genuinely its colour and all ten carry equal weight.
+     The well sits below the card on both, so the recess holds.
+     One honest limit: a dark surface cannot read as yellow — at L 0.44 the
+     yellow end of the wheel is ochre. The ring and the icon carry the bright
+     hue for those. */
+  --node-tint-l: 0.44;
+  --node-tint-c: 0.125;
+  --node-well-tint-l: 0.355;
+  --node-well-tint-c: 0.11;
+
+  /* hairlines & washes */
+  --line: rgba(255, 255, 255, 0.10);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  --line-heavy: rgba(255, 255, 255, 0.28);
+  --hover-wash: rgba(255, 255, 255, 0.08);
+  /* The opposite of --hover-wash: a RECESS on whatever it is laid over, for
+     inset wells (a segmented control's track, a slider groove). A wash rather
+     than a surface token so it stays a step below its own parent wherever it
+     lands — a fixed value can only be "below" one specific ground, and the one
+     that used to work stopped working when the ground moved. */
+  --inset-wash: rgba(0, 0, 0, 0.28);
+  --active-wash: rgba(255, 80, 64, 0.16);
+  --dot: rgba(255, 255, 255, 0.18);
+
+  /* text */
+  --text-main: #ffffff;
+  --text-soft: #e6e6e6;
+  --text-faint: #a3a3a3;
+
+  /* primary action and state — Hot coral from the supplied palette. */
+  --accent: #ff5040;
+  --accent-hover: #ff5040;
+  --accent-ink: #ff5040;
+  /* accent for text/icons/borders on dark */
+  --accent-deep: #ff5040;
+  --accent-dim: rgba(255, 80, 64, 0.16);
+  --accent-wash: rgba(255, 80, 64, 0.22);
+  --on-accent: #000000;
+  --on-accent-rgb: 0, 0, 0;
+  --accent-rgb: 255, 80, 64;
+
+  /* Compatibility highlight — stays Hot Coral so existing controls never
+     fall back to the former orange treatment. */
+  --secondary: #ff5040;
+  --secondary-ink: #ff5040;
+  --secondary-dim: rgba(255, 80, 64, 0.15);
+  --secondary-rgb: 255, 80, 64;
+
+  /* feedback */
+  --ok: #5ac875;
+  --warn: #ffc31f;
+  --danger: #f5430b;
+  --ok-rgb: 90, 200, 117;
+  --warn-rgb: 255, 195, 31;
+  --danger-rgb: 245, 67, 11;
+
+  /* Functional palette from the reference image. */
+  --t-charcoal: #a3a3a3;
+  --t-pink: #f365c0;
+  --t-yellow: #c3ff33;
+  --t-purple: #ffa9e2;
+  --t-green: #5ac875;
+  --t-red: #f5430b;
+
+  /* accent palette — ten hues the user assigns to things they own (board
+     columns today, tags and categories next). See §7 for the full rationale and
+     for the wash/edge shades derived from these.
+
+     They are used only for user-owned content and highlights, not chrome.
+
+     Ten hues, each sitting near the most saturated point sRGB can hold for it.
+
+     The obvious construction — one lightness and one chroma for all ten — is
+     the one to avoid, and this set replaces two attempts at it. sRGB's chroma
+     ceiling varies enormously by hue at a fixed lightness (at L 0.70 teal tops
+     out around C 0.11 where red reaches 0.18), so a single lightness drags every
+     hue down to the worst common chroma: the row goes pale, and the hues that
+     were clamped hardest drift toward grey and toward each other.
+
+     Instead each hue rides its own cusp — the lightness where its chroma peaks
+     — pulled 62% of the way toward a common L 0.76 so the row still reads as
+     one family, then taking 88% of the chroma available there. Lightness
+     therefore VARIES by hue: olive sits near L 0.83, indigo near 0.65, which is
+     how those hues behave in the world and is what keeps ten of them telling
+     themselves apart. Against a card they run 4.9–9.9:1.
+
+     Citrine is the one hue that does not take the standard pull. Yellow's cusp
+     sits very high (L 0.87), so pulling it 62% of the way down to 0.76 landed it
+     in gold rather than yellow; it is pulled 30% instead.
+
+     Three slots hold a colour their name undersells: `rose` is a coral red,
+     `violet` is a purple, and `magenta` is a red-leaning pink. Renaming them is
+     a rename across every consumer, so the values moved first. */
+  --a-rose: #f67a61;
+  --a-amber: #f49b37;
+  --a-citrine: #eebf3f;
+  --a-olive: #b3d740;
+  --a-jade: #45df95;
+  --a-teal: #46dbdb;
+  --a-azure: #4cbaf6;
+  --a-indigo: #7284f2;
+  --a-violet: #bd77f4;
+  --a-magenta: #f66eae;
+
+  /* file-kind palette — informational, not decorative.
+
+     Its own set rather than the §7 accents because those are the user's to
+     assign — a file's kind is not something anyone chose, so it must not move
+     when they recolour a card. (It also predates the ten being ten distinct
+     hues: while four of them were the same coral, a Word file and a PDF came
+     out identically red.)
+     These are the conventional codes people already read at a glance — a red
+     PDF, a blue document, a green sheet — and they are worn ONLY by a file's
+     icon and artwork, never by chrome. Colour on a button or a spine still
+     means the user chose it.
+
+     Tuned to sit on Ink's near-black at full strength and at the 50% opacity
+     the sheet of FileArt uses. */
+  --file-pdf: #f2604a;
+  --file-doc: #62a0ea;
+  --file-sheet: #5ac875;
+  --file-slides: #f0a848;
+  --file-image: #c58ce0;
+  --file-video: #f365c0;
+  --file-audio: #8a90ee;
+  --file-code: #45c4b0;
+  --file-text: #d7b56d;
+  --file-archive: #a8926a;
+
+  /* elevation — neutral contact shadow + ambient depth */
+  --elev-1: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
+  --elev-2: 0 6px 16px rgba(0, 0, 0, 0.40), 0 12px 28px rgba(0, 0, 0, 0.35);
+  --elev-3: 0 20px 48px rgba(0, 0, 0, 0.50), 0 32px 72px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.56);
+  /* What a full-screen layer lays over the app behind it. */
+  --scrim: rgba(10, 11, 15, 0.75);
+  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.36);
+  --focus-ring: 0 0 0 3px var(--accent-dim);
+}
+
+/* ---------- 3. Paper (light) ---------- */
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  /* Paper & Ink's warm surface hierarchy supplies the quiet 80% UI ground. */
+  --bg-inset: #faf9f6;
+  --bg-base: #f8f7f5;
+  --bg-rail: #ffffff;
+  /* sidebar, rails, resting nodes (white) */
+  --bg-card: #ffffff;
+  /* expanded card & editor paper surface */
+  --bg-raised: #ffffff;
+  /* floating popovers & modals */
+  --bg-workspace: #faf9f6;
+  /* canvas + panel bodies; paper keeps the value the canvas already had */
+  --bg-frame: #ffffff;
+  /* shell + panel chrome — the white the frame already was in Paper */
+  --bg-node: #ffffff;
+  /* Paper cards stay white; the ring, not a fill step, gives them their edge */
+  --bg-node-well: #f8f7f5;
+  /* the note inset — the warm off-white it already was in Paper */
+
+  /* A recoloured card, Paper side — same construction, mirrored: a tinted
+     PAPER rather than a tinted ink. High lightness, low chroma, and the well a
+     shade under the card so the recess reads the same way it does on Ink. */
+  --node-tint-l: 0.93;
+  --node-tint-c: 0.052;
+  --node-well-tint-l: 0.90;
+  --node-well-tint-c: 0.045;
+
+  /* hairlines & washes */
+  --line: rgba(26, 22, 14, 0.09);
+  --line-strong: rgba(26, 22, 14, 0.18);
+  --line-heavy: rgba(26, 22, 14, 0.30);
+  --hover-wash: rgba(26, 22, 14, 0.05);
+  --inset-wash: rgba(26, 22, 14, 0.06);
+  --active-wash: rgba(255, 80, 64, 0.13);
+  --dot: rgba(26, 22, 14, 0.16);
+
+  /* text */
+  --text-main: #1e1a14;
+  --text-soft: #565145;
+  --text-faint: #888374;
+
+  /* primary action and state — Hot coral from the supplied palette. */
+  --accent: #ff5040;
+  --accent-hover: #ff5040;
+  --accent-ink: #ff5040;
+  --accent-deep: #ff5040;
+  --accent-dim: rgba(255, 80, 64, 0.12);
+  --accent-wash: rgba(255, 80, 64, 0.16);
+  --on-accent: #000000;
+  --on-accent-rgb: 0, 0, 0;
+  --accent-rgb: 255, 80, 64;
+
+  /* Compatibility highlight — stays Hot Coral so existing controls never
+     fall back to the former orange treatment. */
+  --secondary: #ff5040;
+  --secondary-ink: #ff5040;
+  --secondary-dim: rgba(255, 80, 64, 0.12);
+  --secondary-rgb: 255, 80, 64;
+
+  /* feedback */
+  --ok: #348a51;
+  --warn: #de6e28;
+  --danger: #c9390c;
+  --ok-rgb: 52, 138, 81;
+  --warn-rgb: 222, 110, 40;
+  --danger-rgb: 201, 57, 12;
+
+  /* Functional palette from the reference image, contrast-safe for paper. */
+  --t-charcoal: #737373;
+  --t-pink: #f365c0;
+  --t-yellow: #de6e28;
+  --t-purple: #f365c0;
+  --t-green: #348a51;
+  --t-red: #c9390c;
+
+  /* accent palette — the same ten hue angles as Ink, rebuilt for paper (§7).
+     Only these ten values change between themes; every shade derived from them
+     follows automatically, so a column keeps its identity across Ink and Paper
+     instead of needing a second set of rules.
+
+     The construction INVERTS here, and it has to. On ink a swatch must be light
+     enough to lift off a dark ground, so each hue rides its own chroma cusp. On
+     paper it must be DARK enough to be seen, and the hues that go pale on ink —
+     yellow, lime, cyan — are precisely the ones that vanish against white. So
+     these are solved for equal contrast against the page (4.6:1, so a swatch is
+     legible as text) with as much chroma as sRGB allows at that lightness.
+
+     Chroma is then capped at 0.165. Without the cap, purple and indigo have a
+     huge gamut at this lightness and come out electric beside a teal that has
+     almost none — ten swatches, three of them shouting. The cap costs the
+     wide hues nothing anyone can see and holds the row together as one warm,
+     inky set: terracotta, burnt ochre, olive gold, mulberry. */
+  --a-rose: #c94c33;
+  --a-amber: #ac641a;
+  --a-citrine: #8c7219;
+  --a-olive: #607f19;
+  --a-jade: #1d8556;
+  --a-teal: #1d8183;
+  --a-azure: #1c7caf;
+  --a-indigo: #616bd8;
+  --a-violet: #965ac5;
+  --a-magenta: #c14984;
+
+  /* file-kind palette, deepened for paper. Same hues, enough weight to hold
+     against a near-white ground at the 50% opacity the sheet uses. */
+  --file-pdf: #c9390c;
+  --file-doc: #2f6fb0;
+  --file-sheet: #2f7d4f;
+  --file-slides: #b3651a;
+  --file-image: #8b4fb0;
+  --file-video: #b03c86;
+  --file-audio: #4a52bd;
+  --file-code: #157d70;
+  --file-text: #8f6a1c;
+  --file-archive: #6f5b33;
+
+  /* Paper & Ink's subtle warm neutral elevation. */
+  --elev-1: 0 1px 3px rgba(36, 26, 12, 0.07), 0 1px 2px rgba(36, 26, 12, 0.05);
+  --elev-2: 0 6px 16px rgba(36, 26, 12, 0.10), 0 12px 28px rgba(36, 26, 12, 0.08);
+  --elev-3: 0 20px 48px rgba(36, 26, 12, 0.16), 0 32px 72px rgba(36, 26, 12, 0.14);
+  --shadow-lg: 0 20px 50px rgba(36, 26, 12, 0.15);
+  --scrim: rgba(36, 26, 12, 0.35);
+  --shadow-sm: 0 4px 14px rgba(36, 26, 12, 0.08);
+  --focus-ring: 0 0 0 3px var(--accent-dim);
+}
+
+/* ---------- 4. legacy aliases ---------- */
+
+:root,
+:root[data-theme='dark'] {
+  --color-bg-base: var(--bg-base);
+  --color-bg-surface: var(--bg-rail);
+  --color-bg-card: var(--bg-card);
+
+  --color-primary: var(--accent);
+  --color-primary-glow: var(--accent-dim);
+  --color-secondary: var(--secondary);
+  --color-highlight: var(--highlight);
+
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-soft);
+  --color-border: var(--line);
+
+  --border: var(--line);
+  --border-hover: var(--line-strong);
+  --surface-elevated: var(--bg-raised);
+
+  --glass-bg: var(--bg-raised);
+  --glass-bg-hover: rgba(52, 52, 52, 0.98);
+  --glass-border: var(--line-strong);
+  --glass-shadow: var(--elev-2);
+  --backdrop-blur: 12px;
+
+  --handle-glass-bg: rgba(255, 255, 255, 0.1);
+  --handle-glass-border: rgba(255, 255, 255, 0.2);
+  --handle-glass-shadow: none;
+
+  --ui-hover: var(--hover-wash);
+  --ui-active: var(--active-wash);
+  --ui-border-low: rgba(255, 255, 255, 0.05);
+
+  --modal-bg: var(--bg-raised);
+  --note-bg: var(--bg-card);
+
+  --xy-background-color-default: var(--bg-inset);
+  --rf-controls-bg: var(--bg-raised);
+  --rf-controls-border: var(--line-strong);
+  --rf-controls-text: var(--text-main);
+  --rf-controls-hover-bg: var(--hover-wash);
+}
+
+:root[data-theme='light'] {
+  --color-bg-base: var(--bg-base);
+  --color-bg-surface: var(--bg-rail);
+  --color-bg-card: var(--bg-card);
+
+  --color-primary: var(--accent);
+  --color-primary-glow: var(--accent-dim);
+  --color-secondary: var(--secondary);
+  --color-highlight: var(--highlight);
+
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-soft);
+  --color-border: var(--line);
+
+  --border: var(--line);
+  --border-hover: var(--line-strong);
+  --surface-elevated: var(--bg-raised);
+
+  --glass-bg: var(--bg-raised);
+  --glass-bg-hover: rgba(255, 255, 255, 0.99);
+  --glass-border: var(--line);
+  --glass-shadow: var(--elev-2);
+  --backdrop-blur: 12px;
+
+  --handle-glass-bg: rgba(0, 0, 0, 0.1);
+  --handle-glass-border: rgba(0, 0, 0, 0.2);
+  --handle-glass-shadow: none;
+
+  --ui-hover: var(--hover-wash);
+  --ui-active: var(--active-wash);
+  --ui-border-low: rgba(0, 0, 0, 0.06);
+
+  --modal-bg: var(--bg-raised);
+  --note-bg: var(--bg-card);
+
+  --xy-background-color-default: var(--bg-inset);
+  --rf-controls-bg: var(--bg-raised);
+  --rf-controls-border: var(--line-strong);
+  --rf-controls-text: var(--text-main);
+  --rf-controls-hover-bg: var(--hover-wash);
+}

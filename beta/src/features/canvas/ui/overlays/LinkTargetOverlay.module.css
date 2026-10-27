@@ -1,0 +1,21 @@
+/* A link target: faintly marked at rest, clearly lit under the cursor. */
+.overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 9999;
+    box-sizing: border-box;
+    border: 2px solid transparent;
+    border-radius: inherit;
+    background-color: rgba(var(--secondary-rgb), 0.04);
+    cursor: pointer;
+    transition:
+        background-color var(--transition-fast),
+        border-color var(--transition-fast),
+        box-shadow var(--transition-fast);
+}
+
+.overlay:hover {
+    border-color: var(--secondary);
+    background-color: var(--secondary-dim);
+    box-shadow: 0 0 15px rgba(var(--secondary-rgb), 0.4);
+}

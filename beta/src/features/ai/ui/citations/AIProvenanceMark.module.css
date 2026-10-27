@@ -1,0 +1,163 @@
+/* Provenance mark and its receipt — ai-Plan.md §5.4. */
+
+.mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+    padding: 1px 5px 1px 4px;
+    border: none;
+    border-radius: var(--r-xs);
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+    font-family: inherit;
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    opacity: 0.75;
+    transition: opacity var(--transition-fast), background var(--transition-fast);
+}
+
+.mark:hover,
+.mark[aria-expanded='true'] {
+    opacity: 1;
+    background: var(--accent-wash);
+}
+
+.backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 998;
+}
+
+.popover {
+    position: fixed;
+    z-index: 999;
+    width: 272px;
+    max-width: calc(100vw - 24px);
+    background: var(--menu-bg);
+    border: 1px solid var(--menu-border);
+    border-radius: var(--menu-radius);
+    box-shadow: var(--elev-3);
+    overflow: hidden;
+}
+
+.head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 12px 10px;
+    border-bottom: 1px solid var(--menu-divider);
+}
+
+.headIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    border-radius: var(--r-xs);
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+}
+
+.headTitle {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.headWhen {
+    font-size: 0.65rem;
+    color: var(--text-faint);
+}
+
+.section {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--menu-divider);
+}
+
+.section:last-child {
+    border-bottom: none;
+}
+
+.label {
+    margin-bottom: 5px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.prompt {
+    margin: 0;
+    font-size: 0.74rem;
+    line-height: 1.5;
+    color: var(--text-soft);
+}
+
+.metas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.meta {
+    padding: 2px 7px;
+    border-radius: var(--r-xs);
+    background: var(--hover-wash);
+    font-size: 0.66rem;
+    font-weight: 600;
+    color: var(--text-soft);
+    text-transform: capitalize;
+}
+
+.none {
+    margin: 0;
+    font-size: 0.71rem;
+    line-height: 1.45;
+    color: var(--text-faint);
+}
+
+.sources {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.source {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 5px 7px;
+    border: none;
+    border-radius: var(--r-xs);
+    background: var(--hover-wash);
+    color: var(--text-soft);
+    font-family: inherit;
+    font-size: 0.7rem;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.source:hover {
+    background: var(--active-wash);
+    color: var(--accent-ink);
+}
+
+.source svg {
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.source span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

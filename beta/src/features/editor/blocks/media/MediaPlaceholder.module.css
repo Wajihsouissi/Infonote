@@ -1,0 +1,262 @@
+/* Trigger (In-Editor Placeholder) */
+.trigger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 150px;
+    padding: var(--block-inset);
+    background: transparent;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--block-radius-lg);
+    cursor: pointer;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast),
+        color var(--transition-fast);
+}
+
+.trigger:hover {
+    background: var(--block-hover);
+    border-color: var(--text-faint);
+}
+
+.trigger:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.triggerDragOver {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    border-style: solid;
+}
+
+.triggerContent {
+    display: flex;
+    align-items: center;
+    gap: var(--block-marker-gap);
+    color: var(--text-faint);
+}
+
+.trigger:hover .triggerContent,
+.triggerDragOver .triggerContent {
+    color: var(--text-soft);
+}
+
+.triggerText {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.triggerIcon {
+    flex-shrink: 0;
+}
+
+/* Modal Overlay — plain dark scrim, no blur. */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.15s ease-out;
+}
+
+/* Modal Card */
+.modal {
+    width: 100%;
+    max-width: 500px;
+    background: var(--bg-rail);
+    border: 1px solid var(--line);
+    border-radius: var(--r-panel);
+    padding: var(--block-inset);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--block-inset);
+    transform: translateY(0);
+    animation: slideUp 0.2s var(--ease-rise);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* The underline and the spacing below it come from the shared Tabs component;
+   only the gap to the content area is local. */
+.tabs {
+    margin-bottom: var(--block-marker-gap);
+}
+
+/* Content Area */
+.contentArea {
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* Upload panel header */
+.uploadHeader {
+    text-align: center;
+    margin-bottom: var(--block-inset);
+}
+
+.uploadTitle {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.uploadSubtitle {
+    margin: 4px 0 0;
+    font-size: 0.8rem;
+    color: var(--text-faint);
+}
+
+/* Upload / Drag Drop */
+.dropZone {
+    border: 2px dashed var(--line-strong);
+    border-radius: var(--block-radius-lg);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--block-inset);
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
+    background: var(--bg-inset);
+    text-align: center;
+    min-height: 140px;
+}
+
+.dropZone:hover,
+.dropZone.dragOver {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+}
+
+.dropIcon {
+    color: var(--text-faint);
+    transition: color var(--transition-fast), transform var(--transition-fast);
+}
+
+.dropZone:hover .dropIcon {
+    color: var(--accent-ink);
+    transform: scale(1.1);
+}
+
+.dropText {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.dropBrowse {
+    color: var(--accent-ink);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.dropHint {
+    font-size: 0.75rem;
+    color: var(--text-faint);
+    margin-top: -8px;
+}
+
+/* Inline failure (oversize file, unreadable file) — replaces the old alert() */
+.error {
+    display: flex;
+    align-items: center;
+    gap: var(--block-marker-gap);
+    margin-top: var(--block-inset);
+    padding: 8px var(--block-inset);
+    border: 1px solid rgba(var(--danger-rgb), 0.35);
+    border-radius: var(--btn-radius);
+    background: rgba(var(--danger-rgb), 0.1);
+    color: var(--danger);
+    font-size: 0.8rem;
+}
+
+/* Embed Link */
+.embedContainer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--block-inset);
+    padding: var(--block-inset) 0;
+}
+
+.inputWrapper {
+    display: flex;
+    gap: var(--block-marker-gap);
+    width: 100%;
+}
+
+.urlInput {
+    flex: 1;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--input-radius);
+    padding: var(--input-pad);
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.urlInput::placeholder {
+    color: var(--text-faint);
+}
+
+.urlInput:focus {
+    border-color: var(--input-border-focus);
+    box-shadow: var(--focus-ring);
+}
+
+.embedBtn {
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-fg);
+    border: none;
+    border-radius: var(--btn-radius);
+    padding: 0 var(--block-inset);
+    font-family: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background var(--transition-fast);
+}
+
+.embedBtn:hover {
+    background: var(--btn-primary-bg-hover);
+}
+
+.embedBtn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}

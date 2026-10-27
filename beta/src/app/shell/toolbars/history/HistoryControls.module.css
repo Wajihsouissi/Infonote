@@ -1,0 +1,38 @@
+/* Lives in the app shell's top bar, which supplies the surface — so no pill
+   background, border or shadow of its own. */
+.historyControls {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 36px;
+    box-sizing: border-box;
+}
+
+.historyBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--color-text-muted);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.historyBtn:hover:not(:disabled) {
+    background: var(--hover-wash);
+    color: var(--accent-ink);
+    transform: translateY(-2px) scale(1.05);
+}
+
+.historyBtn:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+.historyBtn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}

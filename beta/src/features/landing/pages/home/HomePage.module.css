@@ -1,0 +1,172 @@
+/* The dashboard. One column, centred, and nothing on it that is not a way back
+   into the work: this is a doorway, not a destination. */
+
+.page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: var(--bg-base);
+    color: var(--text-main);
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--line);
+}
+
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--accent-ink);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.headerActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.main {
+    width: min(48rem, 100%);
+    margin: 0 auto;
+    padding: 40px 24px 64px;
+}
+
+.title {
+    margin: 0;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    letter-spacing: -0.02em;
+}
+
+.subtitle {
+    margin: 6px 0 24px;
+    color: var(--text-soft);
+    font-size: 0.9rem;
+}
+
+.search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 42px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-control);
+    background: var(--bg-inset);
+    color: var(--text-faint);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.search input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.sectionTitle {
+    margin: 28px 0 10px;
+    color: var(--text-faint);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.empty {
+    margin: 28px 0;
+    color: var(--text-faint);
+    font-size: 0.88rem;
+}
+
+.cards {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid transparent;
+    border-radius: var(--r-md);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.card:hover,
+.card:focus-visible {
+    border-color: var(--line);
+    background: var(--hover-wash);
+    outline: none;
+}
+
+.cardIcon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--r-control);
+    background: var(--bg-inset);
+    color: var(--text-soft);
+}
+
+.cardBody {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.cardTitle {
+    font-size: 0.9rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cardExcerpt {
+    color: var(--text-faint);
+    font-size: 0.78rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cardTime {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    color: var(--text-faint);
+    font-size: 0.72rem;
+}
+
+@media (max-width: 640px) {
+    .cardTime { display: none; }
+    .main { padding: 28px 18px 48px; }
+}

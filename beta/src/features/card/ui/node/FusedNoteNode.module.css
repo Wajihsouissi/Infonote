@@ -1,0 +1,244 @@
+.fusedNoteNode {
+    position: relative;
+    display: block;
+    background: var(--node-bg);
+    border: none;
+    border-left: var(--block-rail-w) solid var(--node-accent-color, var(--block-rail));
+    border-radius: var(--r-panel);
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    box-sizing: border-box;
+    transition:
+        width 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+        height 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+        background-color var(--transition-fast),
+        transform var(--transition-fast),
+        border-color var(--transition-fast),
+        box-shadow var(--transition-fast);
+    box-shadow: var(--node-ring);
+    color: var(--text-main);
+}
+
+/* Recoloured, the node is tinted with its accent and keeps the binding at full
+   strength — the spine states the colour, the surface carries it. `--node-accent`
+   is published only when the node actually has a colour, so an uncoloured node
+   never reaches this rule. Built from the same --node-tint-* pair a NoteCard
+   uses, so a fused note and a card given the same hue land on exactly the same
+   surface. */
+.fusedNoteNode[data-accented] {
+    background: oklch(from var(--node-accent) var(--node-tint-l) var(--node-tint-c) h);
+}
+
+.dragging {
+    box-shadow: var(--node-ring-drag);
+    border-left: var(--block-rail-w) solid var(--node-accent-color, var(--block-rail));
+    opacity: 1;
+    z-index: 10000 !important;
+    /* See NoteCard.module.css: layer promotion belongs to the node in flight,
+       not to every node sitting still on the canvas. */
+    will-change: transform;
+}
+
+.dropTarget {
+    border-color: var(--accent-ink);
+    outline: 2px solid var(--accent-ink);
+    outline-offset: 3px;
+}
+
+.fusionTarget {
+    border-color: var(--secondary-ink);
+    outline: 2px solid var(--secondary-ink);
+    outline-offset: 3px;
+}
+
+/* Media meeting media makes a board, not a stack — signalled differently from
+   fusion so the two outcomes are never confused mid-drag. */
+.galleryTarget {
+    border-color: var(--accent);
+    outline: 2px dashed var(--accent);
+    outline-offset: 4px;
+    box-shadow: 0 0 0 7px var(--accent-dim);
+}
+
+.fusedNoteNode:hover {
+    box-shadow: var(--node-ring-hover);
+}
+
+.fusedNoteNode.selected,
+.fusedNoteNode.selected:hover,
+.fusedNoteNode.multiSelected,
+.fusedNoteNode.multiSelected:hover {
+    box-shadow: var(--node-ring-selected);
+}
+
+.dragging {
+    transform: scale(0.98) rotate(1.5deg);
+    box-shadow:
+        var(--node-ring-drag),
+        var(--node-shadow-drag);
+    opacity: 0.96;
+    z-index: 10000 !important;
+}
+
+.content {
+    /* Keep the track flush right, but stop it short of the rounded top/bottom. */
+    width: 100%;
+    height: calc(100% - 24px);
+    min-height: 80px;
+    margin: 12px 0;
+    padding: 8px 20px;
+    box-sizing: border-box;
+    cursor: text;
+    overflow-y: auto;
+    min-width: 0;
+}
+
+.content::-webkit-scrollbar {
+    width: 4px;
+}
+
+.content::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border-radius: 2px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+    background: var(--text-soft);
+}
+
+.selectionIslandContainer {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    padding-top: 12px;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.selectionIslandContainer>* {
+    pointer-events: auto;
+}
+
+.convertBtn {
+    position: absolute;
+    top: -32px;
+    right: -32px;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-rail);
+    border: 1px solid var(--accent-wash);
+    box-shadow: none;
+    color: var(--text-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transform: scale(0.9) translateY(4px);
+    transition: all var(--transition-smooth);
+    z-index: 50;
+}
+
+.fusedNoteNode:hover .convertBtn {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+}
+
+.convertBtn:hover {
+    background: var(--accent-wash);
+    border-color: var(--accent);
+    box-shadow: none;
+    transform: scale(1.1) rotate(3deg) !important;
+    color: var(--on-accent);
+}
+
+.handle {
+    opacity: 0;
+    visibility: hidden;
+    width: var(--handle-size) !important;
+    height: var(--handle-size) !important;
+    border-radius: 50%;
+    background: var(--handle-bg) !important;
+    border: var(--handle-ring) !important;
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+    pointer-events: none;
+    left: auto !important;
+    right: -6px !important;
+    top: -6px !important;
+    transform: none !important;
+    z-index: 50;
+}
+
+.fusedNoteNode:hover .handle {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.handle:hover {
+    transform: scale(1.4) !important;
+    box-shadow: var(--handle-halo);
+}
+
+.modernResizeHandle {
+    --resize-handle-start: var(--color-text-muted);
+    --resize-handle-end: var(--text-soft);
+    /* Match note cards: neutral, soft gray until the direct resize hover. */
+    --resize-handle-color: rgba(142, 142, 142, 0.68);
+    position: absolute;
+    bottom: -20px;
+    right: -20px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity var(--transition-smooth), transform var(--transition-smooth);
+    cursor: nwse-resize !important;
+    z-index: 30;
+    pointer-events: auto;
+    transform: rotate(180deg);
+}
+
+.modernResizeHandle svg {
+    width: 60%;
+    height: 60%;
+    display: block;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+    transition: transform var(--transition-smooth), opacity var(--transition-smooth);
+}
+
+.handlePath {
+    stroke: var(--resize-handle-color);
+    stroke-opacity: 0.9;
+    transition: stroke var(--transition-fast), transform var(--transition-fast);
+}
+
+.fusedNoteNode:hover .modernResizeHandle,
+.fusedNoteNode.selected .modernResizeHandle {
+    opacity: 1;
+}
+
+.modernResizeHandle:hover svg {
+    filter: none;
+    transform: scale(1.1) rotate(-5deg);
+}
+
+.modernResizeHandle:hover {
+    --resize-handle-start: var(--accent);
+    --resize-handle-end: var(--secondary);
+    --resize-handle-color: var(--accent);
+}
+
+.modernResizeHandle:active svg {
+    filter: none;
+    transform: scale(1.2) rotate(-10deg);
+}

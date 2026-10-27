@@ -1,0 +1,695 @@
+/* Gallery — the bento moodboard.
+   Tiles are the content; the container gives them nothing but rhythm. Every
+   colour comes from the Paper & Ink token layer so the board reads the same on
+   ink and on paper. */
+
+.gallery {
+    --gal-pad: 10px;
+    width: 100%;
+    margin: var(--block-pad-y) 0;
+    position: relative;
+    user-select: none;
+}
+
+/* ------------------------------------------------------------- title row */
+
+/* Above the frame, not inside it. A board's pictures are the content; the
+   title is a caption on the thing, so it reads as a label rather than a bar
+   competing for the top of the composition. */
+.titleRow {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 0 2px 6px;
+    min-height: 22px;
+}
+
+/* Hugs its text (via the `size` attribute) rather than flexing: stretched to
+   the row, it pushed the count to the far end of a wide board where it read as
+   an unrelated number floating in space. It belongs beside the name it counts. */
+.title {
+    flex: 0 1 auto;
+    width: auto;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 2px 4px;
+    margin: 0;
+    border-radius: var(--r-xs);
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--text-main);
+    transition: background var(--transition-fast);
+}
+
+.title:hover:where(:not(:focus)) {
+    background: var(--hover-wash);
+}
+
+.title::placeholder {
+    color: var(--text-faint);
+    font-weight: 500;
+}
+
+.count {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------- ghost container */
+
+/* The board is a frame, not a surface: at rest there is no fill and no
+   hairline at all, so what's on screen is the pictures and nothing else. That
+   is the whole idea — a moodboard is its images pinned in space, not a card
+   with images inside it. The surface and its edge arrive together on approach,
+   when the bounds you're about to resize or drop into have to be findable, and
+   leave again the moment the pointer does. */
+.board {
+    position: relative;
+    padding: var(--gal-pad);
+    border-radius: var(--r-surface);
+    background: transparent;
+    box-shadow: inset 0 0 0 1px transparent;
+    transition: box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+/* `.chnk-it-board-host` is the canvas node wrapping this board — see BlockNode.
+   Hovering the node counts as hovering the board, because until the node is
+   selected its drag overlay is what the pointer actually lands on. */
+.gallery:hover .board,
+.gallery:focus-within .board,
+:global(.chnk-it-board-host):hover .board {
+    background: var(--hover-wash);
+    box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* Selection belongs to the frame, never to the whole block — the title lives
+   outside the frame and must stay outside it when selected. */
+:global(.chnk-it-board-selected) .board,
+:global(.chnk-it-board-selected):hover .board {
+    box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* ------------------------------------------------------------------- grid */
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(var(--gal-cols), 1fr);
+    grid-auto-rows: var(--gal-row);
+    /* Dense packing is what keeps a mixed-size board from ending ragged: the
+       auto rhythm leaves holes by design and the packer backfills them. */
+    grid-auto-flow: dense;
+    gap: var(--gal-gap);
+    border-radius: var(--block-radius-lg);
+    transition: box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+/* Bento is the base .grid rhythm — declared so the class always resolves. */
+.layoutBento {
+    grid-auto-flow: dense;
+}
+
+/* Equal tiles — spans are ignored by the component in this mode. */
+.layoutGrid {
+    grid-auto-flow: row;
+}
+
+/* Masonry drops out of grid entirely — natural heights, no cropping, the
+   classic pinboard read.
+
+   Columns are real elements dealt by the component, not CSS `columns`. CSS
+   fills column by column, so on a board of nine the first three pictures stack
+   down the left edge and the order you arranged them in is unreadable; dealt
+   shortest-column-first, the sequence runs left to right the way it reads and
+   the columns still end level. `align-items: start` keeps a short column short
+   instead of stretching its last tile to match the tallest one. */
+.layoutMasonry {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--gal-gap);
+}
+
+/* `min-width: 0` or a wide picture sets the column's floor width and the board
+   stops dividing evenly. */
+.masonryCol {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gal-gap);
+}
+
+/* Height comes from the tile's own aspect-ratio, set inline from the measured
+   bitmap and clamped so one 1:4 screenshot can't turn a column into a ladder.
+   Doing it this way means the slot is the right size from the first paint —
+   `height: auto` on an undecoded image is a zero-height tile that shoves the
+   whole column down the instant it loads. */
+.layoutMasonry .tile {
+    height: auto;
+    min-height: 40px;
+}
+
+/* The slot takes a column's width and a sensible height of its own — in
+   masonry there is no cell geometry to inherit one from. */
+.layoutMasonry .dropSlot {
+    aspect-ratio: 4 / 3;
+}
+
+/* ---------------------------------------------------------------- collage */
+
+/* Cards pinned to a wall: tilted, overlapping, out of flow.
+
+   Every other layout tessellates — nothing ever covers anything else — which is
+   right for comparing references and wrong for composing with them. A moodboard
+   is normally built by sliding pictures partly over each other until the group
+   reads as one image, and no flow algorithm produces overlap, so the cards are
+   placed absolutely from geometry solved in the component. The container's
+   height comes with them, since out-of-flow children give it none. */
+.layoutScatter {
+    display: block;
+    position: relative;
+    /* Out-of-flow children contribute no intrinsic width, so the container has
+       to be told to take the board's — otherwise a shrink-to-fit ancestor
+       measures the collage as zero and lays it out one lane wide. */
+    width: 100%;
+    /* The pile stacks against itself and nothing else: without a stacking
+       context of its own, a card lifted to the front on hover would also come
+       up over the floating panel, which is a sibling of this element. */
+    isolation: isolate;
+}
+
+.layoutScatter .tile {
+    position: absolute;
+    /* Set inline as custom properties so the hover rule below can still win.
+       `rotate` and not `transform`: FLIP animates `transform`, and a tilt
+       written there would be wiped the first time a card moved. */
+    rotate: var(--gal-rot, 0deg);
+    z-index: var(--gal-z, 1);
+    /* No drop shadow. The pile already reads as depth — a card that covers
+       part of another is in front of it, and that is the only depth cue a
+       collage needs. A shadow under every card adds a grey halo to each one,
+       which on a board judged for its colours is a tint over the work. */
+    box-shadow: none;
+    transition: rotate var(--transition-fast), scale var(--transition-fast),
+        box-shadow var(--transition-fast);
+}
+
+/* Approaching a card straightens it and brings it to the front — the pile
+   still has to be readable one picture at a time, and on a collage "on top" is
+   the only way to show which one you're pointing at. */
+.layoutScatter .tile:hover,
+.layoutScatter .tile:focus-visible,
+.layoutScatter .tileSelected,
+.layoutScatter .tileDragging {
+    rotate: 0deg;
+    scale: 1.02;
+    z-index: 900;
+    /* Straightening and coming to the front is the whole of the hover — no
+       shadow, here or at rest. */
+    box-shadow: none;
+}
+
+/* The held-open slot is a hole in the pile, so it lies flat and stays under
+   the cards rather than joining them. */
+.layoutScatter .dropSlot {
+    position: absolute;
+    rotate: var(--gal-rot, 0deg);
+    z-index: var(--gal-z, 1);
+}
+
+/* No absolute placement to inherit — the empty board is the only thing in
+   flow here. */
+.layoutScatter .emptyBoard {
+    position: relative;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .layoutScatter .tile {
+        transition: box-shadow var(--transition-fast);
+    }
+
+    .layoutScatter .tile:hover,
+    .layoutScatter .tile:focus-visible,
+    .layoutScatter .tileSelected {
+        scale: 1;
+    }
+}
+
+/* The grid takes focus only to become the paste target — it is not something
+   you navigate to, so it must not draw a focus ring of its own. */
+.grid:focus {
+    outline: none;
+}
+
+.fileDragOver {
+    box-shadow: 0 0 0 2px var(--accent), 0 0 0 6px var(--accent-dim);
+    background: var(--accent-dim);
+}
+
+/* ------------------------------------------------------------------ tiles */
+
+/* At rest a tile is its picture and nothing more: no plate behind it and no
+   hairline around it. The frame is chrome, and chrome on a board of twenty
+   references is twenty rectangles competing with the thing you are trying to
+   judge. It comes back on hover, where it marks the one you're pointing at.
+   (`.tileMedia` still carries its own plate, so a transparent PNG and a
+   letterboxed `contain` frame keep a surface to sit on.) */
+.tile {
+    position: relative;
+    overflow: hidden;
+    /* The card's own corner, not the boxed-block one — a tile is a picture,
+       and a picture is a card. See --media-radius. */
+    border-radius: var(--media-radius);
+    background: transparent;
+    box-shadow: inset 0 0 0 1px transparent;
+    /* Read-only: clicking to enlarge is the only thing on offer. */
+    cursor: zoom-in;
+    transition: box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+/* Once the board is live, rearranging is the primary gesture and the cursor has
+   to say so — a magnifier on a tile you are meant to pick up and move reads as
+   "this opens", and the whole point of a moodboard is that it doesn't. Clicking
+   still opens the picture; the cursor advertises the action worth discovering. */
+.tile[draggable='true'] {
+    cursor: grab;
+}
+
+.tile[draggable='true']:active {
+    cursor: grabbing;
+}
+
+.tile:hover {
+    box-shadow: inset 0 0 0 1px var(--line-heavy), var(--elev-2);
+    z-index: 2;
+}
+
+/* Keyboard focus has to be at least as loud as hover — it is the only way a
+   keyboard user can tell which picture they are about to open. Outside the
+   tile, because an inset ring on a `cover` photo disappears into the image. */
+.tile:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    z-index: 3;
+}
+
+/* The tile left behind. It marks the slot the picture came from — an origin you
+   could still drop back onto — so it stays legible: at 0.28 it read as a broken
+   or half-loaded tile rather than a held place, and on a light board it simply
+   vanished. The accent ring is what says "this one is in your hand"; the fade
+   only has to be enough to sit behind the thumbnail under the cursor, and the
+   ring does the rest of the work.
+
+   No transform: a shrinking source alongside a moving thumbnail makes two
+   things look scaled and it stops being clear which one you're carrying. */
+/* `outline`, not `box-shadow`: the tile's resting hairline is a box-shadow that
+   also carries the hover elevation, so a second one here fights it and the ring
+   flickers as the two transition against each other. An outline is a separate
+   channel — it lands on top, needs no transition, and leaves the hairline
+   alone. */
+.tileDragging {
+    opacity: 0.7;
+    cursor: grabbing;
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+/* Muting the picture rather than the whole tile keeps the ring at full
+   strength, so the marker stays crisp while the image recedes behind it. */
+.tileDragging .tileMedia {
+    filter: saturate(0.55);
+}
+
+/* The controls belong to a tile you are holding still. */
+.tileDragging .tileBtn,
+.tileDragging .tileResizeHandle {
+    opacity: 0;
+}
+
+/* ------------------------------------------------------------ focal point */
+
+/* A tile you are aiming rather than opening. `grab` is the honest cursor: the
+   gesture moves the picture inside a frame that stays put. */
+.tileAdjusting {
+    cursor: grab;
+    outline: 1px dashed var(--accent);
+    outline-offset: -1px;
+}
+
+.tileAdjusting:active {
+    cursor: grabbing;
+}
+
+/* Nothing in the tile may swallow the pointer — the whole face is the control,
+   and a press landing on the `<img>` instead would start a native image drag. */
+.tileAdjusting .tileMedia {
+    pointer-events: none;
+}
+
+/* ------------------------------------------------------------- selection */
+
+/* A ring outside the frame, not a wash over the picture: a selected reference
+   still has to be judged on its own colour, and a tint across it makes that
+   impossible — which defeats the point of selecting it. */
+.tileSelected {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    z-index: 2;
+}
+
+/* A corner mark as well as the ring, because on a board where several tiles are
+   selected the rings start to read as a grid line rather than as state. */
+.tileSelected::after {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
+    z-index: 4;
+    pointer-events: none;
+}
+
+/* The rubber band. Barely there — it is a gesture in progress, and the tiles
+   lighting up inside it are the actual feedback. */
+.marquee {
+    position: absolute;
+    border: 1px solid var(--accent);
+    background: var(--accent-dim);
+    border-radius: var(--r-xs);
+    pointer-events: none;
+    /* Over the tiles in every layout, the collage included — where a card
+       lifted on hover sits high above the grid's usual two or three. */
+    z-index: 950;
+}
+
+/* ------------------------------------------------------------- drop slot */
+
+/* The room the board holds open for a picture arriving from outside.
+   This replaced a 3px bar drawn on one edge of the hovered tile. The bar could
+   not tell the truth: a dense bento pack re-flows around an insertion, so
+   "after this one" was routinely not where the picture landed. A real slot in
+   the layout is, by construction, exactly the space the picture will occupy —
+   and the other tiles animating out of its way says where it is going far
+   better than a line ever did.
+   No fill and no dash animation: it is a hole in the composition, and the
+   pictures moving around it are the thing to watch. */
+.dropSlot {
+    /* Cut like the tile it is standing in for, or the hole reads as a
+       different kind of thing from what will fill it. */
+    border-radius: var(--media-radius);
+    outline: 2px dashed var(--accent);
+    outline-offset: -2px;
+    background: var(--accent-dim);
+    pointer-events: none;
+}
+
+/* The plate, not the app ground: a transparent PNG composited onto --bg-inset
+   loses its black line work on ink and its white line work on paper. This also
+   fills the letterbox bands under `contain`, so a tile stays one surface rather
+   than a picture floating on a differently-coloured strip. */
+.tileMedia {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    object-position: center;
+    background: var(--media-plate);
+}
+
+.fitContain .tileMedia {
+    object-fit: contain;
+}
+
+.tileFallback,
+.tileFile {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    color: var(--text-faint);
+    text-align: center;
+}
+
+.tileFile span {
+    font-size: 0.6875rem;
+    line-height: 1.2;
+    color: var(--text-soft);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    word-break: break-word;
+}
+
+.playBadge {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    pointer-events: none;
+}
+
+/* The filename used to ride the bottom edge on hover, under a dark gradient
+   scrim. Both are gone. The scrim was a wash of black over the bottom third of
+   whatever picture you pointed at — on a board whose entire purpose is judging
+   images against each other, the one you are looking at was the one being
+   tinted. And the name is rarely what you want from a reference: the picture
+   is. It is still on the tile as its accessible name, and the lightbox shows
+   it in full. */
+
+.tileBtn {
+    position: absolute;
+    top: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    /* Round. A rounded square on a 32px-cornered tile reads as a small tile
+       stuck to a big one; a disc reads as a control. */
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.55);
+    color: rgba(255, 255, 255, 0.92);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), background var(--transition-fast);
+    z-index: 3;
+}
+
+/* `focus-within` and not just `.tileBtn:focus-visible`: tabbing onto the tile
+   itself has to reveal the controls, or the only way to reach Remove is to Tab
+   blindly into a button that is still invisible. */
+.tile:hover .tileBtn,
+.tile:focus-within .tileBtn,
+.tileBtn:focus-visible {
+    opacity: 1;
+}
+
+.tileBtn:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.tileBtn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+/* Coarse pointers never hover — the controls would be unreachable. */
+@media (hover: none) {
+    .tileBtn { opacity: 0.85; }
+}
+
+/* The corner arc, exactly as on a card and a canvas node — see the handle in
+   NoteCard / BlockNode. It sits *inside* the corner rather than hanging 20px
+   outside it as those do: a tile has neighbours a few pixels away, and a grip
+   overhanging the corner would sit on top of the picture next to it. The 30px
+   box gives it a real target at that size, and the tile's own 32px corner is
+   the curve the arc follows. */
+.tileResizeHandle {
+    position: absolute;
+    /* Inset, not flush. A card and a node hang their arc 20px *outside* the
+       corner, where nothing clips it; a tile can't — its neighbours are eight
+       pixels away — and the tile's own 32px corner takes a bite out of
+       anything sitting exactly in it. Held inside the curve, the whole arc
+       reads. */
+    right: 6px;
+    bottom: 6px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: nwse-resize;
+    z-index: 4;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    transform: rotate(180deg);
+}
+
+.tileResizeHandle svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    pointer-events: none;
+    filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.45));
+    transition: transform var(--transition-fast);
+}
+
+.tileResizeHandle:hover svg {
+    transform: scale(1.12);
+}
+
+.tileResizeHandle:active svg,
+.tileResizeHandle.isResizing svg {
+    transform: scale(1.2);
+}
+
+/* Now that this is the *only* size control, it has to be discoverable from the
+   tile itself: it appeared solely when the whole board was selected, which is a
+   state you reach for a different reason entirely, so resizing a tile was
+   effectively undiscoverable. It shows on hover and on focus like every other
+   tile control, and stays up while the board is selected or mid-drag. */
+.tile:hover .tileResizeHandle,
+.tile:focus-within .tileResizeHandle,
+:global(.chnk-it-board-selected) .tileResizeHandle,
+.tileResizeHandle.isResizing {
+    opacity: 1;
+}
+
+/* ----------------------------------------------------------- float panel */
+
+/* Sits entirely above the frame — it never covers a picture, which matters most
+   at the top, where the bento rhythm puts the hero tile. Absolutely positioned,
+   so appearing and disappearing costs no layout and never reflows the
+   composition. Centred horizontally, which is what keeps it clear of the
+   left-aligned title sharing that band. */
+.panel {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translate(-50%, calc(-100% - 2px)) scale(0.96);
+    transform-origin: center bottom;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 5px;
+    padding-right: 4px;
+    border-radius: var(--r-md);
+    background: var(--bg-raised);
+    border: 1px solid var(--line-strong);
+    box-shadow: var(--elev-2);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 6;
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.gallery:hover .panel,
+.gallery:focus-within .panel,
+:global(.chnk-it-board-host):hover .panel {
+    opacity: 1;
+    pointer-events: auto;
+    /* Lifts clear of the frame as it arrives, rather than fading in place. */
+    transform: translate(-50%, calc(-100% - 8px)) scale(1);
+}
+
+/* ------------------------------------------------------------ empty board */
+
+/* The only thing a board ever shows besides its pictures, and it is gone the
+   moment the first one lands. It exists because an empty grid has no height:
+   without it there would be nothing to drop onto, nothing to click to focus for
+   a paste, and nothing on screen to say the board is there at all.
+   Not a tile and not a button — the + in the panel is the way to add — so it
+   takes no border of its own and never sits beside a picture.
+   Both sizing lines are deliberate: `grid-column` places it across bento and
+   grid, `flex` across masonry, and each layout ignores the other's. */
+.emptyBoard {
+    grid-column: 1 / -1;
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 116px;
+    padding: 10px;
+    border-radius: var(--media-radius);
+    background: var(--hover-wash);
+    color: var(--text-faint);
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-align: center;
+}
+
+/* ------------------------------------------------------------- undo bar */
+
+.error {
+    margin-top: 6px;
+    padding: 6px 10px;
+    border-radius: var(--r-control);
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+    font-size: 0.75rem;
+}
+
+/* --------------------------------------------------------- presentation */
+
+/* Centres the board and caps it: run edge to edge on a 27" display and a bento
+   row becomes six postcards on a horizon, which is not a composition anyone can
+   read at once. */
+.presentStage {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding: 0 24px 24px;
+    display: flex;
+    justify-content: center;
+}
+
+.presentStage > * {
+    width: 100%;
+    max-width: 1400px;
+    margin: 0;
+}
+
+/* No frame on the wall: the board's own faint surface and hover hairline are
+   there to find its bounds while editing, and there is no editing here. */
+.presentStage .board {
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+}
+
+.presentStage .board:hover {
+    background: transparent;
+    box-shadow: none;
+}
+
+/* ----------------------------------------------------------- canvas node */
+
+.compact .title {
+    font-size: 0.75rem;
+}

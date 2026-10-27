@@ -1,0 +1,79 @@
+.toolbar {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: max-content;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px;
+    height: calc(var(--control-height-sm) + 8px);
+    box-sizing: border-box;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    scale: max(1, calc(1 / var(--rf-zoom, 1)));
+    transform-origin: bottom center;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 2000;
+}
+
+/* Stay reachable while crossing the gap, including after zoom compensation. */
+.toolbar::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    height: 6px;
+}
+
+:global(.react-flow__node):hover > .toolbar,
+:global(.react-flow__node):focus-visible > .toolbar,
+.toolbar:focus-within {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--control-height-sm);
+    height: var(--control-height-sm);
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--text-soft);
+    cursor: pointer;
+}
+
+.button:hover,
+.button:focus-visible {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.divider {
+    width: 1px;
+    height: 20px;
+    margin: 0 4px;
+    background: var(--line);
+}
+
+@media (hover: none), (pointer: coarse) {
+    :global(.react-flow__node.selected) > .toolbar {
+        opacity: 1;
+        pointer-events: auto;
+        height: 52px;
+    }
+
+    .button {
+        width: 44px;
+        height: 44px;
+    }
+}
