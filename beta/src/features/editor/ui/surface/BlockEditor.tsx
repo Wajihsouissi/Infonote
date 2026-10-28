@@ -33,6 +33,7 @@ import { useEditorKeyboard, handleFormattingShortcut } from '../../hooks/useEdit
 import { useBlockClipboard } from '../../hooks/useBlockClipboard';
 import { useEditorDropZone } from '../../hooks/useEditorDropZone';
 import { flushPendingEditorWrites } from '../../../../services/storage/workspace/pendingEditorWrites';
+import { resetHistoryCoalescing } from '../../../../store/historyConfig';
 
 interface BlockEditorProps {
     initialContent?: string | Block[];
@@ -126,8 +127,13 @@ export const BlockEditor = memo(function BlockEditor({
 
     /** Discrete commands publish before the UI reports the action complete. */
     const publishCommand = useCallback((next: Block[]) => {
+        // Finish typing before starting a distinct command. Two fast commands
+        // must remain independently undoable inside the store's 150ms window.
+        flush();
+        resetHistoryCoalescing();
         commit(next);
         flush();
+        resetHistoryCoalescing();
     }, [commit, flush]);
 
     /** Replace the whole document and save it. */

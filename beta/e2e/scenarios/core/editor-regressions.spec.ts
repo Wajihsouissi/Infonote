@@ -104,7 +104,9 @@ test.describe('core: editor regression fixtures', () => {
             await expect(deferred.nth(750)).toHaveCSS('content-visibility', 'visible');
             await page.emulateMedia({ media: 'screen' });
             await editables.last().click();
-            await page.keyboard.press('End');
+            // End means the current visual line in Firefox. The fixture asks
+            // for a new block after the whole paragraph, including wrapping.
+            await page.keyboard.press('Control+End');
             await page.keyboard.press('Enter');
             await expect(editables).toHaveCount(1501);
             await page.keyboard.type('New distant block.');

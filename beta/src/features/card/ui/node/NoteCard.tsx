@@ -170,6 +170,7 @@ export const NoteCard = memo(({ id, data, selected, cardRef, contentRef }: NodeP
                     {/* Tinted from `--node-accent`, like the card itself. */}
                     <div className={styles.mediumDescContainer}>
                         <textarea
+                            aria-label="Card description"
                             className={`${styles.mediumDescInput} nodrag`}
                             value={draft.valueOf('description')}
                             onChange={(e) => draft.edit('description', e.target.value)}

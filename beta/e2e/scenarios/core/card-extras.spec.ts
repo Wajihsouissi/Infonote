@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from '../../support/fixtures';
-import { addNote, clickEmptyCanvas, openCanvas, reload, selectNode, nodeByTitle } from '../../support/canvas';
-import { nodeByLabel, waitForCanvasState } from '../../support/canvasState';
+import { addNote, clickEmptyCanvas, fitView, openCanvas, reload, selectNode, nodeByTitle, nodeById } from '../../support/canvas';
+import { makeCards, nodeByLabel, seedCanvasState, waitForCanvasState } from '../../support/canvasState';
 
 /**
  * A card's icon, cover and short description — edited on the card itself,
@@ -61,14 +61,20 @@ test.describe('core: card extras (X)', () => {
 
     test('X3 a description typed under the title is saved', async ({ page }) => {
         await openCanvas(page);
-        const node = await addNote(page, 'Described card');
+        // Descriptions belong to the medium view. Newly created cards now
+        // open expanded, where the body is a block document instead.
+        const fixture = makeCards(1, 'Described card')[0];
+        fixture.data = { ...fixture.data, label: 'Described card', viewMode: 'medium' };
+        await seedCanvasState(page, [fixture]);
+        await fitView(page);
+        const node = nodeById(page, fixture.id);
         await selectNode(node);
 
         const description = node.getByLabel('Card description');
         await expect(description).toBeVisible();
         await description.click();
         await page.keyboard.type('Two nights, old town');
-        await page.keyboard.press('Enter');
+        await page.keyboard.press('Tab'); // Commit the multiline field on blur.
 
         const data = await card(page, 'Described card', (d) => d.description === 'Two nights, old town', 'the description to be saved');
         expect(data.description).toBe('Two nights, old town');

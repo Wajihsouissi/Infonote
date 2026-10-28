@@ -26,7 +26,8 @@ export function normalizeBlockIds(source: Block[]): Block[] {
             const metadata = block.metadata;
             if (!metadata) continue;
             for (const key of childKeys) if (Array.isArray(metadata[key])) inspect(metadata[key] as Block[]);
-            for (const column of metadata.columns ?? []) {
+            for (const column of Array.isArray(metadata.columns) ? metadata.columns : []) {
+                if (!column || typeof column !== 'object') continue;
                 reserve(column.id, reservedColumns);
                 if (Array.isArray(column.content)) inspect(column.content);
                 const legacy = (column as unknown as { blocks?: Block[] }).blocks;
@@ -60,8 +61,9 @@ export function normalizeBlockIds(source: Block[]): Block[] {
                     const content = repair(children as Block[]);
                     if (content !== children) patch(key, content);
                 }
-                if (metadata.columns) {
+                if (Array.isArray(metadata.columns)) {
                     const columns = metadata.columns.map(column => {
+                        if (!column || typeof column !== 'object') return column;
                         const columnId = identity(column.id, usedColumns, reservedColumns);
                         const content = Array.isArray(column.content) ? repair(column.content) : column.content;
                         const legacy = (column as unknown as { blocks?: Block[] }).blocks;

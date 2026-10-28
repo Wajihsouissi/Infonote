@@ -54,6 +54,7 @@ test.describe('SCRUM-19 card lifecycle', () => {
         parent.data = { ...parent.data, content: [] };
         await seedCanvasState(page, [parent]);
         const node = nodeById(page, parent.id);
+        await fitView(page);
         await node.hover();
         await node.getByRole('button', { name: 'Open card', exact: true }).click();
         await expect(page.getByRole('button', { name: 'Container 0', exact: true })).toBeVisible();

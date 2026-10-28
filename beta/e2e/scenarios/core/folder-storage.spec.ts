@@ -1,6 +1,6 @@
 import { test, expect } from '../../support/fixtures';
-import { openCanvas } from '../../support/canvas';
-import { seedCanvasState, makeCards } from '../../support/canvasState';
+import { fitView, nodeById, openCanvas, selectNode, setTitle } from '../../support/canvas';
+import { seedCanvasState, makeCards, readCanvasState } from '../../support/canvasState';
 
 const modulePath = '/src/services/storage/workspace/FolderWorkspace.ts';
 test.describe('core: incremental folder storage', () => {
@@ -79,8 +79,10 @@ test.describe('core: incremental folder storage', () => {
         await expect(page.getByText(/ui-folder — Saved to folder/)).toBeVisible();
         await page.goto('/canvas');
         await expect(page.getByText('Saved to folder', { exact: true })).toBeVisible();
-        await page.getByRole('textbox', { name: 'Untitled', exact: true }).first().fill('Persistent folder edit');
-        await page.keyboard.press('Tab');
+        await fitView(page);
+        const edited = nodeById(page, 'seed-0');
+        await selectNode(edited);
+        await setTitle(edited, 'Persistent folder edit');
         await expect(page.getByText('Saved to folder', { exact: true })).toBeVisible();
         await expect.poll(() => page.evaluate(async () => {
             const root = await (await (await navigator.storage.getDirectory()).getDirectoryHandle('ui-folder')).getDirectoryHandle('chnk-it-workspace');
@@ -93,11 +95,11 @@ test.describe('core: incremental folder storage', () => {
         await page.evaluate(async () => { await new Promise<void>((resolve, reject) => { const r = indexedDB.deleteDatabase('infonote-local-workspaces'); r.onsuccess = () => resolve(); r.onerror = () => reject(r.error); }); });
         await page.reload();
         await expect(page.getByText('Saved to folder', { exact: true })).toBeVisible();
-        await expect(page.getByRole('textbox', { name: 'Untitled', exact: true }).first()).toHaveValue('Persistent folder edit');
+        await expect(nodeById(page, 'seed-0').getByPlaceholder('Untitled')).toHaveValue('Persistent folder edit');
         await page.evaluate(() => localStorage.setItem('test-folder-denied', '1'));
         await page.reload();
         await expect(page.getByText('Folder save paused', { exact: true })).toBeVisible();
-        await expect(page.getByRole('textbox', { name: 'Untitled', exact: true }).first()).toHaveValue('Persistent folder edit');
+        await expect(nodeById(page, 'seed-0').getByPlaceholder('Untitled')).toHaveValue('Persistent folder edit');
         await page.goto('/profile');
         await page.getByRole('button', { name: 'Retry folder save' }).click();
         await expect(page.getByRole('alert')).toContainText('permission was not granted');
@@ -115,10 +117,12 @@ test.describe('core: incremental folder storage', () => {
         await page.goto('/profile');
         page.once('dialog', dialog => dialog.dismiss());
         await page.getByRole('button', { name: 'Choose or open folder' }).click();
-        await expect(page.getByText(/Your 1 card/)).toBeVisible();
+        await expect.poll(async () => (await readCanvasState(page))?.nodes.length).toBe(1);
+        await expect(page.getByText(/ui-folder —/)).toHaveCount(0);
         page.once('dialog', dialog => dialog.accept());
         await page.getByRole('button', { name: 'Choose or open folder' }).click();
-        await expect(page.getByText(/Your 3 cards/)).toBeVisible();
+        await expect.poll(async () => (await readCanvasState(page))?.nodes.length).toBe(3);
+        await expect.poll(async () => (await readCanvasState(page))?.nodes.find(node => node.id === 'seed-0')?.data?.label).toBe('Persistent folder edit');
         await expect(page.getByText(/ui-folder — Saved to folder/)).toBeVisible();
     });
 });

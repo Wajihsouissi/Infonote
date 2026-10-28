@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../support/fixtures';
-import { openCanvas, selectNode, nodeById, LIVE_EDITOR } from '../../support/canvas';
+import { fitView, openCanvas, selectNode, nodeById, LIVE_EDITOR } from '../../support/canvas';
 import { seedCanvasState, waitForCanvasState } from '../../support/canvasState';
 
 /**
@@ -39,6 +39,7 @@ async function seedGallery(page: Page, count = 4) {
 
     const node = nodeById(page, 'board-card');
     await expect(node).toBeVisible();
+    await fitView(page);
     await selectNode(node);
     await expect(node.locator(LIVE_EDITOR)).toBeVisible({ timeout: 20_000 });
     return node;

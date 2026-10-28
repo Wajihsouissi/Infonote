@@ -11,6 +11,10 @@ const initial: Block[] = [
     { id: 'delta', type: 'text', content: 'Delta — final paragraph' },
 ];
 async function prepare(page: Page, content = initial, type = 'note', extras: CanvasStateNode[] = []) {
+    // Interrupted native gestures can leave the desktop pointer held between
+    // headed Firefox contexts. Reset input before driving a fresh fixture.
+    await page.keyboard.press('Escape');
+    await page.mouse.up();
     await openCanvas(page);
     await page.evaluate(() => {
         const events: unknown[]=[];
@@ -77,10 +81,17 @@ async function choose(page: Page, names: string[]) {
 test.describe('SCRUM-125 block selection, drag and reorder', () => {
     test.beforeAll(async ({ browser }, info) => console.info(`[SCRUM-125] ${info.project.name}: ${browser.version()}`));
     test.afterEach(async ({ page }, info) => {
-        if(info.status!=='passed') await info.attach('native-drag-events',{body:JSON.stringify(await page.evaluate(()=>(window as Window & {__reorderEvents?:unknown[]}).__reorderEvents)),contentType:'application/json'});
-        if (info.status === 'passed') {
-            await page.screenshot({ path: info.outputPath('result.png') });
-            await waitForLocalSave(page);
+        try {
+            if(info.status!=='passed') await info.attach('native-drag-events',{body:JSON.stringify(await page.evaluate(()=>(window as Window & {__reorderEvents?:unknown[]}).__reorderEvents)),contentType:'application/json'});
+            if (info.status === 'passed') {
+                await page.screenshot({ path: info.outputPath('result.png') });
+                await waitForLocalSave(page);
+            }
+        } finally {
+            // Match the cross-surface drag suite's native-input cleanup even
+            // when an assertion fails while the mouse is still held down.
+            try { await page.keyboard.press('Escape'); }
+            finally { await page.mouse.up(); }
         }
     });
     test('upper half is a broad drop target with a thin insertion marker', async ({ page }, info) => {

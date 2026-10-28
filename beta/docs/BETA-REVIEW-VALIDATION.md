@@ -4,6 +4,12 @@ This candidate publishes the current local-first Beta application and its regres
 
 ## Reproduce
 
+For an already validated Review / QA ticket, retain its recorded acceptance
+matrix and rerun only scenarios affected by a source change or an unresolved
+failure. A full browser matrix is an explicit release check, not a prerequisite
+to reviewing the same evidence again. Use Playwright's `--grep` or a spec path
+to select the affected scenarios and give each run a distinct `CLOSEOUT_RUN`.
+
 Use Node.js 24 from the `beta` directory:
 
 ```sh
@@ -30,3 +36,17 @@ The isolated development server uses port 5188. Scenarios seed disposable browse
 - Source and private evidence archives remain local; Jira receives concise results and the validation PR link.
 
 The clean-checkout build isolates Beta's plain CSS from the historical parent PostCSS configuration. Account nesting tests start on an actual draggable card edge and verify drag activation. Profile assertions describe the implemented browser recovery policy, including unsaved changes and the absence of account isolation or cloud backup.
+
+The 28 October follow-up repairs give the medium-view description an accessible
+name, isolate consecutive editor commands in Undo history, and tolerate null
+legacy backup columns while preserving the original payload. Targeted fixtures
+use the actual medium description view, fit seeded card/gallery bounds, place
+the caret at the document end, and check folder restoration against stored graph
+state rather than obsolete dashboard wording.
+
+The earlier broad Linux CI run is retained as failing evidence. It includes
+unresolved clipboard, selection-toolbar positioning and dragged-node visibility
+cases, as well as scenarios outside the Review / QA ticket scope. A passing
+targeted check does not rewrite that run or certify the complete product. The
+latest follow-up uses local headed regressions and focused static/build checks;
+it does not trigger another complete CI matrix.

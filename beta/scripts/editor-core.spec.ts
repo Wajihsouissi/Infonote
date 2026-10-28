@@ -48,6 +48,25 @@ check('missing identities are assigned while unrelated sibling references remain
     assert.notEqual(next[0].id, next[0].metadata!.blocks![0].id);
 });
 
+check('legacy backup columns tolerate null entries while repairing valid siblings without data loss', () => {
+    const source = [{ ...block('parent'), metadata: { columns: [null, 23,
+        { id: '', content: [null, block('parent', 'asset:retained')], blocks: [block('', 'legacy retained')] },
+    ] } }] as unknown as Block[];
+    const frozen = JSON.stringify(source);
+    const next = normalizeBlockIds(source);
+    assert.equal(JSON.stringify(source), frozen);
+    const columns = next[0].metadata!.columns!;
+    assert.equal(columns[0], null);
+    assert.equal(columns[1], 23);
+    assert.ok(columns[2].id);
+    assert.equal(columns[2].content[0], null);
+    assert.equal(columns[2].content[1].content, 'asset:retained');
+    assert.notEqual(columns[2].content[1].id, 'parent');
+    assert.equal(normalizeBlockIds(next), next);
+    const malformed = [{ ...block('other'), metadata: { columns: { legacy: true } } }] as unknown as Block[];
+    assert.equal(normalizeBlockIds(malformed), malformed);
+});
+
 check('a reading action updates nested content without replacing unrelated blocks or metadata', () => {
     const child: Block = { ...block('task'), type: 'todo', metadata: { checked: false } };
     const parent: Block = { ...block('columns'), type: 'columns', metadata: { columns: [{ id: 'column', content: [child] }] } };
