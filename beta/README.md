@@ -28,6 +28,6 @@ Use the [UI navigation guide](docs/UI-ORGANIZATION.md) to find panels, toolbars,
 
 For hosted deployment, use this directory as the project root so its `api/` routes and `vercel.json` are included. See [Supabase setup](supabase/SETUP.md) and `.env.example` for environment configuration names.
 
-Future features are integrated from the [preserved full application](../future-features/README.md) one at a time. Production code must not import source from that application. Port a feature with its required types, service boundaries, migrations and tests, adapting it to the current production model.
+Future features are integrated from the separately preserved full application one at a time; that checkout is outside this Beta candidate. Production code must not import source from it. Port a feature with its required types, service boundaries, migrations and tests, adapting it to the current production model.
 
 The latest [performance results](docs/PERFORMANCE-RESULTS-2026-10-18.md) document remaining release gates. Repository organization does not establish that those performance targets have passed.
