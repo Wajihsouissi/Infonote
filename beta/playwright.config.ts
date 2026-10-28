@@ -61,7 +61,9 @@ export default defineConfig({
     },
 
     projects: [
-        { name: 'smoke', testMatch: /scenarios\/smoke\/.*\.spec\.ts/, use: { ...devices['Desktop Chrome'] } },
+        // Reuse the real startup/recovery and card lifecycle scenarios. The
+        // historical scenarios/smoke directory is empty in the current app.
+        { name: 'smoke', testMatch: /scenarios\/core\/(workspace-startup|card-lifecycle)\.spec\.ts/, use: { ...devices['Desktop Chrome'] } },
         { name: 'core', testMatch: /scenarios\/core\/.*\.spec\.ts/, use: { ...devices['Desktop Chrome'] } },
         // Concurrent headed Firefox windows on Windows can leave a native
         // pointer action unacknowledged. Keep this project's input serial.

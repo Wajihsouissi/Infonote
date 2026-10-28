@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../support/fixtures';
-import { addNote, NODE as PANE_NODE, openCanvas, PANE, reload } from '../../support/canvas';
+import { addNote, fitView, NODE as PANE_NODE, openCanvas, PANE, reload } from '../../support/canvas';
 import { makeCards, readCanvasState, type CanvasStateNode, seedCanvasState, waitForCanvasState } from '../../support/canvasState';
 
 /**
@@ -235,6 +235,8 @@ test.describe('core: guest nesting limit (N)', () => {
     }
 
     async function dragOnto(page: Page, from: string, to: string): Promise<void> {
+        await fitView(page);
+        await page.bringToFront();
         const handle = page.locator(`${PANE_NODE}[data-id="${from}"]`);
         const target = page.locator(`${PANE_NODE}[data-id="${to}"]`);
         const a = (await handle.boundingBox())!;
@@ -249,6 +251,13 @@ test.describe('core: guest nesting limit (N)', () => {
         await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 12 });
         await page.waitForTimeout(150);
         await page.mouse.move(b.x + b.width / 2 + 4, b.y + b.height / 2 + 4, { steps: 2 });
+        await expect.poll(() => page.evaluate(() => (
+            window as unknown as { __appStore: { getState: () => { interactionState: { dropTarget: { id: string; type: string } | null } } } }
+        ).__appStore.getState().interactionState.dropTarget)).toEqual({ id: to, type: 'nesting' });
+        await test.info().attach('nesting-before-drop', { body: JSON.stringify(await page.evaluate(() => {
+            const state = (window as unknown as { __appStore: { getState: () => Record<string, unknown> } }).__appStore.getState();
+            return { nodes: state.nodes, auth: state.auth, interaction: state.interactionState, limitNotice: state.limitNotice };
+        })), contentType: 'application/json' });
         await page.mouse.up();
         await page.waitForTimeout(400);
     }
