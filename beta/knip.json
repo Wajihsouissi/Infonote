@@ -1,0 +1,20 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/trials/main.tsx",
+    "src/features/search/workers/search.worker.ts",
+    "scripts/intelligent-ui-libraries.ts"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}"
+  ],
+  "ignore": [
+    "qa/scrum-28/baseline-source/**"
+  ],
+  "ignoreExportsUsedInFile": true,
+  "ignoreIssues": {
+    "src/config/layout.ts": [
+      "duplicates"
+    ]
+  }
+}

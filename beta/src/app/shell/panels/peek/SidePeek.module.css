@@ -1,0 +1,193 @@
+/* The panel is chrome, continuous with the shell it sits beside — no seam
+   between them. What separates it is the inset body below, which repeats the
+   canvas frame's radius. */
+.panel {
+    height: 100%;
+    background: var(--panel-bg);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease;
+    font-family: var(--font-sans);
+}
+
+.sideRight {
+    box-shadow: none;
+}
+
+.sideLeft {
+    box-shadow: none;
+}
+
+.panelOpen {
+    opacity: 1;
+}
+
+.panelClosed {
+    opacity: 0;
+    border-color: transparent !important;
+    pointer-events: none;
+    box-shadow: none !important;
+}
+
+/* Sticky Header — sits on the panel's chrome, so it carries no surface of its
+   own and needs no divider: the inset body below is the edge. */
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    /* 24px matches the body's inset + inner padding, so the title lines up
+       with the content below it; the height puts the body's top edge on the
+       same line as the canvas frame's. */
+    height: calc(var(--topbar-h) - var(--panel-inset));
+    box-sizing: border-box;
+    padding: 0 var(--panel-header-padding);
+    background: transparent;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex-shrink: 0;
+}
+
+.headerLeft {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.headerIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-primary);
+}
+
+.headerTitle {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-main);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.9;
+}
+
+.headerActions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.closeBtn {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    width: var(--control-height-sm);
+    height: var(--control-height-sm);
+    padding: 0;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+/* hover handled by the shared .icon-hover affordance */
+
+/* Scrollable Content Container — the panel's inset surface, carrying the same
+   radius as the canvas frame so both read as content islands on one ground. */
+.scrollContent {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    /* Top/bottom padding clears the 40px corner arc. */
+    padding: var(--panel-body-padding);
+    /* Even inset on all four sides — the body sits the same way whether or not
+       a header is above it (SidePanel renders with hideHeader). */
+    margin: var(--panel-inset);
+    background: var(--panel-body-bg);
+    border-radius: var(--panel-radius);
+    display: flex;
+    flex-direction: column;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.resizeHandle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    cursor: col-resize;
+    z-index: 100;
+    touch-action: none;
+}
+
+.sideLeft .resizeHandle {
+    justify-content: flex-end;
+}
+
+.resizeGrip {
+    width: 3px;
+    height: 120px;
+    border-radius: 999px;
+    background: var(--text-soft);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.resizeHandle:hover .resizeGrip,
+.resizeHandle:active .resizeGrip {
+    opacity: 1;
+}
+
+.resizeTooltip {
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%) translateX(4px) scale(0.92);
+    margin-left: 6px;
+    padding: 5px 10px;
+    background: rgba(20, 20, 23, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1), transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 101;
+}
+
+.sideLeft .resizeTooltip {
+    left: auto;
+    right: 0;
+    transform: translateY(-50%) translateX(-4px) scale(0.92);
+    margin-left: 0;
+    margin-right: 6px;
+}
+
+.resizeHandle:hover .resizeTooltip {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0) scale(1);
+    transition-delay: 0.35s;
+}
+
+.sideLeft .resizeHandle:hover .resizeTooltip {
+    transform: translateY(-50%) translateX(0) scale(1);
+}
+
+.resizeHandle:active .resizeTooltip {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0) scale(1);
+    transition-delay: 0s;
+}

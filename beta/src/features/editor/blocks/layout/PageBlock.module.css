@@ -1,0 +1,41 @@
+.pageBlock {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: var(--block-radius);
+    background: var(--hover-wash);
+    border: 1px solid var(--line);
+    color: var(--text-main);
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast),
+        color var(--transition-fast);
+    user-select: none;
+    width: fit-content;
+}
+
+.pageBlock:hover {
+    background: var(--accent-dim);
+    border-color: rgba(var(--accent-rgb), 0.35);
+    color: var(--accent-ink);
+}
+
+.pageBlock:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.pageIcon {
+    color: var(--text-faint);
+    flex-shrink: 0;
+}
+
+.pageBlock:hover .pageIcon {
+    color: var(--accent-ink);
+}
+
+.pageTitle {
+    font-size: 0.9rem;
+    font-weight: 500;
+}

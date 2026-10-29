@@ -1,0 +1,155 @@
+/* The bars under a board: what to do with a selection, and undo after a removal. */
+
+@keyframes undoIn {
+    from { opacity: 0; transform: translateY(-3px); }
+    to { opacity: 1; transform: none; }
+}
+
+.selectionBar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+    padding: 5px 6px 5px 10px;
+    border-radius: var(--r-control);
+    background: var(--bg-raised);
+    border: 1px solid var(--line-strong);
+    box-shadow: var(--elev-1);
+    animation: undoIn var(--transition-fast) ease both;
+}
+
+.selectionCount {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-main);
+    white-space: nowrap;
+}
+
+.selectionSizes {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--r-control);
+    background: var(--hover-wash);
+}
+
+.selectionSize {
+    padding: 3px 8px;
+    border: none;
+    border-radius: calc(var(--r-control) - 2px);
+    background: transparent;
+    color: var(--text-soft);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.selectionSize:hover {
+    background: var(--bg-raised);
+    color: var(--text-main);
+}
+
+.selectionRemove {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    padding: 4px 9px;
+    border: none;
+    border-radius: var(--r-control);
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.selectionRemove:hover {
+    background: var(--accent);
+    color: #fff;
+}
+
+.selectionSize:focus-visible,
+.selectionRemove:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+/* Under the board, in the flow, rather than floating over the pictures: it is
+   a receipt for something that already happened, and a moodboard's own surface
+   is the last place to put a strip of text. */
+.undoBar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    padding: 5px 6px 5px 10px;
+    border-radius: var(--r-control);
+    background: var(--bg-raised);
+    border: 1px solid var(--line-strong);
+    box-shadow: var(--elev-1);
+    animation: undoIn var(--transition-fast) ease both;
+}
+
+.undoText {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.75rem;
+    color: var(--text-soft);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.undoBtn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    padding: 4px 9px;
+    border: none;
+    border-radius: var(--r-control);
+    background: var(--active-wash);
+    color: var(--text-main);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.undoBtn:hover {
+    background: var(--hover-wash);
+}
+
+.undoDismiss {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.undoDismiss:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.undoBtn:focus-visible,
+.undoDismiss:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}

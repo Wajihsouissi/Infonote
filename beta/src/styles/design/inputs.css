@@ -1,0 +1,41 @@
+/* Native form fields share shape and focus across feature-owned styles, just
+   like the global button baseline. Keep geometry, padding and rest surfaces
+   with their components. Toggles, sliders and upload triggers are not text fields. */
+:is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file'], [type='hidden'], [type='button'], [type='submit'], [type='reset'], [type='image']), textarea, select),
+[data-input-shell] {
+  border-radius: var(--input-radius) !important;
+  corner-shape: var(--corner-smooth);
+}
+
+/* Flat neutral focus shading leaves the resting background colour in place.
+   Feature-owned hover styles retain their old look and exclude focused fields. */
+:is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file'], [type='hidden'], [type='button'], [type='submit'], [type='reset'], [type='image']), textarea, select):focus,
+[data-input-shell]:focus-within {
+  background-image: linear-gradient(var(--input-focus-wash), var(--input-focus-wash)) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* A field with icons or actions shades its shared shell only once. */
+[data-input-shell] :is(input, textarea, select):is(:hover, :focus) {
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+:is(input, textarea)::selection {
+  background: var(--input-selection-bg);
+  color: var(--input-selection-fg);
+}
+
+@media (forced-colors: active) {
+  :is(input, textarea, select):focus,
+  [data-input-shell]:focus-within {
+    outline: 2px solid Highlight !important;
+    outline-offset: 2px;
+  }
+
+  [data-input-shell] :is(input, textarea, select):focus {
+    outline: none !important;
+  }
+}

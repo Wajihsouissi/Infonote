@@ -1,0 +1,245 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    /* plain dark scrim, no blur */
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.15s ease-out;
+}
+
+.modal {
+    background: var(--bg-rail);
+    color: var(--text-main);
+    border: 1px solid var(--line);
+    border-radius: var(--r-panel);
+    width: 360px;
+    max-width: 90vw;
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    animation: slideUp 0.2s var(--ease-rise);
+}
+
+.modalHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 0;
+    gap: var(--block-marker-gap);
+}
+
+.modalTitle {
+    min-width: 0;
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-main);
+    border: none;
+    background: transparent;
+    outline: none;
+    flex: 1;
+    padding: 6px var(--block-marker-gap);
+    border-radius: var(--input-radius);
+    transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.modalTitle::placeholder {
+    color: var(--text-faint);
+}
+
+.closeBtn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: var(--btn-radius);
+    color: var(--btn-ghost-fg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition-fast), color var(--transition-fast);
+    flex-shrink: 0;
+}
+
+/* hover handled by the shared .icon-hover affordance */
+
+.closeBtn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.pickerSection {
+    padding: 16px 20px;
+}
+
+.pickerSection :global(.react-colorful) {
+    width: 100%;
+    height: 180px;
+}
+
+.bodySection {
+    padding: 0 20px 16px;
+}
+
+.footerSection {
+    padding: var(--block-inset) 20px 16px;
+    border-top: 1px solid var(--line);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(16px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Colour codes and the value inputs (HEX / RGB / HSL). */
+
+.colorCodeGroup {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--block-marker-gap);
+}
+
+.colorCodeButton {
+    position: relative;
+    min-width: 0;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: var(--block-marker-gap) 10px;
+    background: var(--bg-inset);
+    border: 1px solid var(--line);
+    border-radius: var(--block-radius);
+    cursor: pointer;
+    transition: transform var(--transition-fast), border-color var(--transition-fast),
+        background var(--transition-fast);
+}
+
+.colorCodeButton:hover {
+    background: var(--hover-wash);
+    border-color: var(--line-strong);
+}
+
+.colorCodeButton:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.colorCodeLabel {
+    padding-right: 20px;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.colorCodeValueRow {
+    display: block;
+    width: 100%;
+}
+
+.colorCodeValue {
+    display: block;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.45;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-main);
+}
+
+.colorCodeIcon,
+.colorCodeIconActive {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 14px;
+    height: 14px;
+}
+
+.colorCodeIcon {
+    color: var(--text-faint);
+}
+
+.colorCodeIconActive {
+    color: var(--ok);
+}
+
+.colorInputModeSelect {
+    width: 100%;
+    padding: var(--input-pad);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--input-radius);
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.colorInputModeSelect:hover:where(:not(:focus)) {
+    border-color: var(--line-strong);
+}
+
+.colorInputModeSelect option {
+    background: var(--bg-rail);
+    color: var(--text-main);
+}
+
+.colorInputRow {
+    display: flex;
+    gap: 6px;
+    justify-content: space-between;
+}
+
+.colorInputGroup {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+}
+
+.colorInput {
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--text-main);
+    padding: 6px;
+    border-radius: var(--input-radius);
+    width: 100%;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+}
+
+.colorInputLabel {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+}
+
+.inputError {
+    color: var(--text-main);
+    font-size: 0.8rem;
+    line-height: 1.4;
+    margin: 4px 0;
+}
+
+.colorInput[aria-invalid='true'] {
+    border-color: var(--color-danger, #d44c47);
+}

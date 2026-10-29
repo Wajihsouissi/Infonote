@@ -1,0 +1,266 @@
+/* ============================ Table Block ============================ */
+.tableWrapper {
+    position: relative;
+    width: 100%;
+    /* No vertical margin: the block's own spacing owns the gap, and a margin
+       here only pushed the selection ring off the table's top and bottom edges. */
+    margin: 0;
+}
+
+/* ---- Add row / column affordances ----
+   These collapse to nothing at rest so the block's box is EXACTLY the table:
+   left permanently in flow they added a dead strip below and beside the grid,
+   which is what the selection ring then had to draw around. */
+.addColBtn {
+    flex: 0 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 0;
+    margin-left: 0;
+    overflow: hidden;
+    opacity: 0;
+    color: var(--text-faint);
+    background: transparent;
+    border: 0 solid var(--table-border);
+    border-radius: var(--block-radius);
+    cursor: pointer;
+    transition: flex-basis var(--transition-fast), width var(--transition-fast),
+        margin var(--transition-fast), opacity var(--transition-fast),
+        background var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
+}
+
+.addRowBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 0;
+    margin-top: 0;
+    overflow: hidden;
+    opacity: 0;
+    color: var(--text-faint);
+    background: transparent;
+    border: 0 solid var(--table-border);
+    border-radius: var(--block-radius);
+    cursor: pointer;
+    transition: height var(--transition-fast), margin var(--transition-fast),
+        opacity var(--transition-fast), background var(--transition-fast),
+        color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.tableWrapper:hover .addColBtn,
+.tableWrapper:focus-within .addColBtn {
+    flex-basis: 22px;
+    width: 22px;
+    margin-left: 4px;
+    opacity: 1;
+    border-width: 1px;
+}
+
+.tableWrapper:hover .addRowBtn,
+.tableWrapper:focus-within .addRowBtn {
+    height: 22px;
+    margin-top: 4px;
+    opacity: 1;
+    border-width: 1px;
+}
+
+.addColBtn:hover,
+.addRowBtn:hover {
+    color: var(--accent-ink);
+    background: var(--accent-dim);
+    border-color: var(--accent);
+}
+
+/* Divider — a hairline rule, the system's primary separator. */
+.divider {
+    height: 1px;
+    /* --line (0.08 alpha) is the right weight for incidental chrome, but a
+       divider IS the content here — at that alpha the block rendered as an
+       empty pill and read as a loading skeleton. */
+    background: var(--line-strong);
+    border: none;
+    margin: var(--block-inset) 0;
+    width: 100%;
+}
+
+/* Slash Menu */
+.slashMenu {
+    animation: popIn 0.15s ease-out;
+    position: fixed;
+    /* Must be fixed to float over everything */
+    background: var(--menu-bg);
+    border: 1px solid var(--menu-border);
+    border-radius: var(--menu-radius);
+    padding: var(--menu-pad);
+    width: 270px;
+    max-height: 380px;
+    box-shadow: var(--menu-shadow);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+}
+
+/* Mono uppercase overline — the system's section label. */
+.menuHeader {
+    padding: 4px 10px 6px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    font-weight: 600;
+}
+
+.slashMenuItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 10px;
+    border-radius: var(--menu-item-radius);
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-main);
+    transition: background-color var(--transition-fast), transform var(--transition-fast),
+        color var(--transition-fast), border-left-color var(--transition-fast);
+    border-left: var(--block-rail-w) solid transparent;
+}
+
+.slashMenuItem:hover {
+    background: var(--menu-item-hover);
+    transform: translateX(2px);
+}
+
+.slashMenuItem.selected {
+    background: var(--accent-dim);
+    border-left-color: var(--accent);
+    color: var(--text-main);
+    transform: translateX(4px);
+}
+
+.slashIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--r-control);
+    background: var(--hover-wash);
+    border: 1px solid var(--line);
+    color: var(--text-soft);
+    transition: background-color var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
+}
+
+.slashMenuItem:hover .slashIcon {
+    background: var(--active-wash);
+    color: var(--text-main);
+    border-color: var(--line-strong);
+}
+
+.slashMenuItem.selected .slashIcon {
+    background: var(--accent-wash);
+    color: var(--accent-ink);
+    border-color: rgba(var(--accent-rgb), 0.35);
+}
+
+.dangerItem {
+    color: var(--danger);
+}
+
+.dangerItem:hover {
+    background: rgba(var(--danger-rgb), 0.12);
+    color: var(--danger);
+}
+
+.dangerItem:hover .slashIcon {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: var(--on-accent);
+}
+
+.menuArrow {
+    color: var(--menu-chevron);
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+/* Floating Toolbar */
+.floatingToolbar {
+    animation: popIn 0.15s ease-out;
+    position: fixed;
+    background: var(--toolbar-bg);
+    border: 1px solid var(--toolbar-border);
+    box-shadow: var(--toolbar-shadow);
+    border-radius: var(--radius-pill);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    z-index: 10001;
+}
+
+.toolbarBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--r-control);
+    border: none;
+    background: transparent;
+    color: var(--btn-ghost-fg);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.toolbarBtn:hover {
+    background: var(--toolbar-btn-hover);
+    color: var(--text-main);
+}
+
+.toolbarBtn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.toolbarBtn.active,
+.toolbarBtnActive {
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+.toolbarBtnActive:hover {
+    background: var(--accent-hover);
+    color: var(--on-accent);
+}
+
+/* Color Tab Switcher */
+/* Just the inset of the strip within the menu — the shared Tabs component
+   owns the well, the cursor and the type. */
+.tabContainer {
+    margin: 4px var(--block-inset) var(--block-inset);
+}
+
+/* Selection Box */
+.selectionRect {
+    position: absolute;
+    /* Relative to .editor */
+    border: 1px solid var(--accent);
+    background: var(--accent-dim);
+    z-index: 9999;
+    pointer-events: none;
+    border-radius: var(--r-xs);
+}
+
+/* Multi-select State — a soft accent wash only, no ring/border: the wash alone
+   is enough to read as "selected" without drawing a hard box around prose. */
+.sortableWrapper.selected {
+    background: var(--block-selected);
+    border-radius: var(--block-radius);
+    transition: background var(--transition-fast);
+}

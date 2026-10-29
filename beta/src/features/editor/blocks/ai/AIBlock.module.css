@@ -1,0 +1,62 @@
+/* The "Generate with AI" block, while it is still a prompt box. It wears the
+   accent rather than the block surface: this is the one block in a note that is
+   about to turn into something else. */
+
+.block {
+    display: flex;
+    flex-direction: column;
+    gap: var(--block-marker-gap);
+    margin: var(--block-marker-gap) 0;
+    padding: var(--block-inset);
+    border: 1px solid rgba(var(--accent-rgb), 0.3);
+    border-radius: var(--block-radius-lg);
+    background: var(--accent-dim);
+}
+
+.head {
+    display: flex;
+    align-items: center;
+    gap: var(--block-marker-gap);
+    color: var(--accent-ink);
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 0.875rem;
+    outline: none;
+}
+
+.input::placeholder {
+    color: var(--text-faint);
+}
+
+.error {
+    color: var(--danger);
+    font-size: 0.75rem;
+}
+
+.spinner {
+    flex-shrink: 0;
+    color: var(--accent-ink);
+    animation: aiBlockSpin 1s linear infinite;
+}
+
+@keyframes aiBlockSpin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .spinner { animation-duration: 3s; }
+}

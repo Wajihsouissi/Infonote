@@ -1,0 +1,285 @@
+/* Canvas command dock, using the existing charcoal/coral surface tokens. */
+.railLayer {
+    position: absolute;
+    z-index: 45;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.railLayer > * { pointer-events: auto; }
+
+.dockBottom {
+    left: 0;
+    right: 0;
+    bottom: var(--dock-edge-gap);
+    width: max-content;
+    max-width: calc(100% - 24px);
+    margin: 0 auto;
+    flex-direction: column-reverse;
+}
+
+.railLayer > .railRow {
+    display: flex;
+    justify-content: center;
+    max-width: 100%;
+    pointer-events: none;
+    transition: opacity 150ms ease, transform 150ms var(--ease-rise), visibility 0s linear 150ms;
+}
+
+.railRow > * { pointer-events: auto; }
+
+.sideRail,
+.flyout {
+    border: 1px solid var(--line-strong);
+    background: var(--bg-raised);
+    box-shadow: var(--elev-2);
+    color: var(--text-main);
+}
+
+.sideRail {
+    display: flex;
+    align-items: center;
+    width: max-content;
+    min-width: 0;
+    min-height: var(--dock-height);
+    padding: max(4px, var(--dock-padding));
+    border-radius: var(--toolbar-radius);
+    transition: box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.sideRail:hover { box-shadow: var(--elev-3); }
+
+.railContents {
+    display: flex;
+    align-items: center;
+    gap: max(4px, calc(var(--dock-gap) * 0.5));
+    min-width: 0;
+}
+
+.commandBtn,
+.modeBtn,
+.closeSearchBtn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    height: var(--dock-button-size);
+    min-width: var(--dock-button-size);
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--r-control) !important;
+    background: transparent;
+    color: var(--text-soft);
+    cursor: pointer;
+    transition:
+        background-color var(--transition-fast),
+        border-color var(--transition-fast),
+        color var(--transition-fast),
+        transform var(--transition-fast);
+}
+
+.commandBtn svg,
+.modeBtn svg,
+.closeSearchBtn svg { flex: none; }
+
+.commandBtn:hover,
+.modeBtn:hover,
+.closeSearchBtn:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+    transform: translateY(-1px);
+}
+
+.commandBtn:active,
+.modeBtn:active,
+.closeSearchBtn:active { transform: scale(0.97); }
+
+.commandBtnActive,
+.commandBtnActive:hover {
+    border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
+    background: var(--active-wash);
+    color: var(--text-main);
+}
+
+.commandBtnActive svg { color: var(--accent); }
+
+.commandBtn:focus-visible,
+.modeBtn:focus-visible,
+.createBtn:focus-visible,
+.closeSearchBtn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.commandBtn[data-tooltip]:focus-visible::before,
+.modeBtn[data-tooltip]:focus-visible::before,
+.createBtn[data-tooltip]:focus-visible::before {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+.commandBtn[aria-expanded='true']::before,
+.modeBtn[aria-expanded='true']::before {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.separator {
+    flex: none;
+    width: 1px;
+    height: 22px;
+    margin: 0 3px;
+    background: var(--line-strong);
+}
+
+.createGroup {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    height: var(--dock-primary-size);
+    padding-right: 3px;
+    border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
+    border-radius: var(--r-surface);
+    background: var(--accent-dim);
+}
+
+.createBtn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    height: calc(var(--dock-primary-size) - 2px);
+    min-width: calc(var(--dock-primary-size) - 2px);
+    padding: 0;
+    border: 0;
+    border-radius: calc(var(--r-surface) - 1px) !important;
+    background: var(--accent);
+    box-shadow: var(--elev-1);
+    color: var(--on-accent);
+    cursor: pointer;
+    transition: box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.createBtn:hover {
+    box-shadow: var(--elev-2);
+    transform: translateY(-1px);
+}
+
+.createBtn:active { transform: scale(0.97); }
+
+.modeBtn {
+    height: calc(var(--dock-primary-size) - 8px);
+    min-width: calc(var(--dock-primary-size) - 8px);
+    padding: 0;
+    border-radius: var(--r-control) !important;
+    color: var(--accent-ink);
+}
+
+.modeBtn:hover { color: var(--text-main); }
+.modeBtn[aria-expanded='true'] svg { transform: rotate(180deg); }
+
+.aiBtn svg { color: var(--accent); }
+
+.flyout {
+    display: flex;
+    align-items: center;
+    min-height: var(--dock-height);
+    max-width: 100%;
+    padding: max(4px, var(--dock-padding));
+    border-radius: var(--toolbar-radius);
+}
+
+.searchContainer {
+    width: min(520px, calc(100vw - 32px));
+    gap: 8px;
+}
+
+.searchGlyph {
+    flex: none;
+    margin-left: 10px;
+    color: var(--text-faint);
+}
+
+.searchInput {
+    flex: 1;
+    min-width: 0;
+    height: var(--dock-button-size);
+    padding: 0 4px;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    font-size: var(--ui-font-size);
+}
+
+.searchInput::placeholder { color: var(--text-faint); }
+.closeSearchBtn { padding: 0; }
+
+.selectionIsland {
+    min-height: var(--dock-height);
+    padding: 0;
+    overflow: visible;
+}
+
+.railLayer > .contextualToolbar {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: max-content;
+    max-width: calc(100vw - 24px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateX(-50%) translateY(6px) scale(0.985);
+    transform-origin: 50% 100%;
+    transition:
+        opacity 110ms ease-out,
+        transform 150ms var(--ease-rise),
+        visibility 0s linear 150ms;
+    contain: layout style;
+}
+
+.railLayer > .contextualToolbarActive {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0) scale(1);
+    transition-delay: 0s;
+}
+
+.railLayer:has(> .contextualToolbarActive) > .railRow {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(6px) scale(0.985);
+    pointer-events: none;
+}
+
+.railLayer:has(> .contextualToolbarActive) > [data-rail-menu] {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+@media (max-width: 560px) {
+    .dockBottom { max-width: calc(100% - 16px); }
+    .sideRail { padding: 5px; }
+    .railContents { gap: 2px; }
+    .separator { height: 18px; margin: 0 2px; }
+    .createBtn { width: calc(var(--dock-primary-size) - 2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .railLayer > .contextualToolbar,
+    .railLayer > .railRow,
+    .commandBtn,
+    .modeBtn,
+    .createBtn,
+    .closeSearchBtn { transition: none; transform: none; }
+    .railLayer > .contextualToolbar,
+    .railLayer > .contextualToolbarActive { transform: translateX(-50%); }
+}

@@ -1,0 +1,180 @@
+/* The menu is a working surface: the name and use of each block stay visible. */
+.hoverMenu {
+    width: min(540px, calc(100vw - 32px));
+    max-width: 100%;
+    max-height: min(68vh, 620px);
+    min-width: 0;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--elev-3);
+    color: var(--text-main);
+    animation: menuEnter 160ms var(--ease-rise) both;
+}
+
+.menuHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 16px 12px;
+    border-bottom: 1px solid var(--line);
+}
+
+.menuHeading { min-width: 0; }
+
+.menuTitle {
+    margin: 0;
+    color: var(--text-main);
+    font-size: 0.92rem;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+}
+
+.menuDescription {
+    margin: 4px 0 0;
+    color: var(--text-faint);
+    font-size: 0.75rem;
+    line-height: 1.4;
+}
+
+.menuCloseBtn {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--text-faint);
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.menuCloseBtn:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.menuCloseBtn:focus-visible,
+.draggableItem:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.menuGrid {
+    display: grid;
+    gap: 6px;
+    min-height: 0;
+    padding: 10px 12px 12px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
+.draggableItem {
+    min-width: 0;
+    min-height: 58px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: var(--r-md);
+    background: transparent;
+    color: var(--text-main);
+    text-align: left;
+    cursor: pointer;
+    transition:
+        background-color var(--transition-fast),
+        border-color var(--transition-fast),
+        transform var(--transition-fast);
+}
+
+.draggableItem[draggable='true'] { cursor: grab; }
+.draggableItem:active { transform: scale(0.985); cursor: grabbing; }
+
+.draggableItem:hover,
+.draggableItemHighlighted {
+    background: var(--hover-wash);
+    border-color: var(--line);
+}
+
+.draggableItemHighlighted { background: var(--active-wash); }
+
+.itemIconWrapper {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: var(--r-control);
+    background: var(--inset-wash);
+    color: var(--text-soft);
+    transition: color var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.draggableItem:hover .itemIconWrapper,
+.draggableItemHighlighted .itemIconWrapper {
+    border-color: color-mix(in srgb, var(--accent) 34%, var(--line));
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+}
+
+.draggableItem:nth-child(-n+2) .itemIconWrapper {
+    color: var(--accent-ink);
+}
+
+.itemCopy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.itemLabel {
+    overflow: hidden;
+    color: var(--text-main);
+    font-size: 0.79rem;
+    font-weight: 650;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.itemDescription {
+    overflow: hidden;
+    color: var(--text-faint);
+    font-size: 0.68rem;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@keyframes menuEnter {
+    from { opacity: 0; transform: translateY(8px) scale(0.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 560px) {
+    .hoverMenu { max-height: min(64vh, 580px); }
+    .menuHeader { padding: 14px 14px 10px; }
+    .menuGrid { padding: 8px; gap: 4px; }
+    .draggableItem { min-height: 48px; gap: 7px; padding: 6px; }
+    .itemIconWrapper { width: 30px; height: 30px; }
+    .itemDescription { display: none; }
+    .itemLabel { font-size: 0.72rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hoverMenu { animation: none; }
+    .draggableItem { transition: none; }
+}

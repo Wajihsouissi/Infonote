@@ -1,0 +1,84 @@
+.preview {
+    contain: layout paint style;
+    min-height: 100%;
+    pointer-events: none;
+    user-select: none;
+}
+
+.loading { opacity: 0.74; }
+
+.preview.complete {
+    contain: style;
+    pointer-events: auto;
+    user-select: text;
+}
+
+.preview[data-node-surface='single'] {
+    contain: style;
+    min-height: 0;
+}
+
+.overview {
+    min-height: 4rem;
+    overflow: hidden;
+    max-height: 6rem;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+/* Mirrors BlockEditor's sortable wrapper indentation without mounting DnD. */
+.staticBlock {
+    min-width: 0;
+    padding-inline-start: var(--block-indent, 0px);
+}
+
+.children {
+    display: flex;
+    flex-direction: column;
+    gap: var(--block-gap);
+    margin-top: var(--block-gap);
+}
+
+.moreRows {
+    color: var(--text-faint);
+    display: block;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+.mediaFallback {
+    align-items: center;
+    background: var(--block-hover);
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--media-radius);
+    color: var(--text-faint);
+    display: flex;
+    justify-content: center;
+    min-height: 5rem;
+}
+
+.empty {
+    align-items: center;
+    color: var(--text-faint);
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    justify-content: center;
+    min-height: 9rem;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.emptyAction {
+    color: var(--color-text-muted, var(--text-soft));
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.emptyHint {
+    font-size: 0.78rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .loading { opacity: 1; }
+}

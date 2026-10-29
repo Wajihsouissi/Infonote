@@ -1,0 +1,4 @@
+/* The main app's autosave indicator is irrelevant in this isolated memory-only entry. */
+[aria-label="Canvas workspace controls"] [role="status"] {
+    display: none;
+}

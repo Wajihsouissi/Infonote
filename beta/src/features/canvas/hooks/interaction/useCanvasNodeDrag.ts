@@ -1,0 +1,569 @@
+import { useCallback, useEffect, useRef } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { useReactFlow } from '@xyflow/react';
+import { type AppNode, getNodeBlocks, getNodeLabel } from '../../../../types';
+import type { Block } from '../../../editor/types';
+import type { UISlice } from '../../../../store/types';
+import { snapFusedDimensions, MAX_HEIGHT } from '../../../../config/layout';
+import { useStore } from '../../../../store/useStore';
+import { beginHistoryGesture, endHistoryGesture } from '../../../../store/temporalControl';
+import { checkNodeMoveLimits } from '../../../../store/nodeLimits';
+import { setStreaming } from '../viewport/viewportStreamingStore';
+import { mergeIntoGallery, GALLERY_NODE_WIDTH } from '../../../editor/gallery/galleryTypes';
+import { previewBlockInsertion, clearBlockInsertionPreview, currentBlockInsertionTarget } from '../../../editor/drag/blockInsertionPreview';
+import { flushPendingEditorWrites } from '../../../../services/storage/workspace/pendingEditorWrites';
+import { canTransferNodeInto, planCanvasBlockTransfer } from '../../../editor/drag/blockTransferPlan';
+import { animateBlockArrival } from '../../../editor/drag/blockArrival';
+
+type SetNodesFn = (updater: (nodes: AppNode[]) => AppNode[]) => void;
+type NodeDragEvent = MouseEvent | TouchEvent;
+
+/** Screen point of a drag event; a touch carries it on its touch list. */
+function eventPoint(event: NodeDragEvent): { x: number; y: number } {
+    if ('touches' in event) {
+        const touch = event.touches[0] ?? event.changedTouches[0];
+        return { x: touch?.clientX ?? 0, y: touch?.clientY ?? 0 };
+    }
+    return { x: event.clientX, y: event.clientY };
+}
+
+/** Standalone flag lives only on block / fused-note payloads. */
+const hasStandaloneFlag = (data: AppNode['data']): boolean =>
+    'isStandaloneBlock' in data && !!data.isStandaloneBlock;
+
+// A single source of truth for what a node-drag will do on release. Computed once per
+// drag tick and consumed verbatim on drop, so the highlight the user sees always matches
+// the action that runs (no second, divergent detection pass on drop).
+type DropAction = 'fusion' | 'nesting' | 'gallery';
+
+interface PendingDrop {
+    targetId: string;
+    action: DropAction;
+    insertBlockId: string | null;
+    insertPosition: 'top' | 'bottom';
+}
+
+interface UseCanvasNodeDragOptions {
+    currentParentId: string | null;
+    setInteractionState: (state: Partial<UISlice['interactionState']>) => void;
+    setNodes: SetNodesFn;
+    updateNodeData: (id: string, data: Record<string, unknown>) => void;
+    syncParentContent: (parentId: string) => void;
+}
+
+/**
+ * Hook that handles all node drag interactions on the canvas.
+ * Manages drag start, drag move, and drag stop with fusion/nesting/gallery logic.
+ */
+export function useCanvasNodeDrag({
+    currentParentId,
+    setInteractionState,
+    setNodes,
+    updateNodeData,
+    syncParentContent,
+}: UseCanvasNodeDragOptions) {
+    const { screenToFlowPosition, getIntersectingNodes, getNode, getViewport } = useReactFlow<AppNode>();
+
+    // Throttling and state Refs
+    const lastHighlightedBlockRef = useRef<HTMLElement | null>(null);
+    const activeDropTargetRef = useRef<{ id: string; type: DropAction } | null>(null);
+    // The complete fusion/nesting decision for the current drag, reused on drop.
+    const pendingDropRef = useRef<PendingDrop | null>(null);
+    useEffect(() => () => endHistoryGesture(useStore.getState()), []);
+
+    // Move the between-blocks insertion line to a specific block element (or clear it).
+    const setDropLine = useCallback((blockEl: HTMLElement | null, position: 'top' | 'bottom') => {
+        const prev = lastHighlightedBlockRef.current;
+        if (prev && prev !== blockEl) prev.removeAttribute('data-external-drop-target');
+        if (blockEl) {
+            blockEl.setAttribute('data-external-drop-target', position);
+            lastHighlightedBlockRef.current = blockEl;
+        } else {
+            lastHighlightedBlockRef.current = null;
+        }
+    }, []);
+
+    // Single, centralized cleanup for every drop indicator left in the DOM.
+    const clearDropIndicators = useCallback(() => {
+        clearBlockInsertionPreview();
+        lastHighlightedBlockRef.current = null;
+        document.querySelectorAll('[data-external-drop-target]').forEach(el => {
+            (el as HTMLElement).removeAttribute('data-external-drop-target');
+        });
+    }, []);
+
+    const onNodeDragStart = useCallback((_event: NodeDragEvent, node: AppNode) => {
+        flushPendingEditorWrites();
+        flushPendingEditorWrites();
+        beginHistoryGesture(useStore.getState());
+        // Multi-drag = the grabbed node is part of a selection of 2+. React Flow's own
+        // getDragItems uses node.selected to decide who moves; we mirror that exactly.
+        const selectedCanvasNodeIds = useStore.getState().selectedCanvasNodeIds;
+        const isMultiDrag = selectedCanvasNodeIds.size > 1 && selectedCanvasNodeIds.has(node.id);
+
+        /* A node drag is a gesture like a pan, and the same rule applies: no
+           card may promote itself to a richer tier or commit a queued editor
+           mount while the user is moving something. Without this the cards the
+           drag sweeps past mount their editors mid-gesture and each commit
+           lands as a dropped frame under the cursor. */
+        setStreaming(true);
+
+        setInteractionState({
+            draggedNodeId: node.id,
+            isMultiDragging: isMultiDrag,
+        });
+        activeDropTargetRef.current = null;
+        pendingDropRef.current = null;
+        clearDropIndicators();
+
+        // Two distinct body classes so single-drag and multi-drag can style independently:
+        //   chnk-it-node-dragging  — base flag for cursor + general grabbing UX
+        //   chnk-it-multi-drag     — only during multi-drag; targets every selected card
+        document.body.classList.add('chnk-it-node-dragging');
+        if (isMultiDrag) document.body.classList.add('chnk-it-multi-drag');
+    }, [setInteractionState, clearDropIndicators]);
+
+    const onNodeDrag = useCallback((event: NodeDragEvent, node: AppNode) => {
+        // Multi-drag is pure repositioning — no fusion, no nesting.
+        // Short-circuit before any hit-testing so the group glides cleanly under the cursor.
+        const selectedCanvasNodeIds = useStore.getState().selectedCanvasNodeIds;
+        if (selectedCanvasNodeIds.size > 1 && selectedCanvasNodeIds.has(node.id)) {
+            return;
+        }
+
+        const { zoom } = getViewport();
+        const checkSize = Math.max(2, 16 / zoom);
+        const point = eventPoint(event);
+        const mousePos = screenToFlowPosition(point);
+        const mouseRect = {
+            x: mousePos.x - checkSize / 2,
+            y: mousePos.y - checkSize / 2,
+            width: checkSize,
+            height: checkSize,
+        };
+        const targetOther = getIntersectingNodes(mouseRect).find(candidate => candidate.id !== node.id&&canTransferNodeInto(useStore.getState().nodes,node.id,candidate.id));
+
+        let newDropTarget: { id: string; type: DropAction } | null = null;
+
+        // Fusion, gallery or nesting — one decision, used verbatim on drop.
+        if (targetOther) {
+            const isSourceBlock = node.type === 'block';
+            const isSourceFused = node.type === 'fused-note';
+            const isSourceNote = node.type === 'note';
+
+            const isTargetBlock = targetOther.type === 'block';
+            const isTargetFused = targetOther.type === 'fused-note';
+            const isTargetNote = targetOther.type === 'note';
+
+            if ((isTargetBlock || isTargetFused) && (isSourceBlock || isSourceFused)) {
+                // Media landing on media is a moodboard, not a stack. Decided here,
+                // during the drag, so the highlight the user sees is the action
+                // that runs — the whole point of the single-decision design.
+                const makesGallery = !!mergeIntoGallery(
+                    getNodeBlocks(targetOther.data) ?? [],
+                    getNodeBlocks(node.data) ?? [],
+                );
+                newDropTarget = { id: targetOther.id, type: makesGallery ? 'gallery' : 'fusion' };
+            } else if ((isTargetNote && (isSourceFused || isSourceNote || isSourceBlock)) || (isTargetFused && isSourceNote)) {
+                newDropTarget = { id: targetOther.id, type: 'nesting' };
+            }
+
+            if (newDropTarget) {
+                // Which of the target's blocks would we insert next to? The dragged node is
+                // pointer-events:none during drag (global CSS), so elementsFromPoint returns the
+                // TARGET's blocks rather than the dragged node's overlay.
+                const targetElement = document.querySelector<HTMLElement>(
+                    `.react-flow__node[data-id="${CSS.escape(newDropTarget.id)}"]`,
+                );
+                let insertBlockId: string | null = null;
+                let insertPosition: 'top' | 'bottom' = 'bottom';
+                // A gallery has no insertion point — the board absorbs the media
+                // whole — so drawing a between-blocks line would promise a
+                // placement that doesn't happen.
+                if (targetElement && newDropTarget.type !== 'gallery') {
+                    const sourceElement=document.querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(node.id)}"]`);
+                    const slot=previewBlockInsertion(targetElement,(getNodeBlocks(targetOther.data)??[]).map(block=>block.id),point.y,sourceElement?.getBoundingClientRect().height);
+                    insertPosition=slot?.position??'bottom';insertBlockId=slot?.blockId??null;
+                    setDropLine(null,'bottom');
+                } else {
+                    clearBlockInsertionPreview();
+                    setDropLine(null, 'bottom');
+                }
+
+                pendingDropRef.current = {
+                    targetId: newDropTarget.id,
+                    action: newDropTarget.type,
+                    insertBlockId,
+                    insertPosition,
+                };
+            } else {
+                clearBlockInsertionPreview();
+                pendingDropRef.current = null;
+                setDropLine(null, 'bottom');
+            }
+        } else {
+            clearBlockInsertionPreview();
+            pendingDropRef.current = null;
+            setDropLine(null, 'bottom');
+        }
+
+        const lastDropTarget = activeDropTargetRef.current;
+        if (lastDropTarget?.id !== newDropTarget?.id ||
+            lastDropTarget?.type !== newDropTarget?.type) {
+            activeDropTargetRef.current = newDropTarget;
+            setInteractionState({ dropTarget: newDropTarget });
+        }
+
+        // React Flow keeps the actual rendered node attached to the pointer.
+    }, [getIntersectingNodes, setInteractionState, screenToFlowPosition, getViewport, setDropLine]);
+
+    const finishNodeDrag = useCallback((event: NodeDragEvent, node: AppNode) => {
+        let pending = pendingDropRef.current;
+        if(pending&&pending.action!=='gallery'){
+            const root=document.querySelector(`.react-flow__node[data-id="${CSS.escape(pending.targetId)}"]`);
+            const slot=root?currentBlockInsertionTarget(root):null;
+            if(slot)pending={...pending,insertBlockId:slot.blockId,insertPosition:slot.position};
+        }
+        const selectedCanvasNodeIds = useStore.getState().selectedCanvasNodeIds;
+        const isMultiDrag = selectedCanvasNodeIds.size > 1 && selectedCanvasNodeIds.has(node.id);
+
+        // Clear interaction states + every drop indicator (single, centralized cleanup)
+        setInteractionState({
+            draggedNodeId: null,
+            isMultiDragging: false,
+            dropTarget: null,
+        });
+        activeDropTargetRef.current = null;
+        pendingDropRef.current = null;
+        clearDropIndicators();
+        document.body.classList.remove('chnk-it-node-dragging');
+        document.body.classList.remove('chnk-it-multi-drag');
+        // Gesture over: held-back tier upgrades and queued mounts resume.
+        setStreaming(false);
+
+        // Restore parent constraints. Drag elevation belongs to the wrapper's
+        // transient CSS class; never overwrite a document's authored z-index.
+        const nodeIdsToRestore = isMultiDrag
+            ? Array.from(selectedCanvasNodeIds)
+            : [node.id];
+
+        const nodeIdSet = new Set(nodeIdsToRestore);
+        setNodes(nds => nds.map(n => {
+            if (!nodeIdSet.has(n.id)) return n;
+            const needsExtent = n.extent !== (n.parentId ? 'parent' : undefined);
+            if (!needsExtent) return n;
+            return {
+                ...n,
+                extent: n.parentId ? 'parent' : undefined,
+            };
+        }));
+
+        const isSourceBlock = node.type === 'block';
+        const isSourceFused = node.type === 'fused-note';
+        const isSourceNote = node.type === 'note';
+
+        // Multi-drag: skip fusion/nesting — restore already handled above.
+        if (isMultiDrag) {
+            if (currentParentId) syncParentContent(currentParentId);
+            return;
+        }
+
+
+        // Fusion / Nesting — run the EXACT decision the user saw during the drag.
+        if (pending) {
+            const targetNode = getNode(pending.targetId);
+            if (targetNode) {
+                if(['block','fused-note'].includes(node.type??'')&&pending.action!=='gallery'){
+                    const state=useStore.getState(),plan=planCanvasBlockTransfer(state.nodes,state.edges,node.id,targetNode.id,pending.insertBlockId,pending.insertPosition);
+                    if(plan){useStore.setState(plan);state.setSelectedCanvasNodeIds(new Set([targetNode.id]));animateBlockArrival(targetNode.id,(getNodeBlocks(node.data)??[]).map(block=>block.id));}
+                    return;
+                }
+                // Dropped onto its own parent → keep as-is (no re-nest / no un-nest).
+                if (targetNode.id === node.parentId) {
+                    return;
+                }
+
+                const isTargetBlock = targetNode.type === 'block';
+                const isTargetFused = targetNode.type === 'fused-note';
+                const isTargetNote = targetNode.type === 'note';
+
+                if ((pending.action === 'fusion' || pending.action === 'gallery')
+                    && (isTargetBlock || isTargetFused) && (isSourceBlock || isSourceFused)) {
+                    const sourceContent = getNodeBlocks(node.data) ?? [];
+                    // Nothing to merge — keep the source intact instead of deleting it (no data loss).
+                    if (sourceContent.length === 0) {
+                        return;
+                    }
+                    // Re-checked rather than trusted: the drag decision could have
+                    // been made against content that changed under it, and turning
+                    // a text card into a gallery would silently lose its text.
+                    const gallery = pending.action === 'gallery'
+                        ? mergeIntoGallery(getNodeBlocks(targetNode.data) ?? [], sourceContent)
+                        : null;
+                    if (gallery) {
+                        handleGalleryDrop(targetNode, node, gallery, setNodes);
+                    } else {
+                        handleFusionDrop(targetNode, node, pending.insertBlockId, pending.insertPosition, setNodes);
+                    }
+                    return;
+                }
+
+                if (pending.action === 'nesting' && (isTargetNote || isTargetFused) && (isSourceFused || isSourceNote || isSourceBlock)) {
+                    // Only a note moves as a card (with everything inside it);
+                    // fused notes and blocks pour their content in instead.
+                    if (isSourceNote) {
+                        const { nodes, auth, setLimitNotice } = useStore.getState();
+                        const violation = checkNodeMoveLimits({
+                            nodes,
+                            nodeId: node.id,
+                            targetParentId: targetNode.id,
+                            isAuthenticated: auth.isAuthenticated,
+                        });
+                        if (violation) {
+                            setLimitNotice(violation);
+                            return;
+                        }
+                    }
+                    handleNestingDrop(targetNode, node, pending.insertBlockId, pending.insertPosition, updateNodeData, setNodes);
+                    return;
+                }
+            }
+        }
+
+        // Recompute intersections once for the un-nest decision.
+        const { zoom } = getViewport();
+        const checkSize = Math.max(2, 16 / zoom);
+        const mousePos = screenToFlowPosition(eventPoint(event));
+        const mouseRect = {
+            x: mousePos.x - checkSize / 2,
+            y: mousePos.y - checkSize / 2,
+            width: checkSize,
+            height: checkSize
+        };
+        const stopIntersections = getIntersectingNodes(mouseRect);
+
+
+        // CASE 0: Drag out — un-nest when nothing actionable is under the cursor.
+        const overSomething = stopIntersections.some(n => n.id !== node.id && n.id !== currentParentId);
+
+        if (!overSomething && node.parentId) {
+            const parentNode = getNode(node.parentId);
+            if (parentNode) {
+                // React Flow 11 exposed positionAbsolute on the callback node; v12 doesn't, so fall back to parent + relative.
+                const legacyAbs = (node as AppNode & { positionAbsolute?: { x: number; y: number } }).positionAbsolute;
+                const absPos = {
+                    x: legacyAbs?.x ?? (parentNode.position.x + node.position.x),
+                    y: legacyAbs?.y ?? (parentNode.position.y + node.position.y)
+                };
+                setNodes(nds => nds.map(n => n.id === node.id ? {
+                    ...n,
+                    parentId: undefined,
+                    extent: undefined,
+                    zIndex: 10,
+                    position: absPos
+                } : n));
+            }
+            return;
+        }
+
+        // Restore already handled above — just sync parent content.
+        if (currentParentId) {
+            syncParentContent(currentParentId);
+        }
+    }, [getIntersectingNodes, setNodes, updateNodeData, getNode, currentParentId,
+        syncParentContent, screenToFlowPosition, setInteractionState, getViewport, clearDropIndicators]);
+
+    const onNodeDragStop = useCallback((event: NodeDragEvent, node: AppNode) => {
+        try { finishNodeDrag(event, node); }
+        finally { endHistoryGesture(useStore.getState()); }
+    }, [finishNodeDrag]);
+
+    return {
+        onNodeDragStart,
+        onNodeDrag,
+        onNodeDragStop,
+    };
+}
+
+
+
+// Resolve the precomputed (blockId, position) decision into an array index.
+function computeInsertIndex(targetContent: Block[], insertBlockId: string | null, insertPosition: 'top' | 'bottom'): number {
+    if (!insertBlockId) return targetContent.length;
+    const idx = targetContent.findIndex((b) => b.id === insertBlockId);
+    if (idx === -1) return targetContent.length;
+    return insertPosition === 'top' ? idx : idx + 1;
+}
+
+/**
+ * Media dropped on media: the target becomes a one-block node holding the merged
+ * gallery, and the source is consumed. Deliberately NOT a fused-note — a board is
+ * a single object, and the block node is what gives it the transparent surface
+ * and the resize handle that media already gets.
+ */
+function handleGalleryDrop(targetNode: AppNode, node: AppNode, gallery: Block, setNodes: SetNodesFn) {
+    const isStandalone = hasStandaloneFlag(node.data) || hasStandaloneFlag(targetNode.data);
+
+    setNodes((nds: AppNode[]) => {
+        const filtered = nds.filter(n => n.id !== node.id);
+        return filtered.map(n => {
+            if (n.id !== targetNode.id) return n;
+
+            /* A board the user has already sized keeps that size — the whole
+               point of dropping another picture in is that the composition is
+               theirs. Only a first promotion (a lone media node becoming a
+               board) claims the wider default. */
+            const wasGallery = getNodeBlocks(n.data)?.some(b => b.type === 'gallery');
+            const currentWidth = n.style?.width;
+            const width = wasGallery && typeof currentWidth === 'number'
+                ? currentWidth
+                : GALLERY_NODE_WIDTH;
+
+            return {
+                ...n,
+                type: 'block',
+                style: { ...n.style, width, height: 'auto' },
+                data: {
+                    ...n.data,
+                    content: [gallery],
+                    lastFusedAt: Date.now(),
+                    ...(isStandalone ? { isStandaloneBlock: true } : {}),
+                },
+            } as AppNode;
+        });
+    });
+}
+
+// Helper: Handle Fusion drop. Uses the insertion point captured during the drag (no
+// re-hit-testing) so the merge lands exactly where the insertion line was shown.
+function handleFusionDrop(
+    targetNode: AppNode,
+    node: AppNode,
+    insertBlockId: string | null,
+    insertPosition: 'top' | 'bottom',
+    setNodes: SetNodesFn
+) {
+    const sourceContent = getNodeBlocks(node.data) ?? [];
+    const targetContent = getNodeBlocks(targetNode.data) ?? [];
+
+    const insertIndex = computeInsertIndex(targetContent, insertBlockId, insertPosition);
+    const newContent = [
+        ...targetContent.slice(0, insertIndex),
+        ...sourceContent,
+        ...targetContent.slice(insertIndex)
+    ];
+
+    const isStandalone = hasStandaloneFlag(node.data) || hasStandaloneFlag(targetNode.data);
+
+    // Content-aware default size: 8 units wide, height grown to fit the merged blocks
+    // (grid-snapped, min 8×4, capped at MAX_HEIGHT) so tall merges aren't clipped.
+    const DEFAULT_FUSED_WIDTH = 432; // 8 * 56 - 16
+    const APPROX_BLOCK_PX = 44;
+    const VERTICAL_PADDING = 48;
+    const rawHeight = Math.min(MAX_HEIGHT, newContent.length * APPROX_BLOCK_PX + VERTICAL_PADDING);
+    const sized = snapFusedDimensions(DEFAULT_FUSED_WIDTH, rawHeight);
+
+    setNodes((nds: AppNode[]) => {
+        const filtered = nds.filter(n => n.id !== node.id);
+        return filtered.map(n => {
+            if (n.id === targetNode.id) {
+                // Preserve an already-fused target's manual dimensions; otherwise size to content.
+                const currentWidth = n.style?.width as number | undefined;
+                const currentHeight = n.style?.height as number | undefined;
+                const isAlreadyFused = n.type === 'fused-note';
+                const nextWidth = isAlreadyFused && typeof currentWidth === 'number' ? currentWidth : sized.width;
+                const nextHeight = isAlreadyFused && typeof currentHeight === 'number' ? currentHeight : sized.height;
+
+                return {
+                    ...n,
+                    type: 'fused-note',
+                    style: { ...n.style, width: nextWidth, height: nextHeight },
+                    data: {
+                        ...n.data,
+                        content: newContent,
+                        lastFusedAt: Date.now(),
+                        ...(isStandalone ? { isStandaloneBlock: true } : {})
+                    }
+                } as AppNode;
+            }
+            return n;
+        });
+    });
+}
+
+// Helper: Handle Nesting drop. Uses the insertion point captured during the drag.
+function handleNestingDrop(
+    targetNode: AppNode,
+    node: AppNode,
+    insertBlockId: string | null,
+    insertPosition: 'top' | 'bottom',
+    updateNodeData: (id: string, data: Record<string, unknown>) => void,
+    setNodes: SetNodesFn
+) {
+    const isSourceNote = node.type === 'note';
+
+    if (isSourceNote) {
+        const pageBlock: Block = {
+            id: uuidv4(),
+            type: 'page',
+            content: getNodeLabel(node.data) || 'Untitled Page',
+            metadata: { nodeId: node.id }
+        };
+
+        const targetContent = getNodeBlocks(targetNode.data) ?? [];
+        const insertIndex = computeInsertIndex(targetContent, insertBlockId, insertPosition);
+
+        updateNodeData(targetNode.id, {
+            content: [
+                ...targetContent.slice(0, insertIndex),
+                pageBlock,
+                ...targetContent.slice(insertIndex)
+            ]
+        });
+
+        setNodes((nds: AppNode[]) => nds.map((n: AppNode) => {
+            if (n.id === node.id) {
+                return {
+                    ...n,
+                    parentId: targetNode.id,
+                    extent: 'parent',
+                    position: { x: 0, y: 0 },
+                    style: n.style
+                };
+            }
+            return n;
+        }));
+        return;
+    }
+
+    // For fused/block sources
+    const sourceContent = getNodeBlocks(node.data) ?? [];
+
+    if (sourceContent.length > 0) {
+        const targetContent = getNodeBlocks(targetNode.data) ?? [];
+        const insertIndex = computeInsertIndex(targetContent, insertBlockId, insertPosition);
+
+        const newTargetContent = [
+            ...targetContent.slice(0, insertIndex),
+            ...sourceContent,
+            ...targetContent.slice(insertIndex)
+        ];
+
+        setNodes((nds: AppNode[]) => {
+            const filtered = nds.filter(n => n.id !== node.id);
+            return filtered.map(n => {
+                if (n.id === targetNode.id) {
+                    return {
+                        ...n,
+                        data: {
+                            ...n.data,
+                            content: newTargetContent,
+                            lastFusedAt: Date.now()
+                        }
+                    } as AppNode;
+                }
+                return n;
+            });
+        });
+    }
+}

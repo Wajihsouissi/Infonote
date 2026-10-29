@@ -10,37 +10,54 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: beta
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: beta/package-lock.json
       - run: npm ci
-      - run: npm run lint
-      - if: ${{ !cancelled() }}
-        run: npm run typecheck
-      - if: ${{ !cancelled() }}
-        run: npm run test:unit
-      - if: ${{ !cancelled() }}
-        run: npm run build
+      - run: npm run check
+      - run: node --experimental-strip-types --test scripts/routes.spec.ts scripts/card-lifecycle.spec.ts
+      - run: node scripts/check-graph-clipboard.mjs
+      - run: node scripts/check-structural-blocks.mjs
+      - run: node qa/scrum-56/verify-lint-coverage.mjs
   browsers:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { project: smoke, browser: chromium }
+          - { project: core, browser: chromium }
+          - { project: firefox, browser: firefox }
+          - { project: webkit, browser: webkit }
+          - { project: small-screen, browser: chromium }
+    defaults:
+      run:
+        working-directory: beta
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: beta/package-lock.json
       - run: npm ci
-      - run: npx playwright install --with-deps chromium firefox webkit
-      - run: npm run test:e2e
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      # Native clipboard belongs to the OS, so its scenarios must stay serial
+      # within a runner. Separate jobs isolate browsers without losing coverage.
+      - run: npx playwright test --project=${{ matrix.project }} --workers=1
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: playwright-results
+          name: playwright-results-${{ matrix.project }}
           path: |
-            playwright-report/
-            test-results/
+            beta/playwright-report/
+            beta/test-results/
           retention-days: 14

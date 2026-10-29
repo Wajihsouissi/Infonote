@@ -1,0 +1,129 @@
+/* A card's cover picture. The "Add cover" button only shows while the card is
+   hovered or something inside it has focus — see .addRow. */
+
+.cover {
+    position: relative;
+    height: 140px;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-top-left-radius: inherit;
+    border-top-right-radius: inherit;
+    background: var(--bg-inset);
+}
+
+.image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.cover:hover .actions,
+.actions:focus-within {
+    opacity: 1;
+}
+
+.action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-control);
+    background: var(--bg-rail);
+    color: var(--text-main);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.action:hover {
+    background: var(--bg-card);
+}
+
+.addRow {
+    display: flex;
+    padding: 6px 12px 0;
+}
+
+.addBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border: none;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--text-soft);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+
+/* Revealed by the card, not by itself: reaching for it means moving the
+   pointer across the card first. */
+:global(.react-flow__node):hover .addRow .addBtn,
+:global(.react-flow__node.is-selected) .addRow .addBtn,
+.addRow:hover .addBtn,
+.addBtn:focus-visible {
+    opacity: 1;
+}
+
+.addBtn:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+/* Expanded cards keep their image beside the text, within one header. */
+.thumbnail {
+    width: 72px;
+    height: 72px;
+    border-radius: var(--radius-md);
+}
+
+.thumbnail .actions {
+    top: auto;
+    bottom: 4px;
+    right: 4px;
+}
+
+.compactAdd {
+    display: flex;
+    flex-shrink: 0;
+}
+
+.compactAdd .addBtn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    justify-content: center;
+    opacity: 1;
+}
+
+.action:focus-visible,
+.addBtn:focus-visible {
+    outline: 2px solid var(--accent-ink);
+    outline-offset: 2px;
+}
+
+@media (hover: none) {
+    .thumbnail .actions { opacity: 1; }
+}
+
+@container (max-width: 360px) {
+    .thumbnail { width: 56px; height: 64px; }
+    .thumbnail .actions { gap: 2px; right: 2px; }
+    .thumbnail .action { width: 24px; height: 24px; }
+}

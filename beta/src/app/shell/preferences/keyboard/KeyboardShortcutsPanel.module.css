@@ -1,0 +1,144 @@
+.panel {
+    width: 310px;
+    height: 100%;
+    background: var(--panel-bg);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+    box-shadow: none;
+    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: var(--font-sans);
+}
+
+.panelOpen {
+    width: 310px;
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.panelClosed {
+    width: 0 !important;
+    opacity: 0;
+    transform: translateX(15px);
+    pointer-events: none;
+    box-shadow: none;
+}
+
+/* Sits on the panel's chrome — no surface, no divider; the inset body is the
+   edge. 24px aligns the title with the content inside the body, and the height
+   is set so header + inset equals the top bar, putting the body's top edge on
+   the same line as the canvas frame's. */
+/* No title/icon left anymore, so the close button is the only child — keep it
+   pinned right rather than letting space-between drop it to the start. */
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: calc(var(--topbar-h) - var(--panel-inset));
+    box-sizing: border-box;
+    padding: 0 var(--panel-header-padding);
+    background: transparent;
+    flex-shrink: 0;
+}
+
+.closeBtn {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    width: var(--control-height-sm);
+    height: var(--control-height-sm);
+    padding: 0;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+/* hover handled by the shared .icon-hover affordance */
+
+/* The panel's inset surface — same radius as the canvas frame. */
+.scrollContent {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    /* Padding follows the shell radius at each density. */
+    padding: var(--panel-body-padding);
+    margin: var(--panel-inset);
+    background: var(--panel-body-bg);
+    border-radius: var(--panel-radius);
+    display: flex;
+    flex-direction: column;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+}
+
+.category {
+    margin-bottom: 16px;
+}
+
+.categoryTitle {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--color-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+    opacity: 0.9;
+}
+
+.shortcutRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    transition: background 0.15s ease;
+}
+
+.shortcutRow:hover {
+    background: var(--bg-rail);
+    color: var(--color-text-main);
+}
+
+.shortcutLabel {
+    flex: 1;
+    line-height: 1.4;
+}
+
+.shortcutKeys {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    margin-left: 12px;
+}
+
+.kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 6px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--color-text-main);
+    background: var(--color-bg-surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    box-shadow: none;
+    line-height: 1;
+}
+
+.kbdMod {
+    color: var(--color-secondary);
+    font-weight: 600;
+}

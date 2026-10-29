@@ -1,0 +1,284 @@
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+}
+
+.modalContent {
+    background: var(--menu-bg);
+    border: 1px solid var(--menu-border);
+    border-radius: var(--menu-radius);
+    padding: 16px;
+    width: 280px;
+    box-shadow: var(--menu-shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    animation: slideUp 0.2s var(--ease-rise);
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modalHeader {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-main);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 12px;
+}
+
+.taskTextPreview {
+    font-size: 0.85rem;
+    color: var(--text-soft);
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03); /* Subtle inset */
+    border-radius: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border: 1px solid var(--line);
+    line-height: 1.4;
+}
+
+.headerIcon {
+    color: var(--accent);
+}
+
+.calendarContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.monthYear {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.navButton {
+    background: transparent;
+    border: none;
+    color: var(--text-soft);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: var(--btn-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s;
+}
+
+.navButton:hover {
+    background: var(--active-wash);
+    color: var(--text-main);
+}
+
+.weekDays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-soft);
+    margin-bottom: 4px;
+}
+
+.daysGrid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: var(--text-main);
+    cursor: pointer;
+    border-radius: var(--btn-radius);
+    transition: background 0.15s, transform 0.1s;
+}
+
+.day:hover {
+    background: var(--active-wash);
+}
+
+.day.today {
+    color: var(--accent);
+    font-weight: bold;
+    background: rgba(var(--accent-rgb), 0.1);
+}
+
+.day.selected {
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+    transform: scale(1.05);
+    box-shadow: none;
+}
+
+.dayEmpty {
+    aspect-ratio: 1;
+}
+
+.timeSectionWrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--bg-inset);
+    padding: 10px 12px;
+    border-radius: var(--r-control);
+    border: 1px solid var(--line);
+}
+
+.timeSectionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.timeSection {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 8px;
+    border-top: 1px dashed var(--line);
+}
+
+.timeLabel {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--text-soft);
+}
+
+.timeInput {
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    font-size: 0.9rem;
+    font-weight: 600;
+    outline: none;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    /* inherit the theme's color-scheme so the native picker matches Ink/Paper */
+}
+
+.timeInput::-webkit-calendar-picker-indicator {
+    opacity: 0.6;
+    cursor: pointer;
+}
+
+/* Toggle Switch */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 32px;
+    height: 18px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: var(--active-wash);
+    transition: background-color var(--transition-fast);
+    border-radius: var(--radius-pill);
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 2px;
+    bottom: 2px;
+    background-color: var(--text-soft);
+    transition: .3s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--accent);
+}
+
+input:checked + .slider:before {
+    transform: translateX(14px);
+    background-color: var(--on-accent);
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.cancelButton, .saveButton {
+    padding: 8px 16px;
+    border-radius: var(--btn-radius);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.cancelButton {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--text-soft);
+}
+
+.cancelButton:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.saveButton {
+    background: var(--accent);
+    border: none;
+    color: var(--on-accent);
+}
+
+.saveButton:hover:not(:disabled) {
+    filter: brightness(1.1);
+    box-shadow: none;
+}
+
+.saveButton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

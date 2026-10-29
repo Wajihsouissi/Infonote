@@ -1,0 +1,684 @@
+/*
+ * The AI panel's own surface: where it sits, how wide it is, how it looks
+ * while a turn is running, and the frame around the conversation.
+ *
+ * The transcript and the composer have their own stylesheets beside this one.
+ */
+
+/* AI panel — same chrome as the outline/properties panels: a flush surface on
+   the shell with an inset body that repeats the canvas frame's radius. It is an
+   in-flow sibling of the shell, so opening it narrows the canvas instead of
+   covering it. */
+.panel {
+    width: 380px;
+    height: 100%;
+    background: var(--panel-bg);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: var(--font-sans);
+}
+
+/* Drag strip on the panel's left edge — the side that faces the canvas, since
+   the panel docks to the right. The hit area runs the full height so the
+   cursor doesn't need pixel-perfect aim; the visible grip is a short 120px bar
+   centred in it, the way a resize grip reads rather than a seam down the whole
+   panel. Kept fully inside the panel's own box (not straddling x=0) because
+   .panel clips with overflow: hidden — anything hanging past the left edge
+   would be cut off, which is also why the tooltip below opens rightward into
+   the panel rather than leftward over the canvas. */
+.resizeHandle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    cursor: col-resize;
+    z-index: 50;
+    touch-action: none;
+}
+
+/* Soft grayscale bar, not the accent colour — this is a UI affordance, not a
+   piece of brand chrome, so it stays neutral like a scrollbar thumb rather
+   than tinting. Hidden until the cursor enters the strip between the canvas
+   and the panel, so the seam stays clean while you work; the hit area itself
+   is always live, so the grip appearing is feedback that you have already
+   found it rather than a target you still have to aim at. */
+.resizeGrip {
+    width: 3px;
+    height: 120px;
+    border-radius: 999px;
+    background: var(--text-soft);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.resizeHandle:hover .resizeGrip,
+.resizeHandle:active .resizeGrip {
+    opacity: 1;
+}
+
+/* Same dark pill language as Tooltip.module.css (rgba card, soft border,
+   12px radius) but a single line — this handle only ever says one word, so
+   the label+description card that component renders would be overbuilt here. */
+.resizeTooltip {
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%) translateX(4px) scale(0.92);
+    margin-left: 6px;
+    padding: 5px 10px;
+    background: var(--menu-bg);
+    border: 1px solid var(--menu-border);
+    border-radius: 10px;
+    color: var(--text-main);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1), transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 51;
+}
+
+.resizeHandle:hover .resizeTooltip {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0) scale(1);
+    transition-delay: 0.35s;
+}
+
+/* No delay once a drag is already under way — the label should track the
+   cursor's presence immediately, not lag behind like a first hover would. */
+.resizeHandle:active .resizeTooltip {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0) scale(1);
+    transition-delay: 0s;
+}
+
+/* ---------- Running beam ----------
+   A light that travels the panel's rim while a turn is in flight.
+   CSS rather than a JS-driven library: a beam that animates an inherited
+   custom property re-styles every message in the transcript on every frame,
+   which is a 60fps repaint of the one surface that also has to stay readable
+   while text streams into it. A rotating conic gradient masked to the border
+   is the same effect, composited, and costs nothing to run. */
+@property --beam-angle {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+
+.panelBeam {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    border-radius: inherit;
+    padding: 1.5px;
+    pointer-events: none;
+    background: conic-gradient(
+        from var(--beam-angle),
+        transparent 0deg,
+        transparent 300deg,
+        rgba(var(--accent-rgb), 0.85) 340deg,
+        rgba(var(--accent-rgb), 0.15) 358deg,
+        transparent 360deg
+    );
+    /* Paint only the rim: the gradient fills the padding box, and the mask
+       punches the content box back out. */
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: aiBeamSweep 2.6s linear infinite;
+}
+
+@keyframes aiBeamSweep {
+    to { --beam-angle: 360deg; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .panelBeam {
+        animation: none;
+        background: rgba(var(--accent-rgb), 0.35);
+    }
+}
+
+/* ---------- Running mesh ----------
+   The beam communicates activity at the edge; this slower pair of warm
+   gradient fields carries that activity through the chat surface. Oversized
+   layers move with transforms, keeping repaints bounded to this small panel. */
+.panelMesh {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    border-radius: inherit;
+    background: var(--panel-body-bg);
+    pointer-events: none;
+}
+
+.panelMesh::before,
+.panelMesh::after {
+    content: '';
+    position: absolute;
+    width: 88%;
+    height: 62%;
+    border-radius: 50%;
+    filter: saturate(1.2) blur(68px);
+    opacity: 0.18;
+    will-change: transform;
+}
+
+.panelMesh::before {
+    left: -24%;
+    top: -10%;
+    background:
+        radial-gradient(circle at 28% 30%, color-mix(in srgb, var(--accent) 72%, transparent) 0, color-mix(in srgb, var(--accent) 22%, transparent) 24%, transparent 57%),
+        radial-gradient(circle at 70% 26%, color-mix(in srgb, var(--a-magenta) 68%, transparent) 0, color-mix(in srgb, var(--a-magenta) 18%, transparent) 25%, transparent 56%),
+        radial-gradient(circle at 52% 78%, color-mix(in srgb, var(--a-indigo) 62%, transparent) 0, color-mix(in srgb, var(--a-indigo) 16%, transparent) 27%, transparent 59%);
+    animation: aiMeshRoamPrimary 9.7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.panelMesh::after {
+    right: -28%;
+    bottom: -12%;
+    background:
+        radial-gradient(circle at 70% 68%, color-mix(in srgb, var(--a-azure) 66%, transparent) 0, color-mix(in srgb, var(--a-azure) 17%, transparent) 26%, transparent 58%),
+        radial-gradient(circle at 26% 72%, color-mix(in srgb, var(--a-citrine) 68%, transparent) 0, color-mix(in srgb, var(--a-citrine) 18%, transparent) 24%, transparent 56%),
+        radial-gradient(circle at 46% 24%, color-mix(in srgb, var(--a-violet) 58%, transparent) 0, color-mix(in srgb, var(--a-violet) 14%, transparent) 27%, transparent 60%);
+    animation: aiMeshRoamSecondary 12.3s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+/* Three diagonal light rails sweep through the pigment field at different
+   intensities. Their edges stay soft so they read as light, not stripes. */
+.panelLightRails {
+    position: absolute;
+    inset: -35%;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.12;
+    background: linear-gradient(
+        116deg,
+        transparent 0%,
+        transparent 17%,
+        color-mix(in srgb, var(--a-azure) 8%, transparent) 19%,
+        color-mix(in srgb, var(--a-azure) 72%, transparent) 20%,
+        color-mix(in srgb, var(--a-indigo) 20%, transparent) 21.5%,
+        transparent 24%,
+        transparent 46%,
+        color-mix(in srgb, var(--a-magenta) 8%, transparent) 48%,
+        color-mix(in srgb, var(--a-magenta) 68%, transparent) 49%,
+        color-mix(in srgb, var(--accent) 18%, transparent) 50.5%,
+        transparent 53%,
+        transparent 73%,
+        color-mix(in srgb, var(--a-citrine) 8%, transparent) 75%,
+        color-mix(in srgb, var(--a-citrine) 66%, transparent) 76%,
+        color-mix(in srgb, var(--a-violet) 16%, transparent) 77.5%,
+        transparent 80%,
+        transparent 100%
+    );
+    filter: blur(52px) saturate(1.1);
+    will-change: transform;
+    animation: aiLightRailsSweep 6.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+/* Sparse four-point lights: enough to make a search feel alive, never enough
+   to turn the transcript into confetti. Each point uses a different phase so
+   the shimmer feels discovered rather than looped in unison. */
+.panelSparkles {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+.panelSparkles i {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    color: var(--sparkle-color, var(--secondary-ink));
+    background: currentColor;
+    border-radius: 50%;
+    box-shadow: 0 0 7px currentColor, 0 0 16px color-mix(in srgb, currentColor 48%, transparent);
+    opacity: 0;
+    animation: aiSparkleTwinkle var(--sparkle-duration, 3.8s) cubic-bezier(0.16, 1, 0.3, 1) infinite;
+    animation-delay: var(--sparkle-delay, 0s);
+}
+
+.panelSparkles i::before,
+.panelSparkles i::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    background: currentColor;
+    border-radius: 999px;
+    translate: -50% -50%;
+}
+
+.panelSparkles i::before { width: 1px; height: 10px; }
+.panelSparkles i::after { width: 10px; height: 1px; }
+
+.panelSparkles i:nth-child(1) { left: 13%; top: 16%; --sparkle-color: var(--secondary-ink); --sparkle-delay: -0.4s; }
+.panelSparkles i:nth-child(2) { left: 79%; top: 21%; --sparkle-color: var(--t-pink); --sparkle-delay: -2.1s; --sparkle-duration: 4.4s; }
+.panelSparkles i:nth-child(3) { left: 61%; top: 42%; --sparkle-color: var(--t-green); --sparkle-delay: -1.2s; --sparkle-duration: 3.4s; }
+.panelSparkles i:nth-child(4) { left: 24%; top: 53%; --sparkle-color: var(--accent-hover); --sparkle-delay: -2.8s; --sparkle-duration: 4.8s; }
+.panelSparkles i:nth-child(5) { left: 84%; top: 67%; --sparkle-color: var(--t-purple); --sparkle-delay: -0.9s; --sparkle-duration: 4.1s; }
+.panelSparkles i:nth-child(6) { left: 42%; top: 78%; --sparkle-color: var(--secondary-ink); --sparkle-delay: -3.3s; --sparkle-duration: 5s; }
+.panelSparkles i:nth-child(7) { left: 70%; top: 89%; --sparkle-color: var(--t-pink); --sparkle-delay: -1.7s; --sparkle-duration: 3.7s; }
+
+@media (prefers-reduced-motion: reduce) {
+    .panelMesh::before,
+    .panelMesh::after,
+    .panelLightRails {
+        animation: none;
+        will-change: auto;
+    }
+
+    .panelSparkles i {
+        animation: none;
+        opacity: 0.42;
+    }
+}
+
+.panelOpen {
+    width: 380px;
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.panelClosed {
+    width: 0 !important;
+    opacity: 0;
+    transform: translateX(15px);
+    pointer-events: none;
+}
+
+/* Presentation modes keep this exact panel mounted. There is no second chat
+   tree to desynchronise from the side panel — only the surrounding frame
+   changes. */
+.presentationBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 398;
+    border: 0;
+    background: color-mix(in srgb, var(--bg-canvas) 45%, transparent);
+    backdrop-filter: blur(5px);
+    cursor: default;
+}
+
+.panelCenter {
+    position: fixed;
+    z-index: 400;
+    top: max(28px, 7vh);
+    right: 50%;
+    width: min(900px, calc(100vw - 48px)) !important;
+    height: min(760px, calc(100vh - 56px));
+    border: 1px solid var(--line-strong);
+    border-radius: 18px;
+    box-shadow: var(--elev-3);
+    transform: translateX(50%);
+}
+
+.panelCenter .panelBody { margin: 10px; }
+
+.panelFullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 400;
+    width: 100vw !important;
+    height: 100vh;
+    border-radius: 0;
+    transform: none;
+}
+
+.panelFullscreen .header {
+    height: 58px;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--line);
+}
+
+.panelFullscreen .panelBody {
+    margin: 0;
+    border-radius: 0;
+}
+
+.fullscreenHistoryRail {
+    position: absolute;
+    z-index: 7;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--sidebar-width);
+    box-shadow: var(--elev-1);
+}
+
+.historyRailToggle {
+    position: absolute;
+    z-index: 7;
+    top: 13px;
+    left: 13px;
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--bg-raised);
+    color: var(--text-soft);
+    cursor: pointer;
+}
+
+.historyRailToggle:hover { color: var(--text-main); background: var(--hover-wash); }
+
+.panelFullscreen .scrollContent {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-content: start;
+    column-gap: 20px;
+    row-gap: 18px;
+    padding: 32px max(32px, calc((100vw - 1440px) / 2));
+}
+
+.panelFullscreen .scrollContent > * { grid-column: 4 / span 6; }
+
+/* The stream remains six columns for a comfortable reading measure. The
+   composer is a deliberate one-column wider working surface. */
+.panelFullscreen .selectedNodeLayer,
+.panelFullscreen .mentionLayer,
+.panelFullscreen .runBar,
+.panelFullscreen .composer,
+.panelFullscreen .composerToolbar,
+.panelFullscreen .effortHint {
+    width: min(58.333%, 900px);
+    align-self: center;
+}
+
+.panelFullscreen .composer { margin-left: auto; margin-right: auto; }
+.panelFullscreen .composerToolbar,
+.panelFullscreen .mentionLayer,
+.panelFullscreen .runBar { margin-left: auto; margin-right: auto; }
+
+@media (max-width: 800px) {
+    .panelCenter { top: 12px; width: calc(100vw - 24px) !important; height: calc(100vh - 24px); border-radius: 14px; }
+    .panelFullscreen .scrollContent { display: flex; padding: 22px 18px; }
+    .panelFullscreen .selectedNodeLayer,
+    .panelFullscreen .mentionLayer,
+    .panelFullscreen .runBar,
+    .panelFullscreen .composer,
+    .panelFullscreen .composerToolbar,
+    .panelFullscreen .effortHint { width: auto; align-self: stretch; }
+    .fullscreenHistoryRail { width: min(270px, 78vw); }
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: calc(var(--topbar-h) - var(--panel-inset));
+    box-sizing: border-box;
+    padding: 0 var(--panel-header-padding);
+    flex-shrink: 0;
+}
+
+.headerTitle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--ui-font-size);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--text-main);
+    white-space: nowrap;
+}
+
+.headerIcon {
+    color: var(--accent-ink);
+}
+
+.headerActions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.headerBtn {
+    background: transparent;
+    border: none;
+    color: var(--text-soft);
+    cursor: pointer;
+    width: var(--control-height-sm);
+    height: var(--control-height-sm);
+    padding: 0;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.headerBtn:hover:not(:disabled) {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+/* Held state for the history toggle — the overlay covers the transcript, so
+   the button has to show why. */
+.headerBtnActive,
+.headerBtnActive:hover:not(:disabled) {
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+}
+
+.headerBtn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.panelBody {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    margin: var(--panel-inset);
+    background: var(--panel-body-bg);
+    border-radius: var(--panel-radius);
+    isolation: isolate;
+}
+
+.scrollContent {
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--panel-padding);
+    display: flex;
+    flex-direction: column;
+    gap: var(--panel-gap);
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+}
+
+.selectedNodeLayer,
+.composer,
+.composerToolbar {
+    position: relative;
+    z-index: 2;
+}
+
+.selectedNodeLayer {
+    flex-shrink: 0;
+}
+
+.selectedNodeLayer:empty {
+    display: none;
+}
+
+/* Canvas-native shortcuts live beside the composer instead of competing with
+   message actions. They only prepare an explicit, editable request; sending
+   remains in the user's hands. */
+.canvasQuickActions {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    flex-shrink: 0;
+    margin: 0 12px 7px;
+}
+
+.canvasQuickAction {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 26px;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--text-faint);
+    font: inherit;
+    font-size: 0.64rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+
+.canvasQuickAction:hover,
+.canvasQuickAction:focus-visible {
+    border-color: color-mix(in srgb, var(--accent) 48%, var(--line));
+    background: var(--accent-dim);
+    color: var(--accent-ink);
+    outline: none;
+}
+
+.canvasQuickAction svg { flex: 0 0 auto; }
+
+/* ---- run bar (replaces the composer while a turn is in flight) ---- */
+
+.runBar {
+    /* Above the running beam and mesh, which is exactly when this is on screen.
+       `.composer` and `.composerToolbar` carry the same pair for the same
+       reason; without it the bar renders correctly, is measurable in the DOM,
+       and is completely invisible behind the z-index:3 beam overlay. */
+    position: relative;
+    z-index: 4;
+    flex-shrink: 0;
+    margin: 0 12px 6px;
+    padding: 11px 12px 12px;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--accent-rgb), 0.35);
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.runBarTop {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.runOrb {
+    display: flex;
+    flex-shrink: 0;
+}
+
+.runLabel {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.runStop {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    height: 28px;
+    padding: 0 11px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--text-soft);
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.runStop:hover {
+    border-color: var(--line-heavy);
+    color: var(--text-main);
+}
+
+.runBarSub {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.68rem;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+}
+
+/* The `@` picker sits above the composer and opens upward, so it needs to
+   escape the transcript's scroll box without being clipped by it. */
+.mentionLayer {
+    flex-shrink: 0;
+    margin: 0 12px 6px;
+    position: relative;
+    z-index: 4;
+}
+
+/* Clarify-form generation — ai-Plan.md §5.2. Sits where the context bar does,
+   because it is the same slot answering a different question: not "what can it
+   see" but "what is it doing before it answers". */
+.clarifyingStrip {
+    /* Same reason as .runBar: this shows while the beam is running. */
+    position: relative;
+    z-index: 4;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 12px 6px;
+    padding: 9px 11px;
+    border: 1px solid rgba(var(--accent-rgb), 0.25);
+    border-radius: var(--r-md);
+    background: var(--accent-dim);
+    font-size: 0.73rem;
+    font-weight: 500;
+    color: var(--accent-ink);
+}
+
+/* "2 of 4" beside the running label. Tabular so the width does not jitter as
+   the count changes, which on a long run is the difference between a steady
+   readout and a twitch. */
+.runCounter {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+}

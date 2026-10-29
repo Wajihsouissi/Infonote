@@ -1,0 +1,106 @@
+/* A compact identity header shared by expanded cards and opened views. */
+.expandedContent { container-type: inline-size; }
+
+.minimalHeader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    flex-shrink: 0;
+}
+
+.headerCopy {
+    flex: 1;
+    min-width: 0;
+}
+
+.titleRow {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    min-height: 32px;
+}
+
+.headerActions,
+.controlsGroup {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 4px;
+}
+
+.headerActions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.controlBtn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: var(--r-control);
+    background: transparent;
+    color: var(--text-soft);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.controlBtn:hover {
+    background: var(--hover-wash);
+    color: var(--text-main);
+}
+
+.minimalTitleInput {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    margin: 0;
+    padding: 4px 0 4px 2px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    font-size: 1.0625rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.minimalTitleInput:hover:where(:not(:focus)) { background: var(--hover-wash); }
+.minimalTitleInput:focus {
+    text-overflow: clip;
+}
+
+.minimalIconButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    padding: 4px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-main);
+    cursor: pointer;
+}
+
+.controlBtn:focus-visible,
+.minimalIconButton:focus-visible {
+    outline: 2px solid var(--accent-ink);
+    outline-offset: 2px;
+    opacity: 1;
+}
+
+@container (max-width: 360px) {
+    .minimalHeader { gap: 8px; }
+    .headerActions { max-width: 32px; }
+    .controlsGroup { flex-direction: column; }
+}

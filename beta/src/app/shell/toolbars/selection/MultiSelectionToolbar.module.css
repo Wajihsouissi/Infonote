@@ -1,0 +1,344 @@
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--dock-gap);
+    padding: 0 10px 0 12px;
+    height: 100%;
+    width: 100%;
+}
+
+.selectionInfo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: var(--ui-font-size);
+    font-weight: 500;
+    color: var(--text-main);
+    user-select: none;
+    letter-spacing: -0.01em;
+}
+
+.count {
+    background: var(--color-primary);
+    color: var(--on-accent);
+    font-weight: 600;
+    font-size: 13px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border-radius: var(--r-control);
+    box-shadow: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: var(--dock-gap);
+    min-width: 0;
+}
+
+@media (max-width: 720px) {
+
+    .selectionInfo > span:not(.count) {
+        display: none;
+    }
+}
+
+.actionGroup {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.actionBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--control-height-sm);
+    height: var(--control-height-sm);
+    min-width: var(--control-height-sm);
+    padding: 0;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--r-md);
+    color: var(--color-text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+    white-space: nowrap;
+}
+
+.actionBtn:hover {
+    background: var(--toolbar-btn-hover);
+    color: var(--color-primary);
+    transform: none;
+}
+
+.actionBtn:active {
+    transform: scale(0.96);
+}
+
+.actionBtn.delete {
+    color: var(--danger);
+}
+
+.actionBtn.delete:hover {
+    background: rgba(var(--danger-rgb), 0.1);
+    /* was var(--color-danger) — an undefined token, so the colour never applied */
+    color: var(--danger);
+    box-shadow: none;
+}
+
+.actionBtn.primary {
+    background: var(--accent);
+    color: var(--on-accent);
+    box-shadow: none;
+}
+
+.actionBtn.primary:hover {
+    /* was var(--color-primary-hover) — undefined, which blanked the fill on hover */
+    background: var(--accent-hover);
+    box-shadow: none;
+    color: var(--on-accent);
+}
+
+.separator {
+    width: 1px;
+    height: 20px;
+    background: var(--line);
+    margin: 0 2px 0 0;
+}
+
+.closeBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: var(--hover-wash);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    color: var(--text-soft);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    margin-left: 0;
+}
+
+.closeBtn:hover {
+    background: rgba(var(--danger-rgb), 0.1);
+    color: var(--danger);
+    border-color: transparent;
+    transform: scale(1.04);
+}
+
+/* Color Picker Popover */
+.colorPickerTrigger {
+    position: relative;
+}
+
+.colorPopover {
+    position: absolute;
+    bottom: calc(100% + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface-elevated);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: none;
+    z-index: 10000;
+    min-width: 240px;
+    animation: popoverFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes popoverFadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 8px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(1);
+    }
+}
+
+.colorGrid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+/* The image half of the colour picker. A full-width row under the swatches
+   rather than an eleventh swatch: it opens a modal instead of applying a value,
+   so it should not look like something you can click through quickly. */
+.colorOption {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    border: 1.5px solid var(--border);
+    background-size: cover;
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: none;
+    overflow: hidden;
+}
+
+.colorOption:hover {
+    transform: scale(1.18) translateY(-2px);
+    border-color: var(--color-primary);
+    box-shadow: none;
+}
+
+/* Style for the transparent 'default' option */
+.transparentOption {
+    background: linear-gradient(45deg, #ccc 25%, transparent 25%), 
+                linear-gradient(-45deg, #ccc 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #ccc 75%), 
+                linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    background-size: 8px 8px;
+    background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
+    background-color: #f3f4f6;
+    border: 1.5px solid var(--border);
+}
+
+:global([data-theme="dark"]) .transparentOption {
+    background: linear-gradient(45deg, #444 25%, transparent 25%), 
+                linear-gradient(-45deg, #444 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #444 75%), 
+                linear-gradient(-45deg, transparent 75%, #444 75%);
+    background-size: 8px 8px;
+    background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
+    background-color: #222;
+    border: 1.5px solid var(--line-strong);
+}
+
+.transparentSlash {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--danger);
+    transform: translateY(-50%) rotate(-45deg);
+    border-radius: var(--radius-xs);
+}
+
+.colorLabel {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin-bottom: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    user-select: none;
+}
+
+/* Layout Popover */
+.layoutTrigger {
+    position: relative;
+}
+
+.layoutPopover {
+    position: absolute;
+    bottom: calc(100% + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface-elevated);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: none;
+    z-index: 10000;
+    min-width: 220px;
+    animation: popoverFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.layoutLabel {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin-bottom: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    user-select: none;
+}
+
+.layoutGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.layoutOption {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    background: var(--bg-rail);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.layoutOption:hover {
+    background: var(--bg-rail);
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
+    box-shadow: none;
+}
+
+.layoutOption:active {
+    transform: translateY(0);
+}
+
+/* Confirmation UI */
+.confirmContainer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex: 1;
+}
+
+.confirmText {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-main);
+}
+
+.confirmActions {
+    display: flex;
+    gap: 12px;
+}
+
+.pulseDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--color-primary);
+    box-shadow: none;
+    animation: pulse 1.6s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: none;
+    }
+    70% {
+        transform: scale(1);
+        box-shadow: none;
+    }
+    100% {
+        transform: scale(0.95);
+        box-shadow: none;
+    }
+}

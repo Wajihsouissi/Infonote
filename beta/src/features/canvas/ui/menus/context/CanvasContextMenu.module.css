@@ -1,0 +1,218 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+}
+
+.overlay > * {
+    pointer-events: auto;
+}
+
+.menu {
+    position: fixed;
+    min-width: 210px;
+    background: var(--menu-bg);
+    border: 1px solid var(--menu-border);
+    border-radius: var(--menu-radius);
+    padding: var(--menu-pad);
+    box-shadow: var(--menu-shadow);
+    z-index: 10000;
+    animation: menuIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes menuIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.menuItem {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    font-family: inherit;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 13px;
+    color: var(--text-main);
+    user-select: none;
+}
+
+.menuItem:hover {
+    background: var(--menu-item-hover);
+}
+
+.menuItem:focus-visible,
+.submenuItem:focus-visible,
+.submenuHeader:focus-visible {
+    outline: 2px solid var(--text-main);
+    outline-offset: -2px;
+    background: var(--menu-item-hover);
+}
+
+.submenuItem,
+.submenuHeader {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    font-family: inherit;
+    text-align: left;
+}
+
+.clipboardError {
+    max-width: 260px;
+    padding: 8px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-main);
+}
+
+.menuItem:active {
+    background: var(--menu-item-active);
+}
+
+.menuButton {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+}
+
+.menuButton:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.menuButton:disabled {
+    color: var(--text-faint);
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.menuButton:disabled:hover,
+.menuButton:disabled:active {
+    background: transparent;
+}
+
+.itemContent {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.chevron {
+    color: var(--menu-chevron);
+    flex-shrink: 0;
+}
+
+.dangerItem {
+    color: var(--danger);
+}
+
+.dangerItem:hover {
+    background: color-mix(in srgb, var(--danger) 12%, transparent) !important;
+}
+
+.divider {
+    height: 1px;
+    background: var(--menu-divider);
+    margin: 4px 8px;
+}
+
+/* Submenu */
+.submenu {
+    position: fixed;
+    left: calc(100% + 8px);
+    top: var(--submenu-top, 0);
+    min-width: 190px;
+    max-height: 360px;
+    background: var(--menu-bg);
+    border: 1px solid var(--menu-border);
+    border-radius: var(--menu-radius);
+    box-shadow: var(--menu-shadow);
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    animation: menuIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.submenuHeader {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+    border-bottom: 1px solid var(--menu-divider);
+    cursor: pointer;
+    user-select: none;
+}
+
+.submenuHeader:hover {
+    background: var(--hover-wash);
+}
+
+.chevronBack {
+    color: var(--menu-chevron);
+    transform: rotate(180deg);
+    flex-shrink: 0;
+}
+
+.submenuScroll {
+    overflow-y: auto;
+    padding: 4px;
+    flex: 1;
+}
+
+.submenuScroll::-webkit-scrollbar {
+    width: 4px;
+}
+
+.submenuScroll::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: 4px;
+}
+
+.submenuCategory {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-faint);
+    padding: 8px 12px 4px;
+}
+
+.submenuItem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 13px;
+    color: var(--text-main);
+    user-select: none;
+}
+
+.submenuItem:hover {
+    background: var(--menu-item-hover);
+}
+
+.submenuItem:active {
+    background: var(--menu-item-active);
+}

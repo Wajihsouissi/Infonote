@@ -1,0 +1,87 @@
+.capsule {
+    position: sticky;
+    bottom: 12px;
+    align-self: center;
+    margin-top: auto;
+    flex-shrink: 0;
+    max-width: 100%;
+    background: var(--bg-rail);
+    border: 1px solid var(--line);
+    box-shadow: none;
+    border-radius: var(--radius-pill);
+    padding: 8px 16px;
+    z-index: 100;
+    color: var(--text-main);
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: background-color 160ms ease;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    height: 44px;
+    min-width: 140px;
+}
+
+.capsule:hover {
+    background: var(--bg-raised);
+    box-shadow: none;
+}
+
+.content {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    /* Gap handled by dividers/margins to control collapse */
+    white-space: nowrap;
+}
+
+.countText {
+    margin-right: 8px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    opacity: 1;
+    overflow: hidden;
+    gap: 4px;
+    margin-right: 8px;
+}
+
+.divider {
+    width: 1px;
+    height: 16px;
+    background: var(--line);
+    margin: 0 8px;
+}
+
+.actionBtn,
+.closeBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text-soft);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    width: 28px;
+    height: 28px;
+}
+
+/* hover handled by the shared .icon-hover affordance */
+
+.actionBtn:active,
+.closeBtn:active {
+    transform: scale(0.95);
+}
+
+.closeBtn {
+    margin-left: 0;
+}
