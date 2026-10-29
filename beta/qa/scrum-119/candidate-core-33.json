@@ -1,0 +1,1315 @@
+{
+  "config": {
+    "argv": [
+      "C:\\Program Files\\nodejs\\node.exe",
+      "C:\\Users\\Wajih souissi\\.codex\\worktrees\\scrum-119-validation\\infonote\\beta\\node_modules\\@playwright\\test\\cli.js",
+      "test",
+      "e2e/scenarios/core/scrum-28.spec.ts",
+      "--config=playwright.local.config.ts",
+      "--project=core",
+      "--workers=2"
+    ],
+    "configFile": "C:\\Users\\Wajih souissi\\.codex\\worktrees\\scrum-119-validation\\infonote\\beta\\playwright.local.config.ts",
+    "rootDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/e2e/scenarios",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 2
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "smoke",
+        "name": "smoke",
+        "testDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/e2e/scenarios",
+        "testIgnore": [],
+        "testMatch": [
+          "/scenarios\\/core\\/(workspace-startup|card-lifecycle)\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "core",
+        "name": "core",
+        "testDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/e2e/scenarios",
+        "testIgnore": [],
+        "testMatch": [
+          "/scenarios\\/core\\/.*\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/e2e/scenarios",
+        "testIgnore": [],
+        "testMatch": [
+          "/scenarios\\/core\\/(accounts|block-editor|editor-keyboard|editor-regressions|editor-scale|editor-reading|reader-threshold|card-lifecycle|card-extras|persistence|local-storage|workspace-startup|files|gallery|loading|scrum-18|scrum-19|scrum-23|scrum-27|scrum-28|scrum-29|scrum-29-clipboard-safety|scrum-37|scrum-125|scrum-243)\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "webkit",
+        "name": "webkit",
+        "testDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/e2e/scenarios",
+        "testIgnore": [],
+        "testMatch": [
+          "/scenarios\\/core\\/(accounts|block-editor|editor-keyboard|editor-regressions|editor-scale|editor-reading|reader-threshold|card-lifecycle|card-extras|persistence|local-storage|workspace-startup|files|gallery|loading|scrum-18|scrum-19|scrum-23|scrum-27|scrum-28|scrum-29|scrum-29-clipboard-safety|scrum-37|scrum-125|scrum-243)\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "edge",
+        "name": "edge",
+        "testDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/e2e/scenarios",
+        "testIgnore": [],
+        "testMatch": [
+          "/scenarios\\/core\\/(accounts|block-editor|card-lifecycle|files|persistence|loading)\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "small-screen",
+        "name": "small-screen",
+        "testDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/e2e/scenarios",
+        "testIgnore": [],
+        "testMatch": [
+          "/scenarios\\/core\\/(accounts|block-editor|editor-keyboard|editor-regressions|editor-scale|editor-reading|reader-threshold|card-lifecycle|card-extras|persistence|local-storage|workspace-startup|files|gallery|loading|scrum-18|scrum-19|scrum-23|scrum-27|scrum-28|scrum-29|scrum-29-clipboard-safety|scrum-37|scrum-125|scrum-243)\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "qa/scrum-119/focused-baseline.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.62.1",
+    "workers": 2,
+    "webServer": {
+      "command": "npx vite --host 127.0.0.1 --port 5188 --strictPort",
+      "url": "http://127.0.0.1:5188",
+      "reuseExistingServer": false,
+      "timeout": 120000,
+      "stdout": "ignore",
+      "stderr": "pipe"
+    }
+  },
+  "suites": [
+    {
+      "title": "core\\scrum-28.spec.ts",
+      "file": "core/scrum-28.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "SCRUM-28 inline formatting and safe links",
+          "file": "core/scrum-28.spec.ts",
+          "line": 50,
+          "column": 6,
+          "specs": [
+            {
+              "title": "card: keyboard and toolbar marks toggle selectively and persist",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 100000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 56539,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[SCRUM-28 browser] core: 156.0.8078.49\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:32:31.993Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-a5fe8f7352fb2e66648f",
+              "file": "core/scrum-28.spec.ts",
+              "line": 58,
+              "column": 9
+            },
+            {
+              "title": "card: all highlight colors and shortcut removal persist",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 100000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 34216,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:33:29.273Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-3dff88f41f7711b0345c",
+              "file": "core/scrum-28.spec.ts",
+              "line": 79,
+              "column": 9
+            },
+            {
+              "title": "card: external URL destinations, balanced punctuation and unsafe content render correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 19659,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:34:03.576Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-b3800e736f48b962d251",
+              "file": "core/scrum-28.spec.ts",
+              "line": 96,
+              "column": 9
+            },
+            {
+              "title": "card: link toolbar validates, cancels, edits and unlinks with keyboard controls",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 25242,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:34:23.280Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-cc0e0453dac82638dcea",
+              "file": "core/scrum-28.spec.ts",
+              "line": 116,
+              "column": 9
+            },
+            {
+              "title": "card: citation identity survives editing and missing targets preserve navigation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 21726,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:34:48.646Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-d77f1272cdc6f7edd931",
+              "file": "core/scrum-28.spec.ts",
+              "line": 138,
+              "column": 9
+            },
+            {
+              "title": "card: native Enter balances marked halves and replaces selection without duplication",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 19766,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:35:10.418Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-e50a145adfd21d446312",
+              "file": "core/scrum-28.spec.ts",
+              "line": 160,
+              "column": 9
+            },
+            {
+              "title": "card: partial code removal, nested marks and undo redo preserve neighbors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 24995,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:35:30.219Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-5b5012d87128dc6b0cf5",
+              "file": "core/scrum-28.spec.ts",
+              "line": 175,
+              "column": 9
+            },
+            {
+              "title": "card: selected Enter preserves both link labels and highlights",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 25791,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:35:55.241Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-0be88a22a888232c4c51",
+              "file": "core/scrum-28.spec.ts",
+              "line": 191,
+              "column": 9
+            },
+            {
+              "title": "card: selected readers activate nested citations and ignore deleted targets by keyboard",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 12636,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:36:21.072Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-86226a792cb9d7f73666",
+              "file": "core/scrum-28.spec.ts",
+              "line": 201,
+              "column": 9
+            },
+            {
+              "title": "fused-note: keyboard and toolbar marks toggle selectively and persist",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 100000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 48303,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:36:33.875Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-059a8548a08dcca9ea86",
+              "file": "core/scrum-28.spec.ts",
+              "line": 58,
+              "column": 9
+            },
+            {
+              "title": "fused-note: all highlight colors and shortcut removal persist",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 100000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 32023,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:37:22.213Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-4236827633702de41e8b",
+              "file": "core/scrum-28.spec.ts",
+              "line": 79,
+              "column": 9
+            },
+            {
+              "title": "fused-note: external URL destinations, balanced punctuation and unsafe content render correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 18363,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:37:54.271Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-9014376f6968ba51287a",
+              "file": "core/scrum-28.spec.ts",
+              "line": 96,
+              "column": 9
+            },
+            {
+              "title": "fused-note: link toolbar validates, cancels, edits and unlinks with keyboard controls",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 21001,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:38:12.703Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-b9eb126958d7658b474a",
+              "file": "core/scrum-28.spec.ts",
+              "line": 116,
+              "column": 9
+            },
+            {
+              "title": "fused-note: citation identity survives editing and missing targets preserve navigation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 14511,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:38:33.732Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-1af7fb518e8a82f2fc13",
+              "file": "core/scrum-28.spec.ts",
+              "line": 138,
+              "column": 9
+            },
+            {
+              "title": "fused-note: native Enter balances marked halves and replaces selection without duplication",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 13518,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:38:48.278Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-806b63dafd9bad50e237",
+              "file": "core/scrum-28.spec.ts",
+              "line": 160,
+              "column": 9
+            },
+            {
+              "title": "fused-note: partial code removal, nested marks and undo redo preserve neighbors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 17969,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:39:01.822Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-b22d42ed45b77817a1d4",
+              "file": "core/scrum-28.spec.ts",
+              "line": 175,
+              "column": 9
+            },
+            {
+              "title": "fused-note: selected Enter preserves both link labels and highlights",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 14019,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:39:19.815Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-b02449d33e5150f9ed76",
+              "file": "core/scrum-28.spec.ts",
+              "line": 191,
+              "column": 9
+            },
+            {
+              "title": "fused-note: selected readers activate nested citations and ignore deleted targets by keyboard",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 22063,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[SCRUM-28 browser] core: 156.0.8078.49\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:32:31.937Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-b35a107832e738f96d2c",
+              "file": "core/scrum-28.spec.ts",
+              "line": 201,
+              "column": 9
+            },
+            {
+              "title": "canvas: keyboard and toolbar marks toggle selectively and persist",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 100000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 36313,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:32:54.630Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-73a46298d1e2f8cb23c7",
+              "file": "core/scrum-28.spec.ts",
+              "line": 58,
+              "column": 9
+            },
+            {
+              "title": "canvas: all highlight colors and shortcut removal persist",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 100000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 33948,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:33:30.978Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-1e674ae7641af5a4ede2",
+              "file": "core/scrum-28.spec.ts",
+              "line": 79,
+              "column": 9
+            },
+            {
+              "title": "canvas: external URL destinations, balanced punctuation and unsafe content render correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 20049,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:34:04.971Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-633a6733fe83028ee5ef",
+              "file": "core/scrum-28.spec.ts",
+              "line": 96,
+              "column": 9
+            },
+            {
+              "title": "canvas: link toolbar validates, cancels, edits and unlinks with keyboard controls",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 24802,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:34:25.047Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-babba06751da3ca6a54a",
+              "file": "core/scrum-28.spec.ts",
+              "line": 116,
+              "column": 9
+            },
+            {
+              "title": "canvas: citation identity survives editing and missing targets preserve navigation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 21802,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:34:49.927Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-31d1422b4fbc3e52e6c5",
+              "file": "core/scrum-28.spec.ts",
+              "line": 138,
+              "column": 9
+            },
+            {
+              "title": "canvas: native Enter balances marked halves and replaces selection without duplication",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 19862,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:35:11.771Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-53633d5cd2522fed58bd",
+              "file": "core/scrum-28.spec.ts",
+              "line": 160,
+              "column": 9
+            },
+            {
+              "title": "canvas: partial code removal, nested marks and undo redo preserve neighbors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 26243,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:35:31.673Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-8d1c969830c3deb4f8c6",
+              "file": "core/scrum-28.spec.ts",
+              "line": 175,
+              "column": 9
+            },
+            {
+              "title": "canvas: selected Enter preserves both link labels and highlights",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 25306,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:35:57.952Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-4f651cedd20269c32e40",
+              "file": "core/scrum-28.spec.ts",
+              "line": 191,
+              "column": 9
+            },
+            {
+              "title": "canvas: selected readers activate nested citations and ignore deleted targets by keyboard",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 14455,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:36:23.311Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-7ed5ceea04eb255bc6c3",
+              "file": "core/scrum-28.spec.ts",
+              "line": 201,
+              "column": 9
+            },
+            {
+              "title": "nested container selection belongs to one toolbar and persists to the nested document",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 22245,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:36:37.848Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-47b60577322b14eb829c",
+              "file": "core/scrum-28.spec.ts",
+              "line": 225,
+              "column": 5
+            },
+            {
+              "title": "table cell formatting and links retain other cells and table identity",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 22323,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:37:00.132Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-b1aacc200872dcb511b2",
+              "file": "core/scrum-28.spec.ts",
+              "line": 236,
+              "column": 5
+            },
+            {
+              "title": "HTML paste cannot execute handlers or script destinations in the host",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 16840,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:37:22.513Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-aa9bd54a3908fe45d234",
+              "file": "core/scrum-28.spec.ts",
+              "line": 250,
+              "column": 5
+            },
+            {
+              "title": "inline code displays markdown-looking marks and links literally",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 17765,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:37:39.384Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-40cb307cf9d26ca6fab9",
+              "file": "core/scrum-28.spec.ts",
+              "line": 270,
+              "column": 5
+            },
+            {
+              "title": "collapsed inline code and Unicode typing preserve an empty document and following text",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 19064,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:37:57.195Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-8b13dbe9c0fa1c7b18d2",
+              "file": "core/scrum-28.spec.ts",
+              "line": 283,
+              "column": 5
+            },
+            {
+              "title": "AI answer citations preview actual sources and navigate across canvases without a live AI request",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "core",
+                  "projectName": "core",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 10737,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:38:16.357Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-9d438edcb105626f79da",
+              "file": "core/scrum-28.spec.ts",
+              "line": 294,
+              "column": 5
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-29T18:32:25.849Z",
+    "duration": 431516.45300000004,
+    "expected": 33,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

@@ -267,6 +267,19 @@ test.describe('SCRUM-28 inline formatting and safe links', () => {
         await page.screenshot({ path: info.outputPath('safe-paste.png') });
     });
 
+    test('inline code displays markdown-looking marks and links literally', async ({ page }) => {
+        const literal = '**bold** [site](https://example.test) <img>';
+        const source = `Before \`${literal}\` after`;
+        await prepare(page, 'card', [b('line', source)]);
+        const code = edit(page).locator('code');
+        await expect(code).toHaveText(literal);
+        await expect(code.locator('strong, em, a, img')).toHaveCount(0);
+        await reload(page);
+        await activate(page);
+        await expect(edit(page).locator('code')).toHaveText(literal);
+        expect((await blocks(page))[0].content).toBe(source);
+    });
+
     test('collapsed inline code and Unicode typing preserve an empty document and following text', async ({ page }, info) => {
         await prepare(page, 'card', [b('line', '')]);
         await edit(page).focus();

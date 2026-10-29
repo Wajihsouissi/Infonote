@@ -16,6 +16,8 @@ Select text to open the Text formatting toolbar. Toggle bold, italic, underline,
 | Default highlight / remove current highlight | Ctrl+Shift+H | Cmd+Shift+H |
 | Link | Ctrl+K | Cmd+K |
 
+Text inside inline code is displayed literally. Markdown marks, link syntax, and HTML-looking text inside backticks do not become formatting, links, or elements.
+
 The Highlight palette offers rose, amber, citrine, olive, jade, teal, azure, indigo, violet, and magenta. The shortcut uses citrine when the selection has no highlight.
 
 Press Enter inside formatted text to split the paragraph. Marks and link labels stay with their respective text. Selecting text and pressing Enter replaces the selection with the paragraph break.

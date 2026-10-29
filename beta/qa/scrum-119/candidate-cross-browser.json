@@ -1,0 +1,748 @@
+{
+  "config": {
+    "argv": [
+      "C:\\Program Files\\nodejs\\node.exe",
+      "C:\\Users\\Wajih souissi\\.codex\\worktrees\\scrum-119-validation\\infonote\\beta\\node_modules\\@playwright\\test\\cli.js",
+      "test",
+      "e2e/scenarios/core/scrum-28.spec.ts",
+      "--config=playwright.local.config.ts",
+      "--project=edge",
+      "--project=small-screen",
+      "--workers=2",
+      "--grep",
+      "link toolbar validates|external URL destinations|HTML paste|inline code displays"
+    ],
+    "configFile": "C:\\Users\\Wajih souissi\\.codex\\worktrees\\scrum-119-validation\\infonote\\beta\\playwright.local.config.ts",
+    "rootDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/e2e/scenarios",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 2
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "smoke",
+        "name": "smoke",
+        "testDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/e2e/scenarios",
+        "testIgnore": [],
+        "testMatch": [
+          "/scenarios\\/core\\/(workspace-startup|card-lifecycle)\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "core",
+        "name": "core",
+        "testDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/e2e/scenarios",
+        "testIgnore": [],
+        "testMatch": [
+          "/scenarios\\/core\\/.*\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/e2e/scenarios",
+        "testIgnore": [],
+        "testMatch": [
+          "/scenarios\\/core\\/(accounts|block-editor|editor-keyboard|editor-regressions|editor-scale|editor-reading|reader-threshold|card-lifecycle|card-extras|persistence|local-storage|workspace-startup|files|gallery|loading|scrum-18|scrum-19|scrum-23|scrum-27|scrum-28|scrum-29|scrum-29-clipboard-safety|scrum-37|scrum-125|scrum-243)\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "webkit",
+        "name": "webkit",
+        "testDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/e2e/scenarios",
+        "testIgnore": [],
+        "testMatch": [
+          "/scenarios\\/core\\/(accounts|block-editor|editor-keyboard|editor-regressions|editor-scale|editor-reading|reader-threshold|card-lifecycle|card-extras|persistence|local-storage|workspace-startup|files|gallery|loading|scrum-18|scrum-19|scrum-23|scrum-27|scrum-28|scrum-29|scrum-29-clipboard-safety|scrum-37|scrum-125|scrum-243)\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "edge",
+        "name": "edge",
+        "testDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/e2e/scenarios",
+        "testIgnore": [],
+        "testMatch": [
+          "/scrum-28\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "small-screen",
+        "name": "small-screen",
+        "testDir": "C:/Users/Wajih souissi/.codex/worktrees/scrum-119-validation/infonote/beta/e2e/scenarios",
+        "testIgnore": [],
+        "testMatch": [
+          "/scenarios\\/core\\/(accounts|block-editor|editor-keyboard|editor-regressions|editor-scale|editor-reading|reader-threshold|card-lifecycle|card-extras|persistence|local-storage|workspace-startup|files|gallery|loading|scrum-18|scrum-19|scrum-23|scrum-27|scrum-28|scrum-29|scrum-29-clipboard-safety|scrum-37|scrum-125|scrum-243)\\.spec\\.ts/"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "qa/scrum-119/candidate-cross-browser.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.62.1",
+    "workers": 2,
+    "webServer": {
+      "command": "npx vite --host 127.0.0.1 --port 5188 --strictPort",
+      "url": "http://127.0.0.1:5188",
+      "reuseExistingServer": false,
+      "timeout": 120000,
+      "stdout": "ignore",
+      "stderr": "pipe"
+    }
+  },
+  "suites": [
+    {
+      "title": "core\\scrum-28.spec.ts",
+      "file": "core/scrum-28.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "SCRUM-28 inline formatting and safe links",
+          "file": "core/scrum-28.spec.ts",
+          "line": 50,
+          "column": 6,
+          "specs": [
+            {
+              "title": "card: external URL destinations, balanced punctuation and unsafe content render correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "edge",
+                  "projectName": "edge",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 31939,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[SCRUM-28 browser] edge: 156.0.4314.50\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:40:08.992Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-5e8e51cc40dc70d1e36a",
+              "file": "core/scrum-28.spec.ts",
+              "line": 96,
+              "column": 9
+            },
+            {
+              "title": "card: link toolbar validates, cancels, edits and unlinks with keyboard controls",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "edge",
+                  "projectName": "edge",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 21199,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:40:42.034Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-6534f90f5e2271cbc6f1",
+              "file": "core/scrum-28.spec.ts",
+              "line": 116,
+              "column": 9
+            },
+            {
+              "title": "fused-note: external URL destinations, balanced punctuation and unsafe content render correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "edge",
+                  "projectName": "edge",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 17508,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:41:03.261Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-71e03d12938da7eb8f60",
+              "file": "core/scrum-28.spec.ts",
+              "line": 96,
+              "column": 9
+            },
+            {
+              "title": "fused-note: link toolbar validates, cancels, edits and unlinks with keyboard controls",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "edge",
+                  "projectName": "edge",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 21020,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:41:20.792Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-965b3de5051bec93bfb6",
+              "file": "core/scrum-28.spec.ts",
+              "line": 116,
+              "column": 9
+            },
+            {
+              "title": "canvas: external URL destinations, balanced punctuation and unsafe content render correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "edge",
+                  "projectName": "edge",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 31859,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[SCRUM-28 browser] edge: 156.0.4314.50\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:40:09.021Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-893dedbec9c1e94ec441",
+              "file": "core/scrum-28.spec.ts",
+              "line": 96,
+              "column": 9
+            },
+            {
+              "title": "canvas: link toolbar validates, cancels, edits and unlinks with keyboard controls",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "edge",
+                  "projectName": "edge",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 21864,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:40:41.862Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-f7a3987357afc11fff1c",
+              "file": "core/scrum-28.spec.ts",
+              "line": 116,
+              "column": 9
+            },
+            {
+              "title": "HTML paste cannot execute handlers or script destinations in the host",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "edge",
+                  "projectName": "edge",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 17277,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:41:03.756Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-5479d900480b183809c1",
+              "file": "core/scrum-28.spec.ts",
+              "line": 250,
+              "column": 5
+            },
+            {
+              "title": "inline code displays markdown-looking marks and links literally",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "edge",
+                  "projectName": "edge",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 17189,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:41:21.063Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-bced43d56b08e92813a8",
+              "file": "core/scrum-28.spec.ts",
+              "line": 270,
+              "column": 5
+            },
+            {
+              "title": "card: external URL destinations, balanced punctuation and unsafe content render correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "small-screen",
+                  "projectName": "small-screen",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 32981,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[SCRUM-28 browser] small-screen: 156.0.8078.49\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:41:41.387Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-825c1684521d14f1c2dc",
+              "file": "core/scrum-28.spec.ts",
+              "line": 96,
+              "column": 9
+            },
+            {
+              "title": "card: link toolbar validates, cancels, edits and unlinks with keyboard controls",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "small-screen",
+                  "projectName": "small-screen",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 23874,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:42:15.139Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-7c663e9e0a0584b1ddac",
+              "file": "core/scrum-28.spec.ts",
+              "line": 116,
+              "column": 9
+            },
+            {
+              "title": "fused-note: external URL destinations, balanced punctuation and unsafe content render correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "small-screen",
+                  "projectName": "small-screen",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 21624,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:42:39.055Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-5cb8595c5559977566b8",
+              "file": "core/scrum-28.spec.ts",
+              "line": 96,
+              "column": 9
+            },
+            {
+              "title": "fused-note: link toolbar validates, cancels, edits and unlinks with keyboard controls",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "small-screen",
+                  "projectName": "small-screen",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 24367,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:43:00.744Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-6ef0b6941e4efebec0f1",
+              "file": "core/scrum-28.spec.ts",
+              "line": 116,
+              "column": 9
+            },
+            {
+              "title": "canvas: external URL destinations, balanced punctuation and unsafe content render correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "small-screen",
+                  "projectName": "small-screen",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 29610,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[SCRUM-28 browser] small-screen: 156.0.8078.49\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:41:48.768Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-d6fc07d834264f612ad4",
+              "file": "core/scrum-28.spec.ts",
+              "line": 96,
+              "column": 9
+            },
+            {
+              "title": "canvas: link toolbar validates, cancels, edits and unlinks with keyboard controls",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "small-screen",
+                  "projectName": "small-screen",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 27012,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:42:19.798Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-d119740b24fa8e3acfe4",
+              "file": "core/scrum-28.spec.ts",
+              "line": 116,
+              "column": 9
+            },
+            {
+              "title": "HTML paste cannot execute handlers or script destinations in the host",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "small-screen",
+                  "projectName": "small-screen",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 19759,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:42:46.886Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-99736aac31c43047a042",
+              "file": "core/scrum-28.spec.ts",
+              "line": 250,
+              "column": 5
+            },
+            {
+              "title": "inline code displays markdown-looking marks and links literally",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "small-screen",
+                  "projectName": "small-screen",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 18924,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-29T18:43:06.697Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b3c405a3e7f860cb4840-7d3e222952ab7f569f71",
+              "file": "core/scrum-28.spec.ts",
+              "line": 270,
+              "column": 5
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-29T18:40:03.393Z",
+    "duration": 203803.09399999998,
+    "expected": 16,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

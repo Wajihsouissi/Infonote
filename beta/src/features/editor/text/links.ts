@@ -33,7 +33,7 @@ export function renderContentWithLinks(content: string, linkify = true): string 
             while (content[cursor + length] === '\x60') length++;
             const fence = '\x60'.repeat(length), end = content.indexOf(fence, cursor + length);
             if (end >= 0 && end > cursor + length) {
-                const code = renderMarks(escapeHtml(content.slice(cursor + length, end)));
+                const code = escapeHtml(content.slice(cursor + length, end));
                 html += protect('<code style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.85em; padding: 0.2em 0.4em; border-radius: 3px; color: #eb5757; background: var(--glass-bg, rgba(135,131,120,0.15));">' + code + '</code>');
                 cursor = end + length; continue;
             }

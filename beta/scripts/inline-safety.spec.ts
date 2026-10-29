@@ -57,6 +57,11 @@ check('bare URLs formatted as bold do not absorb the surrounding markers', () =>
 check('backticks in URL destinations cannot become code spans or change navigation', () => {
     assert.ok(renderContentWithLinks('[Query](https://example.test/?q=`value`)').includes('href="https://example.test/?q=`value`"'));
 });
+check('inline code renders markdown punctuation literally', () => {
+    const html = renderContentWithLinks('`**bold** [site](https://example.test) <img>`');
+    assert.match(html, /<code[^>]*>\*\*bold\*\* \[site\]\(https:\/\/example\.test\) &lt;img&gt;<\/code>/);
+    assert.doesNotMatch(html, /<strong>|<a\b|<img\b/);
+});
 check('typed domains normalize but unsupported schemes and broken inputs are refused', () => {
     assert.equal(normalizeLinkInput('example.test/path'), 'https://example.test/path');
     assert.equal(normalizeLinkInput(' WWW.EXAMPLE.TEST '), 'https://www.example.test/');
